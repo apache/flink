@@ -20,6 +20,7 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -43,6 +44,7 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,156 +52,159 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A wrapper class for the {@link RuntimeContext}.
  *
- * <p>This context only exposes the functionality needed by the
- * pattern process function and iterative condition function.
- * Consequently, state access, accumulators, broadcast variables
- * and the distributed cache are disabled.
+ * <p>This context only exposes the functionality needed by the pattern process function and
+ * iterative condition function. Consequently, state access, accumulators, broadcast variables and
+ * the distributed cache are disabled.
  */
 @Internal
 class CepRuntimeContext implements RuntimeContext {
 
-	private final RuntimeContext runtimeContext;
+    private final RuntimeContext runtimeContext;
 
-	CepRuntimeContext(final RuntimeContext runtimeContext) {
-		this.runtimeContext = checkNotNull(runtimeContext);
-	}
+    CepRuntimeContext(final RuntimeContext runtimeContext) {
+        this.runtimeContext = checkNotNull(runtimeContext);
+    }
 
-	@Override
-	public String getTaskName() {
-		return runtimeContext.getTaskName();
-	}
+    @Override
+    public Optional<JobID> getJobId() {
+        return runtimeContext.getJobId();
+    }
 
-	@Override
-	public MetricGroup getMetricGroup() {
-		return runtimeContext.getMetricGroup();
-	}
+    @Override
+    public String getTaskName() {
+        return runtimeContext.getTaskName();
+    }
 
-	@Override
-	public int getNumberOfParallelSubtasks() {
-		return runtimeContext.getNumberOfParallelSubtasks();
-	}
+    @Override
+    public MetricGroup getMetricGroup() {
+        return runtimeContext.getMetricGroup();
+    }
 
-	@Override
-	public int getMaxNumberOfParallelSubtasks() {
-		return runtimeContext.getMaxNumberOfParallelSubtasks();
-	}
+    @Override
+    public int getNumberOfParallelSubtasks() {
+        return runtimeContext.getNumberOfParallelSubtasks();
+    }
 
-	@Override
-	public int getIndexOfThisSubtask() {
-		return runtimeContext.getIndexOfThisSubtask();
-	}
+    @Override
+    public int getMaxNumberOfParallelSubtasks() {
+        return runtimeContext.getMaxNumberOfParallelSubtasks();
+    }
 
-	@Override
-	public int getAttemptNumber() {
-		return runtimeContext.getAttemptNumber();
-	}
+    @Override
+    public int getIndexOfThisSubtask() {
+        return runtimeContext.getIndexOfThisSubtask();
+    }
 
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return runtimeContext.getTaskNameWithSubtasks();
-	}
+    @Override
+    public int getAttemptNumber() {
+        return runtimeContext.getAttemptNumber();
+    }
 
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return runtimeContext.getExecutionConfig();
-	}
+    @Override
+    public String getTaskNameWithSubtasks() {
+        return runtimeContext.getTaskNameWithSubtasks();
+    }
 
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return runtimeContext.getUserCodeClassLoader();
-	}
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return runtimeContext.getExecutionConfig();
+    }
 
-	@Override
-	public void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
-		runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
-	}
+    @Override
+    public ClassLoader getUserCodeClassLoader() {
+        return runtimeContext.getUserCodeClassLoader();
+    }
 
-	@Override
-	public DistributedCache getDistributedCache() {
-		return runtimeContext.getDistributedCache();
-	}
+    @Override
+    public void registerUserCodeClassLoaderReleaseHookIfAbsent(
+            String releaseHookName, Runnable releaseHook) {
+        runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
+    }
 
-	@Override
-	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName){
-		return runtimeContext.getExternalResourceInfos(resourceName);
-	}
+    @Override
+    public DistributedCache getDistributedCache() {
+        return runtimeContext.getDistributedCache();
+    }
 
-	// -----------------------------------------------------------------------------------
-	// Unsupported operations
-	// -----------------------------------------------------------------------------------
+    @Override
+    public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+        return runtimeContext.getExternalResourceInfos(resourceName);
+    }
 
-	@Override
-	public <V, A extends Serializable> void addAccumulator(
-			final String name,
-			final Accumulator<V, A> accumulator) {
-		throw new UnsupportedOperationException("Accumulators are not supported.");
-	}
+    // -----------------------------------------------------------------------------------
+    // Unsupported operations
+    // -----------------------------------------------------------------------------------
 
-	@Override
-	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(final String name) {
-		throw new UnsupportedOperationException("Accumulators are not supported.");
-	}
+    @Override
+    public <V, A extends Serializable> void addAccumulator(
+            final String name, final Accumulator<V, A> accumulator) {
+        throw new UnsupportedOperationException("Accumulators are not supported.");
+    }
 
-	@Override
-	public IntCounter getIntCounter(final String name) {
-		throw new UnsupportedOperationException("Int counters are not supported.");
-	}
+    @Override
+    public <V, A extends Serializable> Accumulator<V, A> getAccumulator(final String name) {
+        throw new UnsupportedOperationException("Accumulators are not supported.");
+    }
 
-	@Override
-	public LongCounter getLongCounter(final String name) {
-		throw new UnsupportedOperationException("Long counters are not supported.");
-	}
+    @Override
+    public IntCounter getIntCounter(final String name) {
+        throw new UnsupportedOperationException("Int counters are not supported.");
+    }
 
-	@Override
-	public DoubleCounter getDoubleCounter(final String name) {
-		throw new UnsupportedOperationException("Double counters are not supported.");
-	}
+    @Override
+    public LongCounter getLongCounter(final String name) {
+        throw new UnsupportedOperationException("Long counters are not supported.");
+    }
 
-	@Override
-	public Histogram getHistogram(final String name) {
-		throw new UnsupportedOperationException("Histograms are not supported.");
-	}
+    @Override
+    public DoubleCounter getDoubleCounter(final String name) {
+        throw new UnsupportedOperationException("Double counters are not supported.");
+    }
 
-	@Override
-	public boolean hasBroadcastVariable(final String name) {
-		throw new UnsupportedOperationException("Broadcast variables are not supported.");
-	}
+    @Override
+    public Histogram getHistogram(final String name) {
+        throw new UnsupportedOperationException("Histograms are not supported.");
+    }
 
-	@Override
-	public <RT> List<RT> getBroadcastVariable(final String name) {
-		throw new UnsupportedOperationException("Broadcast variables are not supported.");
-	}
+    @Override
+    public boolean hasBroadcastVariable(final String name) {
+        throw new UnsupportedOperationException("Broadcast variables are not supported.");
+    }
 
-	@Override
-	public <T, C> C getBroadcastVariableWithInitializer(
-			final String name,
-			final BroadcastVariableInitializer<T, C> initializer) {
-		throw new UnsupportedOperationException("Broadcast variables are not supported.");
-	}
+    @Override
+    public <RT> List<RT> getBroadcastVariable(final String name) {
+        throw new UnsupportedOperationException("Broadcast variables are not supported.");
+    }
 
-	@Override
-	public <T> ValueState<T> getState(final ValueStateDescriptor<T> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
+    @Override
+    public <T, C> C getBroadcastVariableWithInitializer(
+            final String name, final BroadcastVariableInitializer<T, C> initializer) {
+        throw new UnsupportedOperationException("Broadcast variables are not supported.");
+    }
 
-	@Override
-	public <T> ListState<T> getListState(final ListStateDescriptor<T> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
+    @Override
+    public <T> ValueState<T> getState(final ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 
-	@Override
-	public <T> ReducingState<T> getReducingState(final ReducingStateDescriptor<T> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
+    @Override
+    public <T> ListState<T> getListState(final ListStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 
-	@Override
-	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
-			final AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
+    @Override
+    public <T> ReducingState<T> getReducingState(final ReducingStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 
-	@Override
-	public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
-		throw new UnsupportedOperationException("State is not supported.");
-	}
+    @Override
+    public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+            final AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 }

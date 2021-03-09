@@ -32,97 +32,98 @@ import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A serializer for the {@link FileSourceSplit}.
- */
+/** A serializer for the {@link FileSourceSplit}. */
 @PublicEvolving
 public final class FileSourceSplitSerializer implements SimpleVersionedSerializer<FileSourceSplit> {
 
-	public static final FileSourceSplitSerializer INSTANCE = new FileSourceSplitSerializer();
+    public static final FileSourceSplitSerializer INSTANCE = new FileSourceSplitSerializer();
 
-	private static final ThreadLocal<DataOutputSerializer> SERIALIZER_CACHE =
-			ThreadLocal.withInitial(() -> new DataOutputSerializer(64));
+    private static final ThreadLocal<DataOutputSerializer> SERIALIZER_CACHE =
+            ThreadLocal.withInitial(() -> new DataOutputSerializer(64));
 
-	private static final int VERSION = 1;
+    private static final int VERSION = 1;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
 
-	@Override
-	public byte[] serialize(FileSourceSplit split) throws IOException {
-		checkArgument(split.getClass() == FileSourceSplit.class, "Cannot serialize subclasses of FileSourceSplit");
+    @Override
+    public byte[] serialize(FileSourceSplit split) throws IOException {
+        checkArgument(
+                split.getClass() == FileSourceSplit.class,
+                "Cannot serialize subclasses of FileSourceSplit");
 
-		// optimization: the splits lazily cache their own serialized form
-		if (split.serializedFormCache != null) {
-			return split.serializedFormCache;
-		}
+        // optimization: the splits lazily cache their own serialized form
+        if (split.serializedFormCache != null) {
+            return split.serializedFormCache;
+        }
 
-		final DataOutputSerializer out = SERIALIZER_CACHE.get();
+        final DataOutputSerializer out = SERIALIZER_CACHE.get();
 
-		out.writeUTF(split.splitId());
-		split.path().write(out);
-		out.writeLong(split.offset());
-		out.writeLong(split.length());
-		writeStringArray(out, split.hostnames());
+        out.writeUTF(split.splitId());
+        split.path().write(out);
+        out.writeLong(split.offset());
+        out.writeLong(split.length());
+        writeStringArray(out, split.hostnames());
 
-		final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
-		out.writeBoolean(readerPosition.isPresent());
-		if (readerPosition.isPresent()) {
-			out.writeLong(readerPosition.get().getOffset());
-			out.writeLong(readerPosition.get().getRecordsAfterOffset());
-		}
+        final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
+        out.writeBoolean(readerPosition.isPresent());
+        if (readerPosition.isPresent()) {
+            out.writeLong(readerPosition.get().getOffset());
+            out.writeLong(readerPosition.get().getRecordsAfterOffset());
+        }
 
-		final byte[] result = out.getCopyOfBuffer();
-		out.clear();
+        final byte[] result = out.getCopyOfBuffer();
+        out.clear();
 
-		// optimization: cache the serialized from, so we avoid the byte work during repeated serialization
-		split.serializedFormCache = result;
+        // optimization: cache the serialized from, so we avoid the byte work during repeated
+        // serialization
+        split.serializedFormCache = result;
 
-		return result;
-	}
+        return result;
+    }
 
-	@Override
-	public FileSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-		if (version == 1) {
-			return deserializeV1(serialized);
-		}
-		throw new IOException("Unknown version: " + version);
-	}
+    @Override
+    public FileSourceSplit deserialize(int version, byte[] serialized) throws IOException {
+        if (version == 1) {
+            return deserializeV1(serialized);
+        }
+        throw new IOException("Unknown version: " + version);
+    }
 
-	private static FileSourceSplit deserializeV1(byte[] serialized) throws IOException {
-		final DataInputDeserializer in = new DataInputDeserializer(serialized);
+    private static FileSourceSplit deserializeV1(byte[] serialized) throws IOException {
+        final DataInputDeserializer in = new DataInputDeserializer(serialized);
 
-		final String id = in.readUTF();
-		final Path path = new Path();
-		path.read(in);
-		final long offset = in.readLong();
-		final long len = in.readLong();
-		final String[] hosts = readStringArray(in);
+        final String id = in.readUTF();
+        final Path path = new Path();
+        path.read(in);
+        final long offset = in.readLong();
+        final long len = in.readLong();
+        final String[] hosts = readStringArray(in);
 
-		final CheckpointedPosition readerPosition = in.readBoolean()
-				? new CheckpointedPosition(in.readLong(), in.readLong()) : null;
+        final CheckpointedPosition readerPosition =
+                in.readBoolean() ? new CheckpointedPosition(in.readLong(), in.readLong()) : null;
 
-		// instantiate a new split and cache the serialized form
-		return new FileSourceSplit(id, path, offset, len, hosts, readerPosition, serialized);
-	}
+        // instantiate a new split and cache the serialized form
+        return new FileSourceSplit(id, path, offset, len, hosts, readerPosition, serialized);
+    }
 
-	private static void writeStringArray(DataOutputView out, String[] strings) throws IOException {
-		out.writeInt(strings.length);
-		for (String string : strings) {
-			out.writeUTF(string);
-		}
-	}
+    private static void writeStringArray(DataOutputView out, String[] strings) throws IOException {
+        out.writeInt(strings.length);
+        for (String string : strings) {
+            out.writeUTF(string);
+        }
+    }
 
-	private static String[] readStringArray(DataInputView in) throws IOException {
-		final int len = in.readInt();
-		final String[] strings = new String[len];
-		for (int i = 0; i < len; i++) {
-			strings[i] = in.readUTF();
-		}
-		return strings;
-	}
+    private static String[] readStringArray(DataInputView in) throws IOException {
+        final int len = in.readInt();
+        final String[] strings = new String[len];
+        for (int i = 0; i < len; i++) {
+            strings[i] = in.readUTF();
+        }
+        return strings;
+    }
 }

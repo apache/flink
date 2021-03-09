@@ -27,30 +27,29 @@ import java.net.URL;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Utilities for reading an environment file.
- */
+/** Utilities for reading an environment file. */
 public final class EnvironmentFileUtil {
 
-	private EnvironmentFileUtil() {
-		// private
-	}
+    private EnvironmentFileUtil() {
+        // private
+    }
 
-	public static Environment parseUnmodified(String fileName) throws IOException {
-		final URL url = EnvironmentFileUtil.class.getClassLoader().getResource(fileName);
-		Objects.requireNonNull(url);
-		return Environment.parse(url);
-	}
+    public static Environment parseUnmodified(String fileName) throws IOException {
+        final URL url = EnvironmentFileUtil.class.getClassLoader().getResource(fileName);
+        Objects.requireNonNull(url);
+        return Environment.parse(url);
+    }
 
-	public static Environment parseModified(String fileName, Map<String, String> replaceVars) throws IOException {
-		final URL url = EnvironmentFileUtil.class.getClassLoader().getResource(fileName);
-		Objects.requireNonNull(url);
-		String schema = FileUtils.readFileUtf8(new File(url.getFile()));
+    public static Environment parseModified(String fileName, Map<String, String> replaceVars)
+            throws IOException {
+        final URL url = EnvironmentFileUtil.class.getClassLoader().getResource(fileName);
+        Objects.requireNonNull(url);
+        String schema = FileUtils.readFileUtf8(new File(url.getFile()));
 
-		for (Map.Entry<String, String> replaceVar : replaceVars.entrySet()) {
-			schema = schema.replace(replaceVar.getKey(), replaceVar.getValue());
-		}
+        for (Map.Entry<String, String> replaceVar : replaceVars.entrySet()) {
+            schema = schema.replace(replaceVar.getKey(), replaceVar.getValue());
+        }
 
-		return Environment.parse(schema);
-	}
+        return Environment.parse(schema);
+    }
 }

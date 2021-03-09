@@ -42,73 +42,74 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class AdaptedCallContext implements CallContext {
 
-	private final CallContext originalContext;
+    private final CallContext originalContext;
 
-	private final @Nullable DataType outputDataType;
+    private final @Nullable DataType outputDataType;
 
-	private List<DataType> expectedArguments;
+    private List<DataType> expectedArguments;
 
-	public AdaptedCallContext(CallContext originalContext, @Nullable DataType outputDataType) {
-		this.originalContext = originalContext;
-		this.expectedArguments = originalContext.getArgumentDataTypes();
-		this.outputDataType = outputDataType;
-	}
+    public AdaptedCallContext(CallContext originalContext, @Nullable DataType outputDataType) {
+        this.originalContext = originalContext;
+        this.expectedArguments = originalContext.getArgumentDataTypes();
+        this.outputDataType = outputDataType;
+    }
 
-	public void setExpectedArguments(List<DataType> expectedArguments) {
-		Preconditions.checkArgument(this.expectedArguments.size() == expectedArguments.size());
-		this.expectedArguments = expectedArguments;
-	}
+    public void setExpectedArguments(List<DataType> expectedArguments) {
+        Preconditions.checkArgument(this.expectedArguments.size() == expectedArguments.size());
+        this.expectedArguments = expectedArguments;
+    }
 
-	@Override
-	public DataTypeFactory getDataTypeFactory() {
-		return originalContext.getDataTypeFactory();
-	}
+    @Override
+    public DataTypeFactory getDataTypeFactory() {
+        return originalContext.getDataTypeFactory();
+    }
 
-	@Override
-	public FunctionDefinition getFunctionDefinition() {
-		return originalContext.getFunctionDefinition();
-	}
+    @Override
+    public FunctionDefinition getFunctionDefinition() {
+        return originalContext.getFunctionDefinition();
+    }
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		if (isCasted(pos)) {
-			return false;
-		}
-		return originalContext.isArgumentLiteral(pos);
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        if (isCasted(pos)) {
+            return false;
+        }
+        return originalContext.isArgumentLiteral(pos);
+    }
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		// null remains null regardless of casting
-		return originalContext.isArgumentNull(pos);
-	}
+    @Override
+    public boolean isArgumentNull(int pos) {
+        // null remains null regardless of casting
+        return originalContext.isArgumentNull(pos);
+    }
 
-	@Override
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		if (isCasted(pos)) {
-			return Optional.empty();
-		}
-		return originalContext.getArgumentValue(pos, clazz);
-	}
+    @Override
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        if (isCasted(pos)) {
+            return Optional.empty();
+        }
+        return originalContext.getArgumentValue(pos, clazz);
+    }
 
-	@Override
-	public String getName() {
-		return originalContext.getName();
-	}
+    @Override
+    public String getName() {
+        return originalContext.getName();
+    }
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return expectedArguments;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return expectedArguments;
+    }
 
-	@Override
-	public Optional<DataType> getOutputDataType() {
-		return Optional.ofNullable(outputDataType);
-	}
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return Optional.ofNullable(outputDataType);
+    }
 
-	private boolean isCasted(int pos) {
-		final LogicalType originalType = originalContext.getArgumentDataTypes().get(pos).getLogicalType();
-		final LogicalType expectedType = expectedArguments.get(pos).getLogicalType();
-		return !supportsAvoidingCast(originalType, expectedType);
-	}
+    private boolean isCasted(int pos) {
+        final LogicalType originalType =
+                originalContext.getArgumentDataTypes().get(pos).getLogicalType();
+        final LogicalType expectedType = expectedArguments.get(pos).getLogicalType();
+        return !supportsAvoidingCast(originalType, expectedType);
+    }
 }

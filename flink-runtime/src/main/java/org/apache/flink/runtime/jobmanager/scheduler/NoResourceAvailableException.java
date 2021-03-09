@@ -20,38 +20,37 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.JobException;
 
-/**
- * Indicates resource allocation failures.
- */
+/** Indicates resource allocation failures. */
 public class NoResourceAvailableException extends JobException {
 
-	private static final long serialVersionUID = -2249953165298717803L;
+    private static final long serialVersionUID = -2249953165298717803L;
 
-	private static final String BASE_MESSAGE = "Not enough free slots available to run the job. "
-		+ "You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.";
+    private static final String BASE_MESSAGE =
+            "Not enough free slots available to run the job. "
+                    + "You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.";
 
-	public NoResourceAvailableException() {
-		super(BASE_MESSAGE);
-	}
+    public NoResourceAvailableException() {
+        super(BASE_MESSAGE);
+    }
 
-	public NoResourceAvailableException(String message) {
-		super(message);
-	}
+    public NoResourceAvailableException(String message) {
+        super(message);
+    }
 
-	public NoResourceAvailableException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public NoResourceAvailableException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof NoResourceAvailableException &&
-			getMessage().equals(((NoResourceAvailableException) obj).getMessage());
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof NoResourceAvailableException
+                && getMessage().equals(((NoResourceAvailableException) obj).getMessage());
+    }
 
-	@Override
-	public int hashCode() {
-		return getMessage().hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return getMessage().hashCode();
+    }
 }

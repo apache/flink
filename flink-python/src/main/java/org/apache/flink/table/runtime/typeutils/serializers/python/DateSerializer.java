@@ -30,85 +30,83 @@ import java.io.IOException;
 import java.sql.Date;
 
 /**
- * Takes int instead of long as the serialized value. It not only reduces the length of
- * the serialized value, but also makes the serialized value consistent between
- * the legacy planner and the blink planner.
+ * Takes int instead of long as the serialized value. It not only reduces the length of the
+ * serialized value, but also makes the serialized value consistent between the legacy planner and
+ * the blink planner.
  */
 @Internal
 public class DateSerializer extends TypeSerializerSingleton<Date> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final DateSerializer INSTANCE = new DateSerializer();
+    public static final DateSerializer INSTANCE = new DateSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public Date createInstance() {
-		return new Date(0L);
-	}
+    @Override
+    public Date createInstance() {
+        return new Date(0L);
+    }
 
-	@Override
-	public Date copy(Date from) {
-		if (from == null) {
-			return null;
-		}
-		return new Date(from.getTime());
-	}
+    @Override
+    public Date copy(Date from) {
+        if (from == null) {
+            return null;
+        }
+        return new Date(from.getTime());
+    }
 
-	@Override
-	public Date copy(Date from, Date reuse) {
-		if (from == null) {
-			return null;
-		}
-		reuse.setTime(from.getTime());
-		return reuse;
-	}
+    @Override
+    public Date copy(Date from, Date reuse) {
+        if (from == null) {
+            return null;
+        }
+        reuse.setTime(from.getTime());
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return 4;
-	}
+    @Override
+    public int getLength() {
+        return 4;
+    }
 
-	@Override
-	public void serialize(Date record, DataOutputView target) throws IOException {
-		if (record == null) {
-			throw new IllegalArgumentException("The Date record must not be null.");
-		}
-		target.writeInt(PythonTypeUtils.dateToInternal(record));
-	}
+    @Override
+    public void serialize(Date record, DataOutputView target) throws IOException {
+        if (record == null) {
+            throw new IllegalArgumentException("The Date record must not be null.");
+        }
+        target.writeInt(PythonTypeUtils.dateToInternal(record));
+    }
 
-	@Override
-	public Date deserialize(DataInputView source) throws IOException {
-		return PythonTypeUtils.internalToDate(source.readInt());
-	}
+    @Override
+    public Date deserialize(DataInputView source) throws IOException {
+        return PythonTypeUtils.internalToDate(source.readInt());
+    }
 
-	@Override
-	public Date deserialize(Date reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public Date deserialize(Date reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Date> snapshotConfiguration() {
-		return new DateSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<Date> snapshotConfiguration() {
+        return new DateSerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class DateSerializerSnapshot extends SimpleTypeSerializerSnapshot<Date> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class DateSerializerSnapshot extends SimpleTypeSerializerSnapshot<Date> {
 
-		public DateSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public DateSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

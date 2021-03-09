@@ -24,78 +24,72 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.IntVector;
 
-/**
- * {@link ArrowFieldWriter} for Int.
- */
+/** {@link ArrowFieldWriter} for Int. */
 @Internal
 public abstract class IntWriter<T> extends ArrowFieldWriter<T> {
 
-	public static IntWriter<RowData> forRow(IntVector intVector) {
-		return new IntWriterForRow(intVector);
-	}
+    public static IntWriter<RowData> forRow(IntVector intVector) {
+        return new IntWriterForRow(intVector);
+    }
 
-	public static IntWriter<ArrayData> forArray(IntVector intVector) {
-		return new IntWriterForArray(intVector);
-	}
+    public static IntWriter<ArrayData> forArray(IntVector intVector) {
+        return new IntWriterForArray(intVector);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	private IntWriter(IntVector intVector) {
-		super(intVector);
-	}
+    private IntWriter(IntVector intVector) {
+        super(intVector);
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract int readInt(T in, int ordinal);
+    abstract int readInt(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (isNullAt(in, ordinal)) {
-			((IntVector) getValueVector()).setNull(getCount());
-		} else {
-			((IntVector) getValueVector()).setSafe(getCount(), readInt(in, ordinal));
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((IntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((IntVector) getValueVector()).setSafe(getCount(), readInt(in, ordinal));
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link IntWriter} for {@link RowData} input.
-	 */
-	public static final class IntWriterForRow extends IntWriter<RowData> {
+    /** {@link IntWriter} for {@link RowData} input. */
+    public static final class IntWriterForRow extends IntWriter<RowData> {
 
-		private IntWriterForRow(IntVector intVector) {
-			super(intVector);
-		}
+        private IntWriterForRow(IntVector intVector) {
+            super(intVector);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		int readInt(RowData in, int ordinal) {
-			return in.getInt(ordinal);
-		}
-	}
+        @Override
+        int readInt(RowData in, int ordinal) {
+            return in.getInt(ordinal);
+        }
+    }
 
-	/**
-	 * {@link IntWriter} for {@link ArrayData} input.
-	 */
-	public static final class IntWriterForArray extends IntWriter<ArrayData> {
+    /** {@link IntWriter} for {@link ArrayData} input. */
+    public static final class IntWriterForArray extends IntWriter<ArrayData> {
 
-		private IntWriterForArray(IntVector intVector) {
-			super(intVector);
-		}
+        private IntWriterForArray(IntVector intVector) {
+            super(intVector);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		int readInt(ArrayData in, int ordinal) {
-			return in.getInt(ordinal);
-		}
-	}
+        @Override
+        int readInt(ArrayData in, int ordinal) {
+            return in.getInt(ordinal);
+        }
+    }
 }

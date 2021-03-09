@@ -41,58 +41,66 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalTyp
 @Internal
 public final class VaryingStringTypeStrategy implements TypeStrategy {
 
-	private final TypeStrategy initialStrategy;
+    private final TypeStrategy initialStrategy;
 
-	public VaryingStringTypeStrategy(TypeStrategy initialStrategy) {
-		this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
-	}
+    public VaryingStringTypeStrategy(TypeStrategy initialStrategy) {
+        this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		return initialStrategy.inferType(callContext)
-			.map(inferredDataType -> {
-				final LogicalType inferredType = inferredDataType.getLogicalType();
-				switch (inferredType.getTypeRoot()) {
-					case CHAR: {
-						final int length = getLength(inferredType);
-						final LogicalType varyingType;
-						if (length == 0) {
-							varyingType = VarCharType.ofEmptyLiteral();
-						} else {
-							varyingType = new VarCharType(inferredType.isNullable(), length);
-						}
-						return replaceLogicalType(inferredDataType, varyingType);
-					}
-					case BINARY: {
-						final int length = getLength(inferredType);
-						final LogicalType varyingType;
-						if (length == 0) {
-							varyingType = VarBinaryType.ofEmptyLiteral();
-						} else {
-							varyingType = new VarBinaryType(inferredType.isNullable(), length);
-						}
-						return replaceLogicalType(inferredDataType, varyingType);
-					}
-					default:
-						return inferredDataType;
-				}
-			});
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        return initialStrategy
+                .inferType(callContext)
+                .map(
+                        inferredDataType -> {
+                            final LogicalType inferredType = inferredDataType.getLogicalType();
+                            switch (inferredType.getTypeRoot()) {
+                                case CHAR:
+                                    {
+                                        final int length = getLength(inferredType);
+                                        final LogicalType varyingType;
+                                        if (length == 0) {
+                                            varyingType = VarCharType.ofEmptyLiteral();
+                                        } else {
+                                            varyingType =
+                                                    new VarCharType(
+                                                            inferredType.isNullable(), length);
+                                        }
+                                        return replaceLogicalType(inferredDataType, varyingType);
+                                    }
+                                case BINARY:
+                                    {
+                                        final int length = getLength(inferredType);
+                                        final LogicalType varyingType;
+                                        if (length == 0) {
+                                            varyingType = VarBinaryType.ofEmptyLiteral();
+                                        } else {
+                                            varyingType =
+                                                    new VarBinaryType(
+                                                            inferredType.isNullable(), length);
+                                        }
+                                        return replaceLogicalType(inferredDataType, varyingType);
+                                    }
+                                default:
+                                    return inferredDataType;
+                            }
+                        });
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		VaryingStringTypeStrategy that = (VaryingStringTypeStrategy) o;
-		return initialStrategy.equals(that.initialStrategy);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        VaryingStringTypeStrategy that = (VaryingStringTypeStrategy) o;
+        return initialStrategy.equals(that.initialStrategy);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(initialStrategy);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(initialStrategy);
+    }
 }

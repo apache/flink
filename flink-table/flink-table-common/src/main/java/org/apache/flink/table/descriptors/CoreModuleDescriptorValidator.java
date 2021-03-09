@@ -18,15 +18,13 @@
 
 package org.apache.flink.table.descriptors;
 
-/**
- * Validator for {@link CoreModuleDescriptor}.
- */
+/** Validator for {@link CoreModuleDescriptor}. */
 public class CoreModuleDescriptorValidator extends ModuleDescriptorValidator {
-	public static final String MODULE_TYPE_CORE = "core";
+    public static final String MODULE_TYPE_CORE = "core";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		properties.validateValue(MODULE_TYPE, MODULE_TYPE_CORE, false);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        super.validate(properties);
+        properties.validateValue(MODULE_TYPE, MODULE_TYPE_CORE, false);
+    }
 }

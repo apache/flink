@@ -25,31 +25,31 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_FILE_FORMAT;
 
-/**
- * ALTER TABLE DDL to change a Hive table/partition's file format.
- */
+/** ALTER TABLE DDL to change a Hive table/partition's file format. */
 public class SqlAlterHiveTableFileFormat extends SqlAlterHiveTable {
 
-	private final SqlIdentifier format;
+    private final SqlIdentifier format;
 
-	public SqlAlterHiveTableFileFormat(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partSpec, SqlIdentifier format) {
-		super(CHANGE_FILE_FORMAT, pos, tableName, partSpec, createPropList(format));
-		this.format = format;
-	}
+    public SqlAlterHiveTableFileFormat(
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partSpec, SqlIdentifier format) {
+        super(CHANGE_FILE_FORMAT, pos, tableName, partSpec, createPropList(format));
+        this.format = format;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET FILEFORMAT");
-		format.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET FILEFORMAT");
+        format.unparse(writer, leftPrec, rightPrec);
+    }
 
-	private static SqlNodeList createPropList(SqlIdentifier format) {
-		SqlNodeList res = new SqlNodeList(format.getParserPosition());
-		res.add(HiveDDLUtils.toTableOption(
-				SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT,
-				format.getSimple(),
-				format.getParserPosition()));
-		return res;
-	}
+    private static SqlNodeList createPropList(SqlIdentifier format) {
+        SqlNodeList res = new SqlNodeList(format.getParserPosition());
+        res.add(
+                HiveDDLUtils.toTableOption(
+                        SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT,
+                        format.getSimple(),
+                        format.getParserPosition()));
+        return res;
+    }
 }

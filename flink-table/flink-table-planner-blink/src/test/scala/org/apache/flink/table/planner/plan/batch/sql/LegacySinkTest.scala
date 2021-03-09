@@ -39,7 +39,7 @@ class LegacySinkTest extends TableTestBase {
   def testSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val sink = util.createCollectTableSink(Array("a"), Array(LONG))
-    util.verifyPlanInsert(table, sink, "sink")
+    util.verifyRelPlanInsert(table, sink, "sink")
   }
 
   @Test
@@ -60,6 +60,6 @@ class LegacySinkTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
   }
 }

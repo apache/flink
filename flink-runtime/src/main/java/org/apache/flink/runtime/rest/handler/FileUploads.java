@@ -38,62 +38,62 @@ import java.util.Collections;
 /**
  * A container for uploaded files.
  *
- * <p>Implementation note: The constructor also accepts directories to ensure that the upload directories are cleaned up.
- * For convenience during testing it also accepts files directly.
+ * <p>Implementation note: The constructor also accepts directories to ensure that the upload
+ * directories are cleaned up. For convenience during testing it also accepts files directly.
  */
 public final class FileUploads implements AutoCloseable {
-	@Nullable
-	private final Path uploadDirectory;
+    @Nullable private final Path uploadDirectory;
 
-	public static final FileUploads EMPTY = new FileUploads();
+    public static final FileUploads EMPTY = new FileUploads();
 
-	private FileUploads() {
-		this.uploadDirectory = null;
-	}
+    private FileUploads() {
+        this.uploadDirectory = null;
+    }
 
-	public FileUploads(@Nonnull Path uploadDirectory) {
-		Preconditions.checkNotNull(uploadDirectory, "UploadDirectory must not be null.");
-		Preconditions.checkArgument(Files.exists(uploadDirectory), "UploadDirectory does not exist.");
-		Preconditions.checkArgument(Files.isDirectory(uploadDirectory), "UploadDirectory is not a directory.");
-		Preconditions.checkArgument(uploadDirectory.isAbsolute(), "UploadDirectory is not absolute.");
-		this.uploadDirectory = uploadDirectory;
-	}
+    public FileUploads(@Nonnull Path uploadDirectory) {
+        Preconditions.checkNotNull(uploadDirectory, "UploadDirectory must not be null.");
+        Preconditions.checkArgument(
+                Files.exists(uploadDirectory), "UploadDirectory does not exist.");
+        Preconditions.checkArgument(
+                Files.isDirectory(uploadDirectory), "UploadDirectory is not a directory.");
+        Preconditions.checkArgument(
+                uploadDirectory.isAbsolute(), "UploadDirectory is not absolute.");
+        this.uploadDirectory = uploadDirectory;
+    }
 
-	public Collection<File> getUploadedFiles() throws IOException {
-		if (uploadDirectory == null) {
-			return Collections.emptyList();
-		}
+    public Collection<File> getUploadedFiles() throws IOException {
+        if (uploadDirectory == null) {
+            return Collections.emptyList();
+        }
 
-		FileAdderVisitor visitor = new FileAdderVisitor();
-		Files.walkFileTree(uploadDirectory, visitor);
+        FileAdderVisitor visitor = new FileAdderVisitor();
+        Files.walkFileTree(uploadDirectory, visitor);
 
-		return Collections.unmodifiableCollection(visitor.getContainedFiles());
-	}
+        return Collections.unmodifiableCollection(visitor.getContainedFiles());
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (uploadDirectory != null) {
-			FileUtils.deleteDirectory(uploadDirectory.toFile());
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (uploadDirectory != null) {
+            FileUtils.deleteDirectory(uploadDirectory.toFile());
+        }
+    }
 
-	private static final class FileAdderVisitor extends SimpleFileVisitor<Path> {
+    private static final class FileAdderVisitor extends SimpleFileVisitor<Path> {
 
-		private final Collection<File> files = new ArrayList<>(4);
+        private final Collection<File> files = new ArrayList<>(4);
 
-		Collection<File> getContainedFiles() {
-			return files;
-		}
+        Collection<File> getContainedFiles() {
+            return files;
+        }
 
-		FileAdderVisitor() {
-		}
+        FileAdderVisitor() {}
 
-		@Override
-		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-			FileVisitResult result = super.visitFile(file, attrs);
-			files.add(file.toFile());
-			return result;
-		}
-	}
-
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            FileVisitResult result = super.visitFile(file, attrs);
+            files.add(file.toFile());
+            return result;
+        }
+    }
 }

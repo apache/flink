@@ -31,8 +31,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 @Internal
 public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
 
-	/**
-	 * Creates a RAW type such as {@code RAW('org.my.Class', 'sW3Djsds...')}.
-	 */
-	RelDataType createRawType(String className, String serializerString);
+    /** Creates a RAW type such as {@code RAW('org.my.Class', 'sW3Djsds...')}. */
+    RelDataType createRawType(String className, String serializerString);
 }

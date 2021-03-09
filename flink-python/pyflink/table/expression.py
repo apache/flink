@@ -578,6 +578,22 @@ class Expression(Generic[T]):
         """
         return _ternary_op("then")(self, if_true, if_false)
 
+    def if_null(self, null_replacement) -> 'Expression':
+        """
+        Returns null_replacement if the given expression is null; otherwise the expression is
+        returned.
+
+        This function returns a data type that is very specific in terms of nullability. The
+        returned type is the common type of both arguments but only nullable if the
+        null_replacement is nullable.
+
+        The function allows to pass nullable columns into a function or table that is declared
+        with a NOT NULL constraint.
+
+        e.g. col("nullable_column").if_null(5) returns never null.
+        """
+        return _binary_op("ifNull")(self, null_replacement)
+
     @property
     def is_null(self) -> 'Expression[bool]':
         """

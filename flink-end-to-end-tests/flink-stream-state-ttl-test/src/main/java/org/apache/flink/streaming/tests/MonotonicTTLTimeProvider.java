@@ -29,79 +29,81 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A stub implementation of a {@link TtlTimeProvider} which guarantees that
- * processing time increases monotonically.
+ * A stub implementation of a {@link TtlTimeProvider} which guarantees that processing time
+ * increases monotonically.
  */
 @NotThreadSafe
 final class MonotonicTTLTimeProvider implements TtlTimeProvider, Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/*
-	 * The following variables are static because the whole TTLTimeProvider will go
-	 * through serialization and, eventually, the state backend and the task executing
-	 * the TtlVerifyUpdateFunction will have different instances of it.
-	 *
-	 * If these were not static, then the TtlVerifyUpdateFunction would e.g. freeze
-	 * the time, but the backend would not be notified about it, resulting in inconsistent
-	 * state.
-	 *
-	 * We have to add synchronization because the time provider is also accessed concurrently
-	 * from RocksDB compaction filter threads.
-	 */
+    /*
+     * The following variables are static because the whole TTLTimeProvider will go
+     * through serialization and, eventually, the state backend and the task executing
+     * the TtlVerifyUpdateFunction will have different instances of it.
+     *
+     * If these were not static, then the TtlVerifyUpdateFunction would e.g. freeze
+     * the time, but the backend would not be notified about it, resulting in inconsistent
+     * state.
+     *
+     * We have to add synchronization because the time provider is also accessed concurrently
+     * from RocksDB compaction filter threads.
+     */
 
-	private static boolean timeIsFrozen = false;
+    private static boolean timeIsFrozen = false;
 
-	private static long lastReturnedProcessingTime = Long.MIN_VALUE;
+    private static long lastReturnedProcessingTime = Long.MIN_VALUE;
 
-	private static final Object lock = new Object();
+    private static final Object lock = new Object();
 
-	@GuardedBy("lock")
-	static <T, E extends Throwable> T doWithFrozenTime(FunctionWithException<Long, T, E> action) throws E {
-		synchronized (lock) {
-			final long timestampBeforeUpdate = freeze();
-			T result = action.apply(timestampBeforeUpdate);
-			final long timestampAfterUpdate = unfreezeTime();
+    @GuardedBy("lock")
+    static <T, E extends Throwable> T doWithFrozenTime(FunctionWithException<Long, T, E> action)
+            throws E {
+        synchronized (lock) {
+            final long timestampBeforeUpdate = freeze();
+            T result = action.apply(timestampBeforeUpdate);
+            final long timestampAfterUpdate = unfreezeTime();
 
-			checkState(timestampAfterUpdate == timestampBeforeUpdate,
-				"Timestamps before and after the update do not match.");
-			return result;
-		}
-	}
+            checkState(
+                    timestampAfterUpdate == timestampBeforeUpdate,
+                    "Timestamps before and after the update do not match.");
+            return result;
+        }
+    }
 
-	private static long freeze() {
-		if (!timeIsFrozen || lastReturnedProcessingTime == Long.MIN_VALUE) {
-			timeIsFrozen = true;
-			return getCurrentTimestamp();
-		} else {
-			return lastReturnedProcessingTime;
-		}
-	}
+    private static long freeze() {
+        if (!timeIsFrozen || lastReturnedProcessingTime == Long.MIN_VALUE) {
+            timeIsFrozen = true;
+            return getCurrentTimestamp();
+        } else {
+            return lastReturnedProcessingTime;
+        }
+    }
 
-	@Override
-	@GuardedBy("lock")
-	public long currentTimestamp() {
-		synchronized (lock) {
-			if (timeIsFrozen && lastReturnedProcessingTime != Long.MIN_VALUE) {
-				return lastReturnedProcessingTime;
-			}
-			return getCurrentTimestamp();
-		}
-	}
+    @Override
+    @GuardedBy("lock")
+    public long currentTimestamp() {
+        synchronized (lock) {
+            if (timeIsFrozen && lastReturnedProcessingTime != Long.MIN_VALUE) {
+                return lastReturnedProcessingTime;
+            }
+            return getCurrentTimestamp();
+        }
+    }
 
-	@GuardedBy("lock")
-	private static long getCurrentTimestamp() {
-		final long currentProcessingTime = System.currentTimeMillis();
-		if (currentProcessingTime < lastReturnedProcessingTime) {
-			return lastReturnedProcessingTime;
-		}
+    @GuardedBy("lock")
+    private static long getCurrentTimestamp() {
+        final long currentProcessingTime = System.currentTimeMillis();
+        if (currentProcessingTime < lastReturnedProcessingTime) {
+            return lastReturnedProcessingTime;
+        }
 
-		lastReturnedProcessingTime = currentProcessingTime;
-		return lastReturnedProcessingTime;
-	}
+        lastReturnedProcessingTime = currentProcessingTime;
+        return lastReturnedProcessingTime;
+    }
 
-	private static long unfreezeTime() {
-		timeIsFrozen = false;
-		return lastReturnedProcessingTime;
-	}
+    private static long unfreezeTime() {
+        timeIsFrozen = false;
+        return lastReturnedProcessingTime;
+    }
 }

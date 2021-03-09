@@ -28,29 +28,29 @@ import java.io.IOException;
  * A simple collector that collects Key and Value and writes them into a given <code>Writer</code>.
  */
 final class WriterCollector<E> implements Collector<E> {
-	private final ChannelWriterOutputView output; // the writer to write to
-	private final TypeSerializer<E> serializer;
+    private final ChannelWriterOutputView output; // the writer to write to
+    private final TypeSerializer<E> serializer;
 
-	/**
-	 * Creates a new writer collector that writes to the given writer.
-	 *
-	 * @param output The writer output view to write to.
-	 */
-	WriterCollector(ChannelWriterOutputView output, TypeSerializer<E> serializer) {
-		this.output = output;
-		this.serializer = serializer;
-	}
+    /**
+     * Creates a new writer collector that writes to the given writer.
+     *
+     * @param output The writer output view to write to.
+     */
+    WriterCollector(ChannelWriterOutputView output, TypeSerializer<E> serializer) {
+        this.output = output;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void collect(E record) {
-		try {
-			this.serializer.serialize(record, this.output);
-		} catch (IOException ioex) {
-			throw new RuntimeException("An error occurred forwarding the record to the writer.", ioex);
-		}
-	}
+    @Override
+    public void collect(E record) {
+        try {
+            this.serializer.serialize(record, this.output);
+        } catch (IOException ioex) {
+            throw new RuntimeException(
+                    "An error occurred forwarding the record to the writer.", ioex);
+        }
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

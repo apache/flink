@@ -27,5 +27,5 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
  * @param <T> The type of the elements that can be emitted.
  */
 public interface WatermarkGaugeExposingOutput<T> extends Output<T> {
-	Gauge<Long> getWatermarkGauge();
+    Gauge<Long> getWatermarkGauge();
 }

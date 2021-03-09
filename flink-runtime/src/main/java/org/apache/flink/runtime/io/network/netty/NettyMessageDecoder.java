@@ -23,70 +23,65 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 
 import javax.annotation.Nullable;
 
-/**
- * Base class of decoders for specified netty messages.
- */
+/** Base class of decoders for specified netty messages. */
 abstract class NettyMessageDecoder implements AutoCloseable {
 
-	/** ID of the message under decoding. */
-	protected int msgId;
+    /** ID of the message under decoding. */
+    protected int msgId;
 
-	/** Length of the message under decoding. */
-	protected int messageLength;
+    /** Length of the message under decoding. */
+    protected int messageLength;
 
-	/**
-	 * The result of decoding one {@link ByteBuf}.
-	 */
-	static class DecodingResult {
-		final static DecodingResult NOT_FINISHED = new DecodingResult(false, null);
+    /** The result of decoding one {@link ByteBuf}. */
+    static class DecodingResult {
+        static final DecodingResult NOT_FINISHED = new DecodingResult(false, null);
 
-		private final boolean finished;
+        private final boolean finished;
 
-		@Nullable
-		private final NettyMessage message;
+        @Nullable private final NettyMessage message;
 
-		private DecodingResult(boolean finished, @Nullable NettyMessage message) {
-			this.finished = finished;
-			this.message = message;
-		}
+        private DecodingResult(boolean finished, @Nullable NettyMessage message) {
+            this.finished = finished;
+            this.message = message;
+        }
 
-		public boolean isFinished() {
-			return finished;
-		}
+        public boolean isFinished() {
+            return finished;
+        }
 
-		@Nullable
-		public NettyMessage getMessage() {
-			return message;
-		}
+        @Nullable
+        public NettyMessage getMessage() {
+            return message;
+        }
 
-		static DecodingResult fullMessage(NettyMessage message) {
-			return new DecodingResult(true, message);
-		}
-	}
+        static DecodingResult fullMessage(NettyMessage message) {
+            return new DecodingResult(true, message);
+        }
+    }
 
-	/**
-	 * Notifies that the underlying channel becomes active.
-	 *
-	 * @param ctx The context for the callback.
-	 */
-	abstract void onChannelActive(ChannelHandlerContext ctx);
+    /**
+     * Notifies that the underlying channel becomes active.
+     *
+     * @param ctx The context for the callback.
+     */
+    abstract void onChannelActive(ChannelHandlerContext ctx);
 
-	/**
-	 * Notifies that a new message is to be decoded.
-	 *
-	 * @param msgId The type of the message to be decoded.
-	 * @param messageLength The length of the message to be decoded.
-	 */
-	void onNewMessageReceived(int msgId, int messageLength) {
-		this.msgId = msgId;
-		this.messageLength = messageLength;
-	}
+    /**
+     * Notifies that a new message is to be decoded.
+     *
+     * @param msgId The type of the message to be decoded.
+     * @param messageLength The length of the message to be decoded.
+     */
+    void onNewMessageReceived(int msgId, int messageLength) {
+        this.msgId = msgId;
+        this.messageLength = messageLength;
+    }
 
-	/**
-	 * Notifies that more data is received to continue decoding.
-	 *
-	 * @param data The data received.
-	 * @return The result of decoding received data.
-	 */
-	abstract DecodingResult onChannelRead(ByteBuf data) throws Exception;
+    /**
+     * Notifies that more data is received to continue decoding.
+     *
+     * @param data The data received.
+     * @return The result of decoding received data.
+     */
+    abstract DecodingResult onChannelRead(ByteBuf data) throws Exception;
 }

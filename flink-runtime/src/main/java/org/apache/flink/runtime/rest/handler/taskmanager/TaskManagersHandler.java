@@ -35,29 +35,31 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Returns an overview over all registered TaskManagers of the cluster.
- */
-public class TaskManagersHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
+/** Returns an overview over all registered TaskManagers of the cluster. */
+public class TaskManagersHandler
+        extends AbstractResourceManagerHandler<
+                RestfulGateway, EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
 
-	public TaskManagersHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> messageHeaders,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			resourceManagerGatewayRetriever);
-	}
+    public TaskManagersHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters>
+                    messageHeaders,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                resourceManagerGatewayRetriever);
+    }
 
-	@Override
-	protected CompletableFuture<TaskManagersInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
-		return gateway
-			.requestTaskManagerInfo(timeout)
-			.thenApply(TaskManagersInfo::new);
-	}
+    @Override
+    protected CompletableFuture<TaskManagersInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull ResourceManagerGateway gateway)
+            throws RestHandlerException {
+        return gateway.requestTaskManagerInfo(timeout).thenApply(TaskManagersInfo::new);
+    }
 }

@@ -30,18 +30,18 @@ import org.apache.flink.table.api.TableEnvironment;
  * {@link Model} which fits these samples.
  *
  * @param <E> class type of the Estimator implementation itself, used by {@link
- *            org.apache.flink.ml.api.misc.param.WithParams}.
+ *     org.apache.flink.ml.api.misc.param.WithParams}.
  * @param <M> class type of the {@link Model} this Estimator produces.
  */
 @PublicEvolving
 public interface Estimator<E extends Estimator<E, M>, M extends Model<M>> extends PipelineStage<E> {
 
-	/**
-	 * Train and produce a {@link Model} which fits the records in the given {@link Table}.
-	 *
-	 * @param tEnv  the table environment to which the input table is bound.
-	 * @param input the table with records to train the Model.
-	 * @return a model trained to fit on the given Table.
-	 */
-	M fit(TableEnvironment tEnv, Table input);
+    /**
+     * Train and produce a {@link Model} which fits the records in the given {@link Table}.
+     *
+     * @param tEnv the table environment to which the input table is bound.
+     * @param input the table with records to train the Model.
+     * @return a model trained to fit on the given Table.
+     */
+    M fit(TableEnvironment tEnv, Table input);
 }

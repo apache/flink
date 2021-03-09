@@ -31,63 +31,62 @@ import java.util.Random;
 
 class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
 
-	protected final Output<StreamRecord<T>>[] outputs;
-	private final Random random = new XORShiftRandom();
-	private final StreamStatusProvider streamStatusProvider;
-	private final WatermarkGauge watermarkGauge = new WatermarkGauge();
+    protected final Output<StreamRecord<T>>[] outputs;
+    private final Random random = new XORShiftRandom();
+    private final StreamStatusProvider streamStatusProvider;
+    private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-	public BroadcastingOutputCollector(
-			Output<StreamRecord<T>>[] outputs,
-			StreamStatusProvider streamStatusProvider) {
-		this.outputs = outputs;
-		this.streamStatusProvider = streamStatusProvider;
-	}
+    public BroadcastingOutputCollector(
+            Output<StreamRecord<T>>[] outputs, StreamStatusProvider streamStatusProvider) {
+        this.outputs = outputs;
+        this.streamStatusProvider = streamStatusProvider;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-		if (streamStatusProvider.getStreamStatus().isActive()) {
-			for (Output<StreamRecord<T>> output : outputs) {
-				output.emitWatermark(mark);
-			}
-		}
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+        if (streamStatusProvider.getStreamStatus().isActive()) {
+            for (Output<StreamRecord<T>> output : outputs) {
+                output.emitWatermark(mark);
+            }
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		if (outputs.length <= 0) {
-			// ignore
-		} else if (outputs.length == 1) {
-			outputs[0].emitLatencyMarker(latencyMarker);
-		} else {
-			// randomly select an output
-			outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
-		}
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        if (outputs.length <= 0) {
+            // ignore
+        } else if (outputs.length == 1) {
+            outputs[0].emitLatencyMarker(latencyMarker);
+        } else {
+            // randomly select an output
+            outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
+        }
+    }
 
-	@Override
-	public Gauge<Long> getWatermarkGauge() {
-		return watermarkGauge;
-	}
+    @Override
+    public Gauge<Long> getWatermarkGauge() {
+        return watermarkGauge;
+    }
 
-	@Override
-	public void collect(StreamRecord<T> record) {
-		for (Output<StreamRecord<T>> output : outputs) {
-			output.collect(record);
-		}
-	}
+    @Override
+    public void collect(StreamRecord<T> record) {
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.collect(record);
+        }
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		for (Output<StreamRecord<T>> output : outputs) {
-			output.collect(outputTag, record);
-		}
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.collect(outputTag, record);
+        }
+    }
 
-	@Override
-	public void close() {
-		for (Output<StreamRecord<T>> output : outputs) {
-			output.close();
-		}
-	}
+    @Override
+    public void close() {
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.close();
+        }
+    }
 }

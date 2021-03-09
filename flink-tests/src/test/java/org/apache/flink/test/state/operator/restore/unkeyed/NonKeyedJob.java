@@ -39,156 +39,168 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Savepoint generator to create the savepoint used by the {@link AbstractNonKeyedOperatorRestoreTestBase}.
- * Switch to specific version branches and run this job to create savepoints of different Flink versions.
+ * Savepoint generator to create the savepoint used by the {@link
+ * AbstractNonKeyedOperatorRestoreTestBase}. Switch to specific version branches and run this job to
+ * create savepoints of different Flink versions.
  *
- * <p>The job should be cancelled manually through the REST API using the cancel-with-savepoint operation.
+ * <p>The job should be cancelled manually through the REST API using the cancel-with-savepoint
+ * operation.
  */
 public class NonKeyedJob {
 
-	public static void main(String[] args) throws Exception {
-		ParameterTool pt = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        ParameterTool pt = ParameterTool.fromArgs(args);
 
-		String savepointsPath = pt.getRequired("savepoint-path");
+        String savepointsPath = pt.getRequired("savepoint-path");
 
-		Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
+        Configuration config = new Configuration();
+        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-		env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-		env.setRestartStrategy(RestartStrategies.noRestart());
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
+        env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
+        env.setRestartStrategy(RestartStrategies.noRestart());
 
-		env.setStateBackend(new MemoryStateBackend());
+        env.setStateBackend(new MemoryStateBackend());
 
-		/**
-		 * Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
-		 */
-		DataStream<Integer> source = createSource(env, ExecutionMode.GENERATE);
+        /** Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3) */
+        DataStream<Integer> source = createSource(env, ExecutionMode.GENERATE);
 
-		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.GENERATE, source);
-		first.startNewChain();
+        SingleOutputStreamOperator<Integer> first =
+                createFirstStatefulMap(ExecutionMode.GENERATE, source);
+        first.startNewChain();
 
-		SingleOutputStreamOperator<Integer> second = createSecondStatefulMap(ExecutionMode.GENERATE, first);
-		second.startNewChain();
+        SingleOutputStreamOperator<Integer> second =
+                createSecondStatefulMap(ExecutionMode.GENERATE, first);
+        second.startNewChain();
 
-		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
+        SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
 
-		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.GENERATE, stateless);
+        SingleOutputStreamOperator<Integer> third =
+                createThirdStatefulMap(ExecutionMode.GENERATE, stateless);
 
-		env.execute("job");
-	}
+        env.execute("job");
+    }
 
-	public static SingleOutputStreamOperator<Integer> createSource(StreamExecutionEnvironment env, ExecutionMode mode) {
-		return env.addSource(new IntegerSource(mode))
-			.setParallelism(4);
-	}
+    public static SingleOutputStreamOperator<Integer> createSource(
+            StreamExecutionEnvironment env, ExecutionMode mode) {
+        return env.addSource(new IntegerSource(mode)).setParallelism(4);
+    }
 
-	public static SingleOutputStreamOperator<Integer> createFirstStatefulMap(ExecutionMode mode, DataStream<Integer> input) {
-		return input
-			.map(new StatefulStringStoringMap(mode, "first"))
-			.setParallelism(4)
-			.uid("first");
-	}
+    public static SingleOutputStreamOperator<Integer> createFirstStatefulMap(
+            ExecutionMode mode, DataStream<Integer> input) {
+        return input.map(new StatefulStringStoringMap(mode, "first"))
+                .setParallelism(4)
+                .uid("first");
+    }
 
-	public static SingleOutputStreamOperator<Integer> createSecondStatefulMap(ExecutionMode mode, DataStream<Integer> input) {
-		return input
-			.map(new StatefulStringStoringMap(mode, "second"))
-			.setParallelism(4)
-			.uid("second");
-	}
+    public static SingleOutputStreamOperator<Integer> createSecondStatefulMap(
+            ExecutionMode mode, DataStream<Integer> input) {
+        return input.map(new StatefulStringStoringMap(mode, "second"))
+                .setParallelism(4)
+                .uid("second");
+    }
 
-	public static SingleOutputStreamOperator<Integer> createThirdStatefulMap(ExecutionMode mode, DataStream<Integer> input) {
-		SingleOutputStreamOperator<Integer> map = input
-			.map(new StatefulStringStoringMap(mode, "third"))
-			.setParallelism(4)
-			.uid("third");
+    public static SingleOutputStreamOperator<Integer> createThirdStatefulMap(
+            ExecutionMode mode, DataStream<Integer> input) {
+        SingleOutputStreamOperator<Integer> map =
+                input.map(new StatefulStringStoringMap(mode, "third"))
+                        .setParallelism(4)
+                        .uid("third");
 
-		return map;
-	}
+        return map;
+    }
 
-	public static SingleOutputStreamOperator<Integer> createStatelessMap(DataStream<Integer> input) {
-		return input.map(new NoOpMapFunction())
-			.setParallelism(4);
-	}
+    public static SingleOutputStreamOperator<Integer> createStatelessMap(
+            DataStream<Integer> input) {
+        return input.map(new NoOpMapFunction()).setParallelism(4);
+    }
 
-	private static class StatefulStringStoringMap extends RichMapFunction<Integer, Integer> implements ListCheckpointed<String> {
+    private static class StatefulStringStoringMap extends RichMapFunction<Integer, Integer>
+            implements ListCheckpointed<String> {
 
-		private static final long serialVersionUID = 6092985758425330235L;
-		private final ExecutionMode mode;
-		private final String valueToStore;
+        private static final long serialVersionUID = 6092985758425330235L;
+        private final ExecutionMode mode;
+        private final String valueToStore;
 
-		private StatefulStringStoringMap(ExecutionMode mode, String valueToStore) {
-			this.mode = mode;
-			this.valueToStore = valueToStore;
-		}
+        private StatefulStringStoringMap(ExecutionMode mode, String valueToStore) {
+            this.mode = mode;
+            this.valueToStore = valueToStore;
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
 
-		@Override
-		public List<String> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Arrays.asList(valueToStore + getRuntimeContext().getIndexOfThisSubtask());
-		}
+        @Override
+        public List<String> snapshotState(long checkpointId, long timestamp) throws Exception {
+            return Arrays.asList(valueToStore + getRuntimeContext().getIndexOfThisSubtask());
+        }
 
-		@Override
-		public void restoreState(List<String> state) throws Exception {
-			switch (mode) {
-				case GENERATE:
-					break;
-				case MIGRATE:
-				case RESTORE:
-					Assert.assertEquals("Failed for " + valueToStore + getRuntimeContext().getIndexOfThisSubtask(), 1, state.size());
-					String value = state.get(0);
-					Assert.assertEquals(valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
-			}
-		}
-	}
+        @Override
+        public void restoreState(List<String> state) throws Exception {
+            switch (mode) {
+                case GENERATE:
+                    break;
+                case MIGRATE:
+                case RESTORE:
+                    Assert.assertEquals(
+                            "Failed for "
+                                    + valueToStore
+                                    + getRuntimeContext().getIndexOfThisSubtask(),
+                            1,
+                            state.size());
+                    String value = state.get(0);
+                    Assert.assertEquals(
+                            valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
+            }
+        }
+    }
 
-	private static class NoOpMapFunction implements MapFunction<Integer, Integer> {
+    private static class NoOpMapFunction implements MapFunction<Integer, Integer> {
 
-		private static final long serialVersionUID = 6584823409744624276L;
+        private static final long serialVersionUID = 6584823409744624276L;
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+    }
 
-	private static final class IntegerSource extends RichParallelSourceFunction<Integer> {
+    private static final class IntegerSource extends RichParallelSourceFunction<Integer> {
 
-		private static final long serialVersionUID = 1912878510707871659L;
-		private final ExecutionMode mode;
+        private static final long serialVersionUID = 1912878510707871659L;
+        private final ExecutionMode mode;
 
-		private volatile boolean running = true;
+        private volatile boolean running = true;
 
-		private IntegerSource(ExecutionMode mode) {
-			this.mode = mode;
-		}
+        private IntegerSource(ExecutionMode mode) {
+            this.mode = mode;
+        }
 
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			ctx.collect(1);
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            ctx.collect(1);
 
-			switch (mode) {
-				case GENERATE:
-				case MIGRATE:
-					// keep the job running until cancel-with-savepoint was done
-					synchronized (this) {
-						while (running) {
-							this.wait();
-						}
-					}
-			}
-		}
+            switch (mode) {
+                case GENERATE:
+                case MIGRATE:
+                    // keep the job running until cancel-with-savepoint was done
+                    synchronized (this) {
+                        while (running) {
+                            this.wait();
+                        }
+                    }
+            }
+        }
 
-		@Override
-		public void cancel() {
-			synchronized (this) {
-				running = false;
-				this.notifyAll();
-			}
-		}
-	}
+        @Override
+        public void cancel() {
+            synchronized (this) {
+                running = false;
+                this.notifyAll();
+            }
+        }
+    }
 }

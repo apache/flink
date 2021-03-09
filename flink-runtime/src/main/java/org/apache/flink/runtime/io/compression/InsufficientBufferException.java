@@ -19,25 +19,25 @@
 package org.apache.flink.runtime.io.compression;
 
 /**
- * An {@code InsufficientBufferException} is thrown when there is no enough buffer to
- * serialize or deserialize a buffer to another buffer. When such exception being caught,
- * user may enlarge the output buffer and try again.
+ * An {@code InsufficientBufferException} is thrown when there is no enough buffer to serialize or
+ * deserialize a buffer to another buffer. When such exception being caught, user may enlarge the
+ * output buffer and try again.
  */
 public class InsufficientBufferException extends RuntimeException {
 
-	public InsufficientBufferException() {
-		super();
-	}
+    public InsufficientBufferException() {
+        super();
+    }
 
-	public InsufficientBufferException(String message) {
-		super(message);
-	}
+    public InsufficientBufferException(String message) {
+        super(message);
+    }
 
-	public InsufficientBufferException(String message, Throwable e) {
-		super(message, e);
-	}
+    public InsufficientBufferException(String message, Throwable e) {
+        super(message, e);
+    }
 
-	public InsufficientBufferException(Throwable e) {
-		super(e);
-	}
+    public InsufficientBufferException(Throwable e) {
+        super(e);
+    }
 }

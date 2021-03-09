@@ -36,39 +36,49 @@ import java.io.IOException;
  * @param <V> Value Type
  */
 @Public
-public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K, V>> {
+public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>>
+        implements ResultTypeQueryable<Tuple2<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
-		super(mapreduceInputFormat, key, value, job);
-	}
+    public HadoopInputFormat(
+            org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat,
+            Class<K> key,
+            Class<V> value,
+            Job job) {
+        super(mapreduceInputFormat, key, value, job);
+    }
 
-	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value) throws IOException {
-		super(mapreduceInputFormat, key, value, Job.getInstance());
-	}
+    public HadoopInputFormat(
+            org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat,
+            Class<K> key,
+            Class<V> value)
+            throws IOException {
+        super(mapreduceInputFormat, key, value, Job.getInstance());
+    }
 
-	@Override
-	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if (!this.fetched) {
-			fetchNext();
-		}
-		if (!this.hasNext) {
-			return null;
-		}
-		try {
-			record.f0 = recordReader.getCurrentKey();
-			record.f1 = recordReader.getCurrentValue();
-		} catch (InterruptedException e) {
-			throw new IOException("Could not get KeyValue pair.", e);
-		}
-		this.fetched = false;
+    @Override
+    public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
+        if (!this.fetched) {
+            fetchNext();
+        }
+        if (!this.hasNext) {
+            return null;
+        }
+        try {
+            record.f0 = recordReader.getCurrentKey();
+            record.f1 = recordReader.getCurrentValue();
+        } catch (InterruptedException e) {
+            throw new IOException("Could not get KeyValue pair.", e);
+        }
+        this.fetched = false;
 
-		return record;
-	}
+        return record;
+    }
 
-	@Override
-	public TypeInformation<Tuple2<K, V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K, V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
-	}
+    @Override
+    public TypeInformation<Tuple2<K, V>> getProducedType() {
+        return new TupleTypeInfo<Tuple2<K, V>>(
+                TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
+    }
 }

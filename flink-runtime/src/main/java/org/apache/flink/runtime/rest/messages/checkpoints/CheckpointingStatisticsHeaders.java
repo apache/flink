@@ -26,51 +26,51 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link CheckpointingStatisticsHandler}.
- */
-public class CheckpointingStatisticsHeaders implements MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters> {
+/** Message headers for the {@link CheckpointingStatisticsHandler}. */
+public class CheckpointingStatisticsHeaders
+        implements MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters> {
 
-	private static final CheckpointingStatisticsHeaders INSTANCE = new CheckpointingStatisticsHeaders();
+    private static final CheckpointingStatisticsHeaders INSTANCE =
+            new CheckpointingStatisticsHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints";
+    public static final String URL = "/jobs/:jobid/checkpoints";
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<CheckpointingStatistics> getResponseClass() {
-		return CheckpointingStatistics.class;
-	}
+    @Override
+    public Class<CheckpointingStatistics> getResponseClass() {
+        return CheckpointingStatistics.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static CheckpointingStatisticsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static CheckpointingStatisticsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns checkpointing statistics for a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns checkpointing statistics for a job.";
+    }
 }

@@ -20,33 +20,31 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
-/**
- * Configuration of a table view.
- */
+/** Configuration of a table view. */
 public class ViewEntry extends TableEntry {
 
-	private static final String TABLES_QUERY = "query";
+    private static final String TABLES_QUERY = "query";
 
-	private final String query;
+    private final String query;
 
-	ViewEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
+    ViewEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
 
-		query = properties.getString(TABLES_QUERY);
-	}
+        query = properties.getString(TABLES_QUERY);
+    }
 
-	public String getQuery() {
-		return query;
-	}
+    public String getQuery() {
+        return query;
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(TABLES_QUERY, false, 1);
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        properties.validateString(TABLES_QUERY, false, 1);
+    }
 
-	public static ViewEntry create(String name, String query) {
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putString(TABLES_QUERY, query);
-		return new ViewEntry(name, properties);
-	}
+    public static ViewEntry create(String name, String query) {
+        final DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putString(TABLES_QUERY, query);
+        return new ViewEntry(name, properties);
+    }
 }

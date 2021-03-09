@@ -33,93 +33,89 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
-/**
- * Template of a function signature with argument types and argument names.
- */
+/** Template of a function signature with argument types and argument names. */
 @Internal
 final class FunctionSignatureTemplate {
 
-	final List<FunctionArgumentTemplate> argumentTemplates;
+    final List<FunctionArgumentTemplate> argumentTemplates;
 
-	final boolean isVarArgs;
+    final boolean isVarArgs;
 
-	final @Nullable String[] argumentNames;
+    final @Nullable String[] argumentNames;
 
-	private FunctionSignatureTemplate(
-			List<FunctionArgumentTemplate> argumentTemplates,
-			boolean isVarArgs,
-			@Nullable String[] argumentNames) {
-		this.argumentTemplates = argumentTemplates;
-		this.isVarArgs = isVarArgs;
-		this.argumentNames = argumentNames;
-	}
+    private FunctionSignatureTemplate(
+            List<FunctionArgumentTemplate> argumentTemplates,
+            boolean isVarArgs,
+            @Nullable String[] argumentNames) {
+        this.argumentTemplates = argumentTemplates;
+        this.isVarArgs = isVarArgs;
+        this.argumentNames = argumentNames;
+    }
 
-	static FunctionSignatureTemplate of(
-			List<FunctionArgumentTemplate> argumentTemplates,
-			boolean isVarArgs,
-			@Nullable String[] argumentNames) {
-		if (argumentNames != null && argumentNames.length != argumentTemplates.size()) {
-			throw extractionError(
-				"Mismatch between number of argument names '%s' and argument types '%s'.",
-				argumentNames.length,
-				argumentTemplates.size());
-		}
-		return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
-	}
+    static FunctionSignatureTemplate of(
+            List<FunctionArgumentTemplate> argumentTemplates,
+            boolean isVarArgs,
+            @Nullable String[] argumentNames) {
+        if (argumentNames != null && argumentNames.length != argumentTemplates.size()) {
+            throw extractionError(
+                    "Mismatch between number of argument names '%s' and argument types '%s'.",
+                    argumentNames.length, argumentTemplates.size());
+        }
+        return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
+    }
 
-	InputTypeStrategy toInputTypeStrategy() {
-		final ArgumentTypeStrategy[] argumentStrategies = argumentTemplates.stream()
-			.map(FunctionArgumentTemplate::toArgumentTypeStrategy)
-			.toArray(ArgumentTypeStrategy[]::new);
+    InputTypeStrategy toInputTypeStrategy() {
+        final ArgumentTypeStrategy[] argumentStrategies =
+                argumentTemplates.stream()
+                        .map(FunctionArgumentTemplate::toArgumentTypeStrategy)
+                        .toArray(ArgumentTypeStrategy[]::new);
 
-		final InputTypeStrategy strategy;
-		if (isVarArgs) {
-			if (argumentNames == null) {
-				strategy = InputTypeStrategies.varyingSequence(argumentStrategies);
-			} else {
-				strategy = InputTypeStrategies.varyingSequence(
-					argumentNames,
-					argumentStrategies);
-			}
-		} else {
-			if (argumentNames == null) {
-				strategy = InputTypeStrategies.sequence(argumentStrategies);
-			} else {
-				strategy = InputTypeStrategies.sequence(argumentNames, argumentStrategies);
-			}
-		}
-		return strategy;
-	}
+        final InputTypeStrategy strategy;
+        if (isVarArgs) {
+            if (argumentNames == null) {
+                strategy = InputTypeStrategies.varyingSequence(argumentStrategies);
+            } else {
+                strategy = InputTypeStrategies.varyingSequence(argumentNames, argumentStrategies);
+            }
+        } else {
+            if (argumentNames == null) {
+                strategy = InputTypeStrategies.sequence(argumentStrategies);
+            } else {
+                strategy = InputTypeStrategies.sequence(argumentNames, argumentStrategies);
+            }
+        }
+        return strategy;
+    }
 
-	List<Class<?>> toClass() {
-		return IntStream.range(0, argumentTemplates.size())
-			.mapToObj(i -> {
-				final Class<?> clazz = argumentTemplates.get(i).toConversionClass();
-				if (i == argumentTemplates.size() - 1 && isVarArgs) {
-					return Array.newInstance(clazz, 0).getClass();
-				}
-				return clazz;
-			})
-			.collect(Collectors.toList());
-	}
+    List<Class<?>> toClass() {
+        return IntStream.range(0, argumentTemplates.size())
+                .mapToObj(
+                        i -> {
+                            final Class<?> clazz = argumentTemplates.get(i).toConversionClass();
+                            if (i == argumentTemplates.size() - 1 && isVarArgs) {
+                                return Array.newInstance(clazz, 0).getClass();
+                            }
+                            return clazz;
+                        })
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FunctionSignatureTemplate that = (FunctionSignatureTemplate) o;
-		// argument names are not part of equality
-		return isVarArgs == that.isVarArgs &&
-			argumentTemplates.equals(that.argumentTemplates);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FunctionSignatureTemplate that = (FunctionSignatureTemplate) o;
+        // argument names are not part of equality
+        return isVarArgs == that.isVarArgs && argumentTemplates.equals(that.argumentTemplates);
+    }
 
-	@Override
-	public int hashCode() {
-		// argument names are not part of equality
-		return Objects.hash(argumentTemplates, isVarArgs);
-	}
+    @Override
+    public int hashCode() {
+        // argument names are not part of equality
+        return Objects.hash(argumentTemplates, isVarArgs);
+    }
 }

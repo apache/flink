@@ -28,45 +28,43 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-/**
- * Class containing a collection of {@link LogInfo}.
- */
+/** Class containing a collection of {@link LogInfo}. */
 public class LogListInfo implements ResponseBody, Serializable {
 
-	public static final String FIELD_NAME_LOGS = "logs";
+    public static final String FIELD_NAME_LOGS = "logs";
 
-	private static final long serialVersionUID = 7531494560450830517L;
+    private static final long serialVersionUID = 7531494560450830517L;
 
-	@JsonProperty(FIELD_NAME_LOGS)
-	private final Collection<LogInfo> logInfos;
+    @JsonProperty(FIELD_NAME_LOGS)
+    private final Collection<LogInfo> logInfos;
 
-	@JsonCreator
-	public LogListInfo(@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
-		this.logInfos = Preconditions.checkNotNull(logInfos);
-	}
+    @JsonCreator
+    public LogListInfo(@JsonProperty(FIELD_NAME_LOGS) Collection<LogInfo> logInfos) {
+        this.logInfos = Preconditions.checkNotNull(logInfos);
+    }
 
-	public Collection<LogInfo> getLogInfos() {
-		return logInfos;
-	}
+    public Collection<LogInfo> getLogInfos() {
+        return logInfos;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		LogListInfo that = (LogListInfo) o;
-		return Objects.equals(logInfos, that.logInfos);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        LogListInfo that = (LogListInfo) o;
+        return Objects.equals(logInfos, that.logInfos);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(logInfos);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(logInfos);
+    }
 
-	public static LogListInfo empty() {
-		return new LogListInfo(Collections.emptyList());
-	}
+    public static LogListInfo empty() {
+        return new LogListInfo(Collections.emptyList());
+    }
 }

@@ -28,69 +28,71 @@ import java.util.Map;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
- * {@link org.apache.flink.api.common.functions.RichMapFunction}, {@link org.apache.flink.api.common.functions.RichReduceFunction},
- * or {@link org.apache.flink.api.common.functions.RichCoGroupFunction}.
- * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
+ * {@link org.apache.flink.api.common.functions.RichMapFunction}, {@link
+ * org.apache.flink.api.common.functions.RichReduceFunction}, or {@link
+ * org.apache.flink.api.common.functions.RichCoGroupFunction}. The UDF operators stand in contrast
+ * to operators that execute built-in operations, like aggregations.
  */
 @Public
 public interface UdfOperator<O extends UdfOperator<O>> {
 
-	// --------------------------------------------------------------------------------------------
-	// Accessors
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Accessors
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Gets the configuration parameters that will be passed to the UDF's open method
-	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)}.
-	 * The configuration is set via the {@link #withParameters(Configuration)}
-	 * method.
-	 *
-	 * @return The configuration parameters for the UDF.
-	 */
-	Configuration getParameters();
+    /**
+     * Gets the configuration parameters that will be passed to the UDF's open method {@link
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)}. The
+     * configuration is set via the {@link #withParameters(Configuration)} method.
+     *
+     * @return The configuration parameters for the UDF.
+     */
+    Configuration getParameters();
 
-	/**
-	 * Gets the broadcast sets (name and data set) that have been added to context of the UDF.
-	 * Broadcast sets are added to a UDF via the method {@link #withBroadcastSet(DataSet, String)}.
-	 *
-	 * @return The broadcast data sets that have been added to this UDF.
-	 */
-	@Internal
-	Map<String, DataSet<?>> getBroadcastSets();
+    /**
+     * Gets the broadcast sets (name and data set) that have been added to context of the UDF.
+     * Broadcast sets are added to a UDF via the method {@link #withBroadcastSet(DataSet, String)}.
+     *
+     * @return The broadcast data sets that have been added to this UDF.
+     */
+    @Internal
+    Map<String, DataSet<?>> getBroadcastSets();
 
-	/**
-	 * Gets the semantic properties that have been set for the user-defined functions (UDF).
-	 *
-	 * @return The semantic properties of the UDF.
-	 */
-	@Internal
-	SemanticProperties getSemanticProperties();
+    /**
+     * Gets the semantic properties that have been set for the user-defined functions (UDF).
+     *
+     * @return The semantic properties of the UDF.
+     */
+    @Internal
+    SemanticProperties getSemanticProperties();
 
-	// --------------------------------------------------------------------------------------------
-	// Fluent API methods
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Fluent API methods
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Sets the configuration parameters for the UDF. These are optional parameters that are passed
-	 * to the UDF in the {@link org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)} method.
-	 *
-	 * @param parameters The configuration parameters for the UDF.
-	 * @return The operator itself, to allow chaining function calls.
-	 */
-	O withParameters(Configuration parameters);
+    /**
+     * Sets the configuration parameters for the UDF. These are optional parameters that are passed
+     * to the UDF in the {@link
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)} method.
+     *
+     * @param parameters The configuration parameters for the UDF.
+     * @return The operator itself, to allow chaining function calls.
+     */
+    O withParameters(Configuration parameters);
 
-	/**
-	 * Adds a certain data set as a broadcast set to this operator. Broadcasted data sets are available at all
-	 * parallel instances of this operator. A broadcast data set is registered under a certain name, and can be
-	 * retrieved under that name from the operators runtime context via
-	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getBroadcastVariable(String)}.
-	 *
-	 * <p>The runtime context itself is available in all UDFs via
-	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getRuntimeContext()}.
-	 *
-	 * @param data The data set to be broadcast.
-	 * @param name The name under which the broadcast data set retrieved.
-	 * @return The operator itself, to allow chaining function calls.
-	 */
-	O withBroadcastSet(DataSet<?> data, String name);
+    /**
+     * Adds a certain data set as a broadcast set to this operator. Broadcasted data sets are
+     * available at all parallel instances of this operator. A broadcast data set is registered
+     * under a certain name, and can be retrieved under that name from the operators runtime context
+     * via {@link
+     * org.apache.flink.api.common.functions.RuntimeContext#getBroadcastVariable(String)}.
+     *
+     * <p>The runtime context itself is available in all UDFs via {@link
+     * org.apache.flink.api.common.functions.AbstractRichFunction#getRuntimeContext()}.
+     *
+     * @param data The data set to be broadcast.
+     * @param name The name under which the broadcast data set retrieved.
+     * @return The operator itself, to allow chaining function calls.
+     */
+    O withBroadcastSet(DataSet<?> data, String name);
 }

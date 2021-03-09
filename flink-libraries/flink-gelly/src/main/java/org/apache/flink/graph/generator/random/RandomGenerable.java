@@ -21,21 +21,20 @@ package org.apache.flink.graph.generator.random;
 import org.apache.commons.math3.random.RandomGenerator;
 
 /**
- * A RandomGenerable provides deferred instantiation and initialization of a
- * RandomGenerator. This allows pre-processing or discovery to be distributed
- * and performed in parallel by Flink tasks.
+ * A RandomGenerable provides deferred instantiation and initialization of a RandomGenerator. This
+ * allows pre-processing or discovery to be distributed and performed in parallel by Flink tasks.
  *
- * <p>A distributed PRNG is described by Matsumoto and Takuji in
- * "Dynamic Creation of Pseudorandom Number Generators".
+ * <p>A distributed PRNG is described by Matsumoto and Takuji in "Dynamic Creation of Pseudorandom
+ * Number Generators".
  *
  * @param <T> the type of the {@code RandomGenerator}
  */
 public interface RandomGenerable<T extends RandomGenerator> {
 
-	/**
-	 * Returns an initialized {@link RandomGenerator}.
-	 *
-	 * @return a {@code RandomGenerator} of type {@code T}
-	 */
-	T generator();
+    /**
+     * Returns an initialized {@link RandomGenerator}.
+     *
+     * @return a {@code RandomGenerator} of type {@code T}
+     */
+    T generator();
 }

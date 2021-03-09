@@ -32,38 +32,38 @@ import java.util.Collections;
  */
 public class StandaloneJobGraphStore implements JobGraphStore {
 
-	@Override
-	public void start(JobGraphListener jobGraphListener) throws Exception {
-		// Nothing to do
-	}
+    @Override
+    public void start(JobGraphListener jobGraphListener) throws Exception {
+        // Nothing to do
+    }
 
-	@Override
-	public void stop() {
-		// Nothing to do
-	}
+    @Override
+    public void stop() {
+        // Nothing to do
+    }
 
-	@Override
-	public void putJobGraph(JobGraph jobGraph) {
-		// Nothing to do
-	}
+    @Override
+    public void putJobGraph(JobGraph jobGraph) {
+        // Nothing to do
+    }
 
-	@Override
-	public void removeJobGraph(JobID jobId) {
-		// Nothing to do
-	}
+    @Override
+    public void removeJobGraph(JobID jobId) {
+        // Nothing to do
+    }
 
-	@Override
-	public void releaseJobGraph(JobID jobId) {
-		// nothing to do
-	}
+    @Override
+    public void releaseJobGraph(JobID jobId) {
+        // nothing to do
+    }
 
-	@Override
-	public Collection<JobID> getJobIds() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<JobID> getJobIds() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public JobGraph recoverJobGraph(JobID jobId) {
-		return null;
-	}
+    @Override
+    public JobGraph recoverJobGraph(JobID jobId) {
+        return null;
+    }
 }

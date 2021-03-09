@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT h.family3, h.family2.col2 FROM hTable AS h]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(family3=[$2], col2=[$1.col2])
 +- LogicalTableScan(table=[[default_catalog, default_database, hTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[family3, family2.col2 AS col2])
 +- TableSourceScan(table=[[default_catalog, default_database, hTable, project=[family3, family2]]], fields=[family3, family2])

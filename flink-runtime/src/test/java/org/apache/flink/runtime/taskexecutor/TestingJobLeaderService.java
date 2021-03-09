@@ -28,113 +28,128 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Testing {@link JobLeaderService} implementation.
- */
+/** Testing {@link JobLeaderService} implementation. */
 public class TestingJobLeaderService implements JobLeaderService {
 
-	private final QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer;
-	private final ThrowingRunnable<? extends Exception> stopRunnable;
-	private final Consumer<JobID> removeJobConsumer;
-	private final BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer;
-	private final Consumer<JobID> reconnectConsumer;
-	private final Function<JobID, Boolean> containsJobFunction;
+    private final QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener>
+            startConsumer;
+    private final ThrowingRunnable<? extends Exception> stopRunnable;
+    private final Consumer<JobID> removeJobConsumer;
+    private final BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer;
+    private final Consumer<JobID> reconnectConsumer;
+    private final Function<JobID, Boolean> containsJobFunction;
 
-	TestingJobLeaderService(
-			QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer,
-			ThrowingRunnable<? extends Exception> stopRunnable,
-			Consumer<JobID> removeJobConsumer,
-			BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer,
-			Consumer<JobID> reconnectConsumer,
-			Function<JobID, Boolean> containsJobFunction) {
-		this.startConsumer = startConsumer;
-		this.stopRunnable = stopRunnable;
-		this.removeJobConsumer = removeJobConsumer;
-		this.addJobConsumer = addJobConsumer;
-		this.reconnectConsumer = reconnectConsumer;
-		this.containsJobFunction = containsJobFunction;
-	}
+    TestingJobLeaderService(
+            QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener>
+                    startConsumer,
+            ThrowingRunnable<? extends Exception> stopRunnable,
+            Consumer<JobID> removeJobConsumer,
+            BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer,
+            Consumer<JobID> reconnectConsumer,
+            Function<JobID, Boolean> containsJobFunction) {
+        this.startConsumer = startConsumer;
+        this.stopRunnable = stopRunnable;
+        this.removeJobConsumer = removeJobConsumer;
+        this.addJobConsumer = addJobConsumer;
+        this.reconnectConsumer = reconnectConsumer;
+        this.containsJobFunction = containsJobFunction;
+    }
 
-	@Override
-	public void start(
-			String initialOwnerAddress,
-			RpcService initialRpcService,
-			HighAvailabilityServices initialHighAvailabilityServices,
-			JobLeaderListener initialJobLeaderListener) {
-		startConsumer.accept(initialOwnerAddress, initialRpcService, initialHighAvailabilityServices, initialJobLeaderListener);
-	}
+    @Override
+    public void start(
+            String initialOwnerAddress,
+            RpcService initialRpcService,
+            HighAvailabilityServices initialHighAvailabilityServices,
+            JobLeaderListener initialJobLeaderListener) {
+        startConsumer.accept(
+                initialOwnerAddress,
+                initialRpcService,
+                initialHighAvailabilityServices,
+                initialJobLeaderListener);
+    }
 
-	@Override
-	public void stop() throws Exception {
-		stopRunnable.run();
-	}
+    @Override
+    public void stop() throws Exception {
+        stopRunnable.run();
+    }
 
-	@Override
-	public void removeJob(JobID jobId) {
-		removeJobConsumer.accept(jobId);
-	}
+    @Override
+    public void removeJob(JobID jobId) {
+        removeJobConsumer.accept(jobId);
+    }
 
-	@Override
-	public void addJob(JobID jobId, String defaultTargetAddress) throws Exception {
-		addJobConsumer.accept(jobId, defaultTargetAddress);
-	}
+    @Override
+    public void addJob(JobID jobId, String defaultTargetAddress) throws Exception {
+        addJobConsumer.accept(jobId, defaultTargetAddress);
+    }
 
-	@Override
-	public void reconnect(JobID jobId) {
-		reconnectConsumer.accept(jobId);
-	}
+    @Override
+    public void reconnect(JobID jobId) {
+        reconnectConsumer.accept(jobId);
+    }
 
-	@Override
-	public boolean containsJob(JobID jobId) {
-		return containsJobFunction.apply(jobId);
-	}
+    @Override
+    public boolean containsJob(JobID jobId) {
+        return containsJobFunction.apply(jobId);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
-		private QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
-		private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
-		private Consumer<JobID> removeJobConsumer = (ignored) -> {};
-		private BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer = (ignoredA, ignoredB) -> {};
-		private Consumer<JobID> reconnectConsumer = (ignored) -> {};
-		private Function<JobID, Boolean> containsJobFunction = (ignored) -> false;
+    public static final class Builder {
+        private QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener>
+                startConsumer = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+        private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
+        private Consumer<JobID> removeJobConsumer = (ignored) -> {};
+        private BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer =
+                (ignoredA, ignoredB) -> {};
+        private Consumer<JobID> reconnectConsumer = (ignored) -> {};
+        private Function<JobID, Boolean> containsJobFunction = (ignored) -> false;
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setStartConsumer(QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer) {
-			this.startConsumer = startConsumer;
-			return this;
-		}
+        public Builder setStartConsumer(
+                QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener>
+                        startConsumer) {
+            this.startConsumer = startConsumer;
+            return this;
+        }
 
-		public Builder setStopRunnable(ThrowingRunnable<? extends Exception> stopRunnable) {
-			this.stopRunnable = stopRunnable;
-			return this;
-		}
+        public Builder setStopRunnable(ThrowingRunnable<? extends Exception> stopRunnable) {
+            this.stopRunnable = stopRunnable;
+            return this;
+        }
 
-		public Builder setRemoveJobConsumer(Consumer<JobID> removeJobConsumer) {
-			this.removeJobConsumer = removeJobConsumer;
-			return this;
-		}
+        public Builder setRemoveJobConsumer(Consumer<JobID> removeJobConsumer) {
+            this.removeJobConsumer = removeJobConsumer;
+            return this;
+        }
 
-		public Builder setAddJobConsumer(BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer) {
-			this.addJobConsumer = addJobConsumer;
-			return this;
-		}
+        public Builder setAddJobConsumer(
+                BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer) {
+            this.addJobConsumer = addJobConsumer;
+            return this;
+        }
 
-		public Builder setReconnectConsumer(Consumer<JobID> reconnectConsumer) {
-			this.reconnectConsumer = reconnectConsumer;
-			return this;
-		}
+        public Builder setReconnectConsumer(Consumer<JobID> reconnectConsumer) {
+            this.reconnectConsumer = reconnectConsumer;
+            return this;
+        }
 
-		public Builder setContainsJobFunction(Function<JobID, Boolean> containsJobFunction) {
-			this.containsJobFunction = containsJobFunction;
-			return this;
-		}
+        public Builder setContainsJobFunction(Function<JobID, Boolean> containsJobFunction) {
+            this.containsJobFunction = containsJobFunction;
+            return this;
+        }
 
-		public TestingJobLeaderService build() {
-			return new TestingJobLeaderService(startConsumer, stopRunnable, removeJobConsumer, addJobConsumer, reconnectConsumer, containsJobFunction);
-		}
-	}
+        public TestingJobLeaderService build() {
+            return new TestingJobLeaderService(
+                    startConsumer,
+                    stopRunnable,
+                    removeJobConsumer,
+                    addJobConsumer,
+                    reconnectConsumer,
+                    containsJobFunction);
+        }
+    }
 }

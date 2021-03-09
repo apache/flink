@@ -28,8 +28,8 @@ from shutil import copytree, copy, rmtree
 
 from setuptools import setup, Extension
 
-if sys.version_info < (3, 5):
-    print("Python versions prior to 3.5 are not supported for PyFlink.",
+if sys.version_info < (3, 6):
+    print("Python versions prior to 3.6 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
 
@@ -66,6 +66,10 @@ else:
                 sources=["pyflink/fn_execution/coder_impl_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
+                name="pyflink.fn_execution.aggregate_fast",
+                sources=["pyflink/fn_execution/aggregate_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
                 name="pyflink.fn_execution.stream",
                 sources=["pyflink/fn_execution/stream.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
@@ -88,6 +92,10 @@ else:
                 Extension(
                     name="pyflink.fn_execution.coder_impl_fast",
                     sources=["pyflink/fn_execution/coder_impl_fast.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.aggregate_fast",
+                    sources=["pyflink/fn_execution/aggregate_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
                     name="pyflink.fn_execution.stream",
@@ -313,12 +321,11 @@ run sdist.
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.5',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.23.0',
-                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,<=1.9.1', 'jsonpickle==1.2',
-                          'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
-                          'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
-                          'pyarrow>=0.15.1,<0.18.0', 'pytz>=2018.3'],
+        python_requires='>=3.6',
+        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
+                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
+                          'jsonpickle==1.2', 'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
+                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24'],
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
@@ -328,7 +335,6 @@ run sdist.
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8'],

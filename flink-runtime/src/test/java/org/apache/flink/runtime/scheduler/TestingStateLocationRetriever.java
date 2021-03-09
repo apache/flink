@@ -25,19 +25,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Implementation of {@link StateLocationRetriever} for test purposes.
- */
+/** Implementation of {@link StateLocationRetriever} for test purposes. */
 class TestingStateLocationRetriever implements StateLocationRetriever {
 
-	private final Map<ExecutionVertexID, TaskManagerLocation> stateLocations = new HashMap<>();
+    private final Map<ExecutionVertexID, TaskManagerLocation> stateLocations = new HashMap<>();
 
-	@Override
-	public Optional<TaskManagerLocation> getStateLocation(final ExecutionVertexID executionVertexId) {
-		return Optional.ofNullable(stateLocations.get(executionVertexId));
-	}
+    @Override
+    public Optional<TaskManagerLocation> getStateLocation(
+            final ExecutionVertexID executionVertexId) {
+        return Optional.ofNullable(stateLocations.get(executionVertexId));
+    }
 
-	void setStateLocation(final ExecutionVertexID executionVertexId, final TaskManagerLocation location) {
-		stateLocations.put(executionVertexId, location);
-	}
+    void setStateLocation(
+            final ExecutionVertexID executionVertexId, final TaskManagerLocation location) {
+        stateLocations.put(executionVertexId, location);
+    }
 }

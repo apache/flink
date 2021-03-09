@@ -31,62 +31,57 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link MaximumDegree}.
- */
+/** Tests for {@link MaximumDegree}. */
 public class MaximumDegreeTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		Graph<IntValue, NullValue, NullValue> graph = undirectedSimpleGraph
-			.run(new MaximumDegree<>(3));
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        Graph<IntValue, NullValue, NullValue> graph =
+                undirectedSimpleGraph.run(new MaximumDegree<>(3));
 
-		String expectedVerticesResult =
-			"(0,(null))\n" +
-			"(1,(null))\n" +
-			"(2,(null))\n" +
-			"(4,(null))\n" +
-			"(5,(null))";
+        String expectedVerticesResult =
+                "(0,(null))\n" + "(1,(null))\n" + "(2,(null))\n" + "(4,(null))\n" + "(5,(null))";
 
-		TestBaseUtils.compareResultAsText(graph.getVertices().collect(), expectedVerticesResult);
+        TestBaseUtils.compareResultAsText(graph.getVertices().collect(), expectedVerticesResult);
 
-		String expectedEdgesResult =
-			"(0,1,(null))\n" +
-			"(0,2,(null))\n" +
-			"(1,0,(null))\n" +
-			"(1,2,(null))\n" +
-			"(2,0,(null))\n" +
-			"(2,1,(null))";
+        String expectedEdgesResult =
+                "(0,1,(null))\n"
+                        + "(0,2,(null))\n"
+                        + "(1,0,(null))\n"
+                        + "(1,2,(null))\n"
+                        + "(2,0,(null))\n"
+                        + "(2,1,(null))";
 
-		TestBaseUtils.compareResultAsText(graph.getEdges().collect(), expectedEdgesResult);
-	}
+        TestBaseUtils.compareResultAsText(graph.getEdges().collect(), expectedEdgesResult);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithVertices
-			.run(new MaximumDegree<>(1));
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph =
+                emptyGraphWithVertices.run(new MaximumDegree<>(1));
 
-		assertEquals(emptyGraphVertexCount, graph.getVertices().collect().size());
-		assertEquals(0, graph.getEdges().collect().size());
-	}
+        assertEquals(emptyGraphVertexCount, graph.getVertices().collect().size());
+        assertEquals(0, graph.getEdges().collect().size());
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = emptyGraphWithoutVertices
-			.run(new MaximumDegree<>(1));
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph =
+                emptyGraphWithoutVertices.run(new MaximumDegree<>(1));
 
-		assertEquals(0, graph.getVertices().collect().size());
-		assertEquals(0, graph.getEdges().collect().size());
-	}
+        assertEquals(0, graph.getVertices().collect().size());
+        assertEquals(0, graph.getEdges().collect().size());
+    }
 
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		Checksum checksum = undirectedRMatGraph(10, 16)
-			.run(new MaximumDegree<>(16))
-			.run(new ChecksumHashCode<>())
-			.execute();
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        Checksum checksum =
+                undirectedRMatGraph(10, 16)
+                        .run(new MaximumDegree<>(16))
+                        .run(new ChecksumHashCode<>())
+                        .execute();
 
-		assertEquals(805, checksum.getCount());
-		assertEquals(0x0000000008028b43L, checksum.getChecksum());
-	}
+        assertEquals(805, checksum.getCount());
+        assertEquals(0x0000000008028b43L, checksum.getChecksum());
+    }
 }

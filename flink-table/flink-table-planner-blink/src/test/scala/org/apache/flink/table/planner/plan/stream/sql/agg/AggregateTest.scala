@@ -47,19 +47,19 @@ class AggregateTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testGroupingOnNonExistentField(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
+    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
   }
 
   @Test(expected = classOf[ValidationException])
   def testGroupingInvalidSelection(): Unit = {
-    util.verifyPlan("SELECT b FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
   }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("We now only support the count of one field")
-    util.verifyPlan("SELECT b, COUNT(a, c) FROM MyTable GROUP BY b")
+    util.verifyExecPlan("SELECT b, COUNT(a, c) FROM MyTable GROUP BY b")
   }
 
   @Test
@@ -68,7 +68,7 @@ class AggregateTest extends TableTestBase {
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.set(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.verifyPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
+    util.verifyExecPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
   }
 
   @Test
@@ -86,12 +86,12 @@ class AggregateTest extends TableTestBase {
         |  SELECT * FROM T2
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyExecPlan(query)
   }
 
   @Test
   def testGroupByWithoutWindow(): Unit = {
-    util.verifyPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
+    util.verifyExecPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
   }
 
   @Test
@@ -111,7 +111,7 @@ class AggregateTest extends TableTestBase {
         |  SELECT * FROM T2
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -125,7 +125,7 @@ class AggregateTest extends TableTestBase {
         |  MAX(b)
         |FROM T GROUP BY a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -145,7 +145,7 @@ class AggregateTest extends TableTestBase {
         |  MAX(b)
         |FROM T GROUP BY a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -165,12 +165,12 @@ class AggregateTest extends TableTestBase {
       |  SUM(CAST(7 as DOUBLE))
       |FROM T GROUP BY a
     """.stripMargin
-    util.verifyPlanWithType(sql)
+    util.verifyRelPlanWithType(sql)
   }
 
   @Test
   def testAvgOnDifferentTypes(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT AVG(`byte`),
         |       AVG(`short`),
@@ -186,13 +186,13 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testAvgWithRetract(): Unit = {
-    util.verifyPlan(
+    util.verifyRelPlan(
       "SELECT AVG(a) FROM (SELECT AVG(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testSum(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT SUM(`byte`),
         |       SUM(`short`),
@@ -208,13 +208,13 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testSumWithRetract(): Unit = {
-    util.verifyPlan(
+    util.verifyRelPlan(
       "SELECT SUM(a) FROM (SELECT SUM(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMinOnDifferentTypes(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT MIN(`byte`),
         |       MIN(`short`),
@@ -235,13 +235,13 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testMinWithRetract(): Unit = {
-    util.verifyPlan(
+    util.verifyRelPlan(
       "SELECT MIN(a) FROM (SELECT MIN(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMaxOnDifferentTypes(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT MAX(`byte`),
         |       MAX(`short`),
@@ -262,7 +262,7 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testMaxWithRetract(): Unit = {
-    util.verifyPlan(
+    util.verifyRelPlan(
       "SELECT MAX(a) FROM (SELECT MAX(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -272,12 +272,12 @@ class AggregateTest extends TableTestBase {
       """
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testColumnIntervalValidation(): Unit = {
     // test for FLINK-16577
-    util.verifyPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
+    util.verifyExecPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
   }
 }

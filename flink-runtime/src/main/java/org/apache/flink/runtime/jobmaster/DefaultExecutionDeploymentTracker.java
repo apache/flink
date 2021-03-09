@@ -27,48 +27,50 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Default {@link ExecutionDeploymentTracker} implementation.
- */
+/** Default {@link ExecutionDeploymentTracker} implementation. */
 public class DefaultExecutionDeploymentTracker implements ExecutionDeploymentTracker {
 
-	private final Set<ExecutionAttemptID> pendingDeployments = new HashSet<>();
-	private final Map<ResourceID, Set<ExecutionAttemptID>> executionsByHost = new HashMap<>();
-	private final Map<ExecutionAttemptID, ResourceID> hostByExecution = new HashMap<>();
+    private final Set<ExecutionAttemptID> pendingDeployments = new HashSet<>();
+    private final Map<ResourceID, Set<ExecutionAttemptID>> executionsByHost = new HashMap<>();
+    private final Map<ExecutionAttemptID, ResourceID> hostByExecution = new HashMap<>();
 
-	@Override
-	public void startTrackingPendingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
-		pendingDeployments.add(executionAttemptId);
-		hostByExecution.put(executionAttemptId, host);
-		executionsByHost.computeIfAbsent(host, ignored -> new HashSet<>()).add(executionAttemptId);
-	}
+    @Override
+    public void startTrackingPendingDeploymentOf(
+            ExecutionAttemptID executionAttemptId, ResourceID host) {
+        pendingDeployments.add(executionAttemptId);
+        hostByExecution.put(executionAttemptId, host);
+        executionsByHost.computeIfAbsent(host, ignored -> new HashSet<>()).add(executionAttemptId);
+    }
 
-	@Override
-	public void completeDeploymentOf(ExecutionAttemptID executionAttemptId) {
-		pendingDeployments.remove(executionAttemptId);
-	}
+    @Override
+    public void completeDeploymentOf(ExecutionAttemptID executionAttemptId) {
+        pendingDeployments.remove(executionAttemptId);
+    }
 
-	@Override
-	public void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId) {
-		pendingDeployments.remove(executionAttemptId);
-		ResourceID host = hostByExecution.remove(executionAttemptId);
-		if (host != null) {
-			executionsByHost.computeIfPresent(host, (resourceID, executionAttemptIds) -> {
-				executionAttemptIds.remove(executionAttemptId);
+    @Override
+    public void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId) {
+        pendingDeployments.remove(executionAttemptId);
+        ResourceID host = hostByExecution.remove(executionAttemptId);
+        if (host != null) {
+            executionsByHost.computeIfPresent(
+                    host,
+                    (resourceID, executionAttemptIds) -> {
+                        executionAttemptIds.remove(executionAttemptId);
 
-				return executionAttemptIds.isEmpty()
-					? null
-					: executionAttemptIds;
-			});
-		}
-	}
+                        return executionAttemptIds.isEmpty() ? null : executionAttemptIds;
+                    });
+        }
+    }
 
-	@Override
-	public Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host) {
-		return executionsByHost.getOrDefault(host, Collections.emptySet())
-			.stream()
-			.collect(Collectors.toMap(
-				x -> x,
-				x -> pendingDeployments.contains(x) ? ExecutionDeploymentState.PENDING : ExecutionDeploymentState.DEPLOYED));
-	}
+    @Override
+    public Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host) {
+        return executionsByHost.getOrDefault(host, Collections.emptySet()).stream()
+                .collect(
+                        Collectors.toMap(
+                                x -> x,
+                                x ->
+                                        pendingDeployments.contains(x)
+                                                ? ExecutionDeploymentState.PENDING
+                                                : ExecutionDeploymentState.DEPLOYED));
+    }
 }

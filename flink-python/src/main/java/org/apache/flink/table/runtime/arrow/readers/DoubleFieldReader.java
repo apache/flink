@@ -22,18 +22,16 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.arrow.vector.Float8Vector;
 
-/**
- * {@link ArrowFieldReader} for Double.
- */
+/** {@link ArrowFieldReader} for Double. */
 @Internal
 public final class DoubleFieldReader extends ArrowFieldReader<Double> {
 
-	public DoubleFieldReader(Float8Vector doubleVector) {
-		super(doubleVector);
-	}
+    public DoubleFieldReader(Float8Vector doubleVector) {
+        super(doubleVector);
+    }
 
-	@Override
-	public Double read(int index) {
-		return ((Float8Vector) getValueVector()).getObject(index);
-	}
+    @Override
+    public Double read(int index) {
+        return ((Float8Vector) getValueVector()).getObject(index);
+    }
 }

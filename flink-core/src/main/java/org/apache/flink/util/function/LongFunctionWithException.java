@@ -20,18 +20,16 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.annotation.Public;
 
-/**
- * Similar to {@link java.util.function.LongFunction} but can throw {@link Exception}.
- */
+/** Similar to {@link java.util.function.LongFunction} but can throw {@link Exception}. */
 @Public
 @FunctionalInterface
 public interface LongFunctionWithException<R, E extends Throwable> {
 
-	/**
-	 * Applies this function to the given argument.
-	 *
-	 * @param value the function argument
-	 * @return the function result
-	 */
-	R apply(long value) throws E;
+    /**
+     * Applies this function to the given argument.
+     *
+     * @param value the function argument
+     * @return the function result
+     */
+    R apply(long value) throws E;
 }

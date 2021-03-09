@@ -25,34 +25,33 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
 import java.io.IOException;
 
-/**
- * Generates a series of integer 2-tuples.
- */
-public class UniformIntTupleGeneratorInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
-	private final int keyTotal;
-	private final int valueTotal;
-	private int valueCount = 0;
-	private UniformIntTupleGenerator generator;
+/** Generates a series of integer 2-tuples. */
+public class UniformIntTupleGeneratorInputFormat
+        extends GenericInputFormat<Tuple2<Integer, Integer>> {
+    private final int keyTotal;
+    private final int valueTotal;
+    private int valueCount = 0;
+    private UniformIntTupleGenerator generator;
 
-	public UniformIntTupleGeneratorInputFormat(int numKeys, int numVals) {
-		keyTotal = numKeys;
-		valueTotal = numVals;
-	}
+    public UniformIntTupleGeneratorInputFormat(int numKeys, int numVals) {
+        keyTotal = numKeys;
+        valueTotal = numVals;
+    }
 
-	@Override
-	public void open(GenericInputSplit split) throws IOException {
-		super.open(split);
-		this.generator = new UniformIntTupleGenerator(keyTotal, valueTotal, false);
-	}
+    @Override
+    public void open(GenericInputSplit split) throws IOException {
+        super.open(split);
+        this.generator = new UniformIntTupleGenerator(keyTotal, valueTotal, false);
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return valueCount >= valueTotal;
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return valueCount >= valueTotal;
+    }
 
-	@Override
-	public Tuple2<Integer, Integer> nextRecord(Tuple2<Integer, Integer> reuse) throws IOException {
-		valueCount += 1;
-		return generator.next();
-	}
+    @Override
+    public Tuple2<Integer, Integer> nextRecord(Tuple2<Integer, Integer> reuse) throws IOException {
+        valueCount += 1;
+        return generator.next();
+    }
 }

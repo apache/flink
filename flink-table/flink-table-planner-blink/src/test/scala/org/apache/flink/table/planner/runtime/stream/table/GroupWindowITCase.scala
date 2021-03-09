@@ -292,4 +292,92 @@ class GroupWindowITCase(mode: StateBackendMode)
       "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.033")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testEventTimeTumblingWindow(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+    val countDistinct = new CountDistinct
+
+    val windowedTable = table
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, countFun('string), 'int.avg, weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end,
+        countDistinct('long))
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello world,1,3,16,3,3,3,3,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1",
+      "Hello world,1,3,8,3,3,3,3,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,1",
+      s"Hello,2,2,3,2,2,2,4,1970-01-01T00:00,1970-01-01T00:00:00.005,2",
+      "Hi,1,1,1,1,1,1,1,1970-01-01T00:00,1970-01-01T00:00:00.005,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataSet variant
+    val stream = failingDataSource(data2)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 5.milli every 10.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end)
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hallo,1,1970-01-01T00:00,1970-01-01T00:00:00.005",
+      "Hello,2,1970-01-01T00:00,1970-01-01T00:00:00.005",
+      "Hi,1,1970-01-01T00:00,1970-01-01T00:00:00.005",
+      "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataSet variant
+    val stream = failingDataSource(data2)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end)
+
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hallo,1,1969-12-31T23:59:59.995,1970-01-01T00:00:00.005",
+      "Hallo,1,1970-01-01T00:00,1970-01-01T00:00:00.010",
+      "Hello world,1,1970-01-01T00:00,1970-01-01T00:00:00.010",
+      "Hello world,1,1970-01-01T00:00:00.005,1970-01-01T00:00:00.015",
+      "Hello world,1,1970-01-01T00:00:00.010,1970-01-01T00:00:00.020",
+      "Hello world,1,1970-01-01T00:00:00.015,1970-01-01T00:00:00.025",
+      "Hello,1,1970-01-01T00:00:00.005,1970-01-01T00:00:00.015",
+      "Hello,2,1969-12-31T23:59:59.995,1970-01-01T00:00:00.005",
+      "Hello,3,1970-01-01T00:00,1970-01-01T00:00:00.010",
+      "Hi,1,1969-12-31T23:59:59.995,1970-01-01T00:00:00.005",
+      "Hi,1,1970-01-01T00:00,1970-01-01T00:00:00.010",
+      "null,1,1970-01-01T00:00:00.025,1970-01-01T00:00:00.035",
+      "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.040")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
 }

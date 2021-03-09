@@ -41,138 +41,148 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CsvRowFormatFactory}.
- */
+/** Tests for {@link CsvRowFormatFactory}. */
 public class CsvRowFormatFactoryTest extends TestLogger {
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	private static final TypeInformation<Row> SCHEMA = Types.ROW(
-		new String[]{"a", "b", "c"},
-		new TypeInformation[]{Types.STRING(), Types.INT(), Types.ROW(
-				new String[]{"a", "b", "c"},
-				new TypeInformation[]{Types.STRING(), Types.INT(), Types.BOOLEAN()}
-		)}
-	);
+    private static final TypeInformation<Row> SCHEMA =
+            Types.ROW(
+                    new String[] {"a", "b", "c"},
+                    new TypeInformation[] {
+                        Types.STRING(),
+                        Types.INT(),
+                        Types.ROW(
+                                new String[] {"a", "b", "c"},
+                                new TypeInformation[] {
+                                    Types.STRING(), Types.INT(), Types.BOOLEAN()
+                                })
+                    });
 
-	@Test
-	public void testSchema() {
-		final Map<String, String> properties = new Csv()
-				.schema(SCHEMA)
-				.fieldDelimiter(';')
-				.lineDelimiter("\r\n")
-				.quoteCharacter('\'')
-				.allowComments()
-				.ignoreParseErrors()
-				.arrayElementDelimiter("|")
-				.escapeCharacter('\\')
-				.nullLiteral("n/a")
-				.toProperties();
+    @Test
+    public void testSchema() {
+        final Map<String, String> properties =
+                new Csv()
+                        .schema(SCHEMA)
+                        .fieldDelimiter(';')
+                        .lineDelimiter("\r\n")
+                        .quoteCharacter('\'')
+                        .allowComments()
+                        .ignoreParseErrors()
+                        .arrayElementDelimiter("|")
+                        .escapeCharacter('\\')
+                        .nullLiteral("n/a")
+                        .toProperties();
 
-		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA)
-			.setFieldDelimiter(';')
-			.setQuoteCharacter('\'')
-			.setAllowComments(true)
-			.setIgnoreParseErrors(true)
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.build();
+        final CsvRowDeserializationSchema expectedDeser =
+                new CsvRowDeserializationSchema.Builder(SCHEMA)
+                        .setFieldDelimiter(';')
+                        .setQuoteCharacter('\'')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
 
-		final DeserializationSchema<?> actualDeser = TableFactoryService
-			.find(DeserializationSchemaFactory.class, properties)
-			.createDeserializationSchema(properties);
+        final DeserializationSchema<?> actualDeser =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
 
-		assertEquals(expectedDeser, actualDeser);
+        assertEquals(expectedDeser, actualDeser);
 
-		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
-			.setFieldDelimiter(';')
-			.setLineDelimiter("\r\n")
-			.setQuoteCharacter('\'')
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.build();
+        final CsvRowSerializationSchema expectedSer =
+                new CsvRowSerializationSchema.Builder(SCHEMA)
+                        .setFieldDelimiter(';')
+                        .setLineDelimiter("\r\n")
+                        .setQuoteCharacter('\'')
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
 
-		final SerializationSchema<?> actualSer = TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
+        final SerializationSchema<?> actualSer =
+                TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                        .createSerializationSchema(properties);
 
-		assertEquals(expectedSer, actualSer);
-	}
+        assertEquals(expectedSer, actualSer);
+    }
 
-	@Test
-	public void testSchemaDerivation() {
-		final Map<String, String> properties = new HashMap<>();
-		properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
-		properties.putAll(new Csv().toProperties());
+    @Test
+    public void testSchemaDerivation() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
+        properties.putAll(new Csv().toProperties());
 
-		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA).build();
-		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA).build();
+        final CsvRowSerializationSchema expectedSer =
+                new CsvRowSerializationSchema.Builder(SCHEMA).build();
+        final CsvRowDeserializationSchema expectedDeser =
+                new CsvRowDeserializationSchema.Builder(SCHEMA).build();
 
-		final SerializationSchema<?> actualSer = TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
+        final SerializationSchema<?> actualSer =
+                TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                        .createSerializationSchema(properties);
 
-		assertEquals(expectedSer, actualSer);
+        assertEquals(expectedSer, actualSer);
 
-		final DeserializationSchema<?> actualDeser = TableFactoryService
-			.find(DeserializationSchemaFactory.class, properties)
-			.createDeserializationSchema(properties);
+        final DeserializationSchema<?> actualDeser =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
 
-		assertEquals(expectedDeser, actualDeser);
-	}
+        assertEquals(expectedDeser, actualDeser);
+    }
 
-	@Test
-	public void testDisableQuoteCharacter() {
-		final Map<String, String> properties = new Csv()
-			.schema(SCHEMA)
-			.fieldDelimiter(';')
-			.lineDelimiter("\r\n")
-			.allowComments()
-			.ignoreParseErrors()
-			.arrayElementDelimiter("|")
-			.escapeCharacter('\\')
-			.nullLiteral("n/a")
-			.disableQuoteCharacter()
-			.toProperties();
+    @Test
+    public void testDisableQuoteCharacter() {
+        final Map<String, String> properties =
+                new Csv()
+                        .schema(SCHEMA)
+                        .fieldDelimiter(';')
+                        .lineDelimiter("\r\n")
+                        .allowComments()
+                        .ignoreParseErrors()
+                        .arrayElementDelimiter("|")
+                        .escapeCharacter('\\')
+                        .nullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .toProperties();
 
-		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
-			.setFieldDelimiter(';')
-			.setLineDelimiter("\r\n")
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.disableQuoteCharacter()
-			.build();
+        final CsvRowSerializationSchema expectedSer =
+                new CsvRowSerializationSchema.Builder(SCHEMA)
+                        .setFieldDelimiter(';')
+                        .setLineDelimiter("\r\n")
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
 
-		final SerializationSchema<?> actualSer = TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
+        final SerializationSchema<?> actualSer =
+                TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                        .createSerializationSchema(properties);
 
-		assertEquals(expectedSer, actualSer);
-	}
+        assertEquals(expectedSer, actualSer);
+    }
 
-	@Test
-	public void testDisableQuoteCharacterException() {
-		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Format cannot define a quote character and disabled quote character at the same time.");
-		final Map<String, String> properties = new Csv()
-			.schema(SCHEMA)
-			.fieldDelimiter(';')
-			.lineDelimiter("\r\n")
-			.allowComments()
-			.ignoreParseErrors()
-			.arrayElementDelimiter("|")
-			.escapeCharacter('\\')
-			.nullLiteral("n/a")
-			.quoteCharacter('#')
-			.disableQuoteCharacter()
-			.toProperties();
+    @Test
+    public void testDisableQuoteCharacterException() {
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage(
+                "Format cannot define a quote character and disabled quote character at the same time.");
+        final Map<String, String> properties =
+                new Csv()
+                        .schema(SCHEMA)
+                        .fieldDelimiter(';')
+                        .lineDelimiter("\r\n")
+                        .allowComments()
+                        .ignoreParseErrors()
+                        .arrayElementDelimiter("|")
+                        .escapeCharacter('\\')
+                        .nullLiteral("n/a")
+                        .quoteCharacter('#')
+                        .disableQuoteCharacter()
+                        .toProperties();
 
-		TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
-	}
+        TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                .createSerializationSchema(properties);
+    }
 }

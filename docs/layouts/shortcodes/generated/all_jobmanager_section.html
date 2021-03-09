@@ -1,0 +1,78 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Configure the minimum increase in parallelism for a job to scale up.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.archive.fs.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Dictionary for JobManager to store the archives of completed jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.attempts-history-size</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>Integer</td>
+            <td>The maximum number of prior execution attempts kept in history.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.failover-strategy</h5></td>
+            <td style="word-wrap: break-word;">"region"</td>
+            <td>String</td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether JobManager would retrieve canonical host name of TaskManager during registration. If the option is set to "false", TaskManager registration with JobManager could be faster, since no reverse DNS lookup is performed. However, local input split assignment (such as for HDFS files) may be impacted.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.address</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The config parameter defining the network address to connect to for communication with the job manager. This value is only interpreted in setups where a single JobManager with static name or address exists (simple standalone setups, or container setups with dynamic service name resolution). It is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">6123</td>
+            <td>Integer</td>
+            <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.cache-size</h5></td>
+            <td style="word-wrap: break-word;">52428800</td>
+            <td>Long</td>
+            <td>The job store cache size in bytes which is used to keep completed jobs in memory.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.expiration-time</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>Long</td>
+            <td>The time in seconds after which a completed job expires and is purged from the job store.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.max-capacity</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>The max number of completed jobs that can be kept in the job store.</td>
+        </tr>
+    </tbody>
+</table>

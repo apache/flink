@@ -28,41 +28,40 @@ import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link SavepointTriggerRequestBody}.
- */
+/** Tests for {@link SavepointTriggerRequestBody}. */
 @RunWith(Parameterized.class)
 public class SavepointTriggerRequestBodyTest
-		extends RestRequestMarshallingTestBase<SavepointTriggerRequestBody> {
+        extends RestRequestMarshallingTestBase<SavepointTriggerRequestBody> {
 
-	private final SavepointTriggerRequestBody savepointTriggerRequestBody;
+    private final SavepointTriggerRequestBody savepointTriggerRequestBody;
 
-	public SavepointTriggerRequestBodyTest(final SavepointTriggerRequestBody savepointTriggerRequestBody) {
-		this.savepointTriggerRequestBody = savepointTriggerRequestBody;
-	}
+    public SavepointTriggerRequestBodyTest(
+            final SavepointTriggerRequestBody savepointTriggerRequestBody) {
+        this.savepointTriggerRequestBody = savepointTriggerRequestBody;
+    }
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
-		return Arrays.asList(new Object[][]{
-			{new SavepointTriggerRequestBody("/tmp", true)},
-			{new SavepointTriggerRequestBody("/tmp", false)}
-		});
-	}
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {new SavepointTriggerRequestBody("/tmp", true)},
+                    {new SavepointTriggerRequestBody("/tmp", false)}
+                });
+    }
 
-	@Override
-	protected Class<SavepointTriggerRequestBody> getTestRequestClass() {
-		return SavepointTriggerRequestBody.class;
-	}
+    @Override
+    protected Class<SavepointTriggerRequestBody> getTestRequestClass() {
+        return SavepointTriggerRequestBody.class;
+    }
 
-	@Override
-	protected SavepointTriggerRequestBody getTestRequestInstance() {
-		return savepointTriggerRequestBody;
-	}
+    @Override
+    protected SavepointTriggerRequestBody getTestRequestInstance() {
+        return savepointTriggerRequestBody;
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			final SavepointTriggerRequestBody expected,
-			final SavepointTriggerRequestBody actual) {
-		assertEquals(expected.getTargetDirectory(), actual.getTargetDirectory());
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            final SavepointTriggerRequestBody expected, final SavepointTriggerRequestBody actual) {
+        assertEquals(expected.getTargetDirectory(), actual.getTargetDirectory());
+    }
 }

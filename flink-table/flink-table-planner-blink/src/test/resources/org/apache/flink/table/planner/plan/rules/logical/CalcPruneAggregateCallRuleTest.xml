@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT 1 FROM (SELECT SUM(a1), COUNT(*) FROM T1) t]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[1])
 +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[COUNT()])
@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[1])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0=[{inputs}], expr#1=[1], EXPR$0=[$t1])
 +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
@@ -41,7 +41,7 @@ LogicalCalc(expr#0=[{inputs}], expr#1=[1], EXPR$0=[$t1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM T2 WHERE EXISTS (SELECT SUM(a1), COUNT(*) FROM T1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
@@ -52,7 +52,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalJoin(condition=[$4], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
@@ -69,7 +69,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
     <Resource name="sql">
       <![CDATA[SELECT * FROM T2 WHERE EXISTS (SELECT SUM(a1), COUNT(*) FROM T1 WHERE 1=2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
@@ -81,7 +81,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalJoin(condition=[$4], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
@@ -97,7 +97,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
     <Resource name="sql">
       <![CDATA[SELECT 1 FROM (SELECT SUM(a1) FROM T1) t]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[1])
 +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
@@ -105,7 +105,7 @@ LogicalProject(EXPR$0=[1])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0=[{inputs}], expr#1=[1], EXPR$0=[$t1])
 +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
@@ -118,7 +118,7 @@ LogicalCalc(expr#0=[{inputs}], expr#1=[1], EXPR$0=[$t1])
     <Resource name="sql">
       <![CDATA[SELECT * FROM T2 WHERE EXISTS (SELECT COUNT(*) FROM T1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
@@ -129,7 +129,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalJoin(condition=[$4], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
@@ -146,7 +146,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
     <Resource name="sql">
       <![CDATA[SELECT * FROM T2 WHERE EXISTS (SELECT COUNT(*) FROM T1 WHERE 1=2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
@@ -158,7 +158,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalJoin(condition=[$4], joinType=[semi])
 :- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
@@ -178,7 +178,7 @@ SELECT a1, c1 FROM
 WHERE c1 > 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], c1=[$2])
 +- LogicalFilter(condition=[>($2, 10)])
@@ -186,7 +186,7 @@ LogicalProject(a1=[$0], c1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..1=[{inputs}], expr#2=[10], expr#3=[>($t1, $t2)], proj#0..1=[{exprs}], $condition=[$t3])
 +- LogicalAggregate(group=[{0}], c1=[COUNT($2)])
@@ -202,7 +202,7 @@ SELECT c1, a1 FROM
 WHERE c1 > 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c1=[$2], a1=[$0])
 +- LogicalFilter(condition=[>($2, 10)])
@@ -210,7 +210,7 @@ LogicalProject(c1=[$2], a1=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..1=[{inputs}], expr#2=[10], expr#3=[>($t1, $t2)], c1=[$t1], a1=[$t0], $condition=[$t3])
 +- LogicalAggregate(group=[{0}], c1=[COUNT($2)])
@@ -225,14 +225,14 @@ SELECT a1, c1 FROM
  (SELECT a1, b1, COUNT(c1) as c1, SUM(d1) as d1 FROM T1 GROUP BY a1, b1) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], c1=[$2])
 +- LogicalAggregate(group=[{0, 1}], c1=[COUNT($2)], d1=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0}], c1=[COUNT($2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
@@ -246,14 +246,14 @@ SELECT c1, a1 FROM
  (SELECT a1, b1, COUNT(c1) as c1, SUM(d1) as d1 FROM T1 GROUP BY a1, b1) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c1=[$2], a1=[$0])
 +- LogicalAggregate(group=[{0, 1}], c1=[COUNT($2)], d1=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..1=[{inputs}], c1=[$t1], a1=[$t0])
 +- LogicalAggregate(group=[{0}], c1=[COUNT($2)])
@@ -269,7 +269,7 @@ SELECT a2, b2, d2 FROM
 WHERE d2 > 0
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], d2=[$3])
 +- LogicalFilter(condition=[>($3, 0)])
@@ -277,7 +277,7 @@ LogicalProject(a2=[$0], b2=[$1], d2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..2=[{inputs}], expr#3=[0], expr#4=[>($t2, $t3)], proj#0..2=[{exprs}], $condition=[$t4])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
@@ -293,7 +293,7 @@ SELECT b2, a2, d2 FROM
 WHERE d2 > 0
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b2=[$1], a2=[$0], d2=[$3])
 +- LogicalFilter(condition=[>($3, 0)])
@@ -301,7 +301,7 @@ LogicalProject(b2=[$1], a2=[$0], d2=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..2=[{inputs}], expr#3=[0], expr#4=[>($t2, $t3)], b2=[$t1], a2=[$t0], d2=[$t2], $condition=[$t4])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
@@ -316,14 +316,14 @@ SELECT a2, b2, d2 FROM
  (SELECT a2, b2, COUNT(c2) as c2, SUM(d2) as d2 FROM T2 GROUP BY a2, b2) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a2=[$0], b2=[$1], d2=[$3])
 +- LogicalAggregate(group=[{0, 1}], c2=[COUNT($2)], d2=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
@@ -337,14 +337,14 @@ SELECT b2, a2, d2 FROM
  (SELECT a2, b2, COUNT(c2) as c2, SUM(d2) as d2 FROM T2 GROUP BY a2, b2) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b2=[$1], a2=[$0], d2=[$3])
 +- LogicalAggregate(group=[{0, 1}], c2=[COUNT($2)], d2=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..2=[{inputs}], b2=[$t1], a2=[$t0], d2=[$t2])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])
@@ -359,14 +359,14 @@ SELECT a2 as a, b2, d2 FROM
  (SELECT a2, b2, COUNT(c2) as c2, SUM(d2) as d2 FROM T2 GROUP BY a2, b2) t
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b2=[$1], d2=[$3])
 +- LogicalAggregate(group=[{0, 1}], c2=[COUNT($2)], d2=[SUM($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalCalc(expr#0..2=[{inputs}], proj#0..2=[{exprs}])
 +- LogicalAggregate(group=[{0, 1}], d2=[SUM($3)])

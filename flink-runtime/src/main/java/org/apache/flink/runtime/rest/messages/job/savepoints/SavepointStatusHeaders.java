@@ -26,58 +26,55 @@ import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * These headers define the protocol for triggering a savepoint.
- */
+/** These headers define the protocol for triggering a savepoint. */
 public class SavepointStatusHeaders
-		extends AsynchronousOperationStatusMessageHeaders<SavepointInfo, SavepointStatusMessageParameters> {
+        extends AsynchronousOperationStatusMessageHeaders<
+                SavepointInfo, SavepointStatusMessageParameters> {
 
-	private static final SavepointStatusHeaders INSTANCE = new SavepointStatusHeaders();
+    private static final SavepointStatusHeaders INSTANCE = new SavepointStatusHeaders();
 
-	private static final String URL = String.format(
-		"/jobs/:%s/savepoints/:%s",
-		JobIDPathParameter.KEY,
-		TriggerIdPathParameter.KEY);
+    private static final String URL =
+            String.format(
+                    "/jobs/:%s/savepoints/:%s", JobIDPathParameter.KEY, TriggerIdPathParameter.KEY);
 
-	private SavepointStatusHeaders() {
-	}
+    private SavepointStatusHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public SavepointStatusMessageParameters getUnresolvedMessageParameters() {
-		return new SavepointStatusMessageParameters();
-	}
+    @Override
+    public SavepointStatusMessageParameters getUnresolvedMessageParameters() {
+        return new SavepointStatusMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SavepointStatusHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SavepointStatusHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public Class<SavepointInfo> getValueClass() {
-		return SavepointInfo.class;
-	}
+    @Override
+    public Class<SavepointInfo> getValueClass() {
+        return SavepointInfo.class;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the status of a savepoint operation.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the status of a savepoint operation.";
+    }
 }

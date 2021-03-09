@@ -33,8 +33,8 @@ print_system_info() {
 
 # locate YARN logs and put them into artifacts directory
 put_yarn_logs_to_artifacts() {
-	for file in `find ./flink-yarn-tests/target -type f -name '*.log'`; do
-		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
+	for file in `find ./flink-yarn-tests/target -type f -name '*.log' -or -name '*.out'`; do
+		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).[a-z]{3}"`
 		TARGET_DIR=`dirname	 "$TARGET_FILE"`
 		mkdir -p "$DEBUG_FILES_OUTPUT_DIR/yarn-tests/$TARGET_DIR"
 		cp $file "$DEBUG_FILES_OUTPUT_DIR/yarn-tests/$TARGET_FILE"

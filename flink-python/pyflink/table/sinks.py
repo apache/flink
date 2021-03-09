@@ -17,7 +17,7 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, DataType
+from pyflink.table.types import _to_java_type
 from pyflink.util import utils
 
 __all__ = ['TableSink', 'CsvTableSink', 'WriteMode']
@@ -59,7 +59,6 @@ class CsvTableSink(TableSink):
 
     def __init__(self, field_names, field_types, path, field_delimiter=',', num_files=-1,
                  write_mode=None):
-        # type: (list[str], list[DataType], str, str, int, int) -> None
         gateway = get_gateway()
         if write_mode == WriteMode.NO_OVERWRITE:
             j_write_mode = gateway.jvm.org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE

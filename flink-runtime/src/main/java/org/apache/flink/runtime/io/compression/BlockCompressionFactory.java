@@ -23,65 +23,67 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Each compression codec has a implementation of {@link BlockCompressionFactory}
- * to create compressors and decompressors.
+ * Each compression codec has a implementation of {@link BlockCompressionFactory} to create
+ * compressors and decompressors.
  */
 public interface BlockCompressionFactory {
 
-	BlockCompressor getCompressor();
+    BlockCompressor getCompressor();
 
-	BlockDecompressor getDecompressor();
+    BlockDecompressor getDecompressor();
 
-	/**
-	 * Name of {@link BlockCompressionFactory}.
-	 */
-	enum CompressionFactoryName {
-		LZ4
-	}
+    /** Name of {@link BlockCompressionFactory}. */
+    enum CompressionFactoryName {
+        LZ4
+    }
 
-	/**
-	 * Creates {@link BlockCompressionFactory} according to the configuration.
-	 * @param compressionFactoryName supported compression codecs or user-defined class name inherited from
-	 *                               {@link BlockCompressionFactory}.
-	 */
-	static BlockCompressionFactory createBlockCompressionFactory(String compressionFactoryName) {
+    /**
+     * Creates {@link BlockCompressionFactory} according to the configuration.
+     *
+     * @param compressionFactoryName supported compression codecs or user-defined class name
+     *     inherited from {@link BlockCompressionFactory}.
+     */
+    static BlockCompressionFactory createBlockCompressionFactory(String compressionFactoryName) {
 
-		checkNotNull(compressionFactoryName);
+        checkNotNull(compressionFactoryName);
 
-		CompressionFactoryName compressionName;
-		try {
-			compressionName = CompressionFactoryName.valueOf(compressionFactoryName.toUpperCase());
-		} catch (IllegalArgumentException e) {
-			compressionName = null;
-		}
+        CompressionFactoryName compressionName;
+        try {
+            compressionName = CompressionFactoryName.valueOf(compressionFactoryName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            compressionName = null;
+        }
 
-		BlockCompressionFactory blockCompressionFactory = null;
-		if (compressionName != null) {
-			switch (compressionName) {
-				case LZ4:
-					blockCompressionFactory = new Lz4BlockCompressionFactory();
-					break;
-				default:
-					throw new IllegalStateException("Unknown CompressionMethod " + compressionName);
-			}
-		} else {
-			Object factoryObj;
-			try {
-				factoryObj = Class.forName(compressionFactoryName).newInstance();
-			} catch (ClassNotFoundException e) {
-				throw new IllegalConfigurationException("Cannot load class " + compressionFactoryName, e);
-			} catch (Exception e) {
-				throw new IllegalConfigurationException("Cannot create object for class " + compressionFactoryName, e);
-			}
-			if (factoryObj instanceof BlockCompressionFactory) {
-				blockCompressionFactory = (BlockCompressionFactory) factoryObj;
-			} else {
-				throw new IllegalArgumentException("CompressionFactoryName should inherit from" +
-						" interface BlockCompressionFactory, or use the default compression codec.");
-			}
-		}
+        BlockCompressionFactory blockCompressionFactory = null;
+        if (compressionName != null) {
+            switch (compressionName) {
+                case LZ4:
+                    blockCompressionFactory = new Lz4BlockCompressionFactory();
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown CompressionMethod " + compressionName);
+            }
+        } else {
+            Object factoryObj;
+            try {
+                factoryObj = Class.forName(compressionFactoryName).newInstance();
+            } catch (ClassNotFoundException e) {
+                throw new IllegalConfigurationException(
+                        "Cannot load class " + compressionFactoryName, e);
+            } catch (Exception e) {
+                throw new IllegalConfigurationException(
+                        "Cannot create object for class " + compressionFactoryName, e);
+            }
+            if (factoryObj instanceof BlockCompressionFactory) {
+                blockCompressionFactory = (BlockCompressionFactory) factoryObj;
+            } else {
+                throw new IllegalArgumentException(
+                        "CompressionFactoryName should inherit from"
+                                + " interface BlockCompressionFactory, or use the default compression codec.");
+            }
+        }
 
-		checkNotNull(blockCompressionFactory);
-		return blockCompressionFactory;
-	}
+        checkNotNull(blockCompressionFactory);
+        return blockCompressionFactory;
+    }
 }

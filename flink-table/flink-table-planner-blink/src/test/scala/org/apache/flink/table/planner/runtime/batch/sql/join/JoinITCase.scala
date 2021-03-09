@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, SinkTransformation, TwoInputTransformation}
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, LegacySinkTransformation, TwoInputTransformation}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -114,8 +114,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       @scala.annotation.tailrec
       def findTwoInputTransform(t: Transformation[_]): TwoInputTransformation[_, _, _] = {
         t match {
-          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInput)
-          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInput)
+          case sink: LegacySinkTransformation[_] => findTwoInputTransform(sink.getInputs.get(0))
+          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInputs.get(0))
           case two: TwoInputTransformation[_, _, _] => two
         }
       }

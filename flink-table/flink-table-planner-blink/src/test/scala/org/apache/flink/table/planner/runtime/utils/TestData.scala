@@ -23,13 +23,13 @@ import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
-import org.apache.flink.table.planner.{JHashMap, JInt, JLong}
+import org.apache.flink.table.planner.{JHashMap, JInt}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
-import java.lang.{Long => JLong}
+import java.lang.{Boolean => JBool, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
@@ -195,6 +195,25 @@ object TestData {
     row(5, 0.9)
   )
 
+  lazy val tupleData2: Seq[(Int, Double)] = {
+    val data = new mutable.MutableList[(Int, Double)]
+    data.+=((1, 0.1))
+    data.+=((2, 0.2))
+    data.+=((2, 0.2))
+    data.+=((3, 0.3))
+    data.+=((3, 0.3))
+    data.+=((3, 0.4))
+    data.+=((4, 0.5))
+    data.+=((4, 0.5))
+    data.+=((4, 0.6))
+    data.+=((4, 0.6))
+    data.+=((5, 0.7))
+    data.+=((5, 0.7))
+    data.+=((5, 0.8))
+    data.+=((5, 0.8))
+    data.+=((5, 0.9))
+  }
+
   lazy val tupleData3: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
@@ -268,6 +287,31 @@ object TestData {
       data.+=(((2, 2), "two"))
       data.+=(((3, 3), "three"))
     data
+  }
+
+  lazy val deepNestedRow: Seq[Row] = {
+    Seq(
+      Row.of(new JLong(1),
+        Row.of(
+          Row.of("Sarah", new JInt(100)),
+          Row.of(new JInt(1000), new JBool(true))
+        ),
+        Row.of("Peter", new JInt(10000)),
+        "Mary"),
+      Row.of(new JLong(2),
+        Row.of(
+          Row.of("Rob", new JInt(200)),
+          Row.of(new JInt(2000), new JBool(false))
+        ),
+        Row.of("Lucy", new JInt(20000)),
+        "Bob"),
+      Row.of(new JLong(3),
+        Row.of(
+          Row.of("Mike", new JInt(300)),
+          Row.of(new JInt(3000), new JBool(true))
+        ),
+        Row.of("Betty", new JInt(30000)),
+        "Liz"))
   }
 
   lazy val tupleData5: Seq[(Int, Long, Int, String, Long)] = {
@@ -490,6 +534,15 @@ object TestData {
     changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
     changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
 
+  val userUpsertlog: Seq[Row] = Seq(
+    changelogRow("+U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+U", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+    changelogRow("+U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+    changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
   // [amount, currency]
   val ordersData: Seq[Row] = Seq(
     row(2L, "Euro"),
@@ -498,6 +551,20 @@ object TestData {
     row(3L, "Euro"),
     row(5L, "US Dollar")
   )
+
+  // [city, state, population]
+  val citiesData: Seq[Row] = Seq(
+    row("Los_Angeles", "CA", 3979576),
+    row("Phoenix", "AZ", 1680992),
+    row("Houston", "TX", 2320268),
+    row("San_Diego", "CA", 1423851),
+    row("San_Francisco", "CA", 881549),
+    row("New_York", "NY", 8336817),
+    row("Dallas", "TX", 1343573),
+    row("San_Antonio", "TX", 1547253),
+    row("San_Jose", "CA", 1021795),
+    row("Chicago", "IL", 2695598),
+    row("Austin", "TX", 978908))
 
   // kind[currency, rate]
   val ratesHistoryData: Seq[Row] = Seq(
@@ -510,6 +577,31 @@ object TestData {
     changelogRow("+U", "Euro", JLong.valueOf(119L)),
     changelogRow("-D", "Yen", JLong.valueOf(1L))
   )
+
+  val ratesUpsertData: Seq[Row] = Seq(
+    changelogRow("+U", "US Dollar", JLong.valueOf(102L)),
+    changelogRow("+U", "Euro", JLong.valueOf(114L)),
+    changelogRow("+U", "Yen", JLong.valueOf(1L)),
+    changelogRow("+U", "Euro", JLong.valueOf(116L)),
+    changelogRow("+U", "Euro", JLong.valueOf(119L)),
+    changelogRow("-D", "Yen", JLong.valueOf(1L))
+  )
+
+  val windowData: Seq[Row] = List(
+    row("2020-10-10 00:00:01", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
+    row("2020-10-10 00:00:02", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-10 00:00:03", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-10 00:00:04", 5, 5d, 5f, new JBigDecimal("5.55"), null, "a"),
+
+    row("2020-10-10 00:00:07", 3, 3d, 3f, null, "Hello", "b"),
+    row("2020-10-10 00:00:06", 6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"), // out of order
+    row("2020-10-10 00:00:08", 3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a"),
+    row("2020-10-10 00:00:04", 5, 5d, null, new JBigDecimal("5.55"), "Hi", "a"), // late event
+
+    row("2020-10-10 00:00:16", 4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+
+    row("2020-10-10 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
 
   val fullDataTypesData: Seq[Row] = {
     val bools = List(true, false, true, false, null)

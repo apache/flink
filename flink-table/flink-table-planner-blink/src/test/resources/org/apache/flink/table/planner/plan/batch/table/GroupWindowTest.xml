@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
@@ -34,14 +34,14 @@ HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COU
     </Resource>
   </TestCase>
   <TestCase name="testEventTimeSlidingGroupWindowOverTime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, long, 8, 10)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10)], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
@@ -51,14 +51,14 @@ HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10
     </Resource>
   </TestCase>
   <TestCase name="testEventTimeTumblingGroupWindowOverTime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
@@ -68,14 +68,14 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
     </Resource>
   </TestCase>
   <TestCase name="testLongEventTimeTumblingGroupWindowWithProperties">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
@@ -85,7 +85,7 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 720000
     </Resource>
   </TestCase>
   <TestCase name="testEventTimeTumblingGroupWindowOverTimeWithUdAgg">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $3)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
@@ -93,7 +93,7 @@ LogicalProject(string=[$0], EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(EXPR$0) AS EXPR$0])
 +- Sort(orderBy=[string ASC, assignedWindow$ ASC])
@@ -106,14 +106,14 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
     </Resource>
   </TestCase>
   <TestCase name="testTimestampEventTimeTumblingGroupWindowWithProperties">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])

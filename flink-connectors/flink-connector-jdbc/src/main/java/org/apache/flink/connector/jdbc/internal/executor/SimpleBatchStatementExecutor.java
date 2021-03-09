@@ -31,53 +31,55 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * A {@link JdbcBatchStatementExecutor} that executes supplied statement for given the records (without any pre-processing).
+ * A {@link JdbcBatchStatementExecutor} that executes supplied statement for given the records
+ * (without any pre-processing).
  */
 class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
 
-	private final String sql;
-	private final JdbcStatementBuilder<V> parameterSetter;
-	private final Function<T, V> valueTransformer;
-	private final List<V> batch;
+    private final String sql;
+    private final JdbcStatementBuilder<V> parameterSetter;
+    private final Function<T, V> valueTransformer;
+    private final List<V> batch;
 
-	private transient PreparedStatement st;
+    private transient PreparedStatement st;
 
-	SimpleBatchStatementExecutor(String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
-		this.sql = sql;
-		this.parameterSetter = statementBuilder;
-		this.valueTransformer = valueTransformer;
-		this.batch = new ArrayList<>();
-	}
+    SimpleBatchStatementExecutor(
+            String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
+        this.sql = sql;
+        this.parameterSetter = statementBuilder;
+        this.valueTransformer = valueTransformer;
+        this.batch = new ArrayList<>();
+    }
 
-	@Override
-	public void prepareStatements(Connection connection) throws SQLException {
-		this.st = connection.prepareStatement(sql);
-	}
+    @Override
+    public void prepareStatements(Connection connection) throws SQLException {
+        this.st = connection.prepareStatement(sql);
+    }
 
-	@Override
-	public void addToBatch(T record) {
-		batch.add(valueTransformer.apply(record));
-	}
+    @Override
+    public void addToBatch(T record) {
+        batch.add(valueTransformer.apply(record));
+    }
 
-	@Override
-	public void executeBatch() throws SQLException {
-		if (!batch.isEmpty()) {
-			for (V r : batch) {
-				parameterSetter.accept(st, r);
-				st.addBatch();
-			}
-			st.executeBatch();
-			batch.clear();
-		}
-	}
+    @Override
+    public void executeBatch() throws SQLException {
+        if (!batch.isEmpty()) {
+            for (V r : batch) {
+                parameterSetter.accept(st, r);
+                st.addBatch();
+            }
+            st.executeBatch();
+            batch.clear();
+        }
+    }
 
-	@Override
-	public void closeStatements() throws SQLException {
-		if (st != null) {
-			st.close();
-			st = null;
-		}
-	}
+    @Override
+    public void closeStatements() throws SQLException {
+        if (st != null) {
+            st.close();
+            st = null;
+        }
+    }
 }

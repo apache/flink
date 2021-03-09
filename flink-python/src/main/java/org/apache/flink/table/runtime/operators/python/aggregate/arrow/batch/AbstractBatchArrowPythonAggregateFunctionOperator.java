@@ -37,93 +37,88 @@ import org.apache.flink.util.Preconditions;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-/**
- * The Abstract class of Batch Arrow Aggregate Operator for Pandas {@link AggregateFunction}.
- */
+/** The Abstract class of Batch Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
 abstract class AbstractBatchArrowPythonAggregateFunctionOperator
-	extends AbstractArrowPythonAggregateFunctionOperator {
+        extends AbstractArrowPythonAggregateFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int[] groupKey;
+    private final int[] groupKey;
 
-	/**
-	 * Last group key value.
-	 */
-	transient BinaryRowData lastGroupKey;
+    /** Last group key value. */
+    transient BinaryRowData lastGroupKey;
 
-	/**
-	 * Last group set value.
-	 */
-	transient BinaryRowData lastGroupSet;
+    /** Last group set value. */
+    transient BinaryRowData lastGroupSet;
 
-	/**
-	 * The Projection which projects the group key fields from the input row.
-	 */
-	transient Projection<RowData, BinaryRowData> groupKeyProjection;
+    /** The Projection which projects the group key fields from the input row. */
+    transient Projection<RowData, BinaryRowData> groupKeyProjection;
 
-	/**
-	 * The Projection which projects the group set fields (group key and aux group key) from the input row.
-	 */
-	transient Projection<RowData, BinaryRowData> groupSetProjection;
+    /**
+     * The Projection which projects the group set fields (group key and aux group key) from the
+     * input row.
+     */
+    transient Projection<RowData, BinaryRowData> groupSetProjection;
 
-	AbstractBatchArrowPythonAggregateFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] groupKey,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
-		this.groupKey = Preconditions.checkNotNull(groupKey);
-	}
+    AbstractBatchArrowPythonAggregateFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] groupKey,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
+        this.groupKey = Preconditions.checkNotNull(groupKey);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		groupKeyProjection = createProjection("GroupKey", groupKey);
-		groupSetProjection = createProjection("GroupSet", groupingSet);
-		lastGroupKey = null;
-		lastGroupSet = null;
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        groupKeyProjection = createProjection("GroupKey", groupKey);
+        groupSetProjection = createProjection("GroupSet", groupingSet);
+        lastGroupKey = null;
+        lastGroupSet = null;
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		invokeCurrentBatch();
-		super.endInput();
-	}
+    @Override
+    public void endInput() throws Exception {
+        invokeCurrentBatch();
+        super.endInput();
+    }
 
-	@Override
-	public void close() throws Exception {
-		invokeCurrentBatch();
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        invokeCurrentBatch();
+        super.close();
+    }
 
-	protected abstract void invokeCurrentBatch() throws Exception;
+    protected abstract void invokeCurrentBatch() throws Exception;
 
-	boolean isNewKey(BinaryRowData currentKey) {
-		return lastGroupKey == null ||
-			(lastGroupKey.getSizeInBytes() != currentKey.getSizeInBytes()) ||
-			!(BinaryRowDataUtil.byteArrayEquals(
-				currentKey.getSegments()[0].getHeapMemory(),
-				lastGroupKey.getSegments()[0].getHeapMemory(),
-				currentKey.getSizeInBytes()));
-	}
+    boolean isNewKey(BinaryRowData currentKey) {
+        return lastGroupKey == null
+                || (lastGroupKey.getSizeInBytes() != currentKey.getSizeInBytes())
+                || !(BinaryRowDataUtil.byteArrayEquals(
+                        currentKey.getSegments()[0].getHeapMemory(),
+                        lastGroupKey.getSegments()[0].getHeapMemory(),
+                        currentKey.getSizeInBytes()));
+    }
 
-	private Projection<RowData, BinaryRowData> createProjection(String name, int[] fields) {
-		final RowType forwardedFieldType = new RowType(
-			Arrays.stream(fields)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.collect(Collectors.toList()));
-		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
-			CodeGeneratorContext.apply(new TableConfig()),
-			name,
-			inputType,
-			forwardedFieldType,
-			fields);
-		// noinspection unchecked
-		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
-	}
+    private Projection<RowData, BinaryRowData> createProjection(String name, int[] fields) {
+        final RowType forwardedFieldType =
+                new RowType(
+                        Arrays.stream(fields)
+                                .mapToObj(i -> inputType.getFields().get(i))
+                                .collect(Collectors.toList()));
+        final GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        name,
+                        inputType,
+                        forwardedFieldType,
+                        fields);
+        // noinspection unchecked
+        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
+    }
 }

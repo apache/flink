@@ -40,100 +40,93 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 @PublicEvolving
 public final class KeyValueDataType extends DataType {
 
-	private final DataType keyDataType;
+    private final DataType keyDataType;
 
-	private final DataType valueDataType;
+    private final DataType valueDataType;
 
-	public KeyValueDataType(
-			LogicalType logicalType,
-			@Nullable Class<?> conversionClass,
-			DataType keyDataType,
-			DataType valueDataType) {
-		super(logicalType, conversionClass);
-		Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
-		Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
-		this.keyDataType = updateInnerDataType(keyDataType);
-		this.valueDataType = updateInnerDataType(valueDataType);
-	}
+    public KeyValueDataType(
+            LogicalType logicalType,
+            @Nullable Class<?> conversionClass,
+            DataType keyDataType,
+            DataType valueDataType) {
+        super(logicalType, conversionClass);
+        Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
+        Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
+        this.keyDataType = updateInnerDataType(keyDataType);
+        this.valueDataType = updateInnerDataType(valueDataType);
+    }
 
-	public KeyValueDataType(
-			LogicalType logicalType,
-			DataType keyDataType,
-			DataType valueDataType) {
-		this(logicalType, null, keyDataType, valueDataType);
-	}
+    public KeyValueDataType(LogicalType logicalType, DataType keyDataType, DataType valueDataType) {
+        this(logicalType, null, keyDataType, valueDataType);
+    }
 
-	public DataType getKeyDataType() {
-		return keyDataType;
-	}
+    public DataType getKeyDataType() {
+        return keyDataType;
+    }
 
-	public DataType getValueDataType() {
-		return valueDataType;
-	}
+    public DataType getValueDataType() {
+        return valueDataType;
+    }
 
-	@Override
-	public DataType notNull() {
-		return new KeyValueDataType(
-			logicalType.copy(false),
-			conversionClass,
-			keyDataType,
-			valueDataType);
-	}
+    @Override
+    public DataType notNull() {
+        return new KeyValueDataType(
+                logicalType.copy(false), conversionClass, keyDataType, valueDataType);
+    }
 
-	@Override
-	public DataType nullable() {
-		return new KeyValueDataType(
-			logicalType.copy(true),
-			conversionClass,
-			keyDataType,
-			valueDataType);
-	}
+    @Override
+    public DataType nullable() {
+        return new KeyValueDataType(
+                logicalType.copy(true), conversionClass, keyDataType, valueDataType);
+    }
 
-	@Override
-	public DataType bridgedTo(Class<?> newConversionClass) {
-		return new KeyValueDataType(
-			logicalType,
-			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-			keyDataType,
-			valueDataType);
-	}
+    @Override
+    public DataType bridgedTo(Class<?> newConversionClass) {
+        return new KeyValueDataType(
+                logicalType,
+                Preconditions.checkNotNull(
+                        newConversionClass, "New conversion class must not be null."),
+                keyDataType,
+                valueDataType);
+    }
 
-	@Override
-	public List<DataType> getChildren() {
-		return Arrays.asList(keyDataType, valueDataType);
-	}
+    @Override
+    public List<DataType> getChildren() {
+        return Arrays.asList(keyDataType, valueDataType);
+    }
 
-	@Override
-	public <R> R accept(DataTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(DataTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		KeyValueDataType that = (KeyValueDataType) o;
-		return keyDataType.equals(that.keyDataType) && valueDataType.equals(that.valueDataType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        KeyValueDataType that = (KeyValueDataType) o;
+        return keyDataType.equals(that.keyDataType) && valueDataType.equals(that.valueDataType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), keyDataType, valueDataType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), keyDataType, valueDataType);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private DataType updateInnerDataType(DataType innerDataType) {
-		if (conversionClass == MapData.class) {
-			return innerDataType.bridgedTo(toInternalConversionClass(innerDataType.getLogicalType()));
-		}
-		return innerDataType;
-	}
+    private DataType updateInnerDataType(DataType innerDataType) {
+        if (conversionClass == MapData.class) {
+            return innerDataType.bridgedTo(
+                    toInternalConversionClass(innerDataType.getLogicalType()));
+        }
+        return innerDataType;
+    }
 }

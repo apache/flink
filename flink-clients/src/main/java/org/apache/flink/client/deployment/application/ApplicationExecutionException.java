@@ -21,21 +21,19 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.FlinkException;
 
-/**
- * A {@link FlinkException} thrown in case something during application execution went wrong.
- */
+/** A {@link FlinkException} thrown in case something during application execution went wrong. */
 @PublicEvolving
 public class ApplicationExecutionException extends FlinkException {
 
-	public ApplicationExecutionException(String message) {
-		super(message);
-	}
+    public ApplicationExecutionException(String message) {
+        super(message);
+    }
 
-	public ApplicationExecutionException(Throwable cause) {
-		super(cause);
-	}
+    public ApplicationExecutionException(Throwable cause) {
+        super(cause);
+    }
 
-	public ApplicationExecutionException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ApplicationExecutionException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

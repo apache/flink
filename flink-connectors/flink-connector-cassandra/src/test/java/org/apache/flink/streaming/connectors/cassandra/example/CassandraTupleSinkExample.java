@@ -31,35 +31,38 @@ import java.util.ArrayList;
 /**
  * This is an example showing the to use the Tuple Cassandra Sink in the Streaming API.
  *
- * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
- * CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)
+ * <p>The example assumes that a table exists in a local cassandra database, according to the
+ * following queries: CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':
+ * 'SimpleStrategy', 'replication_factor': '1'}; CREATE TABLE IF NOT EXISTS test.writetuple(element1
+ * text PRIMARY KEY, element2 int)
  */
 public class CassandraTupleSinkExample {
-	private static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
-	private static final ArrayList<Tuple2<String, Integer>> collection = new ArrayList<>(20);
+    private static final String INSERT =
+            "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
+    private static final ArrayList<Tuple2<String, Integer>> collection = new ArrayList<>(20);
 
-	static {
-		for (int i = 0; i < 20; i++) {
-			collection.add(new Tuple2<>("cassandra-" + i, i));
-		}
-	}
+    static {
+        for (int i = 0; i < 20; i++) {
+            collection.add(new Tuple2<>("cassandra-" + i, i));
+        }
+    }
 
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(collection);
+        DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(collection);
 
-		CassandraSink.addSink(source)
-			.setQuery(INSERT)
-			.setClusterBuilder(new ClusterBuilder() {
-				@Override
-				protected Cluster buildCluster(Builder builder) {
-					return builder.addContactPoint("127.0.0.1").build();
-				}
-			})
-			.build();
+        CassandraSink.addSink(source)
+                .setQuery(INSERT)
+                .setClusterBuilder(
+                        new ClusterBuilder() {
+                            @Override
+                            protected Cluster buildCluster(Builder builder) {
+                                return builder.addContactPoint("127.0.0.1").build();
+                            }
+                        })
+                .build();
 
-		env.execute("WriteTupleIntoCassandra");
-	}
+        env.execute("WriteTupleIntoCassandra");
+    }
 }

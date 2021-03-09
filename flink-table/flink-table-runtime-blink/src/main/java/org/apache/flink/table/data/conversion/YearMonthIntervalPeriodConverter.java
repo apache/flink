@@ -26,53 +26,54 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResol
 import java.io.Serializable;
 import java.time.Period;
 
-/**
- * Converter for {@link YearMonthIntervalType} of {@link java.time.Period} external type.
- */
+/** Converter for {@link YearMonthIntervalType} of {@link java.time.Period} external type. */
 @Internal
-public class YearMonthIntervalPeriodConverter implements DataStructureConverter<Integer, java.time.Period> {
+public class YearMonthIntervalPeriodConverter
+        implements DataStructureConverter<Integer, java.time.Period> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final PeriodConstructor periodConstructor;
+    private final PeriodConstructor periodConstructor;
 
-	private YearMonthIntervalPeriodConverter(PeriodConstructor periodConstructor) {
-		this.periodConstructor = periodConstructor;
-	}
+    private YearMonthIntervalPeriodConverter(PeriodConstructor periodConstructor) {
+        this.periodConstructor = periodConstructor;
+    }
 
-	@Override
-	public Integer toInternal(java.time.Period external) {
-		return (int) external.toTotalMonths();
-	}
+    @Override
+    public Integer toInternal(java.time.Period external) {
+        return (int) external.toTotalMonths();
+    }
 
-	@Override
-	public java.time.Period toExternal(Integer internal) {
-		return periodConstructor.construct(internal);
-	}
+    @Override
+    public java.time.Period toExternal(Integer internal) {
+        return periodConstructor.construct(internal);
+    }
 
-	private interface PeriodConstructor extends Serializable {
-		java.time.Period construct(Integer internal);
-	}
+    private interface PeriodConstructor extends Serializable {
+        java.time.Period construct(Integer internal);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Factory method
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Factory method
+    // --------------------------------------------------------------------------------------------
 
-	public static YearMonthIntervalPeriodConverter create(DataType dataType) {
-		final YearMonthIntervalType intervalType = (YearMonthIntervalType) dataType.getLogicalType();
-		return new YearMonthIntervalPeriodConverter(createPeriodConstructor(intervalType.getResolution()));
-	}
+    public static YearMonthIntervalPeriodConverter create(DataType dataType) {
+        final YearMonthIntervalType intervalType =
+                (YearMonthIntervalType) dataType.getLogicalType();
+        return new YearMonthIntervalPeriodConverter(
+                createPeriodConstructor(intervalType.getResolution()));
+    }
 
-	private static PeriodConstructor createPeriodConstructor(YearMonthResolution resolution) {
-		switch (resolution) {
-			case YEAR:
-				return internal -> java.time.Period.ofYears(internal / 12);
-			case YEAR_TO_MONTH:
-				return internal -> java.time.Period.of(internal / 12, internal % 12, 0);
-			case MONTH:
-				return Period::ofMonths;
-			default:
-				throw new IllegalStateException();
-		}
-	}
+    private static PeriodConstructor createPeriodConstructor(YearMonthResolution resolution) {
+        switch (resolution) {
+            case YEAR:
+                return internal -> java.time.Period.ofYears(internal / 12);
+            case YEAR_TO_MONTH:
+                return internal -> java.time.Period.of(internal / 12, internal % 12, 0);
+            case MONTH:
+                return Period::ofMonths;
+            default:
+                throw new IllegalStateException();
+        }
+    }
 }

@@ -40,51 +40,51 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   @Test
   def testInOnWhere_NotSubQuery(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE a IN (1, 2, 3, 4)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere2(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE d < 100) AND b > 10")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE d < 100) AND b > 10")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere3(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a + 1 IN (SELECT c FROM y)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a + 1 IN (SELECT c FROM y)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a * b IN (SELECT d FROM y)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a * b IN (SELECT d FROM y)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere5(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE CAST(a AS BIGINT) IN (SELECT d FROM y)")
+    util.verifyRelPlan("SELECT * FROM x WHERE CAST(a AS BIGINT) IN (SELECT d FROM y)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere6(): Unit = {
-    util.verifyPlan("SELECT a FROM x x1 WHERE a IN (SELECT a FROM x WHERE a < 3 GROUP BY a)")
+    util.verifyRelPlan("SELECT a FROM x x1 WHERE a IN (SELECT a FROM x WHERE a < 3 GROUP BY a)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ComplexCondition1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' AND a IN (SELECT d FROM r))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ComplexCondition2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -92,14 +92,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // join
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(SELECT d FROM r FULL JOIN (SELECT j FROM t WHERE i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ComplexCondition4(): Unit = {
     // aggregate
     val sqlQuery = "SELECT a FROM l WHERE b IN (SELECT MAX(e) FROM r WHERE d < 3 GROUP BY f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -107,12 +107,12 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // union
     val sqlQuery = "SELECT a FROM l WHERE b IN " +
       "(SELECT e FROM r WHERE d > 10 UNION SELECT i FROM t WHERE i < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ComplexCondition6(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (a IN (SELECT d FROM y)) IS TRUE")
+    util.verifyRelPlan("SELECT * FROM x WHERE (a IN (SELECT d FROM y)) IS TRUE")
   }
 
   @Test
@@ -123,26 +123,26 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     // these queries will not be converted to joinType=[semi]
     val sqlQuery = "SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b IN (SELECT e FROM z))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     val sqlQuery1 = "SELECT * FROM x WHERE a IN (SELECT c FROM y) OR b > 10"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT * FROM x, y WHERE x.a = y.c AND (y.d IN (SELECT d FROM y) OR x.a >= 1)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
     val sqlQuery3 = "SELECT * FROM x WHERE a IN (SELECT x.b FROM r)"
-    util.verifyPlanNotExpected(sqlQuery3, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery3, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Case1(): Unit = {
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a > 10 THEN 1 ELSE 2 END) IN (SELECT d FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -152,7 +152,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO currently, FlinkSubQueryRemoveRule does not support SubQuery on Project.
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) IN (SELECT d FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -162,7 +162,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO currently, FlinkSubQueryRemoveRule does not support SubQuery on Project.
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1) THEN 1 ELSE 2 END) IN (SELECT d FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -174,7 +174,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1) THEN 1 WHEN a IN (SELECT j FROM t2) THEN 2 ELSE 3 END)" +
       " IN (SELECT d FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -186,7 +186,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE (b, " +
       "(CASE WHEN a IN (SELECT i FROM t1) THEN 1 WHEN a IN (SELECT j FROM t2) THEN 2 ELSE 3 END))" +
       " IN (SELECT e, d FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -199,7 +199,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       " (CASE WHEN a IN (SELECT i FROM t1) THEN 1 ELSE 2 END), " +
       " (CASE WHEN b IN (SELECT j FROM t2) THEN 3 ELSE 4 END)) " +
       " IN (SELECT d, e FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -213,13 +213,13 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1 WHERE l.a = t1.i) THEN 1 ELSE 2 END) IN (SELECT d FROM r)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ScalarQuery1(): Unit = {
     val sqlQuery = "SELECT a FROM x WHERE (SELECT MAX(d) FROM y WHERE c > 0) IN (SELECT f FROM z)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -227,21 +227,21 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO convert IN in scalar_query to joinType=[semi] ???
     val sqlQuery = "SELECT a FROM x WHERE " +
       "(SELECT MAX(d) FROM y WHERE c IN (SELECT e FROM z)) IN (SELECT f FROM z)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ScalarQuery3(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE d > 10) " +
       "AND b > (SELECT 0.5 * SUM(e) FROM z WHERE z.f < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ScalarQuery4(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE d > 10) " +
       "AND b > (SELECT 0.5 * SUM(e) FROM z WHERE x.a = z.e AND z.f < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -252,120 +252,121 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE d > " +
       "(SELECT 0.5 * SUM(e) FROM z WHERE x.a = z.e AND z.f < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_ScalarQuery6(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE d > " +
       "(SELECT SUM(e) FROM z WHERE y.c = z.e AND z.f < 100))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT MAX(r.e) FROM r WHERE r.d < 3 GROUP BY r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate2(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE a IN (SELECT d * 5 FROM (SELECT SUM(d) AS d FROM r) r1)")
+    util.verifyRelPlan(
+      "SELECT * FROM l WHERE a IN (SELECT d * 5 FROM (SELECT SUM(d) AS d FROM r) r1)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate3(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE b IN (SELECT COUNT(*) FROM r)")
+    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT COUNT(*) FROM r)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate4(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE (a, b) IN (SELECT d, COUNT(*) FROM r GROUP BY d)")
+    util.verifyRelPlan("SELECT * FROM l WHERE (a, b) IN (SELECT d, COUNT(*) FROM r GROUP BY d)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate5(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, 1)")
+    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, 1)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate6(): Unit = {
     val sqlQuery =
       "SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r GROUP BY d, true, e, 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Over1(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE b IN (SELECT MAX(r.e) OVER() FROM r)")
+    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT MAX(r.e) OVER() FROM r)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Over2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a, b) IN " +
       "(SELECT MAX(r.d) OVER(), MIN(r.e) OVER(PARTITION BY f ORDER BY d) FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_AggregateOver(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE b IN (SELECT MAX(r.e) OVER() FROM r GROUP BY r.e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT MAX(r.e) OVER() FROM r GROUP BY r.e)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_MultiFields1(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE (a, c) IN (SELECT d, f FROM r)")
+    util.verifyRelPlan("SELECT * FROM l WHERE (a, c) IN (SELECT d, f FROM r)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_MultiFields2(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE (a + 1, c) IN (SELECT d, f FROM r)")
+    util.verifyRelPlan("SELECT * FROM l WHERE (a + 1, c) IN (SELECT d, f FROM r)")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_MultiFields3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "(a + 10, SUBSTRING(c, 1, 5)) IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiInWithUncorrelatedOnWhere1(): Unit = {
     // multi IN in AND condition
-    util.verifyPlan("SELECT * FROM x WHERE a IN ( SELECT c FROM y) AND b IN (SELECT e FROM z)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN ( SELECT c FROM y) AND b IN (SELECT e FROM z)")
   }
 
   @Test
   def testMultiInWithUncorrelatedOnWhere2(): Unit = {
     // nested IN
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE d IN (SELECT f FROM z))")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE d IN (SELECT f FROM z))")
   }
 
   @Test
   def testMultiInWithUncorrelatedOnWhere3(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
       "a + 1 IN ( SELECT c FROM y WHERE d > 10) AND b * 2 IN (SELECT e FROM z WHERE f < 10)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiInWithUncorrelatedOnWhere_OR(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE a IN (SELECT c FROM y) OR b IN (SELECT e FROM z)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithUncorrelatedOnLateralTable1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnLateralTable2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE d IN (SELECT i FROM t))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -373,120 +374,121 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM (SELECT * FROM r WHERE d IN (" +
       "SELECT i FROM t)) m, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnLateralTable4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM (SELECT * FROM r LEFT JOIN LATERAL TABLE(table_func(f)) AS T(f1) ON TRUE))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d)")
   }
 
   @Test
   def testInWithCorrelatedOnWhere2(): Unit = {
     val sqlQuery =
       "SELECT * FROM x WHERE b > 1 AND a IN (SELECT c FROM y WHERE x.b = y.d AND y.c > 10)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere3(): Unit = {
     val sqlQuery =
       "SELECT * FROM x WHERE b > 1 AND a + 1 IN (SELECT c FROM y WHERE x.b = y.d AND y.c > 10)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b > y.d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b > y.d)")
   }
 
   @Test
   def testInWithCorrelatedOnWhere5(): Unit = {
     val sqlQuery =
       "SELECT a FROM x x1 WHERE a IN (SELECT a FROM x WHERE a < 3 AND x1.b = x.b GROUP BY a)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere6(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y where CAST(x.b AS INTEGER) = y.c)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE a IN (SELECT c FROM y where CAST(x.b AS INTEGER) = y.c)")
   }
 
   @Test
   def testInWithCorrelatedOnWhere7(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b > 10)")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ComplexCondition1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE a IN " +
       "(SELECT CAST(e AS INTEGER) FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ComplexCondition2(): Unit = {
     val sqlQuery = "SELECT a + 10, c FROM l WHERE " +
       "NOT(NOT(substring(c, 1, 5) IN (SELECT substring(f, 1, 5) FROM r WHERE l.b + 1 = r.e)))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ComplexCondition3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' AND a IN (SELECT d FROM r where l.b = r.e))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ComplexCondition4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' OR a NOT IN (SELECT d FROM r WHERE l.b = r.e))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ComplexCondition5(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (a IN (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
+    util.verifyRelPlan("SELECT * FROM x WHERE (a IN (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_UnsupportedCondition1(): Unit = {
     // this query will not be converted to joinType=[semi]
     val sqlQuery1 = "SELECT * FROM x WHERE b IN (SELECT d FROM y WHERE x.a = y.c OR y.c = 10)"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT * FROM x WHERE b IN (SELECT d FROM y WHERE x.a = y.c OR x.b = 10)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
     val sqlQuery3 = "SELECT * FROM x WHERE b IN (SELECT d FROM y WHERE x.a = y.c) OR x.a = 10"
-    util.verifyPlanNotExpected(sqlQuery3, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery3, "joinType=[semi]")
 
     val sqlQuery4 = "SELECT * FROM x WHERE a IN (SELECT x.a FROM y WHERE y.d = x.b)"
-    util.verifyPlanNotExpected(sqlQuery4, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testInWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     // TODO java.lang.RuntimeException: While invoking method
     // 'public RelDecorrelator$Frame RelDecorrelator.decorrelateRel(LogicalProject)'
     val sqlQuery = "SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b IN (SELECT j FROM t) " +
       "AND l.c = r.f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Case1(): Unit = {
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a > 10 THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.a = r.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -496,7 +498,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO currently, FlinkSubQueryRemoveRule does not support SubQuery on Project.
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -505,7 +507,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1) THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -517,7 +519,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE" +
       " (CASE WHEN a IN (SELECT i FROM t1) THEN 1 WHEN a IN (SELECT j FROM t2) THEN 2 ELSE 3 END)" +
       " IN (SELECT d FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -529,7 +531,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT b FROM l WHERE (b, " +
       "(CASE WHEN a IN (SELECT i FROM t1) THEN 1 WHEN a IN (SELECT j FROM t2) THEN 2 ELSE 3 END))" +
       " IN (SELECT e, d FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -540,14 +542,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT b FROM l WHERE (CASE WHEN a IN (SELECT i FROM t1 WHERE l.b = t1.j) " +
       "THEN 1 ELSE 2 END) IN (SELECT d FROM r WHERE l.c = r.f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ScalarQuery1(): Unit = {
     val sqlQuery = "SELECT a FROM x WHERE " +
       "(SELECT MAX(d) FROM y WHERE c > 0) IN (SELECT f FROM z WHERE z.e = x.a)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -555,7 +557,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO convert IN in scalar_query to joinType=[semi] ???
     val sqlQuery = "SELECT a FROM x WHERE " +
       "(SELECT MAX(d) FROM y WHERE c IN (SELECT e FROM z)) IN (SELECT f FROM z WHERE z.e = x.a)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -564,7 +566,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT a FROM x WHERE " +
       "(SELECT MAX(d) FROM y WHERE c IN (SELECT e FROM z WHERE y.d = z.f))" +
       " IN (SELECT f FROM z WHERE z.e = x.a)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -577,78 +579,78 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT a FROM x WHERE " +
       "(SELECT MAX(d) FROM y WHERE c IN (SELECT e FROM z WHERE x.b = z.f))" +
       " IN (SELECT f FROM z WHERE z.e = x.a)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ScalarQuery5(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d AND c > 10) " +
       "AND b > (SELECT 0.5 * SUM(e) FROM z WHERE z.f < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ScalarQuery6(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d AND c > 10) " +
       "AND b > (SELECT 0.5 * SUM(e) FROM z WHERE x.a = z.e AND z.f < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_ScalarQuery7(): Unit = {
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d AND c > " +
       "(SELECT SUM(e) FROM z WHERE y.c = z.e AND z.f < 100))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testInWithCorrelatedOnWhere_ScalarQuery8(): Unit = {
     // nested correlation can not be converted joinType=[semi] now
     // TODO There are some bugs when decorrelating in RelDecorrelator
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d AND c > " +
       "(SELECT 0.5 * SUM(e) FROM z WHERE x.a = z.e AND z.f < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(r.e) FROM r WHERE l.c = r.f AND r.d < 3 GROUP BY r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE a IN " +
       "(SELECT d * 5 FROM (SELECT SUM(d) AS d FROM r WHERE l.b = r.e) r1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT COUNT(*) FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a, b) IN " +
       "(SELECT d, COUNT(*) FROM r WHERE l.c = r.f GROUP BY d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate5(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(e) FROM r WHERE l.c = r.f GROUP BY d, true, 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate6(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (b, a) IN " +
       "(SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -657,48 +659,48 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT min(e) FROM " +
       "(SELECT d, e, RANK() OVER(PARTITION BY d ORDER BY e) AS rk FROM r) t " +
       "WHERE rk < 2 AND l.a = t.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate8(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT AVG(e) FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate9(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT d FROM (SELECT MAX(d) AS d, f FROM r GROUP BY f) t WHERE l.c > t.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Over1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f AND r.d < 3)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Over2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a, b) IN " +
       "(SELECT MAX(r.d) OVER(), MIN(r.e) OVER(PARTITION BY f ORDER BY d) FROM r WHERE l.c = r.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Over3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c <> r.f AND r.d < 3)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Over4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a, b) IN " +
       "(SELECT MAX(r.d) OVER(), MIN(r.e) OVER(PARTITION BY f ORDER BY d) FROM r WHERE l.c > r.f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -707,48 +709,48 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT rk FROM " +
       "(SELECT d, e, RANK() OVER(PARTITION BY d ORDER BY e) AS rk FROM r) t " +
       "WHERE l.a <> t.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_AggregateOver1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f GROUP BY r.e)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_AggregateOver2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c < r.f GROUP BY r.e)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_UnsupportedAggregate1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT MIN(e) FROM r WHERE l.c > r.f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_UnsupportedAggregate2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT MIN(e) FROM r WHERE l.c = r.f AND " +
       "r.d IN (SELECT MAX(i) FROM t WHERE r.e > t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_UnsupportedAggregate3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT MIN(e) FROM r WHERE l.c > r.f AND " +
       "r.d IN (SELECT MAX(i) FROM t WHERE r.e = t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_InnerJoin1(): Unit = {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(SELECT d FROM r INNER JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -756,7 +758,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT t.j FROM r1 INNER JOIN t ON r1.f = t.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -764,14 +766,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT e FROM r1 INNER JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_LeftJoin1(): Unit = {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(SELECT d FROM r LEFT JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -779,7 +781,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT t.j FROM r1 LEFT JOIN t ON r1.f = t.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -787,14 +789,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT e FROM r1 LEFT JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_RightJoin1(): Unit = {
     val sqlQuery = "SELECT c FROM l WHERE b IN " +
       "(SELECT d FROM r RIGHT JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -802,12 +804,12 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery1 = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT t.j FROM r1 RIGHT JOIN t ON r1.f = t.k)"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT e FROM r1 RIGHT JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
   }
 
@@ -815,17 +817,17 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   def testInWithCorrelatedOnWhere_FullJoin(): Unit = {
     val sqlQuery1 = "SELECT c FROM l WHERE b IN " +
       "(SELECT d FROM r FULL JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e, f FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT t.j FROM r1 FULL JOIN t ON r1.f = t.k)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
     val sqlQuery3 = "SELECT c FROM l WHERE b IN " +
       "(WITH r1 AS (SELECT e FROM r WHERE l.a = r.d AND r.e < 50) " +
       "SELECT e FROM r1 FULL JOIN (SELECT j FROM t WHERE l.c = t.k AND i > 10) t2 ON r1.e = t2.j)"
-    util.verifyPlanNotExpected(sqlQuery3, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery3, "joinType=[semi]")
   }
 
   @Test
@@ -839,7 +841,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE i < 100)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -852,26 +854,26 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE l.c = t.k AND i < 100)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_MultiFields1(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE (a, c) IN (SELECT d, f FROM r WHERE l.b = r.e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE (a, c) IN (SELECT d, f FROM r WHERE l.b = r.e)")
   }
 
   @Test
   def testInWithCorrelatedOnWhere_MultiFields2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) IN " +
       "(SELECT d, SUBSTRING(f, 1, 5) FROM r WHERE l.b = r.e)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_MultiFields3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (a + 10, SUBSTRING(c, 1, 5)) IN " +
       "(SELECT d + 100, SUBSTRING(f, 1, 5) FROM r WHERE l.b = r.e)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -879,7 +881,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // multi IN in AND condition with same correlation-vars
     val sqlQuery = "SELECT * FROM l WHERE " +
       "a IN (SELECT d FROM r WHERE c = f) AND b IN (SELECT j FROM t WHERE c = k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -887,7 +889,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // multi IN in AND condition with different correlation-vars
     val sqlQuery = "SELECT * FROM l WHERE " +
       "a IN (SELECT d FROM r WHERE c = f) AND b IN (SELECT j FROM t WHERE a = i AND k <> 'test')"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -895,14 +897,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // nested IN
     val sqlQuery = "SELECT * FROM l WHERE a IN (" +
       "SELECT r.d FROM r WHERE l.b = r.e AND r.f IN (SELECT t.k FROM t WHERE r.e = t.j))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiInWithCorrelatedOnWhere_OR(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
       "a IN (SELECT c FROM y WHERE x.b = y.d) OR b IN (SELECT e FROM z WHERE x.a = z.f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -911,7 +913,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT d FROM r WHERE l.b = r.e AND f IN " +
       "(SELECT k FROM t WHERE l.a = t.i AND r.e = t.j))"
     // nested correlation can not be converted joinType=[semi] now
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -919,14 +921,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // two IN in AND condition, one is uncorrelation subquery, another is correlation subquery
     val sqlQuery = "SELECT a FROM x WHERE" +
       " a IN (SELECT c FROM y WHERE x.b = y.d) AND b IN (SELECT f FROM z)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiInWithUncorrelatedAndCorrelatedOnWhere2(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE " +
       "a IN ( SELECT c FROM y) AND b IN (SELECT e FROM z WHERE z.f = x.b)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -934,28 +936,28 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // two nested IN, one is uncorrelation subquery, another is correlation subquery
     val sqlQuery = "SELECT * FROM x WHERE a IN (" +
       "SELECT c FROM y WHERE d IN (SELECT f FROM z) AND x.b = y.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiInWithUncorrelatedAndCorrelatedOnWhere4(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE a IN (" +
       "SELECT c FROM y WHERE d IN (SELECT f FROM z WHERE z.e = y.c))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnHaving1(): Unit = {
     val sqlQuery =
       "SELECT SUM(a) AS s FROM x GROUP BY b HAVING COUNT(*) > 2 AND b IN (SELECT d FROM y)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithUncorrelatedOnHaving2(): Unit = {
     val sqlQuery =
       "SELECT SUM(a) AS s FROM x GROUP BY b HAVING COUNT(*) > 2 AND MAX(b) IN (SELECT d FROM y)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -978,14 +980,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     //
     // LogicalFilter lost variablesSet information.
 
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInWithCorrelatedOnLateralTable1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -997,7 +999,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) " +
       "WHERE d IN (SELECT i FROM t WHERE l.b = t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1009,7 +1011,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM (SELECT * FROM r WHERE d IN (" +
       "SELECT i FROM t WHERE t.j = l.b)) m, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1021,62 +1023,62 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE c IN (" +
       "SELECT f1 FROM (SELECT * FROM r LEFT JOIN LATERAL TABLE(table_func(f)) AS T(f1) ON TRUE " +
       "WHERE d IN (SELECT i FROM t WHERE l.b = t.j)))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y)")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y)")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere2(): Unit = {
     val sqlQuery = "SELECT * FROM (SELECT a, b, d FROM x, y) xy " +
       "WHERE EXISTS (SELECT * FROM y where c > 0) AND a < 100"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere3(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE NOT (NOT EXISTS (SELECT * FROM y)) AND x.b = 10")
+    util.verifyRelPlan("SELECT * FROM x WHERE NOT (NOT EXISTS (SELECT * FROM y)) AND x.b = 10")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere4(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS (SELECT * FROM y) OR x.b = 10"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere5(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y)) IS TRUE")
+    util.verifyRelPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y)) IS TRUE")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere6(): Unit = {
     // TODO the result of SqlToRelConverter does not contain any field `b` info in SubQuery
-    util.verifyPlan("SELECT a FROM x WHERE EXISTS (SELECT x.b IS NULL FROM y)")
+    util.verifyRelPlan("SELECT a FROM x WHERE EXISTS (SELECT x.b IS NULL FROM y)")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere_ComplexCondition1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND EXISTS (SELECT CAST(e AS INTEGER), 1 FROM r WHERE e > 0)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere_ComplexCondition2(): Unit = {
     val sqlQuery = "SELECT a + 10, c FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere_ComplexCondition3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' AND EXISTS (SELECT d FROM r))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1084,7 +1086,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // join
     val sqlQuery = "SELECT c FROM l WHERE EXISTS " +
       "(SELECT d, j + 1 FROM r FULL JOIN (SELECT j FROM t WHERE i > 10) t2 ON r.e = t2.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1092,7 +1094,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // aggregate
     val sqlQuery = "SELECT a FROM l WHERE " +
       "EXISTS (SELECT MAX(e), MIN(d) FROM r WHERE d < 3 GROUP BY f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1100,18 +1102,18 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // union
     val sqlQuery = "SELECT a FROM l WHERE EXISTS " +
       "(SELECT e, f FROM r WHERE d > 10 UNION SELECT j, k FROM t WHERE i < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere_ComplexCondition7(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE (EXISTS (SELECT d FROM r)) = true")
+    util.verifyRelPlan("SELECT * FROM l WHERE (EXISTS (SELECT d FROM r)) = true")
   }
 
   @Test
   def testExistsWithUncorrelatedOnWhere_UnsupportedCondition(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (EXISTS (SELECT d FROM r)) IS NOT NULL"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1120,7 +1122,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "AND EXISTS (SELECT * FROM z z1 WHERE z1.e > 50) " +
       "AND b >= 1 " +
       "AND EXISTS (SELECT * FROM z z2 WHERE z2.f < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1129,7 +1131,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "AND EXISTS (SELECT * FROM z z1 WHERE z1.e > 50) " +
       "AND NOT (b >= 1 " +
       "AND EXISTS (SELECT * FROM z z2 WHERE z2.f < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1137,21 +1139,21 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l, r WHERE l.a = r.d " +
       "AND (EXISTS (SELECT * FROM t t1 WHERE t1.k > 50) " +
       "OR EXISTS (SELECT * FROM t t2 WHERE t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithUncorrelatedOnLateralTable1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnLateralTable2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM t))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1159,57 +1161,58 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM (SELECT * FROM r WHERE EXISTS (" +
       "SELECT * FROM t)) m, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithUncorrelatedOnLateralTable4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM (SELECT * FROM r LEFT JOIN LATERAL TABLE(table_func(f)) AS T(f1) ON TRUE))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE a = c)")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE a = c)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere2(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE a = c) AND x.a > 2")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE a = c) AND x.a > 2")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere3(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT 1, c + d, c + 2, d FROM y WHERE a = c)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1, c + d, c + 2, d FROM y WHERE a = c)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a = c and x.b > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a = c and x.b > 10)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere5(): Unit = {
     val sqlQuery = "SELECT x1.a FROM x x1, y WHERE x1.b = y.d AND x1.a < 10 AND y.c < 15 " +
       " AND EXISTS (SELECT * FROM x x2 WHERE x1.b = x2.b)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere6(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a < y.d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a < y.d)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere7(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
+    util.verifyRelPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS TRUE")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere8(): Unit = {
     // TODO the result of SqlToRelConverter does not contain any field `a` info in SubQuery
-    util.verifyPlan("SELECT a FROM x WHERE EXISTS (SELECT x.a IS NULL FROM y WHERE y.d = x.b)")
+    util.verifyRelPlan("SELECT a FROM x WHERE EXISTS (SELECT x.a IS NULL FROM y WHERE y.d = x.b)")
   }
 
   @Test
@@ -1217,50 +1220,50 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO only d0 is required in LogicalProject(d=[$0], d0=[CAST($0):INTEGER])
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT CAST(e AS INTEGER), 1 FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_ComplexCondition2(): Unit = {
     val sqlQuery = "SELECT a + 10, c FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r where l.b + 1 = r.e))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_ComplexCondition3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "b > 10 AND NOT (c like 'abc' AND EXISTS (SELECT d FROM r where l.b = r.e))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_ComplexCondition4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true")
+    util.verifyRelPlan("SELECT * FROM x WHERE (EXISTS (SELECT d FROM y WHERE y.d = x.b)) = true")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_UnsupportedCondition1(): Unit = {
     val sqlQuery1 = "SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a = y.c OR y.c = 10)"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a = y.c OR x.b = 10)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
     val sqlQuery3 = "SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE x.a = y.c) OR x.b = 10"
-    util.verifyPlanNotExpected(sqlQuery3, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery3, "joinType=[semi]")
 
     val sqlQuery4 = "SELECT * FROM x WHERE" +
       " (EXISTS (SELECT d FROM y WHERE y.d = x.b)) IS NOT NULL"
-    util.verifyPlanNotExpected(sqlQuery4, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
       "LEFT JOIN t ON s.f = t.k AND l.b = t.j)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1270,7 +1273,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     val sqlQuery = "SELECT * FROM l1 WHERE EXISTS " +
       "(SELECT COUNT(1) FROM r1 WHERE l1.b = r1.d AND c < 100 GROUP BY f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1280,42 +1283,42 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     val sqlQuery = "SELECT * FROM l1 WHERE EXISTS " +
       "(SELECT MAX(e) FROM r1 WHERE l1.b = r1.d AND c < 100 AND l1.a = r1.c GROUP BY c, true, f, 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Aggregate3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT d FROM (SELECT MAX(d) AS d, f FROM r GROUP BY f) t WHERE l.c > t.f)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Over1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f AND r.d < 3)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Over2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT SUM(r.e) OVER() FROM r WHERE l.c < r.f AND r.d < 3)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_AggregateOver1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c = r.f GROUP BY r.e)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_AggregateOver2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT MAX(r.e) OVER() FROM r WHERE l.c <> r.f GROUP BY r.e)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1325,35 +1328,35 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     val sqlQuery = "SELECT * FROM l1 WHERE EXISTS " +
       "(SELECT COUNT(*) FROM r1 WHERE l1.b > r1.d AND c < 100 GROUP BY f)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_UnsupportedAggregate2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (SELECT MIN(e) FROM r WHERE l.c = r.f AND " +
       "EXISTS (SELECT MAX(i) FROM t WHERE r.e > t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_UnsupportedAggregate3(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (SELECT MIN(e) FROM r WHERE l.c = r.f AND " +
       "EXISTS (SELECT MAX(i) FROM t WHERE r.e > t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_InnerJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 INNER JOIN t ON r1.f = t.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_InnerJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM r INNER JOIN (SELECT * FROM t WHERE t.j = l.b AND i < 50) t1 ON r.f = t1.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1362,21 +1365,21 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 " +
       "INNER JOIN " +
       "(SELECT i, k FROM t WHERE t.j = l.b AND i < 50) t1 ON r1.f = t1.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_LeftJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 LEFT JOIN t ON r1.f = t.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_LeftJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM r LEFT JOIN (SELECT * FROM t WHERE t.j = l.b AND i < 50) t1 ON r.f = t1.k)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1385,21 +1388,21 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 " +
       "LEFT JOIN " +
       "(SELECT i, k FROM t WHERE t.j = l.b AND i < 50) t1 ON r1.f = t1.k)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_RightJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 RIGHT JOIN t ON r1.f = t.k)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_RightJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM r RIGHT JOIN (SELECT * FROM t WHERE t.j = l.b AND i < 50) t1 ON r.f = t1.k)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1408,24 +1411,24 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 " +
       "RIGHT JOIN " +
       "(SELECT i, k FROM t WHERE t.j = l.b AND i < 50) t1 ON r1.f = t1.k)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_FullJoin(): Unit = {
     val sqlQuery1 = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 FULL JOIN t ON r1.f = t.k)"
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM r FULL JOIN (SELECT * FROM t WHERE t.j = l.b AND i < 50) t1 ON r.f = t1.k)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
 
     val sqlQuery3 = "SELECT * FROM l WHERE EXISTS " +
       "(SELECT * FROM (SELECT f FROM r WHERE r.d = l.a AND r.e > 10) r1 " +
       "FULL JOIN " +
       "(SELECT i, k FROM t WHERE t.j = l.b AND i < 50) t1 ON r1.f = t1.k)"
-    util.verifyPlanNotExpected(sqlQuery3, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery3, "joinType=[semi]")
   }
 
   @Test
@@ -1439,7 +1442,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE i < 100)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1452,43 +1455,45 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "(SELECT e FROM r WHERE l.a = r.d AND d > 10 " +
       "UNION " +
       "SELECT i FROM t WHERE l.c = t.k AND i < 100)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_InsideWith1(): Unit = {
     val sqlQuery = "SELECT * FROM x WHERE EXISTS (" +
       "WITH y2 AS (SELECT * FROM y WHERE y.c = x.a) SELECT 1 FROM y2 WHERE y2.d = x.b)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_InsideWith2(): Unit = {
     val sqlQuery = "WITH t (a, b) AS (SELECT * FROM (VALUES (1, 2))) " +
       "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM y WHERE y.c = t.a)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Limit1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE x.a = y.c LIMIT 1)")
+    util.verifyRelPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE x.a = y.c LIMIT 1)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Limit2(): Unit = {
     val sqlQuery = "SELECT a FROM x WHERE EXISTS " +
       "(SELECT 1 FROM (SELECT c FROM y LIMIT 1) y2 WHERE x.a = y2.c)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_SortLimit1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY d LIMIT 1)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY d LIMIT 1)")
   }
 
   @Test
   def testExistsWithCorrelatedOnWhere_SortLimit2(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY c LIMIT 1)")
+    util.verifyRelPlan(
+      "SELECT * FROM x WHERE EXISTS (SELECT 1 FROM y WHERE a = c ORDER BY c LIMIT 1)")
   }
 
   @Test
@@ -1502,7 +1507,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       |    WHERE d1 = e.d2 AND EXISTS (SELECT 2 FROM (SELECT i + 4 d4, i + 5 d5, i + 6 d6 FROM t)
       |    WHERE d4 = d.d1 AND d5 = d.d1 AND d6 = e.d3))
     """.stripMargin
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1511,7 +1516,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "AND EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "AND c >= 1 " +
       "AND EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1520,7 +1525,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "AND EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "AND (c >= 1 " +
       "AND EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1529,7 +1534,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
       "AND EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "AND NOT (c >= 1 " +
       "AND EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1537,7 +1542,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l, r WHERE l.a = r.d " +
       "AND (EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) " +
       "OR EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1545,14 +1550,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // two EXISTS in AND condition, one is uncorrelation subquery, another is correlation subquery
     val sqlQuery = "SELECT * FROM l WHERE " +
       "EXISTS (SELECT * FROM r) AND EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiExistsWithUncorrelatedAndCorrelatedOnWhere2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE " +
       "EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND EXISTS (SELECT * FROM t WHERE j < 100)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1560,14 +1565,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // two nested EXISTS, one is uncorrelation subquery, another is correlation subquery
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r WHERE EXISTS (SELECT * FROM t) AND l.a = r.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiExistsWithUncorrelatedAndCorrelatedOnWhere4(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r WHERE EXISTS (SELECT * FROM t WHERE r.d = t.i))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1590,17 +1595,17 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     //
     // LogicalFilter lost variablesSet information.
 
-    util.verifyPlanNotExpected(sqlQuery1, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
     val sqlQuery2 = "SELECT MAX(a) FROM x GROUP BY 1 HAVING EXISTS (SELECT 1 FROM y WHERE d < b)"
-    util.verifyPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
   }
 
   @Test
   def testExistsWithCorrelatedOnLateralTable1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1612,7 +1617,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) " +
       "WHERE EXISTS (SELECT * FROM t WHERE l.b = t.j))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1624,7 +1629,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM (SELECT * FROM r WHERE EXISTS (" +
       "SELECT * FROM t WHERE t.j = l.b)) m, LATERAL TABLE(table_func(f)) AS T(f1))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
@@ -1636,21 +1641,21 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (" +
       "SELECT * FROM (SELECT * FROM r LEFT JOIN LATERAL TABLE(table_func(f)) AS T(f1) ON TRUE " +
       "WHERE EXISTS (SELECT i FROM t WHERE l.b = t.j)))"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
   def testInExists1(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS (SELECT * FROM r WHERE l.a = r.d)" +
       " AND a IN (SELECT i FROM t WHERE l.b = t.j)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInExists2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN (SELECT j FROM t) " +
       " AND EXISTS (SELECT * FROM r WHERE l.a = r.d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -1660,14 +1665,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO some bugs in SubQueryRemoveRule
     //  the result RelNode (LogicalJoin(condition=[=($1, $8)], joinType=[left]))
     //  after SubQueryRemoveRule is unexpected
-    thrown.expect(classOf[RuntimeException])
+    thrown.expect(classOf[AssertionError])
 
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +
       " (CASE WHEN EXISTS (SELECT * FROM t WHERE l.a = t.i) THEN 1 ELSE 2 END), " +
       " (CASE WHEN b IN (SELECT m FROM t2) THEN 3 ELSE 4 END)) " +
       " IN (SELECT d, e FROM r)"
-    util.verifyPlanNotExpected(sqlQuery, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
 }

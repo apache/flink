@@ -30,46 +30,46 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A simple iterator over the input read though an I/O channel.
- * Use {@link BinaryRowDataSerializer#deserializeFromPages}.
+ * A simple iterator over the input read though an I/O channel. Use {@link
+ * BinaryRowDataSerializer#deserializeFromPages}.
  */
 public class BinaryRowChannelInputViewIterator implements MutableObjectIterator<BinaryRowData> {
-	private final ChannelReaderInputView inView;
+    private final ChannelReaderInputView inView;
 
-	private final BinaryRowDataSerializer serializer;
+    private final BinaryRowDataSerializer serializer;
 
-	private final List<MemorySegment> freeMemTarget;
+    private final List<MemorySegment> freeMemTarget;
 
-	public BinaryRowChannelInputViewIterator(
-			ChannelReaderInputView inView,
-			BinaryRowDataSerializer serializer) {
-		this(inView, new ArrayList<>(), serializer);
-	}
+    public BinaryRowChannelInputViewIterator(
+            ChannelReaderInputView inView, BinaryRowDataSerializer serializer) {
+        this(inView, new ArrayList<>(), serializer);
+    }
 
-	public BinaryRowChannelInputViewIterator(
-			ChannelReaderInputView inView,
-			List<MemorySegment> freeMemTarget,
-			BinaryRowDataSerializer serializer) {
-		this.inView = inView;
-		this.freeMemTarget = freeMemTarget;
-		this.serializer = serializer;
-	}
+    public BinaryRowChannelInputViewIterator(
+            ChannelReaderInputView inView,
+            List<MemorySegment> freeMemTarget,
+            BinaryRowDataSerializer serializer) {
+        this.inView = inView;
+        this.freeMemTarget = freeMemTarget;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public BinaryRowData next(BinaryRowData reuse) throws IOException {
-		try {
-			return this.serializer.deserializeFromPages(reuse, this.inView);
-		} catch (EOFException eofex) {
-			final List<MemorySegment> freeMem = this.inView.close();
-			if (this.freeMemTarget != null) {
-				this.freeMemTarget.addAll(freeMem);
-			}
-			return null;
-		}
-	}
+    @Override
+    public BinaryRowData next(BinaryRowData reuse) throws IOException {
+        try {
+            return this.serializer.deserializeFromPages(reuse, this.inView);
+        } catch (EOFException eofex) {
+            final List<MemorySegment> freeMem = this.inView.close();
+            if (this.freeMemTarget != null) {
+                this.freeMemTarget.addAll(freeMem);
+            }
+            return null;
+        }
+    }
 
-	@Override
-	public BinaryRowData next() throws IOException {
-		throw new UnsupportedOperationException("This method is disabled due to performance issue!");
-	}
+    @Override
+    public BinaryRowData next() throws IOException {
+        throw new UnsupportedOperationException(
+                "This method is disabled due to performance issue!");
+    }
 }

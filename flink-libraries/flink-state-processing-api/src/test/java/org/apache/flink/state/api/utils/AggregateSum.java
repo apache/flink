@@ -20,28 +20,26 @@ package org.apache.flink.state.api.utils;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 
-/**
- * A simple sum aggregator.
- */
+/** A simple sum aggregator. */
 public class AggregateSum implements AggregateFunction<Integer, Integer, Integer> {
 
-	@Override
-	public Integer createAccumulator() {
-		return 0;
-	}
+    @Override
+    public Integer createAccumulator() {
+        return 0;
+    }
 
-	@Override
-	public Integer add(Integer value, Integer accumulator) {
-		return value + accumulator;
-	}
+    @Override
+    public Integer add(Integer value, Integer accumulator) {
+        return value + accumulator;
+    }
 
-	@Override
-	public Integer getResult(Integer accumulator) {
-		return accumulator;
-	}
+    @Override
+    public Integer getResult(Integer accumulator) {
+        return accumulator;
+    }
 
-	@Override
-	public Integer merge(Integer a, Integer b) {
-		return a + b;
-	}
+    @Override
+    public Integer merge(Integer a, Integer b) {
+        return a + b;
+    }
 }

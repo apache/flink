@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -30,7 +30,7 @@ LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -47,7 +47,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE b + 1 = e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
@@ -58,7 +58,7 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -75,7 +75,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE b + 1 = e)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
@@ -86,11 +86,11 @@ LogicalProject(d=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalJoin(condition=[AND(OR(=($0, $4), IS NULL($0), IS NULL($4)), =($3, $5))], joinType=[anti])
+   +- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($4), =($0, $4)), =($3, $5))], joinType=[anti])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(d=[$0], e=[$1])
@@ -103,7 +103,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -113,7 +113,7 @@ LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, $0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])

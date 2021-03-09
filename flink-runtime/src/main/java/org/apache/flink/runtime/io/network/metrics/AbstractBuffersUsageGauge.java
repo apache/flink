@@ -22,37 +22,35 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
-/**
- * Abstract gauge implementation for calculating the buffer usage percent.
- */
+/** Abstract gauge implementation for calculating the buffer usage percent. */
 public abstract class AbstractBuffersUsageGauge implements Gauge<Float> {
 
-	protected final SingleInputGate[] inputGates;
+    protected final SingleInputGate[] inputGates;
 
-	@VisibleForTesting
-	public abstract int calculateUsedBuffers(SingleInputGate inputGate);
+    @VisibleForTesting
+    public abstract int calculateUsedBuffers(SingleInputGate inputGate);
 
-	@VisibleForTesting
-	public abstract int calculateTotalBuffers(SingleInputGate inputGate);
+    @VisibleForTesting
+    public abstract int calculateTotalBuffers(SingleInputGate inputGate);
 
-	AbstractBuffersUsageGauge(SingleInputGate[] inputGates) {
-		this.inputGates = inputGates;
-	}
+    AbstractBuffersUsageGauge(SingleInputGate[] inputGates) {
+        this.inputGates = inputGates;
+    }
 
-	@Override
-	public Float getValue() {
-		int usedBuffers = 0;
-		int totalBuffers = 0;
+    @Override
+    public Float getValue() {
+        int usedBuffers = 0;
+        int totalBuffers = 0;
 
-		for (SingleInputGate inputGate : inputGates) {
-			usedBuffers += calculateUsedBuffers(inputGate);
-			totalBuffers += calculateTotalBuffers(inputGate);
-		}
+        for (SingleInputGate inputGate : inputGates) {
+            usedBuffers += calculateUsedBuffers(inputGate);
+            totalBuffers += calculateTotalBuffers(inputGate);
+        }
 
-		if (totalBuffers != 0) {
-			return ((float) usedBuffers) / totalBuffers;
-		} else {
-			return 0.0f;
-		}
-	}
+        if (totalBuffers != 0) {
+            return ((float) usedBuffers) / totalBuffers;
+        } else {
+            return 0.0f;
+        }
+    }
 }

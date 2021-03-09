@@ -55,177 +55,193 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink versions and that the
- * topology can be modified from that point on.
+ * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink
+ * versions and that the topology can be modified from that point on.
  *
- * <p>The verification is done in 2 Steps:
- * Step 1: Migrate the job to the newer version by submitting the same job used for the old version savepoint, and create a new savepoint.
- * Step 2: Modify the job topology, and restore from the savepoint created in step 1.
+ * <p>The verification is done in 2 Steps: Step 1: Migrate the job to the newer version by
+ * submitting the same job used for the old version savepoint, and create a new savepoint. Step 2:
+ * Modify the job topology, and restore from the savepoint created in step 1.
  */
 public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
-	private static final int NUM_TMS = 1;
-	private static final int NUM_SLOTS_PER_TM = 4;
-	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
-	private static final Pattern PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS = Pattern
-		.compile(Stream
-			.of("was not running",
-				CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING.message(),
-				CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY.message(),
-				CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER.message())
-			.map(AbstractOperatorRestoreTestBase::escapeRegexCharacters)
-			.collect(Collectors.joining(")|(", "(", ")"))
-		);
+    private static final int NUM_TMS = 1;
+    private static final int NUM_SLOTS_PER_TM = 4;
+    private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
+    private static final Pattern PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS =
+            Pattern.compile(
+                    Stream.of(
+                                    "was not running",
+                                    CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING
+                                            .message(),
+                                    CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY
+                                            .message(),
+                                    CheckpointFailureReason
+                                            .CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER
+                                            .message())
+                            .map(AbstractOperatorRestoreTestBase::escapeRegexCharacters)
+                            .collect(Collectors.joining(")|(", "(", ")")));
 
-	@Rule
-	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	@Rule
-	public final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-			.build());
+    @Rule
+    public final MiniClusterWithClientResource cluster =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(NUM_TMS)
+                            .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+                            .build());
 
-	private final boolean allowNonRestoredState;
+    private final boolean allowNonRestoredState;
 
-	protected AbstractOperatorRestoreTestBase() {
-		this(true);
-	}
+    protected AbstractOperatorRestoreTestBase() {
+        this(true);
+    }
 
-	protected AbstractOperatorRestoreTestBase(boolean allowNonRestoredState) {
-		this.allowNonRestoredState = allowNonRestoredState;
-	}
+    protected AbstractOperatorRestoreTestBase(boolean allowNonRestoredState) {
+        this.allowNonRestoredState = allowNonRestoredState;
+    }
 
-	@Test
-	public void testMigrationAndRestore() throws Throwable {
-		ClusterClient<?> clusterClient = cluster.getClusterClient();
-		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
+    @Test
+    public void testMigrationAndRestore() throws Throwable {
+        ClusterClient<?> clusterClient = cluster.getClusterClient();
+        final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
-		// submit job with old version savepoint and create a migrated savepoint in the new version
-		String savepointPath = migrateJob(clusterClient, deadline);
-		// restore from migrated new version savepoint
-		restoreJob(clusterClient, deadline, savepointPath);
-	}
+        // submit job with old version savepoint and create a migrated savepoint in the new version
+        String savepointPath = migrateJob(clusterClient, deadline);
+        // restore from migrated new version savepoint
+        restoreJob(clusterClient, deadline, savepointPath);
+    }
 
-	private String migrateJob(ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
+    private String migrateJob(ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
 
-		URL savepointResource = AbstractOperatorRestoreTestBase.class.getClassLoader().getResource("operatorstate/" + getMigrationSavepointName());
-		if (savepointResource == null) {
-			throw new IllegalArgumentException("Savepoint file does not exist.");
-		}
-		JobGraph jobToMigrate = createJobGraph(ExecutionMode.MIGRATE);
-		jobToMigrate.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointResource.getFile()));
+        URL savepointResource =
+                AbstractOperatorRestoreTestBase.class
+                        .getClassLoader()
+                        .getResource("operatorstate/" + getMigrationSavepointName());
+        if (savepointResource == null) {
+            throw new IllegalArgumentException("Savepoint file does not exist.");
+        }
+        JobGraph jobToMigrate = createJobGraph(ExecutionMode.MIGRATE);
+        jobToMigrate.setSavepointRestoreSettings(
+                SavepointRestoreSettings.forPath(savepointResource.getFile()));
 
-		assertNotNull(jobToMigrate.getJobID());
+        assertNotNull(jobToMigrate.getJobID());
 
-		clusterClient.submitJob(jobToMigrate).get();
+        clusterClient.submitJob(jobToMigrate).get();
 
-		CompletableFuture<JobStatus> jobRunningFuture = FutureUtils.retrySuccessfulWithDelay(
-			() -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-			Time.milliseconds(50),
-			deadline,
-			(jobStatus) -> jobStatus == JobStatus.RUNNING,
-			TestingUtils.defaultScheduledExecutor());
-		assertEquals(
-			JobStatus.RUNNING,
-			jobRunningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        CompletableFuture<JobStatus> jobRunningFuture =
+                FutureUtils.retrySuccessfulWithDelay(
+                        () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
+                        Time.milliseconds(50),
+                        deadline,
+                        (jobStatus) -> jobStatus == JobStatus.RUNNING,
+                        TestingUtils.defaultScheduledExecutor());
+        assertEquals(
+                JobStatus.RUNNING,
+                jobRunningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
-		// Trigger savepoint
-		File targetDirectory = tmpFolder.newFolder();
-		String savepointPath = null;
+        // Trigger savepoint
+        File targetDirectory = tmpFolder.newFolder();
+        String savepointPath = null;
 
-		// FLINK-6918: Retry cancel with savepoint message in case that StreamTasks were not running
-		// TODO: The retry logic should be removed once the StreamTask lifecycle has been fixed (see FLINK-4714)
-		while (deadline.hasTimeLeft() && savepointPath == null) {
-			try {
-				savepointPath = clusterClient.cancelWithSavepoint(
-					jobToMigrate.getJobID(),
-					targetDirectory.getAbsolutePath()).get();
-			} catch (Exception e) {
-				String exceptionString = ExceptionUtils.stringifyException(e);
-				if (!PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS.matcher(exceptionString).find()) {
-					throw e;
-				}
-			}
-		}
+        // FLINK-6918: Retry cancel with savepoint message in case that StreamTasks were not running
+        // TODO: The retry logic should be removed once the StreamTask lifecycle has been fixed (see
+        // FLINK-4714)
+        while (deadline.hasTimeLeft() && savepointPath == null) {
+            try {
+                savepointPath =
+                        clusterClient
+                                .cancelWithSavepoint(
+                                        jobToMigrate.getJobID(), targetDirectory.getAbsolutePath())
+                                .get();
+            } catch (Exception e) {
+                String exceptionString = ExceptionUtils.stringifyException(e);
+                if (!PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS
+                        .matcher(exceptionString)
+                        .find()) {
+                    throw e;
+                }
+            }
+        }
 
-		assertNotNull("Could not take savepoint.", savepointPath);
+        assertNotNull("Could not take savepoint.", savepointPath);
 
-		CompletableFuture<JobStatus> jobCanceledFuture = FutureUtils.retrySuccessfulWithDelay(
-			() -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-			Time.milliseconds(50),
-			deadline,
-			(jobStatus) -> jobStatus == JobStatus.CANCELED,
-			TestingUtils.defaultScheduledExecutor());
-		assertEquals(
-			JobStatus.CANCELED,
-			jobCanceledFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        CompletableFuture<JobStatus> jobCanceledFuture =
+                FutureUtils.retrySuccessfulWithDelay(
+                        () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
+                        Time.milliseconds(50),
+                        deadline,
+                        (jobStatus) -> jobStatus == JobStatus.CANCELED,
+                        TestingUtils.defaultScheduledExecutor());
+        assertEquals(
+                JobStatus.CANCELED,
+                jobCanceledFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
-		return savepointPath;
-	}
+        return savepointPath;
+    }
 
-	private void restoreJob(ClusterClient<?> clusterClient, Deadline deadline, String savepointPath) throws Exception {
-		JobGraph jobToRestore = createJobGraph(ExecutionMode.RESTORE);
-		jobToRestore.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
+    private void restoreJob(ClusterClient<?> clusterClient, Deadline deadline, String savepointPath)
+            throws Exception {
+        JobGraph jobToRestore = createJobGraph(ExecutionMode.RESTORE);
+        jobToRestore.setSavepointRestoreSettings(
+                SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
 
-		assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
+        assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
 
-		clusterClient.submitJob(jobToRestore).get();
+        clusterClient.submitJob(jobToRestore).get();
 
-		CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
-			() -> clusterClient.getJobStatus(jobToRestore.getJobID()),
-			Time.milliseconds(50),
-			deadline,
-			(jobStatus) -> jobStatus == JobStatus.FINISHED,
-			TestingUtils.defaultScheduledExecutor());
-		assertEquals(
-			JobStatus.FINISHED,
-			jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
-	}
+        CompletableFuture<JobStatus> jobStatusFuture =
+                FutureUtils.retrySuccessfulWithDelay(
+                        () -> clusterClient.getJobStatus(jobToRestore.getJobID()),
+                        Time.milliseconds(50),
+                        deadline,
+                        (jobStatus) -> jobStatus == JobStatus.FINISHED,
+                        TestingUtils.defaultScheduledExecutor());
+        assertEquals(
+                JobStatus.FINISHED,
+                jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+    }
 
-	private JobGraph createJobGraph(ExecutionMode mode) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.setStateBackend((StateBackend) new MemoryStateBackend());
+    private JobGraph createJobGraph(ExecutionMode mode) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
+        env.setRestartStrategy(RestartStrategies.noRestart());
+        env.setStateBackend((StateBackend) new MemoryStateBackend());
 
-		switch (mode) {
-			case MIGRATE:
-				createMigrationJob(env);
-				break;
-			case RESTORE:
-				createRestoredJob(env);
-				break;
-		}
+        switch (mode) {
+            case MIGRATE:
+                createMigrationJob(env);
+                break;
+            case RESTORE:
+                createRestoredJob(env);
+                break;
+        }
 
-		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-	}
+        return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+    }
 
-	/**
-	 * Recreates the job used to create the new version savepoint.
-	 *
-	 * @param env StreamExecutionEnvironment to use
-	 */
-	protected abstract void createMigrationJob(StreamExecutionEnvironment env);
+    /**
+     * Recreates the job used to create the new version savepoint.
+     *
+     * @param env StreamExecutionEnvironment to use
+     */
+    protected abstract void createMigrationJob(StreamExecutionEnvironment env);
 
-	/**
-	 * Creates a modified version of the job used to create the new version savepoint.
-	 *
-	 * @param env StreamExecutionEnvironment to use
-	 */
-	protected abstract void createRestoredJob(StreamExecutionEnvironment env);
+    /**
+     * Creates a modified version of the job used to create the new version savepoint.
+     *
+     * @param env StreamExecutionEnvironment to use
+     */
+    protected abstract void createRestoredJob(StreamExecutionEnvironment env);
 
-	/**
-	 * Returns the name of the savepoint directory to use, relative to "resources/operatorstate".
-	 *
-	 * @return savepoint directory to use
-	 */
-	protected abstract String getMigrationSavepointName();
+    /**
+     * Returns the name of the savepoint directory to use, relative to "resources/operatorstate".
+     *
+     * @return savepoint directory to use
+     */
+    protected abstract String getMigrationSavepointName();
 
-	private static String escapeRegexCharacters(String string) {
-		return string
-			.replaceAll("\\(", "\\\\(")
-			.replaceAll("\\)", "\\\\)");
-	}
+    private static String escapeRegexCharacters(String string) {
+        return string.replaceAll("\\(", "\\\\(").replaceAll("\\)", "\\\\)");
+    }
 }

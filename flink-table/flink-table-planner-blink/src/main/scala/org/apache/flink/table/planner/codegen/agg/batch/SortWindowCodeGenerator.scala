@@ -32,7 +32,6 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.RelBuilder
 
 /**
@@ -62,8 +61,7 @@ class SortWindowCodeGenerator(
     inputTimeIsDate: Boolean,
     namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
-    inputRowType: RelDataType,
-    inputType: RowType,
+    inputRowType: RowType,
     outputType: RowType,
     buffLimitSize: Int,
     windowStart: Long,
@@ -125,7 +123,7 @@ class SortWindowCodeGenerator(
           slideSize,
           windowSize,
           inputTerm,
-          inputType,
+          inputRowType,
           outputType,
           windowsGrouping,
           windowElementType,
@@ -156,7 +154,7 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithoutKeys" else "LocalSortWinAggWithoutKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType)
+      ctx, className, baseClass, processCode, endInputCode, inputRowType)
   }
 
   def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
@@ -169,7 +167,7 @@ class SortWindowCodeGenerator(
 
     val keyProjectionCode = ProjectionCodeGenerator.generateProjectionExpression(
       ctx,
-      inputType,
+      inputRowType,
       groupKeyRowType,
       grouping,
       inputTerm = inputTerm,
@@ -207,7 +205,7 @@ class SortWindowCodeGenerator(
           slideSize,
           windowSize,
           inputTerm,
-          inputType,
+          inputRowType,
           outputType,
           windowsGrouping,
           windowElementType,
@@ -254,7 +252,7 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithKeys" else "LocalSortWinAggWithKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType)
+      ctx, className, baseClass, processCode, endInputCode, inputRowType)
   }
 
   private def choosePreAcc: Boolean = {

@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -43,111 +41,152 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.Assert.*;
+
 @SuppressWarnings("serial")
 public class InnerJoinOperatorBaseTest implements Serializable {
 
-	@Test
-	public void testJoinPlain(){
-		final FlatJoinFunction<String, String, Integer> joiner = new FlatJoinFunction<String, String, Integer>() {
+    @Test
+    public void testJoinPlain() {
+        final FlatJoinFunction<String, String, Integer> joiner =
+                new FlatJoinFunction<String, String, Integer>() {
 
-			@Override
-			public void join(String first, String second, Collector<Integer> out) throws Exception {
-				out.collect(first.length());
-				out.collect(second.length());
-			}
-		};
+                    @Override
+                    public void join(String first, String second, Collector<Integer> out)
+                            throws Exception {
+                        out.collect(first.length());
+                        out.collect(second.length());
+                    }
+                };
 
-		@SuppressWarnings({ "rawtypes", "unchecked" })
-		InnerJoinOperatorBase<String, String, Integer,
-						FlatJoinFunction<String, String,Integer> > base = new InnerJoinOperatorBase(joiner,
-				new BinaryOperatorInformation(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.INT_TYPE_INFO), new int[0], new int[0], "TestJoiner");
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        InnerJoinOperatorBase<String, String, Integer, FlatJoinFunction<String, String, Integer>>
+                base =
+                        new InnerJoinOperatorBase(
+                                joiner,
+                                new BinaryOperatorInformation(
+                                        BasicTypeInfo.STRING_TYPE_INFO,
+                                        BasicTypeInfo.STRING_TYPE_INFO,
+                                        BasicTypeInfo.INT_TYPE_INFO),
+                                new int[0],
+                                new int[0],
+                                "TestJoiner");
 
-		List<String> inputData1 = new ArrayList<String>(Arrays.asList("foo", "bar", "foobar"));
-		List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
-		List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6 ,6));
+        List<String> inputData1 = new ArrayList<String>(Arrays.asList("foo", "bar", "foobar"));
+        List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
+        List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
 
-		try {
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			executionConfig.disableObjectReuse();
-			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, null, executionConfig);
-			executionConfig.enableObjectReuse();
-			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, null, executionConfig);
+        try {
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.disableObjectReuse();
+            List<Integer> resultSafe =
+                    base.executeOnCollections(inputData1, inputData2, null, executionConfig);
+            executionConfig.enableObjectReuse();
+            List<Integer> resultRegular =
+                    base.executeOnCollections(inputData1, inputData2, null, executionConfig);
 
-			assertEquals(expected, resultSafe);
-			assertEquals(expected, resultRegular);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(expected, resultSafe);
+            assertEquals(expected, resultRegular);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testJoinRich(){
-		final AtomicBoolean opened = new AtomicBoolean(false);
-		final AtomicBoolean closed = new AtomicBoolean(false);
-		final String taskName = "Test rich join function";
+    @Test
+    public void testJoinRich() {
+        final AtomicBoolean opened = new AtomicBoolean(false);
+        final AtomicBoolean closed = new AtomicBoolean(false);
+        final String taskName = "Test rich join function";
 
-		final RichFlatJoinFunction<String, String, Integer> joiner = new RichFlatJoinFunction<String, String, Integer>() {
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				opened.compareAndSet(false, true);
-				assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-				assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-			}
+        final RichFlatJoinFunction<String, String, Integer> joiner =
+                new RichFlatJoinFunction<String, String, Integer>() {
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        opened.compareAndSet(false, true);
+                        assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
+                        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+                    }
 
-			@Override
-			public void close() throws Exception{
-				closed.compareAndSet(false, true);
-			}
+                    @Override
+                    public void close() throws Exception {
+                        closed.compareAndSet(false, true);
+                    }
 
-			@Override
-			public void join(String first, String second, Collector<Integer> out) throws Exception {
-				out.collect(first.length());
-				out.collect(second.length());
-			}
-		};
+                    @Override
+                    public void join(String first, String second, Collector<Integer> out)
+                            throws Exception {
+                        out.collect(first.length());
+                        out.collect(second.length());
+                    }
+                };
 
-		InnerJoinOperatorBase<String, String, Integer,
-						RichFlatJoinFunction<String, String, Integer>> base = new InnerJoinOperatorBase<String, String, Integer,
-										RichFlatJoinFunction<String, String, Integer>>(joiner, new BinaryOperatorInformation<String, String,
-				Integer>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.INT_TYPE_INFO), new int[0], new int[0], taskName);
+        InnerJoinOperatorBase<
+                        String, String, Integer, RichFlatJoinFunction<String, String, Integer>>
+                base =
+                        new InnerJoinOperatorBase<
+                                String,
+                                String,
+                                Integer,
+                                RichFlatJoinFunction<String, String, Integer>>(
+                                joiner,
+                                new BinaryOperatorInformation<String, String, Integer>(
+                                        BasicTypeInfo.STRING_TYPE_INFO,
+                                        BasicTypeInfo.STRING_TYPE_INFO,
+                                        BasicTypeInfo.INT_TYPE_INFO),
+                                new int[0],
+                                new int[0],
+                                taskName);
 
-		final List<String> inputData1 = new ArrayList<String>(Arrays.asList("foo", "bar", "foobar"));
-		final List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
-		final List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
+        final List<String> inputData1 =
+                new ArrayList<String>(Arrays.asList("foo", "bar", "foobar"));
+        final List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
+        final List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
 
+        try {
+            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final HashMap<String, Accumulator<?, ?>> accumulatorMap =
+                    new HashMap<String, Accumulator<?, ?>>();
+            final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
-		try {
-			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
-			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
-			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
+            ExecutionConfig executionConfig = new ExecutionConfig();
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			
-			executionConfig.disableObjectReuse();
-			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2,
-					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-							accumulatorMap, new UnregisteredMetricsGroup()),
-					executionConfig);
-			
-			executionConfig.enableObjectReuse();
-			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2,
-					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-							accumulatorMap, new UnregisteredMetricsGroup()),
-					executionConfig);
+            executionConfig.disableObjectReuse();
+            List<Integer> resultSafe =
+                    base.executeOnCollections(
+                            inputData1,
+                            inputData2,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    cpTasks,
+                                    accumulatorMap,
+                                    new UnregisteredMetricsGroup()),
+                            executionConfig);
 
-			assertEquals(expected, resultSafe);
-			assertEquals(expected, resultRegular);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+            executionConfig.enableObjectReuse();
+            List<Integer> resultRegular =
+                    base.executeOnCollections(
+                            inputData1,
+                            inputData2,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    cpTasks,
+                                    accumulatorMap,
+                                    new UnregisteredMetricsGroup()),
+                            executionConfig);
 
-		assertTrue(opened.get());
-		assertTrue(closed.get());
-	}
+            assertEquals(expected, resultSafe);
+            assertEquals(expected, resultRegular);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+
+        assertTrue(opened.get());
+        assertTrue(closed.get());
+    }
 }

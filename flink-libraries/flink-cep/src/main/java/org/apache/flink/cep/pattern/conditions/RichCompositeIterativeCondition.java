@@ -32,44 +32,44 @@ import org.apache.flink.util.Preconditions;
  */
 public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCondition<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final IterativeCondition<T>[] nestedConditions;
+    private final IterativeCondition<T>[] nestedConditions;
 
-	@SafeVarargs
-	public RichCompositeIterativeCondition(final IterativeCondition<T>... nestedConditions) {
-		for (IterativeCondition<T> condition : nestedConditions) {
-			Preconditions.checkNotNull(condition, "The condition cannot be null.");
-		}
-		this.nestedConditions = nestedConditions;
-	}
+    @SafeVarargs
+    public RichCompositeIterativeCondition(final IterativeCondition<T>... nestedConditions) {
+        for (IterativeCondition<T> condition : nestedConditions) {
+            Preconditions.checkNotNull(condition, "The condition cannot be null.");
+        }
+        this.nestedConditions = nestedConditions;
+    }
 
-	public IterativeCondition<T>[] getNestedConditions() {
-		return nestedConditions;
-	}
+    public IterativeCondition<T>[] getNestedConditions() {
+        return nestedConditions;
+    }
 
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
+    @Override
+    public void setRuntimeContext(RuntimeContext t) {
+        super.setRuntimeContext(t);
 
-		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			FunctionUtils.setFunctionRuntimeContext(nestedCondition, t);
-		}
-	}
+        for (IterativeCondition<T> nestedCondition : nestedConditions) {
+            FunctionUtils.setFunctionRuntimeContext(nestedCondition, t);
+        }
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			FunctionUtils.openFunction(nestedCondition, parameters);
-		}
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        for (IterativeCondition<T> nestedCondition : nestedConditions) {
+            FunctionUtils.openFunction(nestedCondition, parameters);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		for (IterativeCondition<T> nestedCondition : nestedConditions) {
-			FunctionUtils.closeFunction(nestedCondition);
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        for (IterativeCondition<T> nestedCondition : nestedConditions) {
+            FunctionUtils.closeFunction(nestedCondition);
+        }
+    }
 }

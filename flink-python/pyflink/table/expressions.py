@@ -29,27 +29,27 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW
            'current_timestamp', 'local_time', 'local_timestamp', 'temporal_overlaps',
            'date_format', 'timestamp_diff', 'array', 'row', 'map_', 'row_interval', 'pi', 'e',
            'rand', 'rand_integer', 'atan2', 'negative', 'concat', 'concat_ws', 'uuid', 'null_of',
-           'log', 'with_columns', 'without_columns', 'call']
+           'log', 'with_columns', 'without_columns', 'call', 'call_sql']
 
 
-def _leaf_op(op_name: str):
+def _leaf_op(op_name: str) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)())
 
 
-def _unary_op(op_name: str, arg):
+def _unary_op(op_name: str, arg) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(_get_java_expression(arg)))
 
 
-def _binary_op(op_name: str, first, second):
+def _binary_op(op_name: str, first, second) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
         _get_java_expression(second)))
 
 
-def _ternary_op(op_name: str, first, second, third):
+def _ternary_op(op_name: str, first, second, third) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
@@ -57,7 +57,7 @@ def _ternary_op(op_name: str, first, second, third):
         _get_java_expression(third)))
 
 
-def _quaternion_op(op_name: str, first, second, third, forth):
+def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
@@ -149,7 +149,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")
+UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
 
 
 """
@@ -159,7 +159,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")
+UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
 
 
 """
@@ -168,7 +168,7 @@ Use this for setting the upper bound of the window to the current row.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_ROW = Expression("CURRENT_ROW")
+CURRENT_ROW = Expression("CURRENT_ROW")  # type: Expression
 
 
 """
@@ -178,7 +178,7 @@ all rows with the same sort key as the current row are included in the window.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_RANGE = Expression("CURRENT_RANGE")
+CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 
 def current_date() -> Expression:
@@ -492,7 +492,7 @@ def with_columns(head, *tails) -> Expression:
     return _binary_op("withColumns", head, tails)
 
 
-def without_columns(head, tails) -> Expression:
+def without_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects all columns except for the given range of columns. It can
     be used wherever an array of expression is accepted such as function calls, projections, or
@@ -553,9 +553,9 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
             j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
                 j_result_types)
             return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f.java_user_defined_function(), j_result_type)
+                'f', f._java_user_defined_function(), j_result_type)
         else:
-            return f.java_user_defined_function()
+            return f._java_user_defined_function()
 
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
@@ -571,6 +571,21 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         to_jarray(gateway.jvm.Object,
                   [get_function_definition(f),
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
+
+
+def call_sql(sql_expression: str) -> Expression:
+    """
+    A call to a SQL expression.
+
+    The given string is parsed and translated into a Table API expression during planning. Only
+    the translated expression is evaluated during runtime.
+
+    Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+    table-valued functions are not supported. Sub-queries are also not allowed.
+
+    :param sql_expression: SQL expression to be translated
+    """
+    return _unary_op("callSql", sql_expression)
 
 
 _add_version_doc()

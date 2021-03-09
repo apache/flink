@@ -32,99 +32,101 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * LinkedOptionalMapSerializer - A serializer of {@link LinkedOptionalMap}.
- */
+/** LinkedOptionalMapSerializer - A serializer of {@link LinkedOptionalMap}. */
 @Internal
 public final class LinkedOptionalMapSerializer {
 
-	/**
-	 * This header is used for sanity checks on input streams.
-	 */
-	private static final long HEADER = 0x4f2c69a3d70L;
+    /** This header is used for sanity checks on input streams. */
+    private static final long HEADER = 0x4f2c69a3d70L;
 
-	private LinkedOptionalMapSerializer() {
-	}
+    private LinkedOptionalMapSerializer() {}
 
-	public static <K, V> void writeOptionalMap(
-		DataOutputView out,
-		LinkedOptionalMap<K, V> map,
-		BiConsumerWithException<DataOutputView, K, IOException> keyWriter,
-		BiConsumerWithException<DataOutputView, V, IOException> valueWriter) throws IOException {
+    public static <K, V> void writeOptionalMap(
+            DataOutputView out,
+            LinkedOptionalMap<K, V> map,
+            BiConsumerWithException<DataOutputView, K, IOException> keyWriter,
+            BiConsumerWithException<DataOutputView, V, IOException> valueWriter)
+            throws IOException {
 
-		out.writeLong(HEADER);
-		out.writeInt(map.size());
-		map.forEach(((keyName, key, value) -> {
-			out.writeUTF(keyName);
+        out.writeLong(HEADER);
+        out.writeInt(map.size());
+        map.forEach(
+                ((keyName, key, value) -> {
+                    out.writeUTF(keyName);
 
-			if (key == null) {
-				out.writeBoolean(false);
-			}
-			else {
-				out.writeBoolean(true);
-				writeFramed(out, keyWriter, key);
-			}
+                    if (key == null) {
+                        out.writeBoolean(false);
+                    } else {
+                        out.writeBoolean(true);
+                        writeFramed(out, keyWriter, key);
+                    }
 
-			if (value == null) {
-				out.writeBoolean(false);
-			}
-			else {
-				out.writeBoolean(true);
-				writeFramed(out, valueWriter, value);
-			}
-		}));
-	}
+                    if (value == null) {
+                        out.writeBoolean(false);
+                    } else {
+                        out.writeBoolean(true);
+                        writeFramed(out, valueWriter, value);
+                    }
+                }));
+    }
 
-	public static <K, V> LinkedOptionalMap<K, V> readOptionalMap(
-		DataInputView in,
-		BiFunctionWithException<DataInputView, String, K, IOException> keyReader,
-		BiFunctionWithException<DataInputView, String, V, IOException> valueReader) throws IOException {
+    public static <K, V> LinkedOptionalMap<K, V> readOptionalMap(
+            DataInputView in,
+            BiFunctionWithException<DataInputView, String, K, IOException> keyReader,
+            BiFunctionWithException<DataInputView, String, V, IOException> valueReader)
+            throws IOException {
 
-		final long header = in.readLong();
-		checkState(header == HEADER, "Corrupted stream received header %s", header);
+        final long header = in.readLong();
+        checkState(header == HEADER, "Corrupted stream received header %s", header);
 
-		long mapSize = in.readInt();
-		LinkedOptionalMap<K, V> map = new LinkedOptionalMap<>();
-		for (int i = 0; i < mapSize; i++) {
-			String keyName = in.readUTF();
+        long mapSize = in.readInt();
+        LinkedOptionalMap<K, V> map = new LinkedOptionalMap<>();
+        for (int i = 0; i < mapSize; i++) {
+            String keyName = in.readUTF();
 
-			final K key;
-			if (in.readBoolean()) {
-				key = tryReadFrame(in, keyName, keyReader);
-			}
-			else {
-				key = null;
-			}
+            final K key;
+            if (in.readBoolean()) {
+                key = tryReadFrame(in, keyName, keyReader);
+            } else {
+                key = null;
+            }
 
-			final V value;
-			if (in.readBoolean()) {
-				value = tryReadFrame(in, keyName, valueReader);
-			}
-			else {
-				value = null;
-			}
+            final V value;
+            if (in.readBoolean()) {
+                value = tryReadFrame(in, keyName, valueReader);
+            } else {
+                value = null;
+            }
 
-			map.put(keyName, key, value);
-		}
-		return map;
-	}
+            map.put(keyName, key, value);
+        }
+        return map;
+    }
 
-	private static <T> void writeFramed(DataOutputView out, BiConsumerWithException<DataOutputView, T, IOException> writer, T item) throws IOException {
-		DataOutputSerializer frame = new DataOutputSerializer(64);
-		writer.accept(frame, item);
+    private static <T> void writeFramed(
+            DataOutputView out,
+            BiConsumerWithException<DataOutputView, T, IOException> writer,
+            T item)
+            throws IOException {
+        DataOutputSerializer frame = new DataOutputSerializer(64);
+        writer.accept(frame, item);
 
-		final byte[] buffer = frame.getSharedBuffer();
-		final int bufferSize = frame.length();
-		out.writeInt(bufferSize);
-		out.write(buffer, 0, bufferSize);
-	}
+        final byte[] buffer = frame.getSharedBuffer();
+        final int bufferSize = frame.length();
+        out.writeInt(bufferSize);
+        out.write(buffer, 0, bufferSize);
+    }
 
-	@Nullable
-	private static <T> T tryReadFrame(DataInputView in, String keyName, BiFunctionWithException<DataInputView, String, T, IOException> reader) throws IOException {
-		final int bufferSize = in.readInt();
-		final byte[] buffer = new byte[bufferSize];
-		in.readFully(buffer);
-		DataInputDeserializer frame = new DataInputDeserializer(buffer);
-		return reader.apply(frame, keyName);
-	}
+    @Nullable
+    private static <T> T tryReadFrame(
+            DataInputView in,
+            String keyName,
+            BiFunctionWithException<DataInputView, String, T, IOException> reader)
+            throws IOException {
+        final int bufferSize = in.readInt();
+        final byte[] buffer = new byte[bufferSize];
+        in.readFully(buffer);
+        DataInputDeserializer frame = new DataInputDeserializer(buffer);
+        return reader.apply(frame, keyName);
+    }
 }

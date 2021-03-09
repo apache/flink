@@ -25,21 +25,18 @@ import javax.annotation.Nullable;
 
 import java.util.Optional;
 
-/**
- * A simple ConnectionState listener that remembers the last state.
- */
+/** A simple ConnectionState listener that remembers the last state. */
 public class DefaultLastStateConnectionStateListener implements LastStateConnectionStateListener {
 
-	@Nullable
-	private volatile ConnectionState lastState = null;
+    @Nullable private volatile ConnectionState lastState = null;
 
-	@Override
-	public Optional<ConnectionState> getLastState() {
-		return Optional.ofNullable(lastState);
-	}
+    @Override
+    public Optional<ConnectionState> getLastState() {
+        return Optional.ofNullable(lastState);
+    }
 
-	@Override
-	public void stateChanged(CuratorFramework client, ConnectionState newState) {
-		lastState = newState;
-	}
+    @Override
+    public void stateChanged(CuratorFramework client, ConnectionState newState) {
+        lastState = newState;
+    }
 }

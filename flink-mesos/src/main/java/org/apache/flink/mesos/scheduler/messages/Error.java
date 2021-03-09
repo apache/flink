@@ -21,27 +21,25 @@ package org.apache.flink.mesos.scheduler.messages;
 import java.io.Serializable;
 
 /**
- * Message sent when there is an unrecoverable error in the scheduler or
- * driver. The driver will be aborted BEFORE invoking this callback.
+ * Message sent when there is an unrecoverable error in the scheduler or driver. The driver will be
+ * aborted BEFORE invoking this callback.
  */
 public class Error implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String message;
+    private final String message;
 
-	public Error(String message) {
-		this.message = message;
-	}
+    public Error(String message) {
+        this.message = message;
+    }
 
-	public String message() {
-		return message;
-	}
+    public String message() {
+        return message;
+    }
 
-	@Override
-	public String toString() {
-		return "Error{" +
-			"message='" + message + '\'' +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "Error{" + "message='" + message + '\'' + '}';
+    }
 }

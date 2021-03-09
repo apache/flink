@@ -32,16 +32,15 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 @PublicEvolving
 public enum InputGroup {
 
-	/**
-	 * Default if no group is specified.
-	 */
-	UNKNOWN,
+    /** Default if no group is specified. */
+    UNKNOWN,
 
-	/**
-	 * Enables input wildcards. Any data type can be passed. The behavior is equal to {@link InputTypeStrategies#ANY}.
-	 *
-	 * <p>Note: The class of the annotated element must be {@link Object} as this is the super class
-	 * of all possibly passed data types.
-	 */
-	ANY
+    /**
+     * Enables input wildcards. Any data type can be passed. The behavior is equal to {@link
+     * InputTypeStrategies#ANY}.
+     *
+     * <p>Note: The class of the annotated element must be {@link Object} as this is the super class
+     * of all possibly passed data types.
+     */
+    ANY
 }

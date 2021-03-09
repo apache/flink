@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.{JoinedRowData, RowData, TimestampData}
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.runtime.generated.{GeneratedJoinCondition, GeneratedProjection}

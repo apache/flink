@@ -22,26 +22,24 @@ import org.apache.flink.table.functions.python.PythonFunction;
 
 import java.io.Serializable;
 
-/**
- * {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type.
- * */
+/** {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type. */
 @Internal
 public class DataStreamPythonFunctionInfo implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final PythonFunction pythonFunction;
-	private final int functionType;
+    private final PythonFunction pythonFunction;
+    private final int functionType;
 
-	public DataStreamPythonFunctionInfo(PythonFunction pythonFunction, int functionType) {
-		this.pythonFunction = pythonFunction;
-		this.functionType = functionType;
-	}
+    public DataStreamPythonFunctionInfo(PythonFunction pythonFunction, int functionType) {
+        this.pythonFunction = pythonFunction;
+        this.functionType = functionType;
+    }
 
-	public PythonFunction getPythonFunction() {
-		return pythonFunction;
-	}
+    public PythonFunction getPythonFunction() {
+        return pythonFunction;
+    }
 
-	public int getFunctionType(){
-		return this.functionType;
-	}
+    public int getFunctionType() {
+        return this.functionType;
+    }
 }

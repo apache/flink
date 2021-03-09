@@ -26,18 +26,20 @@ import org.apache.flink.table.api.DataTypes;
 import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
 
-/**
- * Test for {@link ExternalTypeInfo}.
- */
+/** Test for {@link ExternalTypeInfo}. */
 public class ExternalTypeInfoTest extends TypeInformationTestBase<ExternalTypeInfo<?>> {
 
-	@Override
-	protected ExternalTypeInfo<?>[] getTestData() {
-		return new ExternalTypeInfo<?>[] {
-				ExternalTypeInfo.of(
-					DataTypes.RAW(DayOfWeek.class, new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()))),
-				ExternalTypeInfo.of(
-					DataTypes.RAW(ByteBuffer.class, new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))),
-		};
-	}
+    @Override
+    protected ExternalTypeInfo<?>[] getTestData() {
+        return new ExternalTypeInfo<?>[] {
+            ExternalTypeInfo.of(
+                    DataTypes.RAW(
+                            DayOfWeek.class,
+                            new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()))),
+            ExternalTypeInfo.of(
+                    DataTypes.RAW(
+                            ByteBuffer.class,
+                            new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))),
+        };
+    }
 }

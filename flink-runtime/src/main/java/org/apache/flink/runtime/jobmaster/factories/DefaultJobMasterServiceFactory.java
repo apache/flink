@@ -29,89 +29,88 @@ import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
-/**
- * Default implementation of the {@link JobMasterServiceFactory}.
- */
+/** Default implementation of the {@link JobMasterServiceFactory}. */
 public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
-	private final JobMasterConfiguration jobMasterConfiguration;
+    private final JobMasterConfiguration jobMasterConfiguration;
 
-	private final SlotPoolFactory slotPoolFactory;
+    private final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory;
 
-	private final RpcService rpcService;
+    private final RpcService rpcService;
 
-	private final HighAvailabilityServices haServices;
+    private final HighAvailabilityServices haServices;
 
-	private final JobManagerSharedServices jobManagerSharedServices;
+    private final JobManagerSharedServices jobManagerSharedServices;
 
-	private final HeartbeatServices heartbeatServices;
+    private final HeartbeatServices heartbeatServices;
 
-	private final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory;
+    private final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	private final SchedulerNGFactory schedulerNGFactory;
+    private final ShuffleMaster<?> shuffleMaster;
 
-	private final ShuffleMaster<?> shuffleMaster;
+    public DefaultJobMasterServiceFactory(
+            JobMasterConfiguration jobMasterConfiguration,
+            SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
+            RpcService rpcService,
+            HighAvailabilityServices haServices,
+            JobManagerSharedServices jobManagerSharedServices,
+            HeartbeatServices heartbeatServices,
+            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+            FatalErrorHandler fatalErrorHandler,
+            ShuffleMaster<?> shuffleMaster) {
+        this.jobMasterConfiguration = jobMasterConfiguration;
+        this.slotPoolServiceSchedulerFactory = slotPoolServiceSchedulerFactory;
+        this.rpcService = rpcService;
+        this.haServices = haServices;
+        this.jobManagerSharedServices = jobManagerSharedServices;
+        this.heartbeatServices = heartbeatServices;
+        this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
+        this.fatalErrorHandler = fatalErrorHandler;
+        this.shuffleMaster = shuffleMaster;
+    }
 
-	public DefaultJobMasterServiceFactory(
-			JobMasterConfiguration jobMasterConfiguration,
-			SlotPoolFactory slotPoolFactory,
-			RpcService rpcService,
-			HighAvailabilityServices haServices,
-			JobManagerSharedServices jobManagerSharedServices,
-			HeartbeatServices heartbeatServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler,
-			SchedulerNGFactory schedulerNGFactory,
-			ShuffleMaster<?> shuffleMaster) {
-		this.jobMasterConfiguration = jobMasterConfiguration;
-		this.slotPoolFactory = slotPoolFactory;
-		this.rpcService = rpcService;
-		this.haServices = haServices;
-		this.jobManagerSharedServices = jobManagerSharedServices;
-		this.heartbeatServices = heartbeatServices;
-		this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
-		this.fatalErrorHandler = fatalErrorHandler;
-		this.schedulerNGFactory = schedulerNGFactory;
-		this.shuffleMaster = shuffleMaster;
-	}
+    @Override
+    public JobMaster createJobMasterService(
+            JobGraph jobGraph,
+            JobMasterId jobMasterId,
+            OnCompletionActions jobCompletionActions,
+            ClassLoader userCodeClassloader,
+            long initializationTimestamp)
+            throws Exception {
 
-	@Override
-	public JobMaster createJobMasterService(
-			JobGraph jobGraph,
-			OnCompletionActions jobCompletionActions,
-			ClassLoader userCodeClassloader,
-			long initializationTimestamp) throws Exception {
+        final JobMaster jobMaster =
+                new JobMaster(
+                        rpcService,
+                        jobMasterId,
+                        jobMasterConfiguration,
+                        ResourceID.generate(),
+                        jobGraph,
+                        haServices,
+                        slotPoolServiceSchedulerFactory,
+                        jobManagerSharedServices,
+                        heartbeatServices,
+                        jobManagerJobMetricGroupFactory,
+                        jobCompletionActions,
+                        fatalErrorHandler,
+                        userCodeClassloader,
+                        shuffleMaster,
+                        lookup ->
+                                new JobMasterPartitionTrackerImpl(
+                                        jobGraph.getJobID(), shuffleMaster, lookup),
+                        new DefaultExecutionDeploymentTracker(),
+                        DefaultExecutionDeploymentReconciler::new,
+                        initializationTimestamp);
 
-		return new JobMaster(
-			rpcService,
-			jobMasterConfiguration,
-			ResourceID.generate(),
-			jobGraph,
-			haServices,
-			slotPoolFactory,
-			jobManagerSharedServices,
-			heartbeatServices,
-			jobManagerJobMetricGroupFactory,
-			jobCompletionActions,
-			fatalErrorHandler,
-			userCodeClassloader,
-			schedulerNGFactory,
-			shuffleMaster,
-			lookup -> new JobMasterPartitionTrackerImpl(
-				jobGraph.getJobID(),
-				shuffleMaster,
-				lookup
-			),
-			new DefaultExecutionDeploymentTracker(),
-			DefaultExecutionDeploymentReconciler::new,
-			initializationTimestamp);
-	}
+        jobMaster.start();
+
+        return jobMaster;
+    }
 }

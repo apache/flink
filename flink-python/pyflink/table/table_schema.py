@@ -15,9 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, _from_java_type
+from pyflink.table.types import _to_java_type, _from_java_type, DataType, RowType
 from pyflink.util.utils import to_jarray
 
 __all__ = ['TableSchema']
@@ -28,7 +29,8 @@ class TableSchema(object):
     A table schema that represents a table's structure with field names and data types.
     """
 
-    def __init__(self, field_names=None, data_types=None, j_table_schema=None):
+    def __init__(self, field_names: List[str] = None, data_types: List[DataType] = None,
+                 j_table_schema=None):
         if j_table_schema is None:
             gateway = get_gateway()
             j_field_names = to_jarray(gateway.jvm.String, field_names)
@@ -38,7 +40,7 @@ class TableSchema(object):
         else:
             self._j_table_schema = j_table_schema
 
-    def copy(self):
+    def copy(self) -> 'TableSchema':
         """
         Returns a deep copy of the table schema.
 
@@ -46,7 +48,7 @@ class TableSchema(object):
         """
         return TableSchema(j_table_schema=self._j_table_schema.copy())
 
-    def get_field_data_types(self):
+    def get_field_data_types(self) -> List[DataType]:
         """
         Returns all field data types as a list.
 
@@ -54,7 +56,7 @@ class TableSchema(object):
         """
         return [_from_java_type(item) for item in self._j_table_schema.getFieldDataTypes()]
 
-    def get_field_data_type(self, field):
+    def get_field_data_type(self, field: Union[int, str]) -> Optional[DataType]:
         """
         Returns the specified data type for the given field index or field name.
 
@@ -69,7 +71,7 @@ class TableSchema(object):
         else:
             return None
 
-    def get_field_count(self):
+    def get_field_count(self) -> int:
         """
         Returns the number of fields.
 
@@ -77,7 +79,7 @@ class TableSchema(object):
         """
         return self._j_table_schema.getFieldCount()
 
-    def get_field_names(self):
+    def get_field_names(self) -> List[str]:
         """
         Returns all field names as a list.
 
@@ -85,7 +87,7 @@ class TableSchema(object):
         """
         return list(self._j_table_schema.getFieldNames())
 
-    def get_field_name(self, field_index):
+    def get_field_name(self, field_index: int) -> Optional[str]:
         """
         Returns the specified name for the given field index.
 
@@ -98,7 +100,7 @@ class TableSchema(object):
         else:
             return None
 
-    def to_row_data_type(self):
+    def to_row_data_type(self) -> RowType:
         """
         Converts a table schema into a (nested) data type describing a
         :func:`pyflink.table.types.DataTypes.ROW`.
@@ -132,7 +134,7 @@ class TableSchema(object):
             self._field_names = []
             self._field_data_types = []
 
-        def field(self, name, data_type):
+        def field(self, name: str, data_type: DataType) -> 'TableSchema.Builder':
             """
             Add a field with name and data type.
 
@@ -148,7 +150,7 @@ class TableSchema(object):
             self._field_data_types.append(data_type)
             return self
 
-        def build(self):
+        def build(self) -> 'TableSchema':
             """
             Returns a :class:`TableSchema` instance.
 

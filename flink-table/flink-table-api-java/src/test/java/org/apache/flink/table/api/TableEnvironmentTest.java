@@ -39,63 +39,63 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link TableEnvironment}.
- */
+/** Tests for {@link TableEnvironment}. */
 public class TableEnvironmentTest {
 
-	@Test
-	public void testConnect() {
-		final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
+    @Test
+    public void testConnect() {
+        final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
 
-		tableEnv
-			.connect(new ConnectorDescriptorMock(TableSourceFactoryMock.CONNECTOR_TYPE_VALUE, 1, true))
-			.withFormat(new FormatDescriptorMock("my_format", 1))
-			.withSchema(new Schema()
-				.field("my_field_0", "INT")
-				.field("my_field_1", "BOOLEAN")
-				.field("my_part_1", "BIGINT")
-				.field("my_part_2", "STRING"))
-			.withPartitionKeys(Arrays.asList("my_part_1", "my_part_2"))
-			.inAppendMode()
-			.createTemporaryTable("my_table");
+        tableEnv.connect(
+                        new ConnectorDescriptorMock(
+                                TableSourceFactoryMock.CONNECTOR_TYPE_VALUE, 1, true))
+                .withFormat(new FormatDescriptorMock("my_format", 1))
+                .withSchema(
+                        new Schema()
+                                .field("my_field_0", "INT")
+                                .field("my_field_1", "BOOLEAN")
+                                .field("my_part_1", "BIGINT")
+                                .field("my_part_2", "STRING"))
+                .withPartitionKeys(Arrays.asList("my_part_1", "my_part_2"))
+                .inAppendMode()
+                .createTemporaryTable("my_table");
 
-		CatalogManager.TableLookupResult lookupResult = tableEnv.catalogManager.getTable(ObjectIdentifier.of(
-			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-			EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
-			"my_table"))
-			.orElseThrow(AssertionError::new);
+        CatalogManager.TableLookupResult lookupResult =
+                tableEnv.catalogManager
+                        .getTable(
+                                ObjectIdentifier.of(
+                                        EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+                                        EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
+                                        "my_table"))
+                        .orElseThrow(AssertionError::new);
 
-		assertThat(lookupResult.isTemporary(), equalTo(true));
+        assertThat(lookupResult.isTemporary(), equalTo(true));
 
-		CatalogBaseTable catalogBaseTable = lookupResult.getTable();
-		assertTrue(catalogBaseTable instanceof CatalogTable);
-		CatalogTable table = (CatalogTable) catalogBaseTable;
-		assertCatalogTable(table);
-		assertCatalogTable(CatalogTableImpl.fromProperties(table.toProperties()));
-	}
+        CatalogBaseTable catalogBaseTable = lookupResult.getTable();
+        assertTrue(catalogBaseTable instanceof CatalogTable);
+        CatalogTable table = (CatalogTable) catalogBaseTable;
+        assertCatalogTable(table);
+        assertCatalogTable(CatalogTableImpl.fromProperties(table.toProperties()));
+    }
 
-	private static void assertCatalogTable(CatalogTable table) {
-		assertThat(
-				table.getSchema(),
-				equalTo(
-						TableSchema.builder()
-								.field("my_field_0", DataTypes.INT())
-								.field("my_field_1", DataTypes.BOOLEAN())
-								.field("my_part_1", DataTypes.BIGINT())
-								.field("my_part_2", DataTypes.STRING())
-								.build()));
-		assertThat(
-				table.getPartitionKeys(),
-				equalTo(Arrays.asList("my_part_1", "my_part_2")));
+    private static void assertCatalogTable(CatalogTable table) {
+        assertThat(
+                table.getSchema(),
+                equalTo(
+                        TableSchema.builder()
+                                .field("my_field_0", DataTypes.INT())
+                                .field("my_field_1", DataTypes.BOOLEAN())
+                                .field("my_part_1", DataTypes.BIGINT())
+                                .field("my_part_2", DataTypes.STRING())
+                                .build()));
+        assertThat(table.getPartitionKeys(), equalTo(Arrays.asList("my_part_1", "my_part_2")));
 
-		Map<String, String> properties = new HashMap<>();
-		properties.put("update-mode", "append");
-		properties.put("connector.property-version", "1");
-		properties.put("format.type", "my_format");
-		properties.put("format.property-version", "1");
-		properties.put("connector.type", "table-source-factory-mock");
-		assertThat(table.getProperties(), equalTo(properties));
-
-	}
+        Map<String, String> options = new HashMap<>();
+        options.put("update-mode", "append");
+        options.put("connector.property-version", "1");
+        options.put("format.type", "my_format");
+        options.put("format.property-version", "1");
+        options.put("connector.type", "table-source-factory-mock");
+        assertThat(table.getOptions(), equalTo(options));
+    }
 }

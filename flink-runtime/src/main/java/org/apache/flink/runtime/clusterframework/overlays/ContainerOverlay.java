@@ -25,13 +25,11 @@ import java.io.IOException;
 /**
  * A container overlay to produce a container specification.
  *
- * An overlay applies configuration elements, environment variables,
- * system properties, and artifacts to a container specification.
+ * <p>An overlay applies configuration elements, environment variables, system properties, and
+ * artifacts to a container specification.
  */
 public interface ContainerOverlay {
 
-	/**
-	 * Configure the given container specification.
-     */
-	void configure(ContainerSpecification containerSpecification) throws IOException;
+    /** Configure the given container specification. */
+    void configure(ContainerSpecification containerSpecification) throws IOException;
 }

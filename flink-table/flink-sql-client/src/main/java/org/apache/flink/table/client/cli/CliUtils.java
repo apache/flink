@@ -33,88 +33,86 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/**
- * Utilities for CLI formatting.
- */
+/** Utilities for CLI formatting. */
 public final class CliUtils {
 
-	public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    public static final DateTimeFormatter TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
-	private CliUtils() {
-		// private
-	}
+    private CliUtils() {
+        // private
+    }
 
-	public static void repeatChar(AttributedStringBuilder sb, char c, int count) {
-		IntStream.range(0, count).forEach(i -> sb.append(c));
-	}
+    public static void repeatChar(AttributedStringBuilder sb, char c, int count) {
+        IntStream.range(0, count).forEach(i -> sb.append(c));
+    }
 
-	public static void normalizeColumn(AttributedStringBuilder sb, String col, int maxWidth) {
-		// limit column content
-		if (col.length() > maxWidth) {
-			sb.append(col, 0, maxWidth - 1);
-			sb.append('~');
-		} else {
-			repeatChar(sb, ' ', maxWidth - col.length());
-			sb.append(col);
-		}
-	}
+    public static void normalizeColumn(AttributedStringBuilder sb, String col, int maxWidth) {
+        // limit column content
+        if (col.length() > maxWidth) {
+            sb.append(col, 0, maxWidth - 1);
+            sb.append('~');
+        } else {
+            repeatChar(sb, ' ', maxWidth - col.length());
+            sb.append(col);
+        }
+    }
 
-	public static List<AttributedString> formatTwoLineHelpOptions(int width, List<Tuple2<String, String>> options) {
-		final AttributedStringBuilder line1 = new AttributedStringBuilder();
-		final AttributedStringBuilder line2 = new AttributedStringBuilder();
+    public static List<AttributedString> formatTwoLineHelpOptions(
+            int width, List<Tuple2<String, String>> options) {
+        final AttributedStringBuilder line1 = new AttributedStringBuilder();
+        final AttributedStringBuilder line2 = new AttributedStringBuilder();
 
-		// we assume that every options has not more than 11 characters (+ key and space)
-		final int columns = (int) Math.ceil(((double) options.size()) / 2);
-		final int space = (width - CliStrings.DEFAULT_MARGIN.length() - columns * 13) / columns;
-		final Iterator<Tuple2<String, String>> iter = options.iterator();
-		while (iter.hasNext()) {
-			// first line
-			Tuple2<String, String> option = iter.next();
-			line1.style(AttributedStyle.DEFAULT.inverse());
-			line1.append(option.f0);
-			line1.style(AttributedStyle.DEFAULT);
-			line1.append(' ');
-			line1.append(option.f1);
-			repeatChar(line1, ' ', (11 - option.f1.length()) + space);
-			// second line
-			if (iter.hasNext()) {
-				option = iter.next();
-				line2.style(AttributedStyle.DEFAULT.inverse());
-				line2.append(option.f0);
-				line2.style(AttributedStyle.DEFAULT);
-				line2.append(' ');
-				line2.append(option.f1);
-				repeatChar(line2, ' ', (11 - option.f1.length()) + space);
-			}
-		}
+        // we assume that every options has not more than 11 characters (+ key and space)
+        final int columns = (int) Math.ceil(((double) options.size()) / 2);
+        final int space = (width - CliStrings.DEFAULT_MARGIN.length() - columns * 13) / columns;
+        final Iterator<Tuple2<String, String>> iter = options.iterator();
+        while (iter.hasNext()) {
+            // first line
+            Tuple2<String, String> option = iter.next();
+            line1.style(AttributedStyle.DEFAULT.inverse());
+            line1.append(option.f0);
+            line1.style(AttributedStyle.DEFAULT);
+            line1.append(' ');
+            line1.append(option.f1);
+            repeatChar(line1, ' ', (11 - option.f1.length()) + space);
+            // second line
+            if (iter.hasNext()) {
+                option = iter.next();
+                line2.style(AttributedStyle.DEFAULT.inverse());
+                line2.append(option.f0);
+                line2.style(AttributedStyle.DEFAULT);
+                line2.append(' ');
+                line2.append(option.f1);
+                repeatChar(line2, ' ', (11 - option.f1.length()) + space);
+            }
+        }
 
-		return Arrays.asList(line1.toAttributedString(), line2.toAttributedString());
-	}
+        return Arrays.asList(line1.toAttributedString(), line2.toAttributedString());
+    }
 
-	public static String[] typesToString(DataType[] types) {
-		final String[] typesAsString = new String[types.length];
-		for (int i = 0; i < types.length; i++) {
-			typesAsString[i] = types[i].toString();
-		}
-		return typesAsString;
-	}
+    public static String[] typesToString(DataType[] types) {
+        final String[] typesAsString = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            typesAsString[i] = types[i].toString();
+        }
+        return typesAsString;
+    }
 
-	/**
-	 * Create the file as well as the parent directory.
-	 */
-	public static boolean createFile(final Path filePath) {
-		try {
-			final Path parent = filePath.getParent();
-			if (parent == null) {
-				return false;
-			}
-			Files.createDirectories(parent);
-			if (Files.notExists(filePath)) {
-				Files.createFile(filePath);
-			}
-			return true;
-		} catch (final Exception e) {
-			return false;
-		}
-	}
+    /** Create the file as well as the parent directory. */
+    public static boolean createFile(final Path filePath) {
+        try {
+            final Path parent = filePath.getParent();
+            if (parent == null) {
+                return false;
+            }
+            Files.createDirectories(parent);
+            if (Files.notExists(filePath)) {
+                Files.createFile(filePath);
+            }
+            return true;
+        } catch (final Exception e) {
+            return false;
+        }
+    }
 }

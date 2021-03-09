@@ -52,135 +52,156 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Mount the custom Hadoop Configuration to the JobManager(s)/TaskManagers. We provide two options:
- * 1. Mount an existing ConfigMap containing custom Hadoop Configuration.
- * 2. Create and mount a dedicated ConfigMap containing the custom Hadoop configuration from a local directory
- *    specified via the HADOOP_CONF_DIR or HADOOP_HOME environment variable.
+ * 1. Mount an existing ConfigMap containing custom Hadoop Configuration. 2. Create and mount a
+ * dedicated ConfigMap containing the custom Hadoop configuration from a local directory specified
+ * via the HADOOP_CONF_DIR or HADOOP_HOME environment variable.
  */
 public class HadoopConfMountDecorator extends AbstractKubernetesStepDecorator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopConfMountDecorator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopConfMountDecorator.class);
 
-	private final AbstractKubernetesParameters kubernetesParameters;
+    private final AbstractKubernetesParameters kubernetesParameters;
 
-	public HadoopConfMountDecorator(AbstractKubernetesParameters kubernetesParameters) {
-		this.kubernetesParameters = checkNotNull(kubernetesParameters);
-	}
+    public HadoopConfMountDecorator(AbstractKubernetesParameters kubernetesParameters) {
+        this.kubernetesParameters = checkNotNull(kubernetesParameters);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		Volume hadoopConfVolume;
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        Volume hadoopConfVolume;
 
-		final Optional<String> existingConfigMap = kubernetesParameters.getExistingHadoopConfigurationConfigMap();
-		if (existingConfigMap.isPresent()) {
-			hadoopConfVolume = new VolumeBuilder()
-				.withName(Constants.HADOOP_CONF_VOLUME)
-				.withNewConfigMap()
-					.withName(existingConfigMap.get())
-					.endConfigMap()
-				.build();
-		} else {
-			final Optional<String> localHadoopConfigurationDirectory = kubernetesParameters.getLocalHadoopConfigurationDirectory();
-			if (!localHadoopConfigurationDirectory.isPresent()) {
-				return flinkPod;
-			}
+        final Optional<String> existingConfigMap =
+                kubernetesParameters.getExistingHadoopConfigurationConfigMap();
+        if (existingConfigMap.isPresent()) {
+            hadoopConfVolume =
+                    new VolumeBuilder()
+                            .withName(Constants.HADOOP_CONF_VOLUME)
+                            .withNewConfigMap()
+                            .withName(existingConfigMap.get())
+                            .endConfigMap()
+                            .build();
+        } else {
+            final Optional<String> localHadoopConfigurationDirectory =
+                    kubernetesParameters.getLocalHadoopConfigurationDirectory();
+            if (!localHadoopConfigurationDirectory.isPresent()) {
+                return flinkPod;
+            }
 
-			final List<File> hadoopConfigurationFileItems = getHadoopConfigurationFileItems(localHadoopConfigurationDirectory.get());
-			if (hadoopConfigurationFileItems.isEmpty()) {
-				LOG.warn("Found 0 files in directory {}, skip to mount the Hadoop Configuration ConfigMap.",
-					localHadoopConfigurationDirectory.get());
-				return flinkPod;
-			}
+            final List<File> hadoopConfigurationFileItems =
+                    getHadoopConfigurationFileItems(localHadoopConfigurationDirectory.get());
+            if (hadoopConfigurationFileItems.isEmpty()) {
+                LOG.warn(
+                        "Found 0 files in directory {}, skip to mount the Hadoop Configuration ConfigMap.",
+                        localHadoopConfigurationDirectory.get());
+                return flinkPod;
+            }
 
-			final List<KeyToPath> keyToPaths = hadoopConfigurationFileItems.stream()
-				.map(file -> new KeyToPathBuilder()
-					.withKey(file.getName())
-					.withPath(file.getName())
-					.build())
-				.collect(Collectors.toList());
+            final List<KeyToPath> keyToPaths =
+                    hadoopConfigurationFileItems.stream()
+                            .map(
+                                    file ->
+                                            new KeyToPathBuilder()
+                                                    .withKey(file.getName())
+                                                    .withPath(file.getName())
+                                                    .build())
+                            .collect(Collectors.toList());
 
-			hadoopConfVolume = new VolumeBuilder()
-				.withName(Constants.HADOOP_CONF_VOLUME)
-				.withNewConfigMap()
-					.withName(getHadoopConfConfigMapName(kubernetesParameters.getClusterId()))
-					.withItems(keyToPaths)
-					.endConfigMap()
-				.build();
-		}
+            hadoopConfVolume =
+                    new VolumeBuilder()
+                            .withName(Constants.HADOOP_CONF_VOLUME)
+                            .withNewConfigMap()
+                            .withName(
+                                    getHadoopConfConfigMapName(kubernetesParameters.getClusterId()))
+                            .withItems(keyToPaths)
+                            .endConfigMap()
+                            .build();
+        }
 
-		final Pod podWithHadoopConf = new PodBuilder(flinkPod.getPod())
-			.editOrNewSpec()
-				.addNewVolumeLike(hadoopConfVolume)
-					.endVolume()
-				.endSpec()
-			.build();
+        final Pod podWithHadoopConf =
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
+                        .editOrNewSpec()
+                        .addNewVolumeLike(hadoopConfVolume)
+                        .endVolume()
+                        .endSpec()
+                        .build();
 
-		final Container containerWithHadoopConf = new ContainerBuilder(flinkPod.getMainContainer())
-			.addNewVolumeMount()
-				.withName(Constants.HADOOP_CONF_VOLUME)
-				.withMountPath(Constants.HADOOP_CONF_DIR_IN_POD)
-				.endVolumeMount()
-			.addNewEnv()
-				.withName(Constants.ENV_HADOOP_CONF_DIR)
-				.withValue(Constants.HADOOP_CONF_DIR_IN_POD)
-				.endEnv()
-			.build();
+        final Container containerWithHadoopConf =
+                new ContainerBuilder(flinkPod.getMainContainer())
+                        .addNewVolumeMount()
+                        .withName(Constants.HADOOP_CONF_VOLUME)
+                        .withMountPath(Constants.HADOOP_CONF_DIR_IN_POD)
+                        .endVolumeMount()
+                        .addNewEnv()
+                        .withName(Constants.ENV_HADOOP_CONF_DIR)
+                        .withValue(Constants.HADOOP_CONF_DIR_IN_POD)
+                        .endEnv()
+                        .build();
 
-		return new FlinkPod.Builder(flinkPod)
-			.withPod(podWithHadoopConf)
-			.withMainContainer(containerWithHadoopConf)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod)
+                .withPod(podWithHadoopConf)
+                .withMainContainer(containerWithHadoopConf)
+                .build();
+    }
 
-	@Override
-	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		if (kubernetesParameters.getExistingHadoopConfigurationConfigMap().isPresent()) {
-			return Collections.emptyList();
-		}
+    @Override
+    public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
+        if (kubernetesParameters.getExistingHadoopConfigurationConfigMap().isPresent()) {
+            return Collections.emptyList();
+        }
 
-		final Optional<String> localHadoopConfigurationDirectory = kubernetesParameters.getLocalHadoopConfigurationDirectory();
-		if (!localHadoopConfigurationDirectory.isPresent()) {
-			return Collections.emptyList();
-		}
+        final Optional<String> localHadoopConfigurationDirectory =
+                kubernetesParameters.getLocalHadoopConfigurationDirectory();
+        if (!localHadoopConfigurationDirectory.isPresent()) {
+            return Collections.emptyList();
+        }
 
-		final List<File> hadoopConfigurationFileItems = getHadoopConfigurationFileItems(localHadoopConfigurationDirectory.get());
-		if (hadoopConfigurationFileItems.isEmpty()) {
-			LOG.warn("Found 0 files in directory {}, skip to create the Hadoop Configuration ConfigMap.", localHadoopConfigurationDirectory.get());
-			return Collections.emptyList();
-		}
+        final List<File> hadoopConfigurationFileItems =
+                getHadoopConfigurationFileItems(localHadoopConfigurationDirectory.get());
+        if (hadoopConfigurationFileItems.isEmpty()) {
+            LOG.warn(
+                    "Found 0 files in directory {}, skip to create the Hadoop Configuration ConfigMap.",
+                    localHadoopConfigurationDirectory.get());
+            return Collections.emptyList();
+        }
 
-		final Map<String, String> data = new HashMap<>();
-		for (File file: hadoopConfigurationFileItems) {
-			data.put(file.getName(), FileUtils.readFileUtf8(file));
-		}
+        final Map<String, String> data = new HashMap<>();
+        for (File file : hadoopConfigurationFileItems) {
+            data.put(file.getName(), FileUtils.readFileUtf8(file));
+        }
 
-		final ConfigMap hadoopConfigMap = new ConfigMapBuilder()
-			.withApiVersion(Constants.API_VERSION)
-			.withNewMetadata()
-				.withName(getHadoopConfConfigMapName(kubernetesParameters.getClusterId()))
-				.withLabels(kubernetesParameters.getCommonLabels())
-				.endMetadata()
-			.addToData(data)
-			.build();
+        final ConfigMap hadoopConfigMap =
+                new ConfigMapBuilder()
+                        .withApiVersion(Constants.API_VERSION)
+                        .withNewMetadata()
+                        .withName(getHadoopConfConfigMapName(kubernetesParameters.getClusterId()))
+                        .withLabels(kubernetesParameters.getCommonLabels())
+                        .endMetadata()
+                        .addToData(data)
+                        .build();
 
-		return Collections.singletonList(hadoopConfigMap);
-	}
+        return Collections.singletonList(hadoopConfigMap);
+    }
 
-	private List<File> getHadoopConfigurationFileItems(String localHadoopConfigurationDirectory) {
-		final List<String> expectedFileNames = new ArrayList<>();
-		expectedFileNames.add("core-site.xml");
-		expectedFileNames.add("hdfs-site.xml");
+    private List<File> getHadoopConfigurationFileItems(String localHadoopConfigurationDirectory) {
+        final List<String> expectedFileNames = new ArrayList<>();
+        expectedFileNames.add("core-site.xml");
+        expectedFileNames.add("hdfs-site.xml");
 
-		final File directory = new File(localHadoopConfigurationDirectory);
-		if (directory.exists() && directory.isDirectory()) {
-			return Arrays.stream(directory.listFiles())
-				.filter(file -> file.isFile() && expectedFileNames.stream().anyMatch(name -> file.getName().equals(name)))
-				.collect(Collectors.toList());
-		} else {
-			return Collections.emptyList();
-		}
-	}
+        final File directory = new File(localHadoopConfigurationDirectory);
+        if (directory.exists() && directory.isDirectory()) {
+            return Arrays.stream(directory.listFiles())
+                    .filter(
+                            file ->
+                                    file.isFile()
+                                            && expectedFileNames.stream()
+                                                    .anyMatch(name -> file.getName().equals(name)))
+                    .collect(Collectors.toList());
+        } else {
+            return Collections.emptyList();
+        }
+    }
 
-	public static String getHadoopConfConfigMapName(String clusterId) {
-		return Constants.HADOOP_CONF_CONFIG_MAP_PREFIX + clusterId;
-	}
+    public static String getHadoopConfConfigMapName(String clusterId) {
+        return Constants.HADOOP_CONF_CONFIG_MAP_PREFIX + clusterId;
+    }
 }

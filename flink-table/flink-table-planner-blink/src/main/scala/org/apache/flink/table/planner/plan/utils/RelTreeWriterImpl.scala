@@ -70,7 +70,9 @@ class RelTreeWriterImpl(
 
     rel.getRelTypeName match {
       case name if name.startsWith("BatchExec") => s.append(name.substring(9))
+      case name if name.startsWith("BatchPhysical") => s.append(name.substring(13))
       case name if name.startsWith("StreamExec") => s.append(name.substring(10))
+      case name if name.startsWith("StreamPhysical") => s.append(name.substring(14))
       case name => s.append(name)
     }
 
@@ -110,6 +112,7 @@ class RelTreeWriterImpl(
         .append(mq.getCumulativeCost(rel))
     }
     pw.println(s)
+
     if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
       if (withTreeStyle) {
         depth = depth + 1

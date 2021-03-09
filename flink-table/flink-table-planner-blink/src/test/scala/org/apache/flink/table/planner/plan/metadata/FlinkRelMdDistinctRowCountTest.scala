@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import org.apache.calcite.rel.metadata.RelMdUtil
@@ -75,14 +75,14 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
   def testGetDistinctRowCountOnValues(): Unit = {
     assertEquals(1.0, mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(), null))
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+      assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
         mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(idx), null))
     }
-    assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+    assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
       mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(0, 1), null))
 
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(1.0, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
+      assertEquals(Double.NaN, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
     }
   }
 
@@ -91,17 +91,22 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), null))
     assertEquals(50.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), null))
     assertEquals(48.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), null))
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), null), 1e-2)
-    assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), null), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), null), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), null), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), null), 1e-2)
+    assertEquals(6.99,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), null), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), null), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), null), 1e-2)
     assertEquals(35.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), null))
     // TODO check result ??
     assertEquals(5.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(7), null), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), null))
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), null), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), null), 1e-2)
 
     // id > 10
     val expr1 = relBuilder.push(logicalProject)
@@ -109,17 +114,21 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), expr1))
     assertEquals(25.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), expr1))
     assertEquals(24.68, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), expr1), 1e-2)
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr1), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr1), 1e-2)
     assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), expr1), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr1), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr1), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr1), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr1), 1e-2)
     assertEquals(22.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), expr1), 1e-2)
     // TODO check result ??
     assertEquals(5.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(7), expr1), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr1))
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr1), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr1), 1e-2)
 
     // age > 15 and class = 5
     val expr2 = relBuilder.push(logicalProject)
@@ -129,17 +138,21 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), expr2), 1e-2)
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr2), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr2), 1e-2)
     assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), expr2), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr2), 1e-2)
-    assertEquals(21.64, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr2), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr2), 1e-2)
+    assertEquals(21.90,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr2), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), expr2), 1e-2)
     // TODO check result ??
     assertEquals(5.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(7), expr2), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr2))
-    assertEquals(16.96, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr2), 1e-2)
+    assertEquals(17.13,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr2), 1e-2)
 
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0, 1), expr2))
   }
@@ -181,16 +194,21 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), null))
     assertEquals(25.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), null))
     assertEquals(24.68, mq.getDistinctRowCount(calc, ImmutableBitSet.of(1), null), 1e-2)
-    assertEquals(10.98, mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), null), 1e-2)
-    assertEquals(6.59, mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), null), 1e-2)
-    assertEquals(12.04, mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), null), 1e-2)
-    assertEquals(12.04, mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), null), 1e-2)
+    assertEquals(11.22,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), null), 1e-2)
+    assertEquals(6.67,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), null), 1e-2)
+    assertEquals(12.30,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), null), 1e-2)
+    assertEquals(12.30,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), null), 1e-2)
     assertEquals(22.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(6), null), 1e-2)
     assertEquals(2.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(7), null), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), null))
-    assertEquals(10.99, mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), null), 1e-2)
+    assertEquals(11.22,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), null), 1e-2)
 
     // class = 5
     relBuilder.push(calc)
@@ -198,16 +216,21 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), expr2))
     assertEquals(12.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), expr2))
     assertEquals(12.43, mq.getDistinctRowCount(calc, ImmutableBitSet.of(1), expr2), 1e-2)
-    assertEquals(10.98, mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), expr2), 1e-2)
-    assertEquals(6.59, mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), expr2), 1e-2)
-    assertEquals(12.04, mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), expr2), 1e-2)
-    assertEquals(12.04, mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), expr2), 1e-2)
+    assertEquals(11.22,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), expr2), 1e-2)
+    assertEquals(6.67,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), expr2), 1e-2)
+    assertEquals(12.30,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), expr2), 1e-2)
+    assertEquals(12.30,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), expr2), 1e-2)
     assertEquals(11.79, mq.getDistinctRowCount(calc, ImmutableBitSet.of(6), expr2), 1e-2)
     assertEquals(2.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(7), expr2), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), expr2))
-    assertEquals(10.99, mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), expr2), 1e-2)
+    assertEquals(11.22,
+      mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), expr2), 1e-2)
   }
 
   @Test
@@ -284,7 +307,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
         assertEquals(2.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(5), null))
         assertEquals(null, mq.getDistinctRowCount(rank, ImmutableBitSet.of(6), null))
         rank match {
-          case r: BatchExecRank if !r.isGlobal => // local rank does not output rank func
+          case r: BatchPhysicalRank if !r.isGlobal => // local rank does not output rank func
           case _ =>
             assertEquals(5.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(7), null))
         }
@@ -552,40 +575,40 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(), null))
 
-    assertEquals(49.999937,
+    assertEquals(49.999938,
       mq.getDistinctRowCount(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(0), null), 1e-6)
     assertEquals(49.999998,
       mq.getDistinctRowCount(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-6)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
-    assertEquals(49.999937,
+    assertEquals(49.999938,
       mq.getDistinctRowCount(logicalRightJoinOnUniqueKeys, ImmutableBitSet.of(0), null), 1e-6)
     assertEquals(49.999998,
       mq.getDistinctRowCount(logicalRightJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-6)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(50,
@@ -637,4 +660,19 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(null, mq.getDistinctRowCount(testRel, ImmutableBitSet.of(0), null))
   }
 
+  @Test
+  def testGetDistinctRowCountOnLargeDomainSize(): Unit = {
+    relBuilder.clear()
+    val rel = relBuilder
+      .scan("MyTable1")
+      .project(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(SUBSTRING, relBuilder.field(3), relBuilder.literal(10)))
+      .build()
+    assertEquals(
+      7.999999964933156E8,
+      mq.getDistinctRowCount(rel, ImmutableBitSet.of(0, 1, 2), null),
+      1e-2)
+  }
 }

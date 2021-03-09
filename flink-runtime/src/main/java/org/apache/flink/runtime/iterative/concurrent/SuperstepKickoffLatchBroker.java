@@ -18,19 +18,15 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-/**
- * {@link Broker} for {@link SuperstepKickoffLatch}.
- */
+/** {@link Broker} for {@link SuperstepKickoffLatch}. */
 public class SuperstepKickoffLatchBroker extends Broker<SuperstepKickoffLatch> {
 
-	private static final SuperstepKickoffLatchBroker INSTANCE = new SuperstepKickoffLatchBroker();
+    private static final SuperstepKickoffLatchBroker INSTANCE = new SuperstepKickoffLatchBroker();
 
-	private SuperstepKickoffLatchBroker() {}
+    private SuperstepKickoffLatchBroker() {}
 
-	/**
-	 * Retrieve the singleton instance.
-	 */
-	public static Broker<SuperstepKickoffLatch> instance() {
-		return INSTANCE;
-	}
+    /** Retrieve the singleton instance. */
+    public static Broker<SuperstepKickoffLatch> instance() {
+        return INSTANCE;
+    }
 }

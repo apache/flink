@@ -30,12 +30,13 @@ import org.apache.flink.table.api.internal.Registration;
 @PublicEvolving
 public final class BatchTableDescriptor extends ConnectTableDescriptor {
 
-	public BatchTableDescriptor(Registration registration, ConnectorDescriptor connectorDescriptor) {
-		super(registration, connectorDescriptor);
-	}
+    public BatchTableDescriptor(
+            Registration registration, ConnectorDescriptor connectorDescriptor) {
+        super(registration, connectorDescriptor);
+    }
 
-	@Override
-	public BatchTableDescriptor withSchema(Schema schema) {
-		return (BatchTableDescriptor) super.withSchema(schema);
-	}
+    @Override
+    public BatchTableDescriptor withSchema(Schema schema) {
+        return (BatchTableDescriptor) super.withSchema(schema);
+    }
 }

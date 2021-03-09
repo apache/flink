@@ -17,13 +17,13 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testNestedProject">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
 +- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested, nested]]], fields=[id, deepNested, nested])
@@ -31,16 +31,16 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeTableSourceOverWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>($2, 100)])
-+- LogicalProject(id=[$0], name=[$2], valSum=[AS(SUM($1) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW), _UTF-16LE'valSum')])
++- LogicalProject(id=[$0], name=[$2], valSum=[AS(SUM($1) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'valSum')])
    +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, w0$o0 AS valSum], where=[>(w0$o0, 100)])
+Calc(select=[id, name, w0$o0 AS valSum], where=[(w0$o0 > 100)])
 +- OverAggregate(partitionBy=[id], orderBy=[$3 ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[id, val, name, $3, SUM(val) AS w0$o0])
    +- Exchange(distribution=[hash[id]])
       +- Calc(select=[id, val, name, PROCTIME() AS $3])
@@ -49,7 +49,7 @@ Calc(select=[id, name, w0$o0 AS valSum], where=[>(w0$o0, 100)])
     </Resource>
   </TestCase>
   <TestCase name="testProjectOnlyRowtime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rtime=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
@@ -57,17 +57,15 @@ LogicalProject(rtime=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[rtime])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime]]], fields=[rtime])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRowTimeTableSourceGroupWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
 +- LogicalWindowAggregate(group=[{3}], EXPR$1=[AVG($2)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0])
@@ -76,19 +74,19 @@ LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, EXPR$0, EXPR$1])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0], select=[name, AVG(val) AS EXPR$1, end('w) AS EXPR$0])
    +- Exchange(distribution=[hash[name]])
-      +- Calc(select=[id, rowtime, val, name], where=[>(val, 100)])
+      +- Calc(select=[id, rowtime, val, name], where=[(val > 100)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
             +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithoutProctime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
@@ -96,24 +94,23 @@ LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, val, rtime, id])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- Calc(select=[name, val, rtime, id])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableSourceWithTimestampRowTimeField">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
 +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
@@ -122,7 +119,7 @@ Calc(select=[rowtime, id, name, val])
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithoutRowtime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
@@ -130,7 +127,7 @@ LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
 +- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
@@ -140,7 +137,7 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
     </Resource>
   </TestCase>
   <TestCase name="testRowTimeTableSourceGroupWindowWithNotNullRowTimeType">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
 +- LogicalWindowAggregate(group=[{3}], EXPR$1=[AVG($2)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0])
@@ -149,13 +146,13 @@ LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, EXPR$0, EXPR$1])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0], select=[name, AVG(val) AS EXPR$1, end('w) AS EXPR$0])
    +- Exchange(distribution=[hash[name]])
-      +- Calc(select=[id, rowtime, val, name], where=[>(val, 100)])
-         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+      +- Calc(select=[id, rowtime, val, name], where=[(val > 100)])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
             +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>

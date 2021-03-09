@@ -19,19 +19,16 @@
 package org.apache.flink.table.planner.plan.logical
 
 import com.google.common.collect.ImmutableMap
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
 /**
-  * Describes MATCH RECOGNIZE clause.
-  */
+ * Describes MATCH RECOGNIZE clause.
+ */
 case class MatchRecognize(
-  input: RelNode,
-  rowType: RelDataType,
   pattern: RexNode,
   patternDefinitions: ImmutableMap[String, RexNode],
   measures: ImmutableMap[String, RexNode],

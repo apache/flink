@@ -20,11 +20,10 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 
 /**
- * Implemented by entities that hold any kind of channel state and need a reference to the {@link ChannelStateWriter}.
+ * Implemented by entities that hold any kind of channel state and need a reference to the {@link
+ * ChannelStateWriter}.
  */
 public interface ChannelStateHolder {
-	/**
-	 * Injects the {@link ChannelStateWriter}. Must only be called once.
-	 */
-	void setChannelStateWriter(ChannelStateWriter channelStateWriter);
+    /** Injects the {@link ChannelStateWriter}. Must only be called once. */
+    void setChannelStateWriter(ChannelStateWriter channelStateWriter);
 }

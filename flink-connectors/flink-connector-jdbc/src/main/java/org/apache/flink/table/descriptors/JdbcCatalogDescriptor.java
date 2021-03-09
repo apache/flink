@@ -29,40 +29,39 @@ import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JD
 import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_TYPE_VALUE_JDBC;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Descriptor for {@link org.apache.flink.connector.jdbc.catalog.JdbcCatalog}.
- */
+/** Descriptor for {@link org.apache.flink.connector.jdbc.catalog.JdbcCatalog}. */
 public class JdbcCatalogDescriptor extends CatalogDescriptor {
 
-	private final String defaultDatabase;
-	private final String username;
-	private final String pwd;
-	private final String baseUrl;
+    private final String defaultDatabase;
+    private final String username;
+    private final String pwd;
+    private final String baseUrl;
 
-	public JdbcCatalogDescriptor(String defaultDatabase, String username, String pwd, String baseUrl) {
+    public JdbcCatalogDescriptor(
+            String defaultDatabase, String username, String pwd, String baseUrl) {
 
-		super(CATALOG_TYPE_VALUE_JDBC, 1);
+        super(CATALOG_TYPE_VALUE_JDBC, 1);
 
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase));
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(username));
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(pwd));
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(baseUrl));
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase));
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(username));
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(pwd));
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(baseUrl));
 
-		this.defaultDatabase = defaultDatabase;
-		this.username = username;
-		this.pwd = pwd;
-		this.baseUrl = baseUrl;
-	}
+        this.defaultDatabase = defaultDatabase;
+        this.username = username;
+        this.pwd = pwd;
+        this.baseUrl = baseUrl;
+    }
 
-	@Override
-	protected Map<String, String> toCatalogProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
+    @Override
+    protected Map<String, String> toCatalogProperties() {
+        final DescriptorProperties properties = new DescriptorProperties();
 
-		properties.putString(CATALOG_DEFAULT_DATABASE, defaultDatabase);
-		properties.putString(CATALOG_JDBC_USERNAME, username);
-		properties.putString(CATALOG_JDBC_PASSWORD, pwd);
-		properties.putString(CATALOG_JDBC_BASE_URL, baseUrl);
+        properties.putString(CATALOG_DEFAULT_DATABASE, defaultDatabase);
+        properties.putString(CATALOG_JDBC_USERNAME, username);
+        properties.putString(CATALOG_JDBC_PASSWORD, pwd);
+        properties.putString(CATALOG_JDBC_BASE_URL, baseUrl);
 
-		return properties.asMap();
-	}
+        return properties.asMap();
+    }
 }

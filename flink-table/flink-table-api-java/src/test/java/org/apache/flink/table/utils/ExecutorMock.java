@@ -27,23 +27,22 @@ import org.apache.flink.table.delegation.Executor;
 
 import java.util.List;
 
-/**
- * Mocking {@link Executor} for tests.
- */
+/** Mocking {@link Executor} for tests. */
 public class ExecutorMock implements Executor {
 
-	@Override
-	public Pipeline createPipeline(List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
-		return null;
-	}
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+        return null;
+    }
 
-	@Override
-	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
-		return null;
-	}
+    @Override
+    public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+        return null;
+    }
 
-	@Override
-	public JobClient executeAsync(Pipeline pipeline) throws Exception {
-		return null;
-	}
+    @Override
+    public JobClient executeAsync(Pipeline pipeline) throws Exception {
+        return null;
+    }
 }

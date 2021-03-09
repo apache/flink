@@ -41,49 +41,57 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A set of tools used by batch and streaming remote environments when
- * preparing their configurations.
+ * A set of tools used by batch and streaming remote environments when preparing their
+ * configurations.
  */
 @Internal
 public class RemoteEnvironmentConfigUtils {
 
-	public static void validate(final String host, final int port) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
-							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
-		}
+    public static void validate(final String host, final int port) {
+        if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+            throw new InvalidProgramException(
+                    "The RemoteEnvironment cannot be instantiated when running in a pre-defined context "
+                            + "(such as Command Line Client, Scala Shell, or TestEnvironment)");
+        }
 
-		checkNotNull(host);
-		checkArgument(port > 0 && port < 0xffff);
-	}
+        checkNotNull(host);
+        checkArgument(port > 0 && port < 0xffff);
+    }
 
-	public static void setJobManagerAddressToConfig(final String host, final int port, final Configuration configuration) {
-		final InetSocketAddress address = new InetSocketAddress(host, port);
-		configuration.setString(JobManagerOptions.ADDRESS, address.getHostString());
-		configuration.setInteger(JobManagerOptions.PORT, address.getPort());
-		configuration.setString(RestOptions.ADDRESS, address.getHostString());
-		configuration.setInteger(RestOptions.PORT, address.getPort());
-	}
+    public static void setJobManagerAddressToConfig(
+            final String host, final int port, final Configuration configuration) {
+        final InetSocketAddress address = new InetSocketAddress(host, port);
+        configuration.setString(JobManagerOptions.ADDRESS, address.getHostString());
+        configuration.setInteger(JobManagerOptions.PORT, address.getPort());
+        configuration.setString(RestOptions.ADDRESS, address.getHostString());
+        configuration.setInteger(RestOptions.PORT, address.getPort());
+    }
 
-	public static void setJarURLsToConfig(final String[] jars, final Configuration configuration) {
-		final List<URL> jarURLs = getJarFiles(jars);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jarURLs, URL::toString);
-	}
+    public static void setJarURLsToConfig(final String[] jars, final Configuration configuration) {
+        final List<URL> jarURLs = getJarFiles(jars);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration, PipelineOptions.JARS, jarURLs, URL::toString);
+    }
 
-	private static List<URL> getJarFiles(final String[] jars) {
-		return jars == null
-				? Collections.emptyList()
-				: Arrays.stream(jars).map(jarPath -> {
-			try {
-				final URL fileURL = new File(jarPath).getAbsoluteFile().toURI().toURL();
-				JarUtils.checkJarFile(fileURL);
-				return fileURL;
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("JAR file path invalid", e);
-			} catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + jarPath, e);
-			}
-		}).collect(Collectors.toList());
-	}
+    private static List<URL> getJarFiles(final String[] jars) {
+        return jars == null
+                ? Collections.emptyList()
+                : Arrays.stream(jars)
+                        .map(
+                                jarPath -> {
+                                    try {
+                                        final URL fileURL =
+                                                new File(jarPath).getAbsoluteFile().toURI().toURL();
+                                        JarUtils.checkJarFile(fileURL);
+                                        return fileURL;
+                                    } catch (MalformedURLException e) {
+                                        throw new IllegalArgumentException(
+                                                "JAR file path invalid", e);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(
+                                                "Problem with jar file " + jarPath, e);
+                                    }
+                                })
+                        .collect(Collectors.toList());
+    }
 }

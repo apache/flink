@@ -49,6 +49,6 @@ if %_PYTHON_WORKING_DIR%a NEQ a (
 )
 
 set log=%BOOT_LOG_DIR%/flink-python-udf-boot.log
-call %python% -m pyflink.fn_execution.boot %* 2>&1 > %log%
+call %python% -m pyflink.fn_execution.beam.beam_boot %* 2>&1 > %log%
 
 endlocal

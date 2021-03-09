@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
@@ -28,7 +27,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.sql.Date
-
 
 class GroupingSetsTest extends TableTestBase {
 
@@ -49,12 +47,12 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT b, c, avg(a) AS a, GROUP_ID() AS g FROM MyTable
         |GROUP BY GROUPING SETS (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testGroupingSets2(): Unit = {
-    util.verifyPlan("SELECT b, c, AVG(a) AS a FROM MyTable GROUP BY GROUPING SETS (b, c, ())")
+    util.verifyExecPlan("SELECT b, c, AVG(a) AS a FROM MyTable GROUP BY GROUPING SETS (b, c, ())")
   }
 
   @Test
@@ -73,7 +71,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM MyTable
         |     GROUP BY GROUPING SETS (b, c, ())
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -91,7 +89,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY CUBE (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -109,7 +107,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM MyTable
         |     GROUP BY ROLLUP (b, c)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -123,12 +121,13 @@ class GroupingSetsTest extends TableTestBase {
         |    GROUPING_ID(deptno) AS gib
         |FROM emps GROUP BY GROUPING SETS (deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testBasicGroupingSets(): Unit = {
-    util.verifyPlan("SELECT deptno, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno))")
+    util.verifyExecPlan(
+      "SELECT deptno, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno))")
   }
 
   @Test
@@ -137,17 +136,17 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT deptno + 1, COUNT(*) AS c FROM emps GROUP BY GROUPING SETS ((), (deptno + 1))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSimpleCube(): Unit = {
-    util.verifyPlan("SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)")
+    util.verifyExecPlan("SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)")
   }
 
   @Test
   def testRollupOn1Column(): Unit = {
-    util.verifyPlan("SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)")
+    util.verifyExecPlan("SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)")
   }
 
   @Test
@@ -156,24 +155,26 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT gender, deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno, gender)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testRollupOnColumnWithNulls(): Unit = {
     // Note the two rows with NULL key (one represents ALL)
     // TODO check plan after null type supported
-    util.verifyPlan("SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender)")
+    util.verifyExecPlan("SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender)")
   }
 
   @Test
   def testRollupPlusOrderBy(): Unit = {
-    util.verifyPlan("SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
+    util.verifyExecPlan(
+      "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
   }
 
   @Test
   def testRollupCartesianProduct(): Unit = {
-    util.verifyPlan("SELECT deptno, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno), ROLLUP(gender)")
+    util.verifyExecPlan(
+      "SELECT deptno, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno), ROLLUP(gender)")
   }
 
   @Test
@@ -183,7 +184,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno / 2 + 1 AS half1, COUNT(*) AS c FROM emp
         |GROUP BY ROLLUP(deptno / 2, gender), ROLLUP(substring(ename FROM 1 FOR 1))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -192,12 +193,12 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT deptno + 1 AS d1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) HAVING COUNT(*) > 3
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testCubeAndDistinct(): Unit = {
-    util.verifyPlan("SELECT DISTINCT COUNT(*) FROM emp GROUP BY CUBE(deptno, gender)")
+    util.verifyExecPlan("SELECT DISTINCT COUNT(*) FROM emp GROUP BY CUBE(deptno, gender)")
   }
 
   @Test
@@ -210,12 +211,12 @@ class GroupingSetsTest extends TableTestBase {
         |    GROUP BY CUBE(e.deptno, d.deptno, e.gender)
         |    HAVING COUNT(*) > 2 OR gender = 'M' AND e.deptno = 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testGroupingInSelectClauseOfGroupByQuery(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) AS c, GROUPING(deptno) AS g FROM emp GROUP BY deptno")
+    util.verifyExecPlan("SELECT COUNT(*) AS c, GROUPING(deptno) AS g FROM emp GROUP BY deptno")
   }
 
   @Test
@@ -230,7 +231,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM scott_emp GROUP BY CUBE(deptno, job)
         |
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -246,7 +247,7 @@ class GroupingSetsTest extends TableTestBase {
         |    GROUPING_ID(deptno, gender) AS gdg
         |FROM emp GROUP BY ROLLUP(deptno, gender)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -262,7 +263,7 @@ class GroupingSetsTest extends TableTestBase {
         |    GROUP BY ROLLUP(deptno, gender)
         |    HAVING GROUPING(deptno) <= GROUPING_ID(deptno, gender, deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -271,7 +272,7 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -284,7 +285,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM emp WHERE deptno = 10
         |    GROUP BY ROLLUP(gender, deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -293,7 +294,7 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT COUNT(*) AS c, deptno, GROUPING(deptno) AS g FROM emp GROUP BY ROLLUP(deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -310,7 +311,7 @@ class GroupingSetsTest extends TableTestBase {
         |FROM emp
         |    GROUP BY CUBE(deptno, gender)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -320,7 +321,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno + 1 AS d1, deptno + 1 - 1 AS d0, COUNT(*) AS c
         |FROM emp GROUP BY ROLLUP (deptno + 1)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -330,7 +331,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT MOD(deptno, 20) AS d, COUNT(*) AS c, gender AS g
         |FROM emp GROUP BY CUBE(MOD(deptno, 20), gender)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -340,17 +341,17 @@ class GroupingSetsTest extends TableTestBase {
         |select MOD(deptno, 20) AS d, COUNT(*) AS c, gender AS g
         |FROM emp GROUP BY ROLLUP(MOD(deptno, 20), gender)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testAllowExpressionInCube2(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) AS c FROM emp GROUP BY CUBE(1)")
+    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY CUBE(1)")
   }
 
   @Test
   def testAllowExpressionInRollup3(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(1)")
+    util.verifyExecPlan("SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(1)")
   }
 
   @Test
@@ -360,7 +361,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
         |FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -379,7 +380,7 @@ class GroupingSetsTest extends TableTestBase {
         |    GROUP BY ROLLUP(deptno, job, (empno,ename))
         |    ORDER BY deptno, job, empno
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -412,7 +413,7 @@ class GroupingSetsTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(cubeQuery, groupingSetsQuery)
-    util.verifyPlan(cubeQuery)
+    util.verifyExecPlan(cubeQuery)
   }
 
   @Test
@@ -445,7 +446,7 @@ class GroupingSetsTest extends TableTestBase {
       """.stripMargin
 
     verifyPlanIdentical(rollupQuery, groupingSetsQuery)
-    util.verifyPlan(rollupQuery)
+    util.verifyExecPlan(rollupQuery)
   }
 
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {

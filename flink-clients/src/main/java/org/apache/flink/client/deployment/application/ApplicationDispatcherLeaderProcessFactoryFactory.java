@@ -35,53 +35,53 @@ import java.util.concurrent.Executor;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Factory for a {@link DispatcherLeaderProcessFactoryFactory} designed to be used when executing
- * an application in Application Mode.
+ * Factory for a {@link DispatcherLeaderProcessFactoryFactory} designed to be used when executing an
+ * application in Application Mode.
  */
 @Internal
-public class ApplicationDispatcherLeaderProcessFactoryFactory implements DispatcherLeaderProcessFactoryFactory {
+public class ApplicationDispatcherLeaderProcessFactoryFactory
+        implements DispatcherLeaderProcessFactoryFactory {
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private final DispatcherFactory dispatcherFactory;
+    private final DispatcherFactory dispatcherFactory;
 
-	private final PackagedProgram program;
+    private final PackagedProgram program;
 
-	private ApplicationDispatcherLeaderProcessFactoryFactory(
-			final Configuration configuration,
-			final DispatcherFactory dispatcherFactory,
-			final PackagedProgram program) {
-		this.configuration = checkNotNull(configuration);
-		this.dispatcherFactory = checkNotNull(dispatcherFactory);
-		this.program = checkNotNull(program);
-	}
+    private ApplicationDispatcherLeaderProcessFactoryFactory(
+            final Configuration configuration,
+            final DispatcherFactory dispatcherFactory,
+            final PackagedProgram program) {
+        this.configuration = checkNotNull(configuration);
+        this.dispatcherFactory = checkNotNull(dispatcherFactory);
+        this.program = checkNotNull(program);
+    }
 
-	@Override
-	public DispatcherLeaderProcessFactory createFactory(
-			JobGraphStoreFactory jobGraphStoreFactory,
-			Executor ioExecutor,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices,
-			FatalErrorHandler fatalErrorHandler) {
+    @Override
+    public DispatcherLeaderProcessFactory createFactory(
+            JobGraphStoreFactory jobGraphStoreFactory,
+            Executor ioExecutor,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices,
+            FatalErrorHandler fatalErrorHandler) {
 
-		final ApplicationDispatcherGatewayServiceFactory dispatcherServiceFactory = new ApplicationDispatcherGatewayServiceFactory(
-				configuration,
-				dispatcherFactory,
-				program,
-				rpcService,
-				partialDispatcherServices);
+        final ApplicationDispatcherGatewayServiceFactory dispatcherServiceFactory =
+                new ApplicationDispatcherGatewayServiceFactory(
+                        configuration,
+                        dispatcherFactory,
+                        program,
+                        rpcService,
+                        partialDispatcherServices);
 
-		return new SessionDispatcherLeaderProcessFactory(
-				dispatcherServiceFactory,
-				jobGraphStoreFactory,
-				ioExecutor,
-				fatalErrorHandler);
-	}
+        return new SessionDispatcherLeaderProcessFactory(
+                dispatcherServiceFactory, jobGraphStoreFactory, ioExecutor, fatalErrorHandler);
+    }
 
-	public static ApplicationDispatcherLeaderProcessFactoryFactory create(
-			final Configuration configuration,
-			final DispatcherFactory dispatcherFactory,
-			final PackagedProgram program) {
-		return new ApplicationDispatcherLeaderProcessFactoryFactory(configuration, dispatcherFactory, program);
-	}
+    public static ApplicationDispatcherLeaderProcessFactoryFactory create(
+            final Configuration configuration,
+            final DispatcherFactory dispatcherFactory,
+            final PackagedProgram program) {
+        return new ApplicationDispatcherLeaderProcessFactoryFactory(
+                configuration, dispatcherFactory, program);
+    }
 }

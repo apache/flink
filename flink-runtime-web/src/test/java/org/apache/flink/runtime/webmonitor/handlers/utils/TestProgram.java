@@ -21,13 +21,11 @@ package org.apache.flink.runtime.webmonitor.handlers.utils;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 
-/**
- * Simple test program.
- */
+/** Simple test program. */
 public class TestProgram {
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
-		env.execute();
-	}
+    public static void main(String[] args) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements("hello", "world").output(new DiscardingOutputFormat<>());
+        env.execute();
+    }
 }

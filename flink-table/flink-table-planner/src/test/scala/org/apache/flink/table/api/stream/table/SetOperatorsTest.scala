@@ -20,9 +20,9 @@ package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
+
 import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
@@ -78,20 +78,16 @@ class SetOperatorsTest extends TableTestBase {
       .unionAll(right.select('a, 'b, 'c))
       .select('b, 'c)
 
-    val expected = binaryNode(
-      "DataStreamUnion",
-      unaryNode(
-        "DataStreamCalc",
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamUnion",
         streamTableNode(left),
-        term("select", "b", "c")
-      ),
-      unaryNode(
-        "DataStreamCalc",
         streamTableNode(right),
-        term("select", "b", "c")
+        term("all", "true"),
+        term("union all", "a, b, c")
       ),
-      term("all", "true"),
-      term("union all", "b", "c")
+      term("select", "b, c")
     )
 
     util.verifyTable(result, expected)

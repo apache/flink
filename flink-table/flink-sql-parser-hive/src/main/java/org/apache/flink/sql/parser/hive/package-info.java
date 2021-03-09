@@ -22,7 +22,10 @@
  *
  * <p>To use a specific sql dialect for the parser, get the corresponding sql conformance and use it
  * with FlinkSqlParserImplFactory to create the parser like below:
- * <blockquote><pre>
+ *
+ * <blockquote>
+ *
+ * <pre>
  *   SqlParser.create(source,
  *   		SqlParser.configBuilder()
  *   			.setParserFactory(new FlinkSqlParserImplFactory(conformance0))
@@ -31,7 +34,9 @@
  * 				.setQuotedCasing(Casing.UNCHANGED)
  * 				.setConformance(conformance0) // the sql conformance you want use.
  * 				.build());
- * </pre></blockquote>
+ * </pre>
+ *
+ * </blockquote>
  */
 @PackageMarker
 package org.apache.flink.sql.parser.hive;

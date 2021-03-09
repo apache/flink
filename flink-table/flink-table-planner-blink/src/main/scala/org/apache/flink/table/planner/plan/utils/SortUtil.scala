@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
@@ -84,8 +85,7 @@ object SortUtil {
     FlinkPlannerImpl.defaultNullCollation.last(!ascending)
   }
 
-  def getKeysAndOrders(
-      fieldCollations: Seq[RelFieldCollation]): (Array[Int], Array[Boolean], Array[Boolean]) = {
+  def getSortSpec(fieldCollations: Seq[RelFieldCollation]): SortSpec = {
     val fieldMappingDirections = fieldCollations.map(c =>
       (c.getFieldIndex, directionToOrder(c.getDirection)))
     val keys = fieldMappingDirections.map(_._1)
@@ -100,22 +100,24 @@ object SortUtil {
     deduplicateSortKeys(keys.toArray, orders.toArray, nullsIsLast)
   }
 
-  def deduplicateSortKeys(
+  def getAscendingSortSpec(fields: Array[Int]): SortSpec = {
+    val originalOrders = fields.map {_ => true}
+    val nullsIsLast = SortUtil.getNullDefaultOrders(originalOrders)
+    deduplicateSortKeys(fields, originalOrders, nullsIsLast)
+  }
+
+  private def deduplicateSortKeys(
       keys: Array[Int],
       orders: Array[Boolean],
-      nullsIsLast: Array[Boolean]): (Array[Int], Array[Boolean], Array[Boolean]) = {
+      nullsIsLast: Array[Boolean]): SortSpec = {
+    val builder = SortSpec.builder()
     val keySet = new mutable.HashSet[Int]
-    val keyBuffer = new mutable.ArrayBuffer[Int]
-    val orderBuffer = new mutable.ArrayBuffer[Boolean]
-    val nullsIsLastBuffer = new mutable.ArrayBuffer[Boolean]
     for (i <- keys.indices) {
       if (keySet.add(keys(i))) {
-        keyBuffer += keys(i)
-        orderBuffer += orders(i)
-        nullsIsLastBuffer += nullsIsLast(i)
+        builder.addField(keys(i), orders(i), nullsIsLast(i))
       }
     }
-    (keyBuffer.toArray, orderBuffer.toArray, nullsIsLastBuffer.toArray)
+    builder.build()
   }
 
   def directionToOrder(direction: Direction): Order = {

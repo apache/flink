@@ -30,44 +30,42 @@ import org.apache.calcite.rex.RexNode;
 import scala.Option;
 
 /**
- * The physical rule is responsible for converting {@link FlinkLogicalCorrelate} to
- * {@link DataSetPythonCorrelate}.
+ * The physical rule is responsible for converting {@link FlinkLogicalCorrelate} to {@link
+ * DataSetPythonCorrelate}.
  */
 public class DataSetPythonCorrelateRule extends AbstractPythonCorrelateRuleBase {
 
-	public static final DataSetPythonCorrelateRule INSTANCE = new DataSetPythonCorrelateRule();
+    public static final DataSetPythonCorrelateRule INSTANCE = new DataSetPythonCorrelateRule();
 
-	private DataSetPythonCorrelateRule() {
-		super(FlinkConventions.DATASET(), "DataSetPythonCorrelateRule");
-	}
+    private DataSetPythonCorrelateRule() {
+        super(FlinkConventions.DATASET(), "DataSetPythonCorrelateRule");
+    }
 
-	@Override
-	public RelNode convert(RelNode rel) {
-		DataSetPythonCorrelateFactory factory = new DataSetPythonCorrelateFactory(rel);
-		return factory.convertToCorrelate();
-	}
+    @Override
+    public RelNode convert(RelNode rel) {
+        DataSetPythonCorrelateFactory factory = new DataSetPythonCorrelateFactory(rel);
+        return factory.convertToCorrelate();
+    }
 
-	/**
-	 * The factory is responsible for creating {@link DataSetPythonCorrelate}.
-	 */
-	private static class DataSetPythonCorrelateFactory extends PythonCorrelateFactoryBase {
-		private DataSetPythonCorrelateFactory(RelNode rel) {
-			super(rel, FlinkConventions.DATASET());
-		}
+    /** The factory is responsible for creating {@link DataSetPythonCorrelate}. */
+    private static class DataSetPythonCorrelateFactory extends PythonCorrelateFactoryBase {
+        private DataSetPythonCorrelateFactory(RelNode rel) {
+            super(rel, FlinkConventions.DATASET());
+        }
 
-		@Override
-		public RelNode createPythonCorrelateNode(RelNode relNode, Option<RexNode> condition) {
-			FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
-			return new DataSetPythonCorrelate(
-				relNode.getCluster(),
-				traitSet,
-				convInput,
-				scan,
-				condition,
-				correlateRel.getRowType(),
-				join.getRowType(),
-				join.getJoinType(),
-				"DataSetPythonCorrelateRule");
-		}
-	}
+        @Override
+        public RelNode createPythonCorrelateNode(RelNode relNode, Option<RexNode> condition) {
+            FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) relNode;
+            return new DataSetPythonCorrelate(
+                    relNode.getCluster(),
+                    traitSet,
+                    convInput,
+                    scan,
+                    condition,
+                    correlateRel.getRowType(),
+                    join.getRowType(),
+                    join.getJoinType(),
+                    "DataSetPythonCorrelateRule");
+        }
+    }
 }

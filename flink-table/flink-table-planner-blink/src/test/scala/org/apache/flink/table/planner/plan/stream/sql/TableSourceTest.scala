@@ -44,7 +44,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
+    util.verifyExecPlan("SELECT rowtime, id, name, val FROM rowTimeT")
   }
 
   @Test
@@ -73,7 +73,7 @@ class TableSourceTest extends TableTestBase {
         |   GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -95,7 +95,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT pTime, id, name, val FROM procTimeT")
+    util.verifyExecPlan("SELECT pTime, id, name, val FROM procTimeT")
   }
 
   @Test
@@ -116,7 +116,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT ptime, name, val, id FROM T")
+    util.verifyExecPlan("SELECT ptime, name, val, id FROM T")
   }
 
   @Test
@@ -137,7 +137,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("select name, val, rtime, id from T")
+    util.verifyExecPlan("select name, val, rtime, id from T")
   }
 
   @Test
@@ -158,7 +158,7 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT rtime FROM T")
+    util.verifyExecPlan("SELECT rtime FROM T")
   }
 
   @Test
@@ -173,7 +173,7 @@ class TableSourceTest extends TableTestBase {
          |  name string
          |) WITH (
          |  'connector' = 'values',
-         |  'nested-projection-supported' = 'false',
+         |  'nested-projection-supported' = 'true',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -188,7 +188,7 @@ class TableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -205,6 +205,35 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    util.verifyPlan("SELECT COUNT(1) FROM T")
+    util.verifyExecPlan("SELECT COUNT(1) FROM T")
+  }
+
+  @Test
+  def testNestedProjectWithMetadata(): Unit = {
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |    nested2 row<num int, flag boolean>>,
+         |  metadata_1 int metadata,
+         |  metadata_2 string metadata
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'bounded' = 'true',
+         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl)
+
+    val sqlQuery =
+      """
+        |SELECT id,
+        |       deepNested.nested1 AS nested1,
+        |       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+        |FROM T
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
   }
 }

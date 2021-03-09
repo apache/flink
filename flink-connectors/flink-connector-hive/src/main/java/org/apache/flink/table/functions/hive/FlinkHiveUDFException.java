@@ -20,29 +20,23 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-/**
- * Hive UDF related exceptions in Flink.
- */
+/** Hive UDF related exceptions in Flink. */
 public class FlinkHiveUDFException extends FlinkRuntimeException {
-	/**
-	 * @param message the detail message.
-	 */
-	public FlinkHiveUDFException(String message) {
-		super(message);
-	}
+    /** @param message the detail message. */
+    public FlinkHiveUDFException(String message) {
+        super(message);
+    }
 
-	/**
-	 * @param cause the cause.
-	 */
-	public FlinkHiveUDFException(Throwable cause) {
-		super(cause);
-	}
+    /** @param cause the cause. */
+    public FlinkHiveUDFException(Throwable cause) {
+        super(cause);
+    }
 
-	/**
-	 * @param message the detail message.
-	 * @param cause the cause.
-	 */
-	public FlinkHiveUDFException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * @param message the detail message.
+     * @param cause the cause.
+     */
+    public FlinkHiveUDFException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

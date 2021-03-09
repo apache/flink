@@ -27,100 +27,82 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Information provided by the TaskExecutor when it registers to the ResourceManager.
- */
+/** Information provided by the TaskExecutor when it registers to the ResourceManager. */
 public class TaskExecutorRegistration implements Serializable {
-	private static final long serialVersionUID = -5727832919954047964L;
+    private static final long serialVersionUID = -5727832919954047964L;
 
-	/**
-	 * The address of the TaskExecutor that registers.
-	 */
-	private final String taskExecutorAddress;
+    /** The address of the TaskExecutor that registers. */
+    private final String taskExecutorAddress;
 
-	/**
-	 * The resource ID of the TaskExecutor that registers.
-	 */
-	private final ResourceID resourceId;
+    /** The resource ID of the TaskExecutor that registers. */
+    private final ResourceID resourceId;
 
-	/**
-	 * Port used for data communication between TaskExecutors.
-	 */
-	private final int dataPort;
+    /** Port used for data communication between TaskExecutors. */
+    private final int dataPort;
 
-	/**
-	 * Port used for JMX RMI.
-	 */
-	private final int jmxPort;
+    /** Port used for JMX RMI. */
+    private final int jmxPort;
 
-	/**
-	 * HardwareDescription of the registering TaskExecutor.
-	 */
-	private final HardwareDescription hardwareDescription;
+    /** HardwareDescription of the registering TaskExecutor. */
+    private final HardwareDescription hardwareDescription;
 
-	/**
-	 * Memory configuration of the registering TaskExecutor.
-	 */
-	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+    /** Memory configuration of the registering TaskExecutor. */
+    private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
-	/**
-	 * The default resource profile for slots requested with unknown resource requirements.
-	 */
-	private final ResourceProfile defaultSlotResourceProfile;
+    /** The default resource profile for slots requested with unknown resource requirements. */
+    private final ResourceProfile defaultSlotResourceProfile;
 
-	/**
-	 * The task executor total resource profile.
-	 */
-	private final ResourceProfile totalResourceProfile;
+    /** The task executor total resource profile. */
+    private final ResourceProfile totalResourceProfile;
 
-	public TaskExecutorRegistration(
-			final String taskExecutorAddress,
-			final ResourceID resourceId,
-			final int dataPort,
-			final int jmxPort,
-			final HardwareDescription hardwareDescription,
-			final TaskExecutorMemoryConfiguration memoryConfiguration,
-			final ResourceProfile defaultSlotResourceProfile,
-			final ResourceProfile totalResourceProfile) {
-		this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
-		this.resourceId = checkNotNull(resourceId);
-		this.dataPort = dataPort;
-		this.jmxPort = jmxPort;
-		this.hardwareDescription = checkNotNull(hardwareDescription);
-		this.memoryConfiguration = checkNotNull(memoryConfiguration);
-		this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
-		this.totalResourceProfile = checkNotNull(totalResourceProfile);
-	}
+    public TaskExecutorRegistration(
+            final String taskExecutorAddress,
+            final ResourceID resourceId,
+            final int dataPort,
+            final int jmxPort,
+            final HardwareDescription hardwareDescription,
+            final TaskExecutorMemoryConfiguration memoryConfiguration,
+            final ResourceProfile defaultSlotResourceProfile,
+            final ResourceProfile totalResourceProfile) {
+        this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
+        this.resourceId = checkNotNull(resourceId);
+        this.dataPort = dataPort;
+        this.jmxPort = jmxPort;
+        this.hardwareDescription = checkNotNull(hardwareDescription);
+        this.memoryConfiguration = checkNotNull(memoryConfiguration);
+        this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
+        this.totalResourceProfile = checkNotNull(totalResourceProfile);
+    }
 
-	public String getTaskExecutorAddress() {
-		return taskExecutorAddress;
-	}
+    public String getTaskExecutorAddress() {
+        return taskExecutorAddress;
+    }
 
-	public ResourceID getResourceId() {
-		return resourceId;
-	}
+    public ResourceID getResourceId() {
+        return resourceId;
+    }
 
-	public int getDataPort() {
-		return dataPort;
-	}
+    public int getDataPort() {
+        return dataPort;
+    }
 
-	public int getJmxPort() {
-		return jmxPort;
-	}
+    public int getJmxPort() {
+        return jmxPort;
+    }
 
-	public HardwareDescription getHardwareDescription() {
-		return hardwareDescription;
-	}
+    public HardwareDescription getHardwareDescription() {
+        return hardwareDescription;
+    }
 
-	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
-		return memoryConfiguration;
-	}
+    public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+        return memoryConfiguration;
+    }
 
-	public ResourceProfile getDefaultSlotResourceProfile() {
-		return defaultSlotResourceProfile;
-	}
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
+    }
 
-	public ResourceProfile getTotalResourceProfile() {
-		return totalResourceProfile;
-	}
+    public ResourceProfile getTotalResourceProfile() {
+        return totalResourceProfile;
+    }
 }

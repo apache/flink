@@ -106,7 +106,7 @@ class SetOperatorsTest extends TableTestBase {
                 "DataSetCalc",
                 batchTableNode(table),
                 term("select", "b"),
-                term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+                term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
               ),
               term("select", "COUNT(*) AS $f0", "COUNT(b) AS $f1")
             ),
@@ -122,7 +122,7 @@ class SetOperatorsTest extends TableTestBase {
             "DataSetCalc",
             batchTableNode(table),
             term("select", "b", "true AS $f1"),
-            term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+            term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
           ),
           term("groupBy", "b"),
           term("select", "b", "MIN($f1) AS $f1")

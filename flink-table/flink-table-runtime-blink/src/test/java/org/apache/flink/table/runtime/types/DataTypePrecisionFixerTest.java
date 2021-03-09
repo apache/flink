@@ -50,134 +50,115 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link DataTypePrecisionFixer}.
- */
+/** Tests for {@link DataTypePrecisionFixer}. */
 @RunWith(Parameterized.class)
 public class DataTypePrecisionFixerTest {
 
-	@Parameterized.Parameters(name = "{index}: [From: {0}, To: {1}]")
-	public static List<TestSpec> testData() {
-		return Arrays.asList(
+    @Parameterized.Parameters(name = "{index}: [From: {0}, To: {1}]")
+    public static List<TestSpec> testData() {
+        return Arrays.asList(
+                TestSpecs.fix(Types.BIG_DEC)
+                        .logicalType(new DecimalType(10, 5))
+                        .expect(DataTypes.DECIMAL(10, 5)),
+                TestSpecs.fix(Types.SQL_TIMESTAMP)
+                        .logicalType(new TimestampType(9))
+                        .expect(DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class)),
+                TestSpecs.fix(Types.SQL_TIME)
+                        .logicalType(new TimeType(9))
+                        .expect(DataTypes.TIME(9).bridgedTo(Time.class)),
+                TestSpecs.fix(Types.SQL_DATE)
+                        .logicalType(new DateType())
+                        .expect(DataTypes.DATE().bridgedTo(Date.class)),
+                TestSpecs.fix(Types.LOCAL_DATE_TIME)
+                        .logicalType(new TimestampType(9))
+                        .expect(DataTypes.TIMESTAMP(9)),
+                TestSpecs.fix(Types.LOCAL_TIME)
+                        .logicalType(new TimeType(9))
+                        .expect(DataTypes.TIME(9)),
+                TestSpecs.fix(Types.LOCAL_DATE)
+                        .logicalType(new DateType())
+                        .expect(DataTypes.DATE()),
+                TestSpecs.fix(Types.INSTANT)
+                        .logicalType(new LocalZonedTimestampType(2))
+                        .expect(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(2)),
+                TestSpecs.fix(Types.STRING)
+                        .logicalType(new VarCharType(VarCharType.MAX_LENGTH))
+                        .expect(DataTypes.STRING()),
 
-			TestSpecs
-				.fix(Types.BIG_DEC)
-				.logicalType(new DecimalType(10, 5))
-				.expect(DataTypes.DECIMAL(10, 5)),
+                // nested
+                TestSpecs.fix(
+                                Types.ROW_NAMED(
+                                        new String[] {"field1", "field2"},
+                                        Types.MAP(Types.BIG_DEC, Types.SQL_TIMESTAMP),
+                                        Types.OBJECT_ARRAY(Types.SQL_TIME)))
+                        .logicalType(
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField(
+                                                        "field1",
+                                                        new MapType(
+                                                                new DecimalType(20, 2),
+                                                                new TimestampType(0))),
+                                                new RowType.RowField(
+                                                        "field2", new ArrayType(new TimeType(8))))))
+                        .expect(
+                                DataTypes.ROW(
+                                        FIELD(
+                                                "field1",
+                                                DataTypes.MAP(
+                                                        DataTypes.DECIMAL(20, 2),
+                                                        DataTypes.TIMESTAMP(0)
+                                                                .bridgedTo(Timestamp.class))),
+                                        FIELD(
+                                                "field2",
+                                                DataTypes.ARRAY(
+                                                        DataTypes.TIME(8)
+                                                                .bridgedTo(Time.class))))));
+    }
 
-			TestSpecs
-				.fix(Types.SQL_TIMESTAMP)
-				.logicalType(new TimestampType(9))
-				.expect(DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class)),
+    @Parameterized.Parameter public TestSpec testSpec;
 
-			TestSpecs
-				.fix(Types.SQL_TIME)
-				.logicalType(new TimeType(9))
-				.expect(DataTypes.TIME(9).bridgedTo(Time.class)),
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-			TestSpecs
-				.fix(Types.SQL_DATE)
-				.logicalType(new DateType())
-				.expect(DataTypes.DATE().bridgedTo(Date.class)),
+    @Test
+    public void testPrecisionFixing() {
+        DataType dataType = fromLegacyInfoToDataType(testSpec.typeInfo);
+        DataType newDataType = dataType.accept(new DataTypePrecisionFixer(testSpec.logicalType));
+        assertEquals(testSpec.expectedType, newDataType);
+    }
 
-			TestSpecs
-				.fix(Types.LOCAL_DATE_TIME)
-				.logicalType(new TimestampType(9))
-				.expect(DataTypes.TIMESTAMP(9)),
+    // --------------------------------------------------------------------------------------------
 
-			TestSpecs
-				.fix(Types.LOCAL_TIME)
-				.logicalType(new TimeType(9))
-				.expect(DataTypes.TIME(9)),
+    private static class TestSpec {
+        private final TypeInformation<?> typeInfo;
+        private final LogicalType logicalType;
+        private final DataType expectedType;
 
-			TestSpecs
-				.fix(Types.LOCAL_DATE)
-				.logicalType(new DateType())
-				.expect(DataTypes.DATE()),
+        private TestSpec(
+                TypeInformation<?> typeInfo, LogicalType logicalType, DataType expectedType) {
+            this.typeInfo = checkNotNull(typeInfo);
+            this.logicalType = checkNotNull(logicalType);
+            this.expectedType = checkNotNull(expectedType);
+        }
+    }
 
-			TestSpecs
-				.fix(Types.INSTANT)
-				.logicalType(new LocalZonedTimestampType(2))
-				.expect(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(2)),
+    private static class TestSpecs {
+        private TypeInformation<?> typeInfo;
+        private LogicalType logicalType;
 
-			TestSpecs
-				.fix(Types.STRING)
-				.logicalType(new VarCharType(VarCharType.MAX_LENGTH))
-				.expect(DataTypes.STRING()),
+        static TestSpecs fix(TypeInformation<?> typeInfo) {
+            TestSpecs testSpecs = new TestSpecs();
+            testSpecs.typeInfo = typeInfo;
+            return testSpecs;
+        }
 
-			// nested
-			TestSpecs
-				.fix(Types.ROW_NAMED(
-					new String[] {"field1", "field2"},
-					Types.MAP(Types.BIG_DEC, Types.SQL_TIMESTAMP),
-					Types.OBJECT_ARRAY(Types.SQL_TIME)))
-				.logicalType(new RowType(
-					Arrays.asList(
-						new RowType.RowField("field1", new MapType(
-							new DecimalType(20, 2),
-							new TimestampType(0))),
-						new RowType.RowField("field2", new ArrayType(new TimeType(8)))
-					)
-				))
-				.expect(
-					DataTypes.ROW(
-						FIELD("field1", DataTypes.MAP(
-							DataTypes.DECIMAL(20, 2),
-							DataTypes.TIMESTAMP(0).bridgedTo(Timestamp.class))),
-						FIELD("field2", DataTypes.ARRAY(
-							DataTypes.TIME(8).bridgedTo(Time.class)))))
+        TestSpecs logicalType(LogicalType logicalType) {
+            this.logicalType = logicalType;
+            return this;
+        }
 
-			);
-	}
-
-	@Parameterized.Parameter
-	public TestSpec testSpec;
-
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
-
-	@Test
-	public void testPrecisionFixing() {
-		DataType dataType = fromLegacyInfoToDataType(testSpec.typeInfo);
-		DataType newDataType = dataType.accept(new DataTypePrecisionFixer(testSpec.logicalType));
-		assertEquals(testSpec.expectedType, newDataType);
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static class TestSpec {
-		private final TypeInformation<?> typeInfo;
-		private final LogicalType logicalType;
-		private final DataType expectedType;
-
-		private TestSpec(
-				TypeInformation<?> typeInfo,
-				LogicalType logicalType,
-				DataType expectedType) {
-			this.typeInfo = checkNotNull(typeInfo);
-			this.logicalType = checkNotNull(logicalType);
-			this.expectedType = checkNotNull(expectedType);
-		}
-	}
-
-	private static class TestSpecs {
-		private TypeInformation<?> typeInfo;
-		private LogicalType logicalType;
-
-		static TestSpecs fix(TypeInformation<?> typeInfo) {
-			TestSpecs testSpecs = new TestSpecs();
-			testSpecs.typeInfo = typeInfo;
-			return testSpecs;
-		}
-
-		TestSpecs logicalType(LogicalType logicalType) {
-			this.logicalType = logicalType;
-			return this;
-		}
-
-		TestSpec expect(DataType expectedType) {
-			return new TestSpec(typeInfo, logicalType, expectedType);
-		}
-	}
-
+        TestSpec expect(DataType expectedType) {
+            return new TestSpec(typeInfo, logicalType, expectedType);
+        }
+    }
 }

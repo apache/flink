@@ -29,6 +29,9 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableSinkFactoryContextImpl;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
@@ -47,78 +50,93 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link HiveTableFactory}.
- */
+/** Test for {@link HiveTableFactory}. */
 public class HiveTableFactoryTest {
-	private static HiveCatalog catalog;
+    private static HiveCatalog catalog;
 
-	@BeforeClass
-	public static void init() {
-		catalog = HiveTestUtils.createHiveCatalog();
-		catalog.open();
-	}
+    @BeforeClass
+    public static void init() {
+        catalog = HiveTestUtils.createHiveCatalog();
+        catalog.open();
+    }
 
-	@AfterClass
-	public static void close() {
-		catalog.close();
-	}
+    @AfterClass
+    public static void close() {
+        catalog.close();
+    }
 
-	@Test
-	public void testGenericTable() throws Exception {
-		TableSchema schema = TableSchema.builder()
-			.field("name", DataTypes.STRING())
-			.field("age", DataTypes.INT())
-			.build();
+    @Test
+    public void testGenericTable() throws Exception {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("name", DataTypes.STRING())
+                        .field("age", DataTypes.INT())
+                        .build();
 
-		Map<String, String> properties = new HashMap<>();
-		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-		properties.put("connector", "COLLECTION");
+        Map<String, String> properties = new HashMap<>();
+        properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+        properties.put("connector", "COLLECTION");
 
-		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
-		ObjectPath path = new ObjectPath("mydb", "mytable");
-		CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
-		catalog.createTable(path, table, true);
-		Optional<TableFactory> opt = catalog.getTableFactory();
-		assertTrue(opt.isPresent());
-		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
-		assertTrue(tableSource instanceof StreamTableSource);
-		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-				table,
-				new Configuration(),
-				true));
-		assertTrue(tableSink instanceof StreamTableSink);
-	}
+        catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
+        ObjectPath path = new ObjectPath("mydb", "mytable");
+        CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
+        catalog.createTable(path, table, true);
+        Optional<TableFactory> opt = catalog.getTableFactory();
+        assertTrue(opt.isPresent());
+        HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
+        TableSource tableSource =
+                tableFactory.createTableSource(
+                        new TableSourceFactoryContextImpl(
+                                ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+                                table,
+                                new Configuration(),
+                                false));
+        assertTrue(tableSource instanceof StreamTableSource);
+        TableSink tableSink =
+                tableFactory.createTableSink(
+                        new TableSinkFactoryContextImpl(
+                                ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+                                table,
+                                new Configuration(),
+                                true,
+                                false));
+        assertTrue(tableSink instanceof StreamTableSink);
+    }
 
-	@Test
-	public void testHiveTable() throws Exception {
-		TableSchema schema = TableSchema.builder()
-			.field("name", DataTypes.STRING())
-			.field("age", DataTypes.INT())
-			.build();
+    @Test
+    public void testHiveTable() throws Exception {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("name", DataTypes.STRING())
+                        .field("age", DataTypes.INT())
+                        .build();
 
-		Map<String, String> properties = new HashMap<>();
-		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        Map<String, String> properties = new HashMap<>();
+        properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 
-		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
-		ObjectPath path = new ObjectPath("mydb", "mytable");
-		CatalogTable table = new CatalogTableImpl(schema, properties, "hive table");
-		catalog.createTable(path, table, true);
-		Optional<TableFactory> opt = catalog.getTableFactory();
-		assertTrue(opt.isPresent());
-		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-				table,
-				new Configuration(),
-				true));
-		assertTrue(tableSink instanceof HiveTableSink);
-		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
-		assertTrue(tableSource instanceof HiveTableSource);
-	}
+        catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
+        ObjectPath path = new ObjectPath("mydb", "mytable");
+        CatalogTable table = new CatalogTableImpl(schema, properties, "hive table");
+        catalog.createTable(path, table, true);
 
+        DynamicTableSource tableSource =
+                FactoryUtil.createTableSource(
+                        catalog,
+                        ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+                        table,
+                        new Configuration(),
+                        Thread.currentThread().getContextClassLoader(),
+                        false);
+        assertTrue(tableSource instanceof HiveTableSource);
+
+        DynamicTableSink tableSink =
+                FactoryUtil.createTableSink(
+                        catalog,
+                        ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
+                        table,
+                        new Configuration(),
+                        Thread.currentThread().getContextClassLoader(),
+                        false);
+        assertTrue(tableSink instanceof HiveTableSink);
+    }
 }

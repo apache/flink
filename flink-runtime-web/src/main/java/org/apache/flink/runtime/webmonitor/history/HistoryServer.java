@@ -35,7 +35,6 @@ import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -65,270 +64,303 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * The HistoryServer provides a WebInterface and REST API to retrieve information about finished jobs for which
- * the JobManager may have already shut down.
+ * The HistoryServer provides a WebInterface and REST API to retrieve information about finished
+ * jobs for which the JobManager may have already shut down.
  *
- * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link FsJobArchivist} and
- * caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
+ * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link
+ * FsJobArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
  *
  * <p>All configuration options are defined in{@link HistoryServerOptions}.
  *
  * <p>The WebInterface only displays the "Completed Jobs" page.
  *
  * <p>The REST API is limited to
+ *
  * <ul>
- *     <li>/config</li>
- *     <li>/joboverview</li>
- *     <li>/jobs/:jobid/*</li>
+ *   <li>/config
+ *   <li>/joboverview
+ *   <li>/jobs/:jobid/*
  * </ul>
- * and relies on static files that are served by the {@link HistoryServerStaticFileServerHandler}.
+ *
+ * <p>and relies on static files that are served by the {@link
+ * HistoryServerStaticFileServerHandler}.
  */
 public class HistoryServer {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HistoryServer.class);
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final Logger LOG = LoggerFactory.getLogger(HistoryServer.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final Configuration config;
+    private final Configuration config;
 
-	private final String webAddress;
-	private final int webPort;
-	private final long webRefreshIntervalMillis;
-	private final File webDir;
+    private final String webAddress;
+    private final int webPort;
+    private final long webRefreshIntervalMillis;
+    private final File webDir;
 
-	private final HistoryServerArchiveFetcher archiveFetcher;
+    private final HistoryServerArchiveFetcher archiveFetcher;
 
-	@Nullable
-	private final SSLHandlerFactory serverSSLFactory;
-	private WebFrontendBootstrap netty;
+    @Nullable private final SSLHandlerFactory serverSSLFactory;
+    private WebFrontendBootstrap netty;
 
-	private final Object startupShutdownLock = new Object();
-	private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
-	private final Thread shutdownHook;
+    private final Object startupShutdownLock = new Object();
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+    private final Thread shutdownHook;
 
-	public static void main(String[] args) throws Exception {
-		EnvironmentInformation.logEnvironmentInfo(LOG, "HistoryServer", args);
+    public static void main(String[] args) throws Exception {
+        EnvironmentInformation.logEnvironmentInfo(LOG, "HistoryServer", args);
 
-		ParameterTool pt = ParameterTool.fromArgs(args);
-		String configDir = pt.getRequired("configDir");
+        ParameterTool pt = ParameterTool.fromArgs(args);
+        String configDir = pt.getRequired("configDir");
 
-		LOG.info("Loading configuration from {}", configDir);
-		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
+        LOG.info("Loading configuration from {}", configDir);
+        final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
-		FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
+        FileSystem.initialize(
+                flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
-		// run the history server
-		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
+        // run the history server
+        SecurityUtils.install(new SecurityConfiguration(flinkConfig));
 
-		try {
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
-				@Override
-				public Integer call() throws Exception {
-					HistoryServer hs = new HistoryServer(flinkConfig);
-					hs.run();
-					return 0;
-				}
-			});
-			System.exit(0);
-		} catch (Throwable t) {
-			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-			LOG.error("Failed to run HistoryServer.", strippedThrowable);
-			strippedThrowable.printStackTrace();
-			System.exit(1);
-		}
-	}
+        try {
+            SecurityUtils.getInstalledContext()
+                    .runSecured(
+                            new Callable<Integer>() {
+                                @Override
+                                public Integer call() throws Exception {
+                                    HistoryServer hs = new HistoryServer(flinkConfig);
+                                    hs.run();
+                                    return 0;
+                                }
+                            });
+            System.exit(0);
+        } catch (Throwable t) {
+            final Throwable strippedThrowable =
+                    ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+            LOG.error("Failed to run HistoryServer.", strippedThrowable);
+            strippedThrowable.printStackTrace();
+            System.exit(1);
+        }
+    }
 
-	public HistoryServer(Configuration config) throws IOException, FlinkException {
-		this(config, (event) -> {});
-	}
+    public HistoryServer(Configuration config) throws IOException, FlinkException {
+        this(config, (event) -> {});
+    }
 
-	/**
-	 * Creates HistoryServer instance.
-	 * @param config configuration
-	 * @param jobArchiveEventListener Listener for job archive operations. First param is operation, second
-	 *                                    param is id of the job.
-	 * @throws IOException When creation of SSL factory failed
-	 * @throws FlinkException When configuration error occurred
-	 */
-	public HistoryServer(
-			Configuration config,
-			Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener
-	) throws IOException, FlinkException {
-		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(jobArchiveEventListener);
+    /**
+     * Creates HistoryServer instance.
+     *
+     * @param config configuration
+     * @param jobArchiveEventListener Listener for job archive operations. First param is operation,
+     *     second param is id of the job.
+     * @throws IOException When creation of SSL factory failed
+     * @throws FlinkException When configuration error occurred
+     */
+    public HistoryServer(
+            Configuration config,
+            Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener)
+            throws IOException, FlinkException {
+        Preconditions.checkNotNull(config);
+        Preconditions.checkNotNull(jobArchiveEventListener);
 
-		this.config = config;
-		if (HistoryServerUtils.isSSLEnabled(config)) {
-			LOG.info("Enabling SSL for the history server.");
-			try {
-				this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);
-			} catch (Exception e) {
-				throw new IOException("Failed to initialize SSLContext for the history server.", e);
-			}
-		} else {
-			this.serverSSLFactory = null;
-		}
+        this.config = config;
+        if (HistoryServerUtils.isSSLEnabled(config)) {
+            LOG.info("Enabling SSL for the history server.");
+            try {
+                this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);
+            } catch (Exception e) {
+                throw new IOException("Failed to initialize SSLContext for the history server.", e);
+            }
+        } else {
+            this.serverSSLFactory = null;
+        }
 
-		webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
-		webPort = config.getInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
-		webRefreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
+        webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
+        webPort = config.getInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
+        webRefreshIntervalMillis =
+                config.getLong(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
 
-		String webDirectory = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
-		if (webDirectory == null) {
-			webDirectory = System.getProperty("java.io.tmpdir") + File.separator + "flink-web-history-" + UUID.randomUUID();
-		}
-		webDir = new File(webDirectory);
+        String webDirectory = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
+        if (webDirectory == null) {
+            webDirectory =
+                    System.getProperty("java.io.tmpdir")
+                            + File.separator
+                            + "flink-web-history-"
+                            + UUID.randomUUID();
+        }
+        webDir = new File(webDirectory);
 
-		boolean cleanupExpiredArchives = config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
+        boolean cleanupExpiredArchives =
+                config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
 
-		String refreshDirectories = config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
-		if (refreshDirectories == null) {
-			throw new FlinkException(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
-		}
-		List<RefreshLocation> refreshDirs = new ArrayList<>();
-		for (String refreshDirectory : refreshDirectories.split(",")) {
-			try {
-				Path refreshPath = WebMonitorUtils.validateAndNormalizeUri(new Path(refreshDirectory).toUri());
-				FileSystem refreshFS = refreshPath.getFileSystem();
-				refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
-			} catch (Exception e) {
-				// there's most likely something wrong with the path itself, so we ignore it from here on
-				LOG.warn("Failed to create Path or FileSystem for directory '{}'. Directory will not be monitored.", refreshDirectory, e);
-			}
-		}
+        String refreshDirectories =
+                config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
+        if (refreshDirectories == null) {
+            throw new FlinkException(
+                    HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
+        }
+        List<RefreshLocation> refreshDirs = new ArrayList<>();
+        for (String refreshDirectory : refreshDirectories.split(",")) {
+            try {
+                Path refreshPath = new Path(refreshDirectory);
+                FileSystem refreshFS = refreshPath.getFileSystem();
+                refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
+            } catch (Exception e) {
+                // there's most likely something wrong with the path itself, so we ignore it from
+                // here on
+                LOG.warn(
+                        "Failed to create Path or FileSystem for directory '{}'. Directory will not be monitored.",
+                        refreshDirectory,
+                        e);
+            }
+        }
 
-		if (refreshDirs.isEmpty()) {
-			throw new FlinkException("Failed to validate any of the configured directories to monitor.");
-		}
+        if (refreshDirs.isEmpty()) {
+            throw new FlinkException(
+                    "Failed to validate any of the configured directories to monitor.");
+        }
 
-		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
-		if (maxHistorySize == 0 || maxHistorySize < -1){
-			throw new IllegalConfigurationException("Cannot set %s to 0 or less than -1", HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
-		}
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, jobArchiveEventListener,
-			cleanupExpiredArchives, maxHistorySize);
+        long refreshIntervalMillis =
+                config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
+        int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+        if (maxHistorySize == 0 || maxHistorySize < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
+        }
+        archiveFetcher =
+                new HistoryServerArchiveFetcher(
+                        refreshIntervalMillis,
+                        refreshDirs,
+                        webDir,
+                        jobArchiveEventListener,
+                        cleanupExpiredArchives,
+                        maxHistorySize);
 
-		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
-			HistoryServer.this::stop,
-			HistoryServer.class.getSimpleName(),
-			LOG);
-	}
+        this.shutdownHook =
+                ShutdownHookUtil.addShutdownHook(
+                        HistoryServer.this::stop, HistoryServer.class.getSimpleName(), LOG);
+    }
 
-	@VisibleForTesting
-	int getWebPort() {
-		return netty.getServerPort();
-	}
+    @VisibleForTesting
+    int getWebPort() {
+        return netty.getServerPort();
+    }
 
-	public void run() {
-		try {
-			start();
-			new CountDownLatch(1).await();
-		} catch (Exception e) {
-			LOG.error("Failure while running HistoryServer.", e);
-		} finally {
-			stop();
-		}
-	}
+    public void run() {
+        try {
+            start();
+            new CountDownLatch(1).await();
+        } catch (Exception e) {
+            LOG.error("Failure while running HistoryServer.", e);
+        } finally {
+            stop();
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	// Life-cycle
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Life-cycle
+    // ------------------------------------------------------------------------
 
-	void start() throws IOException, InterruptedException {
-		synchronized (startupShutdownLock) {
-			LOG.info("Starting history server.");
+    void start() throws IOException, InterruptedException {
+        synchronized (startupShutdownLock) {
+            LOG.info("Starting history server.");
 
-			Files.createDirectories(webDir.toPath());
-			LOG.info("Using directory {} as local cache.", webDir);
+            Files.createDirectories(webDir.toPath());
+            LOG.info("Using directory {} as local cache.", webDir);
 
-			Router router = new Router();
-			router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            Router router = new Router();
+            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
-			if (!webDir.exists() && !webDir.mkdirs()) {
-				throw new IOException("Failed to create local directory " + webDir.getAbsoluteFile() + ".");
-			}
+            if (!webDir.exists() && !webDir.mkdirs()) {
+                throw new IOException(
+                        "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
+            }
 
-			createDashboardConfigFile();
+            createDashboardConfigFile();
 
-			archiveFetcher.start();
+            archiveFetcher.start();
 
-			netty = new WebFrontendBootstrap(router, LOG, webDir, serverSSLFactory, webAddress, webPort, config);
-		}
-	}
+            netty =
+                    new WebFrontendBootstrap(
+                            router, LOG, webDir, serverSSLFactory, webAddress, webPort, config);
+        }
+    }
 
-	void stop() {
-		if (shutdownRequested.compareAndSet(false, true)) {
-			synchronized (startupShutdownLock) {
-				LOG.info("Stopping history server.");
+    void stop() {
+        if (shutdownRequested.compareAndSet(false, true)) {
+            synchronized (startupShutdownLock) {
+                LOG.info("Stopping history server.");
 
-				try {
-					netty.shutdown();
-				} catch (Throwable t) {
-					LOG.warn("Error while shutting down WebFrontendBootstrap.", t);
-				}
+                try {
+                    netty.shutdown();
+                } catch (Throwable t) {
+                    LOG.warn("Error while shutting down WebFrontendBootstrap.", t);
+                }
 
-				archiveFetcher.stop();
+                archiveFetcher.stop();
 
-				try {
-					LOG.info("Removing web dashboard root cache directory {}", webDir);
-					FileUtils.deleteDirectory(webDir);
-				} catch (Throwable t) {
-					LOG.warn("Error while deleting web root directory {}", webDir, t);
-				}
+                try {
+                    LOG.info("Removing web dashboard root cache directory {}", webDir);
+                    FileUtils.deleteDirectory(webDir);
+                } catch (Throwable t) {
+                    LOG.warn("Error while deleting web root directory {}", webDir, t);
+                }
 
-				LOG.info("Stopped history server.");
+                LOG.info("Stopped history server.");
 
-				// Remove shutdown hook to prevent resource leaks
-				ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
-			}
-		}
-	}
+                // Remove shutdown hook to prevent resource leaks
+                ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	// File generation
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // File generation
+    // ------------------------------------------------------------------------
 
-	static FileWriter createOrGetFile(File folder, String name) throws IOException {
-		File file = new File(folder, name + ".json");
-		if (!file.exists()) {
-			Files.createFile(file.toPath());
-		}
-		FileWriter fr = new FileWriter(file);
-		return fr;
-	}
+    static FileWriter createOrGetFile(File folder, String name) throws IOException {
+        File file = new File(folder, name + ".json");
+        if (!file.exists()) {
+            Files.createFile(file.toPath());
+        }
+        FileWriter fr = new FileWriter(file);
+        return fr;
+    }
 
-	private void createDashboardConfigFile() throws IOException {
-		try (FileWriter fw = createOrGetFile(webDir, "config")) {
-			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now(), false)));
-			fw.flush();
-		} catch (IOException ioe) {
-			LOG.error("Failed to write config file.");
-			throw ioe;
-		}
-	}
+    private void createDashboardConfigFile() throws IOException {
+        try (FileWriter fw = createOrGetFile(webDir, "config")) {
+            fw.write(
+                    createConfigJson(
+                            DashboardConfiguration.from(
+                                    webRefreshIntervalMillis, ZonedDateTime.now(), false)));
+            fw.flush();
+        } catch (IOException ioe) {
+            LOG.error("Failed to write config file.");
+            throw ioe;
+        }
+    }
 
-	private static String createConfigJson(DashboardConfiguration dashboardConfiguration) throws IOException {
-		return OBJECT_MAPPER.writeValueAsString(dashboardConfiguration);
-	}
+    private static String createConfigJson(DashboardConfiguration dashboardConfiguration)
+            throws IOException {
+        return OBJECT_MAPPER.writeValueAsString(dashboardConfiguration);
+    }
 
-	/**
-	 * Container for the {@link Path} and {@link FileSystem} of a refresh directory.
-	 */
-	static class RefreshLocation {
-		private final Path path;
-		private final FileSystem fs;
+    /** Container for the {@link Path} and {@link FileSystem} of a refresh directory. */
+    static class RefreshLocation {
+        private final Path path;
+        private final FileSystem fs;
 
-		private RefreshLocation(Path path, FileSystem fs) {
-			this.path = path;
-			this.fs = fs;
-		}
+        private RefreshLocation(Path path, FileSystem fs) {
+            this.path = path;
+            this.fs = fs;
+        }
 
-		public Path getPath() {
-			return path;
-		}
+        public Path getPath() {
+            return path;
+        }
 
-		public FileSystem getFs() {
-			return fs;
-		}
-	}
+        public FileSystem getFs() {
+            return fs;
+        }
+    }
 }

@@ -26,6 +26,9 @@ export OUTPUT_FILE=kubernetes_wc_out
 export FLINK_JOB_PARALLELISM=1
 export FLINK_JOB_ARGUMENTS='"--output", "/cache/kubernetes_wc_out"'
 
+IMAGE_BUILD_RETRIES=3
+IMAGE_BUILD_BACKOFF=2
+
 function internal_cleanup {
     kubectl delete job flink-job-cluster
     kubectl delete service flink-job-cluster
@@ -36,7 +39,10 @@ start_kubernetes
 
 mkdir -p $OUTPUT_VOLUME
 
-build_image ${FLINK_IMAGE_NAME}
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
+    echo "ERROR: Could not build image. Aborting..."
+    exit 1
+fi
 
 export USER_LIB=${FLINK_DIR}/examples/batch
 kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml

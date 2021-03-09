@@ -35,39 +35,39 @@ import java.util.Optional;
  * <p>Note: only primary key is supported now.
  */
 public class AlterTableAddConstraintOperation extends AlterTableOperation {
-	private final String constraintName;
-	private final String[] columnNames;
+    private final String constraintName;
+    private final String[] columnNames;
 
-	public AlterTableAddConstraintOperation(
-			ObjectIdentifier tableIdentifier,
-			@Nullable String constraintName,
-			String[] columnNames) {
-		super(tableIdentifier);
-		this.constraintName = constraintName;
-		this.columnNames = columnNames;
-	}
+    public AlterTableAddConstraintOperation(
+            ObjectIdentifier tableIdentifier,
+            @Nullable String constraintName,
+            String[] columnNames) {
+        super(tableIdentifier);
+        this.constraintName = constraintName;
+        this.columnNames = columnNames;
+    }
 
-	public Optional<String> getConstraintName() {
-		return Optional.ofNullable(constraintName);
-	}
+    public Optional<String> getConstraintName() {
+        return Optional.ofNullable(constraintName);
+    }
 
-	public String[] getColumnNames() {
-		return columnNames;
-	}
+    public String[] getColumnNames() {
+        return columnNames;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("identifier", tableIdentifier);
-		if (getConstraintName().isPresent()) {
-			params.put("constraintName", this.constraintName);
-		}
-		params.put("columns", this.columnNames);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("identifier", tableIdentifier);
+        if (getConstraintName().isPresent()) {
+            params.put("constraintName", this.constraintName);
+        }
+        params.put("columns", this.columnNames);
 
-		return OperationUtils.formatWithChildren(
-				"ALTER TABLE ADD CONSTRAINT",
-				params,
-				Collections.emptyList(),
-				Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "ALTER TABLE ADD CONSTRAINT",
+                params,
+                Collections.emptyList(),
+                Operation::asSummaryString);
+    }
 }

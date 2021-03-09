@@ -58,23 +58,24 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
 
   @Test
   def testPushExpressionsOnSemiJoin_In(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE b + 1 = e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE b + 1 = e)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_Exists(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
+    util.verifyRelPlan(
+      "SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_NotIn(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE b + 1 = e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE b + 1 = e)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_NotExists(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE NOT EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

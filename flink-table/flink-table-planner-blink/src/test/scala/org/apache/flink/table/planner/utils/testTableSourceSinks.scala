@@ -48,7 +48,8 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.utils.{EncodingUtils, TableSchemaUtils}
+import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
+import org.apache.flink.table.utils.{EncodingUtils}
 import org.apache.flink.types.Row
 
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
@@ -457,13 +458,7 @@ class TestLegacyProjectableTableSourceFactory extends StreamTableSourceFactory[R
     descriptorProps.putProperties(properties)
     val isBounded = descriptorProps.getBoolean("is-bounded")
     val tableSchema = descriptorProps.getTableSchema(Schema.SCHEMA)
-    // Build physical row type.
-    val schemaBuilder = TableSchema.builder()
-    tableSchema
-      .getTableColumns
-      .filter(c => !c.isGenerated)
-      .foreach(c => schemaBuilder.field(c.getName, c.getType))
-    val rowTypeInfo = schemaBuilder.build().toRowType
+    val rowTypeInfo = getPhysicalSchema(tableSchema).toRowType
     new TestLegacyProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
   }
 
@@ -798,7 +793,7 @@ class TestDataTypeTableSourceFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = TableSchemaUtils.getPhysicalSchema(
+    val tableSchema = getPhysicalSchema(
       descriptorProperties.getTableSchema(Schema.SCHEMA))
     val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
     val data = if (serializedRows != null) {
@@ -877,7 +872,7 @@ class TestDataTypeTableSourceWithTimeFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = TableSchemaUtils.getPhysicalSchema(
+    val tableSchema = getPhysicalSchema(
       descriptorProperties.getTableSchema(Schema.SCHEMA))
 
     val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
@@ -1314,7 +1309,7 @@ class OptionsTableSource(
   override def explainSource(): String = s"${classOf[OptionsTableSource].getSimpleName}" +
     s"(props=$props)"
 
-  override def getTableSchema: TableSchema = TableSchemaUtils.getPhysicalSchema(tableSchema)
+  override def getTableSchema: TableSchema = getPhysicalSchema(tableSchema)
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] =
     None.asInstanceOf[DataStream[Row]]
@@ -1341,7 +1336,7 @@ class OptionsTableSink(
   override def getTableSchema: TableSchema = tableSchema
 
   override def getConsumedDataType: DataType = {
-    TableSchemaUtils.getPhysicalSchema(tableSchema).toRowDataType
+    getPhysicalSchema(tableSchema).toRowDataType
   }
 
   override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {

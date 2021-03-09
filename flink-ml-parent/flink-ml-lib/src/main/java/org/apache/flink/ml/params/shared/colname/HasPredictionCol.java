@@ -23,22 +23,20 @@ import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.api.misc.param.WithParams;
 
-/**
- * An interface for classes with a parameter specifying the column name of the prediction.
- */
-public interface HasPredictionCol<T> extends WithParams <T> {
+/** An interface for classes with a parameter specifying the column name of the prediction. */
+public interface HasPredictionCol<T> extends WithParams<T> {
 
-	ParamInfo <String> PREDICTION_COL = ParamInfoFactory
-		.createParamInfo("predictionCol", String.class)
-		.setDescription("Column name of prediction.")
-		.setRequired()
-		.build();
+    ParamInfo<String> PREDICTION_COL =
+            ParamInfoFactory.createParamInfo("predictionCol", String.class)
+                    .setDescription("Column name of prediction.")
+                    .setRequired()
+                    .build();
 
-	default String getPredictionCol() {
-		return get(PREDICTION_COL);
-	}
+    default String getPredictionCol() {
+        return get(PREDICTION_COL);
+    }
 
-	default T setPredictionCol(String value) {
-		return set(PREDICTION_COL, value);
-	}
+    default T setPredictionCol(String value) {
+        return set(PREDICTION_COL, value);
+    }
 }

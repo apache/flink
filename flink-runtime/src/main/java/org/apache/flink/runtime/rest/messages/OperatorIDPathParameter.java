@@ -21,29 +21,27 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.StringUtils;
 
-/**
- * Path parameter identifying operators.
- */
+/** Path parameter identifying operators. */
 public class OperatorIDPathParameter extends MessagePathParameter<OperatorID> {
 
-	public static final String KEY = "operatorid";
+    public static final String KEY = "operatorid";
 
-	public OperatorIDPathParameter() {
-		super(KEY);
-	}
+    public OperatorIDPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected OperatorID convertFromString(String value) throws ConversionException {
-		return new OperatorID(StringUtils.hexStringToByte(value));
-	}
+    @Override
+    protected OperatorID convertFromString(String value) throws ConversionException {
+        return new OperatorID(StringUtils.hexStringToByte(value));
+    }
 
-	@Override
-	protected String convertToString(OperatorID value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(OperatorID value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "string value that identifies an operator.";
-	}
+    @Override
+    public String getDescription() {
+        return "string value that identifies an operator.";
+    }
 }

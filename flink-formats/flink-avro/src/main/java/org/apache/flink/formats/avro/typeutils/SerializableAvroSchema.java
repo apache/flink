@@ -29,44 +29,39 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-/**
- * A wrapper for Avro {@link Schema}, that is Java serializable.
- */
+/** A wrapper for Avro {@link Schema}, that is Java serializable. */
 @Internal
 final class SerializableAvroSchema implements Serializable {
 
-	private static final long serialVersionUID = 1;
+    private static final long serialVersionUID = 1;
 
-	private transient @Nullable Schema schema;
+    private transient @Nullable Schema schema;
 
-	SerializableAvroSchema() {
-	}
+    SerializableAvroSchema() {}
 
-	SerializableAvroSchema(Schema schema) {
-		this.schema = schema;
-	}
+    SerializableAvroSchema(Schema schema) {
+        this.schema = schema;
+    }
 
-	Schema getAvroSchema() {
-		return schema;
-	}
+    Schema getAvroSchema() {
+        return schema;
+    }
 
-	private void writeObject(ObjectOutputStream oos) throws IOException {
-		if (schema == null) {
-			oos.writeBoolean(false);
-		}
-		else {
-			oos.writeBoolean(true);
-			oos.writeUTF(schema.toString(false));
-		}
-	}
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        if (schema == null) {
+            oos.writeBoolean(false);
+        } else {
+            oos.writeBoolean(true);
+            oos.writeUTF(schema.toString(false));
+        }
+    }
 
-	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-		if (ois.readBoolean()) {
-			String schema = ois.readUTF();
-			this.schema = new Parser().parse(schema);
-		}
-		else {
-			this.schema = null;
-		}
-	}
+    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+        if (ois.readBoolean()) {
+            String schema = ois.readUTF();
+            this.schema = new Parser().parse(schema);
+        } else {
+            this.schema = null;
+        }
+    }
 }

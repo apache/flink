@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
@@ -39,6 +40,9 @@ import scala.collection.JavaConversions._
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
 class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var batchEnv: BatchTableEnvironment = _
@@ -629,7 +633,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     expectedProperties.put("k2", "b")
     val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
-      .getProperties
+      .getOptions
     assertEquals(expectedProperties, properties)
   }
 

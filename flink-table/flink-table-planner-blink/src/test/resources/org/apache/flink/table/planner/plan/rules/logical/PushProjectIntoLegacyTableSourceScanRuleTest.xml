@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, c, b + 1 FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
@@ -37,13 +37,13 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
     <Resource name="sql">
       <![CDATA[SELECT a, c, d, b + 1 FROM VirtualTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
@@ -61,13 +61,13 @@ SELECT id,
 FROM T
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.*, nested.*, name.*)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]])
@@ -78,17 +78,17 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: )]]])
 ]]>
     </Resource>
@@ -97,13 +97,13 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="sql">
       <![CDATA[SELECT a, TRIM(c) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, c)]]])
@@ -114,13 +114,13 @@ LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
     <Resource name="sql">
       <![CDATA[SELECT a, my_udf(d) FROM VirtualTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
@@ -131,13 +131,13 @@ LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM VirtualTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[+($0, 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [TestSource(physical fields: a)]]])
@@ -148,13 +148,13 @@ LogicalProject(a=[$0], d=[+($0, 1)])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestSource(physical fields: a, c)]]])
 ]]>

@@ -64,175 +64,190 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the parameter handling of the {@link JarRunHandler}.
- */
-public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
-	private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
-	private static final String RESTORE_PATH = "/foo/bar";
+/** Tests for the parameter handling of the {@link JarRunHandler}. */
+public class JarRunHandlerParameterTest
+        extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
+    private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
+    private static final String RESTORE_PATH = "/foo/bar";
 
-	private static JarRunHandler handler;
+    private static JarRunHandler handler;
 
-	private static Path jarWithEagerSink;
+    private static Path jarWithEagerSink;
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		init();
-		final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever = () -> CompletableFuture.completedFuture(restfulGateway);
-		final Time timeout = Time.seconds(10);
-		final Map<String, String> responseHeaders = Collections.emptyMap();
-		final Executor executor = TestingUtils.defaultExecutor();
+    @BeforeClass
+    public static void setup() throws Exception {
+        init();
+        final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
+                () -> CompletableFuture.completedFuture(restfulGateway);
+        final Time timeout = Time.seconds(10);
+        final Map<String, String> responseHeaders = Collections.emptyMap();
+        final Executor executor = TestingUtils.defaultExecutor();
 
-		final Path jarLocation = Paths.get(System.getProperty("targetDir"));
-		final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
-		jarWithEagerSink = Files.copy(
-				jarLocation.resolve(parameterProgramWithEagerSink),
-				jarDir.resolve("program-with-eager-sink.jar"));
+        final Path jarLocation = Paths.get(System.getProperty("targetDir"));
+        final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
+        jarWithEagerSink =
+                Files.copy(
+                        jarLocation.resolve(parameterProgramWithEagerSink),
+                        jarDir.resolve("program-with-eager-sink.jar"));
 
-		handler = new JarRunHandler(
-			gatewayRetriever,
-			timeout,
-			responseHeaders,
-			JarRunHeaders.getInstance(),
-			jarDir,
-			new Configuration(),
-			executor,
-			ConfigurationVerifyingDetachedApplicationRunner::new);
-	}
+        handler =
+                new JarRunHandler(
+                        gatewayRetriever,
+                        timeout,
+                        responseHeaders,
+                        JarRunHeaders.getInstance(),
+                        jarDir,
+                        new Configuration(),
+                        executor,
+                        ConfigurationVerifyingDetachedApplicationRunner::new);
+    }
 
-	private static class ConfigurationVerifyingDetachedApplicationRunner extends DetachedApplicationRunner {
+    private static class ConfigurationVerifyingDetachedApplicationRunner
+            extends DetachedApplicationRunner {
 
-		public ConfigurationVerifyingDetachedApplicationRunner() {
-			super(true);
-		}
+        public ConfigurationVerifyingDetachedApplicationRunner() {
+            super(true);
+        }
 
-		@Override
-		public List<JobID> run(DispatcherGateway dispatcherGateway, PackagedProgram program, Configuration configuration) {
-			assertFalse(configuration.get(DeploymentOptions.ATTACHED));
-			assertEquals(EmbeddedExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
-			return super.run(dispatcherGateway, program, configuration);
-		}
-	}
+        @Override
+        public List<JobID> run(
+                DispatcherGateway dispatcherGateway,
+                PackagedProgram program,
+                Configuration configuration) {
+            assertFalse(configuration.get(DeploymentOptions.ATTACHED));
+            assertEquals(EmbeddedExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+            return super.run(dispatcherGateway, program, configuration);
+        }
+    }
 
-	@Override
-	JarRunMessageParameters getUnresolvedJarMessageParameters() {
-		return handler.getMessageHeaders().getUnresolvedMessageParameters();
-	}
+    @Override
+    JarRunMessageParameters getUnresolvedJarMessageParameters() {
+        return handler.getMessageHeaders().getUnresolvedMessageParameters();
+    }
 
-	@Override
-	JarRunMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
-		final JarRunMessageParameters parameters = getUnresolvedJarMessageParameters();
-		parameters.allowNonRestoredStateQueryParameter.resolve(Collections.singletonList(ALLOW_NON_RESTORED_STATE_QUERY));
-		parameters.savepointPathQueryParameter.resolve(Collections.singletonList(RESTORE_PATH));
-		parameters.entryClassQueryParameter.resolve(Collections.singletonList(ParameterProgram.class.getCanonicalName()));
-		parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
-		if (programArgsParType == ProgramArgsParType.String ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgsQueryParameter.resolve(Collections.singletonList(String.join(" ", PROG_ARGS)));
-		}
-		if (programArgsParType == ProgramArgsParType.List ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
-		}
-		return parameters;
-	}
+    @Override
+    JarRunMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
+        final JarRunMessageParameters parameters = getUnresolvedJarMessageParameters();
+        parameters.allowNonRestoredStateQueryParameter.resolve(
+                Collections.singletonList(ALLOW_NON_RESTORED_STATE_QUERY));
+        parameters.savepointPathQueryParameter.resolve(Collections.singletonList(RESTORE_PATH));
+        parameters.entryClassQueryParameter.resolve(
+                Collections.singletonList(ParameterProgram.class.getCanonicalName()));
+        parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
+        if (programArgsParType == ProgramArgsParType.String
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgsQueryParameter.resolve(
+                    Collections.singletonList(String.join(" ", PROG_ARGS)));
+        }
+        if (programArgsParType == ProgramArgsParType.List
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
+        }
+        return parameters;
+    }
 
-	@Override
-	JarRunMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
-		List<String> wrongArgs = Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
-		String argsWrongStr = String.join(" ", wrongArgs);
-		final JarRunMessageParameters parameters = getUnresolvedJarMessageParameters();
-		parameters.allowNonRestoredStateQueryParameter.resolve(Collections.singletonList(false));
-		parameters.savepointPathQueryParameter.resolve(Collections.singletonList("/no/uh"));
-		parameters.entryClassQueryParameter.resolve(Collections.singletonList("please.dont.run.me"));
-		parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
-		if (programArgsParType == ProgramArgsParType.String ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
-		}
-		if (programArgsParType == ProgramArgsParType.List ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgQueryParameter.resolve(wrongArgs);
-		}
-		return parameters;
-	}
+    @Override
+    JarRunMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
+        List<String> wrongArgs =
+                Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
+        String argsWrongStr = String.join(" ", wrongArgs);
+        final JarRunMessageParameters parameters = getUnresolvedJarMessageParameters();
+        parameters.allowNonRestoredStateQueryParameter.resolve(Collections.singletonList(false));
+        parameters.savepointPathQueryParameter.resolve(Collections.singletonList("/no/uh"));
+        parameters.entryClassQueryParameter.resolve(
+                Collections.singletonList("please.dont.run.me"));
+        parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
+        if (programArgsParType == ProgramArgsParType.String
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
+        }
+        if (programArgsParType == ProgramArgsParType.List
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgQueryParameter.resolve(wrongArgs);
+        }
+        return parameters;
+    }
 
-	@Override
-	JarRunRequestBody getDefaultJarRequestBody() {
-		return new JarRunRequestBody();
-	}
+    @Override
+    JarRunRequestBody getDefaultJarRequestBody() {
+        return new JarRunRequestBody();
+    }
 
-	@Override
-	JarRunRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
-		return new JarRunRequestBody(
-			ParameterProgram.class.getCanonicalName(),
-			getProgramArgsString(programArgsParType),
-			getProgramArgsList(programArgsParType),
-			PARALLELISM,
-			null,
-			ALLOW_NON_RESTORED_STATE_QUERY,
-			RESTORE_PATH
-		);
-	}
+    @Override
+    JarRunRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
+        return new JarRunRequestBody(
+                ParameterProgram.class.getCanonicalName(),
+                getProgramArgsString(programArgsParType),
+                getProgramArgsList(programArgsParType),
+                PARALLELISM,
+                null,
+                ALLOW_NON_RESTORED_STATE_QUERY,
+                RESTORE_PATH);
+    }
 
-	@Override
-	JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-		return new JarRunRequestBody(null, null, null, null, jobId, null, null);
-	}
+    @Override
+    JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
+        return new JarRunRequestBody(null, null, null, null, jobId, null, null);
+    }
 
-	@Test
-	public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
-		final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request = createRequest(
-				getDefaultJarRequestBody(),
-				getUnresolvedJarMessageParameters(),
-				getUnresolvedJarMessageParameters(),
-				jarWithEagerSink
-		);
+    @Test
+    public void testRestHandlerExceptionThrownWithEagerSinks() throws Exception {
+        final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request =
+                createRequest(
+                        getDefaultJarRequestBody(),
+                        getUnresolvedJarMessageParameters(),
+                        getUnresolvedJarMessageParameters(),
+                        jarWithEagerSink);
 
-		try {
-			handler.handleRequest(request, restfulGateway).get();
-		} catch (final ExecutionException e) {
-			final Throwable throwable =	 ExceptionUtils.stripCompletionException(e.getCause());
-			assertThat(throwable, instanceOf(RestHandlerException.class));
+        try {
+            handler.handleRequest(request, restfulGateway).get();
+        } catch (final ExecutionException e) {
+            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
+            assertThat(throwable, instanceOf(RestHandlerException.class));
 
-			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
+            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    equalTo(HttpResponseStatus.BAD_REQUEST));
 
-			final Optional<ProgramInvocationException> invocationException =
-					ExceptionUtils.findThrowable(restHandlerException, ProgramInvocationException.class);
+            final Optional<ProgramInvocationException> invocationException =
+                    ExceptionUtils.findThrowable(
+                            restHandlerException, ProgramInvocationException.class);
 
-			if (!invocationException.isPresent()) {
-				fail();
-			}
+            if (!invocationException.isPresent()) {
+                fail();
+            }
 
-			final String exceptionMsg = invocationException.get().getMessage();
-			assertThat(exceptionMsg, containsString("Job was submitted in detached mode."));
-			return;
-		}
-		fail("The test should have failed.");
-	}
+            final String exceptionMsg = invocationException.get().getMessage();
+            assertThat(exceptionMsg, containsString("Job was submitted in detached mode."));
+            return;
+        }
+        fail("The test should have failed.");
+    }
 
-	@Override
-	void handleRequest(HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
-		throws Exception {
-		handler.handleRequest(request, restfulGateway).get();
-	}
+    @Override
+    void handleRequest(HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
+            throws Exception {
+        handler.handleRequest(request, restfulGateway).get();
+    }
 
-	@Override
-	JobGraph validateDefaultGraph() {
-		JobGraph jobGraph = super.validateDefaultGraph();
-		final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
-		assertFalse(savepointRestoreSettings.allowNonRestoredState());
-		Assert.assertNull(savepointRestoreSettings.getRestorePath());
-		return jobGraph;
-	}
+    @Override
+    JobGraph validateDefaultGraph() {
+        JobGraph jobGraph = super.validateDefaultGraph();
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        assertFalse(savepointRestoreSettings.allowNonRestoredState());
+        Assert.assertNull(savepointRestoreSettings.getRestorePath());
+        return jobGraph;
+    }
 
-	@Override
-	JobGraph validateGraph() {
-		JobGraph jobGraph = super.validateGraph();
-		final SavepointRestoreSettings savepointRestoreSettings = jobGraph.getSavepointRestoreSettings();
-		Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
-		assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
-		return jobGraph;
-	}
+    @Override
+    JobGraph validateGraph() {
+        JobGraph jobGraph = super.validateGraph();
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
+        assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
+        return jobGraph;
+    }
 }

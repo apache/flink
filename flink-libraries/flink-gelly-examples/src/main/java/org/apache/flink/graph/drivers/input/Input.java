@@ -24,28 +24,26 @@ import org.apache.flink.graph.drivers.parameter.Parameterized;
 import org.apache.flink.graph.generator.GraphGenerator;
 
 /**
- * Input source for a {@link Graph}, for example a file reader or
- * {@link GraphGenerator}.
+ * Input source for a {@link Graph}, for example a file reader or {@link GraphGenerator}.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public interface Input<K, VV, EV>
-extends Parameterized {
+public interface Input<K, VV, EV> extends Parameterized {
 
-	/**
-	 * A human-readable identifier summarizing the input and configuration.
-	 *
-	 * @return the input identifier
-	 */
-	String getIdentity();
+    /**
+     * A human-readable identifier summarizing the input and configuration.
+     *
+     * @return the input identifier
+     */
+    String getIdentity();
 
-	/**
-	 * Create the input {@link Graph}.
-	 *
-	 * @param env the ExecutionEnvironment
-	 * @return the input Graph
-	 */
-	Graph<K, VV, EV> create(ExecutionEnvironment env) throws Exception;
+    /**
+     * Create the input {@link Graph}.
+     *
+     * @param env the ExecutionEnvironment
+     * @return the input Graph
+     */
+    Graph<K, VV, EV> create(ExecutionEnvironment env) throws Exception;
 }

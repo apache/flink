@@ -1,138 +1,117 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamSink;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This Transformation represents a Sink.
+ * A {@link Transformation} for {@link Sink}.
  *
- * @param <T> The type of the elements in the input {@code SinkTransformation}
+ * @param <InputT> The input type of the {@link SinkWriter}
+ * @param <CommT> The committable type of the {@link SinkWriter}
+ * @param <WriterStateT> The state type of the {@link SinkWriter}
+ * @param <GlobalCommT> The global committable type of the {@link
+ *     org.apache.flink.api.connector.sink.GlobalCommitter}
  */
 @Internal
-public class SinkTransformation<T> extends PhysicalTransformation<Object> {
+public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>
+        extends PhysicalTransformation<Object> {
 
-	private final Transformation<T> input;
+    private final Transformation<InputT> input;
 
-	private final StreamOperatorFactory<Object> operatorFactory;
+    private final Sink<InputT, CommT, WriterStateT, GlobalCommT> sink;
 
-	// We need this because sinks can also have state that is partitioned by key
-	private KeySelector<T, ?> stateKeySelector;
+    private ChainingStrategy chainingStrategy;
 
-	private TypeInformation<?> stateKeyType;
+    public SinkTransformation(
+            Transformation<InputT> input,
+            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink,
+            String name,
+            int parallelism) {
+        super(name, TypeExtractor.getForClass(Object.class), parallelism);
+        this.input = checkNotNull(input);
+        this.sink = checkNotNull(sink);
+    }
 
-	/**
-	 * Creates a new {@code SinkTransformation} from the given input {@code Transformation}.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
-	 * @param operator The sink operator
-	 * @param parallelism The parallelism of this {@code SinkTransformation}
-	 */
-	public SinkTransformation(
-			Transformation<T> input,
-			String name,
-			StreamSink<T> operator,
-			int parallelism) {
-		this(input, name, SimpleOperatorFactory.of(operator), parallelism);
-	}
+    @Override
+    public void setChainingStrategy(ChainingStrategy strategy) {
+        chainingStrategy = checkNotNull(strategy);
+    }
 
-	public SinkTransformation(
-			Transformation<T> input,
-			String name,
-			StreamOperatorFactory<Object> operatorFactory,
-			int parallelism) {
-		super(name, TypeExtractor.getForClass(Object.class), parallelism);
-		this.input = input;
-		this.operatorFactory = operatorFactory;
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        final List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	/**
-	 * Returns the input {@code Transformation} of this {@code SinkTransformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 
-	@VisibleForTesting
-	public StreamSink<T> getOperator() {
-		return (StreamSink<T>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    @Override
+    public void setUidHash(String uidHash) {
+        throw new UnsupportedOperationException(
+                "Setting a UidHash is not supported for SinkTransformation.");
+    }
 
-	/**
-	 * Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}.
-	 */
-	public StreamOperatorFactory<Object> getOperatorFactory() {
-		return operatorFactory;
-	}
+    @Override
+    public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+        throw new UnsupportedOperationException(
+                "Do not support set resources for SinkTransformation.");
+    }
 
-	/**
-	 * Sets the {@link KeySelector} that must be used for partitioning keyed state of this Sink.
-	 *
-	 * @param stateKeySelector The {@code KeySelector} to set
-	 */
-	public void setStateKeySelector(KeySelector<T, ?> stateKeySelector) {
-		this.stateKeySelector = stateKeySelector;
-	}
+    @Override
+    public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
+            ManagedMemoryUseCase managedMemoryUseCase, int weight) {
+        throw new UnsupportedOperationException(
+                "Declaring managed memory use cases is not supported for SinkTransformation.");
+    }
 
-	/**
-	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
-	 * Sink.
-	 *
-	 * @see #setStateKeySelector
-	 */
-	public KeySelector<T, ?> getStateKeySelector() {
-		return stateKeySelector;
-	}
+    @Override
+    public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
+        throw new UnsupportedOperationException(
+                "Declaring managed memory use cases is not supported for SinkTransformation.");
+    }
 
-	public void setStateKeyType(TypeInformation<?> stateKeyType) {
-		this.stateKeyType = stateKeyType;
-	}
+    public ChainingStrategy getChainingStrategy() {
+        return chainingStrategy;
+    }
 
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
-	}
-
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
-	}
+    public Sink<InputT, CommT, WriterStateT, GlobalCommT> getSink() {
+        return sink;
+    }
 }

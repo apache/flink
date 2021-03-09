@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
@@ -1138,50 +1137,6 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     env.execute()
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testJoinOnChangelogSource(): Unit = {
-    val orderDataId = TestValuesTableFactory.registerData(TestData.ordersData)
-    val ratesDataId = TestValuesTableFactory.registerData(TestData.ratesHistoryData)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE orders (
-         |  amount BIGINT,
-         |  currency STRING
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$orderDataId',
-         | 'changelog-mode' = 'I'
-         |)
-         |""".stripMargin)
-    tEnv.executeSql(
-      s"""
-        |CREATE TABLE rates_history (
-        |  currency STRING,
-        |  rate BIGINT
-        |) WITH (
-        |  'connector' = 'values',
-        |  'data-id' = '$ratesDataId',
-        |  'changelog-mode' = 'I,UB,UA'
-        |)
-      """.stripMargin)
-
-    val sql =
-      """
-        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
-        |FROM orders AS o JOIN rates_history AS r
-        |ON o.currency = r.currency
-        |""".stripMargin
-
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
-
-    val expected = Seq(
-      "Euro,2,119,238", "Euro,3,119,357",
-      "US Dollar,1,102,102", "US Dollar,5,102,510")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

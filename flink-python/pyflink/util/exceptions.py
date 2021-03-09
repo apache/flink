@@ -25,7 +25,7 @@ class JavaException(Exception):
         self.stack_trace = stack_trace
 
     def __str__(self):
-        return repr(self.msg)
+        return self.msg + "\n\t at " + self.stack_trace
 
 
 class TableException(JavaException):
@@ -146,13 +146,20 @@ def capture_java_exception(f):
         try:
             return f(*a, **kw)
         except Py4JJavaError as e:
+            from pyflink.java_gateway import get_gateway
+            get_gateway().jvm.org.apache.flink.client.python.PythonEnvUtils\
+                .setPythonException(e.java_exception)
             s = e.java_exception.toString()
             stack_trace = '\n\t at '.join(map(lambda x: x.toString(),
                                               e.java_exception.getStackTrace()))
             for exception in exception_mapping.keys():
                 if s.startswith(exception):
-                    raise exception_mapping[exception](s.split(': ', 1)[1], stack_trace)
-            raise
+                    java_exception = \
+                        exception_mapping[exception](s.split(': ', 1)[1], stack_trace)
+                    break
+            else:
+                raise
+        raise java_exception
     return deco
 
 

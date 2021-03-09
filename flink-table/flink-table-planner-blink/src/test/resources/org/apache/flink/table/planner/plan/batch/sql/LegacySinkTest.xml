@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testSingleSink">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
 +- LogicalProject(cnt=[$1])
@@ -26,7 +26,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a]
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
 +- Calc(select=[cnt])
@@ -39,7 +39,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
     </Resource>
   </TestCase>
   <TestCase name="testMultiSinks">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
@@ -56,9 +56,9 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[t
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[sum_a], reuse_id=[1])
+Calc(select=[sum_a])(reuse_id=[1])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])

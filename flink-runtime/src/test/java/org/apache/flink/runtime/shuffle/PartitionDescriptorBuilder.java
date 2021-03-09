@@ -22,39 +22,43 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
-/**
- * Builder for {@link PartitionDescriptor} in tests.
- */
+/** Builder for {@link PartitionDescriptor} in tests. */
 public class PartitionDescriptorBuilder {
-	private IntermediateResultPartitionID partitionId;
-	private ResultPartitionType partitionType;
-	private int totalNumberOfPartitions = 1;
+    private IntermediateResultPartitionID partitionId;
+    private ResultPartitionType partitionType;
+    private int totalNumberOfPartitions = 1;
 
-	private PartitionDescriptorBuilder() {
-		this.partitionId = new IntermediateResultPartitionID();
-		this.partitionType = ResultPartitionType.PIPELINED;
-	}
+    private PartitionDescriptorBuilder() {
+        this.partitionId = new IntermediateResultPartitionID();
+        this.partitionType = ResultPartitionType.PIPELINED;
+    }
 
-	public PartitionDescriptorBuilder setPartitionId(IntermediateResultPartitionID partitionId) {
-		this.partitionId = partitionId;
-		return this;
-	}
+    public PartitionDescriptorBuilder setPartitionId(IntermediateResultPartitionID partitionId) {
+        this.partitionId = partitionId;
+        return this;
+    }
 
-	public PartitionDescriptorBuilder setPartitionType(ResultPartitionType partitionType) {
-		this.partitionType = partitionType;
-		return this;
-	}
+    public PartitionDescriptorBuilder setPartitionType(ResultPartitionType partitionType) {
+        this.partitionType = partitionType;
+        return this;
+    }
 
-	public PartitionDescriptorBuilder setTotalNumberOfPartitions(int totalNumberOfPartitions) {
-		this.totalNumberOfPartitions = totalNumberOfPartitions;
-		return this;
-	}
+    public PartitionDescriptorBuilder setTotalNumberOfPartitions(int totalNumberOfPartitions) {
+        this.totalNumberOfPartitions = totalNumberOfPartitions;
+        return this;
+    }
 
-	public PartitionDescriptor build() {
-		return new PartitionDescriptor(new IntermediateDataSetID(), totalNumberOfPartitions, partitionId, partitionType, 1, 0);
-	}
+    public PartitionDescriptor build() {
+        return new PartitionDescriptor(
+                new IntermediateDataSetID(),
+                totalNumberOfPartitions,
+                partitionId,
+                partitionType,
+                1,
+                0);
+    }
 
-	public static PartitionDescriptorBuilder newBuilder() {
-		return new PartitionDescriptorBuilder();
-	}
+    public static PartitionDescriptorBuilder newBuilder() {
+        return new PartitionDescriptorBuilder();
+    }
 }

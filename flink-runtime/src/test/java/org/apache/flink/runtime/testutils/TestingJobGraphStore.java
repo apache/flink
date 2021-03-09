@@ -36,194 +36,210 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-/**
- * In-Memory implementation of {@link JobGraphStore} for testing purposes.
- */
+/** In-Memory implementation of {@link JobGraphStore} for testing purposes. */
 public class TestingJobGraphStore implements JobGraphStore {
 
-	private final Map<JobID, JobGraph> storedJobs = new HashMap<>();
+    private final Map<JobID, JobGraph> storedJobs = new HashMap<>();
 
-	private final ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer;
+    private final ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer;
 
-	private final ThrowingRunnable<? extends Exception> stopRunnable;
+    private final ThrowingRunnable<? extends Exception> stopRunnable;
 
-	private final FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction;
+    private final FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
+            jobIdsFunction;
 
-	private final BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception> recoverJobGraphFunction;
+    private final BiFunctionWithException<
+                    JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
+            recoverJobGraphFunction;
 
-	private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
+    private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
 
-	private final ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer;
+    private final ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer;
 
-	private final ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer;
+    private final ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer;
 
-	private boolean started;
+    private boolean started;
 
-	private TestingJobGraphStore(
-			ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer,
-			ThrowingRunnable<? extends Exception> stopRunnable,
-			FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction,
-			BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception> recoverJobGraphFunction,
-			ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
-			ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer,
-			ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer,
-			Collection<JobGraph> initialJobGraphs) {
-		this.startConsumer = startConsumer;
-		this.stopRunnable = stopRunnable;
-		this.jobIdsFunction = jobIdsFunction;
-		this.recoverJobGraphFunction = recoverJobGraphFunction;
-		this.putJobGraphConsumer = putJobGraphConsumer;
-		this.removeJobGraphConsumer = removeJobGraphConsumer;
-		this.releaseJobGraphConsumer = releaseJobGraphConsumer;
+    private TestingJobGraphStore(
+            ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer,
+            ThrowingRunnable<? extends Exception> stopRunnable,
+            FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
+                    jobIdsFunction,
+            BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
+                    recoverJobGraphFunction,
+            ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
+            ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer,
+            ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer,
+            Collection<JobGraph> initialJobGraphs) {
+        this.startConsumer = startConsumer;
+        this.stopRunnable = stopRunnable;
+        this.jobIdsFunction = jobIdsFunction;
+        this.recoverJobGraphFunction = recoverJobGraphFunction;
+        this.putJobGraphConsumer = putJobGraphConsumer;
+        this.removeJobGraphConsumer = removeJobGraphConsumer;
+        this.releaseJobGraphConsumer = releaseJobGraphConsumer;
 
-		for (JobGraph initialJobGraph : initialJobGraphs) {
-			storedJobs.put(initialJobGraph.getJobID(), initialJobGraph);
-		}
-	}
+        for (JobGraph initialJobGraph : initialJobGraphs) {
+            storedJobs.put(initialJobGraph.getJobID(), initialJobGraph);
+        }
+    }
 
-	@Override
-	public synchronized void start(@Nullable JobGraphListener jobGraphListener) throws Exception {
-		startConsumer.accept(jobGraphListener);
-		started = true;
-	}
+    @Override
+    public synchronized void start(@Nullable JobGraphListener jobGraphListener) throws Exception {
+        startConsumer.accept(jobGraphListener);
+        started = true;
+    }
 
-	@Override
-	public synchronized void stop() throws Exception {
-		stopRunnable.run();
-		started = false;
-	}
+    @Override
+    public synchronized void stop() throws Exception {
+        stopRunnable.run();
+        started = false;
+    }
 
-	@Override
-	public synchronized JobGraph recoverJobGraph(JobID jobId) throws Exception {
-		verifyIsStarted();
-		return recoverJobGraphFunction.apply(jobId, storedJobs);
-	}
+    @Override
+    public synchronized JobGraph recoverJobGraph(JobID jobId) throws Exception {
+        verifyIsStarted();
+        return recoverJobGraphFunction.apply(jobId, storedJobs);
+    }
 
-	@Override
-	public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
-		verifyIsStarted();
-		putJobGraphConsumer.accept(jobGraph);
-		storedJobs.put(jobGraph.getJobID(), jobGraph);
-	}
+    @Override
+    public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
+        verifyIsStarted();
+        putJobGraphConsumer.accept(jobGraph);
+        storedJobs.put(jobGraph.getJobID(), jobGraph);
+    }
 
-	@Override
-	public synchronized void removeJobGraph(JobID jobId) throws Exception {
-		verifyIsStarted();
-		removeJobGraphConsumer.accept(jobId);
-		storedJobs.remove(jobId);
-	}
+    @Override
+    public synchronized void removeJobGraph(JobID jobId) throws Exception {
+        verifyIsStarted();
+        removeJobGraphConsumer.accept(jobId);
+        storedJobs.remove(jobId);
+    }
 
-	@Override
-	public synchronized void releaseJobGraph(JobID jobId) throws Exception {
-		verifyIsStarted();
-		releaseJobGraphConsumer.accept(jobId);
-	}
+    @Override
+    public synchronized void releaseJobGraph(JobID jobId) throws Exception {
+        verifyIsStarted();
+        releaseJobGraphConsumer.accept(jobId);
+    }
 
-	@Override
-	public synchronized Collection<JobID> getJobIds() throws Exception {
-		verifyIsStarted();
-		return jobIdsFunction.apply(Collections.unmodifiableSet(new HashSet<>(storedJobs.keySet())));
-	}
+    @Override
+    public synchronized Collection<JobID> getJobIds() throws Exception {
+        verifyIsStarted();
+        return jobIdsFunction.apply(
+                Collections.unmodifiableSet(new HashSet<>(storedJobs.keySet())));
+    }
 
-	public synchronized boolean contains(JobID jobId) {
-		return storedJobs.containsKey(jobId);
-	}
+    public synchronized boolean contains(JobID jobId) {
+        return storedJobs.containsKey(jobId);
+    }
 
-	private void verifyIsStarted() {
-		Preconditions.checkState(started, "Not running. Forgot to call start()?");
-	}
+    private void verifyIsStarted() {
+        Preconditions.checkState(started, "Not running. Forgot to call start()?");
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static class Builder {
-		private ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer = ignored -> {};
+    public static class Builder {
+        private ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer =
+                ignored -> {};
 
-		private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
+        private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
 
-		private FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction = jobIds -> jobIds;
+        private FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
+                jobIdsFunction = jobIds -> jobIds;
 
-		private BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception> recoverJobGraphFunction = (jobId, jobs) -> jobs.get(jobId);
+        private BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
+                recoverJobGraphFunction = (jobId, jobs) -> jobs.get(jobId);
 
-		private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
+        private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
 
-		private ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer = ignored -> {};
+        private ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer = ignored -> {};
 
-		private ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer = ignored -> {};
+        private ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer =
+                ignored -> {};
 
-		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+        private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
-		private boolean startJobGraphStore = false;
+        private boolean startJobGraphStore = false;
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setStartConsumer(ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer) {
-			this.startConsumer = startConsumer;
-			return this;
-		}
+        public Builder setStartConsumer(
+                ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer) {
+            this.startConsumer = startConsumer;
+            return this;
+        }
 
-		public Builder setStopRunnable(ThrowingRunnable<? extends Exception> stopRunnable) {
-			this.stopRunnable = stopRunnable;
-			return this;
-		}
+        public Builder setStopRunnable(ThrowingRunnable<? extends Exception> stopRunnable) {
+            this.stopRunnable = stopRunnable;
+            return this;
+        }
 
-		public Builder setJobIdsFunction(FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction) {
-			this.jobIdsFunction = jobIdsFunction;
-			return this;
-		}
+        public Builder setJobIdsFunction(
+                FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
+                        jobIdsFunction) {
+            this.jobIdsFunction = jobIdsFunction;
+            return this;
+        }
 
-		public Builder setRecoverJobGraphFunction(BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception> recoverJobGraphFunction) {
-			this.recoverJobGraphFunction = recoverJobGraphFunction;
-			return this;
-		}
+        public Builder setRecoverJobGraphFunction(
+                BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
+                        recoverJobGraphFunction) {
+            this.recoverJobGraphFunction = recoverJobGraphFunction;
+            return this;
+        }
 
-		public Builder setPutJobGraphConsumer(ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer) {
-			this.putJobGraphConsumer = putJobGraphConsumer;
-			return this;
-		}
+        public Builder setPutJobGraphConsumer(
+                ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer) {
+            this.putJobGraphConsumer = putJobGraphConsumer;
+            return this;
+        }
 
-		public Builder setRemoveJobGraphConsumer(ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer) {
-			this.removeJobGraphConsumer = removeJobGraphConsumer;
-			return this;
-		}
+        public Builder setRemoveJobGraphConsumer(
+                ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer) {
+            this.removeJobGraphConsumer = removeJobGraphConsumer;
+            return this;
+        }
 
-		public Builder setReleaseJobGraphConsumer(ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer) {
-			this.releaseJobGraphConsumer = releaseJobGraphConsumer;
-			return this;
-		}
+        public Builder setReleaseJobGraphConsumer(
+                ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer) {
+            this.releaseJobGraphConsumer = releaseJobGraphConsumer;
+            return this;
+        }
 
-		public Builder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
-			this.initialJobGraphs = initialJobGraphs;
-			return this;
-		}
+        public Builder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
+            this.initialJobGraphs = initialJobGraphs;
+            return this;
+        }
 
-		public Builder withAutomaticStart() {
-			this.startJobGraphStore = true;
-			return this;
-		}
+        public Builder withAutomaticStart() {
+            this.startJobGraphStore = true;
+            return this;
+        }
 
-		public TestingJobGraphStore build() {
-			final TestingJobGraphStore jobGraphStore = new TestingJobGraphStore(
-				startConsumer,
-				stopRunnable,
-				jobIdsFunction,
-				recoverJobGraphFunction,
-				putJobGraphConsumer,
-				removeJobGraphConsumer,
-				releaseJobGraphConsumer,
-				initialJobGraphs);
+        public TestingJobGraphStore build() {
+            final TestingJobGraphStore jobGraphStore =
+                    new TestingJobGraphStore(
+                            startConsumer,
+                            stopRunnable,
+                            jobIdsFunction,
+                            recoverJobGraphFunction,
+                            putJobGraphConsumer,
+                            removeJobGraphConsumer,
+                            releaseJobGraphConsumer,
+                            initialJobGraphs);
 
-			if (startJobGraphStore) {
-				try {
-					jobGraphStore.start(null);
-				} catch (Exception e) {
-					ExceptionUtils.rethrow(e);
-				}
-			}
+            if (startJobGraphStore) {
+                try {
+                    jobGraphStore.start(null);
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
+                }
+            }
 
-			return jobGraphStore;
-		}
-	}
-
+            return jobGraphStore;
+        }
+    }
 }

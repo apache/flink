@@ -28,37 +28,33 @@ import org.apache.commons.cli.ParseException;
 
 import javax.annotation.Nonnull;
 
-/**
- * Command line parser which produces a result from the given
- * command line arguments.
- */
+/** Command line parser which produces a result from the given command line arguments. */
 public class CommandLineParser<T> {
 
-	@Nonnull
-	private final ParserResultFactory<T> parserResultFactory;
+    @Nonnull private final ParserResultFactory<T> parserResultFactory;
 
-	public CommandLineParser(@Nonnull ParserResultFactory<T> parserResultFactory) {
-		this.parserResultFactory = parserResultFactory;
-	}
+    public CommandLineParser(@Nonnull ParserResultFactory<T> parserResultFactory) {
+        this.parserResultFactory = parserResultFactory;
+    }
 
-	public T parse(@Nonnull String[] args) throws FlinkParseException {
-		final DefaultParser parser = new DefaultParser();
-		final Options options = parserResultFactory.getOptions();
+    public T parse(@Nonnull String[] args) throws FlinkParseException {
+        final DefaultParser parser = new DefaultParser();
+        final Options options = parserResultFactory.getOptions();
 
-		final CommandLine commandLine;
-		try {
-			commandLine = parser.parse(options, args, true);
-		} catch (ParseException e) {
-			throw new FlinkParseException("Failed to parse the command line arguments.", e);
-		}
+        final CommandLine commandLine;
+        try {
+            commandLine = parser.parse(options, args, true);
+        } catch (ParseException e) {
+            throw new FlinkParseException("Failed to parse the command line arguments.", e);
+        }
 
-		return parserResultFactory.createResult(commandLine);
-	}
+        return parserResultFactory.createResult(commandLine);
+    }
 
-	public void printHelp(@Nonnull String cmdLineSyntax) {
-		final HelpFormatter helpFormatter = new HelpFormatter();
-		helpFormatter.setLeftPadding(5);
-		helpFormatter.setWidth(80);
-		helpFormatter.printHelp(cmdLineSyntax, parserResultFactory.getOptions(), true);
-	}
+    public void printHelp(@Nonnull String cmdLineSyntax) {
+        final HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.setLeftPadding(5);
+        helpFormatter.setWidth(80);
+        helpFormatter.printHelp(cmdLineSyntax, parserResultFactory.getOptions(), true);
+    }
 }

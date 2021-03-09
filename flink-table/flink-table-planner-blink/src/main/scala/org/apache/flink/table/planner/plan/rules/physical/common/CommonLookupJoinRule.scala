@@ -19,9 +19,9 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
-import org.apache.flink.table.planner.plan.nodes.common.{CommonLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.sources.LookupableTableSource
@@ -30,7 +30,7 @@ import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexProgram}
+import org.apache.calcite.rex.RexProgram
 
 import java.util
 
@@ -38,43 +38,38 @@ import scala.collection.JavaConversions._
 
 /**
   * Base implementation for both
-  * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecLookupJoinRule]] and
-  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecLookupJoinRule]].
+  * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLookupJoinRule]] and
+  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLookupJoinRule]].
   */
-trait CommonLookupJoinRule {
+trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
 
   protected def matches(
       join: FlinkLogicalJoin,
       snapshot: FlinkLogicalSnapshot,
       tableScan: TableScan): Boolean = {
-    // TODO: shouldn't match temporal UDTF join
-    if (!isTableSourceScan(tableScan)) {
-      throw new TableException(
-        "Temporal table join only support join on a LookupTableSource, " +
-          "not on a DataStream or an intermediate query")
+
+    // Lookup join is a kind of implementation of temporal table join
+    if (!matches(snapshot)) {
+      return false
     }
-    // period specification check
-    snapshot.getPeriod match {
-      // it's left table's field, pass
-      case r: RexFieldAccess if r.getReferenceExpr.isInstanceOf[RexCorrelVariable] =>
-      case _ =>
-        throw new TableException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's proctime field, doesn't support 'PROCTIME()'")
+
+    // Temporal table join implemented by lookup join only supports on LookupTableSource
+    if (!isTableSourceScan(tableScan) || !isLookupTableSource(tableScan)) {
+      return false
     }
-    snapshot.getPeriod.getType match {
-      // TODO: support to translate rowtime temporal join to TemporalTableJoin in the future
-      case t: TimeIndicatorRelDataType if !t.isEventTime => // pass
-      case _ =>
-        throw new TableException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's proctime field, doesn't support 'PROCTIME()'")
+
+    // Temporal table join implemented by lookup join only supports processing-time join
+    // Other temporal table join will be matched by CommonTemporalTableJoinRule
+    val isProcessingTime = snapshot.getPeriod.getType match {
+      case t: TimeIndicatorRelDataType if !t.isEventTime => true
+      case _ => false
     }
-    // currently temporal table join only support LookupTableSource
-    isLookupTableSource(tableScan)
+    isProcessingTime
   }
 
   protected def isTableSourceScan(relNode: RelNode): Boolean = {
     relNode match {
-      case _: FlinkLogicalLegacyTableSourceScan | _: PhysicalLegacyTableSourceScan |
+      case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
            _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
       case _ => false
     }
@@ -84,7 +79,7 @@ trait CommonLookupJoinRule {
     relNode match {
       case scan: FlinkLogicalLegacyTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case scan: PhysicalLegacyTableSourceScan =>
+      case scan: CommonPhysicalLegacyTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupableTableSource[_]]
       case scan: FlinkLogicalTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupTableSource]
@@ -116,7 +111,7 @@ trait CommonLookupJoinRule {
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
     temporalTable: RelOptTable,
-    calcProgram: Option[RexProgram]): CommonLookupJoin
+    calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
 }
 
 abstract class BaseSnapshotOnTableScanRule(description: String)

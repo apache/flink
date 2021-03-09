@@ -24,37 +24,41 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.List;
 
-/**
- * Operation to describe ALTER TABLE DROP PARTITION statement.
- */
+/** Operation to describe ALTER TABLE DROP PARTITION statement. */
 public class DropPartitionsOperation extends AlterTableOperation {
 
-	private final boolean ifExists;
-	private final List<CatalogPartitionSpec> partitionSpecs;
+    private final boolean ifExists;
+    private final List<CatalogPartitionSpec> partitionSpecs;
 
-	public DropPartitionsOperation(ObjectIdentifier tableIdentifier, boolean ifExists, List<CatalogPartitionSpec> partitionSpecs) {
-		super(tableIdentifier);
-		this.ifExists = ifExists;
-		this.partitionSpecs = partitionSpecs;
-	}
+    public DropPartitionsOperation(
+            ObjectIdentifier tableIdentifier,
+            boolean ifExists,
+            List<CatalogPartitionSpec> partitionSpecs) {
+        super(tableIdentifier);
+        this.ifExists = ifExists;
+        this.partitionSpecs = partitionSpecs;
+    }
 
-	public boolean ifExists() {
-		return ifExists;
-	}
+    public boolean ifExists() {
+        return ifExists;
+    }
 
-	public List<CatalogPartitionSpec> getPartitionSpecs() {
-		return partitionSpecs;
-	}
+    public List<CatalogPartitionSpec> getPartitionSpecs() {
+        return partitionSpecs;
+    }
 
-	@Override
-	public String asSummaryString() {
-		StringBuilder builder = new StringBuilder(String.format("ALTER TABLE %s DROP", tableIdentifier.asSummaryString()));
-		if (ifExists) {
-			builder.append(" IF EXISTS");
-		}
-		for (CatalogPartitionSpec spec : partitionSpecs) {
-			builder.append(String.format(" PARTITION (%s)", OperationUtils.formatPartitionSpec(spec)));
-		}
-		return builder.toString();
-	}
+    @Override
+    public String asSummaryString() {
+        StringBuilder builder =
+                new StringBuilder(
+                        String.format("ALTER TABLE %s DROP", tableIdentifier.asSummaryString()));
+        if (ifExists) {
+            builder.append(" IF EXISTS");
+        }
+        for (CatalogPartitionSpec spec : partitionSpecs) {
+            builder.append(
+                    String.format(" PARTITION (%s)", OperationUtils.formatPartitionSpec(spec)));
+        }
+        return builder.toString();
+    }
 }

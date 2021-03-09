@@ -3057,6 +3057,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
       "true")
 
+    testSqlApi(
+      "CHAR_LENGTH(CAST(NOW() AS VARCHAR)) >= 12",
+      "true")
+
     // comparisons are deterministic
     testAllApis(
       localTimestamp() === localTimestamp(),

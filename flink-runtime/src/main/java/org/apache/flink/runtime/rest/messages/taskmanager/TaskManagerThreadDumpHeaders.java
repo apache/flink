@@ -25,53 +25,53 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Headers for the {@link TaskManagerThreadDumpHandler}.
- */
-public class TaskManagerThreadDumpHeaders implements MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
+/** Headers for the {@link TaskManagerThreadDumpHandler}. */
+public class TaskManagerThreadDumpHeaders
+        implements MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
 
-	private static final TaskManagerThreadDumpHeaders INSTANCE = new TaskManagerThreadDumpHeaders();
+    private static final TaskManagerThreadDumpHeaders INSTANCE = new TaskManagerThreadDumpHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/thread-dump", TaskManagerIdPathParameter.KEY);
+    private static final String URL =
+            String.format("/taskmanagers/:%s/thread-dump", TaskManagerIdPathParameter.KEY);
 
-	private TaskManagerThreadDumpHeaders() {}
+    private TaskManagerThreadDumpHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
-	}
+    @Override
+    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagerThreadDumpHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerThreadDumpHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public Class<ThreadDumpInfo> getResponseClass() {
-		return ThreadDumpInfo.class;
-	}
+    @Override
+    public Class<ThreadDumpInfo> getResponseClass() {
+        return ThreadDumpInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the thread dump of the requested TaskManager.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the thread dump of the requested TaskManager.";
+    }
 }

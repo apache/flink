@@ -26,32 +26,33 @@ import org.apache.flink.types.RowKind;
 import org.apache.hadoop.hbase.client.Mutation;
 
 /**
- * An implementation of {@link HBaseMutationConverter} which converts {@link RowData} into {@link Mutation}.
+ * An implementation of {@link HBaseMutationConverter} which converts {@link RowData} into {@link
+ * Mutation}.
  */
 public class RowDataToMutationConverter implements HBaseMutationConverter<RowData> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final HBaseTableSchema schema;
-	private final String nullStringLiteral;
-	private transient HBaseSerde serde;
+    private final HBaseTableSchema schema;
+    private final String nullStringLiteral;
+    private transient HBaseSerde serde;
 
-	public RowDataToMutationConverter(HBaseTableSchema schema, final String nullStringLiteral) {
-		this.schema = schema;
-		this.nullStringLiteral = nullStringLiteral;
-	}
+    public RowDataToMutationConverter(HBaseTableSchema schema, final String nullStringLiteral) {
+        this.schema = schema;
+        this.nullStringLiteral = nullStringLiteral;
+    }
 
-	@Override
-	public void open() {
-		this.serde = new HBaseSerde(schema, nullStringLiteral);
-	}
+    @Override
+    public void open() {
+        this.serde = new HBaseSerde(schema, nullStringLiteral);
+    }
 
-	@Override
-	public Mutation convertToMutation(RowData record) {
-		RowKind kind = record.getRowKind();
-		if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
-			return serde.createPutMutation(record);
-		} else {
-			return serde.createDeleteMutation(record);
-		}
-	}
+    @Override
+    public Mutation convertToMutation(RowData record) {
+        RowKind kind = record.getRowKind();
+        if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+            return serde.createPutMutation(record);
+        } else {
+            return serde.createDeleteMutation(record);
+        }
+    }
 }

@@ -18,37 +18,19 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.sinks.TableSink;
-
 /**
  * A result of a dynamic table program.
  *
  * <p>Note: Make sure to call close() after the result is not needed anymore.
- *
- * @param <C> type of the cluster id to which this result belongs to
  */
-public interface DynamicResult<C> extends Result<C> {
+public interface DynamicResult {
 
-	/**
-	 * Returns whether this result is materialized such that snapshots can be taken or results
-	 * must be retrieved record-wise.
-	 */
-	boolean isMaterialized();
+    /**
+     * Returns whether this result is materialized such that snapshots can be taken or results must
+     * be retrieved record-wise.
+     */
+    boolean isMaterialized();
 
-	/**
-	 * Starts retrieving the result using the given {@link JobClient} and monitors it's execution.
-	 */
-	void startRetrieval(JobClient jobClient);
-
-	/**
-	 * Returns the table sink required by this result type.
-	 */
-	TableSink<?> getTableSink();
-
-	/**
-	 * Closes the retrieval and all involved threads.
-	 */
-	void close();
-
+    /** Closes the retrieval and all involved threads. */
+    void close() throws Exception;
 }

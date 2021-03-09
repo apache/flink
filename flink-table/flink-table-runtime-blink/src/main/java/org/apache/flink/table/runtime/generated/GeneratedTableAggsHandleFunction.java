@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.runtime.generated;
 
-/**
- * Describes a generated {@link TableAggsHandleFunction}.
- */
+/** Describes a generated {@link TableAggsHandleFunction}. */
 public class GeneratedTableAggsHandleFunction extends GeneratedClass<TableAggsHandleFunction> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public GeneratedTableAggsHandleFunction(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    public GeneratedTableAggsHandleFunction(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

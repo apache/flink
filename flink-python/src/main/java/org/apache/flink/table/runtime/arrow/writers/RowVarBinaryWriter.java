@@ -23,22 +23,21 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * {@link ArrowFieldWriter} for VarBinary.
- */
+/** {@link ArrowFieldWriter} for VarBinary. */
 @Internal
 public final class RowVarBinaryWriter extends ArrowFieldWriter<Row> {
 
-	public RowVarBinaryWriter(VarBinaryVector varBinaryVector) {
-		super(varBinaryVector);
-	}
+    public RowVarBinaryWriter(VarBinaryVector varBinaryVector) {
+        super(varBinaryVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((VarBinaryVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarBinaryVector) getValueVector()).setSafe(getCount(), (byte[]) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((VarBinaryVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarBinaryVector) getValueVector())
+                    .setSafe(getCount(), (byte[]) value.getField(ordinal));
+        }
+    }
 }

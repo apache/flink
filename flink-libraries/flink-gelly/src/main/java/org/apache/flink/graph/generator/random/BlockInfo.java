@@ -27,56 +27,51 @@ import org.apache.commons.math3.random.RandomGenerator;
  */
 public class BlockInfo<T extends RandomGenerator> {
 
-	private final RandomGenerable<T> randomGenerable;
+    private final RandomGenerable<T> randomGenerable;
 
-	private final int blockIndex;
+    private final int blockIndex;
 
-	private final int blockCount;
+    private final int blockCount;
 
-	private final long firstElement;
+    private final long firstElement;
 
-	private final long elementCount;
+    private final long elementCount;
 
-	public BlockInfo(RandomGenerable<T> randomGenerable, int blockIndex, int blockCount, long firstElement, long elementCount) {
-		this.randomGenerable = randomGenerable;
-		this.blockIndex = blockIndex;
-		this.blockCount = blockCount;
-		this.firstElement = firstElement;
-		this.elementCount = elementCount;
-	}
+    public BlockInfo(
+            RandomGenerable<T> randomGenerable,
+            int blockIndex,
+            int blockCount,
+            long firstElement,
+            long elementCount) {
+        this.randomGenerable = randomGenerable;
+        this.blockIndex = blockIndex;
+        this.blockCount = blockCount;
+        this.firstElement = firstElement;
+        this.elementCount = elementCount;
+    }
 
-	/**
-	 * @return the source of randomness
-	 */
-	public RandomGenerable<T> getRandomGenerable() {
-		return randomGenerable;
-	}
+    /** @return the source of randomness */
+    public RandomGenerable<T> getRandomGenerable() {
+        return randomGenerable;
+    }
 
-	/**
-	 * @return the index of this block within the list of blocks
-	 */
-	public int getBlockIndex() {
-		return blockIndex;
-	}
+    /** @return the index of this block within the list of blocks */
+    public int getBlockIndex() {
+        return blockIndex;
+    }
 
-	/**
-	 * @return the total number of blocks
-	 */
-	public int getBlockCount() {
-		return blockCount;
-	}
+    /** @return the total number of blocks */
+    public int getBlockCount() {
+        return blockCount;
+    }
 
-	/**
-	 * @return the index of the first element in this block
-	 */
-	public long getFirstElement() {
-		return firstElement;
-	}
+    /** @return the index of the first element in this block */
+    public long getFirstElement() {
+        return firstElement;
+    }
 
-	/**
-	 * @return the total number of elements across all blocks
-	 */
-	public long getElementCount() {
-		return elementCount;
-	}
+    /** @return the total number of elements across all blocks */
+    public long getElementCount() {
+        return elementCount;
+    }
 }

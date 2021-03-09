@@ -34,230 +34,222 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link AbstractCloseableRegistry}.
- */
+/** Tests for the {@link AbstractCloseableRegistry}. */
 public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
-	private static final int TEST_TIMEOUT_SECONDS = 10;
+    private static final int TEST_TIMEOUT_SECONDS = 10;
 
-	protected ProducerThread[] streamOpenThreads;
-	protected AbstractCloseableRegistry<C, T> closeableRegistry;
-	protected AtomicInteger unclosedCounter;
+    protected ProducerThread[] streamOpenThreads;
+    protected AbstractCloseableRegistry<C, T> closeableRegistry;
+    protected AtomicInteger unclosedCounter;
 
-	protected abstract void registerCloseable(Closeable closeable) throws IOException;
+    protected abstract void registerCloseable(Closeable closeable) throws IOException;
 
-	protected abstract AbstractCloseableRegistry<C, T> createRegistry();
+    protected abstract AbstractCloseableRegistry<C, T> createRegistry();
 
-	protected abstract ProducerThread<C, T> createProducerThread(
-		AbstractCloseableRegistry<C, T> registry,
-		AtomicInteger unclosedCounter,
-		int maxStreams);
+    protected abstract ProducerThread<C, T> createProducerThread(
+            AbstractCloseableRegistry<C, T> registry,
+            AtomicInteger unclosedCounter,
+            int maxStreams);
 
-	public void setup(int maxStreams) {
-		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
-		this.closeableRegistry = createRegistry();
-		this.unclosedCounter = new AtomicInteger(0);
-		this.streamOpenThreads = new ProducerThread[10];
-		for (int i = 0; i < streamOpenThreads.length; ++i) {
-			streamOpenThreads[i] = createProducerThread(closeableRegistry, unclosedCounter, maxStreams);
-		}
-	}
+    public void setup(int maxStreams) {
+        Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+        this.closeableRegistry = createRegistry();
+        this.unclosedCounter = new AtomicInteger(0);
+        this.streamOpenThreads = new ProducerThread[10];
+        for (int i = 0; i < streamOpenThreads.length; ++i) {
+            streamOpenThreads[i] =
+                    createProducerThread(closeableRegistry, unclosedCounter, maxStreams);
+        }
+    }
 
-	protected void startThreads() {
-		for (ProducerThread t : streamOpenThreads) {
-			t.start();
-		}
-	}
+    protected void startThreads() {
+        for (ProducerThread t : streamOpenThreads) {
+            t.start();
+        }
+    }
 
-	protected void joinThreads() throws InterruptedException {
-		for (Thread t : streamOpenThreads) {
-			t.join();
-		}
-	}
+    protected void joinThreads() throws InterruptedException {
+        for (Thread t : streamOpenThreads) {
+            t.join();
+        }
+    }
 
-	@Test
-	public void testClose() throws Exception {
-		setup(Integer.MAX_VALUE);
-		startThreads();
+    @Test
+    public void testClose() throws Exception {
+        setup(Integer.MAX_VALUE);
+        startThreads();
 
-		for (int i = 0; i < 5; ++i) {
-			System.gc();
-			Thread.sleep(40);
-		}
+        for (int i = 0; i < 5; ++i) {
+            System.gc();
+            Thread.sleep(40);
+        }
 
-		closeableRegistry.close();
+        closeableRegistry.close();
 
-		joinThreads();
+        joinThreads();
 
-		assertEquals(0, unclosedCounter.get());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertEquals(0, unclosedCounter.get());
+        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
 
-		final TestCloseable testCloseable = new TestCloseable();
+        final TestCloseable testCloseable = new TestCloseable();
 
-		try {
-			registerCloseable(testCloseable);
-			fail("Closed registry should not accept closeables!");
-		} catch (IOException expected) {}
+        try {
+            registerCloseable(testCloseable);
+            fail("Closed registry should not accept closeables!");
+        } catch (IOException expected) {
+        }
 
-		assertTrue(testCloseable.isClosed());
-		assertEquals(0, unclosedCounter.get());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
-	}
+        assertTrue(testCloseable.isClosed());
+        assertEquals(0, unclosedCounter.get());
+        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+    }
 
-	@Test
-	public void testNonBlockingClose() throws Exception {
-		setup(Integer.MAX_VALUE);
+    @Test
+    public void testNonBlockingClose() throws Exception {
+        setup(Integer.MAX_VALUE);
 
-		final BlockingTestCloseable blockingCloseable = new BlockingTestCloseable();
-		registerCloseable(blockingCloseable);
+        final BlockingTestCloseable blockingCloseable = new BlockingTestCloseable();
+        registerCloseable(blockingCloseable);
 
-		assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
 
-		Thread closer = new Thread(() -> {
-			try {
-				closeableRegistry.close();
-			} catch (IOException ignore) {
+        Thread closer =
+                new Thread(
+                        () -> {
+                            try {
+                                closeableRegistry.close();
+                            } catch (IOException ignore) {
 
-			}
-		});
-		closer.start();
-		blockingCloseable.awaitClose(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                            }
+                        });
+        closer.start();
+        blockingCloseable.awaitClose(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-		final TestCloseable testCloseable = new TestCloseable();
-		try {
-			registerCloseable(testCloseable);
-			fail("Closed registry should not accept closeables!");
-		} catch (IOException ignored) {}
+        final TestCloseable testCloseable = new TestCloseable();
+        try {
+            registerCloseable(testCloseable);
+            fail("Closed registry should not accept closeables!");
+        } catch (IOException ignored) {
+        }
 
-		blockingCloseable.unblockClose();
-		closer.join();
+        blockingCloseable.unblockClose();
+        closer.join();
 
-		assertTrue(testCloseable.isClosed());
-		assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
-	}
+        assertTrue(testCloseable.isClosed());
+        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+    }
 
-	/**
-	 * A testing producer.
-	 */
-	protected abstract static class ProducerThread<C extends Closeable, T> extends Thread {
+    /** A testing producer. */
+    protected abstract static class ProducerThread<C extends Closeable, T> extends Thread {
 
-		protected final AbstractCloseableRegistry<C, T> registry;
-		protected final AtomicInteger refCount;
-		protected final int maxStreams;
-		protected int numStreams;
+        protected final AbstractCloseableRegistry<C, T> registry;
+        protected final AtomicInteger refCount;
+        protected final int maxStreams;
+        protected int numStreams;
 
-		public ProducerThread(AbstractCloseableRegistry<C, T> registry, AtomicInteger refCount, int maxStreams) {
-			this.registry = registry;
-			this.refCount = refCount;
-			this.maxStreams = maxStreams;
-			this.numStreams = 0;
-		}
+        public ProducerThread(
+                AbstractCloseableRegistry<C, T> registry, AtomicInteger refCount, int maxStreams) {
+            this.registry = registry;
+            this.refCount = refCount;
+            this.maxStreams = maxStreams;
+            this.numStreams = 0;
+        }
 
-		protected abstract void createAndRegisterStream() throws IOException;
+        protected abstract void createAndRegisterStream() throws IOException;
 
-		@Override
-		public void run() {
-			try {
-				while (numStreams < maxStreams) {
+        @Override
+        public void run() {
+            try {
+                while (numStreams < maxStreams) {
 
-					createAndRegisterStream();
+                    createAndRegisterStream();
 
-					try {
-						Thread.sleep(0);
-					} catch (InterruptedException ignored) {}
+                    try {
+                        Thread.sleep(0);
+                    } catch (InterruptedException ignored) {
+                    }
 
-					if (maxStreams != Integer.MAX_VALUE) {
-						++numStreams;
-					}
-				}
-			} catch (Exception ex) {
-				// ignored
-			}
-		}
-	}
+                    if (maxStreams != Integer.MAX_VALUE) {
+                        ++numStreams;
+                    }
+                }
+            } catch (Exception ex) {
+                // ignored
+            }
+        }
+    }
 
-	/**
-	 * Testing stream which adds itself to a reference counter while not closed.
-	 */
-	protected static final class TestStream extends FSDataInputStream {
+    /** Testing stream which adds itself to a reference counter while not closed. */
+    protected static final class TestStream extends FSDataInputStream {
 
-		protected AtomicInteger refCount;
+        protected AtomicInteger refCount;
 
-		public TestStream(AtomicInteger refCount) {
-			this.refCount = refCount;
-			refCount.incrementAndGet();
-		}
+        public TestStream(AtomicInteger refCount) {
+            this.refCount = refCount;
+            refCount.incrementAndGet();
+        }
 
-		@Override
-		public void seek(long desired) throws IOException {
+        @Override
+        public void seek(long desired) throws IOException {}
 
-		}
+        @Override
+        public long getPos() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public long getPos() throws IOException {
-			return 0;
-		}
+        @Override
+        public int read() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public int read() throws IOException {
-			return 0;
-		}
+        @Override
+        public synchronized void close() throws IOException {
+            refCount.decrementAndGet();
+        }
+    }
 
-		@Override
-		public synchronized void close() throws IOException {
-			refCount.decrementAndGet();
-		}
-	}
+    /** A noop {@link Closeable} implementation that blocks inside {@link #close()}. */
+    private static class BlockingTestCloseable implements Closeable {
 
-	/**
-	 * A noop {@link Closeable} implementation that blocks inside {@link #close()}.
-	 */
-	private static class BlockingTestCloseable implements Closeable {
+        private final CountDownLatch closeCalledLatch = new CountDownLatch(1);
 
-		private final CountDownLatch closeCalledLatch = new CountDownLatch(1);
+        private final CountDownLatch blockCloseLatch = new CountDownLatch(1);
 
-		private final CountDownLatch blockCloseLatch = new CountDownLatch(1);
+        @Override
+        public void close() throws IOException {
+            closeCalledLatch.countDown();
+            try {
+                blockCloseLatch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
 
-		@Override
-		public void close() throws IOException {
-			closeCalledLatch.countDown();
-			try {
-				blockCloseLatch.await();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
+        /** Unblocks {@link #close()}. */
+        public void unblockClose() {
+            blockCloseLatch.countDown();
+        }
 
-		/**
-		 * Unblocks {@link #close()}.
-		 */
-		public void unblockClose() {
-			blockCloseLatch.countDown();
-		}
+        /** Causes the current thread to wait until {@link #close()} is called. */
+        public void awaitClose(final long timeout, final TimeUnit timeUnit)
+                throws InterruptedException {
+            assertTrue(closeCalledLatch.await(timeout, timeUnit));
+        }
+    }
 
-		/**
-		 * Causes the current thread to wait until {@link #close()} is called.
-		 */
-		public void awaitClose(final long timeout, final TimeUnit timeUnit) throws InterruptedException {
-			assertTrue(closeCalledLatch.await(timeout, timeUnit));
-		}
-	}
+    /** A noop {@link Closeable} implementation that tracks whether it was closed. */
+    private static class TestCloseable implements Closeable {
 
-	/**
-	 * A noop {@link Closeable} implementation that tracks whether it was closed.
-	 */
-	private static class TestCloseable implements Closeable {
+        private final AtomicBoolean closed = new AtomicBoolean();
 
-		private final AtomicBoolean closed = new AtomicBoolean();
+        @Override
+        public void close() throws IOException {
+            assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
+        }
 
-		@Override
-		public void close() throws IOException {
-			assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
-		}
-
-		public boolean isClosed() {
-			return closed.get();
-		}
-	}
+        public boolean isClosed() {
+            return closed.get();
+        }
+    }
 }

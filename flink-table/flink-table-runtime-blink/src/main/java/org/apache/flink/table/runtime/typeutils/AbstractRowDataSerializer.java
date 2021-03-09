@@ -19,92 +19,20 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 
 import java.io.IOException;
 
-/**
- * Row serializer, provided paged serialize paged method.
- */
+/** Row serializer, provided paged serialize paged method. */
 @Internal
-public abstract class AbstractRowDataSerializer<T extends RowData> extends TypeSerializer<T> {
+public abstract class AbstractRowDataSerializer<T extends RowData> extends PagedTypeSerializer<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Get the number of fields.
-	 */
-	public abstract int getArity();
+    /** Get the number of fields. */
+    public abstract int getArity();
 
-	/**
-	 * Convert a {@link RowData} to a {@link BinaryRowData}.
-	 */
-	public abstract BinaryRowData toBinaryRow(T rowData) throws IOException;
-
-	/**
-	 * Serializes the given record to the given target paged output view. Some implementations may
-	 * skip some bytes if current page does not have enough space left, .e.g {@link BinaryRowData}.
-	 *
-	 * @param record The record to serialize.
-	 * @param target The output view to write the serialized data to.
-	 *
-	 * @return Returns the skipped number of bytes.
-	 *
-	 * @throws IOException Thrown, if the serialization encountered an I/O related error.
-	 *                     Typically raised by the output view, which may have an underlying
-	 *                     I/O channel to which it delegates.
-	 */
-	public abstract int serializeToPages(T record, AbstractPagedOutputView target)
-			throws IOException;
-
-	/**
-	 * De-serializes a record from the given source paged input view. For consistency with serialize
-	 * format, some implementations may need to skip some bytes of source before de-serializing,
-	 * .e.g {@link BinaryRowData}. Typically, the content read from source should be copied out when
-	 * de-serializing, and we are not expecting the underlying data from source is reused. If you
-	 * have such requirement, see {@link #mapFromPages(AbstractPagedInputView)}.
-	 *
-	 * @param source The input view from which to read the data.
-	 *
-	 * @return The de-serialized element.
-	 *
-	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error.
-	 *                     Typically raised by the input view, which may have an underlying I/O
-	 *                     channel from which it reads.
-	 */
-	public abstract T deserializeFromPages(AbstractPagedInputView source) throws IOException;
-
-	/**
-	 * Reuse version of {@link #deserializeFromPages(AbstractPagedInputView)}.
-	 */
-	public abstract T deserializeFromPages(T reuse, AbstractPagedInputView source)
-			throws IOException;
-
-	/**
-	 * Map a record from the given source paged input view. This method provides a possibility to
-	 * achieve zero copy when de-serializing. You can either choose copy or not copy the content
-	 * read from source, but we encourage to make it zero copy.
-	 *
-	 * <p>If you choose the zero copy way,  you have to deal with the lifecycle of the pages
-	 * properly.
-	 *
-	 * @param source The input view from which to read the data.
-	 *
-	 * @return The mapped element.
-	 *
-	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error.
-	 *                     Typically raised by the input view, which may have an underlying I/O
-	 *                     channel from which it reads.
-	 */
-	public abstract T mapFromPages(AbstractPagedInputView source) throws IOException;
-
-	/**
-	 * Reuse version of {@link #mapFromPages(AbstractPagedInputView)}.
-	 */
-	public abstract T mapFromPages(T reuse, AbstractPagedInputView source) throws IOException;
-
+    /** Convert a {@link RowData} to a {@link BinaryRowData}. */
+    public abstract BinaryRowData toBinaryRow(T rowData) throws IOException;
 }

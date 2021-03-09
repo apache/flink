@@ -18,44 +18,39 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.CharComparator;
-import org.apache.flink.api.common.typeutils.base.CharSerializer;
+
+import java.util.Random;
 
 public class CharComparatorTest extends ComparatorTestBase<Character> {
 
-	@Override
-	protected TypeComparator<Character> createComparator(boolean ascending) {
-		return new CharComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Character> createComparator(boolean ascending) {
+        return new CharComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Character> createSerializer() {
-		return new CharSerializer();
-	}
+    @Override
+    protected TypeSerializer<Character> createSerializer() {
+        return new CharSerializer();
+    }
 
-	@Override
-	protected Character[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		int rndChar = rnd.nextInt(Character.MAX_VALUE);
-		if(rndChar<0){
-			rndChar=-rndChar;
-		}
-		if(rndChar==(int)Character.MIN_VALUE){
-			rndChar+=2;
-		}
-		if(rndChar==(int)Character.MAX_VALUE){
-			rndChar-=2;
-		}
-		return new Character[]{
-			Character.MIN_VALUE,
-			(char)rndChar,
-			(char)(rndChar+1),
-			Character.MAX_VALUE			
-		};
-	}
+    @Override
+    protected Character[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        int rndChar = rnd.nextInt(Character.MAX_VALUE);
+        if (rndChar < 0) {
+            rndChar = -rndChar;
+        }
+        if (rndChar == (int) Character.MIN_VALUE) {
+            rndChar += 2;
+        }
+        if (rndChar == (int) Character.MAX_VALUE) {
+            rndChar -= 2;
+        }
+        return new Character[] {
+            Character.MIN_VALUE, (char) rndChar, (char) (rndChar + 1), Character.MAX_VALUE
+        };
+    }
 }

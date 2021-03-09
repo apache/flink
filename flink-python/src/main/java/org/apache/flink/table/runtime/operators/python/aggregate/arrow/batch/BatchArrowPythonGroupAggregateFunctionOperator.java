@@ -27,76 +27,86 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-/**
- * The Batch Arrow Python {@link AggregateFunction} Operator for Group Aggregation.
- */
+/** The Batch Arrow Python {@link AggregateFunction} Operator for Group Aggregation. */
 @Internal
 public class BatchArrowPythonGroupAggregateFunctionOperator
-	extends AbstractBatchArrowPythonAggregateFunctionOperator {
+        extends AbstractBatchArrowPythonAggregateFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public BatchArrowPythonGroupAggregateFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] groupKey,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, groupKey, groupingSet, udafInputOffsets);
-	}
+    public BatchArrowPythonGroupAggregateFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] groupKey,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                outputType,
+                groupKey,
+                groupingSet,
+                udafInputOffsets);
+    }
 
-	@Override
-	public void open() throws Exception {
-		userDefinedFunctionOutputType = new RowType(
-			outputType.getFields().subList(groupingSet.length, outputType.getFieldCount()));
-		super.open();
-	}
+    @Override
+    public void open() throws Exception {
+        userDefinedFunctionOutputType =
+                new RowType(
+                        outputType
+                                .getFields()
+                                .subList(groupingSet.length, outputType.getFieldCount()));
+        super.open();
+    }
 
-	@Override
-	protected void invokeCurrentBatch() throws Exception {
-		if (currentBatchCount > 0) {
-			arrowSerializer.finishCurrentBatch();
-			pythonFunctionRunner.process(baos.toByteArray());
-			baos.reset();
-			elementCount += currentBatchCount;
-			checkInvokeFinishBundleByCount();
-			currentBatchCount = 0;
-		}
-	}
+    @Override
+    protected void invokeCurrentBatch() throws Exception {
+        if (currentBatchCount > 0) {
+            arrowSerializer.finishCurrentBatch();
+            pythonFunctionRunner.process(baos.toByteArray());
+            baos.reset();
+            elementCount += currentBatchCount;
+            checkInvokeFinishBundleByCount();
+            currentBatchCount = 0;
+            arrowSerializer.resetWriter();
+        }
+    }
 
-	@Override
-	public void bufferInput(RowData input) throws Exception {
-		BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
-		if (isNewKey(currentKey)) {
-			if (lastGroupKey != null) {
-				invokeCurrentBatch();
-			}
-			lastGroupKey = currentKey;
-			lastGroupSet = groupSetProjection.apply(input).copy();
-			forwardedInputQueue.add(lastGroupSet);
-		}
-	}
+    @Override
+    public void bufferInput(RowData input) throws Exception {
+        BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
+        if (isNewKey(currentKey)) {
+            if (lastGroupKey != null) {
+                invokeCurrentBatch();
+            }
+            lastGroupKey = currentKey;
+            lastGroupSet = groupSetProjection.apply(input).copy();
+            forwardedInputQueue.add(lastGroupSet);
+        }
+    }
 
-	@Override
-	public void processElementInternal(RowData value) {
-		arrowSerializer.write(getFunctionInput(value));
-		currentBatchCount++;
-	}
+    @Override
+    public void processElementInternal(RowData value) {
+        arrowSerializer.write(getFunctionInput(value));
+        currentBatchCount++;
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] udafResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(udafResult, 0, length);
-		int rowCount = arrowSerializer.load();
-		for (int i = 0; i < rowCount; i++) {
-			RowData key = forwardedInputQueue.poll();
-			reuseJoinedRow.setRowKind(key.getRowKind());
-			RowData result = arrowSerializer.read(i);
-			rowDataWrapper.collect(reuseJoinedRow.replace(key, result));
-		}
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] udafResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(udafResult, 0, length);
+        int rowCount = arrowSerializer.load();
+        for (int i = 0; i < rowCount; i++) {
+            RowData key = forwardedInputQueue.poll();
+            reuseJoinedRow.setRowKind(key.getRowKind());
+            RowData result = arrowSerializer.read(i);
+            rowDataWrapper.collect(reuseJoinedRow.replace(key, result));
+        }
+        arrowSerializer.resetReader();
+    }
 }

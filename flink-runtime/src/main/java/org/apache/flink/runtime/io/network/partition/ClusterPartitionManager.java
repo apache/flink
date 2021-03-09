@@ -22,23 +22,21 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Interface for components that manage cluster partitions.
- */
+/** Interface for components that manage cluster partitions. */
 public interface ClusterPartitionManager {
 
-	/**
-	 * Returns all datasets for which partitions are being tracked.
-	 *
-	 * @return tracked datasets
-	 */
-	CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets();
+    /**
+     * Returns all datasets for which partitions are being tracked.
+     *
+     * @return tracked datasets
+     */
+    CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets();
 
-	/**
-	 * Releases all partitions associated with the given dataset.
-	 *
-	 * @param dataSetToRelease dataset for which all associated partitions should be released
-	 * @return future that is completed once all partitions have been released
-	 */
-	CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetToRelease);
+    /**
+     * Releases all partitions associated with the given dataset.
+     *
+     * @param dataSetToRelease dataset for which all associated partitions should be released
+     * @return future that is completed once all partitions have been released
+     */
+    CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetToRelease);
 }

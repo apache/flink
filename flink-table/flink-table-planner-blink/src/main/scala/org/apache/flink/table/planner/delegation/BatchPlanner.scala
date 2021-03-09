@@ -18,20 +18,24 @@
 
 package org.apache.flink.table.planner.delegation
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DAGProcessContext, DAGProcessor, DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
-import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
-import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
@@ -40,7 +44,7 @@ import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
 
-import _root_.scala.collection.JavaConversions._
+import scala.collection.JavaConversions._
 
 class BatchPlanner(
     executor: Executor,
@@ -58,20 +62,27 @@ class BatchPlanner(
 
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
-  override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
-    val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
+  override private[flink] def translateToExecNodeGraph(
+      optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
+    val execGraph = super.translateToExecNodeGraph(optimizedRelNodes)
     val context = new DAGProcessContext(this)
-    // breakup deadlock
-    new DeadlockBreakupProcessor().process(execNodePlan, context)
+
+    val processors = new util.ArrayList[DAGProcessor]()
+    // deadlock breakup
+    processors.add(new DeadlockBreakupProcessor())
+    // multiple input creation
+    if (getTableConfig.getConfiguration.getBoolean(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+      processors.add(new MultipleInputNodeCreationProcessor(false))
+    }
+
+    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
 
-  override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+  override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
-    planner.overrideEnvParallelism()
 
-    execNodes.map {
+    execGraph.getRootNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
@@ -85,6 +96,7 @@ class BatchPlanner(
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
+    validateAndOverrideConfiguration
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
         val relNode = getRelBuilder.queryOperation(queryOperation).build()
@@ -107,15 +119,14 @@ class BatchPlanner(
       case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
     }
     val optimizedRelNodes = optimize(sinkRelNodes)
-    val execNodes = translateToExecNodePlan(optimizedRelNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
-    val transformations = translateToPlan(execNodes)
+    val transformations = translateToPlan(execGraph)
 
     val execEnv = getExecEnv
-    ExecutorUtils.setBatchProperties(execEnv, getTableConfig)
+    ExecutorUtils.setBatchProperties(execEnv)
     val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
     ExecutorUtils.setBatchProperties(streamGraph, getTableConfig)
-    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -125,19 +136,29 @@ class BatchPlanner(
       sb.append(System.lineSeparator)
     }
 
-    sb.append("== Optimized Logical Plan ==")
+    sb.append("== Optimized Physical Plan ==")
     sb.append(System.lineSeparator)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
     } else {
       SqlExplainLevel.EXPPLAN_ATTRIBUTES
     }
-    sb.append(ExecNodePlanDumper.dagToString(execNodes, explainLevel))
-    sb.append(System.lineSeparator)
+    optimizedRelNodes.foreach { rel =>
+      sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
+      sb.append(System.lineSeparator)
+    }
 
-    sb.append("== Physical Execution Plan ==")
+    sb.append("== Optimized Execution Plan ==")
     sb.append(System.lineSeparator)
-    sb.append(executionPlan)
+    sb.append(ExecNodePlanDumper.dagToString(execGraph))
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Physical Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    }
+
     sb.toString()
   }
 
@@ -147,4 +168,19 @@ class BatchPlanner(
     new BatchPlanner(executor, config, functionCatalog, catalogManager)
   }
 
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException("This method is not supported for batch planner now.")
+  }
+
+  override def validateAndOverrideConfiguration(): Unit = {
+    super.validateAndOverrideConfiguration();
+    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+      .equals(RuntimeExecutionMode.BATCH)) {
+      throw new IllegalArgumentException(
+        "Mismatch between configured runtime mode and actual runtime mode. " +
+          "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+          "table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary.")
+    }
+  }
 }

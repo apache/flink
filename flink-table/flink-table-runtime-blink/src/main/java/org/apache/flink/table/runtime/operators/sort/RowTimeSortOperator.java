@@ -39,112 +39,113 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Sort based on event-time and possibly additional secondary sort attributes.
- */
+/** Sort based on event-time and possibly additional secondary sort attributes. */
 public class RowTimeSortOperator extends BaseTemporalSortOperator {
 
-	private static final long serialVersionUID = 2085278292749212811L;
+    private static final long serialVersionUID = 2085278292749212811L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(RowTimeSortOperator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RowTimeSortOperator.class);
 
-	private final InternalTypeInfo<RowData> inputRowType;
-	private final int rowTimeIdx;
+    private final InternalTypeInfo<RowData> inputRowType;
+    private final int rowTimeIdx;
 
-	private GeneratedRecordComparator gComparator;
-	private transient RecordComparator comparator;
+    private GeneratedRecordComparator gComparator;
+    private transient RecordComparator comparator;
 
-	// State to collect rows between watermarks.
-	private transient MapState<Long, List<RowData>> dataState;
-	// State to keep the last triggering timestamp. Used to filter late events.
-	private transient ValueState<Long> lastTriggeringTsState;
+    // State to collect rows between watermarks.
+    private transient MapState<Long, List<RowData>> dataState;
+    // State to keep the last triggering timestamp. Used to filter late events.
+    private transient ValueState<Long> lastTriggeringTsState;
 
-	/**
-	 * @param inputRowType The data type of the input data.
-	 * @param rowTimeIdx The index of the rowTime field.
-	 * @param gComparator generated comparator, could be null if only sort on RowTime field
-	 */
-	public RowTimeSortOperator(InternalTypeInfo<RowData> inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
-		this.inputRowType = inputRowType;
-		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.toRowSize(),
-				"RowTimeIdx must be 0 or positive number and smaller than input row arity!");
-		this.rowTimeIdx = rowTimeIdx;
-		this.gComparator = gComparator;
-	}
+    /**
+     * @param inputRowType The data type of the input data.
+     * @param rowTimeIdx The index of the rowTime field.
+     * @param gComparator generated comparator, could be null if only sort on RowTime field
+     */
+    public RowTimeSortOperator(
+            InternalTypeInfo<RowData> inputRowType,
+            int rowTimeIdx,
+            GeneratedRecordComparator gComparator) {
+        this.inputRowType = inputRowType;
+        Preconditions.checkArgument(
+                rowTimeIdx >= 0 && rowTimeIdx < inputRowType.toRowSize(),
+                "RowTimeIdx must be 0 or positive number and smaller than input row arity!");
+        this.rowTimeIdx = rowTimeIdx;
+        this.gComparator = gComparator;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		LOG.info("Opening RowTimeSortOperator");
-		if (gComparator != null) {
-			comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
-			gComparator = null;
-		}
+        LOG.info("Opening RowTimeSortOperator");
+        if (gComparator != null) {
+            comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
+            gComparator = null;
+        }
 
-		BasicTypeInfo<Long> keyTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
-		ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<Long, List<RowData>> mapStateDescriptor = new MapStateDescriptor<>(
-				"dataState", keyTypeInfo, valueTypeInfo);
-		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
+        BasicTypeInfo<Long> keyTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+        ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
+        MapStateDescriptor<Long, List<RowData>> mapStateDescriptor =
+                new MapStateDescriptor<>("dataState", keyTypeInfo, valueTypeInfo);
+        dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		ValueStateDescriptor<Long> lastTriggeringTsDescriptor = new ValueStateDescriptor<>("lastTriggeringTsState",
-				Long.class);
-		lastTriggeringTsState = getRuntimeContext().getState(lastTriggeringTsDescriptor);
-	}
+        ValueStateDescriptor<Long> lastTriggeringTsDescriptor =
+                new ValueStateDescriptor<>("lastTriggeringTsState", Long.class);
+        lastTriggeringTsState = getRuntimeContext().getState(lastTriggeringTsDescriptor);
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		RowData input = element.getValue();
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        RowData input = element.getValue();
 
-		// timestamp of the processed row
-		long rowTime = input.getLong(rowTimeIdx);
+        // timestamp of the processed row
+        long rowTime = input.getLong(rowTimeIdx);
 
-		Long lastTriggeringTs = lastTriggeringTsState.value();
+        Long lastTriggeringTs = lastTriggeringTsState.value();
 
-		// check if the row is late and drop it if it is late
-		if (lastTriggeringTs == null || rowTime > lastTriggeringTs) {
-			// get list for timestamp
-			List<RowData> rows = dataState.get(rowTime);
-			if (null != rows) {
-				rows.add(input);
-				dataState.put(rowTime, rows);
-			} else {
-				List<RowData> newRows = new ArrayList<>();
-				newRows.add(input);
-				dataState.put(rowTime, newRows);
+        // check if the row is late and drop it if it is late
+        if (lastTriggeringTs == null || rowTime > lastTriggeringTs) {
+            // get list for timestamp
+            List<RowData> rows = dataState.get(rowTime);
+            if (null != rows) {
+                rows.add(input);
+                dataState.put(rowTime, rows);
+            } else {
+                List<RowData> newRows = new ArrayList<>();
+                newRows.add(input);
+                dataState.put(rowTime, newRows);
 
-				// register event time timer
-				timerService.registerEventTimeTimer(rowTime);
-			}
+                // register event time timer
+                timerService.registerEventTimeTimer(rowTime);
+            }
+        }
+    }
 
-		}
-	}
+    @Override
+    public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        long timestamp = timer.getTimestamp();
 
-	@Override
-	public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
-		long timestamp = timer.getTimestamp();
+        // gets all rows for the triggering timestamps
+        List<RowData> inputs = dataState.get(timestamp);
+        if (inputs != null) {
+            // sort rows on secondary fields if necessary
+            if (comparator != null) {
+                inputs.sort(comparator);
+            }
 
-		// gets all rows for the triggering timestamps
-		List<RowData> inputs = dataState.get(timestamp);
-		if (inputs != null) {
-			// sort rows on secondary fields if necessary
-			if (comparator != null) {
-				inputs.sort(comparator);
-			}
+            // emit rows in order
+            inputs.forEach((RowData row) -> collector.collect(row));
 
-			// emit rows in order
-			inputs.forEach((RowData row) -> collector.collect(row));
+            // remove emitted rows from state
+            dataState.remove(timestamp);
+            lastTriggeringTsState.update(timestamp);
+        }
+    }
 
-			// remove emitted rows from state
-			dataState.remove(timestamp);
-			lastTriggeringTsState.update(timestamp);
-		}
-	}
-
-	@Override
-	public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
-		throw new UnsupportedOperationException("Now Sort only is supported based event time here!");
-	}
-
+    @Override
+    public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        throw new UnsupportedOperationException(
+                "Now Sort only is supported based event time here!");
+    }
 }

@@ -37,6 +37,7 @@ object FlinkStreamProgram {
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
+  val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
@@ -92,7 +93,17 @@ object FlinkStreamProgram {
         .build())
 
     // query decorrelation
-    chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+    chainedProgram.addLast(DECORRELATE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          // rewrite before decorrelation
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
+                .build(), "pre-rewrite before decorrelation")
+          .addProgram(new FlinkDecorrelateProgram)
+          .build())
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
@@ -150,6 +161,15 @@ object FlinkStreamProgram {
           .build())
     }
 
+    // project rewrite
+    chainedProgram.addLast(
+      PROJECT_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkStreamRuleSets.PROJECT_RULES)
+        .build())
+
     // optimize the logical plan
     chainedProgram.addLast(
       LOGICAL,
@@ -179,6 +199,13 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        // add a HEP program for watermark transpose rules to make this optimization deterministic
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .build(), "watermark transpose")
         .addProgram(new FlinkChangelogModeInferenceProgram,
           "Changelog mode inference")
         .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,

@@ -30,33 +30,33 @@ import java.util.Map;
 /**
  * Basic interface for map bundle processing.
  *
- * @param <K>   The type of the key in the bundle map
- * @param <V>   The type of the value in the bundle map
- * @param <IN>  Type of the input elements.
+ * @param <K> The type of the key in the bundle map
+ * @param <V> The type of the value in the bundle map
+ * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
 public abstract class MapBundleFunction<K, V, IN, OUT> implements Function {
 
-	private static final long serialVersionUID = -6672219582127325882L;
+    private static final long serialVersionUID = -6672219582127325882L;
 
-	protected transient ExecutionContext ctx;
+    protected transient ExecutionContext ctx;
 
-	public void open(ExecutionContext ctx) throws Exception {
-		this.ctx = Preconditions.checkNotNull(ctx);
-	}
+    public void open(ExecutionContext ctx) throws Exception {
+        this.ctx = Preconditions.checkNotNull(ctx);
+    }
 
-	/**
-	 * Adds the given input to the given value, returning the new bundle value.
-	 *
-	 * @param value the existing bundle value, maybe null
-	 * @param input the given input, not null
-	 */
-	public abstract V addInput(@Nullable V value, IN input) throws Exception;
+    /**
+     * Adds the given input to the given value, returning the new bundle value.
+     *
+     * @param value the existing bundle value, maybe null
+     * @param input the given input, not null
+     */
+    public abstract V addInput(@Nullable V value, IN input) throws Exception;
 
-	/**
-	 * Called when a bundle is finished. Transform a bundle to zero, one, or more output elements.
-	 */
-	public abstract void finishBundle(Map<K, V> buffer, Collector<OUT> out) throws Exception;
+    /**
+     * Called when a bundle is finished. Transform a bundle to zero, one, or more output elements.
+     */
+    public abstract void finishBundle(Map<K, V> buffer, Collector<OUT> out) throws Exception;
 
-	public void close() throws Exception {}
+    public void close() throws Exception {}
 }

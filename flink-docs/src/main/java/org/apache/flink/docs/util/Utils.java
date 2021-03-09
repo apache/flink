@@ -18,23 +18,20 @@
 
 package org.apache.flink.docs.util;
 
-/**
- * Contains various shared utility functions.
- */
+/** Contains various shared utility functions. */
 public enum Utils {
-	;
+    ;
 
-	/**
-	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
-	 * but only something that won't show up in config options.
-	 */
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
+    /**
+     * Placeholder that is used to prevent certain sections from being escaped. We don't need a
+     * sophisticated value but only something that won't show up in config options.
+     */
+    private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
 
-	public static String escapeCharacters(String value) {
-		return value
-			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&lt;")
-			.replaceAll(">", "&gt;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
-	}
+    public static String escapeCharacters(String value) {
+        return value.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+    }
 }

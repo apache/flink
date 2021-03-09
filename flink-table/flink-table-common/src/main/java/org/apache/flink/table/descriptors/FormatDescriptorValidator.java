@@ -20,42 +20,34 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Validator for {@link FormatDescriptor}.
- */
+/** Validator for {@link FormatDescriptor}. */
 @Internal
 public abstract class FormatDescriptorValidator implements DescriptorValidator {
 
-	/**
-	 * Prefix for format-related properties.
-	 */
-	public static final String FORMAT = "format";
+    /** Prefix for format-related properties. */
+    public static final String FORMAT = "format";
 
-	/**
-	 * Key for describing the type of the format. Usually used for factory discovery.
-	 */
-	public static final String FORMAT_TYPE = "format.type";
+    /** Key for describing the type of the format. Usually used for factory discovery. */
+    public static final String FORMAT_TYPE = "format.type";
 
-	/**
-	 *  Key for describing the property version. This property can be used for backwards
-	 *  compatibility in case the property format changes.
-	 */
-	public static final String FORMAT_PROPERTY_VERSION = "format.property-version";
+    /**
+     * Key for describing the property version. This property can be used for backwards
+     * compatibility in case the property format changes.
+     */
+    public static final String FORMAT_PROPERTY_VERSION = "format.property-version";
 
-	/**
-	 * Key for describing the version of the format. This property can be used for different
-	 * format versions (e.g. Avro 1.8.2 or Avro 2.0).
-	 */
-	public static final String FORMAT_VERSION = "format.version";
+    /**
+     * Key for describing the version of the format. This property can be used for different format
+     * versions (e.g. Avro 1.8.2 or Avro 2.0).
+     */
+    public static final String FORMAT_VERSION = "format.version";
 
-	/**
-	 * Key for deriving the schema of the format from the table's schema.
-	 */
-	public static final String FORMAT_DERIVE_SCHEMA = "format.derive-schema";
+    /** Key for deriving the schema of the format from the table's schema. */
+    public static final String FORMAT_DERIVE_SCHEMA = "format.derive-schema";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		properties.validateString(FORMAT_TYPE, false, 1);
-		properties.validateString(FORMAT_PROPERTY_VERSION, true, 1);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        properties.validateString(FORMAT_TYPE, false, 1);
+        properties.validateString(FORMAT_PROPERTY_VERSION, true, 1);
+    }
 }

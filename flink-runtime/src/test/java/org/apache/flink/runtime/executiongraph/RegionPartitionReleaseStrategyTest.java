@@ -38,82 +38,105 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link RegionPartitionReleaseStrategy}.
- */
+/** Tests for {@link RegionPartitionReleaseStrategy}. */
 public class RegionPartitionReleaseStrategyTest extends TestLogger {
 
-	private TestingSchedulingTopology testingSchedulingTopology;
+    private TestingSchedulingTopology testingSchedulingTopology;
 
-	@Before
-	public void setUp() throws Exception {
-		testingSchedulingTopology = new TestingSchedulingTopology();
-	}
+    @Before
+    public void setUp() throws Exception {
+        testingSchedulingTopology = new TestingSchedulingTopology();
+    }
 
-	@Test
-	public void releasePartitionsIfDownstreamRegionIsFinished() {
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingResultPartition> resultPartitions = testingSchedulingTopology.connectPointwise(producers, consumers).finish();
+    @Test
+    public void releasePartitionsIfDownstreamRegionIsFinished() {
+        final List<TestingSchedulingExecutionVertex> producers =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingExecutionVertex> consumers =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingResultPartition> resultPartitions =
+                testingSchedulingTopology.connectPointwise(producers, consumers).finish();
 
-		final ExecutionVertexID onlyConsumerVertexId = consumers.get(0).getId();
-		final IntermediateResultPartitionID onlyResultPartitionId = resultPartitions.get(0).getId();
+        final ExecutionVertexID onlyConsumerVertexId = consumers.get(0).getId();
+        final IntermediateResultPartitionID onlyResultPartitionId = resultPartitions.get(0).getId();
 
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
+                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
-		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(onlyConsumerVertexId);
-		assertThat(partitionsToRelease, contains(onlyResultPartitionId));
-	}
+        final List<IntermediateResultPartitionID> partitionsToRelease =
+                regionPartitionReleaseStrategy.vertexFinished(onlyConsumerVertexId);
+        assertThat(partitionsToRelease, contains(onlyResultPartitionId));
+    }
 
-	@Test
-	public void releasePartitionsIfDownstreamRegionWithMultipleOperatorsIsFinished() {
-		final List<TestingSchedulingExecutionVertex> sourceVertices = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingExecutionVertex> intermediateVertices = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingExecutionVertex> sinkVertices = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingResultPartition> sourceResultPartitions = testingSchedulingTopology.connectAllToAll(sourceVertices, intermediateVertices).finish();
-		testingSchedulingTopology.connectAllToAll(intermediateVertices, sinkVertices).withResultPartitionType(ResultPartitionType.PIPELINED).finish();
+    @Test
+    public void releasePartitionsIfDownstreamRegionWithMultipleOperatorsIsFinished() {
+        final List<TestingSchedulingExecutionVertex> sourceVertices =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingExecutionVertex> intermediateVertices =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingExecutionVertex> sinkVertices =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingResultPartition> sourceResultPartitions =
+                testingSchedulingTopology
+                        .connectAllToAll(sourceVertices, intermediateVertices)
+                        .finish();
+        testingSchedulingTopology
+                .connectAllToAll(intermediateVertices, sinkVertices)
+                .withResultPartitionType(ResultPartitionType.PIPELINED)
+                .finish();
 
-		final ExecutionVertexID onlyIntermediateVertexId = intermediateVertices.get(0).getId();
-		final ExecutionVertexID onlySinkVertexId = sinkVertices.get(0).getId();
-		final IntermediateResultPartitionID onlySourceResultPartitionId = sourceResultPartitions.get(0).getId();
+        final ExecutionVertexID onlyIntermediateVertexId = intermediateVertices.get(0).getId();
+        final ExecutionVertexID onlySinkVertexId = sinkVertices.get(0).getId();
+        final IntermediateResultPartitionID onlySourceResultPartitionId =
+                sourceResultPartitions.get(0).getId();
 
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
+                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
-		regionPartitionReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
-		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(onlySinkVertexId);
-		assertThat(partitionsToRelease, contains(onlySourceResultPartitionId));
-	}
+        regionPartitionReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
+        final List<IntermediateResultPartitionID> partitionsToRelease =
+                regionPartitionReleaseStrategy.vertexFinished(onlySinkVertexId);
+        assertThat(partitionsToRelease, contains(onlySourceResultPartitionId));
+    }
 
-	@Test
-	public void notReleasePartitionsIfDownstreamRegionIsNotFinished() {
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
+    @Test
+    public void notReleasePartitionsIfDownstreamRegionIsNotFinished() {
+        final List<TestingSchedulingExecutionVertex> producers =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingExecutionVertex> consumers =
+                testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
+        testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
 
-		final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
+        final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
 
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
+                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
-		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
-		assertThat(partitionsToRelease, is(empty()));
-	}
+        final List<IntermediateResultPartitionID> partitionsToRelease =
+                regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
+        assertThat(partitionsToRelease, is(empty()));
+    }
 
-	@Test
-	public void toggleVertexFinishedUnfinished() {
-		final List<TestingSchedulingExecutionVertex> producers = testingSchedulingTopology.addExecutionVertices().finish();
-		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
-		testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
+    @Test
+    public void toggleVertexFinishedUnfinished() {
+        final List<TestingSchedulingExecutionVertex> producers =
+                testingSchedulingTopology.addExecutionVertices().finish();
+        final List<TestingSchedulingExecutionVertex> consumers =
+                testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
+        testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
 
-		final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
-		final ExecutionVertexID consumerVertex2 = consumers.get(1).getId();
+        final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
+        final ExecutionVertexID consumerVertex2 = consumers.get(1).getId();
 
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
+                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
-		regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
-		regionPartitionReleaseStrategy.vertexFinished(consumerVertex2);
-		regionPartitionReleaseStrategy.vertexUnfinished(consumerVertex2);
+        regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
+        regionPartitionReleaseStrategy.vertexFinished(consumerVertex2);
+        regionPartitionReleaseStrategy.vertexUnfinished(consumerVertex2);
 
-		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
-		assertThat(partitionsToRelease, is(empty()));
-	}
+        final List<IntermediateResultPartitionID> partitionsToRelease =
+                regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
+        assertThat(partitionsToRelease, is(empty()));
+    }
 }

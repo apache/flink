@@ -49,195 +49,240 @@ import java.io.File;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Various tests around the proper passing of state descriptors to the operators
- * and their serialization.
+ * Various tests around the proper passing of state descriptors to the operators and their
+ * serialization.
  *
  * <p>The tests use an arbitrary generic type to validate the behavior.
  */
 @SuppressWarnings("serial")
 public class StateDescriptorPassingTest {
 
-	@Test
-	public void testReduceWindowState() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testReduceWindowState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.keyBy(new KeySelector<File, String>() {
-					@Override
-					public String getKey(File value) {
-						return null;
-					}
-				})
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.reduce(new ReduceFunction<File>() {
+        SingleOutputStreamOperator<?> result =
+                src.keyBy(
+                                new KeySelector<File, String>() {
+                                    @Override
+                                    public String getKey(File value) {
+                                        return null;
+                                    }
+                                })
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .reduce(
+                                new ReduceFunction<File>() {
 
-					@Override
-					public File reduce(File value1, File value2) {
-						return null;
-					}
-				});
+                                    @Override
+                                    public File reduce(File value1, File value2) {
+                                        return null;
+                                    }
+                                });
 
-		validateStateDescriptorConfigured(result);
-	}
+        validateStateDescriptorConfigured(result);
+    }
 
-	@Test
-	public void testApplyWindowState() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testApplyWindowState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.keyBy(new KeySelector<File, String>() {
-					@Override
-					public String getKey(File value) {
-						return null;
-					}
-				})
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.apply(new WindowFunction<File, String, String, TimeWindow>() {
-					@Override
-					public void apply(String s, TimeWindow window,
-										Iterable<File> input, Collector<String> out) {}
-				});
+        SingleOutputStreamOperator<?> result =
+                src.keyBy(
+                                new KeySelector<File, String>() {
+                                    @Override
+                                    public String getKey(File value) {
+                                        return null;
+                                    }
+                                })
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .apply(
+                                new WindowFunction<File, String, String, TimeWindow>() {
+                                    @Override
+                                    public void apply(
+                                            String s,
+                                            TimeWindow window,
+                                            Iterable<File> input,
+                                            Collector<String> out) {}
+                                });
 
-		validateListStateDescriptorConfigured(result);
-	}
+        validateListStateDescriptorConfigured(result);
+    }
 
-	@Test
-	public void testProcessWindowState() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testProcessWindowState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.keyBy(new KeySelector<File, String>() {
-					@Override
-					public String getKey(File value) {
-						return null;
-					}
-				})
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.process(new ProcessWindowFunction<File, String, String, TimeWindow>() {
-					@Override
-					public void process(String s, Context ctx,
-							Iterable<File> input, Collector<String> out) {}
-				});
+        SingleOutputStreamOperator<?> result =
+                src.keyBy(
+                                new KeySelector<File, String>() {
+                                    @Override
+                                    public String getKey(File value) {
+                                        return null;
+                                    }
+                                })
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .process(
+                                new ProcessWindowFunction<File, String, String, TimeWindow>() {
+                                    @Override
+                                    public void process(
+                                            String s,
+                                            Context ctx,
+                                            Iterable<File> input,
+                                            Collector<String> out) {}
+                                });
 
-		validateListStateDescriptorConfigured(result);
-	}
+        validateListStateDescriptorConfigured(result);
+    }
 
-	@Test
-	public void testProcessAllWindowState()  {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testProcessAllWindowState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		// simulate ingestion time
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        // simulate ingestion time
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.process(new ProcessAllWindowFunction<File, String, TimeWindow>() {
-					@Override
-					public void process(Context ctx, Iterable<File> input, Collector<String> out) {}
-				});
+        SingleOutputStreamOperator<?> result =
+                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .process(
+                                new ProcessAllWindowFunction<File, String, TimeWindow>() {
+                                    @Override
+                                    public void process(
+                                            Context ctx,
+                                            Iterable<File> input,
+                                            Collector<String> out) {}
+                                });
 
-		validateListStateDescriptorConfigured(result);
-	}
+        validateListStateDescriptorConfigured(result);
+    }
 
-	@Test
-	public void testReduceWindowAllState() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testReduceWindowAllState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		// simulate ingestion time
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        // simulate ingestion time
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.reduce(new ReduceFunction<File>() {
+        SingleOutputStreamOperator<?> result =
+                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .reduce(
+                                new ReduceFunction<File>() {
 
-					@Override
-					public File reduce(File value1, File value2) {
-						return null;
-					}
-				});
+                                    @Override
+                                    public File reduce(File value1, File value2) {
+                                        return null;
+                                    }
+                                });
 
-		validateStateDescriptorConfigured(result);
-	}
+        validateStateDescriptorConfigured(result);
+    }
 
-	@Test
-	public void testApplyWindowAllState() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+    @Test
+    public void testApplyWindowAllState() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
-		// simulate ingestion time
-		DataStream<File> src = env.fromElements(new File("/"))
-				.assignTimestampsAndWatermarks(WatermarkStrategy.<File>forMonotonousTimestamps()
-						.withTimestampAssigner((file, ts) -> System.currentTimeMillis()));
+        // simulate ingestion time
+        DataStream<File> src =
+                env.fromElements(new File("/"))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<File>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (file, ts) -> System.currentTimeMillis()));
 
-		SingleOutputStreamOperator<?> result = src
-				.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
-				.apply(new AllWindowFunction<File, String, TimeWindow>() {
-					@Override
-					public void apply(TimeWindow window, Iterable<File> input, Collector<String> out) {}
-				});
+        SingleOutputStreamOperator<?> result =
+                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .apply(
+                                new AllWindowFunction<File, String, TimeWindow>() {
+                                    @Override
+                                    public void apply(
+                                            TimeWindow window,
+                                            Iterable<File> input,
+                                            Collector<String> out) {}
+                                });
 
-		validateListStateDescriptorConfigured(result);
-	}
+        validateListStateDescriptorConfigured(result);
+    }
 
-	// ------------------------------------------------------------------------
-	//  generic validation
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  generic validation
+    // ------------------------------------------------------------------------
 
-	private void validateStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
-		OneInputTransformation<?, ?> transform = (OneInputTransformation<?, ?>) result.getTransformation();
-		WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-		StateDescriptor<?, ?> descr = op.getStateDescriptor();
+    private void validateStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
+        OneInputTransformation<?, ?> transform =
+                (OneInputTransformation<?, ?>) result.getTransformation();
+        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+        StateDescriptor<?, ?> descr = op.getStateDescriptor();
 
-		// this would be the first statement to fail if state descriptors were not properly initialized
-		TypeSerializer<?> serializer = descr.getSerializer();
-		assertTrue(serializer instanceof KryoSerializer);
+        // this would be the first statement to fail if state descriptors were not properly
+        // initialized
+        TypeSerializer<?> serializer = descr.getSerializer();
+        assertTrue(serializer instanceof KryoSerializer);
 
-		Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
+        Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
 
-		assertTrue("serializer registration was not properly passed on",
-				kryo.getSerializer(File.class) instanceof JavaSerializer);
-	}
+        assertTrue(
+                "serializer registration was not properly passed on",
+                kryo.getSerializer(File.class) instanceof JavaSerializer);
+    }
 
-	private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
-		OneInputTransformation<?, ?> transform = (OneInputTransformation<?, ?>) result.getTransformation();
-		WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-		StateDescriptor<?, ?> descr = op.getStateDescriptor();
+    private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
+        OneInputTransformation<?, ?> transform =
+                (OneInputTransformation<?, ?>) result.getTransformation();
+        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+        StateDescriptor<?, ?> descr = op.getStateDescriptor();
 
-		assertTrue(descr instanceof ListStateDescriptor);
+        assertTrue(descr instanceof ListStateDescriptor);
 
-		ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>) descr;
+        ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>) descr;
 
-		// this would be the first statement to fail if state descriptors were not properly initialized
-		TypeSerializer<?> serializer = listDescr.getSerializer();
-		assertTrue(serializer instanceof ListSerializer);
+        // this would be the first statement to fail if state descriptors were not properly
+        // initialized
+        TypeSerializer<?> serializer = listDescr.getSerializer();
+        assertTrue(serializer instanceof ListSerializer);
 
-		TypeSerializer<?> elementSerializer = listDescr.getElementSerializer();
-		assertTrue(elementSerializer instanceof KryoSerializer);
+        TypeSerializer<?> elementSerializer = listDescr.getElementSerializer();
+        assertTrue(elementSerializer instanceof KryoSerializer);
 
-		Kryo kryo = ((KryoSerializer<?>) elementSerializer).getKryo();
+        Kryo kryo = ((KryoSerializer<?>) elementSerializer).getKryo();
 
-		assertTrue("serializer registration was not properly passed on",
-				kryo.getSerializer(File.class) instanceof JavaSerializer);
-	}
+        assertTrue(
+                "serializer registration was not properly passed on",
+                kryo.getSerializer(File.class) instanceof JavaSerializer);
+    }
 }

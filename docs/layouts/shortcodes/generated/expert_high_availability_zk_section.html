@@ -1,0 +1,84 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.acl</h5></td>
+            <td style="word-wrap: break-word;">"open"</td>
+            <td>String</td>
+            <td>Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.connection-timeout</h5></td>
+            <td style="word-wrap: break-word;">15000</td>
+            <td>Integer</td>
+            <td>Defines the connection timeout for ZooKeeper in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.max-retry-attempts</h5></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>Defines the number of connection retries before the client gives up.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.retry-wait</h5></td>
+            <td style="word-wrap: break-word;">5000</td>
+            <td>Integer</td>
+            <td>Defines the pause between consecutive retries in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.session-timeout</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Integer</td>
+            <td>Defines the session timeout for the ZooKeeper session in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.checkpoint-counter</h5></td>
+            <td style="word-wrap: break-word;">"/checkpoint-counter"</td>
+            <td>String</td>
+            <td>ZooKeeper root path (ZNode) for checkpoint counters.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.checkpoints</h5></td>
+            <td style="word-wrap: break-word;">"/checkpoints"</td>
+            <td>String</td>
+            <td>ZooKeeper root path (ZNode) for completed checkpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
+            <td style="word-wrap: break-word;">"/jobgraphs"</td>
+            <td>String</td>
+            <td>ZooKeeper root path (ZNode) for job graphs</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.latch</h5></td>
+            <td style="word-wrap: break-word;">"/leaderlatch"</td>
+            <td>String</td>
+            <td>Defines the znode of the leader latch which is used to elect the leader.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.leader</h5></td>
+            <td style="word-wrap: break-word;">"/leader"</td>
+            <td>String</td>
+            <td>Defines the znode of the leader which contains the URL to the leader and the current leader session ID.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.mesos-workers</h5></td>
+            <td style="word-wrap: break-word;">"/mesos-workers"</td>
+            <td>String</td>
+            <td>The ZooKeeper root path for persisting the Mesos worker information.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.running-registry</h5></td>
+            <td style="word-wrap: break-word;">"/running_job_registry/"</td>
+            <td>String</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>

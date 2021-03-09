@@ -20,14 +20,11 @@ package org.apache.flink.connector.hbase.example;
 
 import org.apache.hadoop.hbase.util.Bytes;
 
-/**
- * Constants used during the hbase connector tests.
- */
+/** Constants used during the hbase connector tests. */
 public class HBaseFlinkTestConstants {
 
-	public static final byte[] CF_SOME = Bytes.toBytes("someCf");
-	public static final byte[] Q_SOME = Bytes.toBytes("someQual");
-	public static final String TEST_TABLE_NAME = "test-table";
-	public static final String TMP_DIR = "/tmp/test";
-
+    public static final byte[] CF_SOME = Bytes.toBytes("someCf");
+    public static final byte[] Q_SOME = Bytes.toBytes("someQual");
+    public static final String TEST_TABLE_NAME = "test-table";
+    public static final String TMP_DIR = "/tmp/test";
 }

@@ -31,45 +31,43 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Integration tests for {@link StreamExecutionEnvironment}.
- */
+/** Integration tests for {@link StreamExecutionEnvironment}. */
 public class StreamExecutionEnvironmentITCase {
 
-	// We use our own miniClusterResource because we wan't to connect to it using a remote executor.
-	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-					.setNumberTaskManagers(1)
-					.setNumberSlotsPerTaskManager(1)
-					.build());
+    // We use our own miniClusterResource because we wan't to connect to it using a remote executor.
+    @ClassRule
+    public static MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void executeThrowsProgramInvocationException() throws Exception {
-		UnmodifiableConfiguration clientConfiguration = miniClusterResource.getClientConfiguration();
-		Configuration config = new Configuration(clientConfiguration);
-		config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
-		config.setBoolean(DeploymentOptions.ATTACHED, true);
+    @Test
+    public void executeThrowsProgramInvocationException() throws Exception {
+        UnmodifiableConfiguration clientConfiguration =
+                miniClusterResource.getClientConfiguration();
+        Configuration config = new Configuration(clientConfiguration);
+        config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        config.setBoolean(DeploymentOptions.ATTACHED, true);
 
-		// Create the execution environment explicitly from a Configuration so we know that we
-		// don't get some other subclass. If we just did
-		// StreamExecutionEnvironment.getExecutionEnvironment() we would get a
-		// TestStreamEnvironment that the MiniClusterResource created. We want to test the behaviour
-		// of the base environment, though.
-		StreamExecutionEnvironment env =
-				new StreamExecutionEnvironment(config);
+        // Create the execution environment explicitly from a Configuration so we know that we
+        // don't get some other subclass. If we just did
+        // StreamExecutionEnvironment.getExecutionEnvironment() we would get a
+        // TestStreamEnvironment that the MiniClusterResource created. We want to test the behaviour
+        // of the base environment, though.
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(config);
 
-		env
-				.fromElements("hello")
-				.map(in -> {
-					throw new RuntimeException("Failing");
-				})
-				.print();
+        env.fromElements("hello")
+                .map(
+                        in -> {
+                            throw new RuntimeException("Failing");
+                        })
+                .print();
 
-		thrown.expect(ProgramInvocationException.class);
-		env.execute();
-	}
+        thrown.expect(ProgramInvocationException.class);
+        env.execute();
+    }
 }

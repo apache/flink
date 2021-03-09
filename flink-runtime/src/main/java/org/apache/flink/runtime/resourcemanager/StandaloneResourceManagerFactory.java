@@ -40,73 +40,79 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 
-/**
- * {@link ResourceManagerFactory} which creates a {@link StandaloneResourceManager}.
- */
+/** {@link ResourceManagerFactory} which creates a {@link StandaloneResourceManager}. */
 public final class StandaloneResourceManagerFactory extends ResourceManagerFactory<ResourceID> {
 
-	private static final StandaloneResourceManagerFactory INSTANCE = new StandaloneResourceManagerFactory();
+    private static final StandaloneResourceManagerFactory INSTANCE =
+            new StandaloneResourceManagerFactory();
 
-	private StandaloneResourceManagerFactory() {}
+    private StandaloneResourceManagerFactory() {}
 
-	public static StandaloneResourceManagerFactory getInstance() {
-		return INSTANCE;
-	}
+    public static StandaloneResourceManagerFactory getInstance() {
+        return INSTANCE;
+    }
 
-	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationUtils.class);
 
-	@Override
-	protected ResourceManager<ResourceID> createResourceManager(
-		Configuration configuration,
-		ResourceID resourceId,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		FatalErrorHandler fatalErrorHandler,
-		ClusterInformation clusterInformation,
-		@Nullable String webInterfaceUrl,
-		ResourceManagerMetricGroup resourceManagerMetricGroup,
-		ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-		Executor ioExecutor) {
+    @Override
+    protected ResourceManager<ResourceID> createResourceManager(
+            Configuration configuration,
+            ResourceID resourceId,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            FatalErrorHandler fatalErrorHandler,
+            ClusterInformation clusterInformation,
+            @Nullable String webInterfaceUrl,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+            Executor ioExecutor) {
 
-		final Time standaloneClusterStartupPeriodTime = ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
+        final Time standaloneClusterStartupPeriodTime =
+                ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
-		return new StandaloneResourceManager(
-			rpcService,
-			resourceId,
-			highAvailabilityServices,
-			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManager(),
-			ResourceManagerPartitionTrackerImpl::new,
-			resourceManagerRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			resourceManagerMetricGroup,
-			standaloneClusterStartupPeriodTime,
-			AkkaUtils.getTimeoutAsTime(configuration),
-			ioExecutor);
-	}
+        return new StandaloneResourceManager(
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                resourceManagerRuntimeServices.getSlotManager(),
+                ResourceManagerPartitionTrackerImpl::new,
+                resourceManagerRuntimeServices.getJobLeaderIdService(),
+                clusterInformation,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                standaloneClusterStartupPeriodTime,
+                AkkaUtils.getTimeoutAsTime(configuration),
+                ioExecutor);
+    }
 
-	@Override
-	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-			Configuration configuration) throws ConfigurationException {
-		return ResourceManagerRuntimeServicesConfiguration
-			.fromConfiguration(getConfigurationWithoutMaxSlotNumberIfSet(configuration), ArbitraryWorkerResourceSpecFactory.INSTANCE);
-	}
+    @Override
+    protected ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException {
+        return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+                getConfigurationWithoutMaxSlotNumberIfSet(configuration),
+                ArbitraryWorkerResourceSpecFactory.INSTANCE);
+    }
 
-	/**
-	 * Get the configuration for standalone ResourceManager, overwrite invalid configs.
-	 *
-	 * @param configuration configuration object
-	 * @return the configuration for standalone ResourceManager
-	 */
-	private static Configuration getConfigurationWithoutMaxSlotNumberIfSet(Configuration configuration) {
-		final Configuration copiedConfig = new Configuration(configuration);
-		// The max slot limit should not take effect for standalone cluster, we overwrite the configure in case user
-		// sets this value by mistake.
-		if (copiedConfig.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
-			LOG.warn("Config option {} will be ignored in standalone mode.", ResourceManagerOptions.MAX_SLOT_NUM.key());
-		}
-		return copiedConfig;
-	}
+    /**
+     * Get the configuration for standalone ResourceManager, overwrite invalid configs.
+     *
+     * @param configuration configuration object
+     * @return the configuration for standalone ResourceManager
+     */
+    private static Configuration getConfigurationWithoutMaxSlotNumberIfSet(
+            Configuration configuration) {
+        final Configuration copiedConfig = new Configuration(configuration);
+        // The max slot limit should not take effect for standalone cluster, we overwrite the
+        // configure in case user
+        // sets this value by mistake.
+        if (copiedConfig.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MAX_SLOT_NUM.key());
+        }
+        return copiedConfig;
+    }
 }

@@ -32,41 +32,47 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * A call expression converter rule that converts calls to user defined functions.
- */
+/** A call expression converter rule that converts calls to user defined functions. */
 public class FunctionDefinitionConvertRule implements CallExpressionConvertRule {
-	@Override
-	public Optional<RexNode> convert(
-			CallExpression call,
-			ConvertContext context) {
-		FunctionDefinition functionDefinition = call.getFunctionDefinition();
+    @Override
+    public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
+        FunctionDefinition functionDefinition = call.getFunctionDefinition();
 
-		if (functionDefinition instanceof BuiltInFunctionDefinition) {
-			return Optional.empty();
-		}
+        // built-in functions without implementation are handled separately
+        if (functionDefinition instanceof BuiltInFunctionDefinition) {
+            final BuiltInFunctionDefinition builtInFunction =
+                    (BuiltInFunctionDefinition) functionDefinition;
+            if (!builtInFunction.getRuntimeClass().isPresent()) {
+                return Optional.empty();
+            }
+        }
 
-		TypeInference typeInference = functionDefinition.getTypeInference(context.getDataTypeFactory());
-		if (typeInference.getOutputTypeStrategy() == TypeStrategies.MISSING) {
-			return Optional.empty();
-		}
+        TypeInference typeInference =
+                functionDefinition.getTypeInference(context.getDataTypeFactory());
+        if (typeInference.getOutputTypeStrategy() == TypeStrategies.MISSING) {
+            return Optional.empty();
+        }
 
-		switch (functionDefinition.getKind()) {
-			case SCALAR:
-			case TABLE:
-				List<RexNode> args = call.getChildren().stream().map(context::toRexNode).collect(Collectors.toList());
+        switch (functionDefinition.getKind()) {
+            case SCALAR:
+            case TABLE:
+                List<RexNode> args =
+                        call.getChildren().stream()
+                                .map(context::toRexNode)
+                                .collect(Collectors.toList());
 
-				final BridgingSqlFunction sqlFunction = BridgingSqlFunction.of(
-					context.getDataTypeFactory(),
-					context.getTypeFactory(),
-					SqlKind.OTHER_FUNCTION,
-					call.getFunctionIdentifier().orElse(null),
-					functionDefinition,
-					typeInference);
+                final BridgingSqlFunction sqlFunction =
+                        BridgingSqlFunction.of(
+                                context.getDataTypeFactory(),
+                                context.getTypeFactory(),
+                                SqlKind.OTHER_FUNCTION,
+                                call.getFunctionIdentifier().orElse(null),
+                                functionDefinition,
+                                typeInference);
 
-				return Optional.of(context.getRelBuilder().call(sqlFunction, args));
-			default:
-				return Optional.empty();
-		}
-	}
+                return Optional.of(context.getRelBuilder().call(sqlFunction, args));
+            default:
+                return Optional.empty();
+        }
+    }
 }

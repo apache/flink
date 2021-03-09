@@ -21,46 +21,40 @@ package org.apache.flink.runtime.io.compression;
 import java.nio.ByteBuffer;
 
 /**
- * A compressor which compresses a whole byte array each time.
- * It will read from and write to byte arrays given from the outside, reducing copy time.
+ * A compressor which compresses a whole byte array each time. It will read from and write to byte
+ * arrays given from the outside, reducing copy time.
  */
 public interface BlockCompressor {
 
-	/**
-	 * Get the max compressed size for a given original size.
-	 */
-	int getMaxCompressedSize(int srcSize);
+    /** Get the max compressed size for a given original size. */
+    int getMaxCompressedSize(int srcSize);
 
-	/**
-	 * Compress source data read from ({@link ByteBuffer#position()} + {@code srcOff}),
-	 * and write the compressed data to dst.
-	 *
-	 * @param src    Uncompressed data to read from
-	 * @param srcOff The start offset of uncompressed data
-	 * @param srcLen The length of data which want to be compressed
-	 * @param dst    The target to write compressed data
-	 * @param dstOff The start offset to write the compressed data
-	 *
-	 * @return Length of compressed data
-	 *
-	 * @throws InsufficientBufferException if the target does not have sufficient space
-	 */
-	int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-			throws InsufficientBufferException;
+    /**
+     * Compress source data read from ({@link ByteBuffer#position()} + {@code srcOff}), and write
+     * the compressed data to dst.
+     *
+     * @param src Uncompressed data to read from
+     * @param srcOff The start offset of uncompressed data
+     * @param srcLen The length of data which want to be compressed
+     * @param dst The target to write compressed data
+     * @param dstOff The start offset to write the compressed data
+     * @return Length of compressed data
+     * @throws InsufficientBufferException if the target does not have sufficient space
+     */
+    int compress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
+            throws InsufficientBufferException;
 
-	/**
-	 * Compress data read from src, and write the compressed data to dst.
-	 *
-	 * @param src    Uncompressed data to read from
-	 * @param srcOff The start offset of uncompressed data
-	 * @param srcLen The length of data which want to be compressed
-	 * @param dst    The target to write compressed data
-	 * @param dstOff The start offset to write the compressed data
-	 *
-	 * @return Length of compressed data
-	 *
-	 * @throws InsufficientBufferException if the target does not have sufficient space
-	 */
-	int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-			throws InsufficientBufferException;
+    /**
+     * Compress data read from src, and write the compressed data to dst.
+     *
+     * @param src Uncompressed data to read from
+     * @param srcOff The start offset of uncompressed data
+     * @param srcLen The length of data which want to be compressed
+     * @param dst The target to write compressed data
+     * @param dstOff The start offset to write the compressed data
+     * @return Length of compressed data
+     * @throws InsufficientBufferException if the target does not have sufficient space
+     */
+    int compress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
+            throws InsufficientBufferException;
 }

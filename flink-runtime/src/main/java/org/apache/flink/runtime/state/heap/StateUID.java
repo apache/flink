@@ -21,53 +21,51 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnull;
+
 import java.util.Objects;
 
-/**
- * Unique identifier for registered state in this backend.
- */
+/** Unique identifier for registered state in this backend. */
 final class StateUID {
 
-	@Nonnull
-	private final String stateName;
+    @Nonnull private final String stateName;
 
-	@Nonnull
-	private final StateMetaInfoSnapshot.BackendStateType stateType;
+    @Nonnull private final StateMetaInfoSnapshot.BackendStateType stateType;
 
-	StateUID(@Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
-		this.stateName = stateName;
-		this.stateType = stateType;
-	}
+    StateUID(@Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
+        this.stateName = stateName;
+        this.stateType = stateType;
+    }
 
-	@Nonnull
-	public String getStateName() {
-		return stateName;
-	}
+    @Nonnull
+    public String getStateName() {
+        return stateName;
+    }
 
-	@Nonnull
-	public StateMetaInfoSnapshot.BackendStateType getStateType() {
-		return stateType;
-	}
+    @Nonnull
+    public StateMetaInfoSnapshot.BackendStateType getStateType() {
+        return stateType;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		StateUID uid = (StateUID) o;
-		return Objects.equals(getStateName(), uid.getStateName()) &&
-			getStateType() == uid.getStateType();
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        StateUID uid = (StateUID) o;
+        return Objects.equals(getStateName(), uid.getStateName())
+                && getStateType() == uid.getStateType();
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(getStateName(), getStateType());
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(getStateName(), getStateType());
+    }
 
-	public static StateUID of(@Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
-		return new StateUID(stateName, stateType);
-	}
+    public static StateUID of(
+            @Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
+        return new StateUID(stateName, stateType);
+    }
 }

@@ -21,8 +21,8 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,48 +40,45 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-	private final StreamTaskInput<IN> input;
-	private final DataOutput<IN> output;
+    private final StreamTaskInput<IN> input;
+    private final DataOutput<IN> output;
 
-	private final OperatorChain<?, ?> operatorChain;
+    private final BoundedMultiInput endOfInputAware;
 
-	public StreamOneInputProcessor(
-			StreamTaskInput<IN> input,
-			DataOutput<IN> output,
-			OperatorChain<?, ?> operatorChain) {
+    public StreamOneInputProcessor(
+            StreamTaskInput<IN> input, DataOutput<IN> output, BoundedMultiInput endOfInputAware) {
 
-		this.input = checkNotNull(input);
-		this.output = checkNotNull(output);
-		this.operatorChain = checkNotNull(operatorChain);
-	}
+        this.input = checkNotNull(input);
+        this.output = checkNotNull(output);
+        this.endOfInputAware = checkNotNull(endOfInputAware);
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return input.getAvailableFuture();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return input.getAvailableFuture();
+    }
 
-	@Override
-	public InputStatus processInput() throws Exception {
-		InputStatus status = input.emitNext(output);
+    @Override
+    public InputStatus processInput() throws Exception {
+        InputStatus status = input.emitNext(output);
 
-		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endMainOperatorInput(1);
-		}
+        if (status == InputStatus.END_OF_INPUT) {
+            endOfInputAware.endInput(input.getInputIndex() + 1);
+        }
 
-		return status;
-	}
+        return status;
+    }
 
-	@Override
-	public CompletableFuture<Void> prepareSnapshot(
-			ChannelStateWriter channelStateWriter,
-			long checkpointId) throws IOException {
-		return input.prepareSnapshot(channelStateWriter, checkpointId);
-	}
+    @Override
+    public CompletableFuture<Void> prepareSnapshot(
+            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+        return input.prepareSnapshot(channelStateWriter, checkpointId);
+    }
 
-	@Override
-	public void close() throws IOException {
-		input.close();
-	}
+    @Override
+    public void close() throws IOException {
+        input.close();
+    }
 }

@@ -26,105 +26,82 @@ import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.MesosUtils;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Entry point for Mesos session clusters.
- */
+/** Entry point for Mesos session clusters. */
 public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	// ------------------------------------------------------------------------
-	//  Command-line options
-	// ------------------------------------------------------------------------
+    private MesosConfiguration mesosConfig;
 
-	private static final Options ALL_OPTIONS;
+    private MesosServices mesosServices;
 
-	static {
-		ALL_OPTIONS =
-			new Options()
-				.addOption(BootstrapTools.newDynamicPropertiesOption());
-	}
+    public MesosSessionClusterEntrypoint(Configuration config) {
+        super(config);
+    }
 
-	private MesosConfiguration mesosConfig;
+    @Override
+    protected void initializeServices(Configuration config, PluginManager pluginManager)
+            throws Exception {
+        super.initializeServices(config, pluginManager);
 
-	private MesosServices mesosServices;
+        final String hostname = config.getString(JobManagerOptions.ADDRESS);
 
-	public MesosSessionClusterEntrypoint(Configuration config) {
-		super(config);
-	}
+        // Mesos configuration
+        mesosConfig = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
 
-	@Override
-	protected void initializeServices(Configuration config, PluginManager pluginManager) throws Exception {
-		super.initializeServices(config, pluginManager);
+        // services
+        mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
+    }
 
-		final String hostname = config.getString(JobManagerOptions.ADDRESS);
+    @Override
+    protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
+        final CompletableFuture<Void> serviceShutDownFuture =
+                super.stopClusterServices(cleanupHaData);
 
-		// Mesos configuration
-		mesosConfig = MesosUtils.createMesosSchedulerConfiguration(config, hostname);
+        return FutureUtils.runAfterwards(
+                serviceShutDownFuture,
+                () -> {
+                    if (mesosServices != null) {
+                        mesosServices.close(cleanupHaData);
+                    }
+                });
+    }
 
-		// services
-		mesosServices = MesosServicesUtils.createMesosServices(config, hostname);
-	}
+    @Override
+    protected DefaultDispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+        return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+                new MesosResourceManagerFactory(mesosServices, mesosConfig));
+    }
 
-	@Override
-	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
-		final CompletableFuture<Void> serviceShutDownFuture = super.stopClusterServices(cleanupHaData);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, MesosSessionClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		return FutureUtils.runAfterwards(
-			serviceShutDownFuture,
-			() -> {
-				if (mesosServices != null) {
-					mesosServices.close(cleanupHaData);
-				}
-			});
-	}
+        // load configuration incl. dynamic properties
+        Configuration dynamicProperties =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new DynamicParametersConfigurationParserFactory(),
+                        MesosSessionClusterEntrypoint.class);
+        Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
 
-	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			new MesosResourceManagerFactory(
-				mesosServices,
-				mesosConfig));
-	}
+        MesosSessionClusterEntrypoint clusterEntrypoint =
+                new MesosSessionClusterEntrypoint(configuration);
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, MesosSessionClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
-
-		// load configuration incl. dynamic properties
-		CommandLineParser parser = new PosixParser();
-		CommandLine cmd;
-		try {
-			cmd = parser.parse(ALL_OPTIONS, args);
-		}
-		catch (Exception e){
-			LOG.error("Could not parse the command-line options.", e);
-			System.exit(STARTUP_FAILURE_RETURN_CODE);
-			return;
-		}
-
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		Configuration configuration = MesosUtils.loadConfiguration(dynamicProperties, LOG);
-
-		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration);
-
-		ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
-	}
-
+        ClusterEntrypoint.runClusterEntrypoint(clusterEntrypoint);
+    }
 }

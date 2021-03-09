@@ -26,35 +26,35 @@ import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
 /**
  * Actions defined by the MesosResourceManager.
  *
- * <p>These are called by the MesosResourceManager components such
- * as {@link LaunchCoordinator}, and {@link TaskMonitor}.
+ * <p>These are called by the MesosResourceManager components such as {@link LaunchCoordinator}, and
+ * {@link TaskMonitor}.
  */
 public interface MesosResourceManagerActions {
 
-	/**
-	 * Accept the given offers as advised by the launch coordinator.
-	 *
-	 * <p>Note: This method is a callback for the {@link LaunchCoordinator}.
-	 *
-	 * @param offersToAccept Offers to accept from Mesos
-	 */
-	void acceptOffers(AcceptOffers offersToAccept);
+    /**
+     * Accept the given offers as advised by the launch coordinator.
+     *
+     * <p>Note: This method is a callback for the {@link LaunchCoordinator}.
+     *
+     * @param offersToAccept Offers to accept from Mesos
+     */
+    void acceptOffers(AcceptOffers offersToAccept);
 
-	/**
-	 * Trigger reconciliation with the Mesos master.
-	 *
-	 * <p>Note: This method is a callback for the {@link TaskMonitor}.
-	 *
-	 * @param reconciliationRequest Message containing the tasks which shall be reconciled
-	 */
-	void reconcile(ReconciliationCoordinator.Reconcile reconciliationRequest);
+    /**
+     * Trigger reconciliation with the Mesos master.
+     *
+     * <p>Note: This method is a callback for the {@link TaskMonitor}.
+     *
+     * @param reconciliationRequest Message containing the tasks which shall be reconciled
+     */
+    void reconcile(ReconciliationCoordinator.Reconcile reconciliationRequest);
 
-	/**
-	 * Notify that the given Mesos task has been terminated.
-	 *
-	 * <p>Note: This method is a callback for the {@link TaskMonitor}.
-	 *
-	 * @param terminatedTask Message containing the terminated task
-	 */
-	void taskTerminated(TaskMonitor.TaskTerminated terminatedTask);
+    /**
+     * Notify that the given Mesos task has been terminated.
+     *
+     * <p>Note: This method is a callback for the {@link TaskMonitor}.
+     *
+     * @param terminatedTask Message containing the terminated task
+     */
+    void taskTerminated(TaskMonitor.TaskTerminated terminatedTask);
 }

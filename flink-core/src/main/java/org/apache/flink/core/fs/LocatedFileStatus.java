@@ -21,23 +21,24 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Public;
 
 /**
- * A {@code LocatedFileStatus} is a {@link FileStatus} that contains additionally the location information
- * of the file directly. The information is accessible through the {@link #getBlockLocations()} ()} method.
+ * A {@code LocatedFileStatus} is a {@link FileStatus} that contains additionally the location
+ * information of the file directly. The information is accessible through the {@link
+ * #getBlockLocations()} ()} method.
  *
- * <p>This class eagerly communicates the block information (including locations) when that information
- * is readily (or cheaply) available. That way users can avoid an additional call to
- * {@link FileSystem#getFileBlockLocations(FileStatus, long, long)}, which is an additional RPC call for
- * each file.
+ * <p>This class eagerly communicates the block information (including locations) when that
+ * information is readily (or cheaply) available. That way users can avoid an additional call to
+ * {@link FileSystem#getFileBlockLocations(FileStatus, long, long)}, which is an additional RPC call
+ * for each file.
  */
 @Public
 public interface LocatedFileStatus extends FileStatus {
 
-	/**
-	 * Gets the location information for the file. The location is per block, because each block may
-	 * live potentially at a different location.
-	 *
-	 * <p>Files without location information typically expose one block with no host information
-	 * for that block.
-	 */
-	BlockLocation[] getBlockLocations();
+    /**
+     * Gets the location information for the file. The location is per block, because each block may
+     * live potentially at a different location.
+     *
+     * <p>Files without location information typically expose one block with no host information for
+     * that block.
+     */
+    BlockLocation[] getBlockLocations();
 }

@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.data.{JoinedRowData, RowData}
+import java.util
+
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -26,10 +30,6 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer
 import org.apache.flink.table.runtime.util.{LazyMemorySegmentPool, ResettableExternalBuffer}
 import org.apache.flink.table.types.logical.RowType
-
-import org.apache.calcite.rex.RexNode
-
-import java.util
 
 /**
   * Code gen for nested loop join.

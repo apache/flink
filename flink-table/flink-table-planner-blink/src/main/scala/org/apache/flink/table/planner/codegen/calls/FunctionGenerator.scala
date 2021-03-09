@@ -491,6 +491,11 @@ object FunctionGenerator {
     new CurrentTimePointCallGen(false))
 
   addSqlFunction(
+    NOW,
+    Seq(),
+    new CurrentTimePointCallGen(false))
+
+  addSqlFunction(
     CURRENT_TIMESTAMP,
     Seq(),
     new CurrentTimePointCallGen(false))
@@ -544,11 +549,6 @@ object FunctionGenerator {
     TANH,
     Seq(DECIMAL),
     BuiltInMethods.TANH_DEC)
-
-  addSqlFunctionMethod(
-    NOW,
-    Seq(),
-    BuiltInMethods.NOW)
 
   addSqlFunctionMethod(
     UNIX_TIMESTAMP,

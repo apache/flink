@@ -31,26 +31,29 @@ import org.apache.flink.types.Row;
 /**
  * Example for implementing a custom {@link DynamicTableSource} and a {@link DecodingFormat}.
  *
- * <p>The example implements a table source with a decoding format that supports changelog semantics.
+ * <p>The example implements a table source with a decoding format that supports changelog
+ * semantics.
  *
- * <p>The {@link SocketDynamicTableFactory} illustrates how connector components play together. It can
- * serve as a reference implementation for implementing own connectors and/or formats.
+ * <p>The {@link SocketDynamicTableFactory} illustrates how connector components play together. It
+ * can serve as a reference implementation for implementing own connectors and/or formats.
  *
- * <p>The {@link SocketDynamicTableSource} uses a simple single-threaded {@link SourceFunction} to open
- * a socket that listens for incoming bytes. The raw bytes are decoded into rows by a pluggable format.
- * The format expects a changelog flag as the first column.
+ * <p>The {@link SocketDynamicTableSource} uses a simple single-threaded {@link SourceFunction} to
+ * open a socket that listens for incoming bytes. The raw bytes are decoded into rows by a pluggable
+ * format. The format expects a changelog flag as the first column.
  *
  * <p>In particular, the example shows how to
+ *
  * <ul>
- *     <li>create factories that parse and validate options,
- *     <li>implement table connectors,
- *     <li>implement and discover custom formats,
- *     <li>and use provided utilities such as data structure converters and the {@link FactoryUtil}.
+ *   <li>create factories that parse and validate options,
+ *   <li>implement table connectors,
+ *   <li>implement and discover custom formats,
+ *   <li>and use provided utilities such as data structure converters and the {@link FactoryUtil}.
  * </ul>
  *
  * <p>Usage: <code>ChangelogSocketExample --hostname &lt;localhost&gt; --port &lt;9999&gt;</code>
  *
  * <p>Use the following command to ingest data in a terminal:
+ *
  * <pre>
  *     nc -lk 9999
  *     INSERT|Alice|12
@@ -63,34 +66,38 @@ import org.apache.flink.types.Row;
  */
 public final class ChangelogSocketExample {
 
-	public static void main(String[] args) throws Exception {
-		final ParameterTool params = ParameterTool.fromArgs(args);
-		final String hostname = params.get("hostname", "localhost");
-		final String port = params.get("port", "9999");
+    public static void main(String[] args) throws Exception {
+        final ParameterTool params = ParameterTool.fromArgs(args);
+        final String hostname = params.get("hostname", "localhost");
+        final String port = params.get("port", "9999");
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1); // source only supports parallelism of 1
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1); // source only supports parallelism of 1
 
-		final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-		// register a table in the catalog
-		tEnv.executeSql(
-			"CREATE TABLE UserScores (name STRING, score INT)\n" +
-			"WITH (\n" +
-			"  'connector' = 'socket',\n" +
-			"  'hostname' = '" + hostname + "',\n" +
-			"  'port' = '" + port + "',\n" +
-			"  'byte-delimiter' = '10',\n" +
-			"  'format' = 'changelog-csv',\n" +
-			"  'changelog-csv.column-delimiter' = '|'\n" +
-			")");
+        // register a table in the catalog
+        tEnv.executeSql(
+                "CREATE TABLE UserScores (name STRING, score INT)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'socket',\n"
+                        + "  'hostname' = '"
+                        + hostname
+                        + "',\n"
+                        + "  'port' = '"
+                        + port
+                        + "',\n"
+                        + "  'byte-delimiter' = '10',\n"
+                        + "  'format' = 'changelog-csv',\n"
+                        + "  'changelog-csv.column-delimiter' = '|'\n"
+                        + ")");
 
-		// define a dynamic aggregating query
-		final Table result = tEnv.sqlQuery("SELECT name, SUM(score) FROM UserScores GROUP BY name");
+        // define a dynamic aggregating query
+        final Table result = tEnv.sqlQuery("SELECT name, SUM(score) FROM UserScores GROUP BY name");
 
-		// print the result to the console
-		tEnv.toRetractStream(result, Row.class).print();
+        // print the result to the console
+        tEnv.toRetractStream(result, Row.class).print();
 
-		env.execute();
-	}
+        env.execute();
+    }
 }

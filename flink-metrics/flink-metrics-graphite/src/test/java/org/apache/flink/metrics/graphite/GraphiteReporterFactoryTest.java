@@ -23,13 +23,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-/**
- * Tests for loading {@link GraphiteReporterFactory}.
- */
+/** Tests for loading {@link GraphiteReporterFactory}. */
 public class GraphiteReporterFactoryTest extends TestLogger {
 
-	@Test
-	public void testMetricReporterSetupViaSPI() {
-		MetricReporterTestUtils.testMetricReporterSetupViaSPI(GraphiteReporterFactory.class);
-	}
+    @Test
+    public void testMetricReporterSetupViaSPI() {
+        MetricReporterTestUtils.testMetricReporterSetupViaSPI(GraphiteReporterFactory.class);
+    }
 }

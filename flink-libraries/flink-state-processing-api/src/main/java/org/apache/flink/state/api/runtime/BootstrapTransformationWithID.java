@@ -25,25 +25,26 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * A simple container class that represents a newly bootstrapped operator state within savepoints.
- * It wraps the target {@link OperatorID} for the bootstrapped operator, as well as the {@link BootstrapTransformation}
- * that defines how the state is bootstrapped.
+ * It wraps the target {@link OperatorID} for the bootstrapped operator, as well as the {@link
+ * BootstrapTransformation} that defines how the state is bootstrapped.
  */
 @Internal
 public class BootstrapTransformationWithID<T> {
 
-	private final OperatorID operatorID;
-	private final BootstrapTransformation<T> bootstrapTransformation;
+    private final OperatorID operatorID;
+    private final BootstrapTransformation<T> bootstrapTransformation;
 
-	public BootstrapTransformationWithID(OperatorID operatorID, BootstrapTransformation<T> bootstrapTransformation) {
-		this.operatorID = Preconditions.checkNotNull(operatorID);
-		this.bootstrapTransformation = Preconditions.checkNotNull(bootstrapTransformation);
-	}
+    public BootstrapTransformationWithID(
+            OperatorID operatorID, BootstrapTransformation<T> bootstrapTransformation) {
+        this.operatorID = Preconditions.checkNotNull(operatorID);
+        this.bootstrapTransformation = Preconditions.checkNotNull(bootstrapTransformation);
+    }
 
-	public OperatorID getOperatorID() {
-		return operatorID;
-	}
+    public OperatorID getOperatorID() {
+        return operatorID;
+    }
 
-	public BootstrapTransformation<T> getBootstrapTransformation() {
-		return bootstrapTransformation;
-	}
+    public BootstrapTransformation<T> getBootstrapTransformation() {
+        return bootstrapTransformation;
+    }
 }

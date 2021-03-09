@@ -18,6 +18,8 @@
 
 from enum import Enum
 
+from typing import List
+
 __all__ = ['Row', 'RowKind']
 
 
@@ -37,7 +39,7 @@ def _create_row(fields, values, row_kind: RowKind = None):
     return row
 
 
-class Row(tuple):
+class Row(object):
     """
     A row in Table.
     The fields in it can be accessed:
@@ -82,21 +84,18 @@ class Row(tuple):
         Row(name='Alice', age=11)
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         if args and kwargs:
             raise ValueError("Can not use both args "
                              "and kwargs to create Row")
         if kwargs:
-            # create row objects
             names = sorted(kwargs.keys())
-            row = tuple.__new__(cls, [kwargs[n] for n in names])
-            row._fields = names
-            row._from_dict = True
+            self._fields = names
+            self._values = [kwargs[n] for n in names]
+            self._from_dict = True
         else:
-            # create row class or objects
-            row = tuple.__new__(cls, args)
-        row._row_kind = RowKind.INSERT
-        return row
+            self._values = list(args)
+        self._row_kind = RowKind.INSERT
 
     def as_dict(self, recursive=False):
         """
@@ -139,11 +138,11 @@ class Row(tuple):
     def set_row_kind(self, row_kind: RowKind):
         self._row_kind = row_kind
 
+    def set_field_names(self, field_names: List):
+        self._fields = field_names
+
     def __contains__(self, item):
-        if hasattr(self, "_fields"):
-            return item in self._fields
-        else:
-            return super(Row, self).__contains__(item)
+        return item in self._values
 
     # let object acts like class
     def __call__(self, *args):
@@ -153,20 +152,34 @@ class Row(tuple):
         if len(args) > len(self):
             raise ValueError("Can not create Row with fields %s, expected %d values "
                              "but got %s" % (self, len(self), args))
-        return _create_row(self, args, self._row_kind)
+        return _create_row(self._values, args, self._row_kind)
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
-            return super(Row, self).__getitem__(item)
+            return self._values[item]
         try:
             # it will be slow when it has many fields,
             # but this will not be used in normal cases
             idx = self._fields.index(item)
-            return super(Row, self).__getitem__(idx)
+            return self._values[idx]
         except IndexError:
             raise KeyError(item)
         except ValueError:
             raise ValueError(item)
+
+    def __setitem__(self, key, value):
+        if isinstance(key, (int, slice)):
+            self._values[key] = value
+            return
+        try:
+            # it will be slow when it has many fields,
+            # but this will not be used in normal cases
+            idx = self._fields.index(key)
+            self._values[idx] = value
+        except (IndexError, AttributeError):
+            raise KeyError(key)
+        except ValueError:
+            raise ValueError(value)
 
     def __getattr__(self, item):
         if item.startswith("_"):
@@ -182,8 +195,8 @@ class Row(tuple):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key != '_fields' and key != "_from_dict" and key != "_row_kind":
-            raise Exception("Row is read-only")
+        if key != '_fields' and key != "_from_dict" and key != "_row_kind" and key != "_values":
+            raise AttributeError(key)
         self.__dict__[key] = value
 
     def __reduce__(self):
@@ -218,10 +231,13 @@ class Row(tuple):
                 return False
         return self.__class__ == other.__class__ and \
             self._row_kind == other._row_kind and \
-            super(Row, self).__eq__(other)
+            self._values == other._values
 
     def __hash__(self):
-        if hasattr(self, "_fields"):
-            return hash(self._fields)
-        else:
-            return super(Row, self).__hash__()
+        return tuple(self).__hash__()
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)

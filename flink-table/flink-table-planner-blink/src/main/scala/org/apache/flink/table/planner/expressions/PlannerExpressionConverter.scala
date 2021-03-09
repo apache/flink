@@ -394,6 +394,11 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   override def visit(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
 
+  override def visit(sqlCall: SqlCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + sqlCall)
+
+  override def visit(other: ResolvedExpression): PlannerExpression = visitNonApiExpression(other)
+
   override def visitNonApiExpression(other: Expression): PlannerExpression = {
     other match {
       // already converted planner expressions will pass this visitor without modification

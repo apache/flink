@@ -29,41 +29,41 @@ import java.util.concurrent.TimeUnit;
  */
 public class ExceptionallyDoneFuture<V> implements RunnableFuture<V> {
 
-	private final Throwable throwable;
+    private final Throwable throwable;
 
-	private ExceptionallyDoneFuture(Throwable throwable) {
-		this.throwable = throwable;
-	}
+    private ExceptionallyDoneFuture(Throwable throwable) {
+        this.throwable = throwable;
+    }
 
-	@Override
-	public void run() {}
+    @Override
+    public void run() {}
 
-	@Override
-	public boolean cancel(boolean mayInterruptIfRunning) {
-		return false;
-	}
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        return false;
+    }
 
-	@Override
-	public boolean isCancelled() {
-		return false;
-	}
+    @Override
+    public boolean isCancelled() {
+        return false;
+    }
 
-	@Override
-	public boolean isDone() {
-		return true;
-	}
+    @Override
+    public boolean isDone() {
+        return true;
+    }
 
-	@Override
-	public V get() throws ExecutionException {
-		throw new ExecutionException(throwable);
-	}
+    @Override
+    public V get() throws ExecutionException {
+        throw new ExecutionException(throwable);
+    }
 
-	@Override
-	public V get(long timeout, TimeUnit unit) throws ExecutionException {
-		return get();
-	}
+    @Override
+    public V get(long timeout, TimeUnit unit) throws ExecutionException {
+        return get();
+    }
 
-	public static <T> ExceptionallyDoneFuture<T> of(Throwable throwable) {
-		return new ExceptionallyDoneFuture<>(throwable);
-	}
+    public static <T> ExceptionallyDoneFuture<T> of(Throwable throwable) {
+        return new ExceptionallyDoneFuture<>(throwable);
+    }
 }

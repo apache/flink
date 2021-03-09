@@ -35,79 +35,75 @@ import java.util.function.BiFunction;
  * {@link OperatorCoordinatorHolder}.
  */
 final class TestEventSender
-		implements BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> {
+        implements BiFunction<
+                SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> {
 
-	final ArrayList<EventWithSubtask> events = new ArrayList<>();
+    final ArrayList<EventWithSubtask> events = new ArrayList<>();
 
-	@Nullable
-	private final Throwable failureCause;
+    @Nullable private final Throwable failureCause;
 
-	/**
-	 * Creates a sender that collects events and acknowledges all events successfully.
-	 */
-	TestEventSender() {
-		this(null);
-	}
+    /** Creates a sender that collects events and acknowledges all events successfully. */
+    TestEventSender() {
+        this(null);
+    }
 
-	/**
-	 * Creates a sender that collects events and fails all the send-futures with the given exception,
-	 * if it is non-null.
-	 */
-	TestEventSender(@Nullable Throwable failureCause) {
-		this.failureCause = failureCause;
-	}
+    /**
+     * Creates a sender that collects events and fails all the send-futures with the given
+     * exception, if it is non-null.
+     */
+    TestEventSender(@Nullable Throwable failureCause) {
+        this.failureCause = failureCause;
+    }
 
-	@Override
-	public CompletableFuture<Acknowledge> apply(SerializedValue<OperatorEvent> event, Integer subtask) {
-		final OperatorEvent deserializedEvent;
-		try {
-			deserializedEvent = event.deserializeValue(getClass().getClassLoader());
-		} catch (IOException | ClassNotFoundException e) {
-			throw new AssertionError(e);
-		}
-		events.add(new EventWithSubtask(deserializedEvent, subtask));
+    @Override
+    public CompletableFuture<Acknowledge> apply(
+            SerializedValue<OperatorEvent> event, Integer subtask) {
+        final OperatorEvent deserializedEvent;
+        try {
+            deserializedEvent = event.deserializeValue(getClass().getClassLoader());
+        } catch (IOException | ClassNotFoundException e) {
+            throw new AssertionError(e);
+        }
+        events.add(new EventWithSubtask(deserializedEvent, subtask));
 
-		return failureCause == null
-				? CompletableFuture.completedFuture(Acknowledge.get())
-				: FutureUtils.completedExceptionally(failureCause);
-	}
+        return failureCause == null
+                ? CompletableFuture.completedFuture(Acknowledge.get())
+                : FutureUtils.completedExceptionally(failureCause);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * A combination of an {@link OperatorEvent} and the target subtask it is sent to.
-	 */
-	static final class EventWithSubtask {
+    /** A combination of an {@link OperatorEvent} and the target subtask it is sent to. */
+    static final class EventWithSubtask {
 
-		final OperatorEvent event;
-		final int subtask;
+        final OperatorEvent event;
+        final int subtask;
 
-		EventWithSubtask(OperatorEvent event, int subtask) {
-			this.event = event;
-			this.subtask = subtask;
-		}
+        EventWithSubtask(OperatorEvent event, int subtask) {
+            this.event = event;
+            this.subtask = subtask;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			final EventWithSubtask that = (EventWithSubtask) o;
-			return subtask == that.subtask &&
-				event.equals(that.event);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final EventWithSubtask that = (EventWithSubtask) o;
+            return subtask == that.subtask && event.equals(that.event);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(event, subtask);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(event, subtask);
+        }
 
-		@Override
-		public String toString() {
-			return event + " => subtask " + subtask;
-		}
-	}
+        @Override
+        public String toString() {
+            return event + " => subtask " + subtask;
+        }
+    }
 }

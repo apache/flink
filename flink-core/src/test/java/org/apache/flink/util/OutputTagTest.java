@@ -22,28 +22,26 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.Test;
 
-/**
- * Tests for the {@link OutputTag}.
- */
+/** Tests for the {@link OutputTag}. */
 public class OutputTagTest {
 
-	@Test(expected = NullPointerException.class)
-	public void testNullRejected() {
-		new OutputTag<Integer>(null);
-	}
+    @Test(expected = NullPointerException.class)
+    public void testNullRejected() {
+        new OutputTag<Integer>(null);
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void testNullRejectedWithTypeInfo() {
-		new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
-	}
+    @Test(expected = NullPointerException.class)
+    public void testNullRejectedWithTypeInfo() {
+        new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testEmptyStringRejected() {
-		new OutputTag<Integer>("");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyStringRejected() {
+        new OutputTag<Integer>("");
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testEmptyStringRejectedWithTypeInfo() {
-		new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyStringRejectedWithTypeInfo() {
+        new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
+    }
 }

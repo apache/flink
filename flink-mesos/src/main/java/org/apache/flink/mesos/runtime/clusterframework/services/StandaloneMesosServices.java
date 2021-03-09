@@ -25,24 +25,20 @@ import org.apache.flink.mesos.util.MesosArtifactServer;
 
 import akka.actor.ActorSystem;
 
-import java.util.concurrent.Executor;
-
-/**
- * {@link MesosServices} implementation for the standalone mode.
- */
+/** {@link MesosServices} implementation for the standalone mode. */
 public class StandaloneMesosServices extends AbstractMesosServices {
 
-	protected StandaloneMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {
-		super(actorSystem, artifactServer);
-	}
+    protected StandaloneMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {
+        super(actorSystem, artifactServer);
+    }
 
-	@Override
-	public MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor) {
-		return new StandaloneMesosWorkerStore();
-	}
+    @Override
+    public MesosWorkerStore createMesosWorkerStore(Configuration configuration) {
+        return new StandaloneMesosWorkerStore();
+    }
 
-	@Override
-	public void close(boolean cleanup) throws Exception {
-		super.close(cleanup);
-	}
+    @Override
+    public void close(boolean cleanup) throws Exception {
+        super.close(cleanup);
+    }
 }

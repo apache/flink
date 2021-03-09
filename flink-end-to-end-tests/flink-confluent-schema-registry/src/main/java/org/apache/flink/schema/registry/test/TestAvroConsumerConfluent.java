@@ -35,52 +35,62 @@ import java.util.Properties;
 
 /**
  * A simple example that shows how to read from and write to Kafka with Confluent Schema Registry.
- * This will read AVRO messages from the input topic, parse them into a POJO type via checking the Schema by calling Schema registry.
- * Then this example publish the POJO type to kafka by converting the POJO to AVRO and verifying the schema.
- * --input-topic test-input --output-string-topic test-output --output-avro-topic test-avro-output --output-subject --bootstrap.servers localhost:9092 --schema-registry-url http://localhost:8081 --group.id myconsumer
+ * This will read AVRO messages from the input topic, parse them into a POJO type via checking the
+ * Schema by calling Schema registry. Then this example publish the POJO type to kafka by converting
+ * the POJO to AVRO and verifying the schema. --input-topic test-input --output-string-topic
+ * test-output --output-avro-topic test-avro-output --output-subject --bootstrap.servers
+ * localhost:9092 --schema-registry-url http://localhost:8081 --group.id myconsumer
  */
 public class TestAvroConsumerConfluent {
 
-	public static void main(String[] args) throws Exception {
-		// parse input arguments
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        // parse input arguments
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 6) {
-			System.out.println("Missing parameters!\n" +
-				"Usage: Kafka --input-topic <topic> --output-string-topic <topic> --output-avro-topic <topic> " +
-				"--bootstrap.servers <kafka brokers> " +
-				"--schema-registry-url <confluent schema registry> --group.id <some id>");
-			return;
-		}
-		Properties config = new Properties();
-		config.setProperty("bootstrap.servers", parameterTool.getRequired("bootstrap.servers"));
-		config.setProperty("group.id", parameterTool.getRequired("group.id"));
-		String schemaRegistryUrl = parameterTool.getRequired("schema-registry-url");
+        if (parameterTool.getNumberOfParameters() < 6) {
+            System.out.println(
+                    "Missing parameters!\n"
+                            + "Usage: Kafka --input-topic <topic> --output-string-topic <topic> --output-avro-topic <topic> "
+                            + "--bootstrap.servers <kafka brokers> "
+                            + "--schema-registry-url <confluent schema registry> --group.id <some id>");
+            return;
+        }
+        Properties config = new Properties();
+        config.setProperty("bootstrap.servers", parameterTool.getRequired("bootstrap.servers"));
+        config.setProperty("group.id", parameterTool.getRequired("group.id"));
+        String schemaRegistryUrl = parameterTool.getRequired("schema-registry-url");
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<User> input = env
-			.addSource(
-				new FlinkKafkaConsumer<>(
-					parameterTool.getRequired("input-topic"),
-					ConfluentRegistryAvroDeserializationSchema.forSpecific(User.class, schemaRegistryUrl),
-					config).setStartFromEarliest());
+        DataStreamSource<User> input =
+                env.addSource(
+                        new FlinkKafkaConsumer<>(
+                                        parameterTool.getRequired("input-topic"),
+                                        ConfluentRegistryAvroDeserializationSchema.forSpecific(
+                                                User.class, schemaRegistryUrl),
+                                        config)
+                                .setStartFromEarliest());
 
-		SingleOutputStreamOperator<String> mapToString = input
-			.map((MapFunction<User, String>) SpecificRecordBase::toString);
+        SingleOutputStreamOperator<String> mapToString =
+                input.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
-		FlinkKafkaProducer<String> stringFlinkKafkaProducer = new FlinkKafkaProducer<>(
-			parameterTool.getRequired("output-string-topic"),
-			new SimpleStringSchema(),
-			config);
-		mapToString.addSink(stringFlinkKafkaProducer);
+        FlinkKafkaProducer<String> stringFlinkKafkaProducer =
+                new FlinkKafkaProducer<>(
+                        parameterTool.getRequired("output-string-topic"),
+                        new SimpleStringSchema(),
+                        config);
+        mapToString.addSink(stringFlinkKafkaProducer);
 
-		FlinkKafkaProducer<User> avroFlinkKafkaProducer = new FlinkKafkaProducer<>(
-				parameterTool.getRequired("output-avro-topic"),
-				ConfluentRegistryAvroSerializationSchema.forSpecific(User.class, parameterTool.getRequired("output-subject"), schemaRegistryUrl),
-				config);
-		input.addSink(avroFlinkKafkaProducer);
+        FlinkKafkaProducer<User> avroFlinkKafkaProducer =
+                new FlinkKafkaProducer<>(
+                        parameterTool.getRequired("output-avro-topic"),
+                        ConfluentRegistryAvroSerializationSchema.forSpecific(
+                                User.class,
+                                parameterTool.getRequired("output-subject"),
+                                schemaRegistryUrl),
+                        config);
+        input.addSink(avroFlinkKafkaProducer);
 
-		env.execute("Kafka Confluent Schema Registry AVRO Example");
-	}
+        env.execute("Kafka Confluent Schema Registry AVRO Example");
+    }
 }

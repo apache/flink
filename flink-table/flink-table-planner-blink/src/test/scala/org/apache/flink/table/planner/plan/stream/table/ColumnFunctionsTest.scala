@@ -31,7 +31,7 @@ import org.junit.Test
   */
 class ColumnFunctionsTest extends TableTestBase {
 
-  val util = streamTestUtil()
+  private val util = streamTestUtil()
 
   @Test
   def testStar(): Unit = {
@@ -42,7 +42,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.select(call("TestFunc", withColumns('*)))
     val tab2 = t.select("TestFunc(withColumns(*))")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -52,7 +52,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.select(withColumns('b to 'c), 'a, withColumns(5 to 6, 'd))
     val tab2 = t.select("withColumns(b to c), a, withColumns(5 to 6, d)")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -62,7 +62,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.select(withColumns(1, 'b, 'c), 'f)
     val tab2 = t.select("withColumns(1, b, c), f")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -77,7 +77,7 @@ class ColumnFunctionsTest extends TableTestBase {
       .select("withoutColumns(1, b)")
       .select("withoutColumns(1 to 2)")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -87,7 +87,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.select(concat(withColumns('string1 to 'string2)))
     val tab2 = t.select("concat(withColumns(string1 to string2))")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -98,7 +98,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t1.join(t2, withColumns(1) === withColumns(4))
     val tab2 = t1.join(t2, "withColumns(1) === withColumns(4)")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -108,7 +108,7 @@ class ColumnFunctionsTest extends TableTestBase {
    util.addFunction("func0", func0)
 
     val tab1 = t.joinLateral(func0(withColumns('string)))
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -118,7 +118,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.where(concat(withColumns('string1 to 'string2)) === "a")
     val tab2 = t.where("concat(withColumns(string1 to string2)) = 'a'")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -133,7 +133,7 @@ class ColumnFunctionsTest extends TableTestBase {
       .groupBy("withColumns(1), b")
       .select("a, b, withColumns(c).count")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -151,7 +151,7 @@ class ColumnFunctionsTest extends TableTestBase {
       .groupBy("withColumns(a, b), w")
       .select("withColumns(1 to 2), withColumns(c).count as c")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -185,7 +185,7 @@ class ColumnFunctionsTest extends TableTestBase {
         "weightAvgFun(withColumns(a to b)) over w as wAvg, countDist(a) over w as countDist")
       .select('c, 'mycount, 'wAvg, 'countDist)
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -196,7 +196,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.addColumns(call("TestFunc", withColumns('a, 'b)) as 'd)
     val tab2 = t.addColumns("TestFunc(withColumns(a, b)) as d")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -206,7 +206,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.renameColumns(withColumns('a) as 'd).select("d, b")
     val tab2 = t.renameColumns("withColumns(a) as d").select('d, 'b)
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 
   @Test
@@ -216,7 +216,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.dropColumns(withColumns('a to 'b))
     val tab2 = t.dropColumns("withColumns(a to b)")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 }
 

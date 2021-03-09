@@ -34,49 +34,51 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link MemoryCheckpointOutputStream}.
- */
+/** Tests for the {@link MemoryCheckpointOutputStream}. */
 public class MemoryCheckpointOutputStreamTest {
 
-	@Test
-	public void testOversizedState() throws Exception {
-		HashMap<String, Integer> state = new HashMap<>();
-		state.put("hey there", 2);
-		state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
+    @Test
+    public void testOversizedState() throws Exception {
+        HashMap<String, Integer> state = new HashMap<>();
+        state.put("hey there", 2);
+        state.put(
+                "the crazy brown fox stumbles over a sentence that does not contain every letter",
+                77);
 
-		CheckpointStateOutputStream outStream = new MemoryCheckpointOutputStream(10);
-		ObjectOutputStream oos = new ObjectOutputStream(outStream);
+        CheckpointStateOutputStream outStream = new MemoryCheckpointOutputStream(10);
+        ObjectOutputStream oos = new ObjectOutputStream(outStream);
 
-		oos.writeObject(state);
-		oos.flush();
+        oos.writeObject(state);
+        oos.flush();
 
-		try {
-			outStream.closeAndGetHandle();
-			fail("this should cause an exception");
-		}
-		catch (IOException e) {
-			// that's what we expect
-		}
-	}
+        try {
+            outStream.closeAndGetHandle();
+            fail("this should cause an exception");
+        } catch (IOException e) {
+            // that's what we expect
+        }
+    }
 
-	@Test
-	public void testStateStream() throws Exception {
-		HashMap<String, Integer> state = new HashMap<>();
-		state.put("hey there", 2);
-		state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
+    @Test
+    public void testStateStream() throws Exception {
+        HashMap<String, Integer> state = new HashMap<>();
+        state.put("hey there", 2);
+        state.put(
+                "the crazy brown fox stumbles over a sentence that does not contain every letter",
+                77);
 
-		CheckpointStateOutputStream outStream = new MemoryCheckpointOutputStream(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
-		ObjectOutputStream oos = new ObjectOutputStream(outStream);
-		oos.writeObject(state);
-		oos.flush();
+        CheckpointStateOutputStream outStream =
+                new MemoryCheckpointOutputStream(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+        ObjectOutputStream oos = new ObjectOutputStream(outStream);
+        oos.writeObject(state);
+        oos.flush();
 
-		StreamStateHandle handle = outStream.closeAndGetHandle();
-		assertNotNull(handle);
+        StreamStateHandle handle = outStream.closeAndGetHandle();
+        assertNotNull(handle);
 
-		try (ObjectInputStream ois = new ObjectInputStream(handle.openInputStream())) {
-			assertEquals(state, ois.readObject());
-			assertTrue(ois.available() <= 0);
-		}
-	}
+        try (ObjectInputStream ois = new ObjectInputStream(handle.openInputStream())) {
+            assertEquals(state, ois.readObject());
+            assertTrue(ois.available() <= 0);
+        }
+    }
 }

@@ -22,25 +22,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.descriptors.AbstractHBaseValidator;
 
 /**
- * The validator for HBase.
- * More features to be supported, e.g., batch read/write, async api(support from hbase version 2.0.0), Caching for LookupFunction.
+ * The validator for HBase. More features to be supported, e.g., batch read/write, async api(support
+ * from hbase version 2.0.0), Caching for LookupFunction.
  */
 @Internal
 public class HBaseValidator extends AbstractHBaseValidator {
-	public static final String CONNECTOR_VERSION_VALUE_223 = "2.2.3";
+    public static final String CONNECTOR_VERSION_VALUE_223 = "2.2.3";
 
-	@Override
-	protected boolean validateZkQuorum() {
-		return true;
-	}
+    @Override
+    protected boolean validateZkQuorum() {
+        return true;
+    }
 
-	@Override
-	protected String getConnectorVersion() {
-		return CONNECTOR_VERSION_VALUE_223;
-	}
+    @Override
+    protected String getConnectorVersion() {
+        return CONNECTOR_VERSION_VALUE_223;
+    }
 
-	@Override
-	protected boolean zkQuorumIsOptional() {
-		return true;
-	}
+    @Override
+    protected boolean zkQuorumIsOptional() {
+        return true;
+    }
 }

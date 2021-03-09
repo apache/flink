@@ -26,7 +26,7 @@ function run_mvn {
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
 		echo "Invoking mvn with '$INVOCATION'"
 	fi
-	${INVOCATION}
+	eval $INVOCATION
 }
 export -f run_mvn
 
@@ -79,6 +79,10 @@ function collect_coredumps {
 	done
 }
 
+function collect_dmesg {
+	local TARGET_DIR=$1
+	dmesg > $TARGET_DIR/dmesg.out
+}
 
 CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 

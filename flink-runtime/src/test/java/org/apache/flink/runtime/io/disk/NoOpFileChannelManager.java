@@ -23,29 +23,25 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 
 import java.io.File;
 
-/**
- * An {@link FileChannelManager} that cannot do I/O but serves as a mock for tests.
- */
+/** An {@link FileChannelManager} that cannot do I/O but serves as a mock for tests. */
 public enum NoOpFileChannelManager implements FileChannelManager {
+    INSTANCE;
 
-	INSTANCE;
+    @Override
+    public ID createChannel() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ID createChannel() {
-		throw  new UnsupportedOperationException();
-	}
+    @Override
+    public Enumerator createChannelEnumerator() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Enumerator createChannelEnumerator() {
-		throw  new UnsupportedOperationException();
-	}
+    @Override
+    public File[] getPaths() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public File[] getPaths() {
-		throw  new UnsupportedOperationException();
-	}
-
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

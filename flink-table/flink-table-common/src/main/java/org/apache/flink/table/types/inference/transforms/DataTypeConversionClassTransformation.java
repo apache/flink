@@ -34,20 +34,20 @@ import java.util.Map;
 @Internal
 public class DataTypeConversionClassTransformation implements TypeTransformation {
 
-	private final Map<LogicalTypeRoot, Class<?>> conversions;
+    private final Map<LogicalTypeRoot, Class<?>> conversions;
 
-	public DataTypeConversionClassTransformation(Map<LogicalTypeRoot, Class<?>> conversions) {
-		this.conversions = conversions;
-	}
+    public DataTypeConversionClassTransformation(Map<LogicalTypeRoot, Class<?>> conversions) {
+        this.conversions = conversions;
+    }
 
-	@Override
-	public DataType transform(DataType dataType) {
-		LogicalType logicalType = dataType.getLogicalType();
-		Class<?> conversionClass = conversions.get(logicalType.getTypeRoot());
-		if (conversionClass != null) {
-			return dataType.bridgedTo(conversionClass);
-		} else {
-			return dataType;
-		}
-	}
+    @Override
+    public DataType transform(DataType dataType) {
+        LogicalType logicalType = dataType.getLogicalType();
+        Class<?> conversionClass = conversions.get(logicalType.getTypeRoot());
+        if (conversionClass != null) {
+            return dataType.bridgedTo(conversionClass);
+        } else {
+            return dataType;
+        }
+    }
 }

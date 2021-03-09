@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testGroupByWithUnion[LocalGlobal=OFF]">
+  <TestCase name="testGroupByWithUnion">
     <Resource name="sql">
       <![CDATA[
 SELECT cnt, COUNT(cnt) AS frequency FROM (
@@ -26,18 +26,18 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT($0)])
 +- LogicalProject(cnt=[$1])
    +- LogicalUnion(all=[true])
       :- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
       +- LogicalProject(word=[$0], cnt=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [CollectionTableSource(word, cnt)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
@@ -45,110 +45,49 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], cha
       :- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I,UB,UA])
       :  +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS cnt], changelogMode=[I,UB,UA])
       :     +- Exchange(distribution=[hash[word]], changelogMode=[I])
-      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
-      +- Calc(select=[cnt], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
+      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+      +- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [CollectionTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupByWithUnion[LocalGlobal=ON]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT cnt, COUNT(cnt) AS frequency FROM (
-   SELECT word, COUNT(number) AS cnt FROM MyTable GROUP BY word
-   UNION ALL
-   SELECT word, cnt FROM MyTable2
-) GROUP BY cnt
-      ]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalAggregate(group=[{0}], frequency=[COUNT($0)])
-+- LogicalProject(cnt=[$1])
-   +- LogicalUnion(all=[true])
-      :- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
-      +- LogicalProject(word=[$0], cnt=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count$0) AS frequency], changelogMode=[I,UA,D])
-+- Exchange(distribution=[hash[cnt]], changelogMode=[I])
-   +- LocalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS count$0, COUNT_RETRACT(*) AS count1$1], changelogMode=[I])
-      +- Union(all=[true], union=[cnt], changelogMode=[I,UB,UA])
-         :- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I,UB,UA])
-         :  +- GlobalGroupAggregate(groupBy=[word], select=[word, COUNT(count$0) AS cnt], changelogMode=[I,UB,UA])
-         :     +- Exchange(distribution=[hash[word]], changelogMode=[I])
-         :        +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
-         :           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-         :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
-         +- Calc(select=[cnt], changelogMode=[I])
-            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSelect[LocalGlobal=OFF]">
-    <Resource name="sql">
-      <![CDATA[SELECT word, number FROM MyTable]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(word=[$0], number=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOneLevelGroupBy[LocalGlobal=OFF]">
+  <TestCase name="testOneLevelGroupBy">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(number) FROM MyTable GROUP BY word]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0], changelogMode=[I,UA])
 +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS EXPR$0], changelogMode=[I,UA])
    +- Exchange(distribution=[hash[word]], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOneLevelGroupBy[LocalGlobal=ON]">
+  <TestCase name="testSelect">
     <Resource name="sql">
-      <![CDATA[SELECT COUNT(number) FROM MyTable GROUP BY word]]>
+      <![CDATA[SELECT word, number FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+LogicalProject(word=[$0], number=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[EXPR$0], changelogMode=[I,UA])
-+- GlobalGroupAggregate(groupBy=[word], select=[word, COUNT(count$0) AS EXPR$0], changelogMode=[I,UA])
-   +- Exchange(distribution=[hash[word]], changelogMode=[I])
-      +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTwoLevelGroupBy[LocalGlobal=OFF]">
+  <TestCase name="testTwoLevelGroupByLocalGlobalOff">
     <Resource name="sql">
       <![CDATA[
 SELECT cnt, COUNT(cnt) AS frequency FROM (
@@ -156,42 +95,62 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT()])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(*) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
    +- Calc(select=[cnt], changelogMode=[I,UB,UA])
       +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS cnt], changelogMode=[I,UB,UA])
          +- Exchange(distribution=[hash[word]], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSelect[LocalGlobal=ON]">
+  <TestCase name="testTemporalJoinWithChangelog">
     <Resource name="sql">
-      <![CDATA[SELECT word, number FROM MyTable]]>
-    </Resource>
-    <Resource name="planBefore">
       <![CDATA[
-LogicalProject(word=[$0], number=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+SELECT * FROM Orders AS o
+ JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+ ON o.currency = r.currency
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, ratesChangelogStream]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
++- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- DropUpdateBefore(changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTwoLevelGroupBy[LocalGlobal=ON]">
+  <TestCase name="testTwoLevelGroupByLocalGlobalOn">
     <Resource name="sql">
       <![CDATA[
 SELECT cnt, COUNT(cnt) AS frequency FROM (
@@ -199,15 +158,15 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT()])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I])
@@ -217,7 +176,47 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS freq
             +- Exchange(distribution=[hash[word]], changelogMode=[I])
                +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinWithDeduplicateView">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM Orders AS o
+ JOIN DeduplicatedView FOR SYSTEM_TIME AS OF o.rowtime AS r
+ ON o.currency = r.currency
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+            +- LogicalFilter(condition=[=($3, 1)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
++- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- Deduplicate(keep=[LastRow], key=[currency], order=[ROWTIME], changelogMode=[I,UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

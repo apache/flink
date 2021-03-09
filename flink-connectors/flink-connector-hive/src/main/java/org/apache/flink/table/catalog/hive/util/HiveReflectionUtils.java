@@ -36,52 +36,62 @@ import java.util.Properties;
 /**
  * Utilities for accessing Hive class or methods via Java reflection.
  *
- * <p>They are put here not for code sharing. Rather, this is a boiler place for managing similar code that involves
- * reflection. (In fact, they could be just private method in their respective calling class.)
+ * <p>They are put here not for code sharing. Rather, this is a boiler place for managing similar
+ * code that involves reflection. (In fact, they could be just private method in their respective
+ * calling class.)
  *
- * <p>Relevant Hive methods cannot be called directly because shimming is required to support different, possibly
- * incompatible Hive versions.
+ * <p>Relevant Hive methods cannot be called directly because shimming is required to support
+ * different, possibly incompatible Hive versions.
  */
 public class HiveReflectionUtils {
 
-	public static Properties getTableMetadata(HiveShim hiveShim, Table table) {
-		try {
-			Method method = hiveShim.getMetaStoreUtilsClass().getMethod("getTableMetadata", Table.class);
-			return (Properties) method.invoke(null, table);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getTableMetadata()", e);
-		}
-	}
+    public static Properties getTableMetadata(HiveShim hiveShim, Table table) {
+        try {
+            Method method =
+                    hiveShim.getMetaStoreUtilsClass().getMethod("getTableMetadata", Table.class);
+            return (Properties) method.invoke(null, table);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new CatalogException("Failed to invoke MetaStoreUtils.getTableMetadata()", e);
+        }
+    }
 
-	public static List<String> getPvals(HiveShim hiveShim, List<FieldSchema> partCols, Map<String, String> partSpec) {
-		try {
-			Method method = hiveShim.getMetaStoreUtilsClass().getMethod("getPvals", List.class, Map.class);
-			return (List<String>) method.invoke(null, partCols, partSpec);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to invoke MetaStoreUtils.getFieldsFromDeserializer", e);
-		}
-	}
+    public static List<String> getPvals(
+            HiveShim hiveShim, List<FieldSchema> partCols, Map<String, String> partSpec) {
+        try {
+            Method method =
+                    hiveShim.getMetaStoreUtilsClass().getMethod("getPvals", List.class, Map.class);
+            return (List<String>) method.invoke(null, partCols, partSpec);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new CatalogException(
+                    "Failed to invoke MetaStoreUtils.getFieldsFromDeserializer", e);
+        }
+    }
 
-	public static ObjectInspector createConstantObjectInspector(String className, Object value) {
-		try {
-			Constructor<?>  method = Class.forName(className).getDeclaredConstructor(value.getClass());
-			method.setAccessible(true);
-			return (ObjectInspector) method.newInstance(value);
-		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
-				| InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate java constant object inspector", e);
-		}
-	}
+    public static ObjectInspector createConstantObjectInspector(String className, Object value) {
+        try {
+            Constructor<?> method =
+                    Class.forName(className).getDeclaredConstructor(value.getClass());
+            method.setAccessible(true);
+            return (ObjectInspector) method.newInstance(value);
+        } catch (ClassNotFoundException
+                | NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+            throw new FlinkHiveUDFException(
+                    "Failed to instantiate java constant object inspector", e);
+        }
+    }
 
-	public static Object invokeMethod(Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
-			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		Method method;
-		try {
-			method = clz.getDeclaredMethod(methodName, argClz);
-		} catch (NoSuchMethodException e) {
-			method = clz.getMethod(methodName, argClz);
-		}
-		return method.invoke(obj, args);
-	}
-
+    public static Object invokeMethod(
+            Class clz, Object obj, String methodName, Class[] argClz, Object[] args)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method method;
+        try {
+            method = clz.getDeclaredMethod(methodName, argClz);
+        } catch (NoSuchMethodException e) {
+            method = clz.getMethod(methodName, argClz);
+        }
+        return method.invoke(obj, args);
+    }
 }

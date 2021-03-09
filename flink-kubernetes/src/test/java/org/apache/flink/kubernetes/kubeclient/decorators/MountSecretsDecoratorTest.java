@@ -28,40 +28,50 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * General tests for the {@link MountSecretsDecorator}.
- */
+/** General tests for the {@link MountSecretsDecorator}. */
 public class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
 
-	private static final String SECRET_NAME = "test";
-	private static final String SECRET_MOUNT_PATH = "/opt/flink/secret";
+    private static final String SECRET_NAME = "test";
+    private static final String SECRET_MOUNT_PATH = "/opt/flink/secret";
 
-	private MountSecretsDecorator mountSecretsDecorator;
+    private MountSecretsDecorator mountSecretsDecorator;
 
-	@Override
-	protected void setupFlinkConfig() {
-		super.setupFlinkConfig();
+    @Override
+    protected void setupFlinkConfig() {
+        super.setupFlinkConfig();
 
-		this.flinkConfig.setString(KubernetesConfigOptions.KUBERNETES_SECRETS.key(), SECRET_NAME + ":" + SECRET_MOUNT_PATH);
-	}
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_SECRETS.key(),
+                SECRET_NAME + ":" + SECRET_MOUNT_PATH);
+    }
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
 
-		this.mountSecretsDecorator = new MountSecretsDecorator(kubernetesJobManagerParameters);
-	}
+        this.mountSecretsDecorator = new MountSecretsDecorator(kubernetesJobManagerParameters);
+    }
 
-	@Test
-	public void testWhetherPodOrContainerIsDecorated() {
-		final FlinkPod resultFlinkPod = mountSecretsDecorator.decorateFlinkPod(baseFlinkPod);
+    @Test
+    public void testWhetherPodOrContainerIsDecorated() {
+        final FlinkPod resultFlinkPod = mountSecretsDecorator.decorateFlinkPod(baseFlinkPod);
 
-		assertFalse(VolumeTestUtils.podHasVolume(baseFlinkPod.getPod(), SECRET_NAME + "-volume"));
-		assertTrue(VolumeTestUtils.podHasVolume(resultFlinkPod.getPod(), SECRET_NAME + "-volume"));
+        assertFalse(
+                VolumeTestUtils.podHasVolume(
+                        baseFlinkPod.getPodWithoutMainContainer(), SECRET_NAME + "-volume"));
+        assertTrue(
+                VolumeTestUtils.podHasVolume(
+                        resultFlinkPod.getPodWithoutMainContainer(), SECRET_NAME + "-volume"));
 
-		assertFalse(VolumeTestUtils.containerHasVolume(baseFlinkPod.getMainContainer(),
-			SECRET_NAME + "-volume", SECRET_MOUNT_PATH));
-		assertTrue(VolumeTestUtils.containerHasVolume(resultFlinkPod.getMainContainer(),
-			SECRET_NAME + "-volume", SECRET_MOUNT_PATH));
-	}
+        assertFalse(
+                VolumeTestUtils.containerHasVolume(
+                        baseFlinkPod.getMainContainer(),
+                        SECRET_NAME + "-volume",
+                        SECRET_MOUNT_PATH));
+        assertTrue(
+                VolumeTestUtils.containerHasVolume(
+                        resultFlinkPod.getMainContainer(),
+                        SECRET_NAME + "-volume",
+                        SECRET_MOUNT_PATH));
+    }
 }

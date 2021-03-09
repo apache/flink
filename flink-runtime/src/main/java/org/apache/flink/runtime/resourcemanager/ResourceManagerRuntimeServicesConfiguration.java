@@ -27,57 +27,80 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
-/**
- * Configuration class for the {@link ResourceManagerRuntimeServices} class.
- */
+/** Configuration class for the {@link ResourceManagerRuntimeServices} class. */
 public class ResourceManagerRuntimeServicesConfiguration {
 
-	private final Time jobTimeout;
+    private final Time jobTimeout;
 
-	private final SlotManagerConfiguration slotManagerConfiguration;
+    private final SlotManagerConfiguration slotManagerConfiguration;
 
-	private final boolean enableDeclarativeResourceManagement;
+    private final boolean enableDeclarativeResourceManagement;
 
-	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout, SlotManagerConfiguration slotManagerConfiguration, boolean enableDeclarativeResourceManagement) {
-		this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
-		this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
-		this.enableDeclarativeResourceManagement = enableDeclarativeResourceManagement;
-	}
+    private final boolean enableFineGrainedResourceManagement;
 
-	public Time getJobTimeout() {
-		return jobTimeout;
-	}
+    public ResourceManagerRuntimeServicesConfiguration(
+            Time jobTimeout,
+            SlotManagerConfiguration slotManagerConfiguration,
+            boolean enableDeclarativeResourceManagement,
+            boolean enableFineGrainedResourceManagement) {
+        this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
+        this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
+        this.enableDeclarativeResourceManagement = enableDeclarativeResourceManagement;
+        this.enableFineGrainedResourceManagement = enableFineGrainedResourceManagement;
+    }
 
-	public SlotManagerConfiguration getSlotManagerConfiguration() {
-		return slotManagerConfiguration;
-	}
+    public Time getJobTimeout() {
+        return jobTimeout;
+    }
 
-	public boolean isDeclarativeResourceManagementEnabled() {
-		return enableDeclarativeResourceManagement;
-	}
+    public SlotManagerConfiguration getSlotManagerConfiguration() {
+        return slotManagerConfiguration;
+    }
 
-	// ---------------------------- Static methods ----------------------------------
+    public boolean isDeclarativeResourceManagementEnabled() {
+        return enableDeclarativeResourceManagement;
+    }
 
-	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(
-			Configuration configuration,
-			WorkerResourceSpecFactory defaultWorkerResourceSpecFactory) throws ConfigurationException {
+    public boolean isEnableFineGrainedResourceManagement() {
+        return enableFineGrainedResourceManagement;
+    }
 
-		final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
-		final Time jobTimeout;
+    // ---------------------------- Static methods ----------------------------------
 
-		try {
-			jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
-		} catch (IllegalArgumentException e) {
-			throw new ConfigurationException("Could not parse the resource manager's job timeout " +
-				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
-		}
+    public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(
+            Configuration configuration, WorkerResourceSpecFactory defaultWorkerResourceSpecFactory)
+            throws ConfigurationException {
 
-		final WorkerResourceSpec defaultWorkerResourceSpec = defaultWorkerResourceSpecFactory.createDefaultWorkerResourceSpec(configuration);
-		final SlotManagerConfiguration slotManagerConfiguration =
-			SlotManagerConfiguration.fromConfiguration(configuration, defaultWorkerResourceSpec);
+        final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
+        final Time jobTimeout;
 
-		final boolean enableDeclarativeResourceManagement = ClusterOptions.isDeclarativeResourceManagementEnabled(configuration);
+        try {
+            jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
+        } catch (IllegalArgumentException e) {
+            throw new ConfigurationException(
+                    "Could not parse the resource manager's job timeout "
+                            + "value "
+                            + ResourceManagerOptions.JOB_TIMEOUT
+                            + '.',
+                    e);
+        }
 
-		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration, enableDeclarativeResourceManagement);
-	}
+        final WorkerResourceSpec defaultWorkerResourceSpec =
+                defaultWorkerResourceSpecFactory.createDefaultWorkerResourceSpec(configuration);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration, defaultWorkerResourceSpec);
+
+        final boolean enableDeclarativeResourceManagement =
+                ClusterOptions.isDeclarativeResourceManagementEnabled(configuration);
+
+        final boolean enableFineGrainedResourceManagement =
+                ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
+
+        return new ResourceManagerRuntimeServicesConfiguration(
+                jobTimeout,
+                slotManagerConfiguration,
+                enableDeclarativeResourceManagement,
+                enableFineGrainedResourceManagement);
+    }
 }

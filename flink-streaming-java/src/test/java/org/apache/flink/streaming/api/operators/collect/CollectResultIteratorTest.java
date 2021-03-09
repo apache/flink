@@ -44,127 +44,135 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Tests for {@link CollectResultIterator}.
- */
+/** Tests for {@link CollectResultIterator}. */
 public class CollectResultIteratorTest extends TestLogger {
 
-	private final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
+    private final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
-	private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
-	private static final JobID TEST_JOB_ID = new JobID();
-	private static final String ACCUMULATOR_NAME = "accumulatorName";
+    private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
+    private static final JobID TEST_JOB_ID = new JobID();
+    private static final String ACCUMULATOR_NAME = "accumulatorName";
 
-	@Test
-	public void testUncheckpointedIterator() throws Exception {
-		Random random = new Random();
+    @Test
+    public void testUncheckpointedIterator() throws Exception {
+        Random random = new Random();
 
-		// run this random test multiple times
-		for (int testCount = 200; testCount > 0; testCount--) {
-			List<Integer> expected = new ArrayList<>();
-			for (int i = 0; i < 200; i++) {
-				expected.add(i);
-			}
+        // run this random test multiple times
+        for (int testCount = 200; testCount > 0; testCount--) {
+            List<Integer> expected = new ArrayList<>();
+            for (int i = 0; i < 200; i++) {
+                expected.add(i);
+            }
 
-			CollectResultIterator<Integer> iterator = createIteratorAndJobClient(
-				new UncheckpointedCollectResultBuffer<>(serializer, true),
-				new TestUncheckpointedCoordinationRequestHandler<>(
-					random.nextInt(3), expected, serializer, ACCUMULATOR_NAME)).f0;
+            CollectResultIterator<Integer> iterator =
+                    createIteratorAndJobClient(
+                                    new UncheckpointedCollectResultBuffer<>(serializer, true),
+                                    new TestUncheckpointedCoordinationRequestHandler<>(
+                                            random.nextInt(3),
+                                            expected,
+                                            serializer,
+                                            ACCUMULATOR_NAME))
+                            .f0;
 
-			List<Integer> actual = new ArrayList<>();
-			while (iterator.hasNext()) {
-				actual.add(iterator.next());
-			}
+            List<Integer> actual = new ArrayList<>();
+            while (iterator.hasNext()) {
+                actual.add(iterator.next());
+            }
 
-			// this is an at least once iterator, so we expect each value to at least appear
-			Set<Integer> actualSet = new HashSet<>(actual);
-			for (int expectedValue : expected) {
-				Assert.assertTrue(actualSet.contains(expectedValue));
-			}
+            // this is an at least once iterator, so we expect each value to at least appear
+            Set<Integer> actualSet = new HashSet<>(actual);
+            for (int expectedValue : expected) {
+                Assert.assertTrue(actualSet.contains(expectedValue));
+            }
 
-			iterator.close();
-		}
-	}
+            iterator.close();
+        }
+    }
 
-	@Test
-	public void testCheckpointedIterator() throws Exception {
-		// run this random test multiple times
-		for (int testCount = 200; testCount > 0; testCount--) {
-			List<Integer> expected = new ArrayList<>();
-			for (int i = 0; i < 200; i++) {
-				expected.add(i);
-			}
+    @Test
+    public void testCheckpointedIterator() throws Exception {
+        // run this random test multiple times
+        for (int testCount = 200; testCount > 0; testCount--) {
+            List<Integer> expected = new ArrayList<>();
+            for (int i = 0; i < 200; i++) {
+                expected.add(i);
+            }
 
-			CollectResultIterator<Integer> iterator = createIteratorAndJobClient(
-				new CheckpointedCollectResultBuffer<>(serializer),
-				new TestCheckpointedCoordinationRequestHandler<>(expected, serializer, ACCUMULATOR_NAME)).f0;
+            CollectResultIterator<Integer> iterator =
+                    createIteratorAndJobClient(
+                                    new CheckpointedCollectResultBuffer<>(serializer),
+                                    new TestCheckpointedCoordinationRequestHandler<>(
+                                            expected, serializer, ACCUMULATOR_NAME))
+                            .f0;
 
-			List<Integer> actual = new ArrayList<>();
-			while (iterator.hasNext()) {
-				actual.add(iterator.next());
-			}
-			Assert.assertEquals(expected.size(), actual.size());
+            List<Integer> actual = new ArrayList<>();
+            while (iterator.hasNext()) {
+                actual.add(iterator.next());
+            }
+            Assert.assertEquals(expected.size(), actual.size());
 
-			Collections.sort(expected);
-			Collections.sort(actual);
-			Assert.assertArrayEquals(expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
+            Collections.sort(expected);
+            Collections.sort(actual);
+            Assert.assertArrayEquals(
+                    expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
 
-			iterator.close();
-		}
-	}
+            iterator.close();
+        }
+    }
 
-	@Test
-	public void testEarlyClose() throws Exception {
-		List<Integer> expected = new ArrayList<>();
-		for (int i = 0; i < 200; i++) {
-			expected.add(i);
-		}
+    @Test
+    public void testEarlyClose() throws Exception {
+        List<Integer> expected = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            expected.add(i);
+        }
 
-		Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 = createIteratorAndJobClient(
-			new CheckpointedCollectResultBuffer<>(serializer),
-			new TestCheckpointedCoordinationRequestHandler<>(expected, serializer, ACCUMULATOR_NAME));
-		CollectResultIterator<Integer> iterator = tuple2.f0;
-		JobClient jobClient = tuple2.f1;
+        Tuple2<CollectResultIterator<Integer>, JobClient> tuple2 =
+                createIteratorAndJobClient(
+                        new CheckpointedCollectResultBuffer<>(serializer),
+                        new TestCheckpointedCoordinationRequestHandler<>(
+                                expected, serializer, ACCUMULATOR_NAME));
+        CollectResultIterator<Integer> iterator = tuple2.f0;
+        JobClient jobClient = tuple2.f1;
 
-		for (int i = 0; i < 100; i++) {
-			Assert.assertTrue(iterator.hasNext());
-			Assert.assertNotNull(iterator.next());
-		}
-		Assert.assertTrue(iterator.hasNext());
-		iterator.close();
+        for (int i = 0; i < 100; i++) {
+            Assert.assertTrue(iterator.hasNext());
+            Assert.assertNotNull(iterator.next());
+        }
+        Assert.assertTrue(iterator.hasNext());
+        iterator.close();
 
-		Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
-	}
+        Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
+    }
 
-	private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(
-			AbstractCollectResultBuffer<Integer> buffer,
-			AbstractTestCoordinationRequestHandler<Integer> handler) {
-		CollectResultIterator<Integer> iterator = new CollectResultIterator<>(
-			buffer,
-			CompletableFuture.completedFuture(TEST_OPERATOR_ID),
-			ACCUMULATOR_NAME,
-			0);
+    private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(
+            AbstractCollectResultBuffer<Integer> buffer,
+            AbstractTestCoordinationRequestHandler<Integer> handler) {
+        CollectResultIterator<Integer> iterator =
+                new CollectResultIterator<>(
+                        buffer,
+                        CompletableFuture.completedFuture(TEST_OPERATOR_ID),
+                        ACCUMULATOR_NAME,
+                        0);
 
-		TestJobClient.JobInfoProvider infoProvider = new TestJobClient.JobInfoProvider() {
+        TestJobClient.JobInfoProvider infoProvider =
+                new TestJobClient.JobInfoProvider() {
 
-			@Override
-			public boolean isJobFinished() {
-				return handler.isClosed();
-			}
+                    @Override
+                    public boolean isJobFinished() {
+                        return handler.isClosed();
+                    }
 
-			@Override
-			public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
-				return handler.getAccumulatorResults();
-			}
-		};
+                    @Override
+                    public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
+                        return handler.getAccumulatorResults();
+                    }
+                };
 
-		TestJobClient jobClient = new TestJobClient(
-			TEST_JOB_ID,
-			TEST_OPERATOR_ID,
-			handler,
-			infoProvider);
-		iterator.setJobClient(jobClient);
+        TestJobClient jobClient =
+                new TestJobClient(TEST_JOB_ID, TEST_OPERATOR_ID, handler, infoProvider);
+        iterator.setJobClient(jobClient);
 
-		return Tuple2.of(iterator, jobClient);
-	}
+        return Tuple2.of(iterator, jobClient);
+    }
 }

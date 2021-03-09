@@ -19,27 +19,13 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
-/**
- * An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster.
- */
+/** An interface containing the logic of bootstrapping the {@link Dispatcher} of a cluster. */
 @Internal
 public interface DispatcherBootstrap {
 
-	/**
-	 * Initializes the {@link Dispatcher} provided as an argument.
-	 *
-	 * <p>IMPORTANT: In HA settings, this method will run during
-	 * the initialization of the **leader** dispatcher.
-	 *
-	 * @param dispatcher the dispatcher to be initialized.
-	 */
-	void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) throws Exception;
-
-	/**
-	 * Stops and frees any resources (e.g. threads) acquired
-	 * by the {@link #initialize(Dispatcher, ScheduledExecutor)}.
-	 */
-	void stop() throws Exception;
+    /**
+     * Stops and frees any resources (e.g. threads) acquired during the execution of the bootstrap.
+     */
+    void stop() throws Exception;
 }

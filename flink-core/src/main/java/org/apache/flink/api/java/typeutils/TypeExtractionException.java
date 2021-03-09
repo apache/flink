@@ -21,37 +21,35 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Type extraction always contains some uncertainty due to unpredictable JVM differences
- * between vendors or versions. This exception is thrown if an assumption failed during extraction.
+ * Type extraction always contains some uncertainty due to unpredictable JVM differences between
+ * vendors or versions. This exception is thrown if an assumption failed during extraction.
  */
 @Internal
 public class TypeExtractionException extends Exception {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates a new exception with no message.
-	 */
-	public TypeExtractionException() {
-		super();
-	}
+    /** Creates a new exception with no message. */
+    public TypeExtractionException() {
+        super();
+    }
 
-	/**
-	 * Creates a new exception with the given message.
-	 *
-	 * @param message The exception message.
-	 */
-	public TypeExtractionException(String message) {
-		super(message);
-	}
+    /**
+     * Creates a new exception with the given message.
+     *
+     * @param message The exception message.
+     */
+    public TypeExtractionException(String message) {
+        super(message);
+    }
 
-	/**
-	 * Creates a new exception with the given message and cause.
-	 *
-	 * @param message The exception message.
-	 * @param e cause
-	 */
-	public TypeExtractionException(String message, Throwable e) {
-		super(message, e);
-	}
+    /**
+     * Creates a new exception with the given message and cause.
+     *
+     * @param message The exception message.
+     * @param e cause
+     */
+    public TypeExtractionException(String message, Throwable e) {
+        super(message, e);
+    }
 }

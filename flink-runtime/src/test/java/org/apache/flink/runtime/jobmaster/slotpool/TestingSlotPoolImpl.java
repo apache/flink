@@ -34,112 +34,110 @@ import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-/**
- * Testing extension of the {@link SlotPoolImpl} which adds additional methods
- * for testing.
- */
+/** Testing extension of the {@link SlotPoolImpl} which adds additional methods for testing. */
 public class TestingSlotPoolImpl extends SlotPoolImpl {
 
-	private ResourceProfile lastRequestedSlotResourceProfile;
+    private ResourceProfile lastRequestedSlotResourceProfile;
 
-	private volatile Consumer<SlotRequestId> releaseSlotConsumer;
+    private volatile Consumer<SlotRequestId> releaseSlotConsumer;
 
-	private volatile Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer;
+    private volatile Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer;
 
-	public TestingSlotPoolImpl(JobID jobId) {
-		this(
-			jobId,
-			SystemClock.getInstance(),
-			AkkaUtils.getDefaultTimeout(),
-			AkkaUtils.getDefaultTimeout(),
-			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-	}
+    public TestingSlotPoolImpl(JobID jobId) {
+        this(
+                jobId,
+                SystemClock.getInstance(),
+                AkkaUtils.getDefaultTimeout(),
+                AkkaUtils.getDefaultTimeout(),
+                Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
+    }
 
-	public TestingSlotPoolImpl(
-			JobID jobId,
-			Clock clock,
-			Time rpcTimeout,
-			Time idleSlotTimeout,
-			Time batchSlotTimeout) {
+    public TestingSlotPoolImpl(
+            JobID jobId,
+            Clock clock,
+            Time rpcTimeout,
+            Time idleSlotTimeout,
+            Time batchSlotTimeout) {
 
-		super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
-		releaseSlotConsumer = null;
-		timeoutPendingSlotRequestConsumer = null;
-	}
+        super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
+        releaseSlotConsumer = null;
+        timeoutPendingSlotRequestConsumer = null;
+    }
 
-	void triggerCheckIdleSlot() {
-		runAsync(this::checkIdleSlot);
-	}
+    void triggerCheckIdleSlot() {
+        runAsync(this::checkIdleSlot);
+    }
 
-	void triggerCheckBatchSlotTimeout() {
-		runAsync(this::checkBatchSlotTimeout);
-	}
+    void triggerCheckBatchSlotTimeout() {
+        runAsync(this::checkBatchSlotTimeout);
+    }
 
-	boolean isBatchSlotRequestTimeoutCheckEnabled() {
-		return batchSlotRequestTimeoutCheckEnabled;
-	}
+    boolean isBatchSlotRequestTimeoutCheckEnabled() {
+        return batchSlotRequestTimeoutCheckEnabled;
+    }
 
-	@Override
-	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			final SlotRequestId slotRequestId,
-			final ResourceProfile resourceProfile,
-			@Nullable final Time timeout) {
+    @Override
+    public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            final SlotRequestId slotRequestId,
+            final ResourceProfile resourceProfile,
+            @Nullable final Time timeout) {
 
-		this.lastRequestedSlotResourceProfile = resourceProfile;
+        this.lastRequestedSlotResourceProfile = resourceProfile;
 
-		return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
-	}
+        return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
+    }
 
-	public ResourceProfile getLastRequestedSlotResourceProfile() {
-		return lastRequestedSlotResourceProfile;
-	}
+    public ResourceProfile getLastRequestedSlotResourceProfile() {
+        return lastRequestedSlotResourceProfile;
+    }
 
-	public void setReleaseSlotConsumer(Consumer<SlotRequestId> releaseSlotConsumer) {
-		this.releaseSlotConsumer = Preconditions.checkNotNull(releaseSlotConsumer);
-	}
+    public void setReleaseSlotConsumer(Consumer<SlotRequestId> releaseSlotConsumer) {
+        this.releaseSlotConsumer = Preconditions.checkNotNull(releaseSlotConsumer);
+    }
 
-	public void setTimeoutPendingSlotRequestConsumer(Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer) {
-		this.timeoutPendingSlotRequestConsumer = Preconditions.checkNotNull(timeoutPendingSlotRequestConsumer);
-	}
+    public void setTimeoutPendingSlotRequestConsumer(
+            Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer) {
+        this.timeoutPendingSlotRequestConsumer =
+                Preconditions.checkNotNull(timeoutPendingSlotRequestConsumer);
+    }
 
-	@Override
-	public void releaseSlot(
-			SlotRequestId slotRequestId,
-			@Nullable Throwable cause) {
+    @Override
+    public void releaseSlot(SlotRequestId slotRequestId, @Nullable Throwable cause) {
 
-		final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
+        final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
 
-		super.releaseSlot(slotRequestId, cause);
+        super.releaseSlot(slotRequestId, cause);
 
-		if (currentReleaseSlotConsumer != null) {
-			currentReleaseSlotConsumer.accept(slotRequestId);
-		}
-	}
+        if (currentReleaseSlotConsumer != null) {
+            currentReleaseSlotConsumer.accept(slotRequestId);
+        }
+    }
 
-	@Override
-	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
-		final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer = timeoutPendingSlotRequestConsumer;
+    @Override
+    protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
+        final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer =
+                timeoutPendingSlotRequestConsumer;
 
-		super.timeoutPendingSlotRequest(slotRequestId);
+        super.timeoutPendingSlotRequest(slotRequestId);
 
-		if (currentTimeoutPendingSlotRequestConsumer != null) {
-			currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
-		}
-	}
+        if (currentTimeoutPendingSlotRequestConsumer != null) {
+            currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
+        }
+    }
 
-	boolean containsAllocatedSlot(AllocationID allocationId) {
-		return getAllocatedSlots().contains(allocationId);
-	}
+    boolean containsAllocatedSlot(AllocationID allocationId) {
+        return getAllocatedSlots().contains(allocationId);
+    }
 
-	boolean containsAvailableSlot(AllocationID allocationId) {
-		return getAvailableSlots().contains(allocationId);
-	}
+    boolean containsAvailableSlot(AllocationID allocationId) {
+        return getAvailableSlots().contains(allocationId);
+    }
 
-	int getNumberOfPendingRequests() {
-		return getPendingRequests().size();
-	}
+    int getNumberOfPendingRequests() {
+        return getPendingRequests().size();
+    }
 
-	int getNumberOfWaitingForResourceRequests() {
-		return getWaitingForResourceManager().size();
-	}
+    int getNumberOfWaitingForResourceRequests() {
+        return getWaitingForResourceManager().size();
+    }
 }

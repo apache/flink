@@ -37,145 +37,153 @@ import java.io.IOException;
 
 /**
  * A {@link TypeSerializer} for {@link ArrayData}. It should be noted that the header will not be
- * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use BaseArraySerializer
- * in blink directly.
+ * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use
+ * BaseArraySerializer in blink directly.
  */
 @Internal
-public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutils.ArrayDataSerializer {
+public class ArrayDataSerializer
+        extends org.apache.flink.table.runtime.typeutils.ArrayDataSerializer {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final LogicalType elementType;
+    private final LogicalType elementType;
 
-	private final TypeSerializer elementTypeSerializer;
+    private final TypeSerializer elementTypeSerializer;
 
-	private final int elementSize;
+    private final ArrayData.ElementGetter elementGetter;
 
-	public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
-		super(eleType);
-		this.elementType = eleType;
-		this.elementTypeSerializer = elementTypeSerializer;
-		this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
-	}
+    private final int elementSize;
 
-	@Override
-	public void serialize(ArrayData array, DataOutputView target) throws IOException {
-		int len = array.size();
-		target.writeInt(len);
-		for (int i = 0; i < len; i++) {
-			if (array.isNullAt(i)) {
-				target.writeBoolean(false);
-			} else {
-				target.writeBoolean(true);
-				Object element = ArrayData.get(array, i, elementType);
-				elementTypeSerializer.serialize(element, target);
-			}
-		}
-	}
+    public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
+        super(eleType);
+        this.elementType = eleType;
+        this.elementTypeSerializer = elementTypeSerializer;
+        this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
+        this.elementGetter = ArrayData.createElementGetter(elementType);
+    }
 
-	@Override
-	public ArrayData deserialize(DataInputView source) throws IOException {
-		BinaryArrayData array = new BinaryArrayData();
-		deserializeInternal(source, array);
-		return array;
-	}
+    @Override
+    public void serialize(ArrayData array, DataOutputView target) throws IOException {
+        int len = array.size();
+        target.writeInt(len);
+        for (int i = 0; i < len; i++) {
+            if (array.isNullAt(i)) {
+                target.writeBoolean(false);
+            } else {
+                target.writeBoolean(true);
+                Object element = elementGetter.getElementOrNull(array, i);
+                elementTypeSerializer.serialize(element, target);
+            }
+        }
+    }
 
-	@Override
-	public ArrayData deserialize(ArrayData reuse, DataInputView source) throws IOException {
-		return deserializeInternal(source, toBinaryArray(reuse));
-	}
+    @Override
+    public ArrayData deserialize(DataInputView source) throws IOException {
+        BinaryArrayData array = new BinaryArrayData();
+        deserializeInternal(source, array);
+        return array;
+    }
 
-	private ArrayData deserializeInternal(DataInputView source, BinaryArrayData array) throws IOException {
-		int len = source.readInt();
-		BinaryArrayWriter writer = new BinaryArrayWriter(array, len, elementSize);
-		for (int i = 0; i < len; i++) {
-			boolean isNonNull = source.readBoolean();
-			if (isNonNull) {
-				Object element = elementTypeSerializer.deserialize(source);
-				BinaryWriter.write(writer, i, element, elementType, elementTypeSerializer);
-			} else {
-				writer.setNullAt(i);
-			}
-		}
-		writer.complete();
-		return array;
-	}
+    @Override
+    public ArrayData deserialize(ArrayData reuse, DataInputView source) throws IOException {
+        return deserializeInternal(source, toBinaryArray(reuse));
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    private ArrayData deserializeInternal(DataInputView source, BinaryArrayData array)
+            throws IOException {
+        int len = source.readInt();
+        BinaryArrayWriter writer = new BinaryArrayWriter(array, len, elementSize);
+        for (int i = 0; i < len; i++) {
+            boolean isNonNull = source.readBoolean();
+            if (isNonNull) {
+                Object element = elementTypeSerializer.deserialize(source);
+                BinaryWriter.write(writer, i, element, elementType, elementTypeSerializer);
+            } else {
+                writer.setNullAt(i);
+            }
+        }
+        writer.complete();
+        return array;
+    }
 
-	@Override
-	public TypeSerializer<ArrayData> duplicate() {
-		return new ArrayDataSerializer(elementType, elementTypeSerializer);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<ArrayData> snapshotConfiguration() {
-		return new ArrayDataSerializerSnapshot(elementType, elementTypeSerializer);
-	}
+    @Override
+    public TypeSerializer<ArrayData> duplicate() {
+        return new ArrayDataSerializer(elementType, elementTypeSerializer);
+    }
 
-	/**
-	 * {@link TypeSerializerSnapshot} for {@link ArrayDataSerializer}.
-	 */
-	public static final class ArrayDataSerializerSnapshot implements TypeSerializerSnapshot<ArrayData> {
-		private static final int CURRENT_VERSION = 1;
+    @Override
+    public TypeSerializerSnapshot<ArrayData> snapshotConfiguration() {
+        return new ArrayDataSerializerSnapshot(elementType, elementTypeSerializer);
+    }
 
-		private LogicalType previousType;
-		private TypeSerializer previousEleSer;
+    /** {@link TypeSerializerSnapshot} for {@link ArrayDataSerializer}. */
+    public static final class ArrayDataSerializerSnapshot
+            implements TypeSerializerSnapshot<ArrayData> {
+        private static final int CURRENT_VERSION = 1;
 
-		@SuppressWarnings("unused")
-		public ArrayDataSerializerSnapshot() {
-			// this constructor is used when restoring from a checkpoint/savepoint.
-		}
+        private LogicalType previousType;
+        private TypeSerializer previousEleSer;
 
-		ArrayDataSerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
-			this.previousType = eleType;
-			this.previousEleSer = eleSer;
-		}
+        @SuppressWarnings("unused")
+        public ArrayDataSerializerSnapshot() {
+            // this constructor is used when restoring from a checkpoint/savepoint.
+        }
 
-		@Override
-		public int getCurrentVersion() {
-			return CURRENT_VERSION;
-		}
+        ArrayDataSerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
+            this.previousType = eleType;
+            this.previousEleSer = eleSer;
+        }
 
-		@Override
-		public void writeSnapshot(DataOutputView out) throws IOException {
-			DataOutputViewStream outStream = new DataOutputViewStream(out);
-			InstantiationUtil.serializeObject(outStream, previousType);
-			InstantiationUtil.serializeObject(outStream, previousEleSer);
-		}
+        @Override
+        public int getCurrentVersion() {
+            return CURRENT_VERSION;
+        }
 
-		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-			try {
-				DataInputViewStream inStream = new DataInputViewStream(in);
-				this.previousType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-				this.previousEleSer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(e);
-			}
-		}
+        @Override
+        public void writeSnapshot(DataOutputView out) throws IOException {
+            DataOutputViewStream outStream = new DataOutputViewStream(out);
+            InstantiationUtil.serializeObject(outStream, previousType);
+            InstantiationUtil.serializeObject(outStream, previousEleSer);
+        }
 
-		@Override
-		public TypeSerializer<ArrayData> restoreSerializer() {
-			return new ArrayDataSerializer(previousType, previousEleSer);
-		}
+        @Override
+        public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+                throws IOException {
+            try {
+                DataInputViewStream inStream = new DataInputViewStream(in);
+                this.previousType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.previousEleSer =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IOException(e);
+            }
+        }
 
-		@Override
-		public TypeSerializerSchemaCompatibility<ArrayData> resolveSchemaCompatibility(TypeSerializer<ArrayData> newSerializer) {
-			if (!(newSerializer instanceof ArrayDataSerializer)) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
+        @Override
+        public TypeSerializer<ArrayData> restoreSerializer() {
+            return new ArrayDataSerializer(previousType, previousEleSer);
+        }
 
-			ArrayDataSerializer newArrayDataSerializer = (ArrayDataSerializer) newSerializer;
-			if (!previousType.equals(newArrayDataSerializer.elementType) ||
-				!previousEleSer.equals(newArrayDataSerializer.elementTypeSerializer)) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			} else {
-				return TypeSerializerSchemaCompatibility.compatibleAsIs();
-			}
-		}
-	}
+        @Override
+        public TypeSerializerSchemaCompatibility<ArrayData> resolveSchemaCompatibility(
+                TypeSerializer<ArrayData> newSerializer) {
+            if (!(newSerializer instanceof ArrayDataSerializer)) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
+
+            ArrayDataSerializer newArrayDataSerializer = (ArrayDataSerializer) newSerializer;
+            if (!previousType.equals(newArrayDataSerializer.elementType)
+                    || !previousEleSer.equals(newArrayDataSerializer.elementTypeSerializer)) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            } else {
+                return TypeSerializerSchemaCompatibility.compatibleAsIs();
+            }
+        }
+    }
 }

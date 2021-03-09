@@ -53,22 +53,23 @@ class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
 
   @Test
   def testIntersect(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectWithFilter(): Unit = {
-    util.verifyPlan("SELECT c FROM ((SELECT * FROM T1) INTERSECT (SELECT * FROM T2)) WHERE a > 1")
+    util.verifyRelPlan(
+      "SELECT c FROM ((SELECT * FROM T1) INTERSECT (SELECT * FROM T2)) WHERE a > 1")
   }
 
   @Test
   def testIntersectLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
   }
 
 }

@@ -36,61 +36,63 @@ import org.junit.Test;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link ProcTimeRangeBoundedPrecedingFunction}.
- */
+/** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
 public class ProcTimeRangeBoundedPrecedingFunctionTest {
 
-	private static GeneratedAggsHandleFunction aggsHandleFunction =
-		new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
-			@Override
-			public AggsHandleFunction newInstance(ClassLoader classLoader) {
-				return new SumAggsHandleFunction(1);
-			}
-		};
+    private static GeneratedAggsHandleFunction aggsHandleFunction =
+            new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
+                @Override
+                public AggsHandleFunction newInstance(ClassLoader classLoader) {
+                    return new SumAggsHandleFunction(1);
+                }
+            };
 
-	private LogicalType[] inputFieldTypes = new LogicalType[]{
-		new VarCharType(VarCharType.MAX_LENGTH),
-		new BigIntType(),
-	};
-	private LogicalType[] accTypes = new LogicalType[]{ new BigIntType() };
+    private LogicalType[] inputFieldTypes =
+            new LogicalType[] {
+                new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
+            };
+    private LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
 
-	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[]{ 0 }, inputFieldTypes);
-	private TypeInformation<RowData> keyType = keySelector.getProducedType();
+    private BinaryRowDataKeySelector keySelector =
+            new BinaryRowDataKeySelector(new int[] {0}, inputFieldTypes);
+    private TypeInformation<RowData> keyType = keySelector.getProducedType();
 
-	@Test
-	public void testStateCleanup() throws Exception {
-		ProcTimeRangeBoundedPrecedingFunction<RowData> function = new ProcTimeRangeBoundedPrecedingFunction<>(
-			aggsHandleFunction, accTypes, inputFieldTypes, 2000);
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
+    @Test
+    public void testStateCleanup() throws Exception {
+        ProcTimeRangeBoundedPrecedingFunction<RowData> function =
+                new ProcTimeRangeBoundedPrecedingFunction<>(
+                        aggsHandleFunction, accTypes, inputFieldTypes, 2000);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
 
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
 
-		testHarness.open();
+        testHarness.open();
 
-		AbstractKeyedStateBackend stateBackend = (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
+        AbstractKeyedStateBackend stateBackend =
+                (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
 
-		assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
 
-		// put some records
-		testHarness.setProcessingTime(100);
-		testHarness.processElement(insertRecord("key", 1L));
-		testHarness.processElement(insertRecord("key", 1L));
-		testHarness.setProcessingTime(500);
-		testHarness.processElement(insertRecord("key", 1L));
+        // put some records
+        testHarness.setProcessingTime(100);
+        testHarness.processElement(insertRecord("key", 1L));
+        testHarness.processElement(insertRecord("key", 1L));
+        testHarness.setProcessingTime(500);
+        testHarness.processElement(insertRecord("key", 1L));
 
-		testHarness.setProcessingTime(1000);
-		// at this moment we expect the function to have some records in state
+        testHarness.setProcessingTime(1000);
+        // at this moment we expect the function to have some records in state
 
-		testHarness.setProcessingTime(4000);
-		// at this moment the function should have cleaned up states
+        testHarness.setProcessingTime(4000);
+        // at this moment the function should have cleaned up states
 
-		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
-	}
+        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+    }
 
-	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
-	}
-
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
+        return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
+    }
 }

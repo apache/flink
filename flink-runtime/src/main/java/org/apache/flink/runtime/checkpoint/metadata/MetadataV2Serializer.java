@@ -31,115 +31,121 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * (De)serializer for checkpoint metadata format version 2.
- * This format was introduced with Apache Flink 1.3.0.
+ * (De)serializer for checkpoint metadata format version 2. This format was introduced with Apache
+ * Flink 1.3.0.
  *
  * <p>See {@link MetadataV2V3SerializerBase} for a description of the format layout.
  */
 @Internal
-public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements MetadataSerializer{
+public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements MetadataSerializer {
 
-	/** The metadata format version. */
-	public static final int VERSION = 2;
+    /** The metadata format version. */
+    public static final int VERSION = 2;
 
-	/** The singleton instance of the serializer. */
-	public static final MetadataV2Serializer INSTANCE = new MetadataV2Serializer();
+    /** The singleton instance of the serializer. */
+    public static final MetadataV2Serializer INSTANCE = new MetadataV2Serializer();
 
-	/** Singleton, not meant to be instantiated. */
-	private MetadataV2Serializer() {}
+    /** Singleton, not meant to be instantiated. */
+    private MetadataV2Serializer() {}
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Deserialization entry point
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Deserialization entry point
+    // ------------------------------------------------------------------------
 
-	@Override
-	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader, String externalPointer) throws IOException {
-		return deserializeMetadata(dis, externalPointer);
-	}
+    @Override
+    public CheckpointMetadata deserialize(
+            DataInputStream dis, ClassLoader classLoader, String externalPointer)
+            throws IOException {
+        return deserializeMetadata(dis, externalPointer);
+    }
 
-	// ------------------------------------------------------------------------
-	//  version-specific serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  version-specific serialization
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException {
-		// Operator ID
-		dos.writeLong(operatorState.getOperatorID().getLowerPart());
-		dos.writeLong(operatorState.getOperatorID().getUpperPart());
+    @Override
+    protected void serializeOperatorState(OperatorState operatorState, DataOutputStream dos)
+            throws IOException {
+        // Operator ID
+        dos.writeLong(operatorState.getOperatorID().getLowerPart());
+        dos.writeLong(operatorState.getOperatorID().getUpperPart());
 
-		// Parallelism
-		int parallelism = operatorState.getParallelism();
-		dos.writeInt(parallelism);
-		dos.writeInt(operatorState.getMaxParallelism());
+        // Parallelism
+        int parallelism = operatorState.getParallelism();
+        dos.writeInt(parallelism);
+        dos.writeInt(operatorState.getMaxParallelism());
 
-		// this field was "chain length" before Flink 1.3, and it is still part
-		// of the format, despite being unused
-		dos.writeInt(1);
+        // this field was "chain length" before Flink 1.3, and it is still part
+        // of the format, despite being unused
+        dos.writeInt(1);
 
-		// Sub task states
-		Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
-		dos.writeInt(subtaskStateMap.size());
-		for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
-			dos.writeInt(entry.getKey());
-			serializeSubtaskState(entry.getValue(), dos);
-		}
-	}
+        // Sub task states
+        Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
+        dos.writeInt(subtaskStateMap.size());
+        for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
+            dos.writeInt(entry.getKey());
+            serializeSubtaskState(entry.getValue(), dos);
+        }
+    }
 
-	@Override
-	protected OperatorState deserializeOperatorState(DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
-		final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
-		final int parallelism = dis.readInt();
-		final int maxParallelism = dis.readInt();
+    @Override
+    protected OperatorState deserializeOperatorState(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
+        final int parallelism = dis.readInt();
+        final int maxParallelism = dis.readInt();
 
-		// this field was "chain length" before Flink 1.3, and it is still part
-		// of the format, despite being unused
-		dis.readInt();
+        // this field was "chain length" before Flink 1.3, and it is still part
+        // of the format, despite being unused
+        dis.readInt();
 
-		// Add task state
-		final OperatorState taskState = new OperatorState(jobVertexId, parallelism, maxParallelism);
+        // Add task state
+        final OperatorState taskState = new OperatorState(jobVertexId, parallelism, maxParallelism);
 
-		// Sub task states
-		final int numSubTaskStates = dis.readInt();
+        // Sub task states
+        final int numSubTaskStates = dis.readInt();
 
-		for (int j = 0; j < numSubTaskStates; j++) {
-			final int subtaskIndex = dis.readInt();
-			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, context);
-			taskState.putState(subtaskIndex, subtaskState);
-		}
+        for (int j = 0; j < numSubTaskStates; j++) {
+            final int subtaskIndex = dis.readInt();
+            final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, context);
+            taskState.putState(subtaskIndex, subtaskState);
+        }
 
-		return taskState;
-	}
+        return taskState;
+    }
 
-	@Override
-	protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
-		// write two unused fields for compatibility:
-		//   - "duration"
-		//   - number of legacy states
-		dos.writeLong(-1);
-		dos.writeInt(0);
+    @Override
+    protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos)
+            throws IOException {
+        // write two unused fields for compatibility:
+        //   - "duration"
+        //   - number of legacy states
+        dos.writeLong(-1);
+        dos.writeInt(0);
 
-		super.serializeSubtaskState(subtaskState, dos);
-	}
+        super.serializeSubtaskState(subtaskState, dos);
+    }
 
-	@Override
-	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
-		// read two unused fields for compatibility:
-		//   - "duration"
-		//   - number of legacy states
-		dis.readLong();
-		final int numLegacyTaskStates = dis.readInt();
+    @Override
+    protected OperatorSubtaskState deserializeSubtaskState(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        // read two unused fields for compatibility:
+        //   - "duration"
+        //   - number of legacy states
+        dis.readLong();
+        final int numLegacyTaskStates = dis.readInt();
 
-		if (numLegacyTaskStates > 0) {
-			throw new IOException(
-				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
-					"no longer supported.");
-		}
+        if (numLegacyTaskStates > 0) {
+            throw new IOException(
+                    "Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is "
+                            + "no longer supported.");
+        }
 
-		return super.deserializeSubtaskState(dis, context);
-	}
+        return super.deserializeSubtaskState(dis, context);
+    }
 }

@@ -29,42 +29,43 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Generates random {@link DecimalData} values.
- */
+/** Generates random {@link DecimalData} values. */
 public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 
-	private final int precision;
+    private final int precision;
 
-	private final int scale;
+    private final int scale;
 
-	private final double min;
+    private final double min;
 
-	private final double max;
+    private final double max;
 
-	public DecimalDataRandomGenerator(int precision, int scale, double min, double max) {
-		Preconditions.checkState(min < max, String.format("min bound must be less than max [%f, %f]", min, max));
-		double largest = Math.pow(10, precision - scale) - Math.pow(10, -scale);
-		this.precision = precision;
-		this.scale = scale;
-		this.min = Math.max(-1 * largest, min);
-		this.max = Math.min(largest, max);
-	}
+    public DecimalDataRandomGenerator(int precision, int scale, double min, double max) {
+        Preconditions.checkState(
+                min < max, String.format("min bound must be less than max [%f, %f]", min, max));
+        double largest = Math.pow(10, precision - scale) - Math.pow(10, -scale);
+        this.precision = precision;
+        this.scale = scale;
+        this.min = Math.max(-1 * largest, min);
+        this.max = Math.min(largest, max);
+    }
 
-	@Override
-	public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
-	}
+    @Override
+    public void open(
+            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
+            throws Exception {}
 
-	@Override
-	public boolean hasNext() {
-		return true;
-	}
+    @Override
+    public boolean hasNext() {
+        return true;
+    }
 
-	@Override
-	public DecimalData next() {
-		BigDecimal decimal = new BigDecimal(
-			ThreadLocalRandom.current().nextDouble(min, max),
-			new MathContext(precision, RoundingMode.DOWN));
-		return DecimalData.fromBigDecimal(decimal, precision, scale);
-	}
+    @Override
+    public DecimalData next() {
+        BigDecimal decimal =
+                new BigDecimal(
+                        ThreadLocalRandom.current().nextDouble(min, max),
+                        new MathContext(precision, RoundingMode.DOWN));
+        return DecimalData.fromBigDecimal(decimal, precision, scale);
+    }
 }

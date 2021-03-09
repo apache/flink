@@ -29,35 +29,35 @@ import java.util.Iterator;
 @PublicEvolving
 public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private SplittableIterator<T> fullIterator;
+    private SplittableIterator<T> fullIterator;
 
-	private transient Iterator<T> iterator;
+    private transient Iterator<T> iterator;
 
-	private volatile boolean isRunning = true;
+    private volatile boolean isRunning = true;
 
-	public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
-		this.fullIterator = iterator;
-	}
+    public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
+        this.fullIterator = iterator;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
-		int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
-		iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
-		isRunning = true;
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
+        int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
+        iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
+        isRunning = true;
+    }
 
-	@Override
-	public void run(SourceContext<T> ctx) throws Exception {
-		while (isRunning && iterator.hasNext()) {
-			ctx.collect(iterator.next());
-		}
-	}
+    @Override
+    public void run(SourceContext<T> ctx) throws Exception {
+        while (isRunning && iterator.hasNext()) {
+            ctx.collect(iterator.next());
+        }
+    }
 
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
 }

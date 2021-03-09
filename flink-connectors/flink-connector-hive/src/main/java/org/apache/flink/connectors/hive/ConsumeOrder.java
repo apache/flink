@@ -20,44 +20,44 @@ package org.apache.flink.connectors.hive;
 
 import java.util.Arrays;
 
-/**
- * {@link ConsumeOrder} defines the orders to continuously consume stream source.
- */
+/** {@link ConsumeOrder} defines the orders to continuously consume stream source. */
 public enum ConsumeOrder {
 
-	/**
-	 * create-time compare partition/file creation time,
-	 * this is not the partition create time in Hive metaStore,
-	 * but the folder/file create time in filesystem.
-	 */
-	CREATE_TIME_ORDER("create-time"),
+    /**
+     * create-time compare partition/file creation time, this is not the partition create time in
+     * Hive metaStore, but the folder/file create time in filesystem.
+     */
+    CREATE_TIME_ORDER("create-time"),
 
-	/**
-	 * partition-time compare time represented by partition name.
-	 */
-	PARTITION_TIME_ORDER("partition-time");
+    /** partition-time compare time represented by partition name. */
+    PARTITION_TIME_ORDER("partition-time"),
 
-	private final String order;
+    /** partition-name compare partition names, the comparator oder is the alphabetical order. */
+    PARTITION_NAME_ORDER("partition-name");
 
-	ConsumeOrder(String order) {
-		this.order = order;
-	}
+    private final String order;
 
-	@Override
-	public String toString() {
-		return order;
-	}
+    ConsumeOrder(String order) {
+        this.order = order;
+    }
 
-	/**
-	 * Get {@link ConsumeOrder} from consume order string.
-	 */
-	public static ConsumeOrder getConsumeOrder(String consumeOrderStr) {
-		for (ConsumeOrder consumeOrder : values()) {
-			if (consumeOrder.order.equalsIgnoreCase(consumeOrderStr)) {
-				return consumeOrder;
-			}
-		}
-		throw new IllegalArgumentException(
-				"Illegal value: " + consumeOrderStr + ", only " + Arrays.toString(values()) + " are supported.");
-	}
+    @Override
+    public String toString() {
+        return order;
+    }
+
+    /** Get {@link ConsumeOrder} from consume order string. */
+    public static ConsumeOrder getConsumeOrder(String consumeOrderStr) {
+        for (ConsumeOrder consumeOrder : values()) {
+            if (consumeOrder.order.equalsIgnoreCase(consumeOrderStr)) {
+                return consumeOrder;
+            }
+        }
+        throw new IllegalArgumentException(
+                "Illegal value: "
+                        + consumeOrderStr
+                        + ", only "
+                        + Arrays.toString(values())
+                        + " are supported.");
+    }
 }

@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 FULL JOIN MyTable2 ON c1 = c2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[full])
@@ -28,7 +28,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[full])
@@ -41,7 +41,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON a1 > a2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[>($0, $5)], joinType=[inner])
@@ -49,7 +49,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[>($0, $5)], joinType=[inner])
@@ -62,7 +62,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON d1 = d2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($3, $8)], joinType=[inner])
@@ -70,7 +70,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($3, $8)], joinType=[inner])
@@ -83,7 +83,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON e1 = e2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($4, $9)], joinType=[inner])
@@ -91,7 +91,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($4, $9)], joinType=[inner])
@@ -104,7 +104,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
@@ -112,7 +112,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
@@ -126,7 +126,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON c1 = c2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
@@ -134,7 +134,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
@@ -149,7 +149,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON c1 = c2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[left])
@@ -157,7 +157,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[left])
@@ -170,7 +170,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 JOIN MyTable2 ON b1 = b2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($1, $6)], joinType=[inner])
@@ -178,7 +178,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($1, $6)], joinType=[inner])
@@ -192,7 +192,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON c1 = c2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[right])
@@ -200,7 +200,7 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a2, b2, c2, d2, e2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], e1=[$4], a2=[$5], b2=[$6], c2=[$7], d2=[$8], e2=[$9])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[right])

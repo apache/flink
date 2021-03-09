@@ -23,19 +23,16 @@ import org.apache.flink.api.common.JobID;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * {@link PermanentBlobService} implementation for testing purposes.
- */
+/** {@link PermanentBlobService} implementation for testing purposes. */
 public enum VoidPermanentBlobService implements PermanentBlobService {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
-		throw new IOException(String.format("Could not find file for job id %s and key %s.", jobId, key));
-	}
+    @Override
+    public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
+        throw new IOException(
+                String.format("Could not find file for job id %s and key %s.", jobId, key));
+    }
 
-	@Override
-	public void close() throws IOException {
-
-	}
+    @Override
+    public void close() throws IOException {}
 }

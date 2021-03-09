@@ -27,50 +27,45 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link EmptyGraph}.
- */
+/** Tests for {@link EmptyGraph}. */
 public class EmptyGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraph() throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 10)
-			.generate();
+    @Test
+    public void testGraph() throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 10).generate();
 
-		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
-		String edges = null;
+        String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
+        String edges = null;
 
-		TestUtils.compareGraph(graph, vertices, edges);
-	}
+        TestUtils.compareGraph(graph, vertices, edges);
+    }
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		int vertexCount = 100;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        int vertexCount = 100;
 
-		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount).generate();
 
-		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(0, graph.numberOfEdges());
+        assertEquals(vertexCount, graph.numberOfVertices());
+        assertEquals(0, graph.numberOfEdges());
 
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
+        long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+        long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
-		assertEquals(0, maxInDegree);
-		assertEquals(0, maxOutDegree);
-	}
+        assertEquals(0, maxInDegree);
+        assertEquals(0, maxOutDegree);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, 100)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new EmptyGraph(env, 100).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

@@ -30,76 +30,81 @@ import org.apache.flink.util.function.ThrowingRunnable;
  * @param <T> Type of originally wrapped object
  */
 abstract class AbstractTtlDecorator<T> {
-	/** Wrapped original state handler. */
-	final T original;
+    /** Wrapped original state handler. */
+    final T original;
 
-	final StateTtlConfig config;
+    final StateTtlConfig config;
 
-	final TtlTimeProvider timeProvider;
+    final TtlTimeProvider timeProvider;
 
-	/** Whether to renew expiration timestamp on state read access. */
-	final boolean updateTsOnRead;
+    /** Whether to renew expiration timestamp on state read access. */
+    final boolean updateTsOnRead;
 
-	/** Whether to renew expiration timestamp on state read access. */
-	final boolean returnExpired;
+    /** Whether to renew expiration timestamp on state read access. */
+    final boolean returnExpired;
 
-	/** State value time to live in milliseconds. */
-	final long ttl;
+    /** State value time to live in milliseconds. */
+    final long ttl;
 
-	AbstractTtlDecorator(
-		T original,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider) {
-		Preconditions.checkNotNull(original);
-		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(timeProvider);
-		this.original = original;
-		this.config = config;
-		this.timeProvider = timeProvider;
-		this.updateTsOnRead = config.getUpdateType() == StateTtlConfig.UpdateType.OnReadAndWrite;
-		this.returnExpired = config.getStateVisibility() == StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp;
-		this.ttl = config.getTtl().toMilliseconds();
-	}
+    AbstractTtlDecorator(T original, StateTtlConfig config, TtlTimeProvider timeProvider) {
+        Preconditions.checkNotNull(original);
+        Preconditions.checkNotNull(config);
+        Preconditions.checkNotNull(timeProvider);
+        this.original = original;
+        this.config = config;
+        this.timeProvider = timeProvider;
+        this.updateTsOnRead = config.getUpdateType() == StateTtlConfig.UpdateType.OnReadAndWrite;
+        this.returnExpired =
+                config.getStateVisibility()
+                        == StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp;
+        this.ttl = config.getTtl().toMilliseconds();
+    }
 
-	<V> V getUnexpired(TtlValue<V> ttlValue) {
-		return ttlValue == null || (!returnExpired && expired(ttlValue)) ? null : ttlValue.getUserValue();
-	}
+    <V> V getUnexpired(TtlValue<V> ttlValue) {
+        return ttlValue == null || (!returnExpired && expired(ttlValue))
+                ? null
+                : ttlValue.getUserValue();
+    }
 
-	<V> boolean expired(TtlValue<V> ttlValue) {
-		return TtlUtils.expired(ttlValue, ttl, timeProvider);
-	}
+    <V> boolean expired(TtlValue<V> ttlValue) {
+        return TtlUtils.expired(ttlValue, ttl, timeProvider);
+    }
 
-	<V> TtlValue<V> wrapWithTs(V value) {
-		return TtlUtils.wrapWithTs(value, timeProvider.currentTimestamp());
-	}
+    <V> TtlValue<V> wrapWithTs(V value) {
+        return TtlUtils.wrapWithTs(value, timeProvider.currentTimestamp());
+    }
 
-	<V> TtlValue<V> rewrapWithNewTs(TtlValue<V> ttlValue) {
-		return wrapWithTs(ttlValue.getUserValue());
-	}
+    <V> TtlValue<V> rewrapWithNewTs(TtlValue<V> ttlValue) {
+        return wrapWithTs(ttlValue.getUserValue());
+    }
 
-	<SE extends Throwable, CE extends Throwable, CLE extends Throwable, V> V getWithTtlCheckAndUpdate(
-		SupplierWithException<TtlValue<V>, SE> getter,
-		ThrowingConsumer<TtlValue<V>, CE> updater,
-		ThrowingRunnable<CLE> stateClear) throws SE, CE, CLE {
-		TtlValue<V> ttlValue = getWrappedWithTtlCheckAndUpdate(getter, updater, stateClear);
-		return ttlValue == null ? null : ttlValue.getUserValue();
-	}
+    <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
+            V getWithTtlCheckAndUpdate(
+                    SupplierWithException<TtlValue<V>, SE> getter,
+                    ThrowingConsumer<TtlValue<V>, CE> updater,
+                    ThrowingRunnable<CLE> stateClear)
+                    throws SE, CE, CLE {
+        TtlValue<V> ttlValue = getWrappedWithTtlCheckAndUpdate(getter, updater, stateClear);
+        return ttlValue == null ? null : ttlValue.getUserValue();
+    }
 
-	<SE extends Throwable, CE extends Throwable, CLE extends Throwable, V> TtlValue<V> getWrappedWithTtlCheckAndUpdate(
-		SupplierWithException<TtlValue<V>, SE> getter,
-		ThrowingConsumer<TtlValue<V>, CE> updater,
-		ThrowingRunnable<CLE> stateClear) throws SE, CE, CLE {
-		TtlValue<V> ttlValue = getter.get();
-		if (ttlValue == null) {
-			return null;
-		} else if (expired(ttlValue)) {
-			stateClear.run();
-			if (!returnExpired) {
-				return null;
-			}
-		} else if (updateTsOnRead) {
-			updater.accept(rewrapWithNewTs(ttlValue));
-		}
-		return ttlValue;
-	}
+    <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
+            TtlValue<V> getWrappedWithTtlCheckAndUpdate(
+                    SupplierWithException<TtlValue<V>, SE> getter,
+                    ThrowingConsumer<TtlValue<V>, CE> updater,
+                    ThrowingRunnable<CLE> stateClear)
+                    throws SE, CE, CLE {
+        TtlValue<V> ttlValue = getter.get();
+        if (ttlValue == null) {
+            return null;
+        } else if (expired(ttlValue)) {
+            stateClear.run();
+            if (!returnExpired) {
+                return null;
+            }
+        } else if (updateTsOnRead) {
+            updater.accept(rewrapWithNewTs(ttlValue));
+        }
+        return ttlValue;
+    }
 }

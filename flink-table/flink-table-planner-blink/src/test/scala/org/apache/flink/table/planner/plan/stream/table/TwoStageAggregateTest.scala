@@ -54,7 +54,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b)
       .select('a.count)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -65,7 +65,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -76,7 +76,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -87,7 +87,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('d)
       .select('c.min, 'a.avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -98,7 +98,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .select('b, 'a.sum)
       .where('b === 2)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -108,6 +108,6 @@ class TwoStageAggregateTest extends TableTestBase {
       .groupBy('b)
       .select('b, 'a.cast(DataTypes.DOUBLE()).avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

@@ -40,160 +40,172 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
-/**
- * Manual test for growing hash tables.
- */
+/** Manual test for growing hash tables. */
 public class HashTableRecordWidthCombinations {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		@SuppressWarnings("unchecked")
-		final TypeSerializer<Tuple2<Long, byte[]>> buildSerializer =
-				new TupleSerializer<Tuple2<Long, byte[]>>(
-						(Class<Tuple2<Long, byte[]>>) (Class<?>) Tuple2.class,
-						new TypeSerializer<?>[] { LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE });
+        @SuppressWarnings("unchecked")
+        final TypeSerializer<Tuple2<Long, byte[]>> buildSerializer =
+                new TupleSerializer<Tuple2<Long, byte[]>>(
+                        (Class<Tuple2<Long, byte[]>>) (Class<?>) Tuple2.class,
+                        new TypeSerializer<?>[] {
+                            LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE
+                        });
 
-		final TypeSerializer<Long> probeSerializer = LongSerializer.INSTANCE;
+        final TypeSerializer<Long> probeSerializer = LongSerializer.INSTANCE;
 
-		final TypeComparator<Tuple2<Long, byte[]>> buildComparator = new TupleComparator<Tuple2<Long, byte[]>>(
-				new int[] {0},
-				new TypeComparator<?>[] { new LongComparator(true) },
-				new TypeSerializer<?>[] { LongSerializer.INSTANCE });
+        final TypeComparator<Tuple2<Long, byte[]>> buildComparator =
+                new TupleComparator<Tuple2<Long, byte[]>>(
+                        new int[] {0},
+                        new TypeComparator<?>[] {new LongComparator(true)},
+                        new TypeSerializer<?>[] {LongSerializer.INSTANCE});
 
-		final TypeComparator<Long> probeComparator = new LongComparator(true);
+        final TypeComparator<Long> probeComparator = new LongComparator(true);
 
-		final TypePairComparator<Long, Tuple2<Long, byte[]>> pairComparator = new TypePairComparator<Long, Tuple2<Long, byte[]>>() {
+        final TypePairComparator<Long, Tuple2<Long, byte[]>> pairComparator =
+                new TypePairComparator<Long, Tuple2<Long, byte[]>>() {
 
-			private long ref;
+                    private long ref;
 
-			@Override
-			public void setReference(Long reference) {
-				ref = reference;
-			}
+                    @Override
+                    public void setReference(Long reference) {
+                        ref = reference;
+                    }
 
-			@Override
-			public boolean equalToReference(Tuple2<Long, byte[]> candidate) {
-				//noinspection UnnecessaryUnboxing
-				return candidate.f0.longValue() == ref;
-			}
+                    @Override
+                    public boolean equalToReference(Tuple2<Long, byte[]> candidate) {
+                        //noinspection UnnecessaryUnboxing
+                        return candidate.f0.longValue() == ref;
+                    }
 
-			@Override
-			public int compareToReference(Tuple2<Long, byte[]> candidate) {
-				long x = ref;
-				long y = candidate.f0;
-				return (x < y) ? -1 : ((x == y) ? 0 : 1);
-			}
-		};
+                    @Override
+                    public int compareToReference(Tuple2<Long, byte[]> candidate) {
+                        long x = ref;
+                        long y = candidate.f0;
+                        return (x < y) ? -1 : ((x == y) ? 0 : 1);
+                    }
+                };
 
-		try (final IOManager ioMan = new IOManagerAsync()) {
-			final int pageSize = 32 * 1024;
-			final int numSegments = 34;
+        try (final IOManager ioMan = new IOManagerAsync()) {
+            final int pageSize = 32 * 1024;
+            final int numSegments = 34;
 
-			for (int num = 3400; num < 3550; num++) {
-				final int numRecords = num;
+            for (int num = 3400; num < 3550; num++) {
+                final int numRecords = num;
 
-				for (int recordLen = 270; recordLen < 320; recordLen++) {
+                for (int recordLen = 270; recordLen < 320; recordLen++) {
 
-					final byte[] payload = new byte[recordLen - 8 - 4];
+                    final byte[] payload = new byte[recordLen - 8 - 4];
 
-					System.out.println("testing " + numRecords + " / " + recordLen);
+                    System.out.println("testing " + numRecords + " / " + recordLen);
 
-					List<MemorySegment> memory = getMemory(numSegments, pageSize);
+                    List<MemorySegment> memory = getMemory(numSegments, pageSize);
 
-					// we create a hash table that thinks the records are super large. that makes it choose initially
-					// a lot of memory for the partition buffers, and start with a smaller hash table. that way
-					// we trigger a hash table growth early.
-					MutableHashTable<Tuple2<Long, byte[]>, Long> table = new MutableHashTable<>(
-							buildSerializer, probeSerializer, buildComparator, probeComparator,
-							pairComparator, memory, ioMan, 16, false);
+                    // we create a hash table that thinks the records are super large. that makes it
+                    // choose initially
+                    // a lot of memory for the partition buffers, and start with a smaller hash
+                    // table. that way
+                    // we trigger a hash table growth early.
+                    MutableHashTable<Tuple2<Long, byte[]>, Long> table =
+                            new MutableHashTable<>(
+                                    buildSerializer,
+                                    probeSerializer,
+                                    buildComparator,
+                                    probeComparator,
+                                    pairComparator,
+                                    memory,
+                                    ioMan,
+                                    16,
+                                    false);
 
-					final MutableObjectIterator<Tuple2<Long, byte[]>> buildInput = new MutableObjectIterator<Tuple2<Long, byte[]>>() {
+                    final MutableObjectIterator<Tuple2<Long, byte[]>> buildInput =
+                            new MutableObjectIterator<Tuple2<Long, byte[]>>() {
 
-						private int count = 0;
+                                private int count = 0;
 
-						@Override
-						public Tuple2<Long, byte[]> next(Tuple2<Long, byte[]> reuse) {
-							return next();
-						}
+                                @Override
+                                public Tuple2<Long, byte[]> next(Tuple2<Long, byte[]> reuse) {
+                                    return next();
+                                }
 
-						@Override
-						public Tuple2<Long, byte[]> next() {
-							if (count++ < numRecords) {
-								return new Tuple2<>(42L, payload);
-							} else {
-								return null;
-							}
-						}
-					};
+                                @Override
+                                public Tuple2<Long, byte[]> next() {
+                                    if (count++ < numRecords) {
+                                        return new Tuple2<>(42L, payload);
+                                    } else {
+                                        return null;
+                                    }
+                                }
+                            };
 
-					// probe side
-					final MutableObjectIterator<Long> probeInput = new MutableObjectIterator<Long>() {
+                    // probe side
+                    final MutableObjectIterator<Long> probeInput =
+                            new MutableObjectIterator<Long>() {
 
-						private final long numRecords = 10000;
-						private long value = 0;
+                                private final long numRecords = 10000;
+                                private long value = 0;
 
-						@Override
-						public Long next(Long aLong) {
-							return next();
-						}
+                                @Override
+                                public Long next(Long aLong) {
+                                    return next();
+                                }
 
-						@Override
-						public Long next() {
-							if (value < numRecords) {
-								return value++;
-							} else {
-								return null;
-							}
-						}
-					};
+                                @Override
+                                public Long next() {
+                                    if (value < numRecords) {
+                                        return value++;
+                                    } else {
+                                        return null;
+                                    }
+                                }
+                            };
 
-					table.open(buildInput, probeInput);
+                    table.open(buildInput, probeInput);
 
-					try {
-						while (table.nextRecord()) {
-							MutableObjectIterator<Tuple2<Long, byte[]>> matches = table.getBuildSideIterator();
-							while (matches.next() != null) {}
-						}
-					}
-					catch (RuntimeException e) {
-						if (!e.getMessage().contains("exceeded maximum number of recursions")) {
-							throw e;
-						}
-					}
-					finally {
-						table.close();
-					}
+                    try {
+                        while (table.nextRecord()) {
+                            MutableObjectIterator<Tuple2<Long, byte[]>> matches =
+                                    table.getBuildSideIterator();
+                            while (matches.next() != null) {}
+                        }
+                    } catch (RuntimeException e) {
+                        if (!e.getMessage().contains("exceeded maximum number of recursions")) {
+                            throw e;
+                        }
+                    } finally {
+                        table.close();
+                    }
 
-					// make sure no temp files are left
-					checkNoTempFilesRemain(ioMan);
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+                    // make sure no temp files are left
+                    checkNoTempFilesRemain(ioMan);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	private static List<MemorySegment> getMemory(int numSegments, int segmentSize) {
-		ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
-		for (int i = 0; i < numSegments; i++) {
-			list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
-		}
-		return list;
-	}
+    private static List<MemorySegment> getMemory(int numSegments, int segmentSize) {
+        ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
+        for (int i = 0; i < numSegments; i++) {
+            list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
+        }
+        return list;
+    }
 
-	private static void checkNoTempFilesRemain(IOManager ioManager) {
-		for (File dir : ioManager.getSpillingDirectories()) {
-			for (String file : dir.list()) {
-				if (file != null && !(file.equals(".") || file.equals(".."))) {
-					fail("hash table did not clean up temp files. remaining file: " + file);
-				}
-			}
-		}
-	}
+    private static void checkNoTempFilesRemain(IOManager ioManager) {
+        for (File dir : ioManager.getSpillingDirectories()) {
+            for (String file : dir.list()) {
+                if (file != null && !(file.equals(".") || file.equals(".."))) {
+                    fail("hash table did not clean up temp files. remaining file: " + file);
+                }
+            }
+        }
+    }
 }

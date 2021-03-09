@@ -32,31 +32,33 @@ import java.time.Duration;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link TableEnvironment} that require a planner.
- */
+/** Tests for {@link TableEnvironment} that require a planner. */
 public class EnvironmentTest {
 
-	@Test
-	public void testPassingExecutionParameters() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+    @Test
+    public void testPassingExecutionParameters() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-		tEnv.getConfig().addConfiguration(
-			new Configuration()
-				.set(CoreOptions.DEFAULT_PARALLELISM, 128)
-				.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(800))
-				.set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
-		);
+        tEnv.getConfig()
+                .addConfiguration(
+                        new Configuration()
+                                .set(CoreOptions.DEFAULT_PARALLELISM, 128)
+                                .set(
+                                        PipelineOptions.AUTO_WATERMARK_INTERVAL,
+                                        Duration.ofMillis(800))
+                                .set(
+                                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                        Duration.ofSeconds(30)));
 
-		tEnv.createTemporaryView("test", env.fromElements(1, 2, 3));
+        tEnv.createTemporaryView("test", env.fromElements(1, 2, 3));
 
-		// trigger translation
-		Table table = tEnv.sqlQuery("SELECT * FROM test");
-		tEnv.toAppendStream(table, Row.class);
+        // trigger translation
+        Table table = tEnv.sqlQuery("SELECT * FROM test");
+        tEnv.toAppendStream(table, Row.class);
 
-		assertEquals(128, env.getParallelism());
-		assertEquals(800, env.getConfig().getAutoWatermarkInterval());
-		assertEquals(30000, env.getCheckpointConfig().getCheckpointInterval());
-	}
+        assertEquals(128, env.getParallelism());
+        assertEquals(800, env.getConfig().getAutoWatermarkInterval());
+        assertEquals(30000, env.getCheckpointConfig().getCheckpointInterval());
+    }
 }

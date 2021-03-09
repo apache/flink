@@ -22,55 +22,57 @@ import org.apache.flink.api.common.JobID;
 
 import java.util.function.Function;
 
-/**
- * Testing {@link LibraryCacheManager} implementation.
- */
+/** Testing {@link LibraryCacheManager} implementation. */
 public class TestingLibraryCacheManager implements LibraryCacheManager {
-	private final Function<JobID, LibraryCacheManager.ClassLoaderLease> registerOrRetainClassLoaderFunction;
-	private final Runnable shutdownRunnable;
+    private final Function<JobID, LibraryCacheManager.ClassLoaderLease>
+            registerOrRetainClassLoaderFunction;
+    private final Runnable shutdownRunnable;
 
-	private TestingLibraryCacheManager(
-			Function<JobID, LibraryCacheManager.ClassLoaderLease> registerOrRetainClassLoaderFunction,
-			Runnable shutdownRunnable) {
-		this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
-		this.shutdownRunnable = shutdownRunnable;
-	}
+    private TestingLibraryCacheManager(
+            Function<JobID, LibraryCacheManager.ClassLoaderLease>
+                    registerOrRetainClassLoaderFunction,
+            Runnable shutdownRunnable) {
+        this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
+        this.shutdownRunnable = shutdownRunnable;
+    }
 
-	@Override
-	public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(JobID jobId) {
-		return registerOrRetainClassLoaderFunction.apply(jobId);
-	}
+    @Override
+    public LibraryCacheManager.ClassLoaderLease registerClassLoaderLease(JobID jobId) {
+        return registerOrRetainClassLoaderFunction.apply(jobId);
+    }
 
-	@Override
-	public void shutdown() {
-		shutdownRunnable.run();
-	}
+    @Override
+    public void shutdown() {
+        shutdownRunnable.run();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
+    public static final class Builder {
 
-		private Runnable shutdownRunnable = () -> {};
-		private Function<JobID, LibraryCacheManager.ClassLoaderLease> registerOrRetainClassLoaderFunction = ignored -> TestingClassLoaderLease.newBuilder().build();
+        private Runnable shutdownRunnable = () -> {};
+        private Function<JobID, LibraryCacheManager.ClassLoaderLease>
+                registerOrRetainClassLoaderFunction =
+                        ignored -> TestingClassLoaderLease.newBuilder().build();
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setShutdownRunnable(Runnable shutdownRunnable) {
-			this.shutdownRunnable = shutdownRunnable;
-			return this;
-		}
+        public Builder setShutdownRunnable(Runnable shutdownRunnable) {
+            this.shutdownRunnable = shutdownRunnable;
+            return this;
+        }
 
-		public Builder setRegisterOrRetainClassLoaderFunction(Function<JobID, ClassLoaderLease> registerOrRetainClassLoaderFunction) {
-			this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
-			return this;
-		}
+        public Builder setRegisterOrRetainClassLoaderFunction(
+                Function<JobID, ClassLoaderLease> registerOrRetainClassLoaderFunction) {
+            this.registerOrRetainClassLoaderFunction = registerOrRetainClassLoaderFunction;
+            return this;
+        }
 
-		public TestingLibraryCacheManager build() {
-			return new TestingLibraryCacheManager(
-				registerOrRetainClassLoaderFunction,
-				shutdownRunnable);
-		}
-	}
+        public TestingLibraryCacheManager build() {
+            return new TestingLibraryCacheManager(
+                    registerOrRetainClassLoaderFunction, shutdownRunnable);
+        }
+    }
 }

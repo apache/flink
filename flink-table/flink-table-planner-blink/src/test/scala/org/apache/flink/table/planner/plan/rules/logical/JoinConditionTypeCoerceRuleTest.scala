@@ -54,44 +54,44 @@ class JoinConditionTypeCoerceRuleTest extends TableTestBase {
 
   @Test
   def testInToSemiJoinIntEqualsLong(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT b FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT b FROM T2)")
   }
 
   @Test
   def testInToSemiJoinIntEqualsFloat(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT c FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT c FROM T2)")
   }
 
   @Test
   def testInToSemiJoinIntEqualsDouble(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT d FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT d FROM T2)")
   }
 
   @Test
   def testInToSemiJoinIntEqualsDecimal(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT e FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.a IN (SELECT e FROM T2)")
   }
 
   @Test
   def testInToSemiJoinFloatEqualsDouble(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.c IN (SELECT d FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.c IN (SELECT d FROM T2)")
   }
 
   @Test
   def testInToSemiJoinFloatEqualsDecimal(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.c IN (SELECT e FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.c IN (SELECT e FROM T2)")
   }
 
   @Test
   def testInToSemiJoinDoubleEqualsDecimal(): Unit = {
-    util.verifyPlanWithType("SELECT * FROM T1 WHERE T1.d IN (SELECT e FROM T2)")
+    util.verifyRelPlanWithType("SELECT * FROM T1 WHERE T1.d IN (SELECT e FROM T2)")
   }
 
   // Test nullability mismatch.
   @Test
   def testJoinConditionEqualsTypesNotEquals01(): Unit = {
     val sqlQuery = "SELECT a FROM T1 LEFT JOIN (SELECT COUNT(*) AS cnt FROM T2) AS x ON a = x.cnt"
-    util.verifyPlanWithType(sqlQuery)
+    util.verifyRelPlanWithType(sqlQuery)
   }
 
   // Join with or predicate is not rewrite by subquery rule but decorrelate.
@@ -111,6 +111,6 @@ class JoinConditionTypeCoerceRuleTest extends TableTestBase {
         |               WHERE  t3a = t4a
         |                       OR t3b > t4b)
       """.stripMargin
-    util.verifyPlanWithType(sqlQuery)
+    util.verifyRelPlanWithType(sqlQuery)
   }
 }

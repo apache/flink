@@ -23,6 +23,8 @@ CLUSTER_ROLE_BINDING="flink-role-binding-default"
 CLUSTER_ID="flink-native-k8s-application-1"
 FLINK_IMAGE_NAME="test_kubernetes_application"
 LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
+IMAGE_BUILD_RETRIES=3
+IMAGE_BUILD_BACKOFF=2
 
 function internal_cleanup {
     kubectl delete deployment ${CLUSTER_ID}
@@ -31,7 +33,10 @@ function internal_cleanup {
 
 start_kubernetes
 
-build_image ${FLINK_IMAGE_NAME}
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
+	echo "ERROR: Could not build image. Aborting..."
+	exit 1
+fi
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 

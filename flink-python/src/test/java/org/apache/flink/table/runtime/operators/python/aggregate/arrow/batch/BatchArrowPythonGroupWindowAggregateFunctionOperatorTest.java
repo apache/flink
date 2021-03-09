@@ -46,208 +46,340 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Test for {@link BatchArrowPythonGroupWindowAggregateFunctionOperator}. These test that:
  *
  * <ul>
- * 		<li>FinishBundle is called when bundled element count reach to max bundle size</li>
- * 		<li>FinishBundle is called when bundled time reach to max bundle time</li>
+ *   <li>FinishBundle is called when bundled element count reach to max bundle size
+ *   <li>FinishBundle is called when bundled time reach to max bundle time
  * </ul>
  */
 public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
-	extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
-	@Test
-	public void testGroupAggregateFunction() throws Exception {
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(
-			new Configuration());
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
+    @Test
+    public void testGroupAggregateFunction() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                getTestHarness(new Configuration());
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
 
-		testHarness.close();
+        testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                1L,
+                                TimestampData.fromEpochMillis(5000L),
+                                TimestampData.fromEpochMillis(15000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                2L,
+                                TimestampData.fromEpochMillis(10000L),
+                                TimestampData.fromEpochMillis(20000L))));
 
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByCount() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 6);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByCount() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 6);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
 
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
 
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                1L,
+                                TimestampData.fromEpochMillis(5000L),
+                                TimestampData.fromEpochMillis(15000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                2L,
+                                TimestampData.fromEpochMillis(10000L),
+                                TimestampData.fromEpochMillis(20000L))));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
+        testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByTime() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByTime() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+        testHarness.processElement(
+                new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.setProcessingTime(1000L);
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.setProcessingTime(1000L);
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                1L,
+                                TimestampData.fromEpochMillis(5000L),
+                                TimestampData.fromEpochMillis(15000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                2L,
+                                TimestampData.fromEpochMillis(10000L),
+                                TimestampData.fromEpochMillis(20000L))));
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
+        testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Override
-	public LogicalType[] getOutputLogicalType() {
-		return new LogicalType[]{
-			DataTypes.STRING().getLogicalType(),
-			DataTypes.BIGINT().getLogicalType()
-		};
-	}
+    @Override
+    public LogicalType[] getOutputLogicalType() {
+        return new LogicalType[] {
+            DataTypes.STRING().getLogicalType(), DataTypes.BIGINT().getLogicalType()
+        };
+    }
 
-	@Override
-	public RowType getInputType() {
-		return new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType()),
-			new RowType.RowField("rowTime", new BigIntType())));
-	}
+    @Override
+    public RowType getInputType() {
+        return new RowType(
+                Arrays.asList(
+                        new RowType.RowField("f1", new VarCharType()),
+                        new RowType.RowField("f2", new VarCharType()),
+                        new RowType.RowField("f3", new BigIntType()),
+                        new RowType.RowField("rowTime", new BigIntType())));
+    }
 
-	@Override
-	public RowType getOutputType() {
-		return new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new BigIntType()),
-			new RowType.RowField("windowStart", new TimestampType(3)),
-			new RowType.RowField("windowEnd", new TimestampType(3))));
-	}
+    @Override
+    public RowType getOutputType() {
+        return new RowType(
+                Arrays.asList(
+                        new RowType.RowField("f1", new VarCharType()),
+                        new RowType.RowField("f2", new BigIntType()),
+                        new RowType.RowField("windowStart", new TimestampType(3)),
+                        new RowType.RowField("windowEnd", new TimestampType(3))));
+    }
 
-	@Override
-	public AbstractArrowPythonAggregateFunctionOperator getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggregateFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		// SlidingWindow(10000L, 5000L)
-		return new PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
-			config,
-			pandasAggregateFunctions,
-			inputType,
-			outputType,
-			3,
-			100000,
-			10000L,
-			5000L,
-			new int[]{0, 1},
-			groupingSet,
-			groupingSet,
-			udafInputOffsets
-		);
-	}
+    @Override
+    public AbstractArrowPythonAggregateFunctionOperator getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggregateFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        // SlidingWindow(10000L, 5000L)
+        return new PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
+                config,
+                pandasAggregateFunctions,
+                inputType,
+                outputType,
+                3,
+                100000,
+                10000L,
+                5000L,
+                new int[] {0, 1},
+                groupingSet,
+                groupingSet,
+                udafInputOffsets);
+    }
 
-	private static class PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator
-		extends BatchArrowPythonGroupWindowAggregateFunctionOperator {
-		PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo[] pandasAggFunctions,
-			RowType inputType,
-			RowType outputType,
-			int inputTimeFieldIndex,
-			int maxLimitSize,
-			long windowSize,
-			long slideSize,
-			int[] namedProperties,
-			int[] groupKey,
-			int[] groupingSet,
-			int[] udafInputOffsets) {
-			super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex,
-				maxLimitSize, windowSize, slideSize, namedProperties, groupKey, groupingSet, udafInputOffsets);
-		}
+    private static class PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator
+            extends BatchArrowPythonGroupWindowAggregateFunctionOperator {
+        PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo[] pandasAggFunctions,
+                RowType inputType,
+                RowType outputType,
+                int inputTimeFieldIndex,
+                int maxLimitSize,
+                long windowSize,
+                long slideSize,
+                int[] namedProperties,
+                int[] groupKey,
+                int[] groupingSet,
+                int[] udafInputOffsets) {
+            super(
+                    config,
+                    pandasAggFunctions,
+                    inputType,
+                    outputType,
+                    inputTimeFieldIndex,
+                    maxLimitSize,
+                    windowSize,
+                    slideSize,
+                    namedProperties,
+                    groupKey,
+                    groupingSet,
+                    udafInputOffsets);
+        }
 
-		@Override
-		public PythonFunctionRunner createPythonFunctionRunner() {
-			return new PassThroughPythonAggregateFunctionRunner(
-				getRuntimeContext().getTaskName(),
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType,
-				getFunctionUrn(),
-				getUserDefinedFunctionsProto(),
-				getInputOutputCoderUrn(),
-				new HashMap<>(),
-				PythonTestUtils.createMockFlinkMetricContainer(),
-				false
-			);
-		}
-	}
+        @Override
+        public PythonFunctionRunner createPythonFunctionRunner() {
+            return new PassThroughPythonAggregateFunctionRunner(
+                    getRuntimeContext().getTaskName(),
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    getFunctionUrn(),
+                    getUserDefinedFunctionsProto(),
+                    getInputOutputCoderUrn(),
+                    new HashMap<>(),
+                    PythonTestUtils.createMockFlinkMetricContainer(),
+                    false);
+        }
+    }
 }

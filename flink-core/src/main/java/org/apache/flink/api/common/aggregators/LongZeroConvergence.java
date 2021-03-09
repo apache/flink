@@ -22,22 +22,22 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.LongValue;
 
 /**
- * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached once the aggregator
- * holds the value zero. The aggregated data type is a {@link LongValue}.
+ * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached
+ * once the aggregator holds the value zero. The aggregated data type is a {@link LongValue}.
  */
 @SuppressWarnings("serial")
 @PublicEvolving
 public class LongZeroConvergence implements ConvergenceCriterion<LongValue> {
 
-	/**
-	 * Returns true, if the aggregator value is zero, false otherwise.
-	 * 
-	 * @param iteration The number of the iteration superstep. Ignored in this case.
-	 * @param value The aggregator value, which is compared to zero.
-	 * @return True, if the aggregator value is zero, false otherwise.
-	 */
-	@Override
-	public boolean isConverged(int iteration, LongValue value) {
-		return value.getValue() == 0;
-	}
+    /**
+     * Returns true, if the aggregator value is zero, false otherwise.
+     *
+     * @param iteration The number of the iteration superstep. Ignored in this case.
+     * @param value The aggregator value, which is compared to zero.
+     * @return True, if the aggregator value is zero, false otherwise.
+     */
+    @Override
+    public boolean isConverged(int iteration, LongValue value) {
+        return value.getValue() == 0;
+    }
 }

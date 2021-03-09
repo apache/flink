@@ -35,28 +35,36 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler which returns the cluster overview information with version.
- */
-public class ClusterOverviewHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
+/** Handler which returns the cluster overview information with version. */
+public class ClusterOverviewHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                ClusterOverviewWithVersion,
+                EmptyMessageParameters> {
 
-	private static final String version = EnvironmentInformation.getVersion();
+    private static final String version = EnvironmentInformation.getVersion();
 
-	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
+    private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
-	public ClusterOverviewHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-	}
+    public ClusterOverviewHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters>
+                    messageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	public CompletableFuture<ClusterOverviewWithVersion> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) {
-		CompletableFuture<ClusterOverview> overviewFuture = gateway.requestClusterOverview(timeout);
+    @Override
+    public CompletableFuture<ClusterOverviewWithVersion> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull RestfulGateway gateway) {
+        CompletableFuture<ClusterOverview> overviewFuture = gateway.requestClusterOverview(timeout);
 
-		return overviewFuture.thenApply(
-			statusOverview -> ClusterOverviewWithVersion.fromStatusOverview(statusOverview, version, commitID));
-	}
+        return overviewFuture.thenApply(
+                statusOverview ->
+                        ClusterOverviewWithVersion.fromStatusOverview(
+                                statusOverview, version, commitID));
+    }
 }

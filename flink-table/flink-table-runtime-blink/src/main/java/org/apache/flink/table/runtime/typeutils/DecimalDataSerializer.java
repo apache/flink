@@ -28,174 +28,173 @@ import org.apache.flink.table.data.DecimalData;
 
 import java.io.IOException;
 
-/**
- * Serializer for {@link DecimalData}.
- */
+/** Serializer for {@link DecimalData}. */
 @Internal
 public final class DecimalDataSerializer extends TypeSerializer<DecimalData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int precision;
-	private final int scale;
+    private final int precision;
+    private final int scale;
 
-	public DecimalDataSerializer(int precision, int scale) {
-		this.precision = precision;
-		this.scale = scale;
-	}
+    public DecimalDataSerializer(int precision, int scale) {
+        this.precision = precision;
+        this.scale = scale;
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public DecimalData createInstance() {
-		return DecimalData.zero(precision, scale);
-	}
+    @Override
+    public DecimalData createInstance() {
+        return DecimalData.zero(precision, scale);
+    }
 
-	@Override
-	public DecimalData copy(DecimalData from) {
-		return from.copy();
-	}
+    @Override
+    public DecimalData copy(DecimalData from) {
+        return from.copy();
+    }
 
-	@Override
-	public DecimalData copy(DecimalData from, DecimalData reuse) {
-		return copy(from);
-	}
+    @Override
+    public DecimalData copy(DecimalData from, DecimalData reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(DecimalData record, DataOutputView target) throws IOException {
-		if (DecimalData.isCompact(precision)) {
-			assert record.isCompact();
-			target.writeLong(record.toUnscaledLong());
-		} else {
-			byte[] bytes = record.toUnscaledBytes();
-			target.writeInt(bytes.length);
-			target.write(bytes);
-		}
-	}
+    @Override
+    public void serialize(DecimalData record, DataOutputView target) throws IOException {
+        if (DecimalData.isCompact(precision)) {
+            assert record.isCompact();
+            target.writeLong(record.toUnscaledLong());
+        } else {
+            byte[] bytes = record.toUnscaledBytes();
+            target.writeInt(bytes.length);
+            target.write(bytes);
+        }
+    }
 
-	@Override
-	public DecimalData deserialize(DataInputView source) throws IOException {
-		if (DecimalData.isCompact(precision)) {
-			long longVal = source.readLong();
-			return DecimalData.fromUnscaledLong(longVal, precision, scale);
-		} else {
-			int length = source.readInt();
-			byte[] bytes = new byte[length];
-			source.readFully(bytes);
-			return DecimalData.fromUnscaledBytes(bytes, precision, scale);
-		}
-	}
+    @Override
+    public DecimalData deserialize(DataInputView source) throws IOException {
+        if (DecimalData.isCompact(precision)) {
+            long longVal = source.readLong();
+            return DecimalData.fromUnscaledLong(longVal, precision, scale);
+        } else {
+            int length = source.readInt();
+            byte[] bytes = new byte[length];
+            source.readFully(bytes);
+            return DecimalData.fromUnscaledBytes(bytes, precision, scale);
+        }
+    }
 
-	@Override
-	public DecimalData deserialize(DecimalData record, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public DecimalData deserialize(DecimalData record, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		if (DecimalData.isCompact(precision)) {
-			target.writeLong(source.readLong());
-		} else {
-			int len = source.readInt();
-			target.writeInt(len);
-			target.write(source, len);
-		}
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        if (DecimalData.isCompact(precision)) {
+            target.writeLong(source.readLong());
+        } else {
+            int len = source.readInt();
+            target.writeInt(len);
+            target.write(source, len);
+        }
+    }
 
-	@Override
-	public DecimalDataSerializer duplicate() {
-		return new DecimalDataSerializer(precision, scale);
-	}
+    @Override
+    public DecimalDataSerializer duplicate() {
+        return new DecimalDataSerializer(precision, scale);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		DecimalDataSerializer that = (DecimalDataSerializer) o;
+        DecimalDataSerializer that = (DecimalDataSerializer) o;
 
-		return precision == that.precision && scale == that.scale;
-	}
+        return precision == that.precision && scale == that.scale;
+    }
 
-	@Override
-	public int hashCode() {
-		int result = precision;
-		result = 31 * result + scale;
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = precision;
+        result = 31 * result + scale;
+        return result;
+    }
 
-	@Override
-	public TypeSerializerSnapshot<DecimalData> snapshotConfiguration() {
-		return new DecimalSerializerSnapshot(precision, scale);
-	}
+    @Override
+    public TypeSerializerSnapshot<DecimalData> snapshotConfiguration() {
+        return new DecimalSerializerSnapshot(precision, scale);
+    }
 
-	/**
-	 * {@link TypeSerializerSnapshot} for {@link DecimalDataSerializer}.
-	 */
-	public static final class DecimalSerializerSnapshot implements TypeSerializerSnapshot<DecimalData> {
+    /** {@link TypeSerializerSnapshot} for {@link DecimalDataSerializer}. */
+    public static final class DecimalSerializerSnapshot
+            implements TypeSerializerSnapshot<DecimalData> {
 
-		private static final int CURRENT_VERSION = 3;
+        private static final int CURRENT_VERSION = 3;
 
-		private int previousPrecision;
-		private int previousScale;
+        private int previousPrecision;
+        private int previousScale;
 
-		@SuppressWarnings("unused")
-		public DecimalSerializerSnapshot() {
-			// this constructor is used when restoring from a checkpoint/savepoint.
-		}
+        @SuppressWarnings("unused")
+        public DecimalSerializerSnapshot() {
+            // this constructor is used when restoring from a checkpoint/savepoint.
+        }
 
-		DecimalSerializerSnapshot(int precision, int scale) {
-			this.previousPrecision = precision;
-			this.previousScale = scale;
-		}
+        DecimalSerializerSnapshot(int precision, int scale) {
+            this.previousPrecision = precision;
+            this.previousScale = scale;
+        }
 
-		@Override
-		public int getCurrentVersion() {
-			return CURRENT_VERSION;
-		}
+        @Override
+        public int getCurrentVersion() {
+            return CURRENT_VERSION;
+        }
 
-		@Override
-		public void writeSnapshot(DataOutputView out) throws IOException {
-			out.writeInt(previousPrecision);
-			out.writeInt(previousScale);
-		}
+        @Override
+        public void writeSnapshot(DataOutputView out) throws IOException {
+            out.writeInt(previousPrecision);
+            out.writeInt(previousScale);
+        }
 
-		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-			this.previousPrecision = in.readInt();
-			this.previousScale = in.readInt();
-		}
+        @Override
+        public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+                throws IOException {
+            this.previousPrecision = in.readInt();
+            this.previousScale = in.readInt();
+        }
 
-		@Override
-		public TypeSerializer<DecimalData> restoreSerializer() {
-			return new DecimalDataSerializer(previousPrecision, previousScale);
-		}
+        @Override
+        public TypeSerializer<DecimalData> restoreSerializer() {
+            return new DecimalDataSerializer(previousPrecision, previousScale);
+        }
 
-		@Override
-		public TypeSerializerSchemaCompatibility<DecimalData> resolveSchemaCompatibility(TypeSerializer<DecimalData> newSerializer) {
-			if (!(newSerializer instanceof DecimalDataSerializer)) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
+        @Override
+        public TypeSerializerSchemaCompatibility<DecimalData> resolveSchemaCompatibility(
+                TypeSerializer<DecimalData> newSerializer) {
+            if (!(newSerializer instanceof DecimalDataSerializer)) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
 
-			DecimalDataSerializer newDecimalDataSerializer = (DecimalDataSerializer) newSerializer;
-			if (previousPrecision != newDecimalDataSerializer.precision ||
-				previousScale != newDecimalDataSerializer.scale) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			} else {
-				return TypeSerializerSchemaCompatibility.compatibleAsIs();
-			}
-		}
-	}
+            DecimalDataSerializer newDecimalDataSerializer = (DecimalDataSerializer) newSerializer;
+            if (previousPrecision != newDecimalDataSerializer.precision
+                    || previousScale != newDecimalDataSerializer.scale) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            } else {
+                return TypeSerializerSchemaCompatibility.compatibleAsIs();
+            }
+        }
+    }
 }

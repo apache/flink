@@ -27,75 +27,73 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Double {@link ColumnReader}.
- */
+/** Double {@link ColumnReader}. */
 public class DoubleColumnReader extends AbstractColumnReader<WritableDoubleVector> {
 
-	public DoubleColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.DOUBLE);
-	}
+    public DoubleColumnReader(ColumnDescriptor descriptor, PageReader pageReader)
+            throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.DOUBLE);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableDoubleVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						readDoubles(n, column, rowId);
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setDouble(rowId + i, readDouble());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableDoubleVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        readDoubles(n, column, rowId);
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setDouble(rowId + i, readDouble());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableDoubleVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setDouble(i, dictionary.decodeToDouble(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableDoubleVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setDouble(i, dictionary.decodeToDouble(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	private double readDouble() {
-		return readDataBuffer(8).getDouble();
-	}
+    private double readDouble() {
+        return readDataBuffer(8).getDouble();
+    }
 
-	private void readDoubles(int total, WritableDoubleVector c, int rowId) {
-		int requiredBytes = total * 8;
-		ByteBuffer buffer = readDataBuffer(requiredBytes);
+    private void readDoubles(int total, WritableDoubleVector c, int rowId) {
+        int requiredBytes = total * 8;
+        ByteBuffer buffer = readDataBuffer(requiredBytes);
 
-		if (buffer.hasArray()) {
-			int offset = buffer.arrayOffset() + buffer.position();
-			c.setDoublesFromBinary(rowId, total, buffer.array(), offset);
-		} else {
-			for (int i = 0; i < total; i += 1) {
-				c.setDouble(rowId + i, buffer.getDouble());
-			}
-		}
-	}
+        if (buffer.hasArray()) {
+            int offset = buffer.arrayOffset() + buffer.position();
+            c.setDoublesFromBinary(rowId, total, buffer.array(), offset);
+        } else {
+            for (int i = 0; i < total; i += 1) {
+                c.setDouble(rowId + i, buffer.getDouble());
+            }
+        }
+    }
 }

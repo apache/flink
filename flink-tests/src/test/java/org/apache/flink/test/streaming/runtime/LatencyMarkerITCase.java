@@ -37,55 +37,69 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Tests latency marker.
- */
+/** Tests latency marker. */
 public class LatencyMarkerITCase {
-	/**
-	 * FLINK-17780: Tests that streams are not corrupted/records lost when using latency markers with broadcast.
-	 */
-	@Test
-	public void testBroadcast() throws Exception {
-		int inputCount = 100000;
-		int parallelism = 4;
+    /**
+     * FLINK-17780: Tests that streams are not corrupted/records lost when using latency markers
+     * with broadcast.
+     */
+    @Test
+    public void testBroadcast() throws Exception {
+        int inputCount = 100000;
+        int parallelism = 4;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(parallelism);
-		env.getConfig().setLatencyTrackingInterval(2000);
-		env.setRestartStrategy(RestartStrategies.noRestart());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(parallelism);
+        env.getConfig().setLatencyTrackingInterval(2000);
+        env.setRestartStrategy(RestartStrategies.noRestart());
 
-		List<Integer> broadcastData = IntStream.range(0, inputCount).boxed().collect(Collectors.toList());
-		DataStream<Integer> broadcastDataStream = env.fromCollection(broadcastData)
-			.setParallelism(1);
+        List<Integer> broadcastData =
+                IntStream.range(0, inputCount).boxed().collect(Collectors.toList());
+        DataStream<Integer> broadcastDataStream =
+                env.fromCollection(broadcastData).setParallelism(1);
 
-		// broadcast the configurations and create the broadcast state
+        // broadcast the configurations and create the broadcast state
 
-		DataStream<String> streamWithoutData = env.fromCollection(Collections.emptyList(), TypeInformation.of(String.class));
+        DataStream<String> streamWithoutData =
+                env.fromCollection(Collections.emptyList(), TypeInformation.of(String.class));
 
-		MapStateDescriptor<String, Integer> stateDescriptor = new MapStateDescriptor<>("BroadcastState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+        MapStateDescriptor<String, Integer> stateDescriptor =
+                new MapStateDescriptor<>(
+                        "BroadcastState",
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO);
 
-		SingleOutputStreamOperator<Integer> processor = streamWithoutData
-			.connect(broadcastDataStream.broadcast(stateDescriptor))
-			.process(new BroadcastProcessFunction<String, Integer, Integer>() {
-				int expected = 0;
+        SingleOutputStreamOperator<Integer> processor =
+                streamWithoutData
+                        .connect(broadcastDataStream.broadcast(stateDescriptor))
+                        .process(
+                                new BroadcastProcessFunction<String, Integer, Integer>() {
+                                    int expected = 0;
 
-				public void processElement(String value, ReadOnlyContext ctx, Collector<Integer> out) {
-				}
+                                    public void processElement(
+                                            String value,
+                                            ReadOnlyContext ctx,
+                                            Collector<Integer> out) {}
 
-				public void processBroadcastElement(Integer value, Context ctx, Collector<Integer> out) {
-					if (value != expected++) {
-						throw new AssertionError(String.format("Value was supposed to be: '%s', but was: '%s'", expected - 1, value));
-					}
-					out.collect(value);
-				}
-			});
+                                    public void processBroadcastElement(
+                                            Integer value, Context ctx, Collector<Integer> out) {
+                                        if (value != expected++) {
+                                            throw new AssertionError(
+                                                    String.format(
+                                                            "Value was supposed to be: '%s', but was: '%s'",
+                                                            expected - 1, value));
+                                        }
+                                        out.collect(value);
+                                    }
+                                });
 
-		processor.addSink(new AccumulatorCountingSink<>())
-			.setParallelism(1);
+        processor.addSink(new AccumulatorCountingSink<>()).setParallelism(1);
 
-		JobExecutionResult executionResult = env.execute();
+        JobExecutionResult executionResult = env.execute();
 
-		Integer count = executionResult.getAccumulatorResult(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR);
-		Assert.assertEquals(inputCount * parallelism, count.intValue());
-	}
+        Integer count =
+                executionResult.getAccumulatorResult(
+                        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR);
+        Assert.assertEquals(inputCount * parallelism, count.intValue());
+    }
 }

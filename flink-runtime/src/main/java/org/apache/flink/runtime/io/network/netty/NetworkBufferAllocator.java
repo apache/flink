@@ -31,48 +31,47 @@ import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An allocator used for requesting buffers in the client side netty handlers.
- */
+/** An allocator used for requesting buffers in the client side netty handlers. */
 class NetworkBufferAllocator {
-	private final NetworkClientHandler networkClientHandler;
+    private final NetworkClientHandler networkClientHandler;
 
-	NetworkBufferAllocator(NetworkClientHandler networkClientHandler) {
-		this.networkClientHandler = checkNotNull(networkClientHandler);
-	}
+    NetworkBufferAllocator(NetworkClientHandler networkClientHandler) {
+        this.networkClientHandler = checkNotNull(networkClientHandler);
+    }
 
-	/**
-	 * Allocates a pooled network buffer for the specific input channel.
-	 *
-	 * @param receiverId The id of the requested input channel.
-	 * @return The pooled network buffer.
-	 */
-	@Nullable
-	Buffer allocatePooledNetworkBuffer(InputChannelID receiverId) {
-		Buffer buffer = null;
+    /**
+     * Allocates a pooled network buffer for the specific input channel.
+     *
+     * @param receiverId The id of the requested input channel.
+     * @return The pooled network buffer.
+     */
+    @Nullable
+    Buffer allocatePooledNetworkBuffer(InputChannelID receiverId) {
+        Buffer buffer = null;
 
-		RemoteInputChannel inputChannel = networkClientHandler.getInputChannel(receiverId);
+        RemoteInputChannel inputChannel = networkClientHandler.getInputChannel(receiverId);
 
-		// If the input channel has been released, we cannot allocate buffer and the received message
-		// will be discarded.
-		if (inputChannel != null) {
-			buffer = inputChannel.requestBuffer();
-		}
+        // If the input channel has been released, we cannot allocate buffer and the received
+        // message
+        // will be discarded.
+        if (inputChannel != null) {
+            buffer = inputChannel.requestBuffer();
+        }
 
-		return buffer;
-	}
+        return buffer;
+    }
 
-	/**
-	 * Allocates an un-pooled network buffer with the specific size.
-	 *
-	 * @param size The requested buffer size.
-	 * @param dataType The data type this buffer represents.
-	 * @return The un-pooled network buffer.
-	 */
-	Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
-		byte[] byteArray = new byte[size];
-		MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
+    /**
+     * Allocates an un-pooled network buffer with the specific size.
+     *
+     * @param size The requested buffer size.
+     * @param dataType The data type this buffer represents.
+     * @return The un-pooled network buffer.
+     */
+    Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
+        byte[] byteArray = new byte[size];
+        MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 
-		return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, dataType);
-	}
+        return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, dataType);
+    }
 }

@@ -38,115 +38,148 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLA
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 
-
-/**
- * Tests for the RUN command with Dynamic Properties.
- */
+/** Tests for the RUN command with Dynamic Properties. */
 public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
 
-	private GenericCLI cliUnderTest;
-	private Configuration configuration;
+    private GenericCLI cliUnderTest;
+    private Configuration configuration;
 
-	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+    @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
+    @BeforeClass
+    public static void init() {
+        CliFrontendTestUtils.pipeSystemOutToNull();
+    }
 
-	@AfterClass
-	public static void shutdown() {
-		CliFrontendTestUtils.restoreSystemOut();
-	}
+    @AfterClass
+    public static void shutdown() {
+        CliFrontendTestUtils.restoreSystemOut();
+    }
 
-	@Before
-	public void setup() {
-		Options testOptions = new Options();
-		configuration = new Configuration();
-		configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
+    @Before
+    public void setup() {
+        Options testOptions = new Options();
+        configuration = new Configuration();
+        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
 
-		cliUnderTest = new GenericCLI(
-			configuration,
-			tmp.getRoot().getAbsolutePath());
+        cliUnderTest = new GenericCLI(configuration, tmp.getRoot().getAbsolutePath());
 
-		cliUnderTest.addGeneralOptions(testOptions);
-	}
+        cliUnderTest.addGeneralOptions(testOptions);
+    }
 
-	@Test
-	public void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
+    @Test
+    public void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
 
-		String[] args = {
-			"-e", "test-executor",
-			"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-			"-D" + "classloader.resolve-order=parent-first",
-			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
-		};
+        String[] args = {
+            "-e",
+            "test-executor",
+            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+            "-D" + "classloader.resolve-order=parent-first",
+            getTestJarPath(),
+            "-a",
+            "--debug",
+            "true",
+            "arg1",
+            "arg2"
+        };
 
-		verifyCliFrontend(configuration, args, cliUnderTest, "parent-first", ParentFirstClassLoader.class.getName());
-	}
+        verifyCliFrontend(
+                configuration,
+                args,
+                cliUnderTest,
+                "parent-first",
+                ParentFirstClassLoader.class.getName());
+    }
 
-	@Test
-	public void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
+    @Test
+    public void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
 
-		String[] args = {
-			"-e", "test-executor",
-			"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
-		};
+        String[] args = {
+            "-e",
+            "test-executor",
+            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+            getTestJarPath(),
+            "-a",
+            "--debug",
+            "true",
+            "arg1",
+            "arg2"
+        };
 
-		verifyCliFrontend(configuration, args, cliUnderTest, "child-first", ChildFirstClassLoader.class.getName());
-	}
+        verifyCliFrontend(
+                configuration,
+                args,
+                cliUnderTest,
+                "child-first",
+                ChildFirstClassLoader.class.getName());
+    }
 
-	@Test
-	public void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
+    @Test
+    public void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
 
-		String[] args = {
-			"-e", "test-executor",
-			"-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
-			"-D" + "classloader.resolve-order=child-first",
-			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
-		};
+        String[] args = {
+            "-e",
+            "test-executor",
+            "-D" + CoreOptions.DEFAULT_PARALLELISM.key() + "=5",
+            "-D" + "classloader.resolve-order=child-first",
+            getTestJarPath(),
+            "-a",
+            "--debug",
+            "true",
+            "arg1",
+            "arg2"
+        };
 
-		verifyCliFrontend(configuration, args, cliUnderTest, "child-first", ChildFirstClassLoader.class.getName());
-	}
+        verifyCliFrontend(
+                configuration,
+                args,
+                cliUnderTest,
+                "child-first",
+                ChildFirstClassLoader.class.getName());
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public static void verifyCliFrontend(
-			Configuration configuration,
-			String[] parameters,
-			GenericCLI cliUnderTest,
-			String expectedResolveOrderOption,
-			String userCodeClassLoaderClassName) throws Exception {
-		TestingCliFrontend testFrontend =
-			new TestingCliFrontend(configuration, cliUnderTest, expectedResolveOrderOption, userCodeClassLoaderClassName);
-		testFrontend.run(parameters); // verifies the expected values (see below)
-	}
+    public static void verifyCliFrontend(
+            Configuration configuration,
+            String[] parameters,
+            GenericCLI cliUnderTest,
+            String expectedResolveOrderOption,
+            String userCodeClassLoaderClassName)
+            throws Exception {
+        TestingCliFrontend testFrontend =
+                new TestingCliFrontend(
+                        configuration,
+                        cliUnderTest,
+                        expectedResolveOrderOption,
+                        userCodeClassLoaderClassName);
+        testFrontend.run(parameters); // verifies the expected values (see below)
+    }
 
-	private static final class TestingCliFrontend extends CliFrontend {
+    private static final class TestingCliFrontend extends CliFrontend {
 
-		private final String expectedResolveOrder;
+        private final String expectedResolveOrder;
 
-		private final String userCodeClassLoaderClassName;
+        private final String userCodeClassLoaderClassName;
 
-		private TestingCliFrontend(
-				Configuration configuration,
-				GenericCLI cliUnderTest,
-				String expectedResolveOrderOption,
-				String userCodeClassLoaderClassName) {
-			super(
-				configuration,
-				Collections.singletonList(cliUnderTest));
-			this.expectedResolveOrder = expectedResolveOrderOption;
-			this.userCodeClassLoaderClassName = userCodeClassLoaderClassName;
-		}
+        private TestingCliFrontend(
+                Configuration configuration,
+                GenericCLI cliUnderTest,
+                String expectedResolveOrderOption,
+                String userCodeClassLoaderClassName) {
+            super(configuration, Collections.singletonList(cliUnderTest));
+            this.expectedResolveOrder = expectedResolveOrderOption;
+            this.userCodeClassLoaderClassName = userCodeClassLoaderClassName;
+        }
 
-		@Override
-		protected void executeProgram(Configuration configuration, PackagedProgram program) {
-			assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
-			assertEquals(expectedResolveOrder, configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER));
-			assertEquals(userCodeClassLoaderClassName, program.getUserCodeClassLoader().getClass().getName());
-		}
-	}
+        @Override
+        protected void executeProgram(Configuration configuration, PackagedProgram program) {
+            assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
+            assertEquals(
+                    expectedResolveOrder, configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER));
+            assertEquals(
+                    userCodeClassLoaderClassName,
+                    program.getUserCodeClassLoader().getClass().getName());
+        }
+    }
 }

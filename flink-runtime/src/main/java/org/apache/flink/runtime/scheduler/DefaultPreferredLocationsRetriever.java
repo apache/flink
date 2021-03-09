@@ -34,109 +34,111 @@ import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTIN
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Default implementation of {@link PreferredLocationsRetriever}.
- * Locations based on state will be returned if exist.
- * Otherwise locations based on inputs will be returned.
+ * Default implementation of {@link PreferredLocationsRetriever}. Locations based on state will be
+ * returned if exist. Otherwise locations based on inputs will be returned.
  */
 public class DefaultPreferredLocationsRetriever implements PreferredLocationsRetriever {
 
-	private final StateLocationRetriever stateLocationRetriever;
+    private final StateLocationRetriever stateLocationRetriever;
 
-	private final InputsLocationsRetriever inputsLocationsRetriever;
+    private final InputsLocationsRetriever inputsLocationsRetriever;
 
-	DefaultPreferredLocationsRetriever(
-			final StateLocationRetriever stateLocationRetriever,
-			final InputsLocationsRetriever inputsLocationsRetriever) {
+    DefaultPreferredLocationsRetriever(
+            final StateLocationRetriever stateLocationRetriever,
+            final InputsLocationsRetriever inputsLocationsRetriever) {
 
-		this.stateLocationRetriever = checkNotNull(stateLocationRetriever);
-		this.inputsLocationsRetriever = checkNotNull(inputsLocationsRetriever);
-	}
+        this.stateLocationRetriever = checkNotNull(stateLocationRetriever);
+        this.inputsLocationsRetriever = checkNotNull(inputsLocationsRetriever);
+    }
 
-	@Override
-	public CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
-			final ExecutionVertexID executionVertexId,
-			final Set<ExecutionVertexID> producersToIgnore) {
+    @Override
+    public CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
+            final ExecutionVertexID executionVertexId,
+            final Set<ExecutionVertexID> producersToIgnore) {
 
-		checkNotNull(executionVertexId);
-		checkNotNull(producersToIgnore);
+        checkNotNull(executionVertexId);
+        checkNotNull(producersToIgnore);
 
-		final Collection<TaskManagerLocation> preferredLocationsBasedOnState =
-			getPreferredLocationsBasedOnState(executionVertexId);
-		if (!preferredLocationsBasedOnState.isEmpty()) {
-			return CompletableFuture.completedFuture(preferredLocationsBasedOnState);
-		}
+        final Collection<TaskManagerLocation> preferredLocationsBasedOnState =
+                getPreferredLocationsBasedOnState(executionVertexId);
+        if (!preferredLocationsBasedOnState.isEmpty()) {
+            return CompletableFuture.completedFuture(preferredLocationsBasedOnState);
+        }
 
-		return getPreferredLocationsBasedOnInputs(executionVertexId, producersToIgnore);
-	}
+        return getPreferredLocationsBasedOnInputs(executionVertexId, producersToIgnore);
+    }
 
-	private Collection<TaskManagerLocation> getPreferredLocationsBasedOnState(
-			final ExecutionVertexID executionVertexId) {
+    private Collection<TaskManagerLocation> getPreferredLocationsBasedOnState(
+            final ExecutionVertexID executionVertexId) {
 
-		return stateLocationRetriever.getStateLocation(executionVertexId)
-			.map(Collections::singleton)
-			.orElse(Collections.emptySet());
-	}
+        return stateLocationRetriever
+                .getStateLocation(executionVertexId)
+                .map(Collections::singleton)
+                .orElse(Collections.emptySet());
+    }
 
-	private CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
-			final ExecutionVertexID executionVertexId,
-			final Set<ExecutionVertexID> producersToIgnore) {
+    private CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
+            final ExecutionVertexID executionVertexId,
+            final Set<ExecutionVertexID> producersToIgnore) {
 
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
-			CompletableFuture.completedFuture(Collections.emptyList());
+        CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
+                CompletableFuture.completedFuture(Collections.emptyList());
 
-		final Collection<Collection<ExecutionVertexID>> allProducers =
-			inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
-		for (Collection<ExecutionVertexID> producers : allProducers) {
-			final Collection<CompletableFuture<TaskManagerLocation>> locationsFutures =
-				getInputLocationFutures(producersToIgnore, producers);
+        final Collection<Collection<ExecutionVertexID>> allProducers =
+                inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+        for (Collection<ExecutionVertexID> producers : allProducers) {
+            final Collection<CompletableFuture<TaskManagerLocation>> locationsFutures =
+                    getInputLocationFutures(producersToIgnore, producers);
 
-			preferredLocations = combineLocations(preferredLocations, locationsFutures);
-		}
-		return preferredLocations;
-	}
+            preferredLocations = combineLocations(preferredLocations, locationsFutures);
+        }
+        return preferredLocations;
+    }
 
-	private Collection<CompletableFuture<TaskManagerLocation>> getInputLocationFutures(
-			final Set<ExecutionVertexID> producersToIgnore,
-			final Collection<ExecutionVertexID> producers) {
+    private Collection<CompletableFuture<TaskManagerLocation>> getInputLocationFutures(
+            final Set<ExecutionVertexID> producersToIgnore,
+            final Collection<ExecutionVertexID> producers) {
 
-		final Collection<CompletableFuture<TaskManagerLocation>> locationsFutures = new ArrayList<>();
+        final Collection<CompletableFuture<TaskManagerLocation>> locationsFutures =
+                new ArrayList<>();
 
-		for (ExecutionVertexID producer : producers) {
-			final Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture;
-			if (!producersToIgnore.contains(producer)) {
-				optionalLocationFuture = inputsLocationsRetriever.getTaskManagerLocation(producer);
-			} else {
-				optionalLocationFuture = Optional.empty();
-			}
-			optionalLocationFuture.ifPresent(locationsFutures::add);
+        for (ExecutionVertexID producer : producers) {
+            final Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture;
+            if (!producersToIgnore.contains(producer)) {
+                optionalLocationFuture = inputsLocationsRetriever.getTaskManagerLocation(producer);
+            } else {
+                optionalLocationFuture = Optional.empty();
+            }
+            optionalLocationFuture.ifPresent(locationsFutures::add);
 
-			// inputs which have too many distinct sources are not considered because
-			// input locality does not make much difference in this case and it could
-			// be a long time to wait for all the location futures to complete
-			if (locationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-				return Collections.emptyList();
-			}
-		}
+            // inputs which have too many distinct sources are not considered because
+            // input locality does not make much difference in this case and it could
+            // be a long time to wait for all the location futures to complete
+            if (locationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+                return Collections.emptyList();
+            }
+        }
 
-		return locationsFutures;
-	}
+        return locationsFutures;
+    }
 
-	private CompletableFuture<Collection<TaskManagerLocation>> combineLocations(
-			final CompletableFuture<Collection<TaskManagerLocation>> locationsCombinedAlready,
-			final Collection<CompletableFuture<TaskManagerLocation>> locationsToCombine) {
+    private CompletableFuture<Collection<TaskManagerLocation>> combineLocations(
+            final CompletableFuture<Collection<TaskManagerLocation>> locationsCombinedAlready,
+            final Collection<CompletableFuture<TaskManagerLocation>> locationsToCombine) {
 
-		final CompletableFuture<Set<TaskManagerLocation>> uniqueLocationsFuture =
-			FutureUtils.combineAll(locationsToCombine).thenApply(HashSet::new);
+        final CompletableFuture<Set<TaskManagerLocation>> uniqueLocationsFuture =
+                FutureUtils.combineAll(locationsToCombine).thenApply(HashSet::new);
 
-		return locationsCombinedAlready.thenCombine(
-			uniqueLocationsFuture,
-			(locationsOnOneEdge, locationsOnAnotherEdge) -> {
-				if ((!locationsOnOneEdge.isEmpty() && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
-					|| locationsOnAnotherEdge.isEmpty()) {
-					return locationsOnOneEdge;
-				} else {
-					return locationsOnAnotherEdge;
-				}
-			});
-	}
+        return locationsCombinedAlready.thenCombine(
+                uniqueLocationsFuture,
+                (locationsOnOneEdge, locationsOnAnotherEdge) -> {
+                    if ((!locationsOnOneEdge.isEmpty()
+                                    && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
+                            || locationsOnAnotherEdge.isEmpty()) {
+                        return locationsOnOneEdge;
+                    } else {
+                        return locationsOnAnotherEdge;
+                    }
+                });
+    }
 }

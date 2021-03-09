@@ -46,7 +46,7 @@ class TableSinkTest extends TableTestBase {
          |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 
   @Test
@@ -76,6 +76,24 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql("INSERT INTO sink1 SELECT SUM(sum_a) AS total_sum FROM table1")
     stmtSet.addInsertSql("INSERT INTO sink2 SELECT MIN(sum_a) AS total_min FROM table1")
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testDynamicPartWithOrderBy(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT
+         |) PARTITIONED BY (
+         |  `b`
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
   }
 }

@@ -35,6 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,268 +44,338 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link FactoryUtil}.
- */
+/** Tests for {@link FactoryUtil}. */
 public class FactoryUtilTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testMissingConnector() {
-		expectError("Table options do not contain an option key 'connector' for discovering a connector.");
-		testError(options -> options.remove("connector"));
-	}
+    @Test
+    public void testMissingConnector() {
+        expectError(
+                "Table options do not contain an option key 'connector' for discovering a connector.");
+        testError(options -> options.remove("connector"));
+    }
 
-	@Test
-	public void testInvalidConnector() {
-		expectError(
-			"Could not find any factory for identifier 'FAIL' that implements '" +
-				DynamicTableSourceFactory.class.getName() + "' in the classpath.\n\n" +
-			"Available factory identifiers are:\n\n" +
-			"test-connector");
-		testError(options -> options.put("connector", "FAIL"));
-	}
+    @Test
+    public void testInvalidConnector() {
+        expectError(
+                "Could not find any factory for identifier 'FAIL' that implements '"
+                        + DynamicTableFactory.class.getName()
+                        + "' in the classpath.\n\n"
+                        + "Available factory identifiers are:\n\n"
+                        + "conflicting\nsink-only\nsource-only\ntest\ntest-connector");
+        testError(options -> options.put("connector", "FAIL"));
+    }
 
-	@Test
-	public void testMissingConnectorOption() {
-		expectError(
-			"One or more required options are missing.\n\n" +
-			"Missing required options are:\n\n" +
-			"target");
-		testError(options -> options.remove("target"));
-	}
+    @Test
+    public void testConflictingConnector() {
+        expectError(
+                "Multiple factories for identifier 'conflicting' that implement '"
+                        + DynamicTableFactory.class.getName()
+                        + "' found in the classpath.\n"
+                        + "\n"
+                        + "Ambiguous factory classes are:\n"
+                        + "\n"
+                        + TestConflictingDynamicTableFactory1.class.getName()
+                        + "\n"
+                        + TestConflictingDynamicTableFactory2.class.getName());
+        testError(
+                options ->
+                        options.put("connector", TestConflictingDynamicTableFactory1.IDENTIFIER));
+    }
 
-	@Test
-	public void testInvalidConnectorOption() {
-		expectError("Invalid value for option 'buffer-size'.");
-		testError(options -> options.put("buffer-size", "FAIL"));
-	}
+    @Test
+    public void testMissingConnectorOption() {
+        expectError(
+                "One or more required options are missing.\n\n"
+                        + "Missing required options are:\n\n"
+                        + "target");
+        testError(options -> options.remove("target"));
+    }
 
-	@Test
-	public void testMissingFormat() {
-		expectError("Could not find required scan format 'value.format'.");
-		testError(options -> options.remove("value.format"));
-	}
+    @Test
+    public void testInvalidConnectorOption() {
+        expectError("Invalid value for option 'buffer-size'.");
+        testError(options -> options.put("buffer-size", "FAIL"));
+    }
 
-	@Test
-	public void testInvalidFormat() {
-		expectError(
-			"Could not find any factory for identifier 'FAIL' that implements '" +
-				DeserializationFormatFactory.class.getName() + "' in the classpath.\n\n" +
-			"Available factory identifiers are:\n\n" +
-			"test-format");
-		testError(options -> options.put("value.format", "FAIL"));
-	}
+    @Test
+    public void testMissingFormat() {
+        expectError("Could not find required scan format 'value.format'.");
+        testError(options -> options.remove("value.format"));
+    }
 
-	@Test
-	public void testMissingFormatOption() {
-		expectError(
-			"Error creating scan format 'test-format' in option space 'key.test-format.'.");
-		expectError(
-			"One or more required options are missing.\n\n" +
-			"Missing required options are:\n\n" +
-			"delimiter");
-		testError(options -> options.remove("key.test-format.delimiter"));
-	}
+    @Test
+    public void testInvalidFormat() {
+        expectError(
+                "Could not find any factory for identifier 'FAIL' that implements '"
+                        + DeserializationFormatFactory.class.getName()
+                        + "' in the classpath.\n\n"
+                        + "Available factory identifiers are:\n\n"
+                        + "test-format");
+        testError(options -> options.put("value.format", "FAIL"));
+    }
 
-	@Test
-	public void testInvalidFormatOption() {
-		expectError("Invalid value for option 'fail-on-missing'.");
-		testError(options -> options.put("key.test-format.fail-on-missing", "FAIL"));
-	}
+    @Test
+    public void testMissingFormatOption() {
+        expectError("Error creating scan format 'test-format' in option space 'key.test-format.'.");
+        expectError(
+                "One or more required options are missing.\n\n"
+                        + "Missing required options are:\n\n"
+                        + "delimiter");
+        testError(options -> options.remove("key.test-format.delimiter"));
+    }
 
-	@Test
-	public void testUnconsumedOption() {
-		expectError(
-			"Unsupported options found for connector 'test-connector'.\n\n" +
-			"Unsupported options:\n\n" +
-			"this-is-also-not-consumed\n" +
-			"this-is-not-consumed\n\n" +
-			"Supported options:\n\n" +
-			"buffer-size\n" +
-			"connector\n" +
-			"format\n" +
-			"key.format\n" +
-			"key.test-format.delimiter\n" +
-			"key.test-format.fail-on-missing\n" +
-			"property-version\n" +
-			"target\n" +
-			"value.format\n" +
-			"value.test-format.delimiter\n" +
-			"value.test-format.fail-on-missing");
-		testError(options -> {
-			options.put("this-is-not-consumed", "42");
-			options.put("this-is-also-not-consumed", "true");
-		});
-	}
+    @Test
+    public void testInvalidFormatOption() {
+        expectError("Invalid value for option 'fail-on-missing'.");
+        testError(options -> options.put("key.test-format.fail-on-missing", "FAIL"));
+    }
 
-	@Test
-	public void testAllOptions() {
-		final Map<String, String> options = createAllOptions();
-		final DynamicTableSource actualSource = createTableSource(options);
-		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
-			"MyTarget",
-			new DecodingFormatMock(",", false),
-			new DecodingFormatMock("|", true));
-		assertEquals(expectedSource, actualSource);
-		final DynamicTableSink actualSink = createTableSink(options);
-		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
-			"MyTarget",
-			1000L,
-			new EncodingFormatMock(","),
-			new EncodingFormatMock("|"));
-		assertEquals(expectedSink, actualSink);
-	}
+    @Test
+    public void testUnconsumedOption() {
+        expectError(
+                "Unsupported options found for connector 'test-connector'.\n\n"
+                        + "Unsupported options:\n\n"
+                        + "this-is-also-not-consumed\n"
+                        + "this-is-not-consumed\n\n"
+                        + "Supported options:\n\n"
+                        + "buffer-size\n"
+                        + "connector\n"
+                        + "format\n"
+                        + "key.format\n"
+                        + "key.test-format.changelog-mode\n"
+                        + "key.test-format.delimiter\n"
+                        + "key.test-format.fail-on-missing\n"
+                        + "key.test-format.readable-metadata\n"
+                        + "property-version\n"
+                        + "target\n"
+                        + "value.format\n"
+                        + "value.test-format.changelog-mode\n"
+                        + "value.test-format.delimiter\n"
+                        + "value.test-format.fail-on-missing\n"
+                        + "value.test-format.readable-metadata");
+        testError(
+                options -> {
+                    options.put("this-is-not-consumed", "42");
+                    options.put("this-is-also-not-consumed", "true");
+                });
+    }
 
-	@Test
-	public void testOptionalFormat() {
-		final Map<String, String> options = createAllOptions();
-		options.remove("key.format");
-		options.remove("key.test-format.delimiter");
-		final DynamicTableSource actualSource = createTableSource(options);
-		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
-			"MyTarget",
-			null,
-			new DecodingFormatMock("|", true));
-		assertEquals(expectedSource, actualSource);
-		final DynamicTableSink actualSink = createTableSink(options);
-		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
-			"MyTarget",
-			1000L,
-			null,
-			new EncodingFormatMock("|"));
-		assertEquals(expectedSink, actualSink);
-	}
+    @Test
+    public void testAllOptions() {
+        final Map<String, String> options = createAllOptions();
+        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource expectedSource =
+                new DynamicTableSourceMock(
+                        "MyTarget",
+                        new DecodingFormatMock(",", false),
+                        new DecodingFormatMock("|", true));
+        assertEquals(expectedSource, actualSource);
+        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink expectedSink =
+                new DynamicTableSinkMock(
+                        "MyTarget",
+                        1000L,
+                        new EncodingFormatMock(","),
+                        new EncodingFormatMock("|"));
+        assertEquals(expectedSink, actualSink);
+    }
 
-	@Test
-	public void testAlternativeValueFormat() {
-		final Map<String, String> options = createAllOptions();
-		options.remove("value.format");
-		options.remove("value.test-format.delimiter");
-		options.remove("value.test-format.fail-on-missing");
-		options.put("format", "test-format");
-		options.put("test-format.delimiter", ";");
-		options.put("test-format.fail-on-missing", "true");
-		final DynamicTableSource actualSource = createTableSource(options);
-		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
-			"MyTarget",
-			new DecodingFormatMock(",", false),
-			new DecodingFormatMock(";", true));
-		assertEquals(expectedSource, actualSource);
-		final DynamicTableSink actualSink = createTableSink(options);
-		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
-			"MyTarget",
-			1000L,
-			new EncodingFormatMock(","),
-			new EncodingFormatMock(";"));
-		assertEquals(expectedSink, actualSink);
-	}
+    @Test
+    public void testDiscoveryForSeparateSourceSinkFactory() {
+        final Map<String, String> options = createAllOptions();
+        // the "test" source and sink factory is not in one factory class
+        // see TestDynamicTableSinkFactory and TestDynamicTableSourceFactory
+        options.put("connector", "test");
 
-	// --------------------------------------------------------------------------------------------
+        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource expectedSource =
+                new DynamicTableSourceMock(
+                        "MyTarget",
+                        new DecodingFormatMock(",", false),
+                        new DecodingFormatMock("|", true));
+        assertEquals(expectedSource, actualSource);
 
-	private void expectError(String message) {
-		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException(message)));
-	}
+        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink expectedSink =
+                new DynamicTableSinkMock(
+                        "MyTarget",
+                        1000L,
+                        new EncodingFormatMock(","),
+                        new EncodingFormatMock("|"));
+        assertEquals(expectedSink, actualSink);
+    }
 
-	private static void testError(Consumer<Map<String, String>> optionModifier) {
-		final Map<String, String> options = createAllOptions();
-		optionModifier.accept(options);
-		createTableSource(options);
-	}
+    @Test
+    public void testOptionalFormat() {
+        final Map<String, String> options = createAllOptions();
+        options.remove("key.format");
+        options.remove("key.test-format.delimiter");
+        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource expectedSource =
+                new DynamicTableSourceMock("MyTarget", null, new DecodingFormatMock("|", true));
+        assertEquals(expectedSource, actualSource);
+        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink expectedSink =
+                new DynamicTableSinkMock("MyTarget", 1000L, null, new EncodingFormatMock("|"));
+        assertEquals(expectedSink, actualSink);
+    }
 
-	private static Map<String, String> createAllOptions() {
-		final Map<String, String> options = new HashMap<>();
-		// we use strings here to test realistic parsing
-		options.put("property-version", "1");
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
-		options.put("key.format", "test-format");
-		options.put("key.test-format.delimiter", ",");
-		options.put("value.format", "test-format");
-		options.put("value.test-format.delimiter", "|");
-		options.put("value.test-format.fail-on-missing", "true");
-		return options;
-	}
+    @Test
+    public void testAlternativeValueFormat() {
+        final Map<String, String> options = createAllOptions();
+        options.remove("value.format");
+        options.remove("value.test-format.delimiter");
+        options.remove("value.test-format.fail-on-missing");
+        options.put("format", "test-format");
+        options.put("test-format.delimiter", ";");
+        options.put("test-format.fail-on-missing", "true");
+        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource expectedSource =
+                new DynamicTableSourceMock(
+                        "MyTarget",
+                        new DecodingFormatMock(",", false),
+                        new DecodingFormatMock(";", true));
+        assertEquals(expectedSource, actualSource);
+        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink expectedSink =
+                new DynamicTableSinkMock(
+                        "MyTarget",
+                        1000L,
+                        new EncodingFormatMock(","),
+                        new EncodingFormatMock(";"));
+        assertEquals(expectedSink, actualSink);
+    }
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-			null,
-			ObjectIdentifier.of("cat", "db", "table"),
-			new CatalogTableMock(options),
-			new Configuration(),
-			FactoryUtilTest.class.getClassLoader());
-	}
+    @Test
+    public void testConnectorErrorHint() {
+        try {
+            createTableSource(Collections.singletonMap("connector", "sink-only"));
+            fail();
+        } catch (Exception e) {
+            String errorMsg =
+                    "Connector 'sink-only' can only be used as a sink. It cannot be used as a source.";
+            assertThat(e, containsCause(new ValidationException(errorMsg)));
+        }
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-			null,
-			ObjectIdentifier.of("cat", "db", "table"),
-			new CatalogTableMock(options),
-			new Configuration(),
-			FactoryUtilTest.class.getClassLoader());
-	}
+        try {
+            createTableSink(Collections.singletonMap("connector", "source-only"));
+            fail();
+        } catch (Exception e) {
+            String errorMsg =
+                    "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
+            assertThat(e, containsCause(new ValidationException(errorMsg)));
+        }
+    }
 
-	private static class CatalogTableMock implements CatalogTable {
+    // --------------------------------------------------------------------------------------------
 
-		final Map<String, String> options;
+    private void expectError(String message) {
+        thrown.expect(ValidationException.class);
+        thrown.expect(containsCause(new ValidationException(message)));
+    }
 
-		CatalogTableMock(Map<String, String> options) {
-			this.options = options;
-		}
+    private static void testError(Consumer<Map<String, String>> optionModifier) {
+        final Map<String, String> options = createAllOptions();
+        optionModifier.accept(options);
+        createTableSource(options);
+    }
 
-		@Override
-		public boolean isPartitioned() {
-			return false;
-		}
+    private static Map<String, String> createAllOptions() {
+        final Map<String, String> options = new HashMap<>();
+        // we use strings here to test realistic parsing
+        options.put("property-version", "1");
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
+        options.put("key.format", "test-format");
+        options.put("key.test-format.delimiter", ",");
+        options.put("value.format", "test-format");
+        options.put("value.test-format.delimiter", "|");
+        options.put("value.test-format.fail-on-missing", "true");
+        return options;
+    }
 
-		@Override
-		public List<String> getPartitionKeys() {
-			return null;
-		}
+    private static DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("cat", "db", "table"),
+                new CatalogTableMock(options),
+                new Configuration(),
+                FactoryUtilTest.class.getClassLoader(),
+                false);
+    }
 
-		@Override
-		public CatalogTable copy(Map<String, String> options) {
-			return null;
-		}
+    private static DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("cat", "db", "table"),
+                new CatalogTableMock(options),
+                new Configuration(),
+                FactoryUtilTest.class.getClassLoader(),
+                false);
+    }
 
-		@Override
-		public Map<String, String> toProperties() {
-			return null;
-		}
+    private static class CatalogTableMock implements CatalogTable {
 
-		@Override
-		public Map<String, String> getProperties() {
-			return options;
-		}
+        final Map<String, String> options;
 
-		@Override
-		public TableSchema getSchema() {
-			return null;
-		}
+        CatalogTableMock(Map<String, String> options) {
+            this.options = options;
+        }
 
-		@Override
-		public String getComment() {
-			return null;
-		}
+        @Override
+        public boolean isPartitioned() {
+            return false;
+        }
 
-		@Override
-		public CatalogBaseTable copy() {
-			return null;
-		}
+        @Override
+        public List<String> getPartitionKeys() {
+            return null;
+        }
 
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
+        @Override
+        public CatalogTable copy(Map<String, String> options) {
+            return null;
+        }
 
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
-		}
-	}
+        @Override
+        public Map<String, String> toProperties() {
+            return null;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public TableSchema getSchema() {
+            return null;
+        }
+
+        @Override
+        public String getComment() {
+            return null;
+        }
+
+        @Override
+        public CatalogBaseTable copy() {
+            return null;
+        }
+
+        @Override
+        public Optional<String> getDescription() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<String> getDetailedDescription() {
+            return Optional.empty();
+        }
+    }
 }

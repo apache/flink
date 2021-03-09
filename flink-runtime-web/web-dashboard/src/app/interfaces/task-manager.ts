@@ -29,6 +29,7 @@ export interface TaskManagerDetailInterface {
   freeSlots: number;
   hardware: Hardware;
   metrics: Metrics;
+  memoryConfiguration: MemoryConfiguration;
 }
 
 export interface TaskManagerLogInterface {
@@ -70,6 +71,19 @@ interface Metrics {
   garbageCollectors: GarbageCollectorsItem[];
 }
 
+interface MemoryConfiguration {
+  frameworkHeap: number;
+  frameworkOffHeap: number;
+  jvmMetaspace: number;
+  jvmOverhead: number;
+  managedMemory: number;
+  networkMemory: number;
+  taskHeap: number;
+  taskOffHeap: number;
+  totalFlinkMemory: number;
+  totalProcessMemory: number;
+}
+
 interface GarbageCollectorsItem {
   name: string;
   count: number;
@@ -81,6 +95,6 @@ export interface TaskManagerThreadDumpInterface {
 }
 
 interface TaskManagerThreadInfoInterface {
-    threadName: string;
-    stringifiedThreadInfo: string;
+  threadName: string;
+  stringifiedThreadInfo: string;
 }

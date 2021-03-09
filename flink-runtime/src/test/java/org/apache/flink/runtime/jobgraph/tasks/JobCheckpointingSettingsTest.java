@@ -20,13 +20,10 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
-
-import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -34,33 +31,32 @@ import static org.junit.Assert.assertTrue;
 
 public class JobCheckpointingSettingsTest {
 
-	/**
-	 * Tests that the settings are actually serializable.
-	 */
-	@Test
-	public void testIsJavaSerializable() throws Exception {
-		JobCheckpointingSettings settings = new JobCheckpointingSettings(
-			Arrays.asList(new JobVertexID(), new JobVertexID()),
-			Arrays.asList(new JobVertexID(), new JobVertexID()),
-			Arrays.asList(new JobVertexID(), new JobVertexID()),
-			new CheckpointCoordinatorConfiguration(
-				1231231,
-				1231,
-				112,
-				12,
-				CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
-				false,
-				false,
-				false,
-				0),
-			new SerializedValue<>(new MemoryStateBackend()));
+    /** Tests that the settings are actually serializable. */
+    @Test
+    public void testIsJavaSerializable() throws Exception {
+        JobCheckpointingSettings settings =
+                new JobCheckpointingSettings(
+                        new CheckpointCoordinatorConfiguration(
+                                1231231,
+                                1231,
+                                112,
+                                12,
+                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
+                                false,
+                                false,
+                                false,
+                                0),
+                        new SerializedValue<>(new MemoryStateBackend()));
 
-		JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);
-		assertEquals(settings.getVerticesToAcknowledge(), copy.getVerticesToAcknowledge());
-		assertEquals(settings.getVerticesToConfirm(), copy.getVerticesToConfirm());
-		assertEquals(settings.getVerticesToTrigger(), copy.getVerticesToTrigger());
-		assertEquals(settings.getCheckpointCoordinatorConfiguration(), copy.getCheckpointCoordinatorConfiguration());
-		assertNotNull(copy.getDefaultStateBackend());
-		assertTrue(copy.getDefaultStateBackend().deserializeValue(this.getClass().getClassLoader()).getClass() == MemoryStateBackend.class);
-	}
+        JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);
+        assertEquals(
+                settings.getCheckpointCoordinatorConfiguration(),
+                copy.getCheckpointCoordinatorConfiguration());
+        assertNotNull(copy.getDefaultStateBackend());
+        assertTrue(
+                copy.getDefaultStateBackend()
+                                .deserializeValue(this.getClass().getClassLoader())
+                                .getClass()
+                        == MemoryStateBackend.class);
+    }
 }

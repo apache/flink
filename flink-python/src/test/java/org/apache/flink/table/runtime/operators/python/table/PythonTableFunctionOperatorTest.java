@@ -35,56 +35,58 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Queue;
 
-/**
- * Tests for {@link PythonTableFunctionOperator}.
- */
-public class PythonTableFunctionOperatorTest extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
-	@Override
-	public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		JoinRelType joinRelType) {
-		return new PassThroughPythonTableFunctionOperator(
-			config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-	}
+/** Tests for {@link PythonTableFunctionOperator}. */
+public class PythonTableFunctionOperatorTest
+        extends PythonTableFunctionOperatorTestBase<CRow, CRow, Row> {
+    @Override
+    public AbstractPythonTableFunctionOperator<CRow, CRow, Row> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            JoinRelType joinRelType) {
+        return new PassThroughPythonTableFunctionOperator(
+                config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+    }
 
-	@Override
-	public CRow newRow(boolean accumulateMsg, Object... fields) {
-		return new CRow(Row.of(fields), accumulateMsg);
-	}
+    @Override
+    public CRow newRow(boolean accumulateMsg, Object... fields) {
+        return new CRow(Row.of(fields), accumulateMsg);
+    }
 
-	@Override
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
-	}
+    @Override
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        TestHarnessUtil.assertOutputEquals(
+                message, (Queue<Object>) expected, (Queue<Object>) actual);
+    }
 
-	private static class PassThroughPythonTableFunctionOperator extends PythonTableFunctionOperator {
+    private static class PassThroughPythonTableFunctionOperator
+            extends PythonTableFunctionOperator {
 
-		PassThroughPythonTableFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo tableFunction,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			JoinRelType joinRelType) {
-			super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
-		}
+        PassThroughPythonTableFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo tableFunction,
+                RowType inputType,
+                RowType outputType,
+                int[] udfInputOffsets,
+                JoinRelType joinRelType) {
+            super(config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
+        }
 
-		@Override
-		public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-			return new PassThroughPythonTableFunctionRunner(
-				getRuntimeContext().getTaskName(),
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType,
-				getFunctionUrn(),
-				getUserDefinedFunctionsProto(),
-				getInputOutputCoderUrn(),
-				new HashMap<>(),
-				PythonTestUtils.createMockFlinkMetricContainer());
-		}
-	}
+        @Override
+        public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+            return new PassThroughPythonTableFunctionRunner(
+                    getRuntimeContext().getTaskName(),
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    getFunctionUrn(),
+                    getUserDefinedFunctionsProto(),
+                    getInputOutputCoderUrn(),
+                    new HashMap<>(),
+                    PythonTestUtils.createMockFlinkMetricContainer());
+        }
+    }
 }

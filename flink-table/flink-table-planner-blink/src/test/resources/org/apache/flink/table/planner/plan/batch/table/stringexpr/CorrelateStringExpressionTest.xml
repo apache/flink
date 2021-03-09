@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testCorrelateJoins1">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -25,7 +25,7 @@ LogicalProject(c=[$2], s=[$3])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
@@ -34,7 +34,7 @@ Calc(select=[c, s])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
@@ -42,7 +42,7 @@ LogicalProject(c=[$2], s=[$3])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
@@ -51,7 +51,7 @@ Calc(select=[c, s])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins3">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -59,7 +59,7 @@ LogicalProject(c=[$2], s=[$3])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
@@ -68,7 +68,7 @@ Calc(select=[c, s])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins4">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], name=[$3], len=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -76,7 +76,7 @@ LogicalProject(c=[$2], name=[$3], len=[$4])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER len)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, name, len])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], correlate=[table(TableFunc2(c))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER])
@@ -85,7 +85,7 @@ Calc(select=[c, name, len])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins5">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], name=[$3], len=[$5], adult=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -93,7 +93,7 @@ LogicalProject(c=[$2], name=[$3], len=[$5], adult=[$4])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], rowType=[RecordType(VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, name, len, adult])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], correlate=[table(HierarchyTableFunction(c))], select=[a,b,c,name,adult,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
@@ -102,7 +102,7 @@ Calc(select=[c, name, len, adult])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins6">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], name=[$4], age=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -110,7 +110,7 @@ LogicalProject(c=[$2], name=[$4], age=[$3])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$PojoTableFunc$eb4ab6b40e6b98c3b932dcabfbdc2263($2)], rowType=[RecordType(INTEGER age, VARCHAR(2147483647) name)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, name, age])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$PojoTableFunc$eb4ab6b40e6b98c3b932dcabfbdc2263($2)], correlate=[table(PojoTableFunc(c))], select=[a,b,c,age,name], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER age, VARCHAR(2147483647) name)], joinType=[INNER])
@@ -119,7 +119,7 @@ Calc(select=[c, name, age])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins7">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>($2, 2)])
 +- LogicalProject(c=[$2], name=[$3], len=[$4])
@@ -128,7 +128,7 @@ LogicalFilter(condition=[>($2, 2)])
       +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER len)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, name, len])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], correlate=[table(TableFunc2(c))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER], condition=[>($1, 2)])
@@ -137,7 +137,7 @@ Calc(select=[c, name, len])
     </Resource>
   </TestCase>
   <TestCase name="testCorrelateJoins8">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
@@ -145,7 +145,7 @@ LogicalProject(a=[$0], c=[$2], s=[$3])
    +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36(SUBSTRING($2, 2))], rowType=[RecordType(VARCHAR(2147483647) s)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36(SUBSTRING($2, 2))], correlate=[table(TableFunc1(SUBSTRING(c, 2)))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])

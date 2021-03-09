@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory
+org.apache.flink.streaming.connectors.kafka.table.UpsertKafkaDynamicTableFactory

@@ -24,27 +24,23 @@ import org.apache.flink.types.Row;
 
 import java.util.List;
 
-/**
- * A {@link ModelSource} implementation that reads the model from the memory.
- */
+/** A {@link ModelSource} implementation that reads the model from the memory. */
 public class RowsModelSource implements ModelSource {
 
-	/**
-	 * The rows that hosts the model.
-	 */
-	private final List<Row> modelRows;
+    /** The rows that hosts the model. */
+    private final List<Row> modelRows;
 
-	/**
-	 * Construct a RowsModelSource with the given rows containing a model.
-	 *
-	 * @param modelRows The rows that contains a model.
-	 */
-	public RowsModelSource(List<Row> modelRows) {
-		this.modelRows = modelRows;
-	}
+    /**
+     * Construct a RowsModelSource with the given rows containing a model.
+     *
+     * @param modelRows The rows that contains a model.
+     */
+    public RowsModelSource(List<Row> modelRows) {
+        this.modelRows = modelRows;
+    }
 
-	@Override
-	public List<Row> getModelRows(RuntimeContext runtimeContext) {
-		return modelRows;
-	}
+    @Override
+    public List<Row> getModelRows(RuntimeContext runtimeContext) {
+        return modelRows;
+    }
 }

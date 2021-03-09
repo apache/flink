@@ -47,121 +47,126 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 
-/**
- * This classes encapsulates the boot-strapping of netty for the web-frontend.
- */
+/** This classes encapsulates the boot-strapping of netty for the web-frontend. */
 public class WebFrontendBootstrap {
-	private final Router router;
-	private final Logger log;
-	private final File uploadDir;
-	private final ServerBootstrap bootstrap;
-	private final Channel serverChannel;
-	private final String restAddress;
+    private final Router router;
+    private final Logger log;
+    private final File uploadDir;
+    private final ServerBootstrap bootstrap;
+    private final Channel serverChannel;
+    private final String restAddress;
 
-	public WebFrontendBootstrap(
-			Router router,
-			Logger log,
-			File directory,
-			@Nullable SSLHandlerFactory serverSSLFactory,
-			String configuredAddress,
-			int configuredPort,
-			final Configuration config) throws InterruptedException, UnknownHostException {
+    public WebFrontendBootstrap(
+            Router router,
+            Logger log,
+            File directory,
+            @Nullable SSLHandlerFactory serverSSLFactory,
+            String configuredAddress,
+            int configuredPort,
+            final Configuration config)
+            throws InterruptedException, UnknownHostException {
 
-		this.router = Preconditions.checkNotNull(router);
-		this.log = Preconditions.checkNotNull(log);
-		this.uploadDir = directory;
+        this.router = Preconditions.checkNotNull(router);
+        this.log = Preconditions.checkNotNull(log);
+        this.uploadDir = directory;
 
-		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
+        ChannelInitializer<SocketChannel> initializer =
+                new ChannelInitializer<SocketChannel>() {
 
-			@Override
-			protected void initChannel(SocketChannel ch) {
-				RouterHandler handler = new RouterHandler(WebFrontendBootstrap.this.router, new HashMap<>());
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        RouterHandler handler =
+                                new RouterHandler(
+                                        WebFrontendBootstrap.this.router, new HashMap<>());
 
-				// SSL should be the first handler in the pipeline
-				if (serverSSLFactory != null) {
-					ch.pipeline().addLast("ssl",
-						serverSSLFactory.createNettySSLHandler(ch.alloc()));
-				}
+                        // SSL should be the first handler in the pipeline
+                        if (serverSSLFactory != null) {
+                            ch.pipeline()
+                                    .addLast(
+                                            "ssl",
+                                            serverSSLFactory.createNettySSLHandler(ch.alloc()));
+                        }
 
-				ch.pipeline()
-					.addLast(new HttpServerCodec())
-					.addLast(new ChunkedWriteHandler())
-					.addLast(new HttpRequestHandler(uploadDir))
-					.addLast(handler.getName(), handler)
-					.addLast(new PipelineErrorHandler(WebFrontendBootstrap.this.log));
-			}
-		};
+                        ch.pipeline()
+                                .addLast(new HttpServerCodec())
+                                .addLast(new ChunkedWriteHandler())
+                                .addLast(new HttpRequestHandler(uploadDir))
+                                .addLast(handler.getName(), handler)
+                                .addLast(new PipelineErrorHandler(WebFrontendBootstrap.this.log));
+                    }
+                };
 
-		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+        NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
+        NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
-		this.bootstrap = new ServerBootstrap();
-		this.bootstrap
-			.group(bossGroup, workerGroup)
-			.channel(NioServerSocketChannel.class)
-			.childHandler(initializer);
+        this.bootstrap = new ServerBootstrap();
+        this.bootstrap
+                .group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)
+                .childHandler(initializer);
 
-		ChannelFuture ch;
-		if (configuredAddress == null) {
-			ch = this.bootstrap.bind(configuredPort);
-		} else {
-			ch = this.bootstrap.bind(configuredAddress, configuredPort);
-		}
-		this.serverChannel = ch.sync().channel();
+        ChannelFuture ch;
+        if (configuredAddress == null) {
+            ch = this.bootstrap.bind(configuredPort);
+        } else {
+            ch = this.bootstrap.bind(configuredAddress, configuredPort);
+        }
+        this.serverChannel = ch.sync().channel();
 
-		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
+        InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 
-		InetAddress inetAddress = bindAddress.getAddress();
-		final String address;
+        InetAddress inetAddress = bindAddress.getAddress();
+        final String address;
 
-		if (inetAddress.isAnyLocalAddress()) {
-			address = config.getString(JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
-		} else {
-			address = inetAddress.getHostAddress();
-		}
+        if (inetAddress.isAnyLocalAddress()) {
+            address =
+                    config.getString(
+                            JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
+        } else {
+            address = inetAddress.getHostAddress();
+        }
 
-		int port = bindAddress.getPort();
+        int port = bindAddress.getPort();
 
-		this.log.info("Web frontend listening at {}" + ':' + "{}", address, port);
+        this.log.info("Web frontend listening at {}" + ':' + "{}", address, port);
 
-		final String protocol = serverSSLFactory != null ? "https://" : "http://";
+        final String protocol = serverSSLFactory != null ? "https://" : "http://";
 
-		this.restAddress = protocol + address + ':' + port;
-	}
+        this.restAddress = protocol + address + ':' + port;
+    }
 
-	public ServerBootstrap getBootstrap() {
-		return bootstrap;
-	}
+    public ServerBootstrap getBootstrap() {
+        return bootstrap;
+    }
 
-	public int getServerPort() {
-		Channel server = this.serverChannel;
-		if (server != null) {
-			try {
-				return ((InetSocketAddress) server.localAddress()).getPort();
-			}
-			catch (Exception e) {
-				log.error("Cannot access local server port", e);
-			}
-		}
+    public int getServerPort() {
+        Channel server = this.serverChannel;
+        if (server != null) {
+            try {
+                return ((InetSocketAddress) server.localAddress()).getPort();
+            } catch (Exception e) {
+                log.error("Cannot access local server port", e);
+            }
+        }
 
-		return -1;
-	}
+        return -1;
+    }
 
-	public String getRestAddress() {
-		return restAddress;
-	}
+    public String getRestAddress() {
+        return restAddress;
+    }
 
-	public void shutdown() {
-		if (this.serverChannel != null) {
-			this.serverChannel.close().awaitUninterruptibly();
-		}
-		if (bootstrap != null) {
-			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully();
-			}
-			if (bootstrap.childGroup() != null) {
-				bootstrap.childGroup().shutdownGracefully();
-			}
-		}
-	}
+    public void shutdown() {
+        if (this.serverChannel != null) {
+            this.serverChannel.close().awaitUninterruptibly();
+        }
+        if (bootstrap != null) {
+            if (bootstrap.group() != null) {
+                bootstrap.group().shutdownGracefully();
+            }
+            if (bootstrap.childGroup() != null) {
+                bootstrap.childGroup().shutdownGracefully();
+            }
+        }
+    }
 }

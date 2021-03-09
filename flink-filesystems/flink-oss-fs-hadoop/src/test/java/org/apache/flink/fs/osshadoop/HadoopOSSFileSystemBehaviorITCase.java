@@ -31,40 +31,38 @@ import org.junit.BeforeClass;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * An implementation of the {@link FileSystemBehaviorTestSuite} for the OSS file system.
- */
+/** An implementation of the {@link FileSystemBehaviorTestSuite} for the OSS file system. */
 public class HadoopOSSFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+    private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	@BeforeClass
-	public static void setup() throws IOException {
-		OSSTestCredentials.assumeCredentialsAvailable();
+    @BeforeClass
+    public static void setup() throws IOException {
+        OSSTestCredentials.assumeCredentialsAvailable();
 
-		final Configuration conf = new Configuration();
-		conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
-		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
-		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
-		FileSystem.initialize(conf);
-	}
+        final Configuration conf = new Configuration();
+        conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+        conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+        conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
+        FileSystem.initialize(conf);
+    }
 
-	@Override
-	public FileSystem getFileSystem() throws Exception {
-		return getBasePath().getFileSystem();
-	}
+    @Override
+    public FileSystem getFileSystem() throws Exception {
+        return getBasePath().getFileSystem();
+    }
 
-	@Override
-	public Path getBasePath() throws Exception {
-		return new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-	}
+    @Override
+    public Path getBasePath() throws Exception {
+        return new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+    }
 
-	@Override
-	public FileSystemKind getFileSystemKind() {
-		return FileSystemKind.OBJECT_STORE;
-	}
+    @Override
+    public FileSystemKind getFileSystemKind() {
+        return FileSystemKind.OBJECT_STORE;
+    }
 
-	@AfterClass
-	public static void clearFsConfig() throws IOException {
-		FileSystem.initialize(new Configuration());
-	}
+    @AfterClass
+    public static void clearFsConfig() throws IOException {
+        FileSystem.initialize(new Configuration());
+    }
 }

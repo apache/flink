@@ -27,6 +27,11 @@ if [ -z "$HERE" ] ; then
     exit 1  # fail
 fi
 CI_DIR="$HERE/../ci"
+MVN_CLEAN_COMPILE_OUT="/tmp/clean_compile.out"
+
+# Deploy into this directory, to run license checks on all jars staged for deployment.
+# This helps us ensure that ALL artifacts we deploy to maven central adhere to our license conditions.
+MVN_VALIDATION_DIR="/tmp/flink-validation-deployment"
 
 # source required ci scripts
 source "${CI_DIR}/stage.sh"
@@ -42,15 +47,23 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
-    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests
+run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
+    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
 
-EXIT_CODE=$?
+EXIT_CODE=${PIPESTATUS[0]}
 
 if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
     echo "Compiling Flink failed."
     echo "=============================================================================="
+
+    grep "0 Unknown Licenses" target/rat.txt > /dev/null
+
+    if [ $? != 0 ]; then
+        echo "License header check failure detected. Printing first 50 lines for convenience:"
+        head -n 50 target/rat.txt
+    fi
+
     exit $EXIT_CODE
 fi
 
@@ -95,6 +108,14 @@ check_shaded_artifacts_connector_elasticsearch 5
 EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_connector_elasticsearch 6
 EXIT_CODE=$(($EXIT_CODE+$?))
+
+echo "============ Run license check ============"
+
+find $MVN_VALIDATION_DIR
+
+if [[ ${PROFILE} != *"scala-2.12"* ]]; then
+  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
+fi
 
 exit $EXIT_CODE
 

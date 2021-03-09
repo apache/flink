@@ -25,6 +25,8 @@ FLINK_IMAGE_NAME="test_kubernetes_session"
 LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 OUTPUT_PATH="/tmp/wc_out"
 OUTPUT_ARGS="--output ${OUTPUT_PATH}"
+IMAGE_BUILD_RETRIES=3
+IMAGE_BUILD_BACKOFF=2
 
 INPUT_TYPE=${1:-embedded}
 case $INPUT_TYPE in
@@ -52,7 +54,10 @@ function internal_cleanup {
 
 start_kubernetes
 
-build_image ${FLINK_IMAGE_NAME}
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
+    echo "ERROR: Could not build image. Aborting..."
+    exit 1
+fi
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 

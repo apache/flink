@@ -26,21 +26,21 @@ import org.apache.flink.metrics.MetricGroup;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A simple implementation of a context that is both {@link TimestampAssignerSupplier.Context}
- * and {@link WatermarkGeneratorSupplier.Context}.
+ * A simple implementation of a context that is both {@link TimestampAssignerSupplier.Context} and
+ * {@link WatermarkGeneratorSupplier.Context}.
  */
 @Internal
 public final class TimestampsAndWatermarksContext
-		implements TimestampAssignerSupplier.Context, WatermarkGeneratorSupplier.Context {
+        implements TimestampAssignerSupplier.Context, WatermarkGeneratorSupplier.Context {
 
-	private final MetricGroup metricGroup;
+    private final MetricGroup metricGroup;
 
-	public TimestampsAndWatermarksContext(MetricGroup metricGroup) {
-		this.metricGroup = checkNotNull(metricGroup);
-	}
+    public TimestampsAndWatermarksContext(MetricGroup metricGroup) {
+        this.metricGroup = checkNotNull(metricGroup);
+    }
 
-	@Override
-	public MetricGroup getMetricGroup() {
-		return metricGroup;
-	}
+    @Override
+    public MetricGroup getMetricGroup() {
+        return metricGroup;
+    }
 }

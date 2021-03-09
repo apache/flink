@@ -20,24 +20,24 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Operation to describe a ALTER TABLE .. RENAME to .. statement.
- */
+/** Operation to describe a ALTER TABLE .. RENAME to .. statement. */
 public class AlterTableRenameOperation extends AlterTableOperation {
-	private final ObjectIdentifier newTableIdentifier;
+    private final ObjectIdentifier newTableIdentifier;
 
-	public AlterTableRenameOperation(ObjectIdentifier tableIdentifier, ObjectIdentifier newTableIdentifier) {
-		super(tableIdentifier);
-		this.newTableIdentifier = newTableIdentifier;
-	}
+    public AlterTableRenameOperation(
+            ObjectIdentifier tableIdentifier, ObjectIdentifier newTableIdentifier) {
+        super(tableIdentifier);
+        this.newTableIdentifier = newTableIdentifier;
+    }
 
-	public ObjectIdentifier getNewTableIdentifier() {
-		return newTableIdentifier;
-	}
+    public ObjectIdentifier getNewTableIdentifier() {
+        return newTableIdentifier;
+    }
 
-	@Override
-	public String asSummaryString() {
-		return String.format("ALTER TABLE %s RENAME TO %s",
-				tableIdentifier.asSummaryString(), newTableIdentifier.asSummaryString());
-	}
+    @Override
+    public String asSummaryString() {
+        return String.format(
+                "ALTER TABLE %s RENAME TO %s",
+                tableIdentifier.asSummaryString(), newTableIdentifier.asSummaryString());
+    }
 }

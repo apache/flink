@@ -41,65 +41,79 @@ import java.util.Random;
  */
 public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+    protected String resultPath;
 
-	@Rule
-	public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
+    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        resultPath = getTempDirPath("result");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Integer, String>> ds = env.createInput(new LargeJoinDataGeneratorInputFormat(1000000));
+        DataSet<Tuple3<Integer, Integer, String>> ds =
+                env.createInput(new LargeJoinDataGeneratorInputFormat(1000000));
 
-		ds.join(ds).where(0).equalTo(1).with(new Joiner()).writeAsText(resultPath);
+        ds.join(ds).where(0).equalTo(1).with(new Joiner()).writeAsText(resultPath);
 
-		env.execute("Local Selfjoin Test Job");
-	}
+        env.execute("Local Selfjoin Test Job");
+    }
 
-	@SuppressWarnings("serial")
-	private static class Joiner implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Integer, String>, Tuple5<Integer, Integer, Integer, String, String>> {
+    @SuppressWarnings("serial")
+    private static class Joiner
+            implements FlatJoinFunction<
+                    Tuple3<Integer, Integer, String>,
+                    Tuple3<Integer, Integer, String>,
+                    Tuple5<Integer, Integer, Integer, String, String>> {
 
-		@Override
-		public void join(Tuple3<Integer, Integer, String> in1, Tuple3<Integer, Integer, String> in2, Collector<Tuple5<Integer, Integer, Integer, String, String>> out) throws Exception {
-			out.collect(new Tuple5<Integer, Integer, Integer, String, String>(in1.f0, in1.f1, in2.f1, in1.f2, in2.f2));
-		}
-	}
+        @Override
+        public void join(
+                Tuple3<Integer, Integer, String> in1,
+                Tuple3<Integer, Integer, String> in2,
+                Collector<Tuple5<Integer, Integer, Integer, String, String>> out)
+                throws Exception {
+            out.collect(
+                    new Tuple5<Integer, Integer, Integer, String, String>(
+                            in1.f0, in1.f1, in2.f1, in1.f2, in2.f2));
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	// Use custom input format to generate the data. Other available input formats (like collection
-	// input format) create data upfront and serialize it completely on the heap, which might
-	// break the test JVM heap sizes.
-	private static class LargeJoinDataGeneratorInputFormat extends GenericInputFormat<Tuple3<Integer, Integer, String>> implements NonParallelInput {
+    // Use custom input format to generate the data. Other available input formats (like collection
+    // input format) create data upfront and serialize it completely on the heap, which might
+    // break the test JVM heap sizes.
+    private static class LargeJoinDataGeneratorInputFormat
+            extends GenericInputFormat<Tuple3<Integer, Integer, String>>
+            implements NonParallelInput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final Random rand = new Random(42);
+        private final Random rand = new Random(42);
 
-		private final int toProduce;
+        private final int toProduce;
 
-		private int produced;
+        private int produced;
 
-		public LargeJoinDataGeneratorInputFormat(int toProduce) {
-			this.toProduce = toProduce;
-		}
+        public LargeJoinDataGeneratorInputFormat(int toProduce) {
+            this.toProduce = toProduce;
+        }
 
-		@Override
-		public boolean reachedEnd() throws IOException {
-			return produced >= toProduce;
-		}
+        @Override
+        public boolean reachedEnd() throws IOException {
+            return produced >= toProduce;
+        }
 
-		@Override
-		public Tuple3<Integer, Integer, String> nextRecord(Tuple3<Integer, Integer, String> reuse) throws IOException {
-			produced++;
+        @Override
+        public Tuple3<Integer, Integer, String> nextRecord(Tuple3<Integer, Integer, String> reuse)
+                throws IOException {
+            produced++;
 
-			return new Tuple3<Integer, Integer, String>(rand.nextInt(toProduce), rand.nextInt(toProduce), "aaa");
-		}
-	}
+            return new Tuple3<Integer, Integer, String>(
+                    rand.nextInt(toProduce), rand.nextInt(toProduce), "aaa");
+        }
+    }
 }

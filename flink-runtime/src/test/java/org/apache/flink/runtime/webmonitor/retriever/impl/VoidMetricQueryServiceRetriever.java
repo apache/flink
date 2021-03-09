@@ -26,14 +26,16 @@ import org.apache.flink.util.FlinkException;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link MetricQueryServiceRetriever} implementation which always fails the retrieval of
- * the metric query service.
+ * {@link MetricQueryServiceRetriever} implementation which always fails the retrieval of the metric
+ * query service.
  */
 public enum VoidMetricQueryServiceRetriever implements MetricQueryServiceRetriever {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public CompletableFuture<MetricQueryServiceGateway> retrieveService(String queryServicePath) {
-		return FutureUtils.completedExceptionally(new FlinkException("Cannot retrieve metric query service for " + queryServicePath + '.'));
-	}
+    @Override
+    public CompletableFuture<MetricQueryServiceGateway> retrieveService(String queryServicePath) {
+        return FutureUtils.completedExceptionally(
+                new FlinkException(
+                        "Cannot retrieve metric query service for " + queryServicePath + '.'));
+    }
 }

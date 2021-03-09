@@ -28,34 +28,32 @@ import javax.annotation.Nonnull;
 
 import java.util.List;
 
-/**
- * ALTER DDL to change a view's query.
- */
+/** ALTER DDL to change a view's query. */
 public class SqlAlterViewAs extends SqlAlterView {
 
-	private final SqlNode newQuery;
+    private final SqlNode newQuery;
 
-	public SqlAlterViewAs(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlNode newQuery) {
-		super(pos, viewIdentifier);
-		this.newQuery = newQuery;
-	}
+    public SqlAlterViewAs(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlNode newQuery) {
+        super(pos, viewIdentifier);
+        this.newQuery = newQuery;
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(viewIdentifier, newQuery);
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(viewIdentifier, newQuery);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.newlineAndIndent();
-		writer.keyword("AS");
-		writer.newlineAndIndent();
-		newQuery.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.newlineAndIndent();
+        writer.keyword("AS");
+        writer.newlineAndIndent();
+        newQuery.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public SqlNode getNewQuery() {
-		return newQuery;
-	}
+    public SqlNode getNewQuery() {
+        return newQuery;
+    }
 }

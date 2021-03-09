@@ -92,7 +92,12 @@ if [ "$1" == "--help" -o "$1" == "-h" ]; then
     exit 0
 elif [ "$1" == "master" ]; then
     yes| sudo -E -u hdfs $HADOOP_PREFIX/bin/hdfs namenode -format
-
+    sudo -E netstat -tulpn >> /var/log/hadoop/debugging.out
+    echo "--------------------" >> /var/log/hadoop/debugging.out
+    sudo -E ps -aux >> /var/log/hadoop/debugging.out
+    echo "--------------------" >> /var/log/hadoop/debugging.out
+    sudo -E jps -v >> /var/log/hadoop/debugging.out
+    echo "--------------------" >> /var/log/hadoop/debugging.out
     nohup sudo -E -u hdfs $HADOOP_PREFIX/bin/hdfs namenode 2>> /var/log/hadoop/namenode.err >> /var/log/hadoop/namenode.out &
     nohup sudo -E -u yarn $HADOOP_PREFIX/bin/yarn resourcemanager 2>> /var/log/hadoop/resourcemanager.err >> /var/log/hadoop/resourcemanager.out &
     nohup sudo -E -u yarn $HADOOP_PREFIX/bin/yarn timelineserver 2>> /var/log/hadoop/timelineserver.err >> /var/log/hadoop/timelineserver.out &

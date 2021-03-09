@@ -28,30 +28,28 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * ITCase to test avro format for {@link AvroFileSystemFormatFactory} in batch mode.
- */
+/** ITCase to test avro format for {@link AvroFileSystemFormatFactory} in batch mode. */
 @RunWith(Parameterized.class)
 public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
 
-	private final boolean configure;
+    private final boolean configure;
 
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-	public AvroFilesystemITCase(boolean configure) {
-		this.configure = configure;
-	}
+    public AvroFilesystemITCase(boolean configure) {
+        this.configure = configure;
+    }
 
-	@Override
-	public String[] formatProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='avro'");
-		if (configure) {
-			ret.add("'avro.codec'='snappy'");
-		}
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] formatProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='avro'");
+        if (configure) {
+            ret.add("'avro.codec'='snappy'");
+        }
+        return ret.toArray(new String[0]);
+    }
 }

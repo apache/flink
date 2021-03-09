@@ -41,112 +41,113 @@ import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJav
 import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
-/**
- * Implementation of {@link PlannerTypeInferenceUtil}.
- */
+/** Implementation of {@link PlannerTypeInferenceUtil}. */
 @Internal
 public final class PlannerTypeInferenceUtilImpl implements PlannerTypeInferenceUtil {
 
-	public static final PlannerTypeInferenceUtil INSTANCE = new PlannerTypeInferenceUtilImpl();
+    public static final PlannerTypeInferenceUtil INSTANCE = new PlannerTypeInferenceUtilImpl();
 
-	private static final PlannerExpressionConverter CONVERTER = PlannerExpressionConverter.INSTANCE();
+    private static final PlannerExpressionConverter CONVERTER =
+            PlannerExpressionConverter.INSTANCE();
 
-	@Override
-	public TypeInferenceUtil.Result runTypeInference(
-			UnresolvedCallExpression unresolvedCall,
-			List<ResolvedExpression> resolvedArgs) {
-		// We should not try to resolve the children again with the old type stack
-		// The arguments might have been resolved with the new stack already. In that case the
-		// resolution will fail.
-		unresolvedCall = unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
-		final PlannerExpression plannerCall = unresolvedCall.accept(CONVERTER);
+    @Override
+    public TypeInferenceUtil.Result runTypeInference(
+            UnresolvedCallExpression unresolvedCall, List<ResolvedExpression> resolvedArgs) {
+        // We should not try to resolve the children again with the old type stack
+        // The arguments might have been resolved with the new stack already. In that case the
+        // resolution will fail.
+        unresolvedCall = unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
+        final PlannerExpression plannerCall = unresolvedCall.accept(CONVERTER);
 
-		if (plannerCall instanceof InputTypeSpec) {
-			return resolveWithCastedAssignment(
-				unresolvedCall,
-				resolvedArgs,
-				toJava(((InputTypeSpec) plannerCall).expectedTypes()),
-				plannerCall.resultType());
-		} else {
-			validateArguments(plannerCall);
+        if (plannerCall instanceof InputTypeSpec) {
+            return resolveWithCastedAssignment(
+                    unresolvedCall,
+                    resolvedArgs,
+                    toJava(((InputTypeSpec) plannerCall).expectedTypes()),
+                    plannerCall.resultType());
+        } else {
+            validateArguments(plannerCall);
 
-			final List<DataType> expectedArgumentTypes = resolvedArgs.stream()
-				.map(ResolvedExpression::getOutputDataType)
-				.collect(Collectors.toList());
+            final List<DataType> expectedArgumentTypes =
+                    resolvedArgs.stream()
+                            .map(ResolvedExpression::getOutputDataType)
+                            .collect(Collectors.toList());
 
-			return new TypeInferenceUtil.Result(
-				expectedArgumentTypes,
-				null,
-				fromLegacyInfoToDataType(plannerCall.resultType()));
-		}
-	}
+            return new TypeInferenceUtil.Result(
+                    expectedArgumentTypes,
+                    null,
+                    fromLegacyInfoToDataType(plannerCall.resultType()));
+        }
+    }
 
-	private TypeInferenceUtil.Result resolveWithCastedAssignment(
-			UnresolvedCallExpression unresolvedCall,
-			List<ResolvedExpression> args,
-			List<TypeInformation<?>> expectedTypes,
-			TypeInformation<?> resultType) {
+    private TypeInferenceUtil.Result resolveWithCastedAssignment(
+            UnresolvedCallExpression unresolvedCall,
+            List<ResolvedExpression> args,
+            List<TypeInformation<?>> expectedTypes,
+            TypeInformation<?> resultType) {
 
-		final List<PlannerExpression> plannerArgs = unresolvedCall.getChildren()
-			.stream()
-			.map(e -> e.accept(CONVERTER))
-			.collect(Collectors.toList());
+        final List<PlannerExpression> plannerArgs =
+                unresolvedCall.getChildren().stream()
+                        .map(e -> e.accept(CONVERTER))
+                        .collect(Collectors.toList());
 
-		final List<DataType> castedArgs = IntStream.range(0, plannerArgs.size())
-			.mapToObj(idx -> castIfNeeded(
-				args.get(idx),
-				plannerArgs.get(idx),
-				expectedTypes.get(idx)))
-			.collect(Collectors.toList());
+        final List<DataType> castedArgs =
+                IntStream.range(0, plannerArgs.size())
+                        .mapToObj(
+                                idx ->
+                                        castIfNeeded(
+                                                args.get(idx),
+                                                plannerArgs.get(idx),
+                                                expectedTypes.get(idx)))
+                        .collect(Collectors.toList());
 
-		return new TypeInferenceUtil.Result(
-			castedArgs,
-			null,
-			fromLegacyInfoToDataType(resultType));
-	}
+        return new TypeInferenceUtil.Result(castedArgs, null, fromLegacyInfoToDataType(resultType));
+    }
 
-	private void validateArguments(PlannerExpression plannerCall) {
-		if (!plannerCall.valid()) {
-			throw new ValidationException(
-				getValidationErrorMessage(plannerCall)
-					.orElse("Unexpected behavior, validation failed but can't get error messages!"));
-		}
-	}
+    private void validateArguments(PlannerExpression plannerCall) {
+        if (!plannerCall.valid()) {
+            throw new ValidationException(
+                    getValidationErrorMessage(plannerCall)
+                            .orElse(
+                                    "Unexpected behavior, validation failed but can't get error messages!"));
+        }
+    }
 
-	/**
-	 * Return the validation error message of this {@link PlannerExpression} or return the
-	 * validation error message of it's children if it passes the validation. Return empty if
-	 * all validation succeeded.
-	 */
-	private Optional<String> getValidationErrorMessage(PlannerExpression plannerCall) {
-		ValidationResult validationResult = plannerCall.validateInput();
-		if (validationResult instanceof ValidationFailure) {
-			return Optional.of(((ValidationFailure) validationResult).message());
-		} else {
-			for (Expression plannerExpression: plannerCall.getChildren()) {
-				Optional<String> errorMessage = getValidationErrorMessage((PlannerExpression) plannerExpression);
-				if (errorMessage.isPresent()) {
-					return errorMessage;
-				}
-			}
-		}
-		return Optional.empty();
-	}
+    /**
+     * Return the validation error message of this {@link PlannerExpression} or return the
+     * validation error message of it's children if it passes the validation. Return empty if all
+     * validation succeeded.
+     */
+    private Optional<String> getValidationErrorMessage(PlannerExpression plannerCall) {
+        ValidationResult validationResult = plannerCall.validateInput();
+        if (validationResult instanceof ValidationFailure) {
+            return Optional.of(((ValidationFailure) validationResult).message());
+        } else {
+            for (Expression plannerExpression : plannerCall.getChildren()) {
+                Optional<String> errorMessage =
+                        getValidationErrorMessage((PlannerExpression) plannerExpression);
+                if (errorMessage.isPresent()) {
+                    return errorMessage;
+                }
+            }
+        }
+        return Optional.empty();
+    }
 
-	private DataType castIfNeeded(
-			ResolvedExpression child,
-			PlannerExpression plannerChild,
-			TypeInformation<?> expectedType) {
-		TypeInformation<?> actualType = plannerChild.resultType();
-		if (actualType.equals(expectedType)) {
-			return child.getOutputDataType();
-		} else if (TypeCoercion.canSafelyCast(
-				fromTypeInfoToLogicalType(actualType), fromTypeInfoToLogicalType(expectedType))) {
-			return fromLegacyInfoToDataType(expectedType);
-		} else {
-			throw new ValidationException(String.format("Incompatible type of argument: %s Expected: %s",
-				child,
-				expectedType));
-		}
-	}
+    private DataType castIfNeeded(
+            ResolvedExpression child,
+            PlannerExpression plannerChild,
+            TypeInformation<?> expectedType) {
+        TypeInformation<?> actualType = plannerChild.resultType();
+        if (actualType.equals(expectedType)) {
+            return child.getOutputDataType();
+        } else if (TypeCoercion.canSafelyCast(
+                fromTypeInfoToLogicalType(actualType), fromTypeInfoToLogicalType(expectedType))) {
+            return fromLegacyInfoToDataType(expectedType);
+        } else {
+            throw new ValidationException(
+                    String.format(
+                            "Incompatible type of argument: %s Expected: %s", child, expectedType));
+        }
+    }
 }

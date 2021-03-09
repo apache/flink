@@ -24,19 +24,19 @@ import org.apache.flink.core.fs.Path;
 import java.util.function.Predicate;
 
 /**
- * A file filter that filters out hidden files based on common naming patterns,
- * i.e., files where the filename starts with '.' or with '_'.
+ * A file filter that filters out hidden files based on common naming patterns, i.e., files where
+ * the filename starts with '.' or with '_'.
  */
 @PublicEvolving
 public final class DefaultFileFilter implements Predicate<Path> {
 
-	@Override
-	public boolean test(Path path) {
-		final String fileName = path.getName();
-		if (fileName == null || fileName.length() == 0) {
-			return true;
-		}
-		final char first = fileName.charAt(0);
-		return first != '.' && first != '_';
-	}
+    @Override
+    public boolean test(Path path) {
+        final String fileName = path.getName();
+        if (fileName == null || fileName.length() == 0) {
+            return true;
+        }
+        final char first = fileName.charAt(0);
+        return first != '.' && first != '_';
+    }
 }

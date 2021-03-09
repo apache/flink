@@ -26,38 +26,36 @@ import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import java.io.Serializable;
 import java.util.function.Function;
 
-/**
- * Utility for mapping the output of a {@link DataGenerator}.
- */
+/** Utility for mapping the output of a {@link DataGenerator}. */
 @Internal
 public class DataGeneratorMapper<A, B> implements DataGenerator<B> {
 
-	private final DataGenerator<A> generator;
+    private final DataGenerator<A> generator;
 
-	private final SerializableFunction<A, B> mapper;
+    private final SerializableFunction<A, B> mapper;
 
-	public DataGeneratorMapper(DataGenerator<A> generator, SerializableFunction<A, B> mapper) {
-		this.generator = generator;
-		this.mapper = mapper;
-	}
+    public DataGeneratorMapper(DataGenerator<A> generator, SerializableFunction<A, B> mapper) {
+        this.generator = generator;
+        this.mapper = mapper;
+    }
 
-	@Override
-	public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
-		generator.open(name, context, runtimeContext);
-	}
+    @Override
+    public void open(
+            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
+            throws Exception {
+        generator.open(name, context, runtimeContext);
+    }
 
-	@Override
-	public boolean hasNext() {
-		return generator.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return generator.hasNext();
+    }
 
-	@Override
-	public B next() {
-		return mapper.apply(generator.next());
-	}
+    @Override
+    public B next() {
+        return mapper.apply(generator.next());
+    }
 
-	/**
-	 * A simple serializable function.
-	 */
-	public interface SerializableFunction<A, B> extends Function<A, B>, Serializable {}
+    /** A simple serializable function. */
+    public interface SerializableFunction<A, B> extends Function<A, B>, Serializable {}
 }

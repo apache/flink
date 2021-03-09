@@ -25,66 +25,72 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 public class UnionWithTempOperator<T> implements Driver<Function, T> {
-	
-	private static final int CACHED_INPUT = 0;
-	private static final int STREAMED_INPUT = 1;
-	
-	private TaskContext<Function, T> taskContext;
-	
-	private volatile boolean running;
-	
-	
-	@Override
-	public void setup(TaskContext<Function, T> context) {
-		this.taskContext = context;
-		this.running = true;
-	}
 
-	@Override
-	public int getNumberOfInputs() {
-		return 2;
-	}
-	
-	@Override
-	public int getNumberOfDriverComparators() {
-		return 0;
-	}
+    private static final int CACHED_INPUT = 0;
+    private static final int STREAMED_INPUT = 1;
 
-	@Override
-	public Class<Function> getStubType() {
-		return null; // no UDF
-	}
+    private TaskContext<Function, T> taskContext;
 
-	@Override
-	public void prepare() {}
+    private volatile boolean running;
 
-	@Override
-	public void run() throws Exception {
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
-		
-		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
-		T reuse = this.taskContext.<T>getInputSerializer(STREAMED_INPUT).getSerializer().createInstance();
-		T record;
-		
-		final MutableObjectIterator<T> input = this.taskContext.getInput(STREAMED_INPUT);
-		while (this.running && ((record = input.next(reuse)) != null)) {
-			numRecordsIn.inc();
-			output.collect(record);
-		}
-		
-		final MutableObjectIterator<T> cache = this.taskContext.getInput(CACHED_INPUT);
-		while (this.running && ((record = cache.next(reuse)) != null)) {
-			numRecordsIn.inc();
-			output.collect(record);
-		}
-	}
+    @Override
+    public void setup(TaskContext<Function, T> context) {
+        this.taskContext = context;
+        this.running = true;
+    }
 
-	@Override
-	public void cleanup() {}
+    @Override
+    public int getNumberOfInputs() {
+        return 2;
+    }
 
-	@Override
-	public void cancel() {
-		this.running = false;
-	}
+    @Override
+    public int getNumberOfDriverComparators() {
+        return 0;
+    }
+
+    @Override
+    public Class<Function> getStubType() {
+        return null; // no UDF
+    }
+
+    @Override
+    public void prepare() {}
+
+    @Override
+    public void run() throws Exception {
+        final Counter numRecordsIn =
+                this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+        final Counter numRecordsOut =
+                this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+
+        final Collector<T> output =
+                new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
+        T reuse =
+                this.taskContext
+                        .<T>getInputSerializer(STREAMED_INPUT)
+                        .getSerializer()
+                        .createInstance();
+        T record;
+
+        final MutableObjectIterator<T> input = this.taskContext.getInput(STREAMED_INPUT);
+        while (this.running && ((record = input.next(reuse)) != null)) {
+            numRecordsIn.inc();
+            output.collect(record);
+        }
+
+        final MutableObjectIterator<T> cache = this.taskContext.getInput(CACHED_INPUT);
+        while (this.running && ((record = cache.next(reuse)) != null)) {
+            numRecordsIn.inc();
+            output.collect(record);
+        }
+    }
+
+    @Override
+    public void cleanup() {}
+
+    @Override
+    public void cancel() {
+        this.running = false;
+    }
 }

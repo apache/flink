@@ -25,46 +25,59 @@ import io.fabric8.mockwebserver.ServerRequest;
 import io.fabric8.mockwebserver.ServerResponse;
 import io.fabric8.mockwebserver.dsl.MockServerExpectation;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.rules.ExternalResource;
 
 import java.util.HashMap;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
-/**
- * The mock server that host MixedDispatcher.
- */
+/** The mock server that host MixedDispatcher. */
 public class MixedKubernetesServer extends ExternalResource {
 
-	private KubernetesMockServer mock;
-	private NamespacedKubernetesClient client;
-	private boolean https;
+    private KubernetesMockServer mock;
+    private NamespacedKubernetesClient client;
+    private final boolean https;
 
-	private boolean crudMode;
+    private final boolean crudMode;
 
-	public MixedKubernetesServer(boolean https, boolean crudMode) {
-		this.https = https;
-		this.crudMode = crudMode;
-	}
+    private final MockWebServer mockWebServer;
 
-	public void before() {
-		HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
-		mock = crudMode
-			? new KubernetesMockServer(new Context(), new MockWebServer(), response, new MixedDispatcher(response), true)
-			: new KubernetesMockServer(https);
-		mock.init();
-		client = mock.createClient();
-	}
+    public MixedKubernetesServer(boolean https, boolean crudMode) {
+        this.https = https;
+        this.crudMode = crudMode;
+        mockWebServer = new MockWebServer();
+    }
 
-	public void after() {
-		mock.destroy();
-		client.close();
-	}
+    public void before() {
+        HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
+        mock =
+                crudMode
+                        ? new KubernetesMockServer(
+                                new Context(),
+                                mockWebServer,
+                                response,
+                                new MixedDispatcher(response),
+                                true)
+                        : new KubernetesMockServer(mockWebServer, response, https);
+        mock.init();
+        client = mock.createClient();
+    }
 
-	public NamespacedKubernetesClient getClient() {
-		return client;
-	}
+    public void after() {
+        mock.destroy();
+        client.close();
+    }
 
-	public MockServerExpectation expect() {
-		return mock.expect();
-	}
+    public NamespacedKubernetesClient getClient() {
+        return client;
+    }
+
+    public RecordedRequest takeRequest(long timeout, TimeUnit unit) throws Exception {
+        return mockWebServer.takeRequest(timeout, unit);
+    }
+
+    public MockServerExpectation expect() {
+        return mock.expect();
+    }
 }

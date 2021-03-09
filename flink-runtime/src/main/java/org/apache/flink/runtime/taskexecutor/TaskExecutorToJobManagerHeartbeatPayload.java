@@ -20,41 +20,43 @@ package org.apache.flink.runtime.taskexecutor;
 import java.io.Serializable;
 import java.util.Collections;
 
-/**
- * Payload for heartbeats sent from the TaskExecutor to the JobManager.
- */
+/** Payload for heartbeats sent from the TaskExecutor to the JobManager. */
 public class TaskExecutorToJobManagerHeartbeatPayload implements Serializable {
 
-	private static final long serialVersionUID = 525146950563585444L;
+    private static final long serialVersionUID = 525146950563585444L;
 
-	private final AccumulatorReport accumulatorReport;
+    private final AccumulatorReport accumulatorReport;
 
-	private final ExecutionDeploymentReport executionDeploymentReport;
+    private final ExecutionDeploymentReport executionDeploymentReport;
 
-	public TaskExecutorToJobManagerHeartbeatPayload(AccumulatorReport accumulatorReport, ExecutionDeploymentReport executionDeploymentReport) {
-		this.accumulatorReport = accumulatorReport;
-		this.executionDeploymentReport = executionDeploymentReport;
-	}
+    public TaskExecutorToJobManagerHeartbeatPayload(
+            AccumulatorReport accumulatorReport,
+            ExecutionDeploymentReport executionDeploymentReport) {
+        this.accumulatorReport = accumulatorReport;
+        this.executionDeploymentReport = executionDeploymentReport;
+    }
 
-	public AccumulatorReport getAccumulatorReport() {
-		return accumulatorReport;
-	}
+    public AccumulatorReport getAccumulatorReport() {
+        return accumulatorReport;
+    }
 
-	public ExecutionDeploymentReport getExecutionDeploymentReport() {
-		return executionDeploymentReport;
-	}
+    public ExecutionDeploymentReport getExecutionDeploymentReport() {
+        return executionDeploymentReport;
+    }
 
-	public static TaskExecutorToJobManagerHeartbeatPayload empty() {
-		return new TaskExecutorToJobManagerHeartbeatPayload(
-			new AccumulatorReport(Collections.emptyList()),
-			new ExecutionDeploymentReport(Collections.emptySet()));
-	}
+    public static TaskExecutorToJobManagerHeartbeatPayload empty() {
+        return new TaskExecutorToJobManagerHeartbeatPayload(
+                new AccumulatorReport(Collections.emptyList()),
+                new ExecutionDeploymentReport(Collections.emptySet()));
+    }
 
-	@Override
-	public String toString() {
-		return "TaskExectorToJobManagerHeartbeatPayload{" +
-			"accumulatorReport=" + accumulatorReport +
-			", executionDeploymentReport=" + executionDeploymentReport +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "TaskExectorToJobManagerHeartbeatPayload{"
+                + "accumulatorReport="
+                + accumulatorReport
+                + ", executionDeploymentReport="
+                + executionDeploymentReport
+                + '}';
+    }
 }

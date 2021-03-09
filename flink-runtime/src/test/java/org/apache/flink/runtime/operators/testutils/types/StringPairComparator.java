@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.operators.testutils.types;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.core.memory.DataInputView;
@@ -27,101 +25,104 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.StringValue;
 
+import java.io.IOException;
+
 @SuppressWarnings("rawtypes")
 public class StringPairComparator extends TypeComparator<StringPair> {
-	
-	private static final long serialVersionUID = 1L;
-	
-	private String reference;
 
-	private final TypeComparator[] comparators = new TypeComparator[] {new StringComparator(true)};
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public int hash(StringPair record) {
-		return record.getKey().hashCode();
-	}
+    private String reference;
 
-	@Override
-	public void setReference(StringPair toCompare) {
-		this.reference = toCompare.getKey();
-	}
+    private final TypeComparator[] comparators = new TypeComparator[] {new StringComparator(true)};
 
-	@Override
-	public boolean equalToReference(StringPair candidate) {
-		return this.reference.equals(candidate.getKey());
-	}
+    @Override
+    public int hash(StringPair record) {
+        return record.getKey().hashCode();
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<StringPair> referencedComparator) {
-		return this.reference.compareTo(((StringPairComparator)referencedComparator).reference);
-	}
-	
-	@Override
-	public int compare(StringPair first, StringPair second) {
-		return first.getKey().compareTo(second.getKey());
-	}
+    @Override
+    public void setReference(StringPair toCompare) {
+        this.reference = toCompare.getKey();
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
-			throws IOException {
-		return StringValue.readString(firstSource).compareTo(StringValue.readString(secondSource));
-	}
+    @Override
+    public boolean equalToReference(StringPair candidate) {
+        return this.reference.equals(candidate.getKey());
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return false;
-	}
+    @Override
+    public int compareToReference(TypeComparator<StringPair> referencedComparator) {
+        return this.reference.compareTo(((StringPairComparator) referencedComparator).reference);
+    }
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public int compare(StringPair first, StringPair second) {
+        return first.getKey().compareTo(second.getKey());
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return Integer.MAX_VALUE;
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        return StringValue.readString(firstSource).compareTo(StringValue.readString(secondSource));
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return false;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return false;
+    }
 
-	@Override
-	public void putNormalizedKey(StringPair record, MemorySegment target,
-			int offset, int numBytes) {
-		throw new RuntimeException("not implemented");		
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(StringPair record,
-			DataOutputView target) throws IOException {
-		throw new RuntimeException("not implemented");
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return Integer.MAX_VALUE;
+    }
 
-	@Override
-	public StringPair readWithKeyDenormalization(StringPair record,
-			DataInputView source) throws IOException {
-		throw new RuntimeException("not implemented");		
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return false;
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return false;
-	}
+    @Override
+    public void putNormalizedKey(
+            StringPair record, MemorySegment target, int offset, int numBytes) {
+        throw new RuntimeException("not implemented");
+    }
 
-	@Override
-	public TypeComparator<StringPair> duplicate() {
-		return new StringPairComparator();
-	}
+    @Override
+    public void writeWithKeyNormalization(StringPair record, DataOutputView target)
+            throws IOException {
+        throw new RuntimeException("not implemented");
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = ((StringPair) record).getKey();
-		return 1;
-	}
+    @Override
+    public StringPair readWithKeyDenormalization(StringPair record, DataInputView source)
+            throws IOException {
+        throw new RuntimeException("not implemented");
+    }
 
-	@Override public TypeComparator[] getFlatComparators() {
-		return comparators;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return false;
+    }
+
+    @Override
+    public TypeComparator<StringPair> duplicate() {
+        return new StringPairComparator();
+    }
+
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = ((StringPair) record).getKey();
+        return 1;
+    }
+
+    @Override
+    public TypeComparator[] getFlatComparators() {
+        return comparators;
+    }
 }

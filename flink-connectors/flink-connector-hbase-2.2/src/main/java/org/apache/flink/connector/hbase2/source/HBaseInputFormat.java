@@ -29,77 +29,79 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
-/**
- * {@link InputFormat} subclass that wraps the access for HTables.
- */
+/** {@link InputFormat} subclass that wraps the access for HTables. */
 @Experimental
 public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInputFormat<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Constructs a {@link InputFormat} with hbase configuration to read data from hbase.
-	 * @param hConf The configuration that connect to hbase.
-	 *              At least hbase.zookeeper.quorum and zookeeper.znode.parent need to be set.
-	 */
-	public HBaseInputFormat(org.apache.hadoop.conf.Configuration hConf) {
-		super(hConf);
-	}
+    /**
+     * Constructs a {@link InputFormat} with hbase configuration to read data from hbase.
+     *
+     * @param hConf The configuration that connect to hbase. At least hbase.zookeeper.quorum and
+     *     zookeeper.znode.parent need to be set.
+     */
+    public HBaseInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+        super(hConf);
+    }
 
-	/**
-	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
-	 * @return The appropriate instance of Scan for this usecase.
-	 */
-	@Override
-	protected abstract Scan getScanner();
+    /**
+     * Returns an instance of Scan that retrieves the required subset of records from the HBase
+     * table.
+     *
+     * @return The appropriate instance of Scan for this usecase.
+     */
+    @Override
+    protected abstract Scan getScanner();
 
-	/**
-	 * What table is to be read.
-	 * Per instance of a TableInputFormat derivative only a single tablename is possible.
-	 * @return The name of the table
-	 */
-	@Override
-	protected abstract String getTableName();
+    /**
+     * What table is to be read. Per instance of a TableInputFormat derivative only a single
+     * tablename is possible.
+     *
+     * @return The name of the table
+     */
+    @Override
+    protected abstract String getTableName();
 
-	/**
-	 * The output from HBase is always an instance of {@link Result}.
-	 * This method is to copy the data in the Result instance into the required {@link Tuple}
-	 * @param r The Result instance from HBase that needs to be converted
-	 * @return The appropriate instance of {@link Tuple} that contains the needed information.
-	 */
-	protected abstract T mapResultToTuple(Result r);
+    /**
+     * The output from HBase is always an instance of {@link Result}. This method is to copy the
+     * data in the Result instance into the required {@link Tuple}
+     *
+     * @param r The Result instance from HBase that needs to be converted
+     * @return The appropriate instance of {@link Tuple} that contains the needed information.
+     */
+    protected abstract T mapResultToTuple(Result r);
 
-	@Override
-	protected void initTable() {
-		if (table == null) {
-			createTable();
-		}
-		if (table != null && scan == null) {
-			scan = getScanner();
-		}
-	}
+    @Override
+    protected void initTable() {
+        if (table == null) {
+            createTable();
+        }
+        if (table != null && scan == null) {
+            scan = getScanner();
+        }
+    }
 
-	/**
-	 * Create an {@link HTable} instance and set it into this format.
-	 */
-	private void createTable() {
-		try {
-			if (connection == null) {
-				this.connection = ConnectionFactory.createConnection(getHadoopConfiguration());
-			}
-			TableName name = TableName.valueOf(getTableName());
-			table = connection.getTable(name);
-			regionLocator = connection.getRegionLocator(name);
-		} catch (TableNotFoundException tnfe) {
-			LOG.error("The table " + table.getName().getNameAsString() + " not found ", tnfe);
-			throw new RuntimeException("HBase table '" + table.getName().getNameAsString() + "' not found.", tnfe);
-		} catch (Exception e) {
-			throw new RuntimeException("Error connecting to the HBase table", e);
-		}
-	}
+    /** Create an {@link HTable} instance and set it into this format. */
+    private void createTable() {
+        try {
+            if (connection == null) {
+                this.connection = ConnectionFactory.createConnection(getHadoopConfiguration());
+            }
+            TableName name = TableName.valueOf(getTableName());
+            table = connection.getTable(name);
+            regionLocator = connection.getRegionLocator(name);
+        } catch (TableNotFoundException tnfe) {
+            LOG.error("The table " + table.getName().getNameAsString() + " not found ", tnfe);
+            throw new RuntimeException(
+                    "HBase table '" + table.getName().getNameAsString() + "' not found.", tnfe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error connecting to the HBase table", e);
+        }
+    }
 
-	@Override
-	protected T mapResultToOutType(Result r) {
-		return mapResultToTuple(r);
-	}
+    @Override
+    protected T mapResultToOutType(Result r) {
+        return mapResultToTuple(r);
+    }
 }

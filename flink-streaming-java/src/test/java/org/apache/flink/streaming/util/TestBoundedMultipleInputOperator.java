@@ -29,49 +29,46 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * A test operator class implementing {@link BoundedMultiInput}.
- */
+/** A test operator class implementing {@link BoundedMultiInput}. */
 public class TestBoundedMultipleInputOperator extends AbstractStreamOperatorV2<String>
-	implements MultipleInputStreamOperator<String>, BoundedMultiInput {
+        implements MultipleInputStreamOperator<String>, BoundedMultiInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String name;
+    private final String name;
 
-	public TestBoundedMultipleInputOperator(String name, StreamOperatorParameters<String> parameters) {
-		super(parameters, 3);
-		this.name = name;
-	}
+    public TestBoundedMultipleInputOperator(
+            String name, StreamOperatorParameters<String> parameters) {
+        super(parameters, 3);
+        this.name = name;
+    }
 
-	@Override
-	public List<Input> getInputs() {
-		return Arrays.asList(
-			new TestInput(this, 1),
-			new TestInput(this, 2),
-			new TestInput(this, 3)
-		);
-	}
+    @Override
+    public List<Input> getInputs() {
+        return Arrays.asList(
+                new TestInput(this, 1), new TestInput(this, 2), new TestInput(this, 3));
+    }
 
-	@Override
-	public void endInput(int inputId) {
-		output.collect(new StreamRecord<>("[" + name + "-" + inputId + "]: End of input"));
-	}
+    @Override
+    public void endInput(int inputId) {
+        output.collect(new StreamRecord<>("[" + name + "-" + inputId + "]: End of input"));
+    }
 
-	@Override
-	public void close() throws Exception {
-		output.collect(new StreamRecord<>("[" + name + "]: Bye"));
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        output.collect(new StreamRecord<>("[" + name + "]: Bye"));
+        super.close();
+    }
 
-	class TestInput extends AbstractInput<String, String> {
-		public TestInput(AbstractStreamOperatorV2<String> owner, int inputId) {
-			super(owner, inputId);
-		}
+    class TestInput extends AbstractInput<String, String> {
+        public TestInput(AbstractStreamOperatorV2<String> owner, int inputId) {
+            super(owner, inputId);
+        }
 
-		@Override
-		public void processElement(StreamRecord<String> element) throws Exception {
-			output.collect(element.replace("[" + name + "-" + inputId + "]: " + element.getValue()));
-		}
-	}
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            output.collect(
+                    element.replace("[" + name + "-" + inputId + "]: " + element.getValue()));
+        }
+    }
 }

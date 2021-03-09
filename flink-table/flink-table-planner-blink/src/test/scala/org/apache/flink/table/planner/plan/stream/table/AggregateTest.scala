@@ -37,7 +37,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('b)
       .select('a.sum.distinct, 'c.count.distinct)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -50,7 +50,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('c)
       .select(call(weightedAvg, 'a, 'b).distinct(), call(weightedAvg, 'a, 'b))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -62,7 +62,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('b)
       .select('a.count)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -75,7 +75,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('four, 'a)
       .select('four, 'b.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -88,7 +88,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('b, 'four)
       .select('four, 'a.sum)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -101,7 +101,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('d)
       .select('c.min, 'a.avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -114,7 +114,7 @@ class AggregateTest extends TableTestBase {
       .select('b, 'a.sum)
       .where('b === 2)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -126,7 +126,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('b)
       .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -139,7 +139,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('w)
       .select('a.count.distinct, 'a.sum)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -152,7 +152,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('w)
       .select('a.count.distinct, 'a.sum.distinct, 'a.max.distinct)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -165,7 +165,7 @@ class AggregateTest extends TableTestBase {
       .groupBy('a, 'w)
       .select('a, 'a.count, 'c.count.distinct)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -180,7 +180,7 @@ class AggregateTest extends TableTestBase {
       .aggregate(testAgg('a))
       .select('b, 'f0, 'f1)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -195,7 +195,7 @@ class AggregateTest extends TableTestBase {
       .aggregate(testAgg('a))
       .select('*)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -209,7 +209,7 @@ class AggregateTest extends TableTestBase {
       .aggregate('a.count)
       .select('b, 'TMP_0)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -224,6 +224,6 @@ class AggregateTest extends TableTestBase {
       .aggregate(testAgg('a) as ('x, 'y, 'z))
       .select('b, 'x, 'y)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

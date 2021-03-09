@@ -20,29 +20,27 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-/**
- * Path parameter specifying a {@link JobVertexID}.
- */
+/** Path parameter specifying a {@link JobVertexID}. */
 public class JobVertexIdPathParameter extends MessagePathParameter<JobVertexID> {
 
-	public static final String KEY = "vertexid";
+    public static final String KEY = "vertexid";
 
-	public JobVertexIdPathParameter() {
-		super(KEY);
-	}
+    public JobVertexIdPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected JobVertexID convertFromString(String value) throws ConversionException {
-		return JobVertexID.fromHexString(value);
-	}
+    @Override
+    protected JobVertexID convertFromString(String value) throws ConversionException {
+        return JobVertexID.fromHexString(value);
+    }
 
-	@Override
-	protected String convertToString(JobVertexID value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(JobVertexID value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "32-character hexadecimal string value that identifies a job vertex.";
-	}
+    @Override
+    public String getDescription() {
+        return "32-character hexadecimal string value that identifies a job vertex.";
+    }
 }

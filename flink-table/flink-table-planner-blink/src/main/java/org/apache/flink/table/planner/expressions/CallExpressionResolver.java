@@ -34,28 +34,34 @@ import java.util.Optional;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 
-/**
- * Planner expression resolver for {@link UnresolvedCallExpression}.
- */
+/** Planner expression resolver for {@link UnresolvedCallExpression}. */
 public class CallExpressionResolver {
 
-	private final ExpressionResolver resolver;
+    private final ExpressionResolver resolver;
 
-	public CallExpressionResolver(RelBuilder relBuilder) {
-		FlinkContext context = unwrapContext(relBuilder.getCluster());
-		this.resolver = ExpressionResolver.resolverFor(
-				context.getTableConfig(),
-				name -> Optional.empty(),
-				context.getFunctionCatalog().asLookup(str -> {
-					throw new TableException("We should not need to lookup any expressions at this point");
-				}),
-				context.getCatalogManager().getDataTypeFactory())
-			.build();
-	}
+    public CallExpressionResolver(RelBuilder relBuilder) {
+        FlinkContext context = unwrapContext(relBuilder.getCluster());
+        this.resolver =
+                ExpressionResolver.resolverFor(
+                                context.getTableConfig(),
+                                name -> Optional.empty(),
+                                context.getFunctionCatalog()
+                                        .asLookup(
+                                                str -> {
+                                                    throw new TableException(
+                                                            "We should not need to lookup any expressions at this point");
+                                                }),
+                                context.getCatalogManager().getDataTypeFactory(),
+                                (sqlExpression, inputSchema) -> {
+                                    throw new TableException(
+                                            "SQL expression parsing is not supported at this location.");
+                                })
+                        .build();
+    }
 
-	public ResolvedExpression resolve(Expression expression) {
-		List<ResolvedExpression> resolved = resolver.resolve(Collections.singletonList(expression));
-		Preconditions.checkArgument(resolved.size() == 1);
-		return resolved.get(0);
-	}
+    public ResolvedExpression resolve(Expression expression) {
+        List<ResolvedExpression> resolved = resolver.resolve(Collections.singletonList(expression));
+        Preconditions.checkArgument(resolved.size() == 1);
+        return resolved.get(0);
+    }
 }

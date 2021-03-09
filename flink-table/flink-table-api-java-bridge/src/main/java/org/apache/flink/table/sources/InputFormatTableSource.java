@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
@@ -30,27 +31,28 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
  * Defines an external bounded table and provides access to its data.
  *
  * @param <T> Type of the bounded {@link InputFormat} created by this {@link TableSource}.
+ * @deprecated This interface has been replaced by {@link DynamicTableSource}. The new interface
+ *     produces internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @Experimental
 public abstract class InputFormatTableSource<T> implements StreamTableSource<T> {
 
-	/**
-	 * Returns an {@link InputFormat} for reading the data of the table.
-	 */
-	public abstract InputFormat<T, ?> getInputFormat();
+    /** Returns an {@link InputFormat} for reading the data of the table. */
+    public abstract InputFormat<T, ?> getInputFormat();
 
-	/**
-	 * Always returns true which indicates this is a bounded source.
-	 */
-	@Override
-	public final boolean isBounded() {
-		return true;
-	}
+    /** Always returns true which indicates this is a bounded source. */
+    @Override
+    public final boolean isBounded() {
+        return true;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
-		TypeInformation<T> typeInfo = (TypeInformation<T>) fromDataTypeToLegacyInfo(getProducedDataType());
-		return execEnv.createInput(getInputFormat(), typeInfo);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
+        TypeInformation<T> typeInfo =
+                (TypeInformation<T>) fromDataTypeToLegacyInfo(getProducedDataType());
+        return execEnv.createInput(getInputFormat(), typeInfo);
+    }
 }

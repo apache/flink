@@ -26,31 +26,26 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
-/**
- * Integration tests for {@link org.apache.flink.api.java.io.CsvOutputFormat}.
- */
+/** Integration tests for {@link org.apache.flink.api.java.io.CsvOutputFormat}. */
 public class CsvOutputFormatITCase extends AbstractTestBase {
 
-	@Test
-	public void testProgram() throws Exception {
-		String resultPath = getTempDirPath("result");
+    @Test
+    public void testProgram() throws Exception {
+        String resultPath = getTempDirPath("result");
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<String> text = env.fromElements(WordCountData.TEXT);
+        DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
-		DataStream<Tuple2<String, Integer>> counts = text
-				.flatMap(new Tokenizer())
-				.keyBy(0).sum(1);
+        DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).keyBy(0).sum(1);
 
-		counts.writeAsCsv(resultPath);
+        counts.writeAsCsv(resultPath);
 
-		env.execute("WriteAsCsvTest");
+        env.execute("WriteAsCsvTest");
 
-		//Strip the parentheses from the expected text like output
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES
-				.replaceAll("[\\\\(\\\\)]", ""), resultPath);
-	}
-
+        // Strip the parentheses from the expected text like output
+        compareResultsByLinesInMemory(
+                WordCountData.STREAMING_COUNTS_AS_TUPLES.replaceAll("[\\\\(\\\\)]", ""),
+                resultPath);
+    }
 }
-

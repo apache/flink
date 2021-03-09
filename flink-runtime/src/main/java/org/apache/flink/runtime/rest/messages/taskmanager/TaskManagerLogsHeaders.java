@@ -26,53 +26,53 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Headers for the {@link TaskManagerLogListHandler}.
- */
-public class TaskManagerLogsHeaders implements MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
+/** Headers for the {@link TaskManagerLogListHandler}. */
+public class TaskManagerLogsHeaders
+        implements MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 
-	private static final TaskManagerLogsHeaders INSTANCE = new TaskManagerLogsHeaders();
+    private static final TaskManagerLogsHeaders INSTANCE = new TaskManagerLogsHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/logs", TaskManagerIdPathParameter.KEY);
+    private static final String URL =
+            String.format("/taskmanagers/:%s/logs", TaskManagerIdPathParameter.KEY);
 
-	private TaskManagerLogsHeaders() {}
+    private TaskManagerLogsHeaders() {}
 
-	public static TaskManagerLogsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerLogsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public Class<LogListInfo> getResponseClass() {
-		return LogListInfo.class;
-	}
+    @Override
+    public Class<LogListInfo> getResponseClass() {
+        return LogListInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the list of log files on a TaskManager.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the list of log files on a TaskManager.";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
-	}
+    @Override
+    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 }

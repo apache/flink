@@ -40,42 +40,40 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-/**
- * Utilities for Python Tests.
- */
+/** Utilities for Python Tests. */
 public final class PythonTestUtils {
 
-	public static JobBundleFactory createMockJobBundleFactory() {
-		JobBundleFactory jobBundleFactorySpy = spy(JobBundleFactory.class);
-		StageBundleFactory stageBundleFactorySpy = spy(StageBundleFactory.class);
-		when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
-		RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
-		try {
-			when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
-		} catch (Exception e) {
-			// ignore
-		}
-		Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
-		FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
-		inputReceivers.put("input", windowedValueReceiverSpy);
-		when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);
-		return jobBundleFactorySpy;
-	}
+    public static JobBundleFactory createMockJobBundleFactory() {
+        JobBundleFactory jobBundleFactorySpy = spy(JobBundleFactory.class);
+        StageBundleFactory stageBundleFactorySpy = spy(StageBundleFactory.class);
+        when(jobBundleFactorySpy.forStage(any())).thenReturn(stageBundleFactorySpy);
+        RemoteBundle remoteBundleSpy = spy(RemoteBundle.class);
+        try {
+            when(stageBundleFactorySpy.getBundle(any(), any(), any())).thenReturn(remoteBundleSpy);
+        } catch (Exception e) {
+            // ignore
+        }
+        Map<String, FnDataReceiver> inputReceivers = new HashMap<>();
+        FnDataReceiver<WindowedValue<?>> windowedValueReceiverSpy = spy(FnDataReceiver.class);
+        inputReceivers.put("input", windowedValueReceiverSpy);
+        when(remoteBundleSpy.getInputReceivers()).thenReturn(inputReceivers);
+        return jobBundleFactorySpy;
+    }
 
-	public static FlinkMetricContainer createMockFlinkMetricContainer() {
-		return new FlinkMetricContainer(
-			new GenericMetricGroup(
-				NoOpMetricRegistry.INSTANCE,
-				new MetricGroupTest.DummyAbstractMetricGroup(NoOpMetricRegistry.INSTANCE),
-				"root"));
-	}
+    public static FlinkMetricContainer createMockFlinkMetricContainer() {
+        return new FlinkMetricContainer(
+                new GenericMetricGroup(
+                        NoOpMetricRegistry.INSTANCE,
+                        new MetricGroupTest.DummyAbstractMetricGroup(NoOpMetricRegistry.INSTANCE),
+                        "root"));
+    }
 
-	public static PythonEnvironmentManager createTestEnvironmentManager() {
-		Map<String, String> env = new HashMap<>();
-		env.put(PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR, "");
-		return new ProcessPythonEnvironmentManager(
-			new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
-			new String[] {System.getProperty("java.io.tmpdir")},
-			env);
-	}
+    public static PythonEnvironmentManager createTestEnvironmentManager() {
+        Map<String, String> env = new HashMap<>();
+        env.put(PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR, "");
+        return new ProcessPythonEnvironmentManager(
+                new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
+                new String[] {System.getProperty("java.io.tmpdir")},
+                env);
+    }
 }

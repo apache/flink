@@ -61,249 +61,281 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link StreamConsumerRegistrar}.
- */
+/** Tests for {@link StreamConsumerRegistrar}. */
 public class StreamConsumerRegistrarTest {
 
-	private static final String STREAM = "stream";
+    private static final String STREAM = "stream";
 
-	private static final long EXPECTED_REGISTRATION_MAX = 1;
-	private static final long EXPECTED_REGISTRATION_BASE = 2;
-	private static final double EXPECTED_REGISTRATION_POW = 0.5;
+    private static final long EXPECTED_REGISTRATION_MAX = 1;
+    private static final long EXPECTED_REGISTRATION_BASE = 2;
+    private static final double EXPECTED_REGISTRATION_POW = 0.5;
 
-	private static final long EXPECTED_DEREGISTRATION_MAX = 2;
-	private static final long EXPECTED_DEREGISTRATION_BASE = 4;
-	private static final double EXPECTED_DEREGISTRATION_POW = 1;
+    private static final long EXPECTED_DEREGISTRATION_MAX = 2;
+    private static final long EXPECTED_DEREGISTRATION_BASE = 4;
+    private static final double EXPECTED_DEREGISTRATION_POW = 1;
 
-	@Rule
-	public final ExpectedException thrown = ExpectedException.none();
+    @Rule public final ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testStreamNotFoundWhenRegisteringThrowsException() throws Exception {
-		thrown.expect(ResourceNotFoundException.class);
+    @Test
+    public void testStreamNotFoundWhenRegisteringThrowsException() throws Exception {
+        thrown.expect(ResourceNotFoundException.class);
 
-		KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.streamNotFound();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, mock(FullJitterBackoff.class));
+        KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.streamNotFound();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, mock(FullJitterBackoff.class));
 
-		registrar.registerStreamConsumer(STREAM, "name");
-	}
+        registrar.registerStreamConsumer(STREAM, "name");
+    }
 
-	@Test
-	public void testRegisterStreamConsumerRegistersNewStreamConsumer() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+    @Test
+    public void testRegisterStreamConsumerRegistersNewStreamConsumer() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-		KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+        KinesisProxyV2Interface kinesis =
+                FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
 
-		String result = registrar.registerStreamConsumer(STREAM, "name");
+        String result = registrar.registerStreamConsumer(STREAM, "name");
 
-		assertEquals(STREAM_CONSUMER_ARN_NEW, result);
-	}
+        assertEquals(STREAM_CONSUMER_ARN_NEW, result);
+    }
 
-	@Test
-	public void testRegisterStreamConsumerThatAlreadyExistsAndActive() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+    @Test
+    public void testRegisterStreamConsumerThatAlreadyExistsAndActive() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-		KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+        KinesisProxyV2Interface kinesis =
+                FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
 
-		String result = registrar.registerStreamConsumer(STREAM, "name");
+        String result = registrar.registerStreamConsumer(STREAM, "name");
 
-		verify(backoff, never()).sleep(anyLong());
-		assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
-	}
+        verify(backoff, never()).sleep(anyLong());
+        assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
+    }
 
-	@Test
-	public void testRegisterStreamConsumerWaitsForConsumerToBecomeActive() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+    @Test
+    public void testRegisterStreamConsumerWaitsForConsumerToBecomeActive() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.registerExistingConsumerAndWaitToBecomeActive();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.registerExistingConsumerAndWaitToBecomeActive();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
 
-		String result = registrar.registerStreamConsumer(STREAM, "name");
+        String result = registrar.registerStreamConsumer(STREAM, "name");
 
-		// we backoff on each retry
-		verify(backoff, times(NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE - 1)).sleep(anyLong());
-		assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
+        // we backoff on each retry
+        verify(backoff, times(NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE - 1)).sleep(anyLong());
+        assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
 
-		// We will invoke describe stream until the stream consumer is activated
-		assertEquals(NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE, kinesis.getNumberOfDescribeStreamConsumerInvocations());
+        // We will invoke describe stream until the stream consumer is activated
+        assertEquals(
+                NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE,
+                kinesis.getNumberOfDescribeStreamConsumerInvocations());
 
-		for (int i = 1; i < NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE; i++) {
-			verify(backoff).calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), eq(i));
-		}
-	}
+        for (int i = 1; i < NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE; i++) {
+            verify(backoff).calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), eq(i));
+        }
+    }
 
-	@Test
-	public void testRegisterStreamConsumerTimeoutWaitingForConsumerToBecomeActive() throws Exception {
-		thrown.expect(FlinkKinesisTimeoutException.class);
-		thrown.expectMessage("Timeout waiting for stream consumer to become active: name on stream-arn");
+    @Test
+    public void testRegisterStreamConsumerTimeoutWaitingForConsumerToBecomeActive()
+            throws Exception {
+        thrown.expect(FlinkKinesisTimeoutException.class);
+        thrown.expectMessage(
+                "Timeout waiting for stream consumer to become active: name on stream-arn");
 
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.registerExistingConsumerAndWaitToBecomeActive();
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.registerExistingConsumerAndWaitToBecomeActive();
 
-		Properties configProps = createEfoProperties();
-		configProps.setProperty(REGISTER_STREAM_TIMEOUT_SECONDS, "1");
+        Properties configProps = createEfoProperties();
+        configProps.setProperty(REGISTER_STREAM_TIMEOUT_SECONDS, "1");
 
-		FanOutRecordPublisherConfiguration configuration = new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
-		StreamConsumerRegistrar registrar = new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
+        FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
+        StreamConsumerRegistrar registrar =
+                new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
 
-		registrar.registerStreamConsumer(STREAM, "name");
-	}
+        registrar.registerStreamConsumer(STREAM, "name");
+    }
 
-	@Test
-	public void testRegistrationBackoffForLazy() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+    @Test
+    public void testRegistrationBackoffForLazy() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-		KinesisProxyV2Interface kinesis = FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
+        KinesisProxyV2Interface kinesis =
+                FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
 
-		Properties efoProperties = createEfoProperties();
-		efoProperties.setProperty(EFO_REGISTRATION_TYPE, LAZY.name());
+        Properties efoProperties = createEfoProperties();
+        efoProperties.setProperty(EFO_REGISTRATION_TYPE, LAZY.name());
 
-		FanOutRecordPublisherConfiguration configuration = new FanOutRecordPublisherConfiguration(efoProperties, emptyList());
-		StreamConsumerRegistrar registrar = new StreamConsumerRegistrar(kinesis, configuration, backoff);
+        FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(efoProperties, emptyList());
+        StreamConsumerRegistrar registrar =
+                new StreamConsumerRegistrar(kinesis, configuration, backoff);
 
-		String result = registrar.registerStreamConsumer(STREAM, "name");
+        String result = registrar.registerStreamConsumer(STREAM, "name");
 
-		verify(backoff).sleep(anyLong());
-		assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
-	}
+        verify(backoff).sleep(anyLong());
+        assertEquals(STREAM_CONSUMER_ARN_EXISTING, result);
+    }
 
-	@Test
-	public void testDeregisterStreamConsumerAndWaitForDeletingStatus() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+    @Test
+    public void testDeregisterStreamConsumerAndWaitForDeletingStatus() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
 
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
 
-		registrar.deregisterStreamConsumer(STREAM);
+        registrar.deregisterStreamConsumer(STREAM);
 
-		// We will invoke describe stream until the stream consumer is in the DELETING state
-		assertEquals(2, kinesis.getNumberOfDescribeStreamConsumerInvocations());
+        // We will invoke describe stream until the stream consumer is in the DELETING state
+        assertEquals(2, kinesis.getNumberOfDescribeStreamConsumerInvocations());
 
-		for (int i = 1; i < 2; i++) {
-			verify(backoff).calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), eq(i));
-		}
-	}
+        for (int i = 1; i < 2; i++) {
+            verify(backoff).calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), eq(i));
+        }
+    }
 
-	@Test
-	public void testDeregisterStreamConsumerTimeoutWaitingForConsumerToDeregister() throws Exception {
-		thrown.expect(FlinkKinesisTimeoutException.class);
-		thrown.expectMessage("Timeout waiting for stream consumer to deregister: stream-consumer-arn");
+    @Test
+    public void testDeregisterStreamConsumerTimeoutWaitingForConsumerToDeregister()
+            throws Exception {
+        thrown.expect(FlinkKinesisTimeoutException.class);
+        thrown.expectMessage(
+                "Timeout waiting for stream consumer to deregister: stream-consumer-arn");
 
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.existingActiveConsumer();
 
-		Properties configProps = createEfoProperties();
-		configProps.setProperty(DEREGISTER_STREAM_TIMEOUT_SECONDS, "1");
+        Properties configProps = createEfoProperties();
+        configProps.setProperty(DEREGISTER_STREAM_TIMEOUT_SECONDS, "1");
 
-		FanOutRecordPublisherConfiguration configuration = new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
-		StreamConsumerRegistrar registrar = new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
+        FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(configProps, singletonList(STREAM));
+        StreamConsumerRegistrar registrar =
+                new StreamConsumerRegistrar(kinesis, configuration, backoffFor(1001));
 
-		registrar.deregisterStreamConsumer(STREAM);
-	}
-
-	@Test
-	public void testDeregisterStreamConsumerNotFound() throws Exception {
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
-
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
-
-		registrar.deregisterStreamConsumer(STREAM);
-
-		assertEquals(1, kinesis.getNumberOfDescribeStreamConsumerInvocations());
-	}
-
-	@Test
-	public void testDeregisterStreamConsumerArnNotFound() throws Exception {
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("Stream consumer ARN not found for stream: not-found");
-
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
-
-		StreamConsumerFakeKinesis kinesis = FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
-
-		registrar.deregisterStreamConsumer("not-found");
-	}
-
-	@Test
-	public void testRegistrationBackoff() throws Exception {
-		FanOutRecordPublisherConfiguration configuration = createConfiguration();
-
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
-		when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt())).thenReturn(5L);
-
-		StreamConsumerRegistrar registrar = new StreamConsumerRegistrar(mock(KinesisProxyV2Interface.class), configuration, backoff);
-
-		registrar.registrationBackoff(configuration, backoff, 10);
-
-		verify(backoff).sleep(5);
-		verify(backoff).calculateFullJitterBackoff(
-			EXPECTED_REGISTRATION_BASE,
-			EXPECTED_REGISTRATION_MAX,
-			EXPECTED_REGISTRATION_POW,
-			10
-		);
-	}
-
-	@Test
-	public void testDeregistrationBackoff() throws Exception {
-		FanOutRecordPublisherConfiguration configuration = createConfiguration();
-
-		FullJitterBackoff backoff = mock(FullJitterBackoff.class);
-		when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt())).thenReturn(5L);
-
-		StreamConsumerRegistrar registrar = new StreamConsumerRegistrar(mock(KinesisProxyV2Interface.class), configuration, backoff);
-
-		registrar.deregistrationBackoff(configuration, backoff, 11);
-
-		verify(backoff).sleep(5);
-		verify(backoff).calculateFullJitterBackoff(
-			EXPECTED_DEREGISTRATION_BASE,
-			EXPECTED_DEREGISTRATION_MAX,
-			EXPECTED_DEREGISTRATION_POW,
-			11
-		);
-	}
-
-	@Test
-	public void testCloseClosesProxy() {
-		KinesisProxyV2Interface kinesis = mock(KinesisProxyV2Interface.class);
-		StreamConsumerRegistrar registrar = createRegistrar(kinesis, mock(FullJitterBackoff.class));
-
-		registrar.close();
-
-		verify(kinesis).close();
-	}
-
-	private StreamConsumerRegistrar createRegistrar(final KinesisProxyV2Interface kinesis, final FullJitterBackoff backoff) {
-		FanOutRecordPublisherConfiguration configuration = createConfiguration();
-		return new StreamConsumerRegistrar(kinesis, configuration, backoff);
-	}
-
-	private FanOutRecordPublisherConfiguration createConfiguration() {
-		return new FanOutRecordPublisherConfiguration(createEfoProperties(), singletonList(STREAM));
-	}
-
-	private Properties createEfoProperties() {
-		Properties config = new Properties();
-		config.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
-		config.setProperty(EFO_CONSUMER_NAME, "dummy-efo-consumer");
-		config.setProperty(REGISTER_STREAM_BACKOFF_BASE, String.valueOf(EXPECTED_REGISTRATION_BASE));
-		config.setProperty(REGISTER_STREAM_BACKOFF_MAX, String.valueOf(EXPECTED_REGISTRATION_MAX));
-		config.setProperty(REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT, String.valueOf(EXPECTED_REGISTRATION_POW));
-		config.setProperty(DEREGISTER_STREAM_BACKOFF_BASE, String.valueOf(EXPECTED_DEREGISTRATION_BASE));
-		config.setProperty(DEREGISTER_STREAM_BACKOFF_MAX, String.valueOf(EXPECTED_DEREGISTRATION_MAX));
-		config.setProperty(DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT, String.valueOf(EXPECTED_DEREGISTRATION_POW));
-		config.setProperty(efoConsumerArn(STREAM), "stream-consumer-arn");
-		return config;
-	}
-
-	private FullJitterBackoff backoffFor(final long millisToBackoffFor) {
-		FullJitterBackoff backoff = spy(new FullJitterBackoff());
-		when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt())).thenReturn(millisToBackoffFor);
-		return backoff;
-	}
-
+        registrar.deregisterStreamConsumer(STREAM);
+    }
+
+    @Test
+    public void testDeregisterStreamConsumerNotFound() throws Exception {
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+
+        registrar.deregisterStreamConsumer(STREAM);
+
+        assertEquals(1, kinesis.getNumberOfDescribeStreamConsumerInvocations());
+    }
+
+    @Test
+    public void testDeregisterStreamConsumerArnNotFound() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("Stream consumer ARN not found for stream: not-found");
+
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+
+        StreamConsumerFakeKinesis kinesis =
+                FakeKinesisFanOutBehavioursFactory.streamConsumerNotFound();
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, backoff);
+
+        registrar.deregisterStreamConsumer("not-found");
+    }
+
+    @Test
+    public void testRegistrationBackoff() throws Exception {
+        FanOutRecordPublisherConfiguration configuration = createConfiguration();
+
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+        when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt()))
+                .thenReturn(5L);
+
+        StreamConsumerRegistrar registrar =
+                new StreamConsumerRegistrar(
+                        mock(KinesisProxyV2Interface.class), configuration, backoff);
+
+        registrar.registrationBackoff(configuration, backoff, 10);
+
+        verify(backoff).sleep(5);
+        verify(backoff)
+                .calculateFullJitterBackoff(
+                        EXPECTED_REGISTRATION_BASE,
+                        EXPECTED_REGISTRATION_MAX,
+                        EXPECTED_REGISTRATION_POW,
+                        10);
+    }
+
+    @Test
+    public void testDeregistrationBackoff() throws Exception {
+        FanOutRecordPublisherConfiguration configuration = createConfiguration();
+
+        FullJitterBackoff backoff = mock(FullJitterBackoff.class);
+        when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt()))
+                .thenReturn(5L);
+
+        StreamConsumerRegistrar registrar =
+                new StreamConsumerRegistrar(
+                        mock(KinesisProxyV2Interface.class), configuration, backoff);
+
+        registrar.deregistrationBackoff(configuration, backoff, 11);
+
+        verify(backoff).sleep(5);
+        verify(backoff)
+                .calculateFullJitterBackoff(
+                        EXPECTED_DEREGISTRATION_BASE,
+                        EXPECTED_DEREGISTRATION_MAX,
+                        EXPECTED_DEREGISTRATION_POW,
+                        11);
+    }
+
+    @Test
+    public void testCloseClosesProxy() {
+        KinesisProxyV2Interface kinesis = mock(KinesisProxyV2Interface.class);
+        StreamConsumerRegistrar registrar = createRegistrar(kinesis, mock(FullJitterBackoff.class));
+
+        registrar.close();
+
+        verify(kinesis).close();
+    }
+
+    private StreamConsumerRegistrar createRegistrar(
+            final KinesisProxyV2Interface kinesis, final FullJitterBackoff backoff) {
+        FanOutRecordPublisherConfiguration configuration = createConfiguration();
+        return new StreamConsumerRegistrar(kinesis, configuration, backoff);
+    }
+
+    private FanOutRecordPublisherConfiguration createConfiguration() {
+        return new FanOutRecordPublisherConfiguration(createEfoProperties(), singletonList(STREAM));
+    }
+
+    private Properties createEfoProperties() {
+        Properties config = new Properties();
+        config.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+        config.setProperty(EFO_CONSUMER_NAME, "dummy-efo-consumer");
+        config.setProperty(
+                REGISTER_STREAM_BACKOFF_BASE, String.valueOf(EXPECTED_REGISTRATION_BASE));
+        config.setProperty(REGISTER_STREAM_BACKOFF_MAX, String.valueOf(EXPECTED_REGISTRATION_MAX));
+        config.setProperty(
+                REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
+                String.valueOf(EXPECTED_REGISTRATION_POW));
+        config.setProperty(
+                DEREGISTER_STREAM_BACKOFF_BASE, String.valueOf(EXPECTED_DEREGISTRATION_BASE));
+        config.setProperty(
+                DEREGISTER_STREAM_BACKOFF_MAX, String.valueOf(EXPECTED_DEREGISTRATION_MAX));
+        config.setProperty(
+                DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
+                String.valueOf(EXPECTED_DEREGISTRATION_POW));
+        config.setProperty(efoConsumerArn(STREAM), "stream-consumer-arn");
+        return config;
+    }
+
+    private FullJitterBackoff backoffFor(final long millisToBackoffFor) {
+        FullJitterBackoff backoff = spy(new FullJitterBackoff());
+        when(backoff.calculateFullJitterBackoff(anyLong(), anyLong(), anyDouble(), anyInt()))
+                .thenReturn(millisToBackoffFor);
+        return backoff;
+    }
 }

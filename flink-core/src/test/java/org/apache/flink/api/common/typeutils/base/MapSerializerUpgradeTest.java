@@ -35,77 +35,82 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A  {@link TypeSerializerUpgradeTestBase} for {@link MapSerializerSnapshot}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link MapSerializerSnapshot}. */
 @RunWith(Parameterized.class)
-public class MapSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Map<Integer, String>, Map<Integer, String>> {
+public class MapSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Map<Integer, String>, Map<Integer, String>> {
 
-	private static final String SPEC_NAME = "map-serializer";
+    private static final String SPEC_NAME = "map-serializer";
 
-	public MapSerializerUpgradeTest(TestSpecification<Map<Integer, String>, Map<Integer, String>> testSpecification) {
-		super(testSpecification);
-	}
+    public MapSerializerUpgradeTest(
+            TestSpecification<Map<Integer, String>, Map<Integer, String>> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					MapSerializerSetup.class,
-					MapSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            MapSerializerSetup.class,
+                            MapSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "map-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "map-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class MapSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Map<Integer, String>> {
-		@Override
-		public TypeSerializer<Map<Integer, String>> createPriorSerializer() {
-			return new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class MapSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Map<Integer, String>> {
+        @Override
+        public TypeSerializer<Map<Integer, String>> createPriorSerializer() {
+            return new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public Map<Integer, String> createTestData() {
-			Map<Integer, String> data = new HashMap<>(3);
-			for (int i = 0; i < 3; ++i) {
-				data.put(i, String.valueOf(i));
-			}
-			return data;
-		}
-	}
+        @Override
+        public Map<Integer, String> createTestData() {
+            Map<Integer, String> data = new HashMap<>(3);
+            for (int i = 0; i < 3; ++i) {
+                data.put(i, String.valueOf(i));
+            }
+            return data;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class MapSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Map<Integer, String>> {
-		@Override
-		public TypeSerializer<Map<Integer, String>> createUpgradedSerializer() {
-			return new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class MapSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Map<Integer, String>> {
+        @Override
+        public TypeSerializer<Map<Integer, String>> createUpgradedSerializer() {
+            return new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<Map<Integer, String>> testDataMatcher() {
-			Map<Integer, String> data = new HashMap<>(3);
-			for (int i = 0; i < 3; ++i) {
-				data.put(i, String.valueOf(i));
-			}
-			return is(data);
-		}
+        @Override
+        public Matcher<Map<Integer, String>> testDataMatcher() {
+            Map<Integer, String> data = new HashMap<>(3);
+            for (int i = 0; i < 3; ++i) {
+                data.put(i, String.valueOf(i));
+            }
+            return is(data);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Map<Integer, String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Map<Integer, String>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

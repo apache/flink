@@ -22,8 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
-import org.apache.flink.connector.base.source.event.RequestSplitEvent;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
@@ -44,85 +42,83 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A SplitEnumerator implementation for bounded / batch {@link FileSource} input.
  *
- * <p>This enumerator takes all files that are present in the configured input directories and assigns
- * them to the readers. Once all files are processed, the source is finished.
+ * <p>This enumerator takes all files that are present in the configured input directories and
+ * assigns them to the readers. Once all files are processed, the source is finished.
  *
  * <p>The implementation of this class is rather thin. The actual logic for creating the set of
- * FileSourceSplits to process, and the logic to decide which reader gets what split, are in
- * {@link FileEnumerator} and in {@link FileSplitAssigner}, respectively.
+ * FileSourceSplits to process, and the logic to decide which reader gets what split, are in {@link
+ * FileEnumerator} and in {@link FileSplitAssigner}, respectively.
  */
 @Internal
-public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
+public class StaticFileSplitEnumerator
+        implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StaticFileSplitEnumerator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StaticFileSplitEnumerator.class);
 
-	private final SplitEnumeratorContext<FileSourceSplit> context;
+    private final SplitEnumeratorContext<FileSourceSplit> context;
 
-	private final FileSplitAssigner splitAssigner;
+    private final FileSplitAssigner splitAssigner;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public StaticFileSplitEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> context,
-			FileSplitAssigner splitAssigner) {
-		this.context = checkNotNull(context);
-		this.splitAssigner = checkNotNull(splitAssigner);
-	}
+    public StaticFileSplitEnumerator(
+            SplitEnumeratorContext<FileSourceSplit> context, FileSplitAssigner splitAssigner) {
+        this.context = checkNotNull(context);
+        this.splitAssigner = checkNotNull(splitAssigner);
+    }
 
-	@Override
-	public void start() {
-		// no resources to start
-	}
+    @Override
+    public void start() {
+        // no resources to start
+    }
 
-	@Override
-	public void close() throws IOException {
-		// no resources to close
-	}
+    @Override
+    public void close() throws IOException {
+        // no resources to close
+    }
 
-	@Override
-	public void addReader(int subtaskId) {
-		// this source is purely lazy-pull-based, nothing to do upon registration
-	}
+    @Override
+    public void addReader(int subtaskId) {
+        // this source is purely lazy-pull-based, nothing to do upon registration
+    }
 
-	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (sourceEvent instanceof RequestSplitEvent) {
-			final RequestSplitEvent requestSplitEvent = (RequestSplitEvent) sourceEvent;
-			assignNextEvents(subtaskId, requestSplitEvent.hostName());
-		}
-		else {
-			LOG.error("Received unrecognized event: {}", sourceEvent);
-		}
-	}
+    @Override
+    public void handleSplitRequest(int subtask, @Nullable String hostname) {
+        if (!context.registeredReaders().containsKey(subtask)) {
+            // reader failed between sending the request and now. skip this request.
+            return;
+        }
 
-	@Override
-	public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
-		LOG.debug("File Source Enumerator adds splits back: {}", splits);
-		splitAssigner.addSplits(splits);
-	}
+        if (LOG.isInfoEnabled()) {
+            final String hostInfo =
+                    hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
+            LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
+        }
 
-	@Override
-	public PendingSplitsCheckpoint snapshotState() {
-		return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
-	}
+        final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+        if (nextSplit.isPresent()) {
+            final FileSourceSplit split = nextSplit.get();
+            context.assignSplit(split, subtask);
+            LOG.info("Assigned split to subtask {} : {}", subtask, split);
+        } else {
+            context.signalNoMoreSplits(subtask);
+            LOG.info("No more splits available for subtask {}", subtask);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+        LOG.error("Received unrecognized event: {}", sourceEvent);
+    }
 
-	private void assignNextEvents(int subtask, @Nullable String hostname) {
-		if (LOG.isInfoEnabled()) {
-			final String hostInfo = hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
-			LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
-		}
+    @Override
+    public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
+        LOG.debug("File Source Enumerator adds splits back: {}", splits);
+        splitAssigner.addSplits(splits);
+    }
 
-		final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
-		if (nextSplit.isPresent()) {
-			final FileSourceSplit split = nextSplit.get();
-			context.assignSplit(split, subtask);
-			LOG.info("Assigned split to subtask {} : {}", subtask, split);
-		}
-		else {
-			context.sendEventToSourceReader(subtask, new NoMoreSplitsEvent());
-			LOG.info("No more splits available for subtask {}", subtask);
-		}
-	}
+    @Override
+    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() {
+        return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
+    }
 }

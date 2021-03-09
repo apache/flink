@@ -359,6 +359,17 @@ trait ImplicitExpressionConversions {
       function,
       params: _*)
 
+  /**
+   * A call to a SQL expression.
+   *
+   * The given string is parsed and translated into an [[Expression]] during planning. Only the
+   * translated expression is evaluated during runtime.
+   *
+   * Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+   * table-valued functions are not supported. Sub-queries are also not allowed.
+   */
+  def callSql(sqlExpression: String): Expression = Expressions.callSql(sqlExpression)
+
   // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------

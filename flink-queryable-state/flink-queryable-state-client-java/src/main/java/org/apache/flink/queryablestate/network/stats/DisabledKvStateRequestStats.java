@@ -18,28 +18,21 @@
 
 package org.apache.flink.queryablestate.network.stats;
 
-/**
- * Disabled {@link KvStateRequestStats} implementation.
- */
+/** Disabled {@link KvStateRequestStats} implementation. */
 public class DisabledKvStateRequestStats implements KvStateRequestStats {
 
-	@Override
-	public void reportActiveConnection() {
-	}
+    @Override
+    public void reportActiveConnection() {}
 
-	@Override
-	public void reportInactiveConnection() {
-	}
+    @Override
+    public void reportInactiveConnection() {}
 
-	@Override
-	public void reportRequest() {
-	}
+    @Override
+    public void reportRequest() {}
 
-	@Override
-	public void reportSuccessfulRequest(long durationTotalMillis) {
-	}
+    @Override
+    public void reportSuccessfulRequest(long durationTotalMillis) {}
 
-	@Override
-	public void reportFailedRequest() {
-	}
+    @Override
+    public void reportFailedRequest() {}
 }

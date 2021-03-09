@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -36,16 +36,16 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE price > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($3, 10)])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[>(price, 10)])
+Calc(select=[name, id, amount, price], where=[(price > 10)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -54,16 +54,16 @@ Calc(select=[name, id, amount, price], where=[>(price, 10)])
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), >($3, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), >(price, 10))])
+Calc(select=[name, id, amount, price], where=[((amount > 2) OR (price > 10))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -72,16 +72,16 @@ Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), >(price, 10))])
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), <(amount, 10))])
+Calc(select=[name, id, amount, price], where=[((amount > 2) OR (amount < 10))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -90,14 +90,14 @@ Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), <(amount, 10))])
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]], fields=[name, id, amount, price])
 ]]>
@@ -107,14 +107,14 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[>($2, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
@@ -124,16 +124,16 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), >($3, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[>(price, 10)])
+Calc(select=[name, id, amount, price], where=[(price > 10)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -145,16 +145,16 @@ SELECT * FROM FilterableTable WHERE
     amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <($1, 100), >(CAST($2):BIGINT, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[AND(<(id, 100), >(CAST(amount), 10))])
+Calc(select=[name, id, amount, price], where=[((id < 100) AND (CAST(amount) > 10))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -163,16 +163,16 @@ Calc(select=[name, id, amount, price], where=[AND(<(id, 100), >(CAST(amount), 10
     <Resource name="sql">
       <![CDATA[SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[AND(>($2, 2), <(myUdf($2), 32))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[<(Func1$(amount), 32)])
+Calc(select=[name, id, amount, price], where=[(Func1$(amount) < 32)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -188,13 +188,13 @@ SELECT id,
 FROM T
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.*, nested.*, name.*)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]], fields=[id, deepNested, nested])
@@ -205,16 +205,16 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
     <Resource name="sql">
       <![CDATA[SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($3, 1), >($0, 2), =($2, _UTF-16LE'A'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2], where=[>(id, 2)])
+Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2], where=[(id > 2)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -223,16 +223,16 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
     <Resource name="sql">
       <![CDATA[SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2], where=[>(id, 2)])
+Calc(select=[id, name, part1, part2], where=[(id > 2)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -241,18 +241,18 @@ Calc(select=[id, name, part1, part2], where=[>(id, 2)])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0])
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: )]]], fields=[])
 ]]>
     </Resource>
@@ -266,14 +266,14 @@ SELECT id FROM FilterableTable1 WHERE
   tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0])
 +- LogicalFilter(condition=[AND(>($2, 14:25:02), >($1, 2017-02-03), >($3, 2017-02-03 14:25:02))])
    +- LogicalTableScan(table=[[default_catalog, default_database, FilterableTable1, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable1, source: [filterPushedDown=[true], filter=[and(and(greaterThan(tv, 14:25:02), greaterThan(dv, 2017-02-03)), greaterThan(tsv, 2017-02-03T14:25:02))]]]], fields=[id, dv, tv, tsv])
@@ -284,13 +284,13 @@ Calc(select=[id])
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM ProjectableTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, c)]]], fields=[a, c])
 ]]>

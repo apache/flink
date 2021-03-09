@@ -25,36 +25,34 @@ import org.apache.flink.configuration.TaskManagerOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Builder for {@link TaskExecutorProcessSpec}.
- */
+/** Builder for {@link TaskExecutorProcessSpec}. */
 public class TaskExecutorProcessSpecBuilder {
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private TaskExecutorProcessSpecBuilder(final Configuration configuration) {
-		this.configuration = new Configuration(checkNotNull(configuration));
-	}
+    private TaskExecutorProcessSpecBuilder(final Configuration configuration) {
+        this.configuration = new Configuration(checkNotNull(configuration));
+    }
 
-	static TaskExecutorProcessSpecBuilder newBuilder(final Configuration configuration) {
-		return new TaskExecutorProcessSpecBuilder(configuration);
-	}
+    static TaskExecutorProcessSpecBuilder newBuilder(final Configuration configuration) {
+        return new TaskExecutorProcessSpecBuilder(configuration);
+    }
 
-	public TaskExecutorProcessSpecBuilder withCpuCores(double cpuCores) {
-		return withCpuCores(new CPUResource(cpuCores));
-	}
+    public TaskExecutorProcessSpecBuilder withCpuCores(double cpuCores) {
+        return withCpuCores(new CPUResource(cpuCores));
+    }
 
-	public TaskExecutorProcessSpecBuilder withCpuCores(CPUResource cpuCores) {
-		configuration.setDouble(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
-		return this;
-	}
+    public TaskExecutorProcessSpecBuilder withCpuCores(CPUResource cpuCores) {
+        configuration.setDouble(TaskManagerOptions.CPU_CORES, cpuCores.getValue().doubleValue());
+        return this;
+    }
 
-	public TaskExecutorProcessSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory);
-		return this;
-	}
+    public TaskExecutorProcessSpecBuilder withTotalProcessMemory(MemorySize totalProcessMemory) {
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, totalProcessMemory);
+        return this;
+    }
 
-	public TaskExecutorProcessSpec build() {
-		return TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-	}
+    public TaskExecutorProcessSpec build() {
+        return TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+    }
 }

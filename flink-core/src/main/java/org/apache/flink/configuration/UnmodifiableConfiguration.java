@@ -22,56 +22,55 @@ import org.apache.flink.annotation.Public;
 
 import java.util.Properties;
 
-/**
- * Unmodifiable version of the Configuration class.
- */
+/** Unmodifiable version of the Configuration class. */
 @Public
 public class UnmodifiableConfiguration extends Configuration {
 
-	private static final long serialVersionUID = -8151292629158972280L;
+    private static final long serialVersionUID = -8151292629158972280L;
 
-	/**
-	 * Creates a new UnmodifiableConfiguration, which holds a copy of the given configuration
-	 * that cannot be altered.
-	 *
-	 * @param config The configuration with the original contents.
-	 */
-	public UnmodifiableConfiguration(Configuration config) {
-		super(config);
-	}
+    /**
+     * Creates a new UnmodifiableConfiguration, which holds a copy of the given configuration that
+     * cannot be altered.
+     *
+     * @param config The configuration with the original contents.
+     */
+    public UnmodifiableConfiguration(Configuration config) {
+        super(config);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  All mutating methods must fail
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  All mutating methods must fail
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void addAllToProperties(Properties props) {
-		// override to make the UnmodifiableConfigurationTest happy
-		super.addAllToProperties(props);
-	}
+    @Override
+    public void addAllToProperties(Properties props) {
+        // override to make the UnmodifiableConfigurationTest happy
+        super.addAllToProperties(props);
+    }
 
-	@Override
-	public final void addAll(Configuration other) {
-		error();
-	}
+    @Override
+    public final void addAll(Configuration other) {
+        error();
+    }
 
-	@Override
-	public final void addAll(Configuration other, String prefix) {
-		error();
-	}
+    @Override
+    public final void addAll(Configuration other, String prefix) {
+        error();
+    }
 
-	@Override
-	final <T> void setValueInternal(String key, T value){
-		error();
-	}
+    @Override
+    final <T> void setValueInternal(String key, T value) {
+        error();
+    }
 
-	@Override
-	public <T> boolean removeConfig(ConfigOption<T> configOption) {
-		error();
-		return false;
-	}
+    @Override
+    public <T> boolean removeConfig(ConfigOption<T> configOption) {
+        error();
+        return false;
+    }
 
-	private void error(){
-		throw new UnsupportedOperationException("The configuration is unmodifiable; its contents cannot be changed.");
-	}
+    private void error() {
+        throw new UnsupportedOperationException(
+                "The configuration is unmodifiable; its contents cannot be changed.");
+    }
 }

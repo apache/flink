@@ -51,73 +51,87 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler for the job vertex details.
- */
-public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private final MetricFetcher metricFetcher;
+/** Request handler for the job vertex details. */
+public class JobVertexDetailsHandler
+        extends AbstractAccessExecutionGraphHandler<
+                JobVertexDetailsInfo, JobVertexMessageParameters>
+        implements JsonArchivist {
+    private final MetricFetcher metricFetcher;
 
-	public JobVertexDetailsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			MetricFetcher metricFetcher) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
-		this.metricFetcher = metricFetcher;
-	}
+    public JobVertexDetailsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            MetricFetcher metricFetcher) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+        this.metricFetcher = metricFetcher;
+    }
 
-	@Override
-	protected JobVertexDetailsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-			AccessExecutionGraph executionGraph) throws NotFoundException {
-		JobID jobID = request.getPathParameter(JobIDPathParameter.class);
-		JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
-		AccessExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexID);
+    @Override
+    protected JobVertexDetailsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
+            AccessExecutionGraph executionGraph)
+            throws NotFoundException {
+        JobID jobID = request.getPathParameter(JobIDPathParameter.class);
+        JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
+        AccessExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexID);
 
-		if (jobVertex == null) {
-			throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
-		}
+        if (jobVertex == null) {
+            throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
+        }
 
-		return createJobVertexDetailsInfo(jobVertex, jobID, metricFetcher);
-	}
+        return createJobVertexDetailsInfo(jobVertex, jobID, metricFetcher);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		Collection<? extends AccessExecutionJobVertex> vertices = graph.getAllVertices().values();
-		List<ArchivedJson> archive = new ArrayList<>(vertices.size());
-		for (AccessExecutionJobVertex task : vertices) {
-			ResponseBody json = createJobVertexDetailsInfo(task, graph.getJobID(), null);
-			String path = getMessageHeaders().getTargetRestEndpointURL()
-				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-				.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString());
-			archive.add(new ArchivedJson(path, json));
-		}
-		return archive;
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        Collection<? extends AccessExecutionJobVertex> vertices = graph.getAllVertices().values();
+        List<ArchivedJson> archive = new ArrayList<>(vertices.size());
+        for (AccessExecutionJobVertex task : vertices) {
+            ResponseBody json = createJobVertexDetailsInfo(task, graph.getJobID(), null);
+            String path =
+                    getMessageHeaders()
+                            .getTargetRestEndpointURL()
+                            .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+                            .replace(
+                                    ':' + JobVertexIdPathParameter.KEY,
+                                    task.getJobVertexId().toString());
+            archive.add(new ArchivedJson(path, json));
+        }
+        return archive;
+    }
 
-	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
-		List<SubtaskExecutionAttemptDetailsInfo> subtasks = new ArrayList<>();
-		final long now = System.currentTimeMillis();
-		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			final AccessExecution execution = vertex.getCurrentExecutionAttempt();
-			final JobVertexID jobVertexID = jobVertex.getJobVertexId();
-			subtasks.add(SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID));
-		}
+    private static JobVertexDetailsInfo createJobVertexDetailsInfo(
+            AccessExecutionJobVertex jobVertex,
+            JobID jobID,
+            @Nullable MetricFetcher metricFetcher) {
+        List<SubtaskExecutionAttemptDetailsInfo> subtasks = new ArrayList<>();
+        final long now = System.currentTimeMillis();
+        for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
+            final AccessExecution execution = vertex.getCurrentExecutionAttempt();
+            final JobVertexID jobVertexID = jobVertex.getJobVertexId();
+            subtasks.add(
+                    SubtaskExecutionAttemptDetailsInfo.create(
+                            execution, metricFetcher, jobID, jobVertexID));
+        }
 
-		return new JobVertexDetailsInfo(
-			jobVertex.getJobVertexId(),
-			jobVertex.getName(),
-			jobVertex.getParallelism(),
-			now,
-			subtasks);
-	}
+        return new JobVertexDetailsInfo(
+                jobVertex.getJobVertexId(),
+                jobVertex.getName(),
+                jobVertex.getParallelism(),
+                jobVertex.getMaxParallelism(),
+                now,
+                subtasks);
+    }
 }

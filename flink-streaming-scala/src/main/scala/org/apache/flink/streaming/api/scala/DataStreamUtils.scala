@@ -40,6 +40,8 @@ class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
   /**
     * Returns a scala iterator to iterate over the elements of the DataStream.
     * @return The iterator
+    *
+    * @deprecated Replaced with [[DataStream#executeAndCollect]].
     */
   def collect() : Iterator[T] = {
     JavaStreamUtils.collect(self.javaStream).asScala

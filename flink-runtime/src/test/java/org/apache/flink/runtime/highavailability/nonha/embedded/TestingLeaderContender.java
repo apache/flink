@@ -24,64 +24,63 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link LeaderContender} implementation for testing purposes.
- */
+/** {@link LeaderContender} implementation for testing purposes. */
 final class TestingLeaderContender implements LeaderContender {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private CompletableFuture<UUID> leaderSessionFuture;
+    private CompletableFuture<UUID> leaderSessionFuture;
 
-	TestingLeaderContender() {
-		leaderSessionFuture = new CompletableFuture<>();
-	}
+    TestingLeaderContender() {
+        leaderSessionFuture = new CompletableFuture<>();
+    }
 
-	@Override
-	public void grantLeadership(UUID leaderSessionID) {
-		synchronized (lock) {
-			if (!leaderSessionFuture.isCompletedExceptionally()) {
-				if (!leaderSessionFuture.complete(leaderSessionID)) {
-					leaderSessionFuture = CompletableFuture.completedFuture(leaderSessionID);
-				}
-			}
-		}
-	}
+    @Override
+    public void grantLeadership(UUID leaderSessionID) {
+        synchronized (lock) {
+            if (!leaderSessionFuture.isCompletedExceptionally()) {
+                if (!leaderSessionFuture.complete(leaderSessionID)) {
+                    leaderSessionFuture = CompletableFuture.completedFuture(leaderSessionID);
+                }
+            }
+        }
+    }
 
-	@Override
-	public void revokeLeadership() {
-		synchronized (lock) {
-			if (leaderSessionFuture.isDone() && !leaderSessionFuture.isCompletedExceptionally()) {
-				leaderSessionFuture = new CompletableFuture<>();
-			}
-		}
-	}
+    @Override
+    public void revokeLeadership() {
+        synchronized (lock) {
+            if (leaderSessionFuture.isDone() && !leaderSessionFuture.isCompletedExceptionally()) {
+                leaderSessionFuture = new CompletableFuture<>();
+            }
+        }
+    }
 
-	@Override
-	public String getDescription() {
-		return "foobar";
-	}
+    @Override
+    public String getDescription() {
+        return "foobar";
+    }
 
-	@Override
-	public void handleError(Exception exception) {
-		synchronized (lock) {
-			if (!(leaderSessionFuture.isCompletedExceptionally() || leaderSessionFuture.completeExceptionally(exception))) {
-				leaderSessionFuture = FutureUtils.completedExceptionally(exception);
-			}
-		}
-	}
+    @Override
+    public void handleError(Exception exception) {
+        synchronized (lock) {
+            if (!(leaderSessionFuture.isCompletedExceptionally()
+                    || leaderSessionFuture.completeExceptionally(exception))) {
+                leaderSessionFuture = FutureUtils.completedExceptionally(exception);
+            }
+        }
+    }
 
-	public void tryRethrowException() {
-		synchronized (lock) {
-			if (leaderSessionFuture.isCompletedExceptionally()) {
-				leaderSessionFuture.getNow(null);
-			}
-		}
-	}
+    public void tryRethrowException() {
+        synchronized (lock) {
+            if (leaderSessionFuture.isCompletedExceptionally()) {
+                leaderSessionFuture.getNow(null);
+            }
+        }
+    }
 
-	CompletableFuture<UUID> getLeaderSessionFuture() {
-		synchronized (lock) {
-			return leaderSessionFuture;
-		}
-	}
+    CompletableFuture<UUID> getLeaderSessionFuture() {
+        synchronized (lock) {
+            return leaderSessionFuture;
+        }
+    }
 }

@@ -24,18 +24,16 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
-/**
- * Test job which is used for {@link PythonProgramOptionsTest}.
- */
+/** Test job which is used for {@link PythonProgramOptionsTest}. */
 public class TestJob {
-	public static void main(String[] args) throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final DataStreamSource<Integer> source = env.fromElements(1, 2, 3, 4);
-		final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
-		mapper.addSink(new DiscardingSink<>());
+        final DataStreamSource<Integer> source = env.fromElements(1, 2, 3, 4);
+        final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
+        mapper.addSink(new DiscardingSink<>());
 
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		env.execute(TestJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
-	}
+        ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        env.execute(TestJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
+    }
 }

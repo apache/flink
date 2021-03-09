@@ -38,7 +38,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(call(emptyFunc, 'a, 'b) as ('x, 'y))
       .select('bb, 'x + 1, 'y)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -47,7 +47,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('a, 'b))
       .select(Func0('f0) as 'a, 'f1 as 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -57,7 +57,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('d, 'e))
       .select('f0 as 'a, 'f1 as 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -67,7 +67,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('b))
       .select($"*")
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -77,7 +77,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(call(emptyFunc, 'b) as ('a, 'b))
       .select('a, 'b)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -91,7 +91,7 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate(func('f1))
       .select('f0, 'f0_0)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -108,6 +108,6 @@ class TableAggregateTest extends TableTestBase {
       .flatAggregate("func(a)")
       .select($"*")
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

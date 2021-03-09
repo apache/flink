@@ -26,14 +26,15 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
  */
 public abstract class AlterPartitionOperation extends AlterTableOperation {
 
-	protected final CatalogPartitionSpec partitionSpec;
+    protected final CatalogPartitionSpec partitionSpec;
 
-	public AlterPartitionOperation(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
-		super(tableIdentifier);
-		this.partitionSpec = partitionSpec;
-	}
+    public AlterPartitionOperation(
+            ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+        super(tableIdentifier);
+        this.partitionSpec = partitionSpec;
+    }
 
-	public CatalogPartitionSpec getPartitionSpec() {
-		return partitionSpec;
-	}
+    public CatalogPartitionSpec getPartitionSpec() {
+        return partitionSpec;
+    }
 }

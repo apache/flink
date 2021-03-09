@@ -56,358 +56,384 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * DataSourceTask which is executed by a task manager. The task reads data and uses an 
- * {@link InputFormat} to create records from the input.
- * 
+ * DataSourceTask which is executed by a task manager. The task reads data and uses an {@link
+ * InputFormat} to create records from the input.
+ *
  * @see org.apache.flink.api.common.io.InputFormat
  */
 public class DataSourceTask<OT> extends AbstractInvokable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
-	private List<RecordWriter<?>> eventualOutputs;
+    private List<RecordWriter<?>> eventualOutputs;
 
-	// Output collector
-	private Collector<OT> output;
+    // Output collector
+    private Collector<OT> output;
 
-	// InputFormat instance
-	private InputFormat<OT, InputSplit> format;
+    // InputFormat instance
+    private InputFormat<OT, InputSplit> format;
 
-	// type serializer for the input
-	private TypeSerializerFactory<OT> serializerFactory;
-	
-	// Task configuration
-	private TaskConfig config;
-	
-	// tasks chained to this data source
-	private ArrayList<ChainedDriver<?, ?>> chainedTasks;
-	
-	// cancel flag
-	private volatile boolean taskCanceled = false;
+    // type serializer for the input
+    private TypeSerializerFactory<OT> serializerFactory;
 
-	/**
-	 * Create an Invokable task and set its environment.
-	 *
-	 * @param environment The environment assigned to this invokable.
-	 */
-	public DataSourceTask(Environment environment) {
-		super(environment);
-	}
+    // Task configuration
+    private TaskConfig config;
 
-	@Override
-	public void invoke() throws Exception {
-		// --------------------------------------------------------------------
-		// Initialize
-		// --------------------------------------------------------------------
-		initInputFormat();
+    // tasks chained to this data source
+    private ArrayList<ChainedDriver<?, ?>> chainedTasks;
 
-		LOG.debug(getLogString("Start registering input and output"));
+    // cancel flag
+    private volatile boolean taskCanceled = false;
 
-		try {
-			initOutputs(getEnvironment().getUserCodeClassLoader());
-		} catch (Exception ex) {
-			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " +
-					ex.getMessage(), ex);
-		}
+    /**
+     * Create an Invokable task and set its environment.
+     *
+     * @param environment The environment assigned to this invokable.
+     */
+    public DataSourceTask(Environment environment) {
+        super(environment);
+    }
 
-		LOG.debug(getLogString("Finished registering input and output"));
+    @Override
+    public void invoke() throws Exception {
+        // --------------------------------------------------------------------
+        // Initialize
+        // --------------------------------------------------------------------
+        initInputFormat();
 
-		// --------------------------------------------------------------------
-		// Invoke
-		// --------------------------------------------------------------------
-		LOG.debug(getLogString("Starting data source operator"));
+        LOG.debug(getLogString("Start registering input and output"));
 
-		RuntimeContext ctx = createRuntimeContext();
+        try {
+            initOutputs(getEnvironment().getUserCodeClassLoader());
+        } catch (Exception ex) {
+            throw new RuntimeException(
+                    "The initialization of the DataSource's outputs caused an error: "
+                            + ex.getMessage(),
+                    ex);
+        }
 
-		final Counter numRecordsOut;
-		{
-			Counter tmpNumRecordsOut;
-			try {
-				OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
-				ioMetricGroup.reuseInputMetricsForTask();
-				if (this.config.getNumberOfChainedStubs() == 0) {
-					ioMetricGroup.reuseOutputMetricsForTask();
-				}
-				tmpNumRecordsOut = ioMetricGroup.getNumRecordsOutCounter();
-			} catch (Exception e) {
-				LOG.warn("An exception occurred during the metrics setup.", e);
-				tmpNumRecordsOut = new SimpleCounter();
-			}
-			numRecordsOut = tmpNumRecordsOut;
-		}
-		
-		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+        LOG.debug(getLogString("Finished registering input and output"));
 
-		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
-			((RichInputFormat) this.format).setRuntimeContext(ctx);
-			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
-			((RichInputFormat) this.format).openInputFormat();
-			LOG.debug(getLogString("Rich Source detected. Opening the InputFormat."));
-		}
+        // --------------------------------------------------------------------
+        // Invoke
+        // --------------------------------------------------------------------
+        LOG.debug(getLogString("Starting data source operator"));
 
-		ExecutionConfig executionConfig = getExecutionConfig();
+        RuntimeContext ctx = createRuntimeContext();
 
-		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+        final Counter numRecordsOut;
+        {
+            Counter tmpNumRecordsOut;
+            try {
+                OperatorIOMetricGroup ioMetricGroup =
+                        ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+                ioMetricGroup.reuseInputMetricsForTask();
+                if (this.config.getNumberOfChainedStubs() == 0) {
+                    ioMetricGroup.reuseOutputMetricsForTask();
+                }
+                tmpNumRecordsOut = ioMetricGroup.getNumRecordsOutCounter();
+            } catch (Exception e) {
+                LOG.warn("An exception occurred during the metrics setup.", e);
+                tmpNumRecordsOut = new SimpleCounter();
+            }
+            numRecordsOut = tmpNumRecordsOut;
+        }
 
-		LOG.debug("DataSourceTask object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
-		
-		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
-		
-		try {
-			// start all chained tasks
-			BatchTask.openChainedTasks(this.chainedTasks, this);
-			
-			// get input splits to read
-			final Iterator<InputSplit> splitIterator = getInputSplits();
-			
-			// for each assigned input split
-			while (!this.taskCanceled && splitIterator.hasNext())
-			{
-				// get start and end
-				final InputSplit split = splitIterator.next();
+        Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
 
-				LOG.debug(getLogString("Opening input split " + split.toString()));
-				
-				final InputFormat<OT, InputSplit> format = this.format;
-			
-				// open input format
-				format.open(split);
-	
-				LOG.debug(getLogString("Starting to read input from split " + split.toString()));
-				
-				try {
-					final Collector<OT> output = new CountingCollector<>(this.output, numRecordsOut);
+        if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
+            ((RichInputFormat) this.format).setRuntimeContext(ctx);
+            LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
+            ((RichInputFormat) this.format).openInputFormat();
+            LOG.debug(getLogString("Rich Source detected. Opening the InputFormat."));
+        }
 
-					if (objectReuseEnabled) {
-						OT reuse = serializer.createInstance();
+        ExecutionConfig executionConfig = getExecutionConfig();
 
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
+        boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-							OT returned;
-							if ((returned = format.nextRecord(reuse)) != null) {
-								output.collect(returned);
-							}
-						}
-					} else {
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							OT returned;
-							if ((returned = format.nextRecord(serializer.createInstance())) != null) {
-								output.collect(returned);
-							}
-						}
-					}
+        LOG.debug(
+                "DataSourceTask object reuse: "
+                        + (objectReuseEnabled ? "ENABLED" : "DISABLED")
+                        + ".");
 
-					if (LOG.isDebugEnabled() && !this.taskCanceled) {
-						LOG.debug(getLogString("Closing input split " + split.toString()));
-					}
-				} finally {
-					// close. We close here such that a regular close throwing an exception marks a task as failed.
-					format.close();
-				}
-				completedSplitsCounter.inc();
-			} // end for all input splits
+        final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 
-			// close all chained tasks letting them report failure
-			BatchTask.closeChainedTasks(this.chainedTasks, this);
+        try {
+            // start all chained tasks
+            BatchTask.openChainedTasks(this.chainedTasks, this);
 
-			// close the output collector
-			this.output.close();
-		}
-		catch (Exception ex) {
-			// close the input, but do not report any exceptions, since we already have another root cause
-			try {
-				this.format.close();
-			} catch (Throwable ignored) {}
+            // get input splits to read
+            final Iterator<InputSplit> splitIterator = getInputSplits();
 
-			BatchTask.cancelChainedTasks(this.chainedTasks);
+            // for each assigned input split
+            while (!this.taskCanceled && splitIterator.hasNext()) {
+                // get start and end
+                final InputSplit split = splitIterator.next();
 
-			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
+                LOG.debug(getLogString("Opening input split " + split.toString()));
 
-			if (ex instanceof CancelTaskException) {
-				// forward canceling exception
-				throw ex;
-			}
-			else if (!this.taskCanceled) {
-				// drop exception, if the task was canceled
-				BatchTask.logAndThrowException(ex, this);
-			}
-		} finally {
-			BatchTask.clearWriters(eventualOutputs);
-			// --------------------------------------------------------------------
-			// Closing
-			// --------------------------------------------------------------------
-			if (this.format != null && RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
-				((RichInputFormat) this.format).closeInputFormat();
-				LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
-			}
-		}
+                final InputFormat<OT, InputSplit> format = this.format;
 
-		if (!this.taskCanceled) {
-			LOG.debug(getLogString("Finished data source operator"));
-		}
-		else {
-			LOG.debug(getLogString("Data source operator cancelled"));
-		}
-	}
+                // open input format
+                format.open(split);
 
-	@Override
-	public void cancel() throws Exception {
-		this.taskCanceled = true;
-		LOG.debug(getLogString("Cancelling data source operator"));
-	}
+                LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 
-	/**
-	 * Initializes the InputFormat implementation and configuration.
-	 * 
-	 * @throws RuntimeException
-	 *         Throws if instance of InputFormat implementation can not be
-	 *         obtained.
-	 */
-	private void initInputFormat() {
-		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
-		// obtain task configuration (including stub parameters)
-		Configuration taskConf = getTaskConfiguration();
-		this.config = new TaskConfig(taskConf);
+                try {
+                    final Collector<OT> output =
+                            new CountingCollector<>(this.output, numRecordsOut);
 
-		final Pair<OperatorID, InputFormat<OT, InputSplit>> operatorIdAndInputFormat;
-		InputOutputFormatContainer formatContainer = new InputOutputFormatContainer(config, userCodeClassLoader);
-		try {
-			operatorIdAndInputFormat = formatContainer.getUniqueInputFormat();
-			this.format = operatorIdAndInputFormat.getValue();
+                    if (objectReuseEnabled) {
+                        OT reuse = serializer.createInstance();
 
-			// check if the class is a subclass, if the check is required
-			if (!InputFormat.class.isAssignableFrom(this.format.getClass())) {
-				throw new RuntimeException("The class '" + this.format.getClass().getName() + "' is not a subclass of '" +
-						InputFormat.class.getName() + "' as is required.");
-			}
-		}
-		catch (ClassCastException ccex) {
-			throw new RuntimeException("The stub class is not a proper subclass of " + InputFormat.class.getName(),
-					ccex);
-		}
+                        // as long as there is data to read
+                        while (!this.taskCanceled && !format.reachedEnd()) {
 
-		Thread thread = Thread.currentThread();
-		ClassLoader original = thread.getContextClassLoader();
-		// configure the stub. catch exceptions here extra, to report them as originating from the user code
-		try {
-			thread.setContextClassLoader(userCodeClassLoader);
-			this.format.configure(formatContainer.getParameters(operatorIdAndInputFormat.getKey()));
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
-		}
-		finally {
-			thread.setContextClassLoader(original);
-		}
+                            OT returned;
+                            if ((returned = format.nextRecord(reuse)) != null) {
+                                output.collect(returned);
+                            }
+                        }
+                    } else {
+                        // as long as there is data to read
+                        while (!this.taskCanceled && !format.reachedEnd()) {
+                            OT returned;
+                            if ((returned = format.nextRecord(serializer.createInstance()))
+                                    != null) {
+                                output.collect(returned);
+                            }
+                        }
+                    }
 
-		// get the factory for the type serializer
-		this.serializerFactory = this.config.getOutputSerializer(userCodeClassLoader);
-	}
+                    if (LOG.isDebugEnabled() && !this.taskCanceled) {
+                        LOG.debug(getLogString("Closing input split " + split.toString()));
+                    }
+                } finally {
+                    // close. We close here such that a regular close throwing an exception marks a
+                    // task as failed.
+                    format.close();
+                }
+                completedSplitsCounter.inc();
+            } // end for all input splits
 
-	/**
-	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
-	 * The output collector applies the configured shipping strategy.
-	 */
-	private void initOutputs(UserCodeClassLoader cl) throws Exception {
-		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
+            // close all chained tasks letting them report failure
+            BatchTask.closeChainedTasks(this.chainedTasks, this);
 
-		this.output = BatchTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
-				getExecutionConfig(), getEnvironment().getAccumulatorRegistry().getUserMap());
-	}
+            // close the output collector
+            this.output.close();
+        } catch (Exception ex) {
+            // close the input, but do not report any exceptions, since we already have another root
+            // cause
+            try {
+                this.format.close();
+            } catch (Throwable ignored) {
+            }
 
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message) {
-		return getLogString(message, this.getEnvironment().getTaskInfo().getTaskName());
-	}
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @param taskName The name of the task.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message, String taskName) {
-		return BatchTask.constructLogString(message, taskName, this);
-	}
-	
-	private Iterator<InputSplit> getInputSplits() {
+            BatchTask.cancelChainedTasks(this.chainedTasks);
 
-		final InputSplitProvider provider = getEnvironment().getInputSplitProvider();
+            ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
-		return new Iterator<InputSplit>() {
+            if (ex instanceof CancelTaskException) {
+                // forward canceling exception
+                throw ex;
+            } else if (!this.taskCanceled) {
+                // drop exception, if the task was canceled
+                BatchTask.logAndThrowException(ex, this);
+            }
+        } finally {
+            BatchTask.clearWriters(eventualOutputs);
+            // --------------------------------------------------------------------
+            // Closing
+            // --------------------------------------------------------------------
+            if (this.format != null
+                    && RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
+                ((RichInputFormat) this.format).closeInputFormat();
+                LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
+            }
+        }
 
-			private InputSplit nextSplit;
-			
-			private boolean exhausted;
+        if (!this.taskCanceled) {
+            LOG.debug(getLogString("Finished data source operator"));
+        } else {
+            LOG.debug(getLogString("Data source operator cancelled"));
+        }
+    }
 
-			@Override
-			public boolean hasNext() {
-				if (exhausted) {
-					return false;
-				}
-				
-				if (nextSplit != null) {
-					return true;
-				}
+    @Override
+    public void cancel() throws Exception {
+        this.taskCanceled = true;
+        LOG.debug(getLogString("Cancelling data source operator"));
+    }
 
-				final InputSplit split;
-				try {
-					split = provider.getNextInputSplit(getUserCodeClassLoader());
-				} catch (InputSplitProviderException e) {
-					throw new RuntimeException("Could not retrieve next input split.", e);
-				}
+    /**
+     * Initializes the InputFormat implementation and configuration.
+     *
+     * @throws RuntimeException Throws if instance of InputFormat implementation can not be
+     *     obtained.
+     */
+    private void initInputFormat() {
+        ClassLoader userCodeClassLoader = getUserCodeClassLoader();
+        // obtain task configuration (including stub parameters)
+        Configuration taskConf = getTaskConfiguration();
+        this.config = new TaskConfig(taskConf);
 
-				if (split != null) {
-					this.nextSplit = split;
-					return true;
-				}
-				else {
-					exhausted = true;
-					return false;
-				}
-			}
+        final Pair<OperatorID, InputFormat<OT, InputSplit>> operatorIdAndInputFormat;
+        InputOutputFormatContainer formatContainer =
+                new InputOutputFormatContainer(config, userCodeClassLoader);
+        try {
+            operatorIdAndInputFormat = formatContainer.getUniqueInputFormat();
+            this.format = operatorIdAndInputFormat.getValue();
 
-			@Override
-			public InputSplit next() {
-				if (this.nextSplit == null && !hasNext()) {
-					throw new NoSuchElementException();
-				}
+            // check if the class is a subclass, if the check is required
+            if (!InputFormat.class.isAssignableFrom(this.format.getClass())) {
+                throw new RuntimeException(
+                        "The class '"
+                                + this.format.getClass().getName()
+                                + "' is not a subclass of '"
+                                + InputFormat.class.getName()
+                                + "' as is required.");
+            }
+        } catch (ClassCastException ccex) {
+            throw new RuntimeException(
+                    "The stub class is not a proper subclass of " + InputFormat.class.getName(),
+                    ccex);
+        }
 
-				final InputSplit tmp = this.nextSplit;
-				this.nextSplit = null;
-				return tmp;
-			}
+        Thread thread = Thread.currentThread();
+        ClassLoader original = thread.getContextClassLoader();
+        // configure the stub. catch exceptions here extra, to report them as originating from the
+        // user code
+        try {
+            thread.setContextClassLoader(userCodeClassLoader);
+            this.format.configure(formatContainer.getParameters(operatorIdAndInputFormat.getKey()));
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "The user defined 'configure()' method caused an error: " + t.getMessage(), t);
+        } finally {
+            thread.setContextClassLoader(original);
+        }
 
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-		};
-	}
+        // get the factory for the type serializer
+        this.serializerFactory = this.config.getOutputSerializer(userCodeClassLoader);
+    }
 
-	public DistributedRuntimeUDFContext createRuntimeContext() {
-		Environment env = getEnvironment();
+    /**
+     * Creates a writer for each output. Creates an OutputCollector which forwards its input to all
+     * writers. The output collector applies the configured shipping strategy.
+     */
+    private void initOutputs(UserCodeClassLoader cl) throws Exception {
+        this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
+        this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
-		String sourceName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
-		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
+        this.output =
+                BatchTask.initOutputs(
+                        this,
+                        cl,
+                        this.config,
+                        this.chainedTasks,
+                        this.eventualOutputs,
+                        getExecutionConfig(),
+                        getEnvironment().getAccumulatorRegistry().getUserMap());
+    }
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().getOrAddOperator(sourceName), env.getExternalResourceInfoProvider());
-	}
+    // ------------------------------------------------------------------------
+    //                               Utilities
+    // ------------------------------------------------------------------------
+
+    /**
+     * Utility function that composes a string for logging purposes. The string includes the given
+     * message and the index of the task in its task group together with the number of tasks in the
+     * task group.
+     *
+     * @param message The main message for the log.
+     * @return The string ready for logging.
+     */
+    private String getLogString(String message) {
+        return getLogString(message, this.getEnvironment().getTaskInfo().getTaskName());
+    }
+
+    /**
+     * Utility function that composes a string for logging purposes. The string includes the given
+     * message and the index of the task in its task group together with the number of tasks in the
+     * task group.
+     *
+     * @param message The main message for the log.
+     * @param taskName The name of the task.
+     * @return The string ready for logging.
+     */
+    private String getLogString(String message, String taskName) {
+        return BatchTask.constructLogString(message, taskName, this);
+    }
+
+    private Iterator<InputSplit> getInputSplits() {
+
+        final InputSplitProvider provider = getEnvironment().getInputSplitProvider();
+
+        return new Iterator<InputSplit>() {
+
+            private InputSplit nextSplit;
+
+            private boolean exhausted;
+
+            @Override
+            public boolean hasNext() {
+                if (exhausted) {
+                    return false;
+                }
+
+                if (nextSplit != null) {
+                    return true;
+                }
+
+                final InputSplit split;
+                try {
+                    split = provider.getNextInputSplit(getUserCodeClassLoader());
+                } catch (InputSplitProviderException e) {
+                    throw new RuntimeException("Could not retrieve next input split.", e);
+                }
+
+                if (split != null) {
+                    this.nextSplit = split;
+                    return true;
+                } else {
+                    exhausted = true;
+                    return false;
+                }
+            }
+
+            @Override
+            public InputSplit next() {
+                if (this.nextSplit == null && !hasNext()) {
+                    throw new NoSuchElementException();
+                }
+
+                final InputSplit tmp = this.nextSplit;
+                this.nextSplit = null;
+                return tmp;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    public DistributedRuntimeUDFContext createRuntimeContext() {
+        Environment env = getEnvironment();
+
+        String sourceName = getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
+        sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
+
+        return new DistributedRuntimeUDFContext(
+                env.getTaskInfo(),
+                env.getUserCodeClassLoader(),
+                getExecutionConfig(),
+                env.getDistributedCacheEntries(),
+                env.getAccumulatorRegistry().getUserMap(),
+                getEnvironment().getMetricGroup().getOrAddOperator(sourceName),
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
+    }
 }

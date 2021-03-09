@@ -30,40 +30,41 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for {@link ShardConsumerMetricsReporter}.
- */
+/** Tests for {@link ShardConsumerMetricsReporter}. */
 public class ShardConsumerMetricsReporterTest {
 
-	@InjectMocks
-	private ShardConsumerMetricsReporter metricsReporter;
+    @InjectMocks private ShardConsumerMetricsReporter metricsReporter;
 
-	@Mock
-	private MetricGroup metricGroup;
+    @Mock private MetricGroup metricGroup;
 
-	@Before
-	public void setUp() {
-		MockitoAnnotations.initMocks(this);
-	}
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+    }
 
-	@Test
-	public void testMetricIdentifiers() {
-		verify(metricGroup).gauge(eq(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES), any());
-		verify(metricGroup).gauge(eq(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE), any());
-		verify(metricGroup).gauge(eq(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH), any());
-		verify(metricGroup).gauge(eq(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH), any());
-	}
+    @Test
+    public void testMetricIdentifiers() {
+        verify(metricGroup).gauge(eq(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES), any());
+        verify(metricGroup)
+                .gauge(eq(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE), any());
+        verify(metricGroup)
+                .gauge(eq(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH), any());
+        verify(metricGroup)
+                .gauge(
+                        eq(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH),
+                        any());
+    }
 
-	@Test
-	public void testGettersAndSetters() {
-		metricsReporter.setAverageRecordSizeBytes(1);
-		metricsReporter.setMillisBehindLatest(2);
-		metricsReporter.setNumberOfAggregatedRecords(3);
-		metricsReporter.setNumberOfDeaggregatedRecords(4);
+    @Test
+    public void testGettersAndSetters() {
+        metricsReporter.setAverageRecordSizeBytes(1);
+        metricsReporter.setMillisBehindLatest(2);
+        metricsReporter.setNumberOfAggregatedRecords(3);
+        metricsReporter.setNumberOfDeaggregatedRecords(4);
 
-		assertEquals(1, metricsReporter.getAverageRecordSizeBytes());
-		assertEquals(2, metricsReporter.getMillisBehindLatest());
-		assertEquals(3, metricsReporter.getNumberOfAggregatedRecords());
-		assertEquals(4, metricsReporter.getNumberOfDeaggregatedRecords());
-	}
+        assertEquals(1, metricsReporter.getAverageRecordSizeBytes());
+        assertEquals(2, metricsReporter.getMillisBehindLatest());
+        assertEquals(3, metricsReporter.getNumberOfAggregatedRecords());
+        assertEquals(4, metricsReporter.getNumberOfDeaggregatedRecords());
+    }
 }

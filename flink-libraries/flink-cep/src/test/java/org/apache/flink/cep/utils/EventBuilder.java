@@ -21,52 +21,50 @@ package org.apache.flink.cep.utils;
 import org.apache.flink.cep.Event;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * Builder for {@link Event} that is used in cep tests.
- */
+/** Builder for {@link Event} that is used in cep tests. */
 public class EventBuilder {
 
-	private final int id;
-	private final double price;
-	private final String name;
-	private final Long timestamp;
+    private final int id;
+    private final double price;
+    private final String name;
+    private final Long timestamp;
 
-	private EventBuilder(int id, double price, String name, Long timestamp) {
-		this.id = id;
-		this.price = price;
-		this.name = name;
-		this.timestamp = timestamp;
-	}
+    private EventBuilder(int id, double price, String name, Long timestamp) {
+        this.id = id;
+        this.price = price;
+        this.name = name;
+        this.timestamp = timestamp;
+    }
 
-	public static EventBuilder event() {
-		return new EventBuilder(0, 0.0, "", null);
-	}
+    public static EventBuilder event() {
+        return new EventBuilder(0, 0.0, "", null);
+    }
 
-	public EventBuilder withId(int id) {
-		return new EventBuilder(id, price, name, timestamp);
-	}
+    public EventBuilder withId(int id) {
+        return new EventBuilder(id, price, name, timestamp);
+    }
 
-	public EventBuilder withPrice(double price) {
-		return new EventBuilder(id, price, name, timestamp);
-	}
+    public EventBuilder withPrice(double price) {
+        return new EventBuilder(id, price, name, timestamp);
+    }
 
-	public EventBuilder withName(String name) {
-		return new EventBuilder(id, price, name, timestamp);
-	}
+    public EventBuilder withName(String name) {
+        return new EventBuilder(id, price, name, timestamp);
+    }
 
-	public EventBuilder withTimestamp(long timestamp) {
-		return new EventBuilder(id, price, name, timestamp);
-	}
+    public EventBuilder withTimestamp(long timestamp) {
+        return new EventBuilder(id, price, name, timestamp);
+    }
 
-	public StreamRecord<Event> asStreamRecord() {
-		if (timestamp != null) {
-			return new StreamRecord<>(build(), timestamp);
-		} else {
-			return new StreamRecord<>(build());
-		}
-	}
+    public StreamRecord<Event> asStreamRecord() {
+        if (timestamp != null) {
+            return new StreamRecord<>(build(), timestamp);
+        } else {
+            return new StreamRecord<>(build());
+        }
+    }
 
-	public Event build() {
-		return new Event(id, name, price);
-	}
+    public Event build() {
+        return new Event(id, name, price);
+    }
 }

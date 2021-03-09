@@ -26,15 +26,15 @@ import java.net.InetSocketAddress;
  */
 public class CollectSinkAddressEvent implements OperatorEvent {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final InetSocketAddress address;
+    private final InetSocketAddress address;
 
-	public CollectSinkAddressEvent(InetSocketAddress address) {
-		this.address = address;
-	}
+    public CollectSinkAddressEvent(InetSocketAddress address) {
+        this.address = address;
+    }
 
-	public InetSocketAddress getAddress() {
-		return address;
-	}
+    public InetSocketAddress getAddress() {
+        return address;
+    }
 }

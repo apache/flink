@@ -35,129 +35,133 @@ import static org.apache.flink.runtime.executiongraph.failover.flip1.StronglyCon
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Unit tests for {@link StronglyConnectedComponentsComputeUtils}.
- */
+/** Unit tests for {@link StronglyConnectedComponentsComputeUtils}. */
 public class StronglyConnectedComponentsComputeUtilsTest extends TestLogger {
 
-	@Test
-	public void testWithCycles() {
-		final List<List<Integer>> edges = Arrays.asList(
-			Arrays.asList(2, 3),
-			Arrays.asList(0),
-			Arrays.asList(1),
-			Arrays.asList(4),
-			Collections.emptyList());
+    @Test
+    public void testWithCycles() {
+        final List<List<Integer>> edges =
+                Arrays.asList(
+                        Arrays.asList(2, 3),
+                        Arrays.asList(0),
+                        Arrays.asList(1),
+                        Arrays.asList(4),
+                        Collections.emptyList());
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
 
-		final Set<Set<Integer>> expected = new HashSet<>();
-		expected.add(new HashSet<>(Arrays.asList(0, 1, 2)));
-		expected.add(Collections.singleton(3));
-		expected.add(Collections.singleton(4));
+        final Set<Set<Integer>> expected = new HashSet<>();
+        expected.add(new HashSet<>(Arrays.asList(0, 1, 2)));
+        expected.add(Collections.singleton(3));
+        expected.add(Collections.singleton(4));
 
-		assertThat(result, is(expected));
-	}
+        assertThat(result, is(expected));
+    }
 
-	@Test
-	public void testWithMultipleCycles() {
-		final List<List<Integer>> edges = Arrays.asList(
-			Arrays.asList(1),
-			Arrays.asList(2),
-			Arrays.asList(0),
-			Arrays.asList(1, 2, 4),
-			Arrays.asList(3, 5),
-			Arrays.asList(2, 6),
-			Arrays.asList(5),
-			Arrays.asList(4, 6, 7));
+    @Test
+    public void testWithMultipleCycles() {
+        final List<List<Integer>> edges =
+                Arrays.asList(
+                        Arrays.asList(1),
+                        Arrays.asList(2),
+                        Arrays.asList(0),
+                        Arrays.asList(1, 2, 4),
+                        Arrays.asList(3, 5),
+                        Arrays.asList(2, 6),
+                        Arrays.asList(5),
+                        Arrays.asList(4, 6, 7));
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(8, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(8, edges);
 
-		final Set<Set<Integer>> expected = new HashSet<>();
-		expected.add(new HashSet<>(Arrays.asList(0, 1, 2)));
-		expected.add(new HashSet<>(Arrays.asList(3, 4)));
-		expected.add(new HashSet<>(Arrays.asList(5, 6)));
-		expected.add(Collections.singleton(7));
+        final Set<Set<Integer>> expected = new HashSet<>();
+        expected.add(new HashSet<>(Arrays.asList(0, 1, 2)));
+        expected.add(new HashSet<>(Arrays.asList(3, 4)));
+        expected.add(new HashSet<>(Arrays.asList(5, 6)));
+        expected.add(Collections.singleton(7));
 
-		assertThat(result, is(expected));
-	}
+        assertThat(result, is(expected));
+    }
 
-	@Test
-	public void testWithConnectedCycles() {
-		final List<List<Integer>> edges = Arrays.asList(
-			Arrays.asList(1),
-			Arrays.asList(2, 4, 5),
-			Arrays.asList(3, 6),
-			Arrays.asList(2, 7),
-			Arrays.asList(0, 5),
-			Arrays.asList(6),
-			Arrays.asList(5),
-			Arrays.asList(3, 6));
+    @Test
+    public void testWithConnectedCycles() {
+        final List<List<Integer>> edges =
+                Arrays.asList(
+                        Arrays.asList(1),
+                        Arrays.asList(2, 4, 5),
+                        Arrays.asList(3, 6),
+                        Arrays.asList(2, 7),
+                        Arrays.asList(0, 5),
+                        Arrays.asList(6),
+                        Arrays.asList(5),
+                        Arrays.asList(3, 6));
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(8, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(8, edges);
 
-		final Set<Set<Integer>> expected = new HashSet<>();
-		expected.add(new HashSet<>(Arrays.asList(0, 1, 4)));
-		expected.add(new HashSet<>(Arrays.asList(2, 3, 7)));
-		expected.add(new HashSet<>(Arrays.asList(5, 6)));
+        final Set<Set<Integer>> expected = new HashSet<>();
+        expected.add(new HashSet<>(Arrays.asList(0, 1, 4)));
+        expected.add(new HashSet<>(Arrays.asList(2, 3, 7)));
+        expected.add(new HashSet<>(Arrays.asList(5, 6)));
 
-		assertThat(result, is(expected));
-	}
+        assertThat(result, is(expected));
+    }
 
-	@Test
-	public void testWithNoEdge() {
-		final List<List<Integer>> edges = Arrays.asList(
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList());
+    @Test
+    public void testWithNoEdge() {
+        final List<List<Integer>> edges =
+                Arrays.asList(
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
 
-		final Set<Set<Integer>> expected = new HashSet<>();
-		expected.add(Collections.singleton(0));
-		expected.add(Collections.singleton(1));
-		expected.add(Collections.singleton(2));
-		expected.add(Collections.singleton(3));
-		expected.add(Collections.singleton(4));
+        final Set<Set<Integer>> expected = new HashSet<>();
+        expected.add(Collections.singleton(0));
+        expected.add(Collections.singleton(1));
+        expected.add(Collections.singleton(2));
+        expected.add(Collections.singleton(3));
+        expected.add(Collections.singleton(4));
 
-		assertThat(result, is(expected));
-	}
+        assertThat(result, is(expected));
+    }
 
-	@Test
-	public void testWithNoCycle() {
-		final List<List<Integer>> edges = Arrays.asList(
-			Arrays.asList(1),
-			Arrays.asList(2),
-			Arrays.asList(3),
-			Arrays.asList(4),
-			Collections.emptyList());
+    @Test
+    public void testWithNoCycle() {
+        final List<List<Integer>> edges =
+                Arrays.asList(
+                        Arrays.asList(1),
+                        Arrays.asList(2),
+                        Arrays.asList(3),
+                        Arrays.asList(4),
+                        Collections.emptyList());
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(5, edges);
 
-		final Set<Set<Integer>> expected = new HashSet<>();
-		expected.add(Collections.singleton(0));
-		expected.add(Collections.singleton(1));
-		expected.add(Collections.singleton(2));
-		expected.add(Collections.singleton(3));
-		expected.add(Collections.singleton(4));
+        final Set<Set<Integer>> expected = new HashSet<>();
+        expected.add(Collections.singleton(0));
+        expected.add(Collections.singleton(1));
+        expected.add(Collections.singleton(2));
+        expected.add(Collections.singleton(3));
+        expected.add(Collections.singleton(4));
 
-		assertThat(result, is(expected));
-	}
+        assertThat(result, is(expected));
+    }
 
-	@Test
-	public void testLargeGraph() {
-		final int n = 100000;
-		final List<List<Integer>> edges = new ArrayList<>();
-		for (int i = 0; i < n; i++) {
-			edges.add(Collections.singletonList((i + 1) % n));
-		}
+    @Test
+    public void testLargeGraph() {
+        final int n = 100000;
+        final List<List<Integer>> edges = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            edges.add(Collections.singletonList((i + 1) % n));
+        }
 
-		final Set<Set<Integer>> result = computeStronglyConnectedComponents(n, edges);
+        final Set<Set<Integer>> result = computeStronglyConnectedComponents(n, edges);
 
-		final Set<Integer> singleComponent = IntStream.range(0, n).boxed().collect(Collectors.toSet());
+        final Set<Integer> singleComponent =
+                IntStream.range(0, n).boxed().collect(Collectors.toSet());
 
-		assertThat(result, is(Collections.singleton(singleComponent)));
-	}
+        assertThat(result, is(Collections.singleton(singleComponent)));
+    }
 }

@@ -20,98 +20,126 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Mini cluster resource configuration object.
- */
+/** Mini cluster resource configuration object. */
 public class MiniClusterResourceConfiguration {
 
-	private final UnmodifiableConfiguration configuration;
+    private final UnmodifiableConfiguration configuration;
 
-	private final int numberTaskManagers;
+    private final int numberTaskManagers;
 
-	private final int numberSlotsPerTaskManager;
+    private final int numberSlotsPerTaskManager;
 
-	private final Time shutdownTimeout;
+    private final Time shutdownTimeout;
 
-	private final RpcServiceSharing rpcServiceSharing;
+    private final RpcServiceSharing rpcServiceSharing;
 
-	protected MiniClusterResourceConfiguration(
-		Configuration configuration,
-		int numberTaskManagers,
-		int numberSlotsPerTaskManager,
-		Time shutdownTimeout,
-		RpcServiceSharing rpcServiceSharing) {
-		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
-		this.numberTaskManagers = numberTaskManagers;
-		this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
-		this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
-		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
-	}
+    private final MiniCluster.HaServices haServices;
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    protected MiniClusterResourceConfiguration(
+            Configuration configuration,
+            int numberTaskManagers,
+            int numberSlotsPerTaskManager,
+            Time shutdownTimeout,
+            RpcServiceSharing rpcServiceSharing,
+            MiniCluster.HaServices haServices) {
 
-	public int getNumberTaskManagers() {
-		return numberTaskManagers;
-	}
+        this.configuration =
+                new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+        this.numberTaskManagers = numberTaskManagers;
+        this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
+        this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
+        this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
+        this.haServices = haServices;
+    }
 
-	public int getNumberSlotsPerTaskManager() {
-		return numberSlotsPerTaskManager;
-	}
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	public Time getShutdownTimeout() {
-		return shutdownTimeout;
-	}
+    public int getNumberTaskManagers() {
+        return numberTaskManagers;
+    }
 
-	public RpcServiceSharing getRpcServiceSharing() {
-		return rpcServiceSharing;
-	}
+    public int getNumberSlotsPerTaskManager() {
+        return numberSlotsPerTaskManager;
+    }
 
-	/**
-	 * Builder for {@link MiniClusterResourceConfiguration}.
-	 */
-	public static final class Builder {
+    public Time getShutdownTimeout() {
+        return shutdownTimeout;
+    }
 
-		private Configuration configuration = new Configuration();
-		private int numberTaskManagers = 1;
-		private int numberSlotsPerTaskManager = 1;
-		private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+    public RpcServiceSharing getRpcServiceSharing() {
+        return rpcServiceSharing;
+    }
 
-		private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
+    public MiniCluster.HaServices getHaServices() {
+        return haServices;
+    }
 
-		public Builder setConfiguration(Configuration configuration) {
-			this.configuration = configuration;
-			return this;
-		}
+    /** Builder for {@link MiniClusterResourceConfiguration}. */
+    public static final class Builder {
 
-		public Builder setNumberTaskManagers(int numberTaskManagers) {
-			this.numberTaskManagers = numberTaskManagers;
-			return this;
-		}
+        private Configuration configuration = new Configuration();
+        private int numberTaskManagers = 1;
+        private int numberSlotsPerTaskManager = 1;
+        private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
-		public Builder setNumberSlotsPerTaskManager(int numberSlotsPerTaskManager) {
-			this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
-			return this;
-		}
+        private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
+        private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
 
-		public Builder setShutdownTimeout(Time shutdownTimeout) {
-			this.shutdownTimeout = shutdownTimeout;
-			return this;
-		}
+        public Builder setConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
 
-		public Builder setRpcServiceSharing(RpcServiceSharing rpcServiceSharing) {
-			this.rpcServiceSharing = rpcServiceSharing;
-			return this;
-		}
+        public Builder setNumberTaskManagers(int numberTaskManagers) {
+            this.numberTaskManagers = numberTaskManagers;
+            return this;
+        }
 
-		public MiniClusterResourceConfiguration build() {
-			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
-		}
-	}
+        public Builder setNumberSlotsPerTaskManager(int numberSlotsPerTaskManager) {
+            this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
+            return this;
+        }
+
+        public Builder setShutdownTimeout(Time shutdownTimeout) {
+            this.shutdownTimeout = shutdownTimeout;
+            return this;
+        }
+
+        public Builder setRpcServiceSharing(RpcServiceSharing rpcServiceSharing) {
+            this.rpcServiceSharing = rpcServiceSharing;
+            return this;
+        }
+
+        /**
+         * Enables or disables {@link HaLeadershipControl} in {@link
+         * MiniCluster#getHaLeadershipControl}.
+         *
+         * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+         * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+         */
+        public Builder withHaLeadershipControl() {
+            this.haServices = MiniCluster.HaServices.WITH_LEADERSHIP_CONTROL;
+            return this;
+        }
+
+        public MiniClusterResourceConfiguration build() {
+            return new MiniClusterResourceConfiguration(
+                    configuration,
+                    numberTaskManagers,
+                    numberSlotsPerTaskManager,
+                    shutdownTimeout,
+                    rpcServiceSharing,
+                    haServices);
+        }
+    }
 }

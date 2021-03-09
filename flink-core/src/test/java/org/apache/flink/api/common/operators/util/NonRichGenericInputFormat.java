@@ -16,71 +16,68 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
-import java.io.IOException;
-
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 
+import java.io.IOException;
+
 /**
- * Generic base class for all inputs that are not based on files.
- * This is copied from {@link org.apache.flink.api.common.io.GenericInputFormat}
- * This class doesn't provide access to RuntimeContext.
+ * Generic base class for all inputs that are not based on files. This is copied from {@link
+ * org.apache.flink.api.common.io.GenericInputFormat} This class doesn't provide access to
+ * RuntimeContext.
  */
 public abstract class NonRichGenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The partition of this split.
-	 */
-	protected int partitionNumber;
+    /** The partition of this split. */
+    protected int partitionNumber;
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void configure(Configuration parameters) {
-		//	nothing by default
-	}
+    @Override
+    public void configure(Configuration parameters) {
+        //	nothing by default
+    }
 
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
-		// no statistics available, by default.
-		return cachedStatistics;
-	}
+    @Override
+    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+        // no statistics available, by default.
+        return cachedStatistics;
+    }
 
-	@Override
-	public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
-		if (numSplits < 1) {
-			throw new IllegalArgumentException("Number of input splits has to be at least 1.");
-		}
+    @Override
+    public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
+        if (numSplits < 1) {
+            throw new IllegalArgumentException("Number of input splits has to be at least 1.");
+        }
 
-		numSplits = (this instanceof NonParallelInput) ? 1 : numSplits;
-		GenericInputSplit[] splits = new GenericInputSplit[numSplits];
-		for (int i = 0; i < splits.length; i++) {
-			splits[i] = new GenericInputSplit(i, numSplits);
-		}
-		return splits;
-	}
+        numSplits = (this instanceof NonParallelInput) ? 1 : numSplits;
+        GenericInputSplit[] splits = new GenericInputSplit[numSplits];
+        for (int i = 0; i < splits.length; i++) {
+            splits[i] = new GenericInputSplit(i, numSplits);
+        }
+        return splits;
+    }
 
-	@Override
-	public DefaultInputSplitAssigner getInputSplitAssigner(GenericInputSplit[] splits) {
-		return new DefaultInputSplitAssigner(splits);
-	}
+    @Override
+    public DefaultInputSplitAssigner getInputSplitAssigner(GenericInputSplit[] splits) {
+        return new DefaultInputSplitAssigner(splits);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void open(GenericInputSplit split) throws IOException {
-		this.partitionNumber = split.getSplitNumber();
-	}
+    @Override
+    public void open(GenericInputSplit split) throws IOException {
+        this.partitionNumber = split.getSplitNumber();
+    }
 
-	@Override
-	public void close() throws IOException {}
+    @Override
+    public void close() throws IOException {}
 }

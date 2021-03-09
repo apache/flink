@@ -33,7 +33,7 @@ class JobClient(object):
     def __init__(self, j_job_client):
         self._j_job_client = j_job_client
 
-    def get_job_id(self):
+    def get_job_id(self) -> JobID:
         """
         Returns the JobID that uniquely identifies the job this client is scoped to.
 
@@ -44,29 +44,28 @@ class JobClient(object):
         """
         return JobID(self._j_job_client.getJobID())
 
-    def get_job_status(self):
+    def get_job_status(self) -> CompletableFuture:
         """
         Requests the JobStatus of the associated job.
 
         :return: A CompletableFuture containing the JobStatus of the associated job.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
         return CompletableFuture(self._j_job_client.getJobStatus(), JobStatus)
 
-    def cancel(self):
+    def cancel(self) -> CompletableFuture:
         """
         Cancels the associated job.
 
         :return: A CompletableFuture for canceling the associated job.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
         return CompletableFuture(self._j_job_client.cancel())
 
-    def stop_with_savepoint(self, advance_to_end_of_event_time, savepoint_directory=None):
+    def stop_with_savepoint(self, advance_to_end_of_event_time: bool,
+                            savepoint_directory: str = None) -> CompletableFuture:
         """
         Stops the associated job on Flink cluster.
 
@@ -76,11 +75,8 @@ class JobClient(object):
 
         :param advance_to_end_of_event_time: Flag indicating if the source should inject a
                                              MAX_WATERMARK in the pipeline.
-        :type advance_to_end_of_event_time: bool
         :param savepoint_directory: Directory the savepoint should be written to.
-        :type savepoint_directory: str
         :return: A CompletableFuture containing the path where the savepoint is located.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
@@ -88,21 +84,19 @@ class JobClient(object):
             self._j_job_client.stopWithSavepoint(advance_to_end_of_event_time, savepoint_directory),
             str)
 
-    def trigger_savepoint(self, savepoint_directory=None):
+    def trigger_savepoint(self, savepoint_directory: str = None) -> CompletableFuture:
         """
         Triggers a savepoint for the associated job. The savepoint will be written to the given
         savepoint directory.
 
         :param savepoint_directory: Directory the savepoint should be written to.
-        :type savepoint_directory: str
         :return: A CompletableFuture containing the path where the savepoint is located.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
         return CompletableFuture(self._j_job_client.triggerSavepoint(savepoint_directory), str)
 
-    def get_accumulators(self):
+    def get_accumulators(self) -> CompletableFuture:
         """
         Requests the accumulators of the associated job. Accumulators can be requested while it
         is running or after it has finished. The class loader is used to deserialize the incoming
@@ -110,18 +104,16 @@ class JobClient(object):
 
         :param class_loader: Class loader used to deserialize the incoming accumulator results.
         :return: A CompletableFuture containing the accumulators of the associated job.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
         return CompletableFuture(self._j_job_client.getAccumulators(), dict)
 
-    def get_job_execution_result(self):
+    def get_job_execution_result(self) -> CompletableFuture:
         """
         Returns the JobExecutionResult result of the job execution of the submitted job.
 
         :return: A CompletableFuture containing the JobExecutionResult result of the job execution.
-        :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """

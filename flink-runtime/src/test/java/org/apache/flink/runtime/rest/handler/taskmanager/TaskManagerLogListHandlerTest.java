@@ -54,63 +54,75 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for the {@link TaskManagerLogListHandler}.
- */
+/** Test for the {@link TaskManagerLogListHandler}. */
 public class TaskManagerLogListHandlerTest extends TestLogger {
 
-	private static final ResourceID EXPECTED_TASK_MANAGER_ID = ResourceID.generate();
-	private TestingResourceManagerGateway resourceManagerGateway;
-	private TaskManagerLogListHandler taskManagerLogListHandler;
-	private HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
+    private static final ResourceID EXPECTED_TASK_MANAGER_ID = ResourceID.generate();
+    private TestingResourceManagerGateway resourceManagerGateway;
+    private TaskManagerLogListHandler taskManagerLogListHandler;
+    private HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> handlerRequest;
 
-	@Before
-	public void setUp() throws HandlerRequestException {
-		resourceManagerGateway = new TestingResourceManagerGateway();
-		taskManagerLogListHandler = new TaskManagerLogListHandler(
-			() -> CompletableFuture.completedFuture(null),
-			TestingUtils.TIMEOUT(),
-			Collections.emptyMap(),
-			TaskManagerLogsHeaders.getInstance(),
-			() -> CompletableFuture.completedFuture(resourceManagerGateway));
-		handlerRequest = createRequest(EXPECTED_TASK_MANAGER_ID);
-	}
+    @Before
+    public void setUp() throws HandlerRequestException {
+        resourceManagerGateway = new TestingResourceManagerGateway();
+        taskManagerLogListHandler =
+                new TaskManagerLogListHandler(
+                        () -> CompletableFuture.completedFuture(null),
+                        TestingUtils.TIMEOUT(),
+                        Collections.emptyMap(),
+                        TaskManagerLogsHeaders.getInstance(),
+                        () -> CompletableFuture.completedFuture(resourceManagerGateway));
+        handlerRequest = createRequest(EXPECTED_TASK_MANAGER_ID);
+    }
 
-	@Test
-	public void testGetTaskManagerLogsList() throws Exception {
-		List<LogInfo> logsList = Arrays.asList(
-			new LogInfo("taskmanager.log", 1024L),
-			new LogInfo("taskmanager.out", 1024L),
-			new LogInfo("taskmanager-2.out", 1024L));
-		resourceManagerGateway.setRequestTaskManagerLogListFunction(EXPECTED_TASK_MANAGER_ID -> CompletableFuture.completedFuture(logsList));
-		LogListInfo logListInfo = taskManagerLogListHandler.handleRequest(handlerRequest, resourceManagerGateway).get();
-		assertThat(logListInfo.getLogInfos(), hasSize(logsList.size()));
-	}
+    @Test
+    public void testGetTaskManagerLogsList() throws Exception {
+        List<LogInfo> logsList =
+                Arrays.asList(
+                        new LogInfo("taskmanager.log", 1024L),
+                        new LogInfo("taskmanager.out", 1024L),
+                        new LogInfo("taskmanager-2.out", 1024L));
+        resourceManagerGateway.setRequestTaskManagerLogListFunction(
+                EXPECTED_TASK_MANAGER_ID -> CompletableFuture.completedFuture(logsList));
+        LogListInfo logListInfo =
+                taskManagerLogListHandler
+                        .handleRequest(handlerRequest, resourceManagerGateway)
+                        .get();
+        assertThat(logListInfo.getLogInfos(), hasSize(logsList.size()));
+    }
 
-	@Test
-	public void testGetTaskManagerLogsListForUnknownTaskExecutorException() throws Exception {
-		resourceManagerGateway.setRequestTaskManagerLogListFunction(EXPECTED_TASK_MANAGER_ID -> FutureUtils.completedExceptionally(new UnknownTaskExecutorException(EXPECTED_TASK_MANAGER_ID)));
-		try {
-			taskManagerLogListHandler.handleRequest(handlerRequest, resourceManagerGateway).get();
-		} catch (ExecutionException e) {
-			final Throwable cause = e.getCause();
-			assertThat(cause, is(instanceOf(RestHandlerException.class)));
+    @Test
+    public void testGetTaskManagerLogsListForUnknownTaskExecutorException() throws Exception {
+        resourceManagerGateway.setRequestTaskManagerLogListFunction(
+                EXPECTED_TASK_MANAGER_ID ->
+                        FutureUtils.completedExceptionally(
+                                new UnknownTaskExecutorException(EXPECTED_TASK_MANAGER_ID)));
+        try {
+            taskManagerLogListHandler.handleRequest(handlerRequest, resourceManagerGateway).get();
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            assertThat(cause, is(instanceOf(RestHandlerException.class)));
 
-			final RestHandlerException restHandlerException = (RestHandlerException) cause;
-			assertThat(restHandlerException.getHttpResponseStatus(), is(equalTo(HttpResponseStatus.NOT_FOUND)));
-			assertThat(restHandlerException.getMessage(), containsString("Could not find TaskExecutor " + EXPECTED_TASK_MANAGER_ID));
-		}
-	}
+            final RestHandlerException restHandlerException = (RestHandlerException) cause;
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    is(equalTo(HttpResponseStatus.NOT_FOUND)));
+            assertThat(
+                    restHandlerException.getMessage(),
+                    containsString("Could not find TaskExecutor " + EXPECTED_TASK_MANAGER_ID));
+        }
+    }
 
-	private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> createRequest(ResourceID taskManagerId) throws HandlerRequestException {
-		Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(TaskManagerIdPathParameter.KEY, taskManagerId.toString());
-		Map<String, List<String>> queryParameters = Collections.emptyMap();
+    private static HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> createRequest(
+            ResourceID taskManagerId) throws HandlerRequestException {
+        Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(TaskManagerIdPathParameter.KEY, taskManagerId.toString());
+        Map<String, List<String>> queryParameters = Collections.emptyMap();
 
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new TaskManagerMessageParameters(),
-			pathParameters,
-			queryParameters);
-	}
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                new TaskManagerMessageParameters(),
+                pathParameters,
+                queryParameters);
+    }
 }

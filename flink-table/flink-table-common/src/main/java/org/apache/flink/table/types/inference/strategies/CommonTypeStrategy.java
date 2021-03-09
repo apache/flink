@@ -30,28 +30,27 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Type strategy that returns a common, least restrictive type of all arguments.
- */
+/** Type strategy that returns a common, least restrictive type of all arguments. */
 @Internal
 public final class CommonTypeStrategy implements TypeStrategy {
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
-			.map(DataType::getLogicalType)
-			.collect(Collectors.toList());
-		return LogicalTypeMerging.findCommonType(actualTypes)
-			.map(TypeConversions::fromLogicalToDataType);
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        final List<LogicalType> actualTypes =
+                callContext.getArgumentDataTypes().stream()
+                        .map(DataType::getLogicalType)
+                        .collect(Collectors.toList());
+        return LogicalTypeMerging.findCommonType(actualTypes)
+                .map(TypeConversions::fromLogicalToDataType);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof CommonTypeStrategy;
-	}
+    @Override
+    public boolean equals(Object o) {
+        return this == o || o instanceof CommonTypeStrategy;
+    }
 
-	@Override
-	public int hashCode() {
-		return CommonTypeStrategy.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return CommonTypeStrategy.class.hashCode();
+    }
 }

@@ -26,22 +26,20 @@ import org.apache.flink.table.operations.Operation;
 
 import java.util.List;
 
-/**
- * Mocks {@link Parser} for tests.
- */
+/** Mocks {@link Parser} for tests. */
 public class ParserMock implements Parser {
-	@Override
-	public List<Operation> parse(String statement) {
-		return null;
-	}
+    @Override
+    public List<Operation> parse(String statement) {
+        return null;
+    }
 
-	@Override
-	public UnresolvedIdentifier parseIdentifier(String identifier) {
-		return UnresolvedIdentifier.of(identifier);
-	}
+    @Override
+    public UnresolvedIdentifier parseIdentifier(String identifier) {
+        return UnresolvedIdentifier.of(identifier);
+    }
 
-	@Override
-	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-		return null;
-	}
+    @Override
+    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+        return null;
+    }
 }

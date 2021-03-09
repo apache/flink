@@ -20,45 +20,40 @@ package org.apache.flink.runtime.io.network.partition;
 
 import javax.annotation.Nullable;
 
-/**
- * A dummy implementation of the {@link ResultSubpartitionView}.
- */
+/** A dummy implementation of the {@link ResultSubpartitionView}. */
 public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
-	@Nullable
-	public ResultSubpartition.BufferAndBacklog getNextBuffer() {
-		return null;
-	}
+    @Nullable
+    public ResultSubpartition.BufferAndBacklog getNextBuffer() {
+        return null;
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-	}
+    @Override
+    public void notifyDataAvailable() {}
 
-	@Override
-	public void releaseAllResources() {
-	}
+    @Override
+    public void releaseAllResources() {}
 
-	@Override
-	public boolean isReleased() {
-		return false;
-	}
+    @Override
+    public boolean isReleased() {
+        return false;
+    }
 
-	@Override
-	public void resumeConsumption() {
-	}
+    @Override
+    public void resumeConsumption() {}
 
-	@Override
-	public Throwable getFailureCause() {
-		return null;
-	}
+    @Override
+    public Throwable getFailureCause() {
+        return null;
+    }
 
-	@Override
-	public boolean isAvailable(int numCreditsAvailable) {
-		return false;
-	}
+    @Override
+    public boolean isAvailable(int numCreditsAvailable) {
+        return false;
+    }
 
-	@Override
-	public int unsynchronizedGetNumberOfQueuedBuffers() {
-		return 0;
-	}
+    @Override
+    public int unsynchronizedGetNumberOfQueuedBuffers() {
+        return 0;
+    }
 }

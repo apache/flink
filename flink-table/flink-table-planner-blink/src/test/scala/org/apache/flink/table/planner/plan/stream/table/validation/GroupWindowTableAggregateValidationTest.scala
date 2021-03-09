@@ -81,6 +81,6 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .flatAggregate(top3('int))
       .select('string, 'f0, 'w.start)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

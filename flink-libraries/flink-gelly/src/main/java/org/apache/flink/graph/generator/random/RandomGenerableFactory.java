@@ -23,12 +23,10 @@ import org.apache.commons.math3.random.RandomGenerator;
 import java.util.List;
 
 /**
- * A {@code RandomGenerableFactory} returns a scale-free collection of sources
- * of pseudorandomness which can be used to perform repeatable parallel
- * computation regardless of parallelism.
+ * A {@code RandomGenerableFactory} returns a scale-free collection of sources of pseudorandomness
+ * which can be used to perform repeatable parallel computation regardless of parallelism.
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * RandomGenerableFactory<JDKRandomGenerator> factory = new JDKRandomGeneratorFactory()
  *
  * List<BlockInfo<T>> generatorBlocks = factory
@@ -38,20 +36,19 @@ import java.util.List;
  *     .fromCollection(generatorBlocks)
  *         .name("Random generators")
  *     .flatMap(...
- * }
- * </pre>
+ * }</pre>
  *
  * @param <T> the type of the {@code RandomGenerator}
  */
 public interface RandomGenerableFactory<T extends RandomGenerator> {
 
-	/**
-	 * The amount of work ({@code elementCount * cyclesPerElement}) is used to
-	 * generate a list of blocks of work of near-equal size.
-	 *
-	 * @param elementCount number of elements, as indexed in the {@code BlockInfo}
-	 * @param cyclesPerElement number of cycles of the PRNG per element
-	 * @return the list of configuration blocks
-	 */
-	List<BlockInfo<T>> getRandomGenerables(long elementCount, int cyclesPerElement);
+    /**
+     * The amount of work ({@code elementCount * cyclesPerElement}) is used to generate a list of
+     * blocks of work of near-equal size.
+     *
+     * @param elementCount number of elements, as indexed in the {@code BlockInfo}
+     * @param cyclesPerElement number of cycles of the PRNG per element
+     * @return the list of configuration blocks
+     */
+    List<BlockInfo<T>> getRandomGenerables(long elementCount, int cyclesPerElement);
 }

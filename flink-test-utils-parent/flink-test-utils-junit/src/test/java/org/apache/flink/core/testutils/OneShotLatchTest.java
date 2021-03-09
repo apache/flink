@@ -27,32 +27,30 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the OneShotLatch.
- */
+/** Tests for the OneShotLatch. */
 public class OneShotLatchTest {
 
-	@Test
-	public void testAwaitWithTimeout() throws Exception {
-		OneShotLatch latch = new OneShotLatch();
-		assertFalse(latch.isTriggered());
+    @Test
+    public void testAwaitWithTimeout() throws Exception {
+        OneShotLatch latch = new OneShotLatch();
+        assertFalse(latch.isTriggered());
 
-		try {
-			latch.await(1, TimeUnit.MILLISECONDS);
-			fail("should fail with a TimeoutException");
-		} catch (TimeoutException e) {
-			// expected
-		}
+        try {
+            latch.await(1, TimeUnit.MILLISECONDS);
+            fail("should fail with a TimeoutException");
+        } catch (TimeoutException e) {
+            // expected
+        }
 
-		assertFalse(latch.isTriggered());
+        assertFalse(latch.isTriggered());
 
-		latch.trigger();
-		assertTrue(latch.isTriggered());
+        latch.trigger();
+        assertTrue(latch.isTriggered());
 
-		latch.await(100, TimeUnit.DAYS);
-		assertTrue(latch.isTriggered());
+        latch.await(100, TimeUnit.DAYS);
+        assertTrue(latch.isTriggered());
 
-		latch.await(0, TimeUnit.MILLISECONDS);
-		assertTrue(latch.isTriggered());
-	}
+        latch.await(0, TimeUnit.MILLISECONDS);
+        assertTrue(latch.isTriggered());
+    }
 }

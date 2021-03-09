@@ -117,6 +117,20 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
+  @Test
+  def testExplainMultipleInput(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |select * from
+        |   (select a, sum(b) from MyTable1 group by a) v1,
+        |   (select d, sum(e) from MyTable2 group by d) v2
+        |   where a = d
+        |""".stripMargin
+    util.verifyExplain(sql, extraDetails: _*)
+  }
+
 }
 
 object ExplainTest {

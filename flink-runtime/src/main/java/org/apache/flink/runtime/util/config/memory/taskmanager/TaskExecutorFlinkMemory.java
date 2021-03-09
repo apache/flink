@@ -29,16 +29,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Flink internal memory components of Task Executor.
  *
  * <p>A TaskExecutor's internal Flink memory consists of the following components.
+ *
  * <ul>
- *     <li>Framework Heap Memory</li>
- *     <li>Framework Off-Heap Memory</li>
- *     <li>Task Heap Memory</li>
- *     <li>Task Off-Heap Memory</li>
- *     <li>Network Memory</li>
- *     <li>Managed Memory</li>
+ *   <li>Framework Heap Memory
+ *   <li>Framework Off-Heap Memory
+ *   <li>Task Heap Memory
+ *   <li>Task Off-Heap Memory
+ *   <li>Network Memory
+ *   <li>Managed Memory
  * </ul>
  *
  * <p>The relationships of TaskExecutor Flink memory components are shown below.
+ *
  * <pre>
  *               ┌ ─ ─  Total Flink Memory - ─ ─ ┐
  *               |┌ ─ ─ - - - On-Heap - - - ─ ─ ┐|
@@ -67,94 +69,94 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </pre>
  */
 public class TaskExecutorFlinkMemory implements FlinkMemory {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final MemorySize frameworkHeap;
-	private final MemorySize frameworkOffHeap;
-	private final MemorySize taskHeap;
-	private final MemorySize taskOffHeap;
-	private final MemorySize network;
-	private final MemorySize managed;
+    private final MemorySize frameworkHeap;
+    private final MemorySize frameworkOffHeap;
+    private final MemorySize taskHeap;
+    private final MemorySize taskOffHeap;
+    private final MemorySize network;
+    private final MemorySize managed;
 
-	public TaskExecutorFlinkMemory(
-		final MemorySize frameworkHeap,
-		final MemorySize frameworkOffHeap,
-		final MemorySize taskHeap,
-		final MemorySize taskOffHeap,
-		final MemorySize network,
-		final MemorySize managed) {
+    public TaskExecutorFlinkMemory(
+            final MemorySize frameworkHeap,
+            final MemorySize frameworkOffHeap,
+            final MemorySize taskHeap,
+            final MemorySize taskOffHeap,
+            final MemorySize network,
+            final MemorySize managed) {
 
-		this.frameworkHeap = checkNotNull(frameworkHeap);
-		this.frameworkOffHeap = checkNotNull(frameworkOffHeap);
-		this.taskHeap = checkNotNull(taskHeap);
-		this.taskOffHeap = checkNotNull(taskOffHeap);
-		this.network = checkNotNull(network);
-		this.managed = checkNotNull(managed);
-	}
+        this.frameworkHeap = checkNotNull(frameworkHeap);
+        this.frameworkOffHeap = checkNotNull(frameworkOffHeap);
+        this.taskHeap = checkNotNull(taskHeap);
+        this.taskOffHeap = checkNotNull(taskOffHeap);
+        this.network = checkNotNull(network);
+        this.managed = checkNotNull(managed);
+    }
 
-	public MemorySize getFrameworkHeap() {
-		return frameworkHeap;
-	}
+    public MemorySize getFrameworkHeap() {
+        return frameworkHeap;
+    }
 
-	public MemorySize getFrameworkOffHeap() {
-		return frameworkOffHeap;
-	}
+    public MemorySize getFrameworkOffHeap() {
+        return frameworkOffHeap;
+    }
 
-	public MemorySize getTaskHeap() {
-		return taskHeap;
-	}
+    public MemorySize getTaskHeap() {
+        return taskHeap;
+    }
 
-	public MemorySize getTaskOffHeap() {
-		return taskOffHeap;
-	}
+    public MemorySize getTaskOffHeap() {
+        return taskOffHeap;
+    }
 
-	public MemorySize getNetwork() {
-		return network;
-	}
+    public MemorySize getNetwork() {
+        return network;
+    }
 
-	public MemorySize getManaged() {
-		return managed;
-	}
+    public MemorySize getManaged() {
+        return managed;
+    }
 
-	@Override
-	public MemorySize getJvmHeapMemorySize() {
-		return frameworkHeap.add(taskHeap);
-	}
+    @Override
+    public MemorySize getJvmHeapMemorySize() {
+        return frameworkHeap.add(taskHeap);
+    }
 
-	@Override
-	public MemorySize getJvmDirectMemorySize() {
-		return frameworkOffHeap.add(taskOffHeap).add(network);
-	}
+    @Override
+    public MemorySize getJvmDirectMemorySize() {
+        return frameworkOffHeap.add(taskOffHeap).add(network);
+    }
 
-	@Override
-	public MemorySize getTotalFlinkMemorySize() {
-		return frameworkHeap.add(frameworkOffHeap).add(taskHeap).add(taskOffHeap).add(network).add(managed);
-	}
+    @Override
+    public MemorySize getTotalFlinkMemorySize() {
+        return frameworkHeap
+                .add(frameworkOffHeap)
+                .add(taskHeap)
+                .add(taskOffHeap)
+                .add(network)
+                .add(managed);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj instanceof TaskExecutorFlinkMemory) {
-			TaskExecutorFlinkMemory that = (TaskExecutorFlinkMemory) obj;
-			return Objects.equals(this.frameworkHeap, that.frameworkHeap) &&
-					Objects.equals(this.frameworkOffHeap, that.frameworkOffHeap) &&
-					Objects.equals(this.taskHeap, that.taskHeap) &&
-					Objects.equals(this.taskOffHeap, that.taskOffHeap) &&
-					Objects.equals(this.network, that.network) &&
-					Objects.equals(this.managed, that.managed);
-		}
-		return false;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof TaskExecutorFlinkMemory) {
+            TaskExecutorFlinkMemory that = (TaskExecutorFlinkMemory) obj;
+            return Objects.equals(this.frameworkHeap, that.frameworkHeap)
+                    && Objects.equals(this.frameworkOffHeap, that.frameworkOffHeap)
+                    && Objects.equals(this.taskHeap, that.taskHeap)
+                    && Objects.equals(this.taskOffHeap, that.taskOffHeap)
+                    && Objects.equals(this.network, that.network)
+                    && Objects.equals(this.managed, that.managed);
+        }
+        return false;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-				frameworkHeap,
-				frameworkOffHeap,
-				taskHeap,
-				taskOffHeap,
-				network,
-				managed);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                frameworkHeap, frameworkOffHeap, taskHeap, taskOffHeap, network, managed);
+    }
 }

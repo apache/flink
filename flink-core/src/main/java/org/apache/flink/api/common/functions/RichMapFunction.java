@@ -21,19 +21,20 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.annotation.Public;
 
 /**
- * Rich variant of the {@link MapFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * Rich variant of the {@link MapFunction}. As a {@link RichFunction}, it gives access to the {@link
+ * org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
 @Public
-public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction implements MapFunction<IN, OUT> {
+public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction
+        implements MapFunction<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract OUT map(IN value) throws Exception;
+    @Override
+    public abstract OUT map(IN value) throws Exception;
 }

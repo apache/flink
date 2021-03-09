@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -242,10 +242,6 @@ under the License.
 								<relocation>
 									<pattern>org.mortbay</pattern>
 									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.mortbay</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.tukaani</pattern>
-									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.tukaani</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.znerd</pattern>

@@ -49,9 +49,7 @@ abstract class Sink(
   extends SingleRel(cluster, traitSet, input) {
 
   override def deriveRowType(): RelDataType = {
-    val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val outputType = catalogTable.getSchema.toPhysicalRowDataType
-    typeFactory.createFieldTypeFromLogicalType(fromDataTypeToLogicalType(outputType))
+    input.getRowType
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

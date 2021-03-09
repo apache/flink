@@ -53,23 +53,23 @@ class RewriteIntersectAllRuleTest extends TableTestBase {
 
   @Test
   def testIntersectAll(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
 
   @Test
   def testIntersectAllWithFilter(): Unit = {
-    util.verifyPlan(
+    util.verifyRelPlan(
       "SELECT c FROM ((SELECT * FROM T1) INTERSECT ALL (SELECT * FROM T2)) WHERE a > 1")
   }
 
   @Test
   def testIntersectAllLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT ALL SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT ALL SELECT f FROM T2")
   }
 
   @Test
   def testIntersectAllRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2 WHERE 1=0")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2 WHERE 1=0")
   }
 
 }

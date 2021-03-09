@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -28,20 +29,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 @Internal
 public class GlobalPartitioner<T> extends StreamPartitioner<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
-		return 0;
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        return 0;
+    }
 
-	@Override
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<T> copy() {
+        return this;
+    }
 
-	@Override
-	public String toString() {
-		return "GLOBAL";
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.FIRST;
+    }
+
+    @Override
+    public String toString() {
+        return "GLOBAL";
+    }
 }

@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedValue;
-
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedValue;
 
 import java.io.IOException;
 
@@ -30,25 +30,25 @@ import java.io.IOException;
  */
 public class ZooKeeperSharedValue {
 
-	private final SharedValue sharedValue;
+    private final SharedValue sharedValue;
 
-	public ZooKeeperSharedValue(SharedValue sharedValue) {
-		this.sharedValue = Preconditions.checkNotNull(sharedValue);
-	}
+    public ZooKeeperSharedValue(SharedValue sharedValue) {
+        this.sharedValue = Preconditions.checkNotNull(sharedValue);
+    }
 
-	public void start() throws Exception {
-		sharedValue.start();
-	}
+    public void start() throws Exception {
+        sharedValue.start();
+    }
 
-	public void close() throws IOException {
-		sharedValue.close();
-	}
+    public void close() throws IOException {
+        sharedValue.close();
+    }
 
-	public void setValue(byte[] newValue) throws Exception {
-		sharedValue.setValue(newValue);
-	}
+    public void setValue(byte[] newValue) throws Exception {
+        sharedValue.setValue(newValue);
+    }
 
-	public byte[] getValue() {
-		return sharedValue.getValue();
-	}
+    public byte[] getValue() {
+        return sharedValue.getValue();
+    }
 }

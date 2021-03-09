@@ -23,17 +23,16 @@ import org.apache.flink.runtime.iterative.concurrent.Broker;
 import java.util.concurrent.BlockingQueue;
 
 /**
- * {@link Broker} for the {@link BlockingQueue} used in
- * {@link org.apache.flink.streaming.runtime.tasks.StreamIterationHead} and
- * {@link org.apache.flink.streaming.runtime.tasks.StreamIterationTail} for implementing feedback
- * streams.
+ * {@link Broker} for the {@link BlockingQueue} used in {@link
+ * org.apache.flink.streaming.runtime.tasks.StreamIterationHead} and {@link
+ * org.apache.flink.streaming.runtime.tasks.StreamIterationTail} for implementing feedback streams.
  */
 @Internal
 public class BlockingQueueBroker extends Broker<BlockingQueue<?>> {
 
-	/** Singleton instance. */
-	public static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
+    /** Singleton instance. */
+    public static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
 
-	/** Cannot instantiate. */
-	private BlockingQueueBroker() {}
+    /** Cannot instantiate. */
+    private BlockingQueueBroker() {}
 }

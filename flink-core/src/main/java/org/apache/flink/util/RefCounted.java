@@ -20,22 +20,17 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Interface to simply add reference counting functionality.
- */
+/** Interface to simply add reference counting functionality. */
 @Internal
 public interface RefCounted {
 
-	/**
-	 * Increases the reference counter.
-	 */
-	void retain();
+    /** Increases the reference counter. */
+    void retain();
 
-	/**
-	 * Decreases the reference counter.
-	 *
-	 * @return {@code true} if the reference
-	 * counter reached 0, {@code false} otherwise.
-	 */
-	boolean release();
+    /**
+     * Decreases the reference counter.
+     *
+     * @return {@code true} if the reference counter reached 0, {@code false} otherwise.
+     */
+    boolean release();
 }

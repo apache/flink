@@ -23,8 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.junit.Assert.assertEquals
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
  * Tests for the [[StreamExecutionEnvironment]].
@@ -32,11 +37,10 @@ import org.junit.Test
 class StreamExecutionEnvironmentTest {
 
   /**
-   * Verifies that calls to timeWindow() instantiate a regular
-   * windowOperator instead of an aligned one.
+   * Verifies that calls to fromSource() don't throw and create a stream of the expected type.
    */
   @Test
-  def testAlignedWindowDeprecation(): Unit = {
+  def testFromSource(): Unit = {
     implicit val typeInfo: TypeInformation[Integer] = new MockTypeInfo()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
@@ -44,6 +48,20 @@ class StreamExecutionEnvironmentTest {
       new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
       WatermarkStrategy.noWatermarks(),
       "test source")
+
+    assertEquals(typeInfo, stream.dataType)
+  }
+
+  /**
+   * Verifies that calls to fromSequence() instantiate a new DataStream
+   * that contains a sequence of numbers.
+   */
+  @Test
+  def testFromSequence(): Unit = {
+    val typeInfo = implicitly[TypeInformation[Long]]
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val stream = env.fromSequence(1, 100)
 
     assertEquals(typeInfo, stream.dataType)
   }

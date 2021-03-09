@@ -22,15 +22,13 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 
-/**
- * A {@link DownloadCacheFactory} for the {@link LolCache}.
- */
+/** A {@link DownloadCacheFactory} for the {@link LolCache}. */
 public final class LolCacheFactory implements DownloadCacheFactory {
 
-	@Override
-	public DownloadCache create() throws IOException {
-		final TemporaryFolder folder = new TemporaryFolder();
-		folder.create();
-		return new LolCache(folder);
-	}
+    @Override
+    public DownloadCache create() throws IOException {
+        final TemporaryFolder folder = new TemporaryFolder();
+        folder.create();
+        return new LolCache(folder);
+    }
 }

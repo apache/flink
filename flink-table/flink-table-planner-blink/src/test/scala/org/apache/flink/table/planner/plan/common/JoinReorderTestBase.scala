@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
@@ -80,7 +81,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -90,7 +91,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -100,7 +101,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -110,7 +111,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -120,7 +121,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE c1 = c2 AND c1 = c3 AND c2 = c4 AND c1 = c5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -134,7 +135,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM V3, T5 where a4 = a5
          """.stripMargin
     // can not reorder now
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -147,7 +148,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |
          |SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -161,7 +162,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T5 ON a4 = a5
          """.stripMargin
     // T1, T2, T3 can reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -175,7 +176,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T5 ON a4 = a5
          """.stripMargin
     // T3, T4, T5 can reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -188,7 +189,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T4 ON a1 = a4
          |   JOIN T5 ON a4 = a5
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -202,7 +203,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   LEFT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -216,7 +217,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   RIGHT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -230,6 +231,49 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testDeriveNullFilterAfterJoinReorder(): Unit = {
+    val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
+    val builderA = ColumnStats.Builder.builder()
+      .setNdv(200000L)
+      .setNullCount(50000L)
+      .setAvgLen(4.0)
+      .setMaxLen(4)
+    val builderB = ColumnStats.Builder.builder()
+      .setNdv(100000L)
+      .setNullCount(0L)
+      .setAvgLen(8.0)
+      .setMaxLen(8)
+
+    util.addTableSource("T6", types, Array("a6", "b6"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a6" -> builderA.build(),
+        "b6" -> builderB.build()
+      ))).build())
+
+    util.addTableSource("T7", types, Array("a7", "b7"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a7" -> builderA.build(),
+        "b7" -> builderB.build()
+      ))).build())
+
+    util.addTableSource("T8", types, Array("a8", "b8"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a8" -> builderA.build(),
+        "b8" -> builderB.build()
+      ))).build())
+
+    util.getTableEnv.getConfig.getConfiguration.setLong(
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 10000L)
+    val sql =
+      s"""
+         |SELECT * FROM T6
+         |   INNER JOIN T7 ON b6 = b7
+         |   INNER JOIN T8 ON a6 = a8
+         |""".stripMargin
+    util.verifyExecPlan(sql)
   }
 }

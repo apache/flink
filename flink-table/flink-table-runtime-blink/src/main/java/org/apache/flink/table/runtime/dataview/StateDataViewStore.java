@@ -22,42 +22,40 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * This interface contains methods for registering {@link StateDataView} with a managed store.
- */
+/** This interface contains methods for registering {@link StateDataView} with a managed store. */
 @Internal
 public interface StateDataViewStore {
 
-	/**
-	 * Creates a state map view.
-	 *
-	 * @param stateName The name of underlying state of the map view
-	 * @param supportNullKey Whether the null key should be supported
-	 * @param keySerializer The key serializer
-	 * @param valueSerializer The value serializer
-	 * @param <N> Type of the namespace
-	 * @param <EK> External type of the keys in the map state
-	 * @param <EV> External type of the values in the map state
-	 * @return a keyed map state
-	 */
-	<N, EK, EV> StateMapView<N, EK, EV> getStateMapView(
-		String stateName,
-		boolean supportNullKey,
-		TypeSerializer<EK> keySerializer,
-		TypeSerializer<EV> valueSerializer) throws Exception;
+    /**
+     * Creates a state map view.
+     *
+     * @param stateName The name of underlying state of the map view
+     * @param supportNullKey Whether the null key should be supported
+     * @param keySerializer The key serializer
+     * @param valueSerializer The value serializer
+     * @param <N> Type of the namespace
+     * @param <EK> External type of the keys in the map state
+     * @param <EV> External type of the values in the map state
+     * @return a keyed map state
+     */
+    <N, EK, EV> StateMapView<N, EK, EV> getStateMapView(
+            String stateName,
+            boolean supportNullKey,
+            TypeSerializer<EK> keySerializer,
+            TypeSerializer<EV> valueSerializer)
+            throws Exception;
 
-	/**
-	 * Creates a state list view.
-	 *
-	 * @param stateName The name of underlying state of the list view
-	 * @param elementSerializer The element serializer
-	 * @param <N> Type of the namespace
-	 * @param <EE> External type of the elements in the list state
-	 * @return a keyed list state
-	 */
-	<N, EE> StateListView<N, EE> getStateListView(
-		String stateName,
-		TypeSerializer<EE> elementSerializer) throws Exception;
+    /**
+     * Creates a state list view.
+     *
+     * @param stateName The name of underlying state of the list view
+     * @param elementSerializer The element serializer
+     * @param <N> Type of the namespace
+     * @param <EE> External type of the elements in the list state
+     * @return a keyed list state
+     */
+    <N, EE> StateListView<N, EE> getStateListView(
+            String stateName, TypeSerializer<EE> elementSerializer) throws Exception;
 
-	RuntimeContext getRuntimeContext();
+    RuntimeContext getRuntimeContext();
 }

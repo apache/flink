@@ -26,65 +26,70 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A collection of variables that composes a JobManager/TaskManager Pod. This can include
- * the Pod, the main Container, and the InitContainer, etc.
+ * A collection of variables that composes a JobManager/TaskManager Pod. This can include the Pod,
+ * the main Container, and the InitContainer, etc.
  */
 public class FlinkPod {
 
-	private final Pod pod;
+    private final Pod podWithoutMainContainer;
 
-	private final Container mainContainer;
+    private final Container mainContainer;
 
-	public FlinkPod(Pod pod, Container mainContainer) {
-		this.pod = pod;
-		this.mainContainer = mainContainer;
-	}
+    public FlinkPod(Pod podWithoutMainContainer, Container mainContainer) {
+        this.podWithoutMainContainer = podWithoutMainContainer;
+        this.mainContainer = mainContainer;
+    }
 
-	public Pod getPod() {
-		return pod;
-	}
+    public Pod getPodWithoutMainContainer() {
+        return podWithoutMainContainer;
+    }
 
-	public Container getMainContainer() {
-		return mainContainer;
-	}
+    public Container getMainContainer() {
+        return mainContainer;
+    }
 
-	/**
-	 * Builder for creating a {@link FlinkPod}.
-	 */
-	public static class Builder {
+    public FlinkPod copy() {
+        return new FlinkPod(
+                new PodBuilder(this.getPodWithoutMainContainer()).build(),
+                new ContainerBuilder(this.getMainContainer()).build());
+    }
 
-		private Pod pod;
-		private Container mainContainer;
+    /** Builder for creating a {@link FlinkPod}. */
+    public static class Builder {
 
-		public Builder() {
-			this.pod = new PodBuilder()
-				.withNewMetadata()
-				.endMetadata()
-				.withNewSpec()
-				.endSpec()
-				.build();
+        private Pod podWithoutMainContainer;
+        private Container mainContainer;
 
-			this.mainContainer = new ContainerBuilder().build();
-		}
+        public Builder() {
+            this.podWithoutMainContainer =
+                    new PodBuilder()
+                            .withNewMetadata()
+                            .endMetadata()
+                            .withNewSpec()
+                            .endSpec()
+                            .build();
 
-		public Builder(FlinkPod flinkPod) {
-			checkNotNull(flinkPod);
-			this.pod = checkNotNull(flinkPod.getPod());
-			this.mainContainer = checkNotNull(flinkPod.getMainContainer());
-		}
+            this.mainContainer = new ContainerBuilder().build();
+        }
 
-		public Builder withPod(Pod pod) {
-			this.pod = checkNotNull(pod);
-			return this;
-		}
+        public Builder(FlinkPod flinkPod) {
+            checkNotNull(flinkPod);
+            this.podWithoutMainContainer = checkNotNull(flinkPod.getPodWithoutMainContainer());
+            this.mainContainer = checkNotNull(flinkPod.getMainContainer());
+        }
 
-		public Builder withMainContainer(Container mainContainer) {
-			this.mainContainer = checkNotNull(mainContainer);
-			return this;
-		}
+        public Builder withPod(Pod pod) {
+            this.podWithoutMainContainer = checkNotNull(pod);
+            return this;
+        }
 
-		public FlinkPod build() {
-			return new FlinkPod(this.pod, this.mainContainer);
-		}
-	}
+        public Builder withMainContainer(Container mainContainer) {
+            this.mainContainer = checkNotNull(mainContainer);
+            return this;
+        }
+
+        public FlinkPod build() {
+            return new FlinkPod(this.podWithoutMainContainer, this.mainContainer);
+        }
+    }
 }

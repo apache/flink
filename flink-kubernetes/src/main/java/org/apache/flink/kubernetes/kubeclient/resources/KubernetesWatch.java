@@ -20,16 +20,14 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import io.fabric8.kubernetes.client.Watch;
 
-/**
- * Watch resource in Kubernetes.
- */
+/** Watch resource in Kubernetes. */
 public class KubernetesWatch extends KubernetesResource<Watch> {
 
-	public KubernetesWatch(Watch watch) {
-		super(watch);
-	}
+    public KubernetesWatch(Watch watch) {
+        super(watch);
+    }
 
-	public void close() {
-		getInternalResource().close();
-	}
+    public void close() {
+        getInternalResource().close();
+    }
 }

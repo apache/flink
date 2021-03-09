@@ -22,21 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 
-/**
- * Converter for {@link LocalZonedTimestampType} of {@link Long} external type.
- */
+/** Converter for {@link LocalZonedTimestampType} of {@link Long} external type. */
 @Internal
-public class LocalZonedTimestampLongConverter implements DataStructureConverter<TimestampData, Long> {
+public class LocalZonedTimestampLongConverter
+        implements DataStructureConverter<TimestampData, Long> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public TimestampData toInternal(Long external) {
-		return TimestampData.fromEpochMillis(external);
-	}
+    @Override
+    public TimestampData toInternal(Long external) {
+        return TimestampData.fromEpochMillis(external);
+    }
 
-	@Override
-	public Long toExternal(TimestampData internal) {
-		return internal.getMillisecond();
-	}
+    @Override
+    public Long toExternal(TimestampData internal) {
+        return internal.getMillisecond();
+    }
 }

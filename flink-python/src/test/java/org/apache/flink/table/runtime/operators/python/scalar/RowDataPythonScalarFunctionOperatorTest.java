@@ -41,90 +41,85 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/**
- * Tests for {@link RowDataPythonScalarFunctionOperator}.
- */
+/** Tests for {@link RowDataPythonScalarFunctionOperator}. */
 public class RowDataPythonScalarFunctionOperatorTest
-		extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
+        extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new LogicalType[]{
-		DataTypes.STRING().getLogicalType(),
-		DataTypes.STRING().getLogicalType(),
-		DataTypes.BIGINT().getLogicalType()
-	});
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new LogicalType[] {
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.BIGINT().getLogicalType()
+                    });
 
-	@Override
-	public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		return new PassThroughPythonScalarFunctionOperator(
-			config,
-			scalarFunctions,
-			inputType,
-			outputType,
-			udfInputOffsets,
-			forwardedFields
-		);
-	}
+    @Override
+    public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        return new PassThroughPythonScalarFunctionOperator(
+                config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
 
-	@Override
-	public RowData newRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return row(fields);
-		} else {
-			RowData row = row(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    @Override
+    public RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	@Override
-	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		assertor.assertOutputEquals(message, expected, actual);
-	}
+    @Override
+    public void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-	@Override
-	public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
-		return StreamTableEnvironment.create(
-			env,
-			EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
-	}
+    @Override
+    public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
+        return StreamTableEnvironment.create(
+                env, EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
+    }
 
-	@Override
-	public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
-		// If not specified, PojoSerializer will be used which doesn't work well with the Arrow data structure.
-		return new RowDataSerializer(rowType);
-	}
+    @Override
+    public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
+        // If not specified, PojoSerializer will be used which doesn't work well with the Arrow data
+        // structure.
+        return new RowDataSerializer(rowType);
+    }
 
-	private static class PassThroughPythonScalarFunctionOperator extends RowDataPythonScalarFunctionOperator {
+    private static class PassThroughPythonScalarFunctionOperator
+            extends RowDataPythonScalarFunctionOperator {
 
-		PassThroughPythonScalarFunctionOperator(
-			Configuration config,
-			PythonFunctionInfo[] scalarFunctions,
-			RowType inputType,
-			RowType outputType,
-			int[] udfInputOffsets,
-			int[] forwardedFields) {
-			super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-		}
+        PassThroughPythonScalarFunctionOperator(
+                Configuration config,
+                PythonFunctionInfo[] scalarFunctions,
+                RowType inputType,
+                RowType outputType,
+                int[] udfInputOffsets,
+                int[] forwardedFields) {
+            super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        }
 
-		@Override
-		public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-			return new PassThroughPythonScalarFunctionRunner(
-				getRuntimeContext().getTaskName(),
-				PythonTestUtils.createTestEnvironmentManager(),
-				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType,
-				getFunctionUrn(),
-				getUserDefinedFunctionsProto(),
-				getInputOutputCoderUrn(),
-				new HashMap<>(),
-				PythonTestUtils.createMockFlinkMetricContainer()
-			);
-		}
-	}
+        @Override
+        public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+            return new PassThroughPythonScalarFunctionRunner(
+                    getRuntimeContext().getTaskName(),
+                    PythonTestUtils.createTestEnvironmentManager(),
+                    userDefinedFunctionInputType,
+                    userDefinedFunctionOutputType,
+                    getFunctionUrn(),
+                    getUserDefinedFunctionsProto(),
+                    getInputOutputCoderUrn(),
+                    new HashMap<>(),
+                    PythonTestUtils.createMockFlinkMetricContainer());
+        }
+    }
 }

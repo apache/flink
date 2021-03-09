@@ -22,19 +22,17 @@ import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Controllable {@link Ticker} implementation for tests.
- */
+/** Controllable {@link Ticker} implementation for tests. */
 public final class ManualTicker extends Ticker {
 
-	private long currentTime;
+    private long currentTime;
 
-	@Override
-	public long read() {
-		return currentTime;
-	}
+    @Override
+    public long read() {
+        return currentTime;
+    }
 
-	public void advanceTime(final long duration, final TimeUnit timeUnit) {
-		currentTime += timeUnit.toNanos(duration);
-	}
+    public void advanceTime(final long duration, final TimeUnit timeUnit) {
+        currentTime += timeUnit.toNanos(duration);
+    }
 }

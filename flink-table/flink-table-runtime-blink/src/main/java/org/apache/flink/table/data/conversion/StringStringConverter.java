@@ -23,21 +23,19 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/**
- * Converter for {@link CharType}/{@link VarCharType} of {@link String} external type.
- */
+/** Converter for {@link CharType}/{@link VarCharType} of {@link String} external type. */
 @Internal
 public class StringStringConverter implements DataStructureConverter<StringData, String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public StringData toInternal(String external) {
-		return StringData.fromString(external);
-	}
+    @Override
+    public StringData toInternal(String external) {
+        return StringData.fromString(external);
+    }
 
-	@Override
-	public String toExternal(StringData internal) {
-		return internal.toString();
-	}
+    @Override
+    public String toExternal(StringData internal) {
+        return internal.toString();
+    }
 }

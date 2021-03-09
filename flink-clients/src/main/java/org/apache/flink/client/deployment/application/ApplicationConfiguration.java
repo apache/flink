@@ -31,61 +31,57 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Application-specific configurations.
- */
+/** Application-specific configurations. */
 @Internal
 public class ApplicationConfiguration {
 
-	public static final ConfigOption<List<String>> APPLICATION_ARGS = ConfigOptions
-			.key("$internal.application.program-args")
-			.stringType()
-			.asList()
-			.noDefaultValue();
+    public static final ConfigOption<List<String>> APPLICATION_ARGS =
+            ConfigOptions.key("$internal.application.program-args")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue();
 
-	public static final ConfigOption<String> APPLICATION_MAIN_CLASS = ConfigOptions
-			.key("$internal.application.main")
-			.stringType()
-			.noDefaultValue();
+    public static final ConfigOption<String> APPLICATION_MAIN_CLASS =
+            ConfigOptions.key("$internal.application.main").stringType().noDefaultValue();
 
-	private final String[] programArguments;
+    private final String[] programArguments;
 
-	@Nullable
-	private final String applicationClassName;
+    @Nullable private final String applicationClassName;
 
-	public ApplicationConfiguration(
-			final String[] programArguments,
-			@Nullable final String applicationClassName) {
-		this.programArguments = checkNotNull(programArguments);
-		this.applicationClassName = applicationClassName;
-	}
+    public ApplicationConfiguration(
+            final String[] programArguments, @Nullable final String applicationClassName) {
+        this.programArguments = checkNotNull(programArguments);
+        this.applicationClassName = applicationClassName;
+    }
 
-	public String[] getProgramArguments() {
-		return programArguments;
-	}
+    public String[] getProgramArguments() {
+        return programArguments;
+    }
 
-	@Nullable
-	public String getApplicationClassName() {
-		return applicationClassName;
-	}
+    @Nullable
+    public String getApplicationClassName() {
+        return applicationClassName;
+    }
 
-	public void applyToConfiguration(final Configuration configuration) {
-		checkNotNull(configuration);
+    public void applyToConfiguration(final Configuration configuration) {
+        checkNotNull(configuration);
 
-		ConfigUtils.encodeArrayToConfig(configuration, APPLICATION_ARGS, programArguments, Objects::toString);
-		if (applicationClassName != null) {
-			configuration.set(APPLICATION_MAIN_CLASS, applicationClassName);
-		}
-	}
+        ConfigUtils.encodeArrayToConfig(
+                configuration, APPLICATION_ARGS, programArguments, Objects::toString);
+        if (applicationClassName != null) {
+            configuration.set(APPLICATION_MAIN_CLASS, applicationClassName);
+        }
+    }
 
-	public static ApplicationConfiguration fromConfiguration(final Configuration configuration) {
-		checkNotNull(configuration);
+    public static ApplicationConfiguration fromConfiguration(final Configuration configuration) {
+        checkNotNull(configuration);
 
-		final List<String> programArgsList = ConfigUtils.decodeListFromConfig(configuration, APPLICATION_ARGS, String::new);
+        final List<String> programArgsList =
+                ConfigUtils.decodeListFromConfig(configuration, APPLICATION_ARGS, String::new);
 
-		final String[] programArgs = programArgsList.toArray(new String[0]);
-		final String applicationClassName = configuration.get(APPLICATION_MAIN_CLASS);
+        final String[] programArgs = programArgsList.toArray(new String[0]);
+        final String applicationClassName = configuration.get(APPLICATION_MAIN_CLASS);
 
-		return new ApplicationConfiguration(programArgs, applicationClassName);
-	}
+        return new ApplicationConfiguration(programArgs, applicationClassName);
+    }
 }

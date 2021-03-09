@@ -21,13 +21,16 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
+import org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd
 import org.apache.flink.table.types.logical.TimestampType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
@@ -119,10 +122,12 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     case uncollect: Uncollect =>
       // visit children and update inputs
       val input = uncollect.getInput.accept(this)
-      Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality)
+      Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality,
+        JCollections.emptyList())
 
     case scan: LogicalTableFunctionScan =>
-      scan
+      val inputs = scan.getInputs.map(_.accept(this))
+      scan.copy(scan.getTraitSet, inputs)
 
     case aggregate: LogicalWindowAggregate =>
       val convAggregate = convertAggregate(aggregate)
@@ -157,11 +162,20 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       LogicalTableAggregate.create(convAggregate)
 
     case watermarkAssigner: LogicalWatermarkAssigner =>
-      watermarkAssigner
+      val input = watermarkAssigner.getInput.accept(this)
+      watermarkAssigner.copy(
+        watermarkAssigner.getTraitSet,
+        input,
+        watermarkAssigner.rowtimeFieldIndex,
+        watermarkAssigner.watermarkExpr)
 
     case snapshot: LogicalSnapshot =>
       val input = snapshot.getInput.accept(this)
       snapshot.copy(snapshot.getTraitSet, input, snapshot.getPeriod)
+
+    case rank: LogicalRank =>
+      val input = rank.getInput.accept(this)
+      rank.copy(rank.getTraitSet, JCollections.singletonList(input))
 
     case sink: LogicalSink =>
       val newInput = convertSinkInput(sink.getInput)
@@ -172,7 +186,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         sink.tableIdentifier,
         sink.catalogTable,
         sink.tableSink,
-        sink.staticPartitions)
+        sink.staticPartitions,
+        sink.abilitySpecs)
 
     case sink: LogicalLegacySink =>
       val newInput = convertSinkInput(sink.getInput)
@@ -228,15 +243,15 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     val projects = project.getProjects.map(_.accept(materializer))
     val fieldNames = project.getRowType.getFieldNames
-    LogicalProject.create(input, projects, fieldNames)
+    LogicalProject.create(input, JCollections.emptyList[RelHint](), projects, fieldNames)
   }
 
   override def visit(join: LogicalJoin): RelNode = {
     val left = join.getLeft.accept(this)
     val right = join.getRight.accept(this)
 
+    // temporal table join
     if (TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
-      // temporal table function join
       val rewrittenTemporalJoin = join.copy(join.getTraitSet, List(left, right))
 
       // Materialize all of the time attributes from the right side of temporal join
@@ -265,7 +280,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         }
       })
 
-      LogicalJoin.create(left, right, newCondition, join.getVariablesSet, join.getJoinType)
+      LogicalJoin.create(left, right, JCollections.emptyList(),
+        newCondition, join.getVariablesSet, join.getJoinType)
     }
   }
 
@@ -345,31 +361,33 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   }
 
   private def gatherIndicesToMaterialize(aggregate: Aggregate, input: RelNode): Set[Int] = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(aggregate.getCluster.getMetadataQuery)
+    val windowProps = fmq.getRelWindowProperties(input)
     val indicesToMaterialize = mutable.Set[Int]()
 
     // check arguments of agg calls
-    aggregate.getAggCallList.foreach(call => if (call.getArgList.size() == 0) {
-      // count(*) has an empty argument list
-      (0 until input.getRowType.getFieldCount).foreach(indicesToMaterialize.add)
-    } else {
-      // for other aggregations
+    aggregate.getAggCallList.foreach { call =>
       call.getArgList.map(_.asInstanceOf[Int]).foreach(indicesToMaterialize.add)
-    })
+    }
 
     // check grouping sets
-    aggregate.getGroupSets.foreach(set =>
-      set.asList().map(_.asInstanceOf[Int]).foreach(indicesToMaterialize.add)
-    )
+    aggregate.getGroupSets.foreach { grouping =>
+      if (windowProps != null && groupingContainsWindowStartEnd(grouping, windowProps)) {
+        // for window aggregate we should reserve the time attribute of window_time column
+        grouping
+          .except(windowProps.getWindowTimeColumns).toArray
+          .foreach(indicesToMaterialize.add)
+      } else {
+        grouping.toArray
+          .foreach(indicesToMaterialize.add)
+      }
+    }
 
     indicesToMaterialize.toSet
   }
 
-  private def hasRowtimeAttribute(rowType: RelDataType): Boolean = {
-    rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
-  }
-
   private def convertSinkInput(sinkInput: RelNode): RelNode = {
-    var newInput = sinkInput.accept(this)
+    val newInput = sinkInput.accept(this)
     var needsConversion = false
 
     val projects = newInput.getRowType.getFieldList.map { field =>
@@ -384,7 +402,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     // add final conversion if necessary
     if (needsConversion) {
-      LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
+      LogicalProject.create(newInput, JCollections.emptyList[RelHint](),
+        projects, newInput.getRowType.getFieldNames)
     } else {
       newInput
     }
@@ -426,6 +445,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
           LogicalProject.create(
             lp.getInput,
+            JCollections.emptyList[RelHint](),
             projects,
             input.getRowType.getFieldNames)
 
@@ -451,6 +471,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
           LogicalProject.create(
             input,
+            JCollections.emptyList[RelHint](),
             projects,
             input.getRowType.getFieldNames)
       }
@@ -487,6 +508,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val input = modify.getInput.accept(this)
     modify.copy(modify.getTraitSet, JCollections.singletonList(input))
   }
+
+  override def visit(calc: LogicalCalc): RelNode = {
+    calc // Do nothing for Calc now.
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -520,6 +545,7 @@ object RelTimeIndicatorConverter {
     if (needsConversion) {
       LogicalProject.create(
         convertedRoot,
+        JCollections.emptyList[RelHint](),
         projects,
         convertedRoot.getRowType.getFieldNames)
     } else {
@@ -614,9 +640,9 @@ class RexTimeIndicatorMaterializer(
     // materialize operands with time indicators
     val materializedOperands = updatedCall.getOperator match {
       // skip materialization for special operators
-      case FlinkSqlOperatorTable.SESSION |
-           FlinkSqlOperatorTable.HOP |
-           FlinkSqlOperatorTable.TUMBLE =>
+      case FlinkSqlOperatorTable.SESSION_OLD |
+           FlinkSqlOperatorTable.HOP_OLD |
+           FlinkSqlOperatorTable.TUMBLE_OLD =>
         updatedCall.getOperands.toList
 
       case _ =>
@@ -700,6 +726,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
 
     LogicalProject.create(
       input,
+      JCollections.emptyList[RelHint](),
       projects,
       input.getRowType.getFieldNames)
   }

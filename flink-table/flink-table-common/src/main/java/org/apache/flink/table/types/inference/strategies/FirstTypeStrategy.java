@@ -28,44 +28,42 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Type strategy that returns the first type that could be inferred.
- */
+/** Type strategy that returns the first type that could be inferred. */
 @Internal
 public final class FirstTypeStrategy implements TypeStrategy {
 
-	private final List<? extends TypeStrategy> typeStrategies;
+    private final List<? extends TypeStrategy> typeStrategies;
 
-	public FirstTypeStrategy(List<? extends TypeStrategy> typeStrategies) {
-		Preconditions.checkArgument(typeStrategies.size() > 0);
-		this.typeStrategies = typeStrategies;
-	}
+    public FirstTypeStrategy(List<? extends TypeStrategy> typeStrategies) {
+        Preconditions.checkArgument(typeStrategies.size() > 0);
+        this.typeStrategies = typeStrategies;
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		for (TypeStrategy strategy : typeStrategies) {
-			final Optional<DataType> inferredDataType = strategy.inferType(callContext);
-			if (inferredDataType.isPresent()) {
-				return inferredDataType;
-			}
-		}
-		return Optional.empty();
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        for (TypeStrategy strategy : typeStrategies) {
+            final Optional<DataType> inferredDataType = strategy.inferType(callContext);
+            if (inferredDataType.isPresent()) {
+                return inferredDataType;
+            }
+        }
+        return Optional.empty();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FirstTypeStrategy that = (FirstTypeStrategy) o;
-		return typeStrategies.equals(that.typeStrategies);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FirstTypeStrategy that = (FirstTypeStrategy) o;
+        return typeStrategies.equals(that.typeStrategies);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(typeStrategies);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(typeStrategies);
+    }
 }

@@ -23,15 +23,13 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.Conne
 
 import java.util.Optional;
 
-/**
- * {@link ConnectionStateListener} which records the last state it was notified about.
- */
+/** {@link ConnectionStateListener} which records the last state it was notified about. */
 public interface LastStateConnectionStateListener extends ConnectionStateListener {
 
-	/**
-	 * Return the last state the listener was notified about.
-	 *
-	 * @return the last state or none if the listener has not received an update
-	 */
-	Optional<ConnectionState> getLastState();
+    /**
+     * Return the last state the listener was notified about.
+     *
+     * @return the last state or none if the listener has not received an update
+     */
+    Optional<ConnectionState> getLastState();
 }

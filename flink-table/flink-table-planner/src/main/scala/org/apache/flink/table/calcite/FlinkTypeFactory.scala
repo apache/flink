@@ -362,6 +362,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 }
 
 object FlinkTypeFactory {
+  val INSTANCE = new FlinkTypeFactory(new FlinkTypeSystem)
 
   private def typeInfoToSqlTypeName(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
       case BOOLEAN_TYPE_INFO => BOOLEAN

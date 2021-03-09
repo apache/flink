@@ -26,15 +26,13 @@ import org.apache.flink.table.expressions.Expression;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Unwraps all {@link ApiExpression}.
- */
+/** Unwraps all {@link ApiExpression}. */
 @Internal
 final class UnwrapApiExpressionRule implements ResolverRule {
-	@Override
-	public List<Expression> apply(
-			List<Expression> expression,
-			ResolutionContext context) {
-		return expression.stream().map(ApiExpressionUtils::unwrapFromApi).collect(Collectors.toList());
-	}
+    @Override
+    public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        return expression.stream()
+                .map(ApiExpressionUtils::unwrapFromApi)
+                .collect(Collectors.toList());
+    }
 }

@@ -32,73 +32,76 @@ import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
 
-/**
- * Extracts all file paths that are part of the provided {@link OperatorState}.
- */
+/** Extracts all file paths that are part of the provided {@link OperatorState}. */
 @Internal
 public class StatePathExtractor implements FlatMapFunction<OperatorState, String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void flatMap(OperatorState operatorState, Collector<String> out) throws Exception {
-		for (OperatorSubtaskState subTaskState : operatorState.getSubtaskStates().values()) {
-			// managed operator state
-			for (OperatorStateHandle operatorStateHandle: subTaskState.getManagedOperatorState()) {
-				Path path = getStateFilePathFromStreamStateHandle(operatorStateHandle);
-				if (path != null) {
-					out.collect(path.getPath());
-				}
-			}
-			// managed keyed state
-			for (KeyedStateHandle keyedStateHandle: subTaskState.getManagedKeyedState()) {
-				if (keyedStateHandle instanceof KeyGroupsStateHandle) {
-					Path path = getStateFilePathFromStreamStateHandle((KeyGroupsStateHandle) keyedStateHandle);
-					if (path != null) {
-						out.collect(path.getPath());
-					}
-				}
-			}
-			// raw operator state
-			for (OperatorStateHandle operatorStateHandle: subTaskState.getRawOperatorState()) {
-				Path path = getStateFilePathFromStreamStateHandle(operatorStateHandle);
-				if (path != null) {
-					out.collect(path.getPath());
-				}
-			}
-			// raw keyed state
-			for (KeyedStateHandle keyedStateHandle: subTaskState.getRawKeyedState()) {
-				if (keyedStateHandle instanceof KeyGroupsStateHandle) {
-					Path path = getStateFilePathFromStreamStateHandle((KeyGroupsStateHandle) keyedStateHandle);
-					if (path != null) {
-						out.collect(path.getPath());
-					}
-				}
-			}
-		}
-	}
+    @Override
+    public void flatMap(OperatorState operatorState, Collector<String> out) throws Exception {
+        for (OperatorSubtaskState subTaskState : operatorState.getSubtaskStates().values()) {
+            // managed operator state
+            for (OperatorStateHandle operatorStateHandle : subTaskState.getManagedOperatorState()) {
+                Path path = getStateFilePathFromStreamStateHandle(operatorStateHandle);
+                if (path != null) {
+                    out.collect(path.getPath());
+                }
+            }
+            // managed keyed state
+            for (KeyedStateHandle keyedStateHandle : subTaskState.getManagedKeyedState()) {
+                if (keyedStateHandle instanceof KeyGroupsStateHandle) {
+                    Path path =
+                            getStateFilePathFromStreamStateHandle(
+                                    (KeyGroupsStateHandle) keyedStateHandle);
+                    if (path != null) {
+                        out.collect(path.getPath());
+                    }
+                }
+            }
+            // raw operator state
+            for (OperatorStateHandle operatorStateHandle : subTaskState.getRawOperatorState()) {
+                Path path = getStateFilePathFromStreamStateHandle(operatorStateHandle);
+                if (path != null) {
+                    out.collect(path.getPath());
+                }
+            }
+            // raw keyed state
+            for (KeyedStateHandle keyedStateHandle : subTaskState.getRawKeyedState()) {
+                if (keyedStateHandle instanceof KeyGroupsStateHandle) {
+                    Path path =
+                            getStateFilePathFromStreamStateHandle(
+                                    (KeyGroupsStateHandle) keyedStateHandle);
+                    if (path != null) {
+                        out.collect(path.getPath());
+                    }
+                }
+            }
+        }
+    }
 
-
-	/**
-	 * This method recursively looks for the contained {@link FileStateHandle}s in a given {@link StreamStateHandle}.
-	 *
-	 * @param handle the {@code StreamStateHandle} to check for a contained {@code FileStateHandle}
-	 * @return the file path if the given {@code StreamStateHandle} contains a {@code FileStateHandle} object, null
-	 * otherwise
-	 */
-	private @Nullable Path getStateFilePathFromStreamStateHandle(StreamStateHandle handle) {
-		if (handle instanceof FileStateHandle) {
-			return ((FileStateHandle) handle).getFilePath();
-		} else if (handle instanceof OperatorStateHandle) {
-			return getStateFilePathFromStreamStateHandle(
-				((OperatorStateHandle) handle).getDelegateStateHandle());
-		} else if (handle instanceof KeyedStateHandle) {
-			if (handle instanceof KeyGroupsStateHandle) {
-				return getStateFilePathFromStreamStateHandle(
-					((KeyGroupsStateHandle) handle).getDelegateStateHandle());
-			}
-			// other KeyedStateHandles either do not contains FileStateHandle, or are not part of a savepoint
-		}
-		return null;
-	}
+    /**
+     * This method recursively looks for the contained {@link FileStateHandle}s in a given {@link
+     * StreamStateHandle}.
+     *
+     * @param handle the {@code StreamStateHandle} to check for a contained {@code FileStateHandle}
+     * @return the file path if the given {@code StreamStateHandle} contains a {@code
+     *     FileStateHandle} object, null otherwise
+     */
+    private @Nullable Path getStateFilePathFromStreamStateHandle(StreamStateHandle handle) {
+        if (handle instanceof FileStateHandle) {
+            return ((FileStateHandle) handle).getFilePath();
+        } else if (handle instanceof OperatorStateHandle) {
+            return getStateFilePathFromStreamStateHandle(
+                    ((OperatorStateHandle) handle).getDelegateStateHandle());
+        } else if (handle instanceof KeyedStateHandle) {
+            if (handle instanceof KeyGroupsStateHandle) {
+                return getStateFilePathFromStreamStateHandle(
+                        ((KeyGroupsStateHandle) handle).getDelegateStateHandle());
+            }
+            // other KeyedStateHandles either do not contains FileStateHandle, or are not part of a
+            // savepoint
+        }
+        return null;
+    }
 }

@@ -25,45 +25,48 @@ import org.junit.Test;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
-/**
- * Test for {@link RowPartitionComputer}.
- */
+/** Test for {@link RowPartitionComputer}. */
 public class RowPartitionComputerTest {
 
-	@Test
-	public void testProjectColumnsToWrite() throws Exception {
-		Row projected1 = new RowPartitionComputer(
-				"",
-				new String[]{"f1", "p1", "p2", "f2"},
-				new String[]{"p1", "p2"}
-		).projectColumnsToWrite(Row.of(1, 2, 3, 4));
-		Assert.assertEquals(Row.of(1, 4), projected1);
+    @Test
+    public void testProjectColumnsToWrite() throws Exception {
+        Row projected1 =
+                new RowPartitionComputer(
+                                "",
+                                new String[] {"f1", "p1", "p2", "f2"},
+                                new String[] {"p1", "p2"})
+                        .projectColumnsToWrite(Row.of(1, 2, 3, 4));
+        Assert.assertEquals(Row.of(1, 4), projected1);
 
-		Row projected2 = new RowPartitionComputer(
-				"",
-				new String[]{"f1", "f2", "p1", "p2"},
-				new String[]{"p1", "p2"}
-		).projectColumnsToWrite(Row.of(1, 2, 3, 4));
-		Assert.assertEquals(Row.of(1, 2), projected2);
+        Row projected2 =
+                new RowPartitionComputer(
+                                "",
+                                new String[] {"f1", "f2", "p1", "p2"},
+                                new String[] {"p1", "p2"})
+                        .projectColumnsToWrite(Row.of(1, 2, 3, 4));
+        Assert.assertEquals(Row.of(1, 2), projected2);
 
-		Row projected3 = new RowPartitionComputer(
-				"",
-				new String[]{"f1", "p1", "f2", "p2"},
-				new String[]{"p1", "p2"}
-		).projectColumnsToWrite(Row.of(1, 2, 3, 4));
-		Assert.assertEquals(Row.of(1, 3), projected3);
-	}
+        Row projected3 =
+                new RowPartitionComputer(
+                                "",
+                                new String[] {"f1", "p1", "f2", "p2"},
+                                new String[] {"p1", "p2"})
+                        .projectColumnsToWrite(Row.of(1, 2, 3, 4));
+        Assert.assertEquals(Row.of(1, 3), projected3);
+    }
 
-	@Test
-	public void testComputePartition() throws Exception {
-		RowPartitionComputer computer = new RowPartitionComputer(
-				"myDefaultname",
-				new String[]{"f1", "p1", "p2", "f2"},
-				new String[]{"p1", "p2"}
-		);
-		Assert.assertEquals("p1=2/p2=3/", generatePartitionPath(
-				computer.generatePartValues(Row.of(1, 2, 3, 4))));
-		Assert.assertEquals("p1=myDefaultname/p2=3/",
-				generatePartitionPath(computer.generatePartValues(Row.of(1, null, 3, 4))));
-	}
+    @Test
+    public void testComputePartition() throws Exception {
+        RowPartitionComputer computer =
+                new RowPartitionComputer(
+                        "myDefaultname",
+                        new String[] {"f1", "p1", "p2", "f2"},
+                        new String[] {"p1", "p2"});
+        Assert.assertEquals(
+                "p1=2/p2=3/",
+                generatePartitionPath(computer.generatePartValues(Row.of(1, 2, 3, 4))));
+        Assert.assertEquals(
+                "p1=myDefaultname/p2=3/",
+                generatePartitionPath(computer.generatePartValues(Row.of(1, null, 3, 4))));
+    }
 }

@@ -708,6 +708,9 @@
         "duration" : {
           "type" : "integer"
         },
+        "maxParallelism" : {
+          "type" : "integer"
+        },
         "now" : {
           "type" : "integer"
         },
@@ -728,6 +731,9 @@
               },
               "name" : {
                 "type" : "string"
+              },
+              "maxParallelism" : {
+                "type" : "integer"
               },
               "parallelism" : {
                 "type" : "integer"
@@ -939,6 +945,14 @@
             "alignment_buffered" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "processed_data" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "persisted_data" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
         },
@@ -975,11 +989,21 @@
                 "alignment_buffered" : {
                   "type" : "integer"
                 },
+                "processed_data" : {
+                  "type" : "integer"
+                },
+                "persisted_data" : {
+                  "type" : "integer"
+                },
                 "num_subtasks" : {
                   "type" : "integer"
                 },
                 "num_acknowledged_subtasks" : {
                   "type" : "integer"
+                },
+                "checkpoint_type" : {
+                  "type" : "string",
+                  "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
                 },
                 "tasks" : {
                   "type" : "object",
@@ -1004,6 +1028,12 @@
                         "type" : "integer"
                       },
                       "alignment_buffered" : {
+                        "type" : "integer"
+                      },
+                      "processed_data" : {
+                        "type" : "integer"
+                      },
+                      "persisted_data" : {
                         "type" : "integer"
                       },
                       "num_subtasks" : {
@@ -1056,11 +1086,21 @@
                 "alignment_buffered" : {
                   "type" : "integer"
                 },
+                "processed_data" : {
+                  "type" : "integer"
+                },
+                "persisted_data" : {
+                  "type" : "integer"
+                },
                 "num_subtasks" : {
                   "type" : "integer"
                 },
                 "num_acknowledged_subtasks" : {
                   "type" : "integer"
+                },
+                "checkpoint_type" : {
+                  "type" : "string",
+                  "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
                 },
                 "tasks" : {
                   "type" : "object",
@@ -1128,11 +1168,21 @@
               "alignment_buffered" : {
                 "type" : "integer"
               },
+              "processed_data" : {
+                "type" : "integer"
+              },
+              "persisted_data" : {
+                "type" : "integer"
+              },
               "num_subtasks" : {
                 "type" : "integer"
               },
               "num_acknowledged_subtasks" : {
                 "type" : "integer"
+              },
+              "checkpoint_type" : {
+                "type" : "string",
+                "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
               },
               "tasks" : {
                 "type" : "object",
@@ -1196,8 +1246,14 @@
         "state_backend" : {
           "type" : "string"
         },
+        "checkpoint_storage" : {
+          "type" : "string"
+        },
         "unaligned_checkpoints" : {
           "type" : "boolean"
+        },
+        "tolerable_failed_checkpoints" : {
+          "type" : "integer"
         }
       }
     }
@@ -1248,11 +1304,21 @@
         "alignment_buffered" : {
           "type" : "integer"
         },
+        "processed_data" : {
+          "type" : "integer"
+        },
+        "persisted_data" : {
+          "type" : "integer"
+        },
         "num_subtasks" : {
           "type" : "integer"
         },
         "num_acknowledged_subtasks" : {
           "type" : "integer"
+        },
+        "checkpoint_type" : {
+          "type" : "string",
+          "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
         },
         "tasks" : {
           "type" : "object",
@@ -1277,6 +1343,12 @@
                 "type" : "integer"
               },
               "alignment_buffered" : {
+                "type" : "integer"
+              },
+              "processed_data" : {
+                "type" : "integer"
+              },
+              "persisted_data" : {
                 "type" : "integer"
               },
               "num_subtasks" : {
@@ -1333,6 +1405,12 @@
         "alignment_buffered" : {
           "type" : "integer"
         },
+        "processed_data" : {
+          "type" : "integer"
+        },
+        "persisted_data" : {
+          "type" : "integer"
+        },
         "num_subtasks" : {
           "type" : "integer"
         },
@@ -1381,6 +1459,14 @@
               "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
               "properties" : {
                 "buffered" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "processed" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "persisted" : {
                   "type" : "object",
                   "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
                 },
@@ -1807,6 +1893,9 @@
         "parallelism" : {
           "type" : "integer"
         },
+        "maxParallelism" : {
+          "type" : "integer"
+        },
         "now" : {
           "type" : "integer"
         },
@@ -1971,6 +2060,12 @@
                 "enum" : [ "ok", "low", "high" ]
               },
               "ratio" : {
+                "type" : "number"
+              },
+              "idleRatio" : {
+                "type" : "number"
+              },
+              "busyRatio" : {
                 "type" : "number"
               }
             }

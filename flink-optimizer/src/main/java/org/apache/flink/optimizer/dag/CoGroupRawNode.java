@@ -17,66 +17,66 @@
  */
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.CoGroupRawDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
 
-/**
- * The Optimizer representation of a <i>CoGroupRaw</i> operator.
- */
+import java.util.Collections;
+import java.util.List;
+
+/** The Optimizer representation of a <i>CoGroupRaw</i> operator. */
 public class CoGroupRawNode extends TwoInputNode {
-	private List<OperatorDescriptorDual> dataProperties;
+    private List<OperatorDescriptorDual> dataProperties;
 
-	public CoGroupRawNode(CoGroupRawOperatorBase<?, ?, ?, ?> pactContract) {
-		super(pactContract);
-		this.dataProperties = initializeDataProperties();
-	}
+    public CoGroupRawNode(CoGroupRawOperatorBase<?, ?, ?, ?> pactContract) {
+        super(pactContract);
+        this.dataProperties = initializeDataProperties();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	/**
-	 * Gets the operator for this CoGroup node.
-	 * 
-	 * @return The CoGroup operator.
-	 */
-	@Override
-	public CoGroupRawOperatorBase<?, ?, ?, ?> getOperator() {
-		return (CoGroupRawOperatorBase<?, ?, ?, ?>) super.getOperator();
-	}
+    // --------------------------------------------------------------------------------------------
+    /**
+     * Gets the operator for this CoGroup node.
+     *
+     * @return The CoGroup operator.
+     */
+    @Override
+    public CoGroupRawOperatorBase<?, ?, ?, ?> getOperator() {
+        return (CoGroupRawOperatorBase<?, ?, ?, ?>) super.getOperator();
+    }
 
-	@Override
-	public String getOperatorName() {
-		return "CoGroup";
-	}
+    @Override
+    public String getOperatorName() {
+        return "CoGroup";
+    }
 
-	@Override
-	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		return this.dataProperties;
-	}
+    @Override
+    protected List<OperatorDescriptorDual> getPossibleProperties() {
+        return this.dataProperties;
+    }
 
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		// for CoGroup, we currently make no reasonable default estimates
-	}
+    @Override
+    protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+        // for CoGroup, we currently make no reasonable default estimates
+    }
 
-	private List<OperatorDescriptorDual> initializeDataProperties() {
-		Ordering groupOrder1 = null;
-		Ordering groupOrder2 = null;
+    private List<OperatorDescriptorDual> initializeDataProperties() {
+        Ordering groupOrder1 = null;
+        Ordering groupOrder2 = null;
 
-		CoGroupRawOperatorBase<?, ?, ?, ?> cgc = getOperator();
-		groupOrder1 = cgc.getGroupOrderForInputOne();
-		groupOrder2 = cgc.getGroupOrderForInputTwo();
+        CoGroupRawOperatorBase<?, ?, ?, ?> cgc = getOperator();
+        groupOrder1 = cgc.getGroupOrderForInputOne();
+        groupOrder2 = cgc.getGroupOrderForInputTwo();
 
-		if (groupOrder1 != null && groupOrder1.getNumberOfFields() == 0) {
-			groupOrder1 = null;
-		}
-		if (groupOrder2 != null && groupOrder2.getNumberOfFields() == 0) {
-			groupOrder2 = null;
-		}
+        if (groupOrder1 != null && groupOrder1.getNumberOfFields() == 0) {
+            groupOrder1 = null;
+        }
+        if (groupOrder2 != null && groupOrder2.getNumberOfFields() == 0) {
+            groupOrder2 = null;
+        }
 
-		return Collections.<OperatorDescriptorDual>singletonList(new CoGroupRawDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
-	}
+        return Collections.<OperatorDescriptorDual>singletonList(
+                new CoGroupRawDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
+    }
 }

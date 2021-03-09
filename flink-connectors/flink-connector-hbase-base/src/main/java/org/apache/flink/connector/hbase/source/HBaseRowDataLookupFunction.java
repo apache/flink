@@ -43,112 +43,121 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * The HBaseRowDataLookupFunction is a standard user-defined table function, it can be used in tableAPI
- * and also useful for temporal table join plan in SQL. It looks up the result as {@link RowData}.
+ * The HBaseRowDataLookupFunction is a standard user-defined table function, it can be used in
+ * tableAPI and also useful for temporal table join plan in SQL. It looks up the result as {@link
+ * RowData}.
  */
 @Internal
 public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataLookupFunction.class);
-	private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataLookupFunction.class);
+    private static final long serialVersionUID = 1L;
 
-	private final String hTableName;
-	private final byte[] serializedConfig;
-	private final HBaseTableSchema hbaseTableSchema;
-	private final String nullStringLiteral;
+    private final String hTableName;
+    private final byte[] serializedConfig;
+    private final HBaseTableSchema hbaseTableSchema;
+    private final String nullStringLiteral;
 
-	private transient Connection hConnection;
-	private transient HTable table;
-	private transient HBaseSerde serde;
+    private transient Connection hConnection;
+    private transient HTable table;
+    private transient HBaseSerde serde;
 
-	public HBaseRowDataLookupFunction(
-			Configuration configuration,
-			String hTableName,
-			HBaseTableSchema hbaseTableSchema,
-			String nullStringLiteral) {
-		this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(configuration);
-		this.hTableName = hTableName;
-		this.hbaseTableSchema = hbaseTableSchema;
-		this.nullStringLiteral = nullStringLiteral;
-	}
+    public HBaseRowDataLookupFunction(
+            Configuration configuration,
+            String hTableName,
+            HBaseTableSchema hbaseTableSchema,
+            String nullStringLiteral) {
+        this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(configuration);
+        this.hTableName = hTableName;
+        this.hbaseTableSchema = hbaseTableSchema;
+        this.nullStringLiteral = nullStringLiteral;
+    }
 
-	/**
-	 * The invoke entry point of lookup function.
-	 * @param rowKey the lookup key. Currently only support single rowkey.
-	 */
-	public void eval(Object rowKey) throws IOException {
-		// fetch result
-		Get get = serde.createGet(rowKey);
-		if (get != null) {
-			Result result = table.get(get);
-			if (!result.isEmpty()) {
-				// parse and collect
-				collect(serde.convertToRow(result));
-			}
-		}
-	}
+    /**
+     * The invoke entry point of lookup function.
+     *
+     * @param rowKey the lookup key. Currently only support single rowkey.
+     */
+    public void eval(Object rowKey) throws IOException {
+        // fetch result
+        Get get = serde.createGet(rowKey);
+        if (get != null) {
+            Result result = table.get(get);
+            if (!result.isEmpty()) {
+                // parse and collect
+                collect(serde.convertToRow(result));
+            }
+        }
+    }
 
-	private Configuration prepareRuntimeConfiguration() {
-		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
-		// and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
-		// user params from client-side have the highest priority
-		Configuration runtimeConfig = HBaseConfigurationUtil.deserializeConfiguration(
-			serializedConfig,
-			HBaseConfigurationUtil.getHBaseConfiguration());
+    private Configuration prepareRuntimeConfiguration() {
+        // create default configuration from current runtime env (`hbase-site.xml` in classpath)
+        // first,
+        // and overwrite configuration using serialized configuration from client-side env
+        // (`hbase-site.xml` in classpath).
+        // user params from client-side have the highest priority
+        Configuration runtimeConfig =
+                HBaseConfigurationUtil.deserializeConfiguration(
+                        serializedConfig, HBaseConfigurationUtil.getHBaseConfiguration());
 
-		// do validation: check key option(s) in final runtime configuration
-		if (StringUtils.isNullOrWhitespaceOnly(runtimeConfig.get(HConstants.ZOOKEEPER_QUORUM))) {
-			LOG.error("can not connect to HBase without {} configuration", HConstants.ZOOKEEPER_QUORUM);
-			throw new IllegalArgumentException("check HBase configuration failed, lost: '" + HConstants.ZOOKEEPER_QUORUM + "'!");
-		}
+        // do validation: check key option(s) in final runtime configuration
+        if (StringUtils.isNullOrWhitespaceOnly(runtimeConfig.get(HConstants.ZOOKEEPER_QUORUM))) {
+            LOG.error(
+                    "can not connect to HBase without {} configuration",
+                    HConstants.ZOOKEEPER_QUORUM);
+            throw new IllegalArgumentException(
+                    "check HBase configuration failed, lost: '"
+                            + HConstants.ZOOKEEPER_QUORUM
+                            + "'!");
+        }
 
-		return runtimeConfig;
-	}
+        return runtimeConfig;
+    }
 
-	@Override
-	public void open(FunctionContext context) {
-		LOG.info("start open ...");
-		Configuration config = prepareRuntimeConfiguration();
-		try {
-			hConnection = ConnectionFactory.createConnection(config);
-			table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
-		} catch (TableNotFoundException tnfe) {
-			LOG.error("Table '{}' not found ", hTableName, tnfe);
-			throw new RuntimeException("HBase table '" + hTableName + "' not found.", tnfe);
-		} catch (IOException ioe) {
-			LOG.error("Exception while creating connection to HBase.", ioe);
-			throw new RuntimeException("Cannot create connection to HBase.", ioe);
-		}
-		this.serde = new HBaseSerde(hbaseTableSchema, nullStringLiteral);
-		LOG.info("end open.");
-	}
+    @Override
+    public void open(FunctionContext context) {
+        LOG.info("start open ...");
+        Configuration config = prepareRuntimeConfiguration();
+        try {
+            hConnection = ConnectionFactory.createConnection(config);
+            table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
+        } catch (TableNotFoundException tnfe) {
+            LOG.error("Table '{}' not found ", hTableName, tnfe);
+            throw new RuntimeException("HBase table '" + hTableName + "' not found.", tnfe);
+        } catch (IOException ioe) {
+            LOG.error("Exception while creating connection to HBase.", ioe);
+            throw new RuntimeException("Cannot create connection to HBase.", ioe);
+        }
+        this.serde = new HBaseSerde(hbaseTableSchema, nullStringLiteral);
+        LOG.info("end open.");
+    }
 
-	@Override
-	public void close() {
-		LOG.info("start close ...");
-		if (null != table) {
-			try {
-				table.close();
-				table = null;
-			} catch (IOException e) {
-				// ignore exception when close.
-				LOG.warn("exception when close table", e);
-			}
-		}
-		if (null != hConnection) {
-			try {
-				hConnection.close();
-				hConnection = null;
-			} catch (IOException e) {
-				// ignore exception when close.
-				LOG.warn("exception when close connection", e);
-			}
-		}
-		LOG.info("end close.");
-	}
+    @Override
+    public void close() {
+        LOG.info("start close ...");
+        if (null != table) {
+            try {
+                table.close();
+                table = null;
+            } catch (IOException e) {
+                // ignore exception when close.
+                LOG.warn("exception when close table", e);
+            }
+        }
+        if (null != hConnection) {
+            try {
+                hConnection.close();
+                hConnection = null;
+            } catch (IOException e) {
+                // ignore exception when close.
+                LOG.warn("exception when close connection", e);
+            }
+        }
+        LOG.info("end close.");
+    }
 
-	@VisibleForTesting
-	public String getHTableName() {
-		return hTableName;
-	}
+    @VisibleForTesting
+    public String getHTableName() {
+        return hTableName;
+    }
 }

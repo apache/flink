@@ -24,22 +24,21 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpecFactory;
 
-/**
- * Implementation of {@link WorkerResourceSpecFactory} for Mesos deployments.
- */
+/** Implementation of {@link WorkerResourceSpecFactory} for Mesos deployments. */
 public class MesosWorkerResourceSpecFactory extends WorkerResourceSpecFactory {
 
-	public static final MesosWorkerResourceSpecFactory INSTANCE = new MesosWorkerResourceSpecFactory();
+    public static final MesosWorkerResourceSpecFactory INSTANCE =
+            new MesosWorkerResourceSpecFactory();
 
-	private MesosWorkerResourceSpecFactory() {}
+    private MesosWorkerResourceSpecFactory() {}
 
-	@Override
-	public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
-		return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
-	}
+    @Override
+    public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
+        return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
+    }
 
-	private static CPUResource getDefaultCpus(Configuration configuration) {
-		double fallback = configuration.getDouble(MesosTaskManagerParameters.MESOS_RM_TASKS_CPUS);
-		return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback);
-	}
+    private static CPUResource getDefaultCpus(Configuration configuration) {
+        double fallback = configuration.getDouble(MesosTaskManagerParameters.MESOS_RM_TASKS_CPUS);
+        return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback);
+    }
 }

@@ -24,24 +24,26 @@ import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.api.misc.param.WithParams;
 
 /**
- * An interface for classes with a parameter specifying the name of the table column with null default value.
+ * An interface for classes with a parameter specifying the name of the table column with null
+ * default value.
+ *
  * @see HasSelectedCol
  * @see HasSelectedCols
  * @see HasSelectedColsDefaultAsNull
  */
-public interface HasSelectedColDefaultAsNull<T> extends WithParams <T> {
+public interface HasSelectedColDefaultAsNull<T> extends WithParams<T> {
 
-	ParamInfo <String> SELECTED_COL = ParamInfoFactory
-		.createParamInfo("selectedCol", String.class)
-		.setDescription("Name of the selected column used for processing")
-		.setHasDefaultValue(null)
-		.build();
+    ParamInfo<String> SELECTED_COL =
+            ParamInfoFactory.createParamInfo("selectedCol", String.class)
+                    .setDescription("Name of the selected column used for processing")
+                    .setHasDefaultValue(null)
+                    .build();
 
-	default String getSelectedCol() {
-		return get(SELECTED_COL);
-	}
+    default String getSelectedCol() {
+        return get(SELECTED_COL);
+    }
 
-	default T setSelectedCol(String value) {
-		return set(SELECTED_COL, value);
-	}
+    default T setSelectedCol(String value) {
+        return set(SELECTED_COL, value);
+    }
 }

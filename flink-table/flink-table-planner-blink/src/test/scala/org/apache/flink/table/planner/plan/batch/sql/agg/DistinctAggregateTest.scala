@@ -20,6 +20,6 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.table.planner.plan.common.DistinctAggregateTestBase
 
-class DistinctAggregateTest extends DistinctAggregateTestBase {
+class DistinctAggregateTest extends DistinctAggregateTestBase(true) {
 
 }

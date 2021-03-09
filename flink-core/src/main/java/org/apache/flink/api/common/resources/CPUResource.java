@@ -22,26 +22,24 @@ import org.apache.flink.annotation.Internal;
 
 import java.math.BigDecimal;
 
-/**
- * Represents CPU resource.
- */
+/** Represents CPU resource. */
 @Internal
 public class CPUResource extends Resource {
 
-	private static final long serialVersionUID = 7228645888210984393L;
+    private static final long serialVersionUID = 7228645888210984393L;
 
-	public static final String NAME = "CPU";
+    public static final String NAME = "CPU";
 
-	public CPUResource(double value) {
-		super(NAME, value);
-	}
+    public CPUResource(double value) {
+        super(NAME, value);
+    }
 
-	private CPUResource(BigDecimal value) {
-		super(NAME, value);
-	}
+    private CPUResource(BigDecimal value) {
+        super(NAME, value);
+    }
 
-	@Override
-	public Resource create(BigDecimal value) {
-		return new CPUResource(value);
-	}
+    @Override
+    public Resource create(BigDecimal value) {
+        return new CPUResource(value);
+    }
 }

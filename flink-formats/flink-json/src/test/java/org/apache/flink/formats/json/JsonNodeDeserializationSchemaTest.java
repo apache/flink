@@ -26,22 +26,20 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link JsonNodeDeserializationSchema}.
- */
+/** Tests for the {@link JsonNodeDeserializationSchema}. */
 public class JsonNodeDeserializationSchemaTest {
 
-	@Test
-	public void testDeserialize() throws IOException {
-		ObjectMapper mapper = new ObjectMapper();
-		ObjectNode initialValue = mapper.createObjectNode();
-		initialValue.put("key", 4).put("value", "world");
-		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+    @Test
+    public void testDeserialize() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode initialValue = mapper.createObjectNode();
+        initialValue.put("key", 4).put("value", "world");
+        byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
-		JsonNodeDeserializationSchema schema = new JsonNodeDeserializationSchema();
-		ObjectNode deserializedValue = schema.deserialize(serializedValue);
+        JsonNodeDeserializationSchema schema = new JsonNodeDeserializationSchema();
+        ObjectNode deserializedValue = schema.deserialize(serializedValue);
 
-		assertEquals(4, deserializedValue.get("key").asInt());
-		assertEquals("world", deserializedValue.get("value").asText());
-	}
+        assertEquals(4, deserializedValue.get("key").asInt());
+        assertEquals("world", deserializedValue.get("value").asText());
+    }
 }

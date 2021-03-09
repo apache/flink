@@ -29,14 +29,16 @@ import org.apache.flink.table.factories.DynamicTableFactory;
  * Base interface for connector formats.
  *
  * <p>Depending on the kind of external system, a connector might support different encodings for
- * reading and writing rows. This interface is an intermediate representation before constructing actual
- * runtime implementation.
+ * reading and writing rows. This interface is an intermediate representation before constructing
+ * actual runtime implementation.
  *
  * <p>Formats can be distinguished along two dimensions:
+ *
  * <ul>
- *     <li>Context in which the format is applied ({@link DynamicTableSource} or {@link DynamicTableSink}).
- *     <li>Runtime implementation interface that is required (e.g. {@link DeserializationSchema} or
- *     some bulk interface).</li>
+ *   <li>Context in which the format is applied ({@link DynamicTableSource} or {@link
+ *       DynamicTableSink}).
+ *   <li>Runtime implementation interface that is required (e.g. {@link DeserializationSchema} or
+ *       some bulk interface).
  * </ul>
  *
  * <p>A {@link DynamicTableFactory} can search for a format that it is accepted by the connector.
@@ -47,9 +49,9 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 @PublicEvolving
 public interface Format {
 
-	/**
-	 * Returns the set of changes that a connector (and transitively the planner) can expect during
-	 * runtime.
-	 */
-	ChangelogMode getChangelogMode();
+    /**
+     * Returns the set of changes that a connector (and transitively the planner) can expect during
+     * runtime.
+     */
+    ChangelogMode getChangelogMode();
 }

@@ -24,15 +24,14 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 
-/**
- * The {@link PipelineExecutor} to be used when executing a job on an already running cluster.
- */
+/** The {@link PipelineExecutor} to be used when executing a job on an already running cluster. */
 @Internal
-public class KubernetesSessionClusterExecutor extends AbstractSessionClusterExecutor<String, KubernetesClusterClientFactory> {
+public class KubernetesSessionClusterExecutor
+        extends AbstractSessionClusterExecutor<String, KubernetesClusterClientFactory> {
 
-	public static final String NAME = KubernetesDeploymentTarget.SESSION.getName();
+    public static final String NAME = KubernetesDeploymentTarget.SESSION.getName();
 
-	public KubernetesSessionClusterExecutor() {
-		super(new KubernetesClusterClientFactory());
-	}
+    public KubernetesSessionClusterExecutor() {
+        super(new KubernetesClusterClientFactory());
+    }
 }

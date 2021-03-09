@@ -29,34 +29,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * {@link ResponseBody} for {@link ClusterDataSetListHeaders}.
- */
+/** {@link ResponseBody} for {@link ClusterDataSetListHeaders}. */
 public class ClusterDataSetListResponseBody implements ResponseBody {
-	private static final String FIELD_NAME_PARTITIONS = "dataSets";
+    private static final String FIELD_NAME_PARTITIONS = "dataSets";
 
-	@JsonProperty(FIELD_NAME_PARTITIONS)
-	private final List<ClusterDataSetEntry> dataSets;
+    @JsonProperty(FIELD_NAME_PARTITIONS)
+    private final List<ClusterDataSetEntry> dataSets;
 
-	@JsonCreator
-	private ClusterDataSetListResponseBody(@JsonProperty(FIELD_NAME_PARTITIONS) List<ClusterDataSetEntry> dataSets) {
-		this.dataSets = dataSets;
-	}
+    @JsonCreator
+    private ClusterDataSetListResponseBody(
+            @JsonProperty(FIELD_NAME_PARTITIONS) List<ClusterDataSetEntry> dataSets) {
+        this.dataSets = dataSets;
+    }
 
-	public static ClusterDataSetListResponseBody from(Map<IntermediateDataSetID, DataSetMetaInfo> dataSets) {
-		final List<ClusterDataSetEntry> convertedInfo = dataSets.entrySet().stream()
-			.map(entry -> {
-				DataSetMetaInfo metaInfo = entry.getValue();
-				int numRegisteredPartitions = metaInfo.getNumRegisteredPartitions().orElse(0);
-				int numTotalPartition = metaInfo.getNumTotalPartitions();
-				return new ClusterDataSetEntry(entry.getKey(), numRegisteredPartitions == numTotalPartition);
-			})
-			.collect(Collectors.toList());
-		return new ClusterDataSetListResponseBody(convertedInfo);
-	}
+    public static ClusterDataSetListResponseBody from(
+            Map<IntermediateDataSetID, DataSetMetaInfo> dataSets) {
+        final List<ClusterDataSetEntry> convertedInfo =
+                dataSets.entrySet().stream()
+                        .map(
+                                entry -> {
+                                    DataSetMetaInfo metaInfo = entry.getValue();
+                                    int numRegisteredPartitions =
+                                            metaInfo.getNumRegisteredPartitions().orElse(0);
+                                    int numTotalPartition = metaInfo.getNumTotalPartitions();
+                                    return new ClusterDataSetEntry(
+                                            entry.getKey(),
+                                            numRegisteredPartitions == numTotalPartition);
+                                })
+                        .collect(Collectors.toList());
+        return new ClusterDataSetListResponseBody(convertedInfo);
+    }
 
-	@JsonIgnore
-	public List<ClusterDataSetEntry> getDataSets() {
-		return dataSets;
-	}
+    @JsonIgnore
+    public List<ClusterDataSetEntry> getDataSets() {
+        return dataSets;
+    }
 }

@@ -48,289 +48,305 @@ import java.util.TreeSet;
 import java.util.UUID;
 
 /**
- * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
- * mechanism and can provide exactly-once guarantees; depending on the storage backend and sink/committer implementation.
+ * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated
+ * with Flink's checkpointing mechanism and can provide exactly-once guarantees; depending on the
+ * storage backend and sink/committer implementation.
  *
- * <p>Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
- * checkpoint is completed.
+ * <p>Incoming records are stored within a {@link
+ * org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a checkpoint is
+ * completed.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN>
-		implements OneInputStreamOperator<IN, IN> {
+        implements OneInputStreamOperator<IN, IN> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 
-	private final String id;
-	private final CheckpointCommitter committer;
-	protected final TypeSerializer<IN> serializer;
+    private final String id;
+    private final CheckpointCommitter committer;
+    protected final TypeSerializer<IN> serializer;
 
-	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
-	private transient CheckpointStorageWorkerView checkpointStorage;
+    private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
+    private transient CheckpointStorageWorkerView checkpointStorage;
 
-	private transient ListState<PendingCheckpoint> checkpointedState;
+    private transient ListState<PendingCheckpoint> checkpointedState;
 
-	private final Set<PendingCheckpoint> pendingCheckpoints = new TreeSet<>();
+    private final Set<PendingCheckpoint> pendingCheckpoints = new TreeSet<>();
 
-	public GenericWriteAheadSink(
-			CheckpointCommitter committer,
-			TypeSerializer<IN> serializer,
-			String jobID) throws Exception {
+    public GenericWriteAheadSink(
+            CheckpointCommitter committer, TypeSerializer<IN> serializer, String jobID)
+            throws Exception {
 
-		this.committer = Preconditions.checkNotNull(committer);
-		this.serializer = Preconditions.checkNotNull(serializer);
-		this.id = UUID.randomUUID().toString();
+        this.committer = Preconditions.checkNotNull(committer);
+        this.serializer = Preconditions.checkNotNull(serializer);
+        this.id = UUID.randomUUID().toString();
 
-		this.committer.setJobId(jobID);
-		this.committer.createResource();
-	}
+        this.committer.setJobId(jobID);
+        this.committer.createResource();
+    }
 
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		super.initializeState(context);
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
 
-		Preconditions.checkState(this.checkpointedState == null,
-			"The reader state has already been initialized.");
+        Preconditions.checkState(
+                this.checkpointedState == null, "The reader state has already been initialized.");
 
-		// We are using JavaSerializer from the flink-runtime module here. This is very naughty and
-		// we shouldn't be doing it because ideally nothing in the API modules/connector depends
-		// directly on flink-runtime. We are doing it here because we need to maintain backwards
-		// compatibility with old state and because we will have to rework/remove this code soon.
-		checkpointedState = context
-							.getOperatorStateStore()
-							.getListState(new ListStateDescriptor<>("pending-checkpoints", new JavaSerializer<>()));
+        // We are using JavaSerializer from the flink-runtime module here. This is very naughty and
+        // we shouldn't be doing it because ideally nothing in the API modules/connector depends
+        // directly on flink-runtime. We are doing it here because we need to maintain backwards
+        // compatibility with old state and because we will have to rework/remove this code soon.
+        checkpointedState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        "pending-checkpoints", new JavaSerializer<>()));
 
-		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-		if (context.isRestored()) {
-			LOG.info("Restoring state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
+        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        if (context.isRestored()) {
+            LOG.info("Restoring state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 
-			for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
-				this.pendingCheckpoints.add(pendingCheckpoint);
-			}
+            for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
+                this.pendingCheckpoints.add(pendingCheckpoint);
+            }
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("GenericWriteAheadSink idx {} restored {}.", subtaskIdx, this.pendingCheckpoints);
-			}
-		} else {
-			LOG.info("No state to restore for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
-		}
-	}
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                        "GenericWriteAheadSink idx {} restored {}.",
+                        subtaskIdx,
+                        this.pendingCheckpoints);
+            }
+        } else {
+            LOG.info("No state to restore for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
+        }
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		committer.setOperatorId(id);
-		committer.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
+        committer.setOperatorId(id);
+        committer.open();
 
-		checkpointStorage = getContainingTask().getCheckpointStorage();
+        checkpointStorage = getContainingTask().getCheckpointStorage();
 
-		cleanRestoredHandles();
-	}
+        cleanRestoredHandles();
+    }
 
-	public void close() throws Exception {
-		committer.close();
-	}
+    public void close() throws Exception {
+        committer.close();
+    }
 
-	/**
-	 * Called when a checkpoint barrier arrives. It closes any open streams to the backend
-	 * and marks them as pending for committing to the external, third-party storage system.
-	 *
-	 * @param checkpointId the id of the latest received checkpoint.
-	 * @throws IOException in case something went wrong when handling the stream to the backend.
-	 */
-	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
+    /**
+     * Called when a checkpoint barrier arrives. It closes any open streams to the backend and marks
+     * them as pending for committing to the external, third-party storage system.
+     *
+     * @param checkpointId the id of the latest received checkpoint.
+     * @throws IOException in case something went wrong when handling the stream to the backend.
+     */
+    private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
 
-		//only add handle if a new OperatorState was created since the last snapshot
-		if (out != null) {
-			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-			StreamStateHandle handle = out.closeAndGetHandle();
+        // only add handle if a new OperatorState was created since the last snapshot
+        if (out != null) {
+            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            StreamStateHandle handle = out.closeAndGetHandle();
 
-			PendingCheckpoint pendingCheckpoint = new PendingCheckpoint(
-				checkpointId, subtaskIdx, timestamp, handle);
+            PendingCheckpoint pendingCheckpoint =
+                    new PendingCheckpoint(checkpointId, subtaskIdx, timestamp, handle);
 
-			if (pendingCheckpoints.contains(pendingCheckpoint)) {
-				//we already have a checkpoint stored for that ID that may have been partially written,
-				//so we discard this "alternate version" and use the stored checkpoint
-				handle.discardState();
-			} else {
-				pendingCheckpoints.add(pendingCheckpoint);
-			}
-			out = null;
-		}
-	}
+            if (pendingCheckpoints.contains(pendingCheckpoint)) {
+                // we already have a checkpoint stored for that ID that may have been partially
+                // written,
+                // so we discard this "alternate version" and use the stored checkpoint
+                handle.discardState();
+            } else {
+                pendingCheckpoints.add(pendingCheckpoint);
+            }
+            out = null;
+        }
+    }
 
-	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-		super.snapshotState(context);
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        super.snapshotState(context);
 
-		Preconditions.checkState(this.checkpointedState != null,
-			"The operator state has not been properly initialized.");
+        Preconditions.checkState(
+                this.checkpointedState != null,
+                "The operator state has not been properly initialized.");
 
-		saveHandleInState(context.getCheckpointId(), context.getCheckpointTimestamp());
+        saveHandleInState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
-		this.checkpointedState.clear();
+        this.checkpointedState.clear();
 
-		try {
-			for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
-				// create a new partition for each entry.
-				this.checkpointedState.add(pendingCheckpoint);
-			}
-		} catch (Exception e) {
-			checkpointedState.clear();
+        try {
+            for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
+                // create a new partition for each entry.
+                this.checkpointedState.add(pendingCheckpoint);
+            }
+        } catch (Exception e) {
+            checkpointedState.clear();
 
-			throw new Exception("Could not add panding checkpoints to operator state " +
-				"backend of operator " + getOperatorName() + '.', e);
-		}
+            throw new Exception(
+                    "Could not add panding checkpoints to operator state "
+                            + "backend of operator "
+                            + getOperatorName()
+                            + '.',
+                    e);
+        }
 
-		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx= {}) checkpointed {}.", getClass().getSimpleName(), subtaskIdx, this.pendingCheckpoints);
-		}
-	}
+        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "{} (taskIdx= {}) checkpointed {}.",
+                    getClass().getSimpleName(),
+                    subtaskIdx,
+                    this.pendingCheckpoints);
+        }
+    }
 
-	/**
-	 * Called at {@link #open()} to clean-up the pending handle list.
-	 * It iterates over all restored pending handles, checks which ones are already
-	 * committed to the outside storage system and removes them from the list.
-	 */
-	private void cleanRestoredHandles() throws Exception {
-		synchronized (pendingCheckpoints) {
+    /**
+     * Called at {@link #open()} to clean-up the pending handle list. It iterates over all restored
+     * pending handles, checks which ones are already committed to the outside storage system and
+     * removes them from the list.
+     */
+    private void cleanRestoredHandles() throws Exception {
+        synchronized (pendingCheckpoints) {
+            Iterator<PendingCheckpoint> pendingCheckpointIt = pendingCheckpoints.iterator();
+            while (pendingCheckpointIt.hasNext()) {
+                PendingCheckpoint pendingCheckpoint = pendingCheckpointIt.next();
 
-			Iterator<PendingCheckpoint> pendingCheckpointIt = pendingCheckpoints.iterator();
-			while (pendingCheckpointIt.hasNext()) {
-				PendingCheckpoint pendingCheckpoint = pendingCheckpointIt.next();
+                if (committer.isCheckpointCommitted(
+                        pendingCheckpoint.subtaskId, pendingCheckpoint.checkpointId)) {
+                    pendingCheckpoint.stateHandle.discardState();
+                    pendingCheckpointIt.remove();
+                }
+            }
+        }
+    }
 
-				if (committer.isCheckpointCommitted(pendingCheckpoint.subtaskId, pendingCheckpoint.checkpointId)) {
-					pendingCheckpoint.stateHandle.discardState();
-					pendingCheckpointIt.remove();
-				}
-			}
-		}
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        super.notifyCheckpointComplete(checkpointId);
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		super.notifyCheckpointComplete(checkpointId);
+        synchronized (pendingCheckpoints) {
+            Iterator<PendingCheckpoint> pendingCheckpointIt = pendingCheckpoints.iterator();
+            while (pendingCheckpointIt.hasNext()) {
 
-		synchronized (pendingCheckpoints) {
+                PendingCheckpoint pendingCheckpoint = pendingCheckpointIt.next();
 
-			Iterator<PendingCheckpoint> pendingCheckpointIt = pendingCheckpoints.iterator();
-			while (pendingCheckpointIt.hasNext()) {
+                long pastCheckpointId = pendingCheckpoint.checkpointId;
+                int subtaskId = pendingCheckpoint.subtaskId;
+                long timestamp = pendingCheckpoint.timestamp;
+                StreamStateHandle streamHandle = pendingCheckpoint.stateHandle;
 
-				PendingCheckpoint pendingCheckpoint = pendingCheckpointIt.next();
+                if (pastCheckpointId <= checkpointId) {
+                    try {
+                        if (!committer.isCheckpointCommitted(subtaskId, pastCheckpointId)) {
+                            try (FSDataInputStream in = streamHandle.openInputStream()) {
+                                boolean success =
+                                        sendValues(
+                                                new ReusingMutableToRegularIteratorWrapper<>(
+                                                        new InputViewIterator<>(
+                                                                new DataInputViewStreamWrapper(in),
+                                                                serializer),
+                                                        serializer),
+                                                pastCheckpointId,
+                                                timestamp);
+                                if (success) {
+                                    // in case the checkpoint was successfully committed,
+                                    // discard its state from the backend and mark it for removal
+                                    // in case it failed, we retry on the next checkpoint
+                                    committer.commitCheckpoint(subtaskId, pastCheckpointId);
+                                    streamHandle.discardState();
+                                    pendingCheckpointIt.remove();
+                                }
+                            }
+                        } else {
+                            streamHandle.discardState();
+                            pendingCheckpointIt.remove();
+                        }
+                    } catch (Exception e) {
+                        // we have to break here to prevent a new (later) checkpoint
+                        // from being committed before this one
+                        LOG.error("Could not commit checkpoint.", e);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
-				long pastCheckpointId = pendingCheckpoint.checkpointId;
-				int subtaskId = pendingCheckpoint.subtaskId;
-				long timestamp = pendingCheckpoint.timestamp;
-				StreamStateHandle streamHandle = pendingCheckpoint.stateHandle;
+    /**
+     * Write the given element into the backend.
+     *
+     * @param values The values to be written
+     * @param checkpointId The checkpoint ID of the checkpoint to be written
+     * @param timestamp The wall-clock timestamp of the checkpoint
+     * @return true, if the sending was successful, false otherwise
+     * @throws Exception
+     */
+    protected abstract boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp)
+            throws Exception;
 
-				if (pastCheckpointId <= checkpointId) {
-					try {
-						if (!committer.isCheckpointCommitted(subtaskId, pastCheckpointId)) {
-							try (FSDataInputStream in = streamHandle.openInputStream()) {
-								boolean success = sendValues(
-										new ReusingMutableToRegularIteratorWrapper<>(
-												new InputViewIterator<>(
-														new DataInputViewStreamWrapper(
-																in),
-														serializer),
-												serializer),
-										pastCheckpointId,
-										timestamp);
-								if (success) {
-									// in case the checkpoint was successfully committed,
-									// discard its state from the backend and mark it for removal
-									// in case it failed, we retry on the next checkpoint
-									committer.commitCheckpoint(subtaskId, pastCheckpointId);
-									streamHandle.discardState();
-									pendingCheckpointIt.remove();
-								}
-							}
-						} else {
-							streamHandle.discardState();
-							pendingCheckpointIt.remove();
-						}
-					} catch (Exception e) {
-						// we have to break here to prevent a new (later) checkpoint
-						// from being committed before this one
-						LOG.error("Could not commit checkpoint.", e);
-						break;
-					}
-				}
-			}
-		}
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        IN value = element.getValue();
+        // generate initial operator state
+        if (out == null) {
+            out = checkpointStorage.createTaskOwnedStateStream();
+        }
+        serializer.serialize(value, new DataOutputViewStreamWrapper(out));
+    }
 
-	/**
-	 * Write the given element into the backend.
-	 *
-	 * @param values The values to be written
-	 * @param checkpointId The checkpoint ID of the checkpoint to be written
-	 * @param timestamp The wall-clock timestamp of the checkpoint
-	 *
-	 * @return true, if the sending was successful, false otherwise
-	 *
-	 * @throws Exception
-	 */
-	protected abstract boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp) throws Exception;
+    private static final class PendingCheckpoint
+            implements Comparable<PendingCheckpoint>, Serializable {
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		IN value = element.getValue();
-		// generate initial operator state
-		if (out == null) {
-			out = checkpointStorage.createTaskOwnedStateStream();
-		}
-		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
-	}
+        private static final long serialVersionUID = -3571036395734603443L;
 
-	private static final class PendingCheckpoint implements Comparable<PendingCheckpoint>, Serializable {
+        private final long checkpointId;
+        private final int subtaskId;
+        private final long timestamp;
+        private final StreamStateHandle stateHandle;
 
-		private static final long serialVersionUID = -3571036395734603443L;
+        PendingCheckpoint(
+                long checkpointId, int subtaskId, long timestamp, StreamStateHandle handle) {
+            this.checkpointId = checkpointId;
+            this.subtaskId = subtaskId;
+            this.timestamp = timestamp;
+            this.stateHandle = handle;
+        }
 
-		private final long checkpointId;
-		private final int subtaskId;
-		private final long timestamp;
-		private final StreamStateHandle stateHandle;
+        @Override
+        public int compareTo(PendingCheckpoint o) {
+            int res = Long.compare(this.checkpointId, o.checkpointId);
+            return res != 0 ? res : this.subtaskId - o.subtaskId;
+        }
 
-		PendingCheckpoint(long checkpointId, int subtaskId, long timestamp, StreamStateHandle handle) {
-			this.checkpointId = checkpointId;
-			this.subtaskId = subtaskId;
-			this.timestamp = timestamp;
-			this.stateHandle = handle;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
+                return false;
+            }
+            PendingCheckpoint other = (PendingCheckpoint) o;
+            return this.checkpointId == other.checkpointId
+                    && this.subtaskId == other.subtaskId
+                    && this.timestamp == other.timestamp;
+        }
 
-		@Override
-		public int compareTo(PendingCheckpoint o) {
-			int res = Long.compare(this.checkpointId, o.checkpointId);
-			return res != 0 ? res : this.subtaskId - o.subtaskId;
-		}
+        @Override
+        public int hashCode() {
+            int hash = 17;
+            hash = 31 * hash + (int) (checkpointId ^ (checkpointId >>> 32));
+            hash = 31 * hash + subtaskId;
+            hash = 31 * hash + (int) (timestamp ^ (timestamp >>> 32));
+            return hash;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (!(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
-				return false;
-			}
-			PendingCheckpoint other = (PendingCheckpoint) o;
-			return this.checkpointId == other.checkpointId &&
-				this.subtaskId == other.subtaskId &&
-				this.timestamp == other.timestamp;
-		}
-
-		@Override
-		public int hashCode() {
-			int hash = 17;
-			hash = 31 * hash + (int) (checkpointId ^ (checkpointId >>> 32));
-			hash = 31 * hash + subtaskId;
-			hash = 31 * hash + (int) (timestamp ^ (timestamp >>> 32));
-			return hash;
-		}
-
-		@Override
-		public String toString() {
-			return "Pending Checkpoint: id=" + checkpointId + "/" + subtaskId + "@" + timestamp;
-		}
-	}
+        @Override
+        public String toString() {
+            return "Pending Checkpoint: id=" + checkpointId + "/" + subtaskId + "@" + timestamp;
+        }
+    }
 }

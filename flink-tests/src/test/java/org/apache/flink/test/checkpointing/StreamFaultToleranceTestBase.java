@@ -42,127 +42,122 @@ import java.util.Collection;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
-/**
- * Test base for fault tolerant streaming programs.
- */
+/** Test base for fault tolerant streaming programs. */
 @RunWith(Parameterized.class)
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
-	@Parameterized.Parameters(name = "FailoverStrategy: {0}")
-	public static Collection<FailoverStrategy> parameters() {
-		return Arrays.asList(FailoverStrategy.RestartAllFailoverStrategy, FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
-	}
+    @Parameterized.Parameters(name = "FailoverStrategy: {0}")
+    public static Collection<FailoverStrategy> parameters() {
+        return Arrays.asList(
+                FailoverStrategy.RestartAllFailoverStrategy,
+                FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
+    }
 
-	/**
-	 * The failover strategy to use.
-	 */
-	public enum FailoverStrategy{
-		RestartAllFailoverStrategy,
-		RestartPipelinedRegionFailoverStrategy
-	}
+    /** The failover strategy to use. */
+    public enum FailoverStrategy {
+        RestartAllFailoverStrategy,
+        RestartPipelinedRegionFailoverStrategy
+    }
 
-	@Parameterized.Parameter
-	public FailoverStrategy failoverStrategy;
+    @Parameterized.Parameter public FailoverStrategy failoverStrategy;
 
-	protected static final int NUM_TASK_MANAGERS = 3;
-	protected static final int NUM_TASK_SLOTS = 4;
-	protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
+    protected static final int NUM_TASK_MANAGERS = 3;
+    protected static final int NUM_TASK_SLOTS = 4;
+    protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
-	private static MiniClusterWithClientResource cluster;
+    private static MiniClusterWithClientResource cluster;
 
-	@Before
-	public void setup() throws Exception {
-		Configuration configuration = new Configuration();
-		switch (failoverStrategy) {
-			case RestartPipelinedRegionFailoverStrategy:
-				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
-				break;
-			case RestartAllFailoverStrategy:
-				configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-		}
+    @Before
+    public void setup() throws Exception {
+        Configuration configuration = new Configuration();
+        switch (failoverStrategy) {
+            case RestartPipelinedRegionFailoverStrategy:
+                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+                break;
+            case RestartAllFailoverStrategy:
+                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        }
 
-		cluster = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setConfiguration(configuration)
-				.setNumberTaskManagers(NUM_TASK_MANAGERS)
-				.setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
-				.build());
-		cluster.before();
-	}
+        cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                .setNumberTaskManagers(NUM_TASK_MANAGERS)
+                                .setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
+                                .build());
+        cluster.before();
+    }
 
-	@After
-	public void shutDownExistingCluster() {
-		if (cluster != null) {
-			cluster.after();
-			cluster = null;
-		}
-	}
+    @After
+    public void shutDownExistingCluster() {
+        if (cluster != null) {
+            cluster.after();
+            cluster = null;
+        }
+    }
 
-	/**
-	 * Implementations are expected to assemble the test topology in this function
-	 * using the provided {@link StreamExecutionEnvironment}.
-	 */
-	public abstract void testProgram(StreamExecutionEnvironment env);
+    /**
+     * Implementations are expected to assemble the test topology in this function using the
+     * provided {@link StreamExecutionEnvironment}.
+     */
+    public abstract void testProgram(StreamExecutionEnvironment env);
 
-	/**
-	 * Implementations are expected to provide test here to verify the correct behavior.
-	 */
-	public abstract void postSubmit() throws Exception;
+    /** Implementations are expected to provide test here to verify the correct behavior. */
+    public abstract void postSubmit() throws Exception;
 
-	/**
-	 * Runs the following program the test program defined in {@link #testProgram(StreamExecutionEnvironment)}
-	 * followed by the checks in {@link #postSubmit}.
-	 */
-	@Test
-	public void runCheckpointedProgram() throws Exception {
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+    /**
+     * Runs the following program the test program defined in {@link
+     * #testProgram(StreamExecutionEnvironment)} followed by the checks in {@link #postSubmit}.
+     */
+    @Test
+    public void runCheckpointedProgram() throws Exception {
+        try {
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(PARALLELISM);
+            env.enableCheckpointing(500);
+            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
-			testProgram(env);
+            testProgram(env);
 
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			try {
-				submitJobAndWaitForResult(cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
-			} catch (Exception e) {
-				Assert.assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
-			}
+            JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+            try {
+                submitJobAndWaitForResult(
+                        cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
+            } catch (Exception e) {
+                Assert.assertTrue(
+                        ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
+            }
 
-			postSubmit();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
-	}
+            postSubmit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Frequently used utilities
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Frequently used utilities
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * POJO storing prefix, value, and count.
-	 */
-	@SuppressWarnings("serial")
-	public static class PrefixCount implements Serializable {
+    /** POJO storing prefix, value, and count. */
+    @SuppressWarnings("serial")
+    public static class PrefixCount implements Serializable {
 
-		public String prefix;
-		public String value;
-		public long count;
+        public String prefix;
+        public String value;
+        public long count;
 
-		public PrefixCount() {}
+        public PrefixCount() {}
 
-		public PrefixCount(String prefix, String value, long count) {
-			this.prefix = prefix;
-			this.value = value;
-			this.count = count;
-		}
+        public PrefixCount(String prefix, String value, long count) {
+            this.prefix = prefix;
+            this.value = value;
+            this.count = count;
+        }
 
-		@Override
-		public String toString() {
-			return prefix + " / " + value;
-		}
-	}
+        @Override
+        public String toString() {
+            return prefix + " / " + value;
+        }
+    }
 }

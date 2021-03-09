@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, 
 import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.ProjectFilterTransposeRule
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 
 /**
@@ -41,7 +41,7 @@ class ProjectPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(
           AggregateReduceGroupingRule.INSTANCE,
-          ProjectFilterTransposeRule.INSTANCE,
+          CoreRules.PROJECT_FILTER_TRANSPOSE,
           PruneAggregateCallRule.PROJECT_ON_AGGREGATE)
         ).build())
 

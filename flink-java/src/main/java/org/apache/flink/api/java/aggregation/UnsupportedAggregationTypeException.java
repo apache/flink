@@ -20,16 +20,13 @@ package org.apache.flink.api.java.aggregation;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Exception indicating an unsupported type was used for an aggregation.
- */
+/** Exception indicating an unsupported type was used for an aggregation. */
 @PublicEvolving
 public class UnsupportedAggregationTypeException extends RuntimeException {
 
-	private static final long serialVersionUID = -1721898801986321005L;
+    private static final long serialVersionUID = -1721898801986321005L;
 
-	public UnsupportedAggregationTypeException(String message) {
-		super(message);
-	}
-
+    public UnsupportedAggregationTypeException(String message) {
+        super(message);
+    }
 }

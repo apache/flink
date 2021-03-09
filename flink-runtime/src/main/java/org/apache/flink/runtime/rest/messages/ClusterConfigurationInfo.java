@@ -26,29 +26,34 @@ import java.util.ArrayList;
 import java.util.Map;
 
 /**
- * Response of the {@link ClusterConfigHandler}, represented as a list
- * of key-value pairs of the cluster {@link Configuration}.
+ * Response of the {@link ClusterConfigHandler}, represented as a list of key-value pairs of the
+ * cluster {@link Configuration}.
  */
-public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry> implements ResponseBody {
+public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry>
+        implements ResponseBody {
 
-	private static final long serialVersionUID = -1170348873871206964L;
+    private static final long serialVersionUID = -1170348873871206964L;
 
-	// a default constructor is required for collection type marshalling
-	public ClusterConfigurationInfo() {}
+    // a default constructor is required for collection type marshalling
+    public ClusterConfigurationInfo() {}
 
-	public ClusterConfigurationInfo(int initialEntries) {
-		super(initialEntries);
-	}
+    public ClusterConfigurationInfo(int initialEntries) {
+        super(initialEntries);
+    }
 
-	public static ClusterConfigurationInfo from(Configuration config) {
-		final ClusterConfigurationInfo clusterConfig = new ClusterConfigurationInfo(config.keySet().size());
-		final Map<String, String> configurationWithHiddenSensitiveValues = ConfigurationUtils.hideSensitiveValues(config.toMap());
+    public static ClusterConfigurationInfo from(Configuration config) {
+        final ClusterConfigurationInfo clusterConfig =
+                new ClusterConfigurationInfo(config.keySet().size());
+        final Map<String, String> configurationWithHiddenSensitiveValues =
+                ConfigurationUtils.hideSensitiveValues(config.toMap());
 
-		for (Map.Entry<String, String> keyValuePair : configurationWithHiddenSensitiveValues.entrySet()) {
-			clusterConfig.add(new ClusterConfigurationInfoEntry(keyValuePair.getKey(), keyValuePair.getValue()));
-		}
+        for (Map.Entry<String, String> keyValuePair :
+                configurationWithHiddenSensitiveValues.entrySet()) {
+            clusterConfig.add(
+                    new ClusterConfigurationInfoEntry(
+                            keyValuePair.getKey(), keyValuePair.getValue()));
+        }
 
-		return clusterConfig;
-	}
-
+        return clusterConfig;
+    }
 }

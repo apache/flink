@@ -29,23 +29,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for the {@link KubernetesClusterClientFactory} discovery.
- */
+/** Test for the {@link KubernetesClusterClientFactory} discovery. */
 public class KubernetesClusterClientFactoryTest {
 
-	@Test
-	public void testKubernetesClusterClientFactoryDiscoveryWithSessionExecutor() {
-		testKubernetesClusterClientFactoryDiscoveryHelper(KubernetesSessionClusterExecutor.NAME);
-	}
+    @Test
+    public void testKubernetesClusterClientFactoryDiscoveryWithSessionExecutor() {
+        testKubernetesClusterClientFactoryDiscoveryHelper(KubernetesSessionClusterExecutor.NAME);
+    }
 
-	private void testKubernetesClusterClientFactoryDiscoveryHelper(final String targetName) {
-		final Configuration configuration = new Configuration();
-		configuration.setString(DeploymentOptions.TARGET, targetName);
+    private void testKubernetesClusterClientFactoryDiscoveryHelper(final String targetName) {
+        final Configuration configuration = new Configuration();
+        configuration.setString(DeploymentOptions.TARGET, targetName);
 
-		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
-		final ClusterClientFactory<String> factory = serviceLoader.getClusterClientFactory(configuration);
+        final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
+        final ClusterClientFactory<String> factory =
+                serviceLoader.getClusterClientFactory(configuration);
 
-		assertTrue(factory instanceof KubernetesClusterClientFactory);
-	}
+        assertTrue(factory instanceof KubernetesClusterClientFactory);
+    }
 }

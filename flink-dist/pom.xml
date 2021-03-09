@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -135,19 +135,6 @@ under the License.
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<!-- Base Connector Support -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-files</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Default file system support. The Hadoop and MapR dependencies -->
@@ -480,6 +467,28 @@ under the License.
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>bin-scala2_11</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assemblies/bin-scala2_11.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 
 		<profile>
@@ -535,6 +544,18 @@ under the License.
 	</profiles>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<configuration>
+						<finalName>flink-${project.version}-bin</finalName>
+						<appendAssemblyId>false</appendAssemblyId>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -789,8 +810,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -803,8 +822,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -817,8 +834,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/plugins.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 				</executions>

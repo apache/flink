@@ -36,27 +36,34 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler which serves the cluster's configuration.
- */
-public class ClusterConfigHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> {
+/** Handler which serves the cluster's configuration. */
+public class ClusterConfigHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                ClusterConfigurationInfo,
+                EmptyMessageParameters> {
 
-	private final ClusterConfigurationInfo clusterConfig;
+    private final ClusterConfigurationInfo clusterConfig;
 
-	public ClusterConfigHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> messageHeaders,
-			Configuration configuration) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    public ClusterConfigHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters>
+                    messageHeaders,
+            Configuration configuration) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		Preconditions.checkNotNull(configuration);
-		this.clusterConfig = ClusterConfigurationInfo.from(configuration);
-	}
+        Preconditions.checkNotNull(configuration);
+        this.clusterConfig = ClusterConfigurationInfo.from(configuration);
+    }
 
-	@Override
-	protected CompletableFuture<ClusterConfigurationInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-		return CompletableFuture.completedFuture(clusterConfig);
-	}
+    @Override
+    protected CompletableFuture<ClusterConfigurationInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        return CompletableFuture.completedFuture(clusterConfig);
+    }
 }

@@ -46,62 +46,65 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test that mesos config are extracted correctly from the configuration.
- */
+/** Test that mesos config are extracted correctly from the configuration. */
 public class LaunchableMesosWorkerTest extends TestLogger {
 
-	@Test
-	public void canGetPortKeys() {
-		// Setup
-		Set<String> additionalPorts = new HashSet<>(Arrays.asList("someport.here", "anotherport"));
+    @Test
+    public void canGetPortKeys() {
+        // Setup
+        Set<String> additionalPorts = new HashSet<>(Arrays.asList("someport.here", "anotherport"));
 
-		Configuration config = new Configuration();
-		config.setString(PORT_ASSIGNMENTS, String.join(",", additionalPorts));
+        Configuration config = new Configuration();
+        config.setString(PORT_ASSIGNMENTS, String.join(",", additionalPorts));
 
-		// Act
-		Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
+        // Act
+        Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
 
-		// Assert
-		Set<String> expectedPorts = new HashSet<>(LaunchableMesosWorker.TM_PORT_KEYS);
-		expectedPorts.addAll(additionalPorts);
-		assertThat(portKeys, is(equalTo(expectedPorts)));
-	}
+        // Assert
+        Set<String> expectedPorts = new HashSet<>(LaunchableMesosWorker.TM_PORT_KEYS);
+        expectedPorts.addAll(additionalPorts);
+        assertThat(portKeys, is(equalTo(expectedPorts)));
+    }
 
-	@Test
-	public void canGetNoPortKeys() {
-		// Setup
-		Configuration config = new Configuration();
+    @Test
+    public void canGetNoPortKeys() {
+        // Setup
+        Configuration config = new Configuration();
 
-		// Act
-		Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
+        // Act
+        Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
 
-		// Assert
-		assertThat(portKeys, is(equalTo(LaunchableMesosWorker.TM_PORT_KEYS)));
-	}
+        // Assert
+        assertThat(portKeys, is(equalTo(LaunchableMesosWorker.TM_PORT_KEYS)));
+    }
 
-	@Test
-	public void launch_withNonDefaultConfiguration_forwardsConfigurationValues() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(MesosOptions.MASTER_URL, "foobar");
-		final MemorySize memorySize = new MemorySize(1337L);
-		configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize);
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+    @Test
+    public void launch_withNonDefaultConfiguration_forwardsConfigurationValues() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(MesosOptions.MASTER_URL, "foobar");
+        final MemorySize memorySize = new MemorySize(1337L);
+        configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize);
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
 
-		final LaunchableTask launchableTask = new LaunchableMesosWorker(
-			ignored -> Option.empty(),
-			MesosTaskManagerParameters.create(configuration),
-			ContainerSpecification.from(configuration),
-			Protos.TaskID.newBuilder().setValue("test-task-id").build(),
-			MesosUtils.createMesosSchedulerConfiguration(configuration, "localhost"));
+        final LaunchableTask launchableTask =
+                new LaunchableMesosWorker(
+                        ignored -> Option.empty(),
+                        MesosTaskManagerParameters.create(configuration),
+                        ContainerSpecification.from(configuration),
+                        Protos.TaskID.newBuilder().setValue("test-task-id").build(),
+                        MesosUtils.createMesosSchedulerConfiguration(configuration, "localhost"));
 
-		final Protos.TaskInfo taskInfo = launchableTask.launch(
-			Protos.SlaveID.newBuilder().setValue("test-slave-id").build(),
-			new MesosResourceAllocation(Collections.singleton(ports(range(1000, 2000)))));
+        final Protos.TaskInfo taskInfo =
+                launchableTask.launch(
+                        Protos.SlaveID.newBuilder().setValue("test-slave-id").build(),
+                        new MesosResourceAllocation(
+                                Collections.singleton(ports(range(1000, 2000)))));
 
-		assertThat(
-			taskInfo.getCommand().getValue(),
-			containsString(ContainerSpecification.createDynamicProperty(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), memorySize.toString())));
-	}
-
+        assertThat(
+                taskInfo.getCommand().getValue(),
+                containsString(
+                        ContainerSpecification.createDynamicProperty(
+                                TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+                                memorySize.toString())));
+    }
 }

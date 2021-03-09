@@ -95,7 +95,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
         if (one.getName.startsWith(prefixOperatorName)) {
           one
         } else {
-          extractExpectedTransformation(one.getInput, prefixOperatorName)
+          extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
       case _ => throw new Exception(
         s"Can not find the expected $prefixOperatorName transformation")

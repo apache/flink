@@ -32,61 +32,58 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * The helper class to deploy a table program on the cluster.
- */
+/** The helper class to deploy a table program on the cluster. */
 public class ProgramDeployer {
-	private static final Logger LOG = LoggerFactory.getLogger(ProgramDeployer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ProgramDeployer.class);
 
-	private final Configuration configuration;
-	private final Pipeline pipeline;
-	private final String jobName;
-	private final ClassLoader userCodeClassloader;
+    private final Configuration configuration;
+    private final Pipeline pipeline;
+    private final String jobName;
+    private final ClassLoader userCodeClassloader;
 
-	/**
-	 * Deploys a table program on the cluster.
-	 *
-	 * @param configuration  the {@link Configuration} that is used for deployment
-	 * @param jobName        job name of the Flink job to be submitted
-	 * @param pipeline       Flink {@link Pipeline} to execute
-	 */
-	public ProgramDeployer(
-			Configuration configuration,
-			String jobName,
-			Pipeline pipeline,
-			ClassLoader userCodeClassloader) {
-		this.configuration = configuration;
-		this.pipeline = pipeline;
-		this.jobName = jobName;
-		this.userCodeClassloader = userCodeClassloader;
-	}
+    /**
+     * Deploys a table program on the cluster.
+     *
+     * @param configuration the {@link Configuration} that is used for deployment
+     * @param jobName job name of the Flink job to be submitted
+     * @param pipeline Flink {@link Pipeline} to execute
+     */
+    public ProgramDeployer(
+            Configuration configuration,
+            String jobName,
+            Pipeline pipeline,
+            ClassLoader userCodeClassloader) {
+        this.configuration = configuration;
+        this.pipeline = pipeline;
+        this.jobName = jobName;
+        this.userCodeClassloader = userCodeClassloader;
+    }
 
-	public CompletableFuture<JobClient> deploy() {
-		LOG.info("Submitting job {} for query {}`", pipeline, jobName);
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Submitting job {} with configuration: \n{}", pipeline, configuration);
-		}
+    public CompletableFuture<JobClient> deploy() {
+        LOG.info("Submitting job {} for query {}`", pipeline, jobName);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Submitting job {} with configuration: \n{}", pipeline, configuration);
+        }
 
-		if (configuration.get(DeploymentOptions.TARGET) == null) {
-			throw new RuntimeException("No execution.target specified in your configuration file.");
-		}
+        if (configuration.get(DeploymentOptions.TARGET) == null) {
+            throw new RuntimeException("No execution.target specified in your configuration file.");
+        }
 
-		PipelineExecutorServiceLoader executorServiceLoader = new DefaultExecutorServiceLoader();
-		final PipelineExecutorFactory executorFactory;
-		try {
-			executorFactory = executorServiceLoader.getExecutorFactory(configuration);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not retrieve ExecutorFactory.", e);
-		}
+        PipelineExecutorServiceLoader executorServiceLoader = new DefaultExecutorServiceLoader();
+        final PipelineExecutorFactory executorFactory;
+        try {
+            executorFactory = executorServiceLoader.getExecutorFactory(configuration);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not retrieve ExecutorFactory.", e);
+        }
 
-		final PipelineExecutor executor = executorFactory.getExecutor(configuration);
-		CompletableFuture<JobClient> jobClient;
-		try {
-			jobClient = executor.execute(pipeline, configuration, userCodeClassloader);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not execute program.", e);
-		}
-		return jobClient;
-	}
+        final PipelineExecutor executor = executorFactory.getExecutor(configuration);
+        CompletableFuture<JobClient> jobClient;
+        try {
+            jobClient = executor.execute(pipeline, configuration, userCodeClassloader);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not execute program.", e);
+        }
+        return jobClient;
+    }
 }
-

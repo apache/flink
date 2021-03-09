@@ -36,19 +36,20 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 @Internal
 public class ArrowSourceFunction extends AbstractArrowSourceFunction<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	ArrowSourceFunction(DataType dataType, byte[][] arrowData) {
-		super(dataType, arrowData);
-	}
+    ArrowSourceFunction(DataType dataType, byte[][] arrowData) {
+        super(dataType, arrowData);
+    }
 
-	@Override
-	ArrowReader<RowData> createArrowReader(VectorSchemaRoot root) {
-		return ArrowUtils.createRowDataArrowReader(root, (RowType) dataType.getLogicalType());
-	}
+    @Override
+    ArrowReader<RowData> createArrowReader(VectorSchemaRoot root) {
+        return ArrowUtils.createRowDataArrowReader(root, (RowType) dataType.getLogicalType());
+    }
 
-	@Override
-	public TypeInformation<RowData> getProducedType() {
-		return (TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(dataType);
-	}
+    @Override
+    public TypeInformation<RowData> getProducedType() {
+        return (TypeInformation<RowData>)
+                TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(dataType);
+    }
 }

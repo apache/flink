@@ -42,75 +42,74 @@ import static org.junit.Assert.assertTrue;
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-19109">FLINK-19109</a>
  */
 public class FileReadingWatermarkITCase {
-	private static final String NUM_WATERMARKS_ACC_NAME = "numWatermarks";
-	private static final int FILE_SIZE_LINES = 100_000;
-	private static final int WATERMARK_INTERVAL_MILLIS = 10;
-	private static final int MIN_EXPECTED_WATERMARKS = 5;
+    private static final String NUM_WATERMARKS_ACC_NAME = "numWatermarks";
+    private static final int FILE_SIZE_LINES = 100_000;
+    private static final int WATERMARK_INTERVAL_MILLIS = 10;
+    private static final int MIN_EXPECTED_WATERMARKS = 5;
 
-	@Test
-	public void testWatermarkEmissionWithChaining() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		env.getConfig().setAutoWatermarkInterval(WATERMARK_INTERVAL_MILLIS);
+    @Test
+    public void testWatermarkEmissionWithChaining() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.getConfig().setAutoWatermarkInterval(WATERMARK_INTERVAL_MILLIS);
 
-		checkState(env.isChainingEnabled());
+        checkState(env.isChainingEnabled());
 
-		env
-			.readTextFile(getSourceFile().getAbsolutePath())
-			.assignTimestampsAndWatermarks(getExtractorAssigner())
-			.addSink(getWatermarkCounter());
+        env.readTextFile(getSourceFile().getAbsolutePath())
+                .assignTimestampsAndWatermarks(getExtractorAssigner())
+                .addSink(getWatermarkCounter());
 
-		JobExecutionResult result = env.execute();
+        JobExecutionResult result = env.execute();
 
-		int actual = result.getAccumulatorResult(NUM_WATERMARKS_ACC_NAME);
+        int actual = result.getAccumulatorResult(NUM_WATERMARKS_ACC_NAME);
 
-		assertTrue("too few watermarks emitted: " + actual, actual >= MIN_EXPECTED_WATERMARKS);
-	}
+        assertTrue("too few watermarks emitted: " + actual, actual >= MIN_EXPECTED_WATERMARKS);
+    }
 
-	private File getSourceFile() throws IOException {
-		File file = File.createTempFile(UUID.randomUUID().toString(), null);
-		try (PrintWriter printWriter = new PrintWriter(file)) {
-			for (int i = 0; i < FILE_SIZE_LINES; i++) {
-				printWriter.println(i);
-			}
-		}
-		file.deleteOnExit();
-		return file;
-	}
+    private File getSourceFile() throws IOException {
+        File file = File.createTempFile(UUID.randomUUID().toString(), null);
+        try (PrintWriter printWriter = new PrintWriter(file)) {
+            for (int i = 0; i < FILE_SIZE_LINES; i++) {
+                printWriter.println(i);
+            }
+        }
+        file.deleteOnExit();
+        return file;
+    }
 
-	private static BoundedOutOfOrdernessTimestampExtractor<String> getExtractorAssigner() {
-		return new BoundedOutOfOrdernessTimestampExtractor<String>(Time.hours(1)) {
-			private final long started = System.currentTimeMillis();
+    private static BoundedOutOfOrdernessTimestampExtractor<String> getExtractorAssigner() {
+        return new BoundedOutOfOrdernessTimestampExtractor<String>(Time.hours(1)) {
+            private final long started = System.currentTimeMillis();
 
-			@Override
-			public long extractTimestamp(String line) {
-				return started + Long.parseLong(line);
-			}
-		};
-	}
+            @Override
+            public long extractTimestamp(String line) {
+                return started + Long.parseLong(line);
+            }
+        };
+    }
 
-	private static SinkFunction<String> getWatermarkCounter() {
-		return new RichSinkFunction<String>() {
-			private final IntCounter numWatermarks = new IntCounter();
-			private long lastWatermark = -1;
+    private static SinkFunction<String> getWatermarkCounter() {
+        return new RichSinkFunction<String>() {
+            private final IntCounter numWatermarks = new IntCounter();
+            private long lastWatermark = -1;
 
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				super.open(parameters);
-				getRuntimeContext().addAccumulator(NUM_WATERMARKS_ACC_NAME, numWatermarks);
-			}
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                super.open(parameters);
+                getRuntimeContext().addAccumulator(NUM_WATERMARKS_ACC_NAME, numWatermarks);
+            }
 
-			@Override
-			public void close() throws Exception {
-				super.close();
-			}
+            @Override
+            public void close() throws Exception {
+                super.close();
+            }
 
-			@Override
-			public void invoke(String value, SinkFunction.Context context) {
-				if (context.currentWatermark() != lastWatermark) {
-					lastWatermark = context.currentWatermark();
-					numWatermarks.add(1);
-				}
-			}
-		};
-	}
+            @Override
+            public void invoke(String value, SinkFunction.Context context) {
+                if (context.currentWatermark() != lastWatermark) {
+                    lastWatermark = context.currentWatermark();
+                    numWatermarks.add(1);
+                }
+            }
+        };
+    }
 }

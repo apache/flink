@@ -21,46 +21,51 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.Preconditions;
 
-/**
- * This class generates a string that can be used to identify an operator subtask.
- */
+/** This class generates a string that can be used to identify an operator subtask. */
 public class OperatorSubtaskDescriptionText {
 
-	/** Cached description result. */
-	private final String description;
+    /** Cached description result. */
+    private final String description;
 
-	public OperatorSubtaskDescriptionText(OperatorID operatorId, String operatorClass, int subtaskIndex, int numberOfTasks) {
+    public OperatorSubtaskDescriptionText(
+            OperatorID operatorId, String operatorClass, int subtaskIndex, int numberOfTasks) {
 
-		Preconditions.checkArgument(numberOfTasks > 0);
-		Preconditions.checkArgument(subtaskIndex >= 0);
-		Preconditions.checkArgument(subtaskIndex < numberOfTasks);
+        Preconditions.checkArgument(numberOfTasks > 0);
+        Preconditions.checkArgument(subtaskIndex >= 0);
+        Preconditions.checkArgument(subtaskIndex < numberOfTasks);
 
-		this.description = operatorClass +
-				"_" + operatorId +
-				"_(" + (1 + subtaskIndex) + "/" + numberOfTasks + ")";
-	}
+        this.description =
+                operatorClass
+                        + "_"
+                        + operatorId
+                        + "_("
+                        + (1 + subtaskIndex)
+                        + "/"
+                        + numberOfTasks
+                        + ")";
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		OperatorSubtaskDescriptionText that = (OperatorSubtaskDescriptionText) o;
+        OperatorSubtaskDescriptionText that = (OperatorSubtaskDescriptionText) o;
 
-		return description.equals(that.description);
-	}
+        return description.equals(that.description);
+    }
 
-	@Override
-	public int hashCode() {
-		return description.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return description.hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return description;
-	}
+    @Override
+    public String toString() {
+        return description;
+    }
 }

@@ -27,5 +27,5 @@ import java.util.Comparator;
  * @param <T> Type of the event
  */
 public interface EventComparator<T> extends Comparator<T>, Serializable {
-	long serialVersionUID = 1L;
+    long serialVersionUID = 1L;
 }

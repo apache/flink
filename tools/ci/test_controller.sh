@@ -105,6 +105,20 @@ if [ $STAGE == $STAGE_PYTHON ]; then
 	EXIT_CODE=$?
 else
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
+	if [ $STAGE = $STAGE_LEGACY_SLOT_MANAGEMENT ]; then
+		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
+			echo "Skipping legacy slot management test stage in adaptive scheduler job"
+			exit 0
+		fi
+		MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dflink.tests.disable-declarative"
+	fi
+	if [ $STAGE = $STAGE_FINEGRAINED_RESOURCE_MANAGEMENT ]; then
+		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
+			echo "Skipping fine grained resource management test stage in adaptive scheduler job"
+			exit 0
+		fi
+		MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dflink.tests.enable-fine-grained"
+	fi
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
 	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT

@@ -29,21 +29,24 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link YarnJobClusterEntrypoint}.
- */
+/** Tests for {@link YarnJobClusterEntrypoint}. */
 public class YarnJobClusterEntrypointTest {
 
-	@Test
-	public void testCreateDispatcherResourceManagerComponentFactoryFailIfUsrLibDirDoesNotExist() throws IOException {
-		final Configuration configuration = new Configuration();
-		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
-		final YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration);
-		try {
-			yarnJobClusterEntrypoint.createDispatcherResourceManagerComponentFactory(configuration);
-			fail();
-		} catch (IllegalStateException exception) {
-			assertThat(exception.getMessage(), containsString("the usrlib directory does not exist."));
-		}
-	}
+    @Test
+    public void testCreateDispatcherResourceManagerComponentFactoryFailIfUsrLibDirDoesNotExist()
+            throws IOException {
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR,
+                YarnConfigOptions.UserJarInclusion.DISABLED);
+        final YarnJobClusterEntrypoint yarnJobClusterEntrypoint =
+                new YarnJobClusterEntrypoint(configuration);
+        try {
+            yarnJobClusterEntrypoint.createDispatcherResourceManagerComponentFactory(configuration);
+            fail();
+        } catch (IllegalStateException exception) {
+            assertThat(
+                    exception.getMessage(), containsString("the usrlib directory does not exist."));
+        }
+    }
 }

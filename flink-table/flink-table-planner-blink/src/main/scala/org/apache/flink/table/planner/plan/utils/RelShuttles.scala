@@ -20,15 +20,15 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 
 import com.google.common.collect.Sets
-import org.apache.calcite.plan.{RelOptUtil, ViewExpanders}
-import org.apache.calcite.rel.core.{TableFunctionScan, TableScan}
+import org.apache.calcite.plan.ViewExpanders
+import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.rel.{RelNode, RelShuttle, RelShuttleImpl}
+import org.apache.calcite.rel.{RelHomogeneousShuttle, RelNode, RelShuttleImpl}
 import org.apache.calcite.rex.{RexNode, RexShuttle, RexSubQuery}
 
 import scala.collection.JavaConversions._
 
-class DefaultRelShuttle extends RelShuttle {
+class DefaultRelShuttle extends RelHomogeneousShuttle {
 
   override def visit(rel: RelNode): RelNode = {
     var change = false
@@ -44,36 +44,6 @@ class DefaultRelShuttle extends RelShuttle {
       rel
     }
   }
-
-  override def visit(intersect: LogicalIntersect): RelNode = visit(intersect.asInstanceOf[RelNode])
-
-  override def visit(union: LogicalUnion): RelNode = visit(union.asInstanceOf[RelNode])
-
-  override def visit(aggregate: LogicalAggregate): RelNode = visit(aggregate.asInstanceOf[RelNode])
-
-  override def visit(minus: LogicalMinus): RelNode = visit(minus.asInstanceOf[RelNode])
-
-  override def visit(sort: LogicalSort): RelNode = visit(sort.asInstanceOf[RelNode])
-
-  override def visit(`match`: LogicalMatch): RelNode = visit(`match`.asInstanceOf[RelNode])
-
-  override def visit(exchange: LogicalExchange): RelNode = visit(exchange.asInstanceOf[RelNode])
-
-  override def visit(scan: TableScan): RelNode = visit(scan.asInstanceOf[RelNode])
-
-  override def visit(scan: TableFunctionScan): RelNode = visit(scan.asInstanceOf[RelNode])
-
-  override def visit(values: LogicalValues): RelNode = visit(values.asInstanceOf[RelNode])
-
-  override def visit(filter: LogicalFilter): RelNode = visit(filter.asInstanceOf[RelNode])
-
-  override def visit(project: LogicalProject): RelNode = visit(project.asInstanceOf[RelNode])
-
-  override def visit(join: LogicalJoin): RelNode = visit(join.asInstanceOf[RelNode])
-
-  override def visit(correlate: LogicalCorrelate): RelNode = visit(correlate.asInstanceOf[RelNode])
-
-  override def visit(modify: LogicalTableModify): RelNode = visit(modify.asInstanceOf[RelNode])
 }
 
 /**

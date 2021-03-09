@@ -18,7 +18,7 @@
 import abc
 import json
 from enum import Enum
-from typing import Callable
+from typing import Callable, Tuple, List
 
 
 class MetricGroup(abc.ABC):
@@ -103,7 +103,8 @@ class GenericMetricGroup(MetricGroup):
         self._flink_gauge = {}
         self._beam_gauge = {}
 
-    def _add_group(self, name: str, metric_group_type) -> 'MetricGroup':
+    def _add_group(self, name: str, metric_group_type: MetricGroupType) \
+            -> 'GenericMetricGroup':
         for group in self._sub_groups:
             if name == group._name and metric_group_type == group._metric_group_type:
                 # we don't create same metric group repeatedly
@@ -141,7 +142,7 @@ class GenericMetricGroup(MetricGroup):
         from apache_beam.metrics.metric import Metrics
         return Distribution(Metrics.distribution(self._get_namespace(), name))
 
-    def _get_metric_group_names_and_types(self) -> ([], []):
+    def _get_metric_group_names_and_types(self) -> Tuple[List[str], List[str]]:
         if self._name is None:
             return [], []
         else:
@@ -178,7 +179,7 @@ class Counter(Metric):
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 
-    def inc(self, n=1):
+    def inc(self, n: int = 1):
         """
         Increment the current count by the given value.
 
@@ -186,7 +187,7 @@ class Counter(Metric):
         """
         self._inner_counter.inc(n)
 
-    def dec(self, n=1):
+    def dec(self, n: int = 1):
         """
         Decrement the current count by 1.
 
@@ -194,7 +195,7 @@ class Counter(Metric):
         """
         self.inc(-n)
 
-    def get_count(self):
+    def get_count(self) -> int:
         """
         Returns the current count.
 
@@ -239,7 +240,7 @@ class Meter(Metric):
     def __init__(self, inner_counter):
         self._inner_counter = inner_counter
 
-    def mark_event(self, value=1):
+    def mark_event(self, value: int = 1):
         """
         Mark occurrence of the specified number of events.
 
@@ -247,7 +248,7 @@ class Meter(Metric):
         """
         self._inner_counter.inc(value)
 
-    def get_count(self):
+    def get_count(self) -> int:
         """
         Get number of events marked on the meter.
 

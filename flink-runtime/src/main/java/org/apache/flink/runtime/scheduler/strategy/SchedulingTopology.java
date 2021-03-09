@@ -21,27 +21,32 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Topology;
 
-/**
- * Topology of {@link SchedulingExecutionVertex}.
- */
+/** Topology of {@link SchedulingExecutionVertex}. */
 public interface SchedulingTopology
-	extends Topology<ExecutionVertexID, IntermediateResultPartitionID, SchedulingExecutionVertex, SchedulingResultPartition, SchedulingPipelinedRegion> {
+        extends Topology<
+                ExecutionVertexID,
+                IntermediateResultPartitionID,
+                SchedulingExecutionVertex,
+                SchedulingResultPartition,
+                SchedulingPipelinedRegion> {
 
-	/**
-	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
-	 *
-	 * @param executionVertexId identifying the respective scheduling vertex
-	 * @return The respective scheduling vertex
-	 * @throws IllegalArgumentException If the vertex does not exist
-	 */
-	SchedulingExecutionVertex getVertex(ExecutionVertexID executionVertexId);
+    /**
+     * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
+     *
+     * @param executionVertexId identifying the respective scheduling vertex
+     * @return The respective scheduling vertex
+     * @throws IllegalArgumentException If the vertex does not exist
+     */
+    SchedulingExecutionVertex getVertex(ExecutionVertexID executionVertexId);
 
-	/**
-	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
-	 *
-	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
-	 * @return The respective scheduling result partition
-	 * @throws IllegalArgumentException If the partition does not exist
-	 */
-	SchedulingResultPartition getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
+    /**
+     * Looks up the {@link SchedulingResultPartition} for the given {@link
+     * IntermediateResultPartitionID}.
+     *
+     * @param intermediateResultPartitionId identifying the respective scheduling result partition
+     * @return The respective scheduling result partition
+     * @throws IllegalArgumentException If the partition does not exist
+     */
+    SchedulingResultPartition getResultPartition(
+            IntermediateResultPartitionID intermediateResultPartitionId);
 }

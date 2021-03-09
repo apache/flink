@@ -33,65 +33,60 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 
-/**
- * Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system.
- */
+/** Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system. */
 public class HadoopRenameCommitterHDFSTest extends AbstractFileCommitterTest {
 
-	@ClassRule
-	public static final TemporaryFolder CLASS_TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder CLASS_TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static HDFSCluster hdfsCluster;
+    private static HDFSCluster hdfsCluster;
 
-	@BeforeClass
-	public static void createHDFS() throws Exception {
-		Assume.assumeTrue(!OperatingSystem.isWindows());
+    @BeforeClass
+    public static void createHDFS() throws Exception {
+        Assume.assumeTrue(!OperatingSystem.isWindows());
 
-		hdfsCluster = new HDFSCluster(CLASS_TEMPORARY_FOLDER.newFolder());
-	}
+        hdfsCluster = new HDFSCluster(CLASS_TEMPORARY_FOLDER.newFolder());
+    }
 
-	@AfterClass
-	public static void destroyHDFS() {
-		if (hdfsCluster != null) {
-			hdfsCluster.shutdown();
-		}
+    @AfterClass
+    public static void destroyHDFS() {
+        if (hdfsCluster != null) {
+            hdfsCluster.shutdown();
+        }
 
-		hdfsCluster = null;
-	}
+        hdfsCluster = null;
+    }
 
-	public HadoopRenameCommitterHDFSTest(boolean override) throws IOException {
-		super(override);
-	}
+    public HadoopRenameCommitterHDFSTest(boolean override) throws IOException {
+        super(override);
+    }
 
-	@Override
-	protected Path getBasePath() throws IOException {
-		return hdfsCluster.newFolder();
-	}
+    @Override
+    protected Path getBasePath() throws IOException {
+        return hdfsCluster.newFolder();
+    }
 
-	@Override
-	protected Configuration getConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    protected Configuration getConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	protected HadoopFileCommitter createNewCommitter(
-		Configuration configuration,
-		Path targetFilePath) throws IOException {
+    @Override
+    protected HadoopFileCommitter createNewCommitter(
+            Configuration configuration, Path targetFilePath) throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath);
+    }
 
-	@Override
-	protected HadoopFileCommitter createPendingCommitter(
-		Configuration configuration,
-		Path targetFilePath,
-		Path tempFilePath) throws IOException {
+    @Override
+    protected HadoopFileCommitter createPendingCommitter(
+            Configuration configuration, Path targetFilePath, Path tempFilePath)
+            throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
+    }
 
-	@Override
-	protected void cleanup(Configuration configuration, Path basePath) throws IOException {
-		basePath.getFileSystem(configuration).delete(basePath, true);
-	}
+    @Override
+    protected void cleanup(Configuration configuration, Path basePath) throws IOException {
+        basePath.getFileSystem(configuration).delete(basePath, true);
+    }
 }

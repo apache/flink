@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.{FilterJoinRule, FilterMultiJoinMergeRule, JoinToMultiJoinRule, ProjectMultiJoinMergeRule}
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -43,16 +43,16 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
           .add(RuleSets.ofList(
-            FilterJoinRule.FILTER_ON_JOIN,
-            FilterJoinRule.JOIN))
+            CoreRules.FILTER_INTO_JOIN,
+            CoreRules.JOIN_CONDITION_PUSH))
           .build(), "push filter into join")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
           .add(RuleSets.ofList(
-            ProjectMultiJoinMergeRule.INSTANCE,
-            FilterMultiJoinMergeRule.INSTANCE,
-            JoinToMultiJoinRule.INSTANCE))
+            CoreRules.PROJECT_MULTI_JOIN_MERGE,
+            CoreRules.FILTER_MULTI_JOIN_MERGE,
+            CoreRules.JOIN_TO_MULTI_JOIN))
           .build(), "merge join to MultiJoin")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
@@ -72,80 +72,80 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   @Test
   def testMultiJoin_InnerJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A, B WHERE a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C, D WHERE a1 = b1 AND b1 = c1 AND c1 = d1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin4(): Unit = {
     // non-equi join condition
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin5(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 + 1 = b1 AND a1 + 1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A LEFT JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A JOIN B ON a1 = b1 LEFT JOIN C ON b1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A LEFT JOIN B ON a1 = b1 JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A RIGHT JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A JOIN B ON a1 = b1 RIGHT JOIN C ON b1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A RIGHT JOIN B ON a1 = b1 JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_FullJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_FullJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1 FULL OUTER JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

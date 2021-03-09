@@ -33,6 +33,8 @@ import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -40,54 +42,74 @@ import java.util.Collections;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test cases for reading Pojo from Parquet files.
- */
-public class ParquetPojoInputFormatTest {
-	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+/** Test cases for reading Pojo from Parquet files. */
+@RunWith(Parameterized.class)
+public class ParquetPojoInputFormatTest extends TestUtil {
+    private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 
-	@ClassRule
-	public static TemporaryFolder tempRoot = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
 
-	@Test
-	public void testReadPojoFromSimpleRecord() throws IOException {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
+    public ParquetPojoInputFormatTest(boolean useLegacyMode) {
+        super(useLegacyMode);
+    }
 
-		ParquetPojoInputFormat<PojoSimpleRecord> inputFormat = new ParquetPojoInputFormat<>(
-			path, messageType, (PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+    @Test
+    public void testReadPojoFromSimpleRecord() throws IOException {
+        Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple =
+                getSimpleRecordTestData();
+        MessageType messageType = getSchemaConverter().convert(SIMPLE_SCHEMA);
+        Path path =
+                createTempParquetFile(
+                        tempRoot.getRoot(),
+                        SIMPLE_SCHEMA,
+                        Collections.singletonList(simple.f1),
+                        getConfiguration());
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
-		inputFormat.open(splits[0]);
+        ParquetPojoInputFormat<PojoSimpleRecord> inputFormat =
+                new ParquetPojoInputFormat<>(
+                        path,
+                        messageType,
+                        (PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
+        inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
 
-		PojoSimpleRecord simpleRecord = inputFormat.nextRecord(null);
-		assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
-		assertEquals(simple.f2.getField(1), simpleRecord.getBar());
-		assertArrayEquals((Long[]) simple.f2.getField(2), simpleRecord.getArr());
-	}
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertEquals(1, splits.length);
+        inputFormat.open(splits[0]);
 
-	@Test
-	public void testProjectedReadPojoFromSimpleRecord() throws IOException, NoSuchFieldError {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
-		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
+        PojoSimpleRecord simpleRecord = inputFormat.nextRecord(null);
+        assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
+        assertEquals(simple.f2.getField(1), simpleRecord.getBar());
+        assertArrayEquals((Long[]) simple.f2.getField(2), simpleRecord.getArr());
+    }
 
-		ParquetPojoInputFormat<PojoSimpleRecord> inputFormat = new ParquetPojoInputFormat<>(
-			path, messageType, (PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+    @Test
+    public void testProjectedReadPojoFromSimpleRecord() throws IOException, NoSuchFieldError {
+        Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple =
+                TestUtil.getSimpleRecordTestData();
+        MessageType messageType = getSchemaConverter().convert(SIMPLE_SCHEMA);
+        Path path =
+                createTempParquetFile(
+                        tempRoot.getRoot(),
+                        SIMPLE_SCHEMA,
+                        Collections.singletonList(simple.f1),
+                        getConfiguration());
 
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		assertEquals(1, splits.length);
+        ParquetPojoInputFormat<PojoSimpleRecord> inputFormat =
+                new ParquetPojoInputFormat<>(
+                        path,
+                        messageType,
+                        (PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
+        inputFormat.setRuntimeContext(getMockRuntimeContext());
 
-		inputFormat.selectFields(new String[]{"foo"});
-		inputFormat.open(splits[0]);
+        FileInputSplit[] splits = inputFormat.createInputSplits(1);
+        assertEquals(1, splits.length);
 
-		PojoSimpleRecord simpleRecord = inputFormat.nextRecord(null);
-		assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
-		assertEquals("", simpleRecord.getBar());
-		assertArrayEquals(new Long[0], simpleRecord.getArr());
-	}
+        inputFormat.selectFields(new String[] {"foo"});
+        inputFormat.open(splits[0]);
+
+        PojoSimpleRecord simpleRecord = inputFormat.nextRecord(null);
+        assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
+        assertEquals("", simpleRecord.getBar());
+        assertArrayEquals(new Long[0], simpleRecord.getArr());
+    }
 }

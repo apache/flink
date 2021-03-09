@@ -25,6 +25,8 @@ CLUSTER_ID="flink-native-k8s-pyflink-application-1"
 PURE_FLINK_IMAGE_NAME="test_kubernetes_application-1"
 PYFLINK_IMAGE_NAME="test_kubernetes_pyflink_application"
 LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
+IMAGE_BUILD_RETRIES=3
+IMAGE_BUILD_BACKOFF=2
 
 function internal_cleanup {
     kubectl delete deployment ${CLUSTER_ID}
@@ -33,7 +35,10 @@ function internal_cleanup {
 
 start_kubernetes
 
-build_image ${PURE_FLINK_IMAGE_NAME}
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${PURE_FLINK_IMAGE_NAME}"; then
+	echo "ERROR: Could not build image. Aborting..."
+	exit 1
+fi
 
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
 
@@ -87,7 +92,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.rest-service.exposed.type=NodePort \
     -pym word_count -pyfs /opt/flink/examples/python/table/batch
 
-kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
+kubectl wait --for=condition=Available --timeout=60s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
 wait_rest_endpoint_up_k8s $jm_pod_name
 

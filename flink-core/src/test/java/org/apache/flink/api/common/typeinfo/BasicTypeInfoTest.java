@@ -20,27 +20,25 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link BasicTypeInfo}.
- */
+/** Test for {@link BasicTypeInfo}. */
 public class BasicTypeInfoTest extends TypeInformationTestBase<BasicTypeInfo<?>> {
 
-	@Override
-	protected BasicTypeInfo<?>[] getTestData() {
-		return new BasicTypeInfo<?>[] {
-			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.BOOLEAN_TYPE_INFO,
-			BasicTypeInfo.BYTE_TYPE_INFO,
-			BasicTypeInfo.SHORT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.LONG_TYPE_INFO,
-			BasicTypeInfo.FLOAT_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO,
-			BasicTypeInfo.CHAR_TYPE_INFO,
-			BasicTypeInfo.DATE_TYPE_INFO,
-			BasicTypeInfo.VOID_TYPE_INFO,
-			BasicTypeInfo.BIG_INT_TYPE_INFO,
-			BasicTypeInfo.BIG_DEC_TYPE_INFO
-		};
-	}
+    @Override
+    protected BasicTypeInfo<?>[] getTestData() {
+        return new BasicTypeInfo<?>[] {
+            BasicTypeInfo.STRING_TYPE_INFO,
+            BasicTypeInfo.BOOLEAN_TYPE_INFO,
+            BasicTypeInfo.BYTE_TYPE_INFO,
+            BasicTypeInfo.SHORT_TYPE_INFO,
+            BasicTypeInfo.INT_TYPE_INFO,
+            BasicTypeInfo.LONG_TYPE_INFO,
+            BasicTypeInfo.FLOAT_TYPE_INFO,
+            BasicTypeInfo.DOUBLE_TYPE_INFO,
+            BasicTypeInfo.CHAR_TYPE_INFO,
+            BasicTypeInfo.DATE_TYPE_INFO,
+            BasicTypeInfo.VOID_TYPE_INFO,
+            BasicTypeInfo.BIG_INT_TYPE_INFO,
+            BasicTypeInfo.BIG_DEC_TYPE_INFO
+        };
+    }
 }
