@@ -33,8 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CreateCatalogOperation implements CreateOperation {
     private final String catalogName;
     private final Map<String, String> properties;
-    @Nullable private final boolean ignoreIfExists;
-    private final String comment;
+    private final boolean ignoreIfExists;
+    @Nullable private final String comment;
 
     public CreateCatalogOperation(
             String catalogName,
