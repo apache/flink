@@ -262,7 +262,7 @@ public class MetricUtilsTest extends TestLogger {
                         new String[] {"java."},
                         ignored -> {});
 
-        Class<?> newClass = Class.forName(clazz.getName(), true, classLoader);
+        Class<?> newClass = classLoader.loadClass(clazz.getName());
 
         Assert.assertNotSame(clazz, newClass);
         Assert.assertEquals(clazz.getName(), newClass.getName());
