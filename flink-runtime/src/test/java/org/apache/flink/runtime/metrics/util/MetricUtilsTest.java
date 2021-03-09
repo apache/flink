@@ -253,8 +253,7 @@ public class MetricUtilsTest extends TestLogger {
      * Define an new class using {@link Dummy} class's name and bytecode to consume Metaspace and
      * NonHeap memory.
      */
-    @SuppressWarnings("unchecked")
-    private static Class<Dummy> redefineDummyClass() throws ClassNotFoundException {
+    private static Class<?> redefineDummyClass() throws ClassNotFoundException {
         Class<?> clazz = Dummy.class;
         ChildFirstClassLoader classLoader =
                 new ChildFirstClassLoader(
@@ -267,7 +266,7 @@ public class MetricUtilsTest extends TestLogger {
 
         Assert.assertNotSame(clazz, newClass);
         Assert.assertEquals(clazz.getName(), newClass.getName());
-        return (Class<Dummy>) newClass;
+        return newClass;
     }
 
     private static boolean hasMetaspaceMemoryPool() {
