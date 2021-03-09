@@ -411,26 +411,8 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
 
 ### Sink Parallelism
 
-The parallelism of writing data into Hive can be configured by the corresponding table option. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator. When the parallelism which is different from the parallelism of the upstream parallelism is configured, the writer operator will apply the parallelism.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-        <th class="text-left" style="width: 20%">Key</th>
-        <th class="text-left" style="width: 15%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 55%">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td><h5>sink.parallelism</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
-        <td>Integer</td>
-        <td>Parallelism of writing data into Hive. The value should greater than zero otherwise exception will be thrown.</td>
-    </tr>
-  </tbody>
-</table>
+The parallelism of writing data into Hive can be configured by the corresponding table option.
+Please see the [sink parallelism]({{< ref "docs/connectors/table/filesystem" >}}#sink-parallelism) for detail.
 
 ## Formats
 
