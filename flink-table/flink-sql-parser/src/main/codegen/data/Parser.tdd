@@ -73,6 +73,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
@@ -114,6 +115,7 @@
     "VIRTUAL"
     "WATERMARK"
     "WATERMARKS"
+    "TIMESTAMP_LTZ"
   ]
 
   # List of keywords from "keywords" section that are not reserved.

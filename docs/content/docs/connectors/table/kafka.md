@@ -110,7 +110,7 @@ Read-only columns must be declared `VIRTUAL` to exclude them during an `INSERT I
     </tr>
     <tr>
       <td><code>timestamp</code></td>
-      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NOT NULL</code></td>
       <td>Timestamp of the Kafka record.</td>
       <td><code>R/W</code></td>
     </tr>
