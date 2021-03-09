@@ -92,6 +92,7 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
@@ -183,6 +184,12 @@ public class DataTypesTest {
                 TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE())
                         .expectLogicalType(new LocalZonedTimestampType(6))
                         .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ(3))
+                    .expectLogicalType(new LocalZonedTimestampType(3))
+                    .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ())
+                    .expectLogicalType(new LocalZonedTimestampType(6))
+                    .expectConversionClass(java.time.Instant.class),
                 TestSpec.forDataType(INTERVAL(MINUTE(), SECOND(3)))
                         .expectLogicalType(
                                 new DayTimeIntervalType(MINUTE_TO_SECOND, DEFAULT_DAY_PRECISION, 3))
