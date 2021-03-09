@@ -425,7 +425,7 @@ The parallelism of writing data into Hive can be configured by the corresponding
   <tbody>
     <tr>
         <td><h5>sink.parallelism</h5></td>
-        <td style="word-wrap: break-word;">true</td>
+        <td style="word-wrap: break-word;">(none)</td>
         <td>Integer</td>
         <td>Parallelism of writing data into Hive. The value should greater than zero otherwise exception will be thrown.</td>
     </tr>

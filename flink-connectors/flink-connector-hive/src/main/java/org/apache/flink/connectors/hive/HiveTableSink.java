@@ -115,13 +115,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     private boolean overwrite = false;
     private boolean dynamicGrouping = false;
 
-    @Nullable private Integer configuredParallelism;
+    @Nullable private final Integer configuredParallelism;
 
     public HiveTableSink(
             ReadableConfig flinkConf,
             JobConf jobConf,
             ObjectIdentifier identifier,
-            CatalogTable table) {
+            CatalogTable table,
+            @Nullable Integer configuredParallelism) {
         this.flinkConf = flinkConf;
         this.jobConf = jobConf;
         this.identifier = identifier;
@@ -132,11 +133,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         "Hive version is not defined");
         hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         tableSchema = TableSchemaUtils.getPhysicalSchema(table.getSchema());
-        this.configuredParallelism =
-                Optional.ofNullable(
-                                table.getOptions().get(FileSystemOptions.SINK_PARALLELISM.key()))
-                        .map(Integer::valueOf)
-                        .orElse(null);
+        this.configuredParallelism = configuredParallelism;
     }
 
     @Override
@@ -451,7 +448,9 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     @Override
     public DynamicTableSink copy() {
-        HiveTableSink sink = new HiveTableSink(flinkConf, jobConf, identifier, catalogTable);
+        HiveTableSink sink =
+                new HiveTableSink(
+                        flinkConf, jobConf, identifier, catalogTable, configuredParallelism);
         sink.staticPartitionSpec = staticPartitionSpec;
         sink.overwrite = overwrite;
         sink.dynamicGrouping = dynamicGrouping;

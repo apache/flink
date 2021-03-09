@@ -38,8 +38,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -47,7 +45,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -83,7 +80,7 @@ public class HiveTableSinkITCase {
         final TableEnvironment tEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
-                tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out", null);
+                tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out");
     }
 
     @Test
@@ -92,33 +89,27 @@ public class HiveTableSinkITCase {
         final TableEnvironment tEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
-                tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out", null);
+                tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out");
     }
 
     private void testHiveTableSinkWithParallelismBase(
-            final TableEnvironment tEnv,
-            final String expectedResourceFileName,
-            @Nullable Integer parallelism) {
-        parallelism = Optional.ofNullable(parallelism).orElse(8);
+            final TableEnvironment tEnv, final String expectedResourceFileName) {
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.executeSql("create database db1");
         tEnv.useDatabase("db1");
 
-        String tableName = "test_table";
         tEnv.executeSql(
                 String.format(
-                        "CREATE TABLE %s ("
+                        "CREATE TABLE test_table ("
                                 + " id int,"
                                 + " real_col int"
                                 + ") TBLPROPERTIES ("
-                                + " 'sink.parallelism' = '%s'"
-                                + ")",
-                        tableName, parallelism));
+                                + " 'sink.parallelism' = '8'" // set sink parallelism = 8
+                                + ")"));
         final String actual =
                 tEnv.explainSql(
-                        "insert into " + tableName + " select 1, 1",
-                        ExplainDetail.JSON_EXECUTION_PLAN);
+                        "insert into test_table select 1, 1", ExplainDetail.JSON_EXECUTION_PLAN);
         final String expected = readFromResource(expectedResourceFileName);
 
         assertEquals(
