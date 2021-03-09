@@ -37,7 +37,8 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.module.{Module, ModuleEntry, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
-import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.{CatalogQueryOperation, ShowFunctionsOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
@@ -770,8 +771,16 @@ abstract class TableEnvImpl(
         buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
-      case _: ShowFunctionsOperation =>
-        buildShowResult("function name", listFunctions())
+      case showFunctionsOperation: ShowFunctionsOperation =>
+        val functionScope = showFunctionsOperation.getFunctionScope()
+        val functionNames = functionScope match {
+          case FunctionScope.USER => listUserDefinedFunctions()
+          case FunctionScope.ALL => listFunctions()
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"SHOW FUNCTIONS with $functionScope scope is not supported.")
+        }
+        buildShowResult("function name", functionNames)
       case createViewOperation: CreateViewOperation =>
         if (createViewOperation.isTemporary) {
           catalogManager.createTemporaryTable(

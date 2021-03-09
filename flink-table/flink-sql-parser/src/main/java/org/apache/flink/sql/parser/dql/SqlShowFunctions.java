@@ -19,28 +19,27 @@
 package org.apache.flink.sql.parser.dql;
 
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
+import java.util.Collections;
 import java.util.List;
 
-/** SHOW FUNCTION Sql Call. */
+/** SHOW [USER] FUNCTIONS Sql Call. */
 public class SqlShowFunctions extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
 
-    private final SqlIdentifier databaseName;
+    private final boolean requireUser;
 
-    public SqlShowFunctions(SqlParserPos pos, SqlIdentifier database) {
+    public SqlShowFunctions(SqlParserPos pos, boolean requireUser) {
         super(pos);
-        this.databaseName = database;
+        this.requireUser = requireUser;
     }
 
     @Override
@@ -50,18 +49,19 @@ public class SqlShowFunctions extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(databaseName);
+        return Collections.EMPTY_LIST;
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SHOW FUNCTIONS");
-        if (databaseName != null) {
-            databaseName.unparse(writer, leftPrec, rightPrec);
+        if (requireUser) {
+            writer.keyword("SHOW USER FUNCTIONS");
+        } else {
+            writer.keyword("SHOW FUNCTIONS");
         }
     }
 
-    public String[] getDatabasePath() {
-        return databaseName.names.toArray(new String[0]);
+    public boolean requireUser() {
+        return requireUser;
     }
 }

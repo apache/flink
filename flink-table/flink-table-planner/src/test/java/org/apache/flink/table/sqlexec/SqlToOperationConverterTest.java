@@ -50,6 +50,8 @@ import org.apache.flink.table.expressions.resolver.ExpressionResolver.Expression
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -254,6 +256,15 @@ public class SqlToOperationConverterTest {
             assertEquals(expectedIfExists[i], dropDatabaseOperation.isIfExists());
             assertEquals(expectedIsCascades[i], dropDatabaseOperation.isCascade());
         }
+    }
+
+    @Test
+    public void testShowFunctions() {
+        final String sql1 = "SHOW FUNCTIONS";
+        assertShowFunctions(sql1, sql1, FunctionScope.ALL);
+
+        final String sql2 = "SHOW USER FUNCTIONS";
+        assertShowFunctions(sql2, sql2, FunctionScope.USER);
     }
 
     @Test
@@ -672,6 +683,16 @@ public class SqlToOperationConverterTest {
             testItem.withExpectedType(args[1]);
         }
         return testItem;
+    }
+
+    private void assertShowFunctions(
+            String sql, String expectedSummary, FunctionScope expectedScope) {
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowFunctionsOperation;
+        final ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
+
+        assertEquals(expectedScope, showFunctionsOperation.getFunctionScope());
+        assertEquals(expectedSummary, showFunctionsOperation.asSummaryString());
     }
 
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {

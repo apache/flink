@@ -368,16 +368,23 @@ SqlAlterFunction SqlAlterFunction() :
     }
 }
 
+/**
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
-    SqlIdentifier database = null;
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
-    [database = CompoundIdentifier()]
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, database);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
