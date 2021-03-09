@@ -15,6 +15,36 @@
 // limitations under the License.
 -->
 
+/**
+ * Parses a "IF EXISTS" option, default is false.
+ */
+boolean IfExistsOpt() :
+{
+}
+{
+    (
+        LOOKAHEAD(2)
+        <IF> <EXISTS> { return true; }
+    |
+        { return false; }
+    )
+}
+
+/**
+ * Parses a "IF NOT EXISTS" option, default is false.
+ */
+boolean IfNotExistsOpt() :
+{
+}
+{
+    (
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { return true; }
+    |
+        { return false; }
+    )
+}
+
 SqlCharStringLiteral createStringLiteral(String s, SqlParserPos pos) :
 {
 }
@@ -66,9 +96,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
         startPos = getPos();
         propertyList = new SqlNodeList(startPos);
       }
-    [ LOOKAHEAD(3)
-      <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+    ifNotExists = IfNotExistsOpt()
     databaseName = CompoundIdentifier()
     [ <COMMENT> <QUOTED_STRING>
         {
@@ -146,11 +174,7 @@ SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     ( <DATABASE> | <SCHEMA> )
 
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
 
     databaseName = CompoundIdentifier()
     [
@@ -299,10 +323,7 @@ SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
     [ <EXTERNAL> { isExternal = true; } ]
     <TABLE> { propertyList = new SqlNodeList(getPos()); }
 
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+    ifNotExists = IfNotExistsOpt()
 
     tableName = CompoundIdentifier()
     [
@@ -384,11 +405,7 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     <TABLE>
 
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
 
     tableName = CompoundIdentifier()
 
@@ -1025,7 +1042,7 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
     [ <TEMPORARY> {isTemporary = true;} ]
     <FUNCTION>
 
-    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+     ifExists = IfExistsOpt()
 
     functionIdentifier = CompoundIdentifier()
 
@@ -1183,7 +1200,7 @@ SqlAlterTable SqlAlterTable() :
                 return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
             }
         |
-            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+             ifNotExists = IfNotExistsOpt()
             {
                 EnsureAlterTableOnly(partitionSpec, "Add partitions");
                 return SqlAddHivePartitions(startPos, tableIdentifier, ifNotExists);
@@ -1195,7 +1212,7 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <DROP>
-        [ <IF> <EXISTS> { ifExists = true; } ]
+        ifExists = IfExistsOpt()
         {
             EnsureAlterTableOnly(partitionSpec, "Drop partitions");
             return SqlDropPartitions(startPos, tableIdentifier, ifExists);
@@ -1348,10 +1365,7 @@ SqlCreate SqlCreateView(Span s, boolean replace) : {
 }
 {
     <VIEW> { properties = new SqlNodeList(getPos()); }
-    [
-        LOOKAHEAD(3)
-        <IF> <NOT> <EXISTS> { ifNotExists = true; }
-    ]
+    ifNotExists = IfNotExistsOpt()
     viewName = CompoundIdentifier()
     [
         fieldList = ParenthesizedSimpleIdentifierList()
@@ -1384,11 +1398,7 @@ SqlDrop SqlDropView(Span s, boolean replace) :
 }
 {
     <VIEW>
-    (
-        <IF> <EXISTS> { ifExists = true; }
-    |
-        { ifExists = false; }
-    )
+    ifExists = IfExistsOpt()
     viewName = CompoundIdentifier()
     {
         return new SqlDropView(s.pos(), viewName, ifExists, false);
