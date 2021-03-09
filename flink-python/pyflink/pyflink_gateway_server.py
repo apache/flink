@@ -89,6 +89,12 @@ def construct_log_settings():
 
 def construct_classpath():
     flink_home = _find_flink_home()
+    flink_lib_directory = None
+    flink_opt_directory = None
+    if 'FLINK_LIB_DIR' in os.environ:
+        flink_lib_directory = os.path.realpath(os.environ['FLINK_LIB_DIR'])
+    if 'FLINK_OPT_DIR' in os.environ:
+        flink_opt_directory = os.path.realpath(os.environ['FLINK_OPT_DIR'])
     # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
     # using the tainted value and might allow an attacker to access, modify, or test the existence
     # of critical or sensitive files.
@@ -96,11 +102,20 @@ def construct_classpath():
     if on_windows():
         # The command length is limited on Windows. To avoid the problem we should shorten the
         # command length as much as possible.
-        lib_jars = os.path.join(real_flink_home, "lib", "*")
+        if flink_lib_directory is not None:
+            lib_jars = os.path.join(flink_lib_directory, "*")
+        else:
+            lib_jars = os.path.join(real_flink_home, "lib", "*")
     else:
-        lib_jars = os.pathsep.join(glob.glob(os.path.join(real_flink_home, "lib", "*.jar")))
+        if flink_lib_directory is not None:
+            lib_jars = os.pathsep.join(glob.glob(os.path.join(flink_lib_directory, "*.jar")))
+        else:
+            lib_jars = os.pathsep.join(glob.glob(os.path.join(real_flink_home, "lib", "*.jar")))
 
-    flink_python_jars = glob.glob(os.path.join(real_flink_home, "opt", "flink-python*.jar"))
+    if flink_opt_directory is not None:
+        flink_python_jars = glob.glob(os.path.join(flink_opt_directory, "flink-python*.jar"))
+    else:
+        flink_python_jars = glob.glob(os.path.join(real_flink_home, "opt", "flink-python*.jar"))
     if len(flink_python_jars) < 1:
         print("The flink-python jar is not found in the opt folder of the FLINK_HOME: %s" %
               flink_home)
@@ -182,9 +197,12 @@ def prepare_environment_variable(env):
     env = dict(env)
     env["FLINK_CONF_DIR"] = os.path.join(flink_home, "conf")
     env["FLINK_BIN_DIR"] = os.path.join(flink_home, "bin")
-    env["FLINK_PLUGINS_DIR"] = os.path.join(flink_home, "plugins")
-    env["FLINK_LIB_DIR"] = os.path.join(flink_home, "lib")
-    env["FLINK_OPT_DIR"] = os.path.join(flink_home, "opt")
+    if "FLINK_PLUGINS_DIR" not in env:
+        env["FLINK_PLUGINS_DIR"] = os.path.join(flink_home, "plugins")
+    if "FLINK_LIB_DIR" not in env:
+        env["FLINK_LIB_DIR"] = os.path.join(flink_home, "lib")
+    if "FLINK_OPT_DIR" not in env:
+        env["FLINK_OPT_DIR"] = os.path.join(flink_home, "opt")
     return env
 
 
