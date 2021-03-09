@@ -1042,7 +1042,7 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
     [ <TEMPORARY> {isTemporary = true;} ]
     <FUNCTION>
 
-     ifExists = IfExistsOpt()
+    ifExists = IfExistsOpt()
 
     functionIdentifier = CompoundIdentifier()
 
@@ -1200,7 +1200,7 @@ SqlAlterTable SqlAlterTable() :
                 return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
             }
         |
-             ifNotExists = IfNotExistsOpt()
+            ifNotExists = IfNotExistsOpt()
             {
                 EnsureAlterTableOnly(partitionSpec, "Add partitions");
                 return SqlAddHivePartitions(startPos, tableIdentifier, ifNotExists);
