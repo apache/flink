@@ -73,17 +73,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testCreateCatalog() {
-        sql("create catalog c1\n"
-                        + " WITH (\n"
-                        + "  'key1'='value1',\n"
-                        + "  'key2'='value2'\n"
-                        + " )\n")
-                .ok(
-                        "CREATE CATALOG `C1` "
-                                + "WITH (\n"
-                                + "  'key1' = 'value1',\n"
-                                + "  'key2' = 'value2'\n"
-                                + ")");
+        sql("create catalog c1").ok("CREATE CATALOG `C1`");
+        sql("create catalog if not exists c1").ok("CREATE CATALOG IF NOT EXISTS `C1`");
+        final String sql = "create catalog c1 comment 'test create catalog'";
+        final String expected = "CREATE CATALOG `C1`\n" + "COMMENT 'test create catalog'";
+        sql(sql).ok(expected);
+        final String sql1 =
+                "create catalog c1 comment 'test create catalog'"
+                        + "with ( 'key1' = 'value1', 'key2.a' = 'value2.a')";
+        final String expected1 =
+                "CREATE CATALOG `C1`\n"
+                        + "COMMENT 'test create catalog' WITH (\n"
+                        + "  'key1' = 'value1',\n"
+                        + "  'key2.a' = 'value2.a'\n"
+                        + ")";
+        sql(sql1).ok(expected1);
     }
 
     @Test

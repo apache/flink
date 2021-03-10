@@ -172,9 +172,9 @@ public class SqlCommandParserTest {
                                 .cannotParseComment(),
                         // create catalog xx
                         TestItem.validSql(
-                                "create CATALOG c1 with('type'='generic_in_memory')",
+                                "create CATALOG if not exists c1 comment 'c1_comment' with('type'='generic_in_memory')",
                                 SqlCommand.CREATE_CATALOG,
-                                "create CATALOG c1 with('type'='generic_in_memory')"),
+                                "create CATALOG if not exists c1 comment 'c1_comment' with('type'='generic_in_memory')"),
                         TestItem.validSql(
                                 "create CATALOG c1 WITH ('type'='simple-catalog', 'default-database'='db1')",
                                 SqlCommand.CREATE_CATALOG,
