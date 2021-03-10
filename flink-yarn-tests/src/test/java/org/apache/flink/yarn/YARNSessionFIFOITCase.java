@@ -181,7 +181,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                         yc.init(YARN_CONFIGURATION);
                         yc.start();
                         List<ApplicationReport> apps =
-                                yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+                                getApplicationReportWithRetryOnNPE(
+                                        yc, EnumSet.of(YarnApplicationState.RUNNING));
                         Assert.assertEquals(1, apps.size()); // Only one running
                         ApplicationReport app = apps.get(0);
 
@@ -190,9 +191,13 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                         ApplicationId id = app.getApplicationId();
                         yc.killApplication(id);
 
-                        while (yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size()
+                        while (getApplicationReportWithRetryOnNPE(
+                                                        yc, EnumSet.of(YarnApplicationState.KILLED))
+                                                .size()
                                         == 0
-                                && yc.getApplications(EnumSet.of(YarnApplicationState.FINISHED))
+                                && getApplicationReportWithRetryOnNPE(
+                                                        yc,
+                                                        EnumSet.of(YarnApplicationState.FINISHED))
                                                 .size()
                                         == 0) {
                             sleep(500);
