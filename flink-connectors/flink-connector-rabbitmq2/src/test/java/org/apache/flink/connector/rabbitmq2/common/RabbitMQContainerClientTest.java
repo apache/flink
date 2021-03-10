@@ -63,7 +63,7 @@ public class RabbitMQContainerClientTest {
     public void simpleContainerClientSendReceiveTest()
             throws IOException, TimeoutException, InterruptedException {
         RabbitMQContainerClient client = new RabbitMQContainerClient(rabbitMq);
-        client.createQueue("Test");
+        client.createQueue("Test", true);
 
         client.sendMessages(new SimpleStringSchema(), "test message");
         TimeUnit.SECONDS.sleep(2);

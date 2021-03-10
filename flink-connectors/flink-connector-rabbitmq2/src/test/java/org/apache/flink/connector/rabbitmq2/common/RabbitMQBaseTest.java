@@ -23,6 +23,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.rabbitmq2.ConsistencyMode;
 import org.apache.flink.connector.rabbitmq2.RabbitMQConnectionConfig;
+import org.apache.flink.connector.rabbitmq2.sink.RabbitMQSink;
 import org.apache.flink.connector.rabbitmq2.source.RabbitMQSource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -72,10 +73,37 @@ public abstract class RabbitMQBaseTest {
 
     @Before
     public void setUpContainerClient() {
-        client = new RabbitMQContainerClient(rabbitMq, false);
+        client = new RabbitMQContainerClient(rabbitMq);
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(1000);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 1000));
+    }
+
+    public void addSinkOn(DataStream<String> stream, ConsistencyMode consistencyMode)
+            throws IOException, TimeoutException {
+        queueName = UUID.randomUUID().toString();
+        client.createQueue(queueName, true);
+        final RabbitMQConnectionConfig connectionConfig =
+                new RabbitMQConnectionConfig.Builder()
+                        .setHost(rabbitMq.getHost())
+                        .setVirtualHost("/")
+                        .setUserName(rabbitMq.getAdminUsername())
+                        .setPassword(rabbitMq.getAdminPassword())
+                        .setPort(rabbitMq.getMappedPort(RABBITMQ_PORT))
+                        .build();
+
+        RabbitMQSink<String> sink =
+                RabbitMQSink.<String>builder()
+                        .setConnectionConfig(connectionConfig)
+                        .setQueueName(queueName)
+                        .setSerializationSchema(new SimpleStringSchema())
+                        .setConsistencyMode(consistencyMode)
+                        .build();
+        stream.sinkTo(sink).setParallelism(1);
+    }
+
+    public List<String> getMessageFromRabbit() throws IOException {
+        return client.readMessages(new SimpleStringSchema());
     }
 
     public DataStream<String> getSinkOn(
