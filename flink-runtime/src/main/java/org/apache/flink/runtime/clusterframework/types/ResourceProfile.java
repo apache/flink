@@ -96,7 +96,7 @@ public class ResourceProfile implements Serializable {
     // ------------------------------------------------------------------------
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
-    @Nullable private final Resource cpuCores;
+    @Nullable private final CPUResource cpuCores;
 
     /** How much task heap memory is needed. */
     @Nullable // can be null only for UNKNOWN
@@ -130,7 +130,7 @@ public class ResourceProfile implements Serializable {
      * @param extendedResources The extended resources such as GPU and FPGA
      */
     private ResourceProfile(
-            final Resource cpuCores,
+            final CPUResource cpuCores,
             final MemorySize taskHeapMemory,
             final MemorySize taskOffHeapMemory,
             final MemorySize managedMemory,
@@ -138,7 +138,6 @@ public class ResourceProfile implements Serializable {
             final Map<String, Resource> extendedResources) {
 
         checkNotNull(cpuCores);
-        checkArgument(cpuCores instanceof CPUResource, "cpuCores must be CPUResource");
 
         this.cpuCores = cpuCores;
         this.taskHeapMemory = checkNotNull(taskHeapMemory);
@@ -171,7 +170,7 @@ public class ResourceProfile implements Serializable {
      *
      * @return The cpu cores, 1.0 means a full cpu thread
      */
-    public Resource getCpuCores() {
+    public CPUResource getCpuCores() {
         throwUnsupportedOperationExecptionIfUnknown();
         return cpuCores;
     }
@@ -582,7 +581,7 @@ public class ResourceProfile implements Serializable {
     /** Builder for the {@link ResourceProfile}. */
     public static class Builder {
 
-        private Resource cpuCores = new CPUResource(0.0);
+        private CPUResource cpuCores = new CPUResource(0.0);
         private MemorySize taskHeapMemory = MemorySize.ZERO;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
@@ -591,7 +590,7 @@ public class ResourceProfile implements Serializable {
 
         private Builder() {}
 
-        public Builder setCpuCores(Resource cpuCores) {
+        public Builder setCpuCores(CPUResource cpuCores) {
             this.cpuCores = cpuCores;
             return this;
         }

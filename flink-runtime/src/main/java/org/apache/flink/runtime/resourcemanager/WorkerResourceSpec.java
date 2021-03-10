@@ -80,7 +80,7 @@ public final class WorkerResourceSpec implements Serializable {
             final ResourceProfile resourceProfile, final int numSlots) {
         Preconditions.checkNotNull(resourceProfile);
         return new WorkerResourceSpec(
-                (CPUResource) resourceProfile.getCpuCores(),
+                resourceProfile.getCpuCores(),
                 resourceProfile.getTaskHeapMemory(),
                 resourceProfile.getTaskOffHeapMemory(),
                 resourceProfile.getNetworkMemory(),
