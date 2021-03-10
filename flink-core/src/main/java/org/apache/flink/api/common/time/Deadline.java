@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.time;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -30,12 +32,16 @@ public class Deadline {
     /** The deadline, relative to {@link System#nanoTime()}. */
     private final long timeNanos;
 
-    private Deadline(long deadline) {
+    /** Clock providing the time for this deadline. */
+    private final Clock clock;
+
+    private Deadline(long deadline, Clock clock) {
         this.timeNanos = deadline;
+        this.clock = clock;
     }
 
     public Deadline plus(Duration other) {
-        return new Deadline(Math.addExact(timeNanos, other.toNanos()));
+        return new Deadline(Math.addExact(timeNanos, other.toNanos()), this.clock);
     }
 
     /**
@@ -43,7 +49,7 @@ public class Deadline {
      * has passed.
      */
     public Duration timeLeft() {
-        return Duration.ofNanos(Math.subtractExact(timeNanos, System.nanoTime()));
+        return Duration.ofNanos(Math.subtractExact(timeNanos, clock.relativeTimeNanos()));
     }
 
     /**
@@ -53,7 +59,7 @@ public class Deadline {
      * @throws TimeoutException if no time is left
      */
     public Duration timeLeftIfAny() throws TimeoutException {
-        long nanos = Math.subtractExact(timeNanos, System.nanoTime());
+        long nanos = Math.subtractExact(timeNanos, clock.relativeTimeNanos());
         if (nanos <= 0) {
             throw new TimeoutException();
         }
@@ -67,7 +73,7 @@ public class Deadline {
 
     /** Determines whether the deadline is in the past, i.e. whether the time left is negative. */
     public boolean isOverdue() {
-        return timeNanos < System.nanoTime();
+        return timeNanos < clock.relativeTimeNanos();
     }
 
     // ------------------------------------------------------------------------
@@ -79,11 +85,23 @@ public class Deadline {
      * {@link #plus(Duration)} to specify a deadline in the future.
      */
     public static Deadline now() {
-        return new Deadline(System.nanoTime());
+        return new Deadline(System.nanoTime(), SystemClock.getInstance());
     }
 
     /** Constructs a Deadline that is a given duration after now. */
     public static Deadline fromNow(Duration duration) {
-        return new Deadline(Math.addExact(System.nanoTime(), duration.toNanos()));
+        return new Deadline(
+                Math.addExact(System.nanoTime(), duration.toNanos()), SystemClock.getInstance());
+    }
+
+    /**
+     * Constructs a Deadline that is a given duration after now, where now and all other times from
+     * this deadline are defined by the given {@link Clock}.
+     *
+     * @param duration Duration for this deadline.
+     * @param clock Time provider for this deadline.
+     */
+    public static Deadline fromNowWithClock(Duration duration, Clock clock) {
+        return new Deadline(Math.addExact(clock.relativeTimeNanos(), duration.toNanos()), clock);
     }
 }

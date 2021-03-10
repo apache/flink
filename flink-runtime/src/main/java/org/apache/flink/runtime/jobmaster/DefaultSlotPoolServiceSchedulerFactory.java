@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -49,6 +50,7 @@ import org.apache.flink.util.clock.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
@@ -167,7 +169,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                     batchSlotTimeout);
                     break;
                 case Adaptive:
-                    schedulerNGFactory = new AdaptiveSchedulerFactory();
+                    schedulerNGFactory =
+                            getAdaptiveSchedulerFactoryFromConfiguration(configuration);
                     slotPoolServiceFactory =
                             new DeclarativeSlotPoolServiceFactory(
                                     SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
@@ -192,5 +195,31 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         return new DefaultSlotPoolServiceSchedulerFactory(
                 slotPoolServiceFactory, schedulerNGFactory);
+    }
+
+    private static AdaptiveSchedulerFactory getAdaptiveSchedulerFactoryFromConfiguration(
+            Configuration configuration) {
+        Duration allocationTimeoutDefault = JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
+        Duration stabilizationTimeoutDefault =
+                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
+
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            allocationTimeoutDefault = Duration.ofMillis(-1);
+            stabilizationTimeoutDefault = Duration.ZERO;
+        }
+
+        final Duration initialResourceAllocationTimeout =
+                configuration
+                        .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
+                        .orElse(allocationTimeoutDefault);
+
+        final Duration resourceStabilizationTimeout =
+                configuration
+                        .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
+                        .orElse(stabilizationTimeoutDefault);
+
+        return new AdaptiveSchedulerFactory(
+                initialResourceAllocationTimeout, resourceStabilizationTimeout);
     }
 }

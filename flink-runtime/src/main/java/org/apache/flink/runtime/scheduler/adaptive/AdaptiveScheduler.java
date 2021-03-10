@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -174,7 +173,9 @@ public class AdaptiveScheduler
 
     private final ScaleUpController scaleUpController;
 
-    private final Duration resourceTimeout;
+    private final Duration initialResourceAllocationTimeout;
+
+    private final Duration resourceStabilizationTimeout;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -197,6 +198,8 @@ public class AdaptiveScheduler
             Executor ioExecutor,
             ClassLoader userCodeClassLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Duration initialResourceAllocationTimeout,
+            Duration resourceStabilizationTimeout,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
             RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             long initializationTimestamp,
@@ -237,7 +240,9 @@ public class AdaptiveScheduler
 
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
-        this.resourceTimeout = configuration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT);
+        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+
+        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
 
         this.executionGraphFactory = executionGraphFactory;
 
@@ -566,7 +571,7 @@ public class AdaptiveScheduler
     // ----------------------------------------------------------------
 
     @Override
-    public boolean hasEnoughResources(ResourceCounter desiredResources) {
+    public boolean hasDesiredResources(ResourceCounter desiredResources) {
         final Collection<? extends SlotInfo> allSlots =
                 declarativeSlotPool.getFreeSlotsInformation();
         ResourceCounter outstandingResources = desiredResources;
@@ -585,6 +590,13 @@ public class AdaptiveScheduler
         }
 
         return outstandingResources.isEmpty();
+    }
+
+    @Override
+    public boolean hasSufficientResources() {
+        return slotAllocator
+                .determineParallelism(jobInformation, declarativeSlotPool.getAllSlotsInformation())
+                .isPresent();
     }
 
     private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
@@ -616,7 +628,12 @@ public class AdaptiveScheduler
         declarativeSlotPool.setResourceRequirements(desiredResources);
 
         transitionToState(
-                new WaitingForResources.Factory(this, LOG, desiredResources, this.resourceTimeout));
+                new WaitingForResources.Factory(
+                        this,
+                        LOG,
+                        desiredResources,
+                        this.initialResourceAllocationTimeout,
+                        this.resourceStabilizationTimeout));
     }
 
     private ResourceCounter calculateDesiredResources() {

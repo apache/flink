@@ -15,10 +15,16 @@
             <td>Configure the minimum increase in parallelism for a job to scale up.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource-stabilization-timeout</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).</td>
+            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to a negative value to disable the resource timeout.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.archive.fs.dir</h5></td>

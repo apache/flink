@@ -19,6 +19,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -208,6 +209,8 @@ public class AdaptiveSchedulerBuilder {
                 ioExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT),
+                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT),
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,

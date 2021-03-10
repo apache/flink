@@ -43,11 +43,22 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for the adaptive scheduler. */
 public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
+
+    private final Duration initialResourceAllocationTimeout;
+    private final Duration resourceStabilizationTimeout;
+
+    public AdaptiveSchedulerFactory(
+            Duration initialResourceAllocationTimeout, Duration resourceStabilizationTimeout) {
+        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+    }
+
     @Override
     public SchedulerNG createInstance(
             Logger log,
@@ -115,6 +126,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 ioExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                initialResourceAllocationTimeout,
+                resourceStabilizationTimeout,
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,

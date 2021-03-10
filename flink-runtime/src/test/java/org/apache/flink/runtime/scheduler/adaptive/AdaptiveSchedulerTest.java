@@ -181,7 +181,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
 
-        assertThat(scheduler.hasEnoughResources(resourceRequirement), is(false));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(false));
     }
 
     @Test
@@ -204,7 +204,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         offerSlots(
                 declarativeSlotPool, createSlotOffersForResourceRequirements(resourceRequirement));
 
-        assertThat(scheduler.hasEnoughResources(resourceRequirement), is(true));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(true));
     }
 
     @Test
@@ -230,7 +230,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         offerSlots(declarativeSlotPool, createSlotOffersForResourceRequirements(providedResources));
 
-        assertThat(scheduler.hasEnoughResources(requiredResources), is(true));
+        assertThat(scheduler.hasDesiredResources(requiredResources), is(true));
     }
 
     @Test
@@ -858,7 +858,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         }
     }
 
-    private static class DummyState implements State {
+    static class DummyState implements State {
 
         @Override
         public void cancel() {}

@@ -418,8 +418,35 @@ public class JobManagerOptions {
                                                     + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
                                     .linebreak()
                                     .text(
-                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted), "
-                                                    + "while decreasing this value reduces downtime of a job (provided that enough slots are available to still run the job).")
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).")
+                                    .linebreak()
+                                    .text(
+                                            "Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(RESOURCE_WAIT_TIMEOUT.defaultValue())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. "
+                                                    + "Once this timeout has passed, the job will start executing with the available resources.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to 0, so that jobs are starting immediately with the available resources.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
                                     .build());
 
     /**
