@@ -33,10 +33,10 @@ public final class CatalogPropertiesUtil {
     public static final String IS_GENERIC = "is_generic";
 
     /**
-     * Globally reserved prefix for catalog properties. User defined properties should not with this
-     * prefix. Used to distinguish properties created by Hive and Flink, as Hive metastore has its
-     * own properties created upon table creation and migration between different versions of
-     * metastore.
+     * Globally reserved prefix for catalog properties. User-defined properties should not use this
+     * prefix. E.g. it is used to distinguish properties created by Hive and Flink, as Hive
+     * metastore has its own properties created upon table creation and migration between different
+     * versions of metastore.
      */
     public static final String FLINK_PROPERTY_PREFIX = "flink.";
 
