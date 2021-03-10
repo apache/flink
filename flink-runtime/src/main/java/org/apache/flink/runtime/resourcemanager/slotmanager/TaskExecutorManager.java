@@ -199,6 +199,11 @@ class TaskExecutorManager implements AutoCloseable {
         final Set<TaskManagerSlotId> matchingPendingSlots = new HashSet<>();
 
         for (SlotStatus slotStatus : slotReport) {
+            if (slotStatus.getAllocationID() != null) {
+                // only empty registered slots can match pending slots
+                continue;
+            }
+
             for (PendingTaskManagerSlot pendingTaskManagerSlot : pendingSlots.values()) {
                 if (!matchingPendingSlots.contains(pendingTaskManagerSlot.getTaskManagerSlotId())
                         && isPendingSlotExactlyMatchingResourceProfile(
