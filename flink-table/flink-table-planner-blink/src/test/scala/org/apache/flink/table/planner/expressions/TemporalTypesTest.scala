@@ -914,6 +914,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"from_unixtime(f22, '$fmt3')",
       sdf3.format(new Timestamp(3000)))
 
+    testSqlApi(
+      s"from_unixtime(f26, '$fmt2')",
+      sdf2.format(new Timestamp(124000)))
+    testSqlApi(
+      s"from_unixtime(f26, '$fmt3')",
+      sdf3.format(new Timestamp(124000)))
+
     // test with null input
     testSqlApi(
       "from_unixtime(cast(null as int))",
@@ -1154,7 +1161,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(26)
+    val testData = new Row(27)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))
@@ -1187,6 +1194,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789")
       .atZone(config.getLocalTimeZone).toInstant)
     testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
+    testData setField(26, new Integer(124).byteValue())
     testData
   }
 
@@ -1216,7 +1224,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     DataTypes.FIELD("f22", DataTypes.INT()),
     DataTypes.FIELD("f23", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
     DataTypes.FIELD("f24", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
-    DataTypes.FIELD("f25", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
+    DataTypes.FIELD("f25", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f26", DataTypes.TINYINT())
   )
 
   override def containsLegacyTypes: Boolean = false

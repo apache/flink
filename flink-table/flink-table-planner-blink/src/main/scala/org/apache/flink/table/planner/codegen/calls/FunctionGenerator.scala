@@ -33,7 +33,7 @@ import scala.collection.mutable
 object FunctionGenerator {
 
   val INTEGRAL_TYPES = Array(
-    INTEGER,
+    TINYINT,
     SMALLINT,
     INTEGER,
     BIGINT)
