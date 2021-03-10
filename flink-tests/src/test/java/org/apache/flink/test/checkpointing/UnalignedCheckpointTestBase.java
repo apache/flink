@@ -89,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 
 /** Base class for tests related to unaligned checkpoints. */
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
+@Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
 public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final Logger LOG = LoggerFactory.getLogger(UnalignedCheckpointTestBase.class);
     protected static final String NUM_INPUTS = "inputs";
