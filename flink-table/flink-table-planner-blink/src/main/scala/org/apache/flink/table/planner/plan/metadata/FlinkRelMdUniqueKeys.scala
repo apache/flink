@@ -79,7 +79,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
           case act: CatalogTable =>
             val schema = act.getSchema
             if (schema.getPrimaryKey.isPresent) {
-              val columns = schema.getFieldNames
+              // use relOptTable's type which may be projected based on original schema
+              val columns = relOptTable.getRowType.getFieldNames
               val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
                 columns.indexOf(c)
               }
