@@ -561,8 +561,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkOldStreamTableTes
             jar_urls = []
             func1_class_name = "org.apache.flink.python.util.TestScalarFunction1"
             func2_class_name = "org.apache.flink.python.util.TestScalarFunction2"
-            func1_jar_pattern = "flink-python/target/func1/flink-python*-tests.jar"
-            func2_jar_pattern = "flink-python/target/func2/flink-python*-tests.jar"
+            func1_jar_pattern = "flink-python/target/artifacts/testUdf1.jar"
+            func2_jar_pattern = "flink-python/target/artifacts/testUdf2.jar"
             self.ensure_jar_not_loaded(func1_class_name, func1_jar_pattern)
             self.ensure_jar_not_loaded(func2_class_name, func2_jar_pattern)
             jar_urls.extend(self.get_jar_url(func1_jar_pattern))

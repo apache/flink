@@ -146,7 +146,7 @@ class JavaSqlTests(PyFlinkTestCase):
 
     def test_java_sql_ddl(self):
         test_class = "org.apache.flink.client.python.PythonFunctionFactoryTest"
-        test_jar_pattern = "flink-python/target/javaDDL/flink-python*-tests.jar"
+        test_jar_pattern = "flink-python/target/artifacts/testJavaDdl.jar"
         test_jar_path = self.get_jar_path(test_jar_pattern)
         test_classpath = self.get_classpath() + os.pathsep + test_jar_path
         java_executable = self.get_java_executable()

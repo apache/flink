@@ -155,7 +155,7 @@ def construct_test_classpath():
         "flink-formats/flink-json/target/flink-json*.jar",
         "flink-ml-parent/flink-ml-api/target/flink-ml-api*.jar",
         "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*.jar",
-        "flink-python/target/data-stream-test/flink*.jar",
+        "flink-python/target/artifacts/testDataStream.jar",
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()
