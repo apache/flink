@@ -576,6 +576,8 @@ public class SavepointITCase extends TestLogger {
     @Test
     @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
+        // the trigger need to be reset in case the test is run multiple times
+        CancelFailingInfiniteTestSource.cancelTriggered = false;
         testStopWithFailingSourceInOnePipeline(
                 new CancelFailingInfiniteTestSource(),
                 folder.newFolder(),
