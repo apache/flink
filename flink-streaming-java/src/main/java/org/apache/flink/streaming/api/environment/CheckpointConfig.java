@@ -131,7 +131,6 @@ public class CheckpointConfig implements java.io.Serializable {
         this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
         this.forceCheckpointing = checkpointConfig.forceCheckpointing;
         this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
-        this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
     }
 
     public CheckpointConfig() {}
