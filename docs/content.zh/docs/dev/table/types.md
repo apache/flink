@@ -907,7 +907,7 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `TIMESTAMPLTZ(p)` where `p` is the number
+The type can be declared using `TIMESTAMP_LTZ(p)` where `p` is the number
 of digits of fractional seconds (*precision*). `p` must have a value between `0` and `9`
 (both inclusive). If no precision is specified, `p` is equal to `6`.
 
