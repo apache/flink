@@ -147,6 +147,8 @@ public final class WorkerResourceSpec implements Serializable {
                 + networkMemSize.toHumanReadableString()
                 + ", managedMemSize="
                 + managedMemSize.toHumanReadableString()
+                + ", numSlots="
+                + numSlots
                 + "}";
     }
 

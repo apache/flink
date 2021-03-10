@@ -196,6 +196,8 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                 + getJvmMetaspaceSize().toHumanReadableString()
                 + ", jvmOverheadSize="
                 + getJvmOverheadSize().toHumanReadableString()
+                + ", numSlots="
+                + numSlots
                 + '}';
     }
 }
