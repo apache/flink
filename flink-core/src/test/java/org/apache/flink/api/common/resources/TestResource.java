@@ -33,6 +33,10 @@ public class TestResource extends Resource {
         super(NAME, value);
     }
 
+    public TestResource(final String name, final double value) {
+        super(name, value);
+    }
+
     @Override
     public Resource create(BigDecimal value) {
         return new TestResource(value);
