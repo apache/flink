@@ -409,11 +409,6 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
   </tbody>
 </table>
 
-### Sink Parallelism
-
-The parallelism of writing data into Hive can be configured by the corresponding table option.
-Please see the [sink parallelism]({{< ref "docs/connectors/table/filesystem" >}}#sink-parallelism) for detail.
-
 ## Formats
 
 Flink's Hive integration has been tested against the following file formats:

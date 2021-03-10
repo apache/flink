@@ -372,9 +372,9 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
 
 ```
 
-### Sink Parallelism
+## Sink Parallelism
 
-The parallelism of writing files into external file system can be configured by the corresponding table option. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator. When the parallelism which is different from the parallelism of the upstream parallelism is configured, the operator of writing files and the operator compacting files (if used) will apply the parallelism.
+The parallelism of writing files into external file system(including Hive) can be configured by the corresponding table option, which is supported both in streaming mode and in batch mode. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator. When the parallelism which is different from the parallelism of the upstream parallelism is configured, the operator of writing files and the operator compacting files (if used) will apply the parallelism.
 
 
 <table class="table table-bordered">
