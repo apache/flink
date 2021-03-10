@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
@@ -292,7 +293,7 @@ public abstract class YarnTestBase extends TestLogger {
             Deadline deadline = Deadline.now().plus(Duration.ofSeconds(10));
 
             boolean isAnyJobRunning =
-                    yarnClient.getApplications().stream()
+                    getApplicationReportWithRetryOnNPE(yarnClient).stream()
                             .anyMatch(YarnTestBase::isApplicationRunning);
 
             while (deadline.hasTimeLeft() && isAnyJobRunning) {
@@ -302,13 +303,13 @@ public abstract class YarnTestBase extends TestLogger {
                     Assert.fail("Should not happen");
                 }
                 isAnyJobRunning =
-                        yarnClient.getApplications().stream()
+                        getApplicationReportWithRetryOnNPE(yarnClient).stream()
                                 .anyMatch(YarnTestBase::isApplicationRunning);
             }
 
             if (isAnyJobRunning) {
                 final List<String> runningApps =
-                        yarnClient.getApplications().stream()
+                        getApplicationReportWithRetryOnNPE(yarnClient).stream()
                                 .filter(YarnTestBase::isApplicationRunning)
                                 .map(
                                         app ->
@@ -325,6 +326,44 @@ public abstract class YarnTestBase extends TestLogger {
                 }
             }
         }
+    }
+
+    static List<ApplicationReport> getApplicationReportWithRetryOnNPE(final YarnClient yarnClient)
+            throws IOException, YarnException {
+        return getApplicationReportWithRetryOnNPE(yarnClient, null);
+    }
+
+    static List<ApplicationReport> getApplicationReportWithRetryOnNPE(
+            final YarnClient yarnClient, @Nullable EnumSet<YarnApplicationState> states)
+            throws IOException, YarnException {
+        final int maxRetryCount = 10;
+        NullPointerException mostRecentNPE = null;
+        for (int i = 0; i < maxRetryCount; i++) {
+            try {
+                return yarnClient.getApplications(states);
+            } catch (NullPointerException e) {
+                String npeStr = ExceptionUtils.stringifyException(e);
+                if (!npeStr.contains("RMAppAttemptMetrics.getAggregateAppResourceUsage")) {
+                    // unrelated NullPointerExceptions should be forwarded to the calling method
+                    throw e;
+                }
+
+                mostRecentNPE = e;
+                final String logMessage =
+                        "NullPointerException was caught most likely being related to YARN-7007. The related discussion is happening in FLINK-15534. The exception is going to be ignored.";
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(logMessage, mostRecentNPE);
+                } else {
+                    LOG.warn(logMessage);
+                }
+            }
+        }
+
+        throw new IllegalStateException(
+                "YarnClient.getApplications command failed "
+                        + maxRetryCount
+                        + " times to gather the application report. Check FLINK-15534 for further details.",
+                mostRecentNPE);
     }
 
     private static boolean isApplicationRunning(ApplicationReport app) {
@@ -690,7 +729,8 @@ public abstract class YarnTestBase extends TestLogger {
         checkState(yarnClient != null);
 
         final List<ApplicationReport> apps =
-                yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+                getApplicationReportWithRetryOnNPE(
+                        yarnClient, EnumSet.of(YarnApplicationState.RUNNING));
         assertEquals(1, apps.size()); // Only one running
         return apps.get(0);
     }
