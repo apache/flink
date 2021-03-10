@@ -29,7 +29,7 @@ from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListState
 from pyflink.datastream import TimeDomain, TimerService
 from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
-from pyflink.fn_execution.aggregate import extract_data_view_specs
+from pyflink.fn_execution.state_data_view import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
