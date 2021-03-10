@@ -869,7 +869,7 @@ class RemoteKeyedStateBackend(object):
     def __init__(self,
                  state_handler,
                  key_coder,
-                 window_coder,
+                 namespace_coder,
                  state_cache_size,
                  map_state_read_cache_size,
                  map_state_write_cache_size):
@@ -878,11 +878,10 @@ class RemoteKeyedStateBackend(object):
             state_handler, map_state_read_cache_size)
         from pyflink.fn_execution.coders import FlattenRowCoder
         self._key_coder_impl = FlattenRowCoder(key_coder._field_coders).get_impl()
-        self.window_coder = window_coder
-        if window_coder:
-            self._window_coder_impl = window_coder.get_impl()
+        if namespace_coder:
+            self._namespace_coder_impl = namespace_coder.get_impl()
         else:
-            self._window_coder_impl = None
+            self._namespace_coder_impl = None
         self._state_cache_size = state_cache_size
         self._map_state_write_cache_size = map_state_write_cache_size
         self._all_states = {}
@@ -1008,7 +1007,7 @@ class RemoteKeyedStateBackend(object):
 
     def _encode_namespace(self, namespace):
         if namespace is not None:
-            encoded_namespace = self._window_coder_impl.encode_nested(namespace)
+            encoded_namespace = self._namespace_coder_impl.encode_nested(namespace)
         else:
             encoded_namespace = b''
         return encoded_namespace

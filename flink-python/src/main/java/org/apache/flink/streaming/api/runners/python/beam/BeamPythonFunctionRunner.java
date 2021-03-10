@@ -543,14 +543,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static StateRequestHandler getStateRequestHandler(
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
-            TypeSerializer windowSerializer,
+            TypeSerializer namespaceSerializer,
             Map<String, String> jobOptions) {
         if (keyedStateBackend == null) {
             return StateRequestHandler.unsupported();
         } else {
             assert keySerializer != null;
             return new SimpleStateRequestHandler(
-                    keyedStateBackend, keySerializer, windowSerializer, jobOptions);
+                    keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         }
     }
 
@@ -626,7 +626,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .setData(ByteString.copyFrom(new byte[] {NOT_EMPTY_FLAG}));
 
         private final TypeSerializer keySerializer;
-        private final TypeSerializer windowSerializer;
+        private final TypeSerializer namespaceSerializer;
         private final TypeSerializer<byte[]> valueSerializer;
         private final KeyedStateBackend keyedStateBackend;
 
@@ -658,11 +658,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         SimpleStateRequestHandler(
                 KeyedStateBackend keyedStateBackend,
                 TypeSerializer keySerializer,
-                TypeSerializer windowSerializer,
+                TypeSerializer namespaceSerializer,
                 Map<String, String> config) {
             this.keyedStateBackend = keyedStateBackend;
             this.keySerializer = keySerializer;
-            this.windowSerializer = windowSerializer;
+            this.namespaceSerializer = namespaceSerializer;
             this.valueSerializer =
                     PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
                             new ExecutionConfig());
@@ -814,10 +814,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             byte[] windowBytes = bagUserState.getWindow().toByteArray();
             if (windowBytes.length != 0) {
                 bais.setBuffer(windowBytes, 0, windowBytes.length);
-                Object window = windowSerializer.deserialize(baisWrapper);
+                Object namespace = namespaceSerializer.deserialize(baisWrapper);
                 return (ListState<byte[]>)
                         keyedStateBackend.getPartitionedState(
-                                window, windowSerializer, listStateDescriptor);
+                                namespace, namespaceSerializer, listStateDescriptor);
             } else {
                 return (ListState<byte[]>)
                         keyedStateBackend.getPartitionedState(
@@ -1114,10 +1114,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             byte[] windowBytes = mapUserState.getWindow().toByteArray();
             if (windowBytes.length != 0) {
                 bais.setBuffer(windowBytes, 0, windowBytes.length);
-                Object window = windowSerializer.deserialize(baisWrapper);
+                Object namespace = namespaceSerializer.deserialize(baisWrapper);
                 return (MapState<ByteArrayWrapper, byte[]>)
                         keyedStateBackend.getPartitionedState(
-                                window, windowSerializer, mapStateDescriptor);
+                                namespace, namespaceSerializer, mapStateDescriptor);
             } else {
                 return (MapState<ByteArrayWrapper, byte[]>)
                         keyedStateBackend.getPartitionedState(
