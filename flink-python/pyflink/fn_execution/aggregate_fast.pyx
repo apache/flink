@@ -24,8 +24,8 @@ from typing import List, Dict
 
 from apache_beam.coders import PickleCoder, Coder
 
-from pyflink.fn_execution.aggregate import DataViewSpec, ListViewSpec, MapViewSpec, \
-    StateDataViewStore
+from pyflink.fn_execution.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
+    PerKeyStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, TableAggregateFunction
 
@@ -432,7 +432,7 @@ cdef class GroupAggFunctionBase:
         self.buffer = {}
 
     cpdef void open(self, object function_context):
-        self.aggs_handle.open(StateDataViewStore(function_context, self.state_backend))
+        self.aggs_handle.open(PerKeyStateDataViewStore(function_context, self.state_backend))
 
     cpdef void close(self):
         self.aggs_handle.close()

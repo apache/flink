@@ -15,15 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from abc import ABC, abstractmethod
+from typing import TypeVar, Generic, Union
 
 from apache_beam.coders import PickleCoder
 
 from pyflink.datastream.state import ListState, MapState
 from pyflink.fn_execution.coders import from_proto
+from pyflink.fn_execution.internal_state import InternalListState, InternalMapState
 from pyflink.fn_execution.operation_utils import is_built_in_function, load_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import FunctionContext
-from pyflink.table.data_view import ListView, MapView
+from pyflink.table.data_view import ListView, MapView, DataView
 
 
 def extract_data_view_specs_from_accumulator(current_index, accumulator):
@@ -77,9 +80,21 @@ def extract_data_view_specs(udfs):
     return extracted_udf_data_view_specs
 
 
-class StateListView(ListView):
+N = TypeVar('N')
 
-    def __init__(self, list_state: ListState):
+
+class StateDataView(DataView, Generic[N]):
+    @abstractmethod
+    def set_current_namespace(self, namespace: N):
+        """
+        Sets current namespace for state.
+        """
+        pass
+
+
+class StateListView(ListView, StateDataView[N], ABC):
+
+    def __init__(self, list_state: Union[ListState, InternalListState]):
         super().__init__()
         self._list_state = list_state
 
@@ -99,9 +114,35 @@ class StateListView(ListView):
         return hash([i for i in self.get()])
 
 
-class StateMapView(MapView):
+class KeyedStateListView(StateListView[N]):
+    """
+    KeyedStateListView is a default implementation of StateListView whose underlying
+    representation is a keyed state.
+    """
 
-    def __init__(self, map_state: MapState):
+    def __init__(self, list_state: ListState):
+        super(KeyedStateListView, self).__init__(list_state)
+
+    def set_current_namespace(self, namespace: N):
+        raise Exception("KeyedStateListView doesn't support set_current_namespace")
+
+
+class NamespacedStateListView(StateListView[N]):
+    """
+    NamespacedStateListView is a StateListView whose underlying representation is a keyed and
+    namespaced state. It also supports changing current namespace.
+    """
+
+    def __init__(self, list_state: InternalListState):
+        super(NamespacedStateListView, self).__init__(list_state)
+
+    def set_current_namespace(self, namespace: N):
+        self._list_state.set_current_namespace(namespace)
+
+
+class StateMapView(MapView, StateDataView[N], ABC):
+
+    def __init__(self, map_state: Union[MapState, InternalMapState]):
         super().__init__()
         self._map_state = map_state
 
@@ -136,6 +177,32 @@ class StateMapView(MapView):
         return self._map_state.clear()
 
 
+class KeyedStateMapView(StateMapView[N]):
+    """
+    KeyedStateMapView is a default implementation of StateMapView whose underlying
+    representation is a keyed state.
+    """
+
+    def __init__(self, map_state: MapState):
+        super(KeyedStateMapView, self).__init__(map_state)
+
+    def set_current_namespace(self, namespace: N):
+        raise Exception("KeyedStateMapView doesn't support set_current_namespace")
+
+
+class NamespacedStateMapView(StateMapView[N]):
+    """
+    NamespacedStateMapView is a StateMapView whose underlying representation is a keyed and
+    namespaced state. It also supports changing current namespace.
+    """
+
+    def __init__(self, map_state: InternalMapState):
+        super(NamespacedStateMapView, self).__init__(map_state)
+
+    def set_current_namespace(self, namespace: N):
+        self._map_state.set_current_namespace(namespace)
+
+
 class DataViewSpec(object):
 
     def __init__(self, state_id, field_index):
@@ -158,10 +225,9 @@ class MapViewSpec(DataViewSpec):
         self.value_coder = value_coder
 
 
-class StateDataViewStore(object):
+class StateDataViewStore(ABC):
     """
-    The class used to manage the DataViews used in :class:`AggsHandleFunction`. Currently
-    DataView is not supported so it is just a wrapper of the :class:`FunctionContext`.
+    This interface contains methods for registering StateDataView with a managed store.
     """
 
     def __init__(self,
@@ -173,9 +239,65 @@ class StateDataViewStore(object):
     def get_runtime_context(self):
         return self._function_context
 
+    @abstractmethod
     def get_state_list_view(self, state_name, element_coder):
-        return StateListView(self._keyed_state_backend.get_list_state(state_name, element_coder))
+        """
+        Creates a state list view.
+
+        :param state_name: The name of underlying state of the list view.
+        :param element_coder: The element coder
+        :return: a keyed list state
+        """
+        pass
+
+    @abstractmethod
+    def get_state_map_view(self, state_name, key_coder, value_coder):
+        """
+        Creates a state map view.
+
+        :param state_name: The name of underlying state of the map view.
+        :param key_coder: The key coder
+        :param value_coder: The value coder
+        :return: a keyed map state
+        """
+        pass
+
+
+class PerKeyStateDataViewStore(StateDataViewStore):
+    """
+    Default implementation of StateDataViewStore.
+    """
+
+    def __init__(self,
+                 function_context: FunctionContext,
+                 keyed_state_backend: RemoteKeyedStateBackend):
+        super(PerKeyStateDataViewStore, self).__init__(function_context, keyed_state_backend)
+
+    def get_state_list_view(self, state_name, element_coder):
+        return KeyedStateListView(
+            self._keyed_state_backend.get_list_state(state_name, element_coder))
 
     def get_state_map_view(self, state_name, key_coder, value_coder):
-        return StateMapView(
+        return KeyedStateMapView(
+            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder))
+
+
+class PerWindowStateDataViewStore(StateDataViewStore):
+    """
+    An implementation of StateDataViewStore for window aggregates which forwards the state
+    registration to an underlying RemoteKeyedStateBackend. The state created by this store has the
+    ability to switch window namespaces.
+    """
+
+    def __init__(self,
+                 function_context: FunctionContext,
+                 keyed_state_backend: RemoteKeyedStateBackend):
+        super(PerWindowStateDataViewStore, self).__init__(function_context, keyed_state_backend)
+
+    def get_state_list_view(self, state_name, element_coder):
+        return NamespacedStateListView(
+            self._keyed_state_backend.get_list_state(state_name, element_coder))
+
+    def get_state_map_view(self, state_name, key_coder, value_coder):
+        return NamespacedStateMapView(
             self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder))
