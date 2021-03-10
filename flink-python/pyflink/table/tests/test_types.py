@@ -563,6 +563,27 @@ class TypesTests(PyFlinkTestCase):
             ts2 = lztst.from_sql_type(0)
             self.assertEqual(ts.astimezone(), ts2.astimezone())
 
+    def test_timestampLtz_type(self):
+        lztst = DataTypes.TIMESTAMP_LTZ()
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
+        self.assertEqual(0, lztst.to_sql_type(ts))
+
+        import pytz
+        # suppose the timezone of the data is +9:00
+        timezone = pytz.timezone("Asia/Tokyo")
+        orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
+        try:
+            # suppose the local timezone is +8:00
+            LocalZonedTimestampType.EPOCH_ORDINAL = 28800000000
+            ts_tokyo = timezone.localize(ts)
+            self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
+        finally:
+            LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
+
+        if sys.version_info >= (3, 6):
+            ts2 = lztst.from_sql_type(0)
+            self.assertEqual(ts.astimezone(), ts2.astimezone())
+
     def test_zoned_timestamp_type(self):
         ztst = ZonedTimestampType()
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
