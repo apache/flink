@@ -20,7 +20,6 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -60,11 +59,7 @@ public class ReactiveModeITCase extends TestLogger {
 
     private static Configuration getReactiveModeConfiguration() {
         final Configuration conf = new Configuration();
-
-        conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         conf.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
-        conf.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
-
         return conf;
     }
 
