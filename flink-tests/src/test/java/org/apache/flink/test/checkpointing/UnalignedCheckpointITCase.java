@@ -97,7 +97,7 @@ import static org.hamcrest.Matchers.equalTo;
  * </ul>
  */
 @RunWith(Parameterized.class)
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
+@Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
 public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
     @Parameterized.Parameters(name = "{0}")
