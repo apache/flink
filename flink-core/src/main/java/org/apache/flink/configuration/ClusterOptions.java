@@ -140,11 +140,16 @@ public class ClusterOptions {
     }
 
     public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
-        if (isAdaptiveSchedulerEnabled(configuration)) {
+        if (isAdaptiveSchedulerEnabled(configuration) || isReactiveModeEnabled(configuration)) {
             return JobManagerOptions.SchedulerType.Adaptive;
         } else {
             return configuration.get(JobManagerOptions.SCHEDULER);
         }
+    }
+
+    private static boolean isReactiveModeEnabled(Configuration configuration) {
+        return configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE;
     }
 
     public static boolean isAdaptiveSchedulerEnabled(Configuration configuration) {

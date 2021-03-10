@@ -21,8 +21,10 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -66,7 +68,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
                 defaultSlotPoolServiceSchedulerFactory.getSchedulerNGFactory(),
                 is(instanceOf(AdaptiveSchedulerFactory.class)));
         assertThat(
-            defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
-            is(JobManagerOptions.SchedulerType.Adaptive));
+                defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
+                is(JobManagerOptions.SchedulerType.Adaptive));
     }
 }

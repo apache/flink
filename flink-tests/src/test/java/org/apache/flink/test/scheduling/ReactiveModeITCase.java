@@ -65,11 +65,7 @@ public class ReactiveModeITCase extends TestLogger {
 
     private static Configuration getReactiveModeConfiguration() {
         final Configuration conf = new Configuration();
-
-        conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         conf.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
-        conf.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
-
         return conf;
     }
 
