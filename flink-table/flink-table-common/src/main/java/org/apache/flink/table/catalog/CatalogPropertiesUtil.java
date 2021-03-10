@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.Builder;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -299,8 +300,8 @@ public final class CatalogPropertiesUtil {
     private static String serializeResolvedExpression(ResolvedExpression resolvedExpression) {
         try {
             return resolvedExpression.asSerializableString();
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
+        } catch (TableException e) {
+            throw new TableException(
                     String.format(
                             "Expression '%s' cannot be stored in a durable catalog. "
                                     + "Currently, only SQL expressions have a well-defined string "
@@ -315,8 +316,8 @@ public final class CatalogPropertiesUtil {
         final LogicalType type = dataType.getLogicalType();
         try {
             return type.asSerializableString();
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
+        } catch (TableException e) {
+            throw new TableException(
                     String.format(
                             "Data type '%s' cannot be stored in a durable catalog. Only data types "
                                     + "that have a well-defined string representation can be used "

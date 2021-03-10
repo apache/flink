@@ -91,7 +91,7 @@ class DefaultCatalogTable implements CatalogTable {
 
     @Override
     public CatalogBaseTable copy() {
-        return this;
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
     }
 
     @Override
