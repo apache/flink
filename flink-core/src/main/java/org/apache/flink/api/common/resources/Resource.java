@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base class for resources one can specify. */
 @Internal
-public abstract class Resource implements Serializable {
+public abstract class Resource implements Serializable, Comparable<Resource> {
 
     private static final long serialVersionUID = 1L;
 
@@ -110,6 +110,12 @@ public abstract class Resource implements Serializable {
     @Override
     public String toString() {
         return String.format("Resource(%s: %s)", name, value);
+    }
+
+    @Override
+    public int compareTo(Resource other) {
+        checkArgument(other != null && getClass() == other.getClass() && name.equals(other.name));
+        return value.compareTo(other.value);
     }
 
     public String getName() {

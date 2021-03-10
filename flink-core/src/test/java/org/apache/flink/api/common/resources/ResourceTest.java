@@ -24,8 +24,12 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link Resource}. */
@@ -166,6 +170,39 @@ public class ResourceTest extends TestLogger {
 
         assertTrue(resource1.isZero());
         assertFalse(resource2.isZero());
+    }
+
+    @Test
+    public void testCompareTo() {
+        final Resource resource1 = new TestResource(0.0);
+        final Resource resource2 = new TestResource(0.0);
+        final Resource resource3 = new TestResource(1.0);
+
+        assertThat(resource1.compareTo(resource1), is(0));
+        assertThat(resource1.compareTo(resource2), is(0));
+        assertThat(resource1.compareTo(resource3), lessThan(0));
+        assertThat(resource3.compareTo(resource1), greaterThan(0));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompareToFailNull() {
+        new TestResource(0.0).compareTo(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompareToFailDifferentType() {
+        // initialized as different anonymous classes
+        final Resource resource1 = new TestResource(0.0) {};
+        final Resource resource2 = new TestResource(0.0) {};
+        resource1.compareTo(resource2);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompareToFailDifferentName() {
+        // initialized as different anonymous classes
+        final Resource resource1 = new TestResource("name1", 0.0);
+        final Resource resource2 = new TestResource("name2", 0.0);
+        resource1.compareTo(resource2);
     }
 
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {
