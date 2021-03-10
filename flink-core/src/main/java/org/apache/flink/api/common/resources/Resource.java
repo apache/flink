@@ -30,7 +30,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base class for resources one can specify. */
 @Internal
-public abstract class Resource implements Serializable, Comparable<Resource> {
+public abstract class Resource<T extends Resource<T>>
+        implements Serializable, Comparable<Resource> {
 
     private static final long serialVersionUID = 1L;
 
@@ -51,38 +52,38 @@ public abstract class Resource implements Serializable, Comparable<Resource> {
         this.value = value;
     }
 
-    public Resource merge(Resource other) {
+    public T merge(T other) {
         checkNotNull(other, "Cannot merge with null resources");
         checkArgument(getClass() == other.getClass(), "Merge with different resource type");
-        checkArgument(name.equals(other.name), "Merge with different resource name");
+        checkArgument(name.equals(other.getName()), "Merge with different resource name");
 
-        return create(value.add(other.value));
+        return create(value.add(other.getValue()));
     }
 
-    public Resource subtract(Resource other) {
+    public T subtract(T other) {
         checkNotNull(other, "Cannot subtract null resources");
         checkArgument(getClass() == other.getClass(), "Minus with different resource type");
-        checkArgument(name.equals(other.name), "Minus with different resource name");
+        checkArgument(name.equals(other.getName()), "Minus with different resource name");
         checkArgument(
-                value.compareTo(other.value) >= 0,
+                value.compareTo(other.getValue()) >= 0,
                 "Try to subtract a larger resource from this one.");
 
-        return create(value.subtract(other.value));
+        return create(value.subtract(other.getValue()));
     }
 
-    public Resource multiply(BigDecimal multiplier) {
+    public T multiply(BigDecimal multiplier) {
         return create(value.multiply(multiplier));
     }
 
-    public Resource multiply(int multiplier) {
+    public T multiply(int multiplier) {
         return multiply(BigDecimal.valueOf(multiplier));
     }
 
-    public Resource divide(BigDecimal by) {
+    public T divide(BigDecimal by) {
         return create(value.divide(by, 16, RoundingMode.DOWN));
     }
 
-    public Resource divide(int by) {
+    public T divide(int by) {
         return divide(BigDecimal.valueOf(by));
     }
 
@@ -91,10 +92,11 @@ public abstract class Resource implements Serializable, Comparable<Resource> {
         if (this == o) {
             return true;
         } else if (o != null && getClass() == o.getClass()) {
-            Resource other = (Resource) o;
+            @SuppressWarnings("unchecked")
+            T other = (T) o;
 
             // Two Resources are considered equal if the values equals disregarding the scales
-            return name.equals(other.name) && value.compareTo(other.value) == 0;
+            return name.equals(other.getName()) && value.compareTo(other.getValue()) == 0;
         } else {
             return false;
         }
@@ -136,5 +138,5 @@ public abstract class Resource implements Serializable, Comparable<Resource> {
      * @param value The value of the resource
      * @return A new instance of the sub resource
      */
-    protected abstract Resource create(BigDecimal value);
+    protected abstract T create(BigDecimal value);
 }

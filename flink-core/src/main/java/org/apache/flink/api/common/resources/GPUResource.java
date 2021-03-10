@@ -24,7 +24,7 @@ import java.math.BigDecimal;
 
 /** The GPU resource. */
 @Internal
-public class GPUResource extends Resource {
+public class GPUResource extends Resource<GPUResource> {
 
     private static final long serialVersionUID = -2276080061777135142L;
 
@@ -39,7 +39,7 @@ public class GPUResource extends Resource {
     }
 
     @Override
-    public Resource create(BigDecimal value) {
+    public GPUResource create(BigDecimal value) {
         return new GPUResource(value);
     }
 }

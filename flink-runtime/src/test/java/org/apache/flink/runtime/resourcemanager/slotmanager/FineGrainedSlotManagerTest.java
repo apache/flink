@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -718,10 +717,9 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
                 (smConfigBuilder) ->
                         smConfigBuilder.setMaxTotalCpu(
-                                (CPUResource)
-                                        DEFAULT_TOTAL_RESOURCE_PROFILE
-                                                .getCpuCores()
-                                                .multiply(BigDecimal.valueOf(1.5)));
+                                DEFAULT_TOTAL_RESOURCE_PROFILE
+                                        .getCpuCores()
+                                        .multiply(BigDecimal.valueOf(1.5)));
 
         testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
         testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);

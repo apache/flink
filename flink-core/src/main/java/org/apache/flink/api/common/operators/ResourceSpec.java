@@ -72,7 +72,7 @@ public final class ResourceSpec implements Serializable {
     public static final ResourceSpec ZERO = ResourceSpec.newBuilder(0.0, 0).build();
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
-    @Nullable private final Resource cpuCores;
+    @Nullable private final CPUResource cpuCores;
 
     /** How much task heap memory is needed. */
     @Nullable // can be null only for UNKNOWN
@@ -89,14 +89,13 @@ public final class ResourceSpec implements Serializable {
     private final Map<String, Resource> extendedResources;
 
     private ResourceSpec(
-            final Resource cpuCores,
+            final CPUResource cpuCores,
             final MemorySize taskHeapMemory,
             final MemorySize taskOffHeapMemory,
             final MemorySize managedMemory,
             final Resource... extendedResources) {
 
         checkNotNull(cpuCores);
-        checkArgument(cpuCores instanceof CPUResource, "cpuCores must be CPUResource");
 
         this.cpuCores = cpuCores;
         this.taskHeapMemory = checkNotNull(taskHeapMemory);
@@ -176,7 +175,7 @@ public final class ResourceSpec implements Serializable {
                 resultExtendedResources.values().toArray(new Resource[0]));
     }
 
-    public Resource getCpuCores() {
+    public CPUResource getCpuCores() {
         throwUnsupportedOperationExceptionIfUnknown();
         return this.cpuCores;
     }
@@ -323,7 +322,7 @@ public final class ResourceSpec implements Serializable {
     /** Builder for the {@link ResourceSpec}. */
     public static class Builder {
 
-        private Resource cpuCores;
+        private CPUResource cpuCores;
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
