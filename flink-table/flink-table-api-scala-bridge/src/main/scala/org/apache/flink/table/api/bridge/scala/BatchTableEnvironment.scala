@@ -41,7 +41,13 @@ import org.apache.flink.table.module.ModuleManager
   * - specify a SQL query on registered tables to obtain a [[Table]]
   * - convert a [[Table]] into a [[DataSet]]
   * - explain the AST and execution plan of a [[Table]]
+  *
+  * @deprecated [[BatchTableEnvironment]] will be dropped in Flink 1.14 because it only supports
+  *              the old planner. Use the unified [[TableEnvironment]] instead, which supports both
+  *              batch and streaming. More advanced operations previously covered by the DataSet API
+  *              can now use the DataStream API in BATCH execution mode.
   */
+@deprecated
 trait BatchTableEnvironment extends TableEnvironment {
 
   /**
@@ -340,6 +346,13 @@ trait BatchTableEnvironment extends TableEnvironment {
   override def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor
 }
 
+/**
+ * @deprecated [[BatchTableEnvironment]] will be dropped in Flink 1.14 because it only supports
+ *              the old planner. Use the unified [[TableEnvironment]] instead, which supports both
+ *              batch and streaming. More advanced operations previously covered by the DataSet API
+ *              can now use the DataStream API in BATCH execution mode.
+ */
+@deprecated
 object BatchTableEnvironment {
 
   /**

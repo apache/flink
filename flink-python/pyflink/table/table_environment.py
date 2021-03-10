@@ -1797,6 +1797,12 @@ class StreamTableEnvironment(TableEnvironment):
 
 
 class BatchTableEnvironment(TableEnvironment):
+    """
+    .. note:: BatchTableEnvironment will be dropped in Flink 1.14 because it only supports the old
+              planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, which
+              supports both batch and streaming. More advanced operations previously covered by
+              the DataSet API can now use the DataStream API in BATCH execution mode.
+    """
 
     def __init__(self, j_tenv):
         super(BatchTableEnvironment, self).__init__(j_tenv)
@@ -1875,7 +1881,15 @@ class BatchTableEnvironment(TableEnvironment):
                                      selection(flink or blink), optional.
         :return: The BatchTableEnvironment created from given ExecutionEnvironment and
                  configuration.
+
+        .. note:: This part of the API will be dropped in Flink 1.14 because it only supports the
+                  old planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, it
+                  supports both batch and streaming. For more advanced operations, the new batch
+                  mode of the DataStream API might be useful.
         """
+        warnings.warn(
+            "Deprecated in 1.14. Use the unified TableEnvironment instead.",
+            DeprecationWarning)
         if execution_environment is None and \
                 table_config is None and \
                 environment_settings is None:

@@ -56,7 +56,13 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
  *   <li>convert a {@link Table} into a {@link DataSet}
  *   <li>explain the AST and execution plan of a {@link Table}
  * </ul>
+ *
+ * @deprecated {@link BatchTableEnvironment} will be dropped in Flink 1.14 because it only supports
+ *     the old planner. Use the unified {@link TableEnvironment} instead, which supports both batch
+ *     and streaming. More advanced operations previously covered by the DataSet API can now use the
+ *     DataStream API in BATCH execution mode.
  */
+@Deprecated
 @PublicEvolving
 public interface BatchTableEnvironment extends TableEnvironment {
 
