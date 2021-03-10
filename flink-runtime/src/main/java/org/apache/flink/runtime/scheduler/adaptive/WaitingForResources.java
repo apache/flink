@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
@@ -41,23 +43,39 @@ class WaitingForResources implements State, ResourceConsumer {
 
     private final ResourceCounter desiredResources;
 
+    /** If set, there's an ongoing deadline waiting for a resource stabilization. */
+    @Nullable private Deadline resourceStabilizationDeadline;
+
+    private final Duration resourceStabilizationTimeout;
+
     private final ScheduledFuture<?> resourceTimeoutFuture;
 
     WaitingForResources(
             Context context,
             Logger log,
             ResourceCounter desiredResources,
-            Duration resourceTimeout) {
+            Duration initialResourceAllocationTimeout,
+            Duration resourceStabilizationTimeout) {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
+        this.resourceStabilizationTimeout =
+                Preconditions.checkNotNull(resourceStabilizationTimeout);
+        Preconditions.checkNotNull(initialResourceAllocationTimeout);
+
         Preconditions.checkArgument(
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
 
+        Preconditions.checkArgument(
+                !resourceStabilizationTimeout.isNegative(),
+                "Resource stabilization timeout must not be negative");
+
         // since state transitions are not allowed in state constructors, schedule calls for later.
-        resourceTimeoutFuture =
-                context.runIfState(
-                        this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
+        if (!initialResourceAllocationTimeout.isNegative()) {
+            resourceTimeoutFuture =
+                    context.runIfState(
+                            this, this::resourceTimeout, initialResourceAllocationTimeout);
+        }
         context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
     }
 
@@ -98,13 +116,40 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Override
     public void notifyNewResourcesAvailable() {
-        if (context.hasEnoughResources(desiredResources)) {
+        checkDesiredOrSufficientResourcesAvailable();
+    }
+
+    private void checkDesiredOrSufficientResourcesAvailable() {
+        if (context.hasDesiredResources(desiredResources)) {
             createExecutionGraphWithAvailableResources();
+            return;
+        }
+
+        if (context.hasSufficientResources()) {
+            Deadline deadline = initializeOrGetResourceStabilizationDeadline();
+            if (deadline.isOverdue()) {
+                createExecutionGraphWithAvailableResources();
+            } else {
+                // schedule next resource check
+                context.runIfState(
+                        this,
+                        this::checkDesiredOrSufficientResourcesAvailable,
+                        deadline.timeLeft());
+            }
         }
     }
 
+    @VisibleForTesting
+    protected Deadline initializeOrGetResourceStabilizationDeadline() {
+        if (resourceStabilizationDeadline == null) {
+            resourceStabilizationDeadline = Deadline.fromNow(resourceStabilizationTimeout);
+        }
+        return resourceStabilizationDeadline;
+    }
+
     private void resourceTimeout() {
-        log.debug("Resource timeout triggered: Creating ExecutionGraph with available resources.");
+        log.debug(
+                "Initial resource allocation timeout triggered: Creating ExecutionGraph with available resources.");
         createExecutionGraphWithAvailableResources();
     }
 
@@ -137,12 +182,19 @@ class WaitingForResources implements State, ResourceConsumer {
                 JobStatus jobStatus, @Nullable Throwable cause);
 
         /**
-         * Checks whether we have enough resources to fulfill the desired resources.
+         * Checks whether we have the desired resources.
          *
          * @param desiredResources desiredResources describing the desired resources
          * @return {@code true} if we have enough resources; otherwise {@code false}
          */
-        boolean hasEnoughResources(ResourceCounter desiredResources);
+        boolean hasDesiredResources(ResourceCounter desiredResources);
+
+        /**
+         * Checks if we currently have sufficient resources for executing the job.
+         *
+         * @return {@code true} if we have sufficient resources; otherwise {@code false}
+         */
+        boolean hasSufficientResources();
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -161,17 +213,20 @@ class WaitingForResources implements State, ResourceConsumer {
         private final Context context;
         private final Logger log;
         private final ResourceCounter desiredResources;
-        private final Duration resourceTimeout;
+        private final Duration initialResourceAllocationTimeout;
+        private final Duration resourceStabilizationTimeout;
 
         public Factory(
                 Context context,
                 Logger log,
                 ResourceCounter desiredResources,
-                Duration resourceTimeout) {
+                Duration initialResourceAllocationTimeout,
+                Duration resourceStabilizationTimeout) {
             this.context = context;
             this.log = log;
             this.desiredResources = desiredResources;
-            this.resourceTimeout = resourceTimeout;
+            this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
         }
 
         public Class<WaitingForResources> getStateClass() {
@@ -179,7 +234,12 @@ class WaitingForResources implements State, ResourceConsumer {
         }
 
         public WaitingForResources getState() {
-            return new WaitingForResources(context, log, desiredResources, resourceTimeout);
+            return new WaitingForResources(
+                    context,
+                    log,
+                    desiredResources,
+                    initialResourceAllocationTimeout,
+                    resourceStabilizationTimeout);
         }
     }
 }

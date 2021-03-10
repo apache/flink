@@ -29,6 +29,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
+
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -70,5 +72,33 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
         assertThat(
                 defaultSlotPoolServiceSchedulerFactory.getSchedulerType(),
                 is(JobManagerOptions.SchedulerType.Adaptive));
+    }
+
+    @Test
+    public void testReturnValueOrReplaceDefaultIfReactiveModeReturnsDefault() {
+        Configuration emptyConfiguration = new Configuration();
+
+        Duration result =
+                DefaultSlotPoolServiceSchedulerFactory.returnValueOrReplaceDefaultIfReactiveMode(
+                        emptyConfiguration,
+                        JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
+                        Duration.ofMillis(-1));
+
+        assertThat(result, is(JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue()));
+    }
+
+    @Test
+    public void testReturnValueOrReplaceDefaultIfReactiveModeGetsReplaced() {
+        Configuration reactiveConfiguration = new Configuration();
+        reactiveConfiguration.set(
+                JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
+
+        Duration result =
+                DefaultSlotPoolServiceSchedulerFactory.returnValueOrReplaceDefaultIfReactiveMode(
+                        reactiveConfiguration,
+                        JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
+                        Duration.ofMillis(-1));
+
+        assertThat(result, is(Duration.ofMillis(-1)));
     }
 }
