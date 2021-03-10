@@ -24,14 +24,12 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
-import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
-import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 
 import com.google.common.collect.ImmutableSet
@@ -43,8 +41,8 @@ import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.{SqlKind, SqlWindowTableFunction}
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
 
 import java.util
@@ -59,20 +57,10 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       rel: TableScan,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getTableUniqueKeys(null, rel.getTable)
+    getTableUniqueKeys(rel.getTable)
   }
 
-  def getUniqueKeys(
-      rel: FlinkLogicalLegacyTableSourceScan,
-      mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getTableUniqueKeys(rel.tableSource, rel.getTable)
-  }
-
-  private def getTableUniqueKeys(
-      tableSource: TableSource[_],
-      relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
-
+  private def getTableUniqueKeys(relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
     relOptTable match {
       case sourceTable: TableSourceTable =>
         val catalogTable = sourceTable.catalogTable
