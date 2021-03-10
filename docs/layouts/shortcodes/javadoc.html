@@ -16,11 +16,11 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 */}}{{/*
-    Shortcode for linking to Flinks JavaDoc
+    Shortcode for linking to Flink's JavaDoc
 
     Parmeters: 
         - name: The rendered link name (required)
 */}}
-<a href="{{ .Site.Params.JavaDoc }}/{{ .Get "file" }}">
-    {{ .Get "name" }}
+<a href="{{ .Site.Params.JavaDocs }}/{{ .Get "file" }}">
+    {{ .Get "name" | markdownify }}
 </a>

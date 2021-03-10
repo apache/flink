@@ -65,7 +65,7 @@ These two variants come with their respective builders that can be created with 
 When creating either a row or a bulk encoded sink we have to specify the base path where the buckets will be
 stored and the encoding logic for our data.
 
-Please check out the JavaDoc for [FileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.html)
+Please check out the JavaDoc for {{< javadoc file="org/apache/flink/connector/file/sink/FileSink.html" name="FileSink">}}
 for all the configuration options and more documentation about the implementation of the different data formats.
 
 ### Row-encoded Formats
@@ -140,7 +140,7 @@ a rolling policy that rolls the in-progress part file on any of the following 3 
 ### Bulk-encoded Formats
 
 Bulk-encoded sinks are created similarly to the row-encoded ones, but instead of
-specifying an `Encoder`, we have to specify a [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
+specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink/api/common/serialization/BulkWriter.Factory.html" name="BulkWriter.Factory">}}.
 The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
 is finalized for further encoding purposes.
 

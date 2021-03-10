@@ -364,10 +364,8 @@ As explained [above](#failure-recovery), failure recovery for batch programs
 does not use checkpointing.
 
 It is important to remember that because there are no checkpoints, certain
-features such as [CheckpointListener]({{ site.javadocs_baseurl
-}}/api/java/org/apache/flink/api/common/state/CheckpointListener.html) and, as
-a result,  Kafka's [EXACTLY_ONCE]({{< ref "docs/connectors/datastream/kafka" >}}
-#kafka-producers-and-fault-tolerance) mode or `StreamingFileSink`'s
+features such as {{< javadoc file="org/apache/flink/api/common/state/CheckpointListener.html" name="CheckpointListener">}}
+and, as a result,  Kafka's [EXACTLY_ONCE]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) mode or `StreamingFileSink`'s
 [OnCheckpointRollingPolicy]({{< ref "docs/connectors/datastream/streamfile_sink" >}}#rolling-policy)
 won't work. If you need a transactional sink that works in
 `BATCH` mode make sure it uses the Unified Sink API as proposed in
