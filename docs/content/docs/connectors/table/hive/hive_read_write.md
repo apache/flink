@@ -409,6 +409,7 @@ This configuration is set in the `TableConfig` and will affect all sinks of the 
   </tbody>
 </table>
 
+
 ## Formats
 
 Flink's Hive integration has been tested against the following file formats:
