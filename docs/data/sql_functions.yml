@@ -415,10 +415,10 @@ temporal:
       NUMERIC.milli
       NUMERIC.millis
     description: Creates an interval of NUMERIC milliseconds.
-  - sql: CURRENT_DATE()
+  - sql: CURRENT_DATE
     table: currentDate()
     description: Returns the current SQL date in the UTC time zone.
-  - sql: CURRENT_TIME()
+  - sql: CURRENT_TIME
     table: currentTime()
     description: Returns the current SQL time in the UTC time zone.
   - sql: LOCALTIME
