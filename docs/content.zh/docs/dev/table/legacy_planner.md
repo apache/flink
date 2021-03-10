@@ -35,8 +35,10 @@ The primary reason to continue using the legacy planner is [DataSet]({{< ref "do
 
 {{< hint warning >}}
 If you are not using the Legacy planner for DataSet interop, the community strongly
-encourages you to consider the modern table planner.
-The legacy planner will be dropped at some point in the future.
+encourages you to consider the modern table planner. Both batch and stream processing pipelines
+can be expressed in the unified `TableEnvironment`.
+
+** The legacy planner is deprecated and will be dropped in Flink 1.14.**
 {{< /hint >}}
 
 This page describes how to use the Legacy planner and where its semantics differ from the 
