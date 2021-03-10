@@ -228,7 +228,11 @@ public class EnvironmentSettings {
         /**
          * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
          * is enabled.
+         *
+         * @deprecated The old planner will be dropped in Flink 1.14. Please update to the new
+         *     planner (i.e. Blink planner).
          */
+        @Deprecated
         public Builder useOldPlanner() {
             this.plannerClass = OLD_PLANNER_FACTORY;
             this.executorClass = OLD_EXECUTOR_FACTORY;

@@ -44,7 +44,9 @@ public class TableConfigOptions {
                             "Use either 'blink' planner or 'old' planner. Default is blink planner. "
                                     + "For TableEnvironment, this option is used to construct a TableEnvironment, "
                                     + "but this option can't be changed after that. "
-                                    + "However there is no such limitation for SQL Client.");
+                                    + "However, there is no such limitation for SQL Client. "
+                                    + "Note: The old planner will be removed in Flink 1.14, "
+                                    + "so this option will become obsolete.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =
