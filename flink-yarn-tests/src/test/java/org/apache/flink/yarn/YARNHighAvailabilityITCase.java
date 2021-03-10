@@ -306,8 +306,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
         CommonTestUtils.waitUntilCondition(
                 () ->
-                        !yarnClient
-                                .getApplications(
+                        !getApplicationReportWithRetryOnNPE(
+                                        yarnClient,
                                         EnumSet.of(
                                                 YarnApplicationState.KILLED,
                                                 YarnApplicationState.FINISHED))
