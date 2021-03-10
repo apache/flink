@@ -21,7 +21,7 @@ package org.apache.flink.api.common.resources;
 import java.math.BigDecimal;
 
 /** Test implementation for {@link Resource}. */
-public class TestResource extends Resource {
+public class TestResource extends Resource<TestResource> {
 
     public static final String NAME = "TestResource";
 
@@ -38,7 +38,7 @@ public class TestResource extends Resource {
     }
 
     @Override
-    public Resource create(BigDecimal value) {
+    public TestResource create(BigDecimal value) {
         return new TestResource(value);
     }
 }

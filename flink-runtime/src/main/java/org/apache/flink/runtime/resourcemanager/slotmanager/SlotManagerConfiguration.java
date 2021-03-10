@@ -204,13 +204,10 @@ public class SlotManagerConfiguration {
                         () ->
                                 maxSlotNum == Integer.MAX_VALUE
                                         ? new CPUResource(Double.MAX_VALUE)
-                                        : (CPUResource)
-                                                defaultWorkerResourceSpec
-                                                        .getCpuCores()
-                                                        .divide(
-                                                                defaultWorkerResourceSpec
-                                                                        .getNumSlots())
-                                                        .multiply(maxSlotNum));
+                                        : defaultWorkerResourceSpec
+                                                .getCpuCores()
+                                                .divide(defaultWorkerResourceSpec.getNumSlots())
+                                                .multiply(maxSlotNum));
     }
 
     private static MemorySize getMaxTotalMem(
