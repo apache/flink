@@ -185,11 +185,11 @@ public class DataTypesTest {
                         .expectLogicalType(new LocalZonedTimestampType(6))
                         .expectConversionClass(java.time.Instant.class),
                 TestSpec.forDataType(TIMESTAMP_LTZ(3))
-                    .expectLogicalType(new LocalZonedTimestampType(3))
-                    .expectConversionClass(java.time.Instant.class),
+                        .expectLogicalType(new LocalZonedTimestampType(3))
+                        .expectConversionClass(java.time.Instant.class),
                 TestSpec.forDataType(TIMESTAMP_LTZ())
-                    .expectLogicalType(new LocalZonedTimestampType(6))
-                    .expectConversionClass(java.time.Instant.class),
+                        .expectLogicalType(new LocalZonedTimestampType(6))
+                        .expectConversionClass(java.time.Instant.class),
                 TestSpec.forDataType(INTERVAL(MINUTE(), SECOND(3)))
                         .expectLogicalType(
                                 new DayTimeIntervalType(MINUTE_TO_SECOND, DEFAULT_DAY_PRECISION, 3))

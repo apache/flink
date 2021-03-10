@@ -478,8 +478,8 @@ public final class DataTypes {
     }
 
     /**
-     * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP(p) WITH LOCAL TIME ZONE}. This is a
-     * synonyms for {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)}.
+     * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP(p) WITH LOCAL TIME ZONE}. This
+     * is a synonyms for {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)}.
      *
      * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
      */
@@ -514,8 +514,8 @@ public final class DataTypes {
     }
 
     /**
-     * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE}. This is a
-     * synonyms for {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
+     * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE}. This is
+     * a synonyms for {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
      *
      * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE()
      */
