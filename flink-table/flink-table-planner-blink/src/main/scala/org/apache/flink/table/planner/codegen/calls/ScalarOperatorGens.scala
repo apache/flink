@@ -201,7 +201,7 @@ object ScalarOperatorGens {
           (l, r) => s"$l"
         }
 
-      case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
+      case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
@@ -210,7 +210,7 @@ object ScalarOperatorGens {
           }
         }
 
-      case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
+      case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
@@ -242,10 +242,10 @@ object ScalarOperatorGens {
                   val leftTerm = s"$ll.getMillisecond()"
                   val rightTerm = s"$rr.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
-                case (TIMESTAMP_WITHOUT_TIME_ZONE, _) =>
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
                   val leftTerm = s"$ll.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rr)"
-                case (_, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val rightTerm = s"$rr.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rightTerm)"
                 case _ =>
@@ -268,6 +268,49 @@ object ScalarOperatorGens {
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val rightTerm = s"$rr.getMillisecond()"
                   s"($ll * ${MILLIS_PER_DAY}L) $op $rightTerm"
+              }
+            }
+        }
+
+      // minus arithmetic of time points (i.e. for TIMESTAMPDIFF for TIMESTAMP_LTZ)
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE |
+                TIMESTAMP_WITHOUT_TIME_ZONE | TIME_WITHOUT_TIME_ZONE | DATE) |
+           (TIMESTAMP_WITH_LOCAL_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+            TIME_WITHOUT_TIME_ZONE | DATE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) if !plus =>
+        resultType.getTypeRoot match {
+          case INTERVAL_YEAR_MONTH =>
+            generateOperatorIfNotNull(ctx, resultType, left, right) {
+              (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
+                case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
+                case _ =>
+                  throw new CodeGenException(String.format(
+                    "Unsupported TIMESTAMPDIFF(%s, %s, %s) which contains TIMESTAMP_LTZ type." +
+                      " TIMESTAMP_LTZ type only supports TIMESTAMPDIFF(timepointunit," +
+                      " timepoint1 with TIMESTAMP_LTZ type, timepoint2 with TIMESTAMP_LTZ type)," +
+                      " you can also cast TIMESTAMP_LTZ to TIMESTAMP before compare with" +
+                      " other temporal types.",
+                    resultType, left.resultType, right.resultType))
+              }
+            }
+
+          case INTERVAL_DAY_TIME =>
+            generateOperatorIfNotNull(ctx, resultType, left, right) {
+              (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
+                case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"$leftTerm $op $rightTerm"
+                case _ =>
+                  throw new CodeGenException(String.format(
+                    "Unsupported TIMESTAMPDIFF(%s, %s, %s) which contains TIMESTAMP_LTZ type." +
+                      " TIMESTAMP_LTZ type only supports TIMESTAMPDIFF(timepointunit," +
+                      " timepoint1 with TIMESTAMP_LTZ type, timepoint2 with TIMESTAMP_LTZ type)," +
+                      " you can also cast TIMESTAMP_LTZ to TIMESTAMP before compare with" +
+                      " other temporal types.",
+                    resultType, left.resultType, right.resultType))
               }
             }
         }

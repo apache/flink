@@ -26,6 +26,7 @@ import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => J
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
@@ -1370,6 +1371,126 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
       "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2021-01-04 00:00:00', DATE '2021-02-04')",
+      "1")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2020-01-04', TIMESTAMP '2021-02-04 12:00:00')",
+      "13")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2021-01-04 00:00:00', TIME '00:00:00')",
+      "-612")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIME '00:00:00', TIMESTAMP '2021-02-04 12:00:00')",
+      "613")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2021-01-04', TIME '00:00:00')",
+      "-612")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIME '00:00:00', DATE '2021-02-04')",
+      "613")
+  }
+
+  @Test
+  def testTimestampLtzArithmetic(): Unit = {
+    // TIMESTAMP_LTZ +/- INTERVAL should support nanosecond
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' YEAR",
+      "1971-02-01 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' MONTH",
+      "1970-01-01 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' DAY",
+      "1970-02-02 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' HOUR",
+      "1970-01-31 23:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' MINUTE",
+      "1970-02-01 00:01:00.123456789")
+
+    testSqlApi(
+      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' SECOND",
+      "1970-01-31 23:59:59.123456789")
+
+    // test TIMESTAMPDIFF for TIMESTAMP_LTZ type
+    testSqlApi(
+      s"TIMESTAMPDIFF(YEAR, ${timestampTz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampTz("1971-01-02 01:02:03.123456789")})",
+      "1")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampTz("1971-01-02 01:02:03.123456789")})",
+      "12")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(DAY, ${timestampTz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampTz("1971-01-02 01:02:03.123")})",
+      "366")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(HOUR, ${timestampTz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampTz("1970-01-01 01:02:03.123")})",
+      "1")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(MINUTE, ${timestampTz("1970-01-01 01:02:03.123")}," +
+        s" ${timestampTz("1970-01-01 00:00:00")})",
+      "-62")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampTz("1970-01-01 00:02:03.234")})",
+      "123")
+  }
+
+  @Test
+  def testInvalidTimestampLtzArithmetic(): Unit = {
+    val exceptionTemplate =
+      "Unsupported %s which contains TIMESTAMP_LTZ type." +
+        " TIMESTAMP_LTZ type only supports TIMESTAMPDIFF(timepointunit, timepoint1 with" +
+        " TIMESTAMP_LTZ type, timepoint2 with TIMESTAMP_LTZ type), you can also cast" +
+        " TIMESTAMP_LTZ to TIMESTAMP before compare with other temporal types."
+
+    testExpectExceptionThrown(
+      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, TIME '00:00:01')",
+      "",
+      String.format(exceptionTemplate,
+        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, TIME(0) NOT NULL," +
+          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      classOf[CodeGenException])
+
+    testExpectExceptionThrown(
+      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, DATE '1970-01-01')",
+      "",
+      String.format(exceptionTemplate,
+        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, DATE NOT NULL," +
+          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      classOf[CodeGenException])
+
+    testExpectExceptionThrown(
+      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}," +
+        s" TIMESTAMP '1970-01-01 00:00:00.123')",
+      "",
+      String.format(exceptionTemplate,
+        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, TIMESTAMP(3) NOT NULL," +
+          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      classOf[CodeGenException])
+
+    testExpectExceptionThrown(
+      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
+        s" TIME '00:00:00.123')",
+      "",
+      String.format(exceptionTemplate,
+        "TIMESTAMPDIFF(INTERVAL SECOND(3) NOT NULL, TIME(0) NOT NULL," +
+          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      classOf[CodeGenException])
   }
 
   // ----------------------------------------------------------------------------------------------
