@@ -100,4 +100,8 @@ public class ParserImpl implements Parser {
                 sqlExpression,
                 sqlExpressionExpanded);
     }
+
+    public CatalogManager getCatalogManager() {
+        return catalogManager;
+    }
 }
