@@ -44,9 +44,8 @@ public class Tuple6Builder<T0, T1, T2, T3, T4, T5> {
 
     private List<Tuple6<T0, T1, T2, T3, T4, T5>> tuples = new ArrayList<>();
 
-    public Tuple6Builder<T0, T1, T2, T3, T4, T5> add(
-            T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5) {
-        tuples.add(new Tuple6<>(value0, value1, value2, value3, value4, value5));
+    public Tuple6Builder<T0, T1, T2, T3, T4, T5> add(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5) {
+        tuples.add(new Tuple6<>(f0, f1, f2, f3, f4, f5));
         return this;
     }
 

@@ -39,8 +39,8 @@ public class Tuple1Builder<T0> {
 
     private List<Tuple1<T0>> tuples = new ArrayList<>();
 
-    public Tuple1Builder<T0> add(T0 value0) {
-        tuples.add(new Tuple1<>(value0));
+    public Tuple1Builder<T0> add(T0 f0) {
+        tuples.add(new Tuple1<>(f0));
         return this;
     }
 
