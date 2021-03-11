@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
@@ -657,6 +659,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 TypeSerializer keySerializer,
                 Map<String, String> config) {
             this.keyedStateBackend = keyedStateBackend;
+            TypeSerializer frameworkKeySerializer = keyedStateBackend.getKeySerializer();
+            if (!(frameworkKeySerializer instanceof AbstractRowDataSerializer
+                    || frameworkKeySerializer instanceof RowSerializer)) {
+                throw new RuntimeException(
+                        "Currently SimpleStateRequestHandler only support row key!");
+            }
             this.keySerializer = keySerializer;
             this.valueSerializer =
                     PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
