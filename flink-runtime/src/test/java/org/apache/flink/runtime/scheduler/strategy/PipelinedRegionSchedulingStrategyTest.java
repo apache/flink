@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -144,6 +145,36 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
                 new ArrayList<>();
         expectedScheduledVertices.add(Arrays.asList(sink.get(0)));
         expectedScheduledVertices.add(Arrays.asList(sink.get(1)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
+
+    @Test
+    public void testFinishedBlockingResultPartitionProducerDoNotScheduleNonCreatedRegions() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+        final List<TestingSchedulingExecutionVertex> producer =
+                topology.addExecutionVertices().withParallelism(2).finish();
+        final List<TestingSchedulingExecutionVertex> consumer =
+                topology.addExecutionVertices().withParallelism(2).finish();
+
+        topology.connectPointwise(producer, consumer)
+                .withResultPartitionState(ResultPartitionState.CONSUMABLE)
+                .withResultPartitionType(ResultPartitionType.BLOCKING)
+                .finish();
+
+        final PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(topology);
+
+        consumer.get(0).setState(ExecutionState.SCHEDULED);
+        schedulingStrategy.onExecutionStateChange(producer.get(0).getId(), ExecutionState.FINISHED);
+
+        // non-CREATED regions should not be re-scheduled
+        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(3));
+
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Collections.singletonList(producer.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(producer.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(consumer.get(1)));
         assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
     }
 
