@@ -30,6 +30,8 @@ import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.TriFunctionWithException;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 
@@ -117,7 +119,7 @@ class TestingExecutor implements Executor {
     public void start() throws SqlExecutionException {}
 
     @Override
-    public String openSession(String sessionId) throws SqlExecutionException {
+    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
         return sessionId;
     }
 

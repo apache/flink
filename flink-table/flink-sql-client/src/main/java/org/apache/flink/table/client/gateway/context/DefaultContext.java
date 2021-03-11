@@ -89,6 +89,7 @@ public class DefaultContext {
         }
 
         // put environment entry into Configuration
+        // reset to flinkConfig because we have stored all the options into the flinkConfig
         initConfigurationFromEnvironment();
         try {
             CommandLine deploymentCommandLine =

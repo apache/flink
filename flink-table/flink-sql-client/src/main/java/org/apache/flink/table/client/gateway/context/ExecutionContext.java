@@ -117,6 +117,7 @@ public class ExecutionContext {
         config.addConfiguration(flinkConfig);
         // Override the value in configuration.
         // TODO: use `table.planner` and `execution.runtime-mode` to configure the TableEnvironment
+        // in FLINK-21462.
         config.addConfiguration(settings.toConfiguration());
 
         if (environment.getExecution().isStreamingPlanner()) {

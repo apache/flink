@@ -30,8 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
+import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
+import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 
 /** Test {@link SessionContext}. */
@@ -67,10 +68,12 @@ public class SessionContextTest {
         SessionContext sessionContext = createSessionContext();
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
-        // runtime config option and has default value
-        sessionContext.set(DEFAULT_PARALLELISM.key(), "128");
+        // runtime config option and Yaml specified value
+        sessionContext.set(MAX_PARALLELISM.key(), "128");
         // runtime config option and doesn't have default value
         sessionContext.set(NAME.key(), "test");
+        // runtime config from flink-conf
+        sessionContext.set(OBJECT_REUSE.key(), "false");
         Assert.assertEquals(
                 "hive",
                 sessionContext
@@ -93,7 +96,7 @@ public class SessionContextTest {
                         .getTableEnvironment()
                         .getConfig()
                         .getConfiguration()
-                        .getInteger(DEFAULT_PARALLELISM));
+                        .getInteger(MAX_PARALLELISM));
         Assert.assertEquals(
                 "test",
                 sessionContext
@@ -102,6 +105,13 @@ public class SessionContextTest {
                         .getConfig()
                         .getConfiguration()
                         .getString(NAME));
+        Assert.assertFalse(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getBoolean(OBJECT_REUSE));
 
         sessionContext.reset();
         Assert.assertEquals(
@@ -119,13 +129,13 @@ public class SessionContextTest {
                         .asMap()
                         .get("pipeline.name"));
         Assert.assertEquals(
-                (long) DEFAULT_PARALLELISM.defaultValue(),
+                16,
                 sessionContext
                         .getExecutionContext()
                         .getTableEnvironment()
                         .getConfig()
                         .getConfiguration()
-                        .getInteger(DEFAULT_PARALLELISM));
+                        .getInteger(MAX_PARALLELISM));
         Assert.assertNull(
                 sessionContext
                         .getExecutionContext()
@@ -133,6 +143,13 @@ public class SessionContextTest {
                         .getConfig()
                         .getConfiguration()
                         .getString(NAME, null));
+        Assert.assertTrue(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getBoolean(OBJECT_REUSE));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -149,11 +166,13 @@ public class SessionContextTest {
 
         final Environment env =
                 EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(OBJECT_REUSE, true);
         DefaultContext defaultContext =
                 new DefaultContext(
                         env,
                         Collections.emptyList(),
-                        new Configuration(),
+                        flinkConfig,
                         Collections.singletonList(new DefaultCLI()));
         return SessionContext.create(defaultContext, "test-session");
     }

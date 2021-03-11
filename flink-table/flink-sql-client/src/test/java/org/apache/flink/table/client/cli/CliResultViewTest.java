@@ -31,6 +31,8 @@ import org.apache.flink.types.Row;
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -131,7 +133,7 @@ public class CliResultViewTest {
         }
 
         @Override
-        public String openSession(String sessionId) throws SqlExecutionException {
+        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
             return sessionId;
         }
 

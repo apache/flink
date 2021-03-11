@@ -48,6 +48,8 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -245,7 +247,6 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
-        public SessionContext receivedContext;
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
@@ -255,7 +256,7 @@ public class CliClientTest extends TestLogger {
         public void start() throws SqlExecutionException {}
 
         @Override
-        public String openSession(String sessionId) throws SqlExecutionException {
+        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
             DefaultContext defaultContext =
                     new DefaultContext(
                             new Environment(),
@@ -287,7 +288,6 @@ public class CliClientTest extends TestLogger {
         @Override
         public TableResult executeSql(String sessionId, String statement)
                 throws SqlExecutionException {
-            receivedContext = sessionMap.get(sessionId);
             receivedStatement = statement;
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
@@ -311,7 +311,6 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public List<String> completeStatement(String sessionId, String statement, int position) {
-            receivedContext = sessionMap.get(sessionId);
             receivedStatement = statement;
             receivedPosition = position;
             return Arrays.asList("HintA", "Hint B");
