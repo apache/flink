@@ -28,6 +28,4 @@ import org.junit.rules.ExternalResource;
  * <p>This external system extends {@link ExternalResource} class so that lifecycle of the external
  * system * can be managed by JUnit.
  */
-public interface ExternalSystem<T> extends TestResource {
-    ExternalContext<T> getExternalContext();
-}
+public interface ExternalSystem<T> extends TestResource {}

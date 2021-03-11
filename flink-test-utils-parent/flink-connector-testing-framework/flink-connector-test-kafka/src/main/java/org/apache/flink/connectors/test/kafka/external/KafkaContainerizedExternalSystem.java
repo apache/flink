@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.test.kafka.external;
 
 import org.apache.flink.connectors.test.common.external.ContainerizedExternalSystem;
-import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
 import org.apache.flink.util.Preconditions;
 
@@ -150,10 +149,5 @@ public class KafkaContainerizedExternalSystem
         LOG.info("🐳 Tearing down Kafka on Docker...");
         kafkaAdminClient.close();
         kafka.stop();
-    }
-
-    @Override
-    public ExternalContext<String> getExternalContext() {
-        return null;
     }
 }

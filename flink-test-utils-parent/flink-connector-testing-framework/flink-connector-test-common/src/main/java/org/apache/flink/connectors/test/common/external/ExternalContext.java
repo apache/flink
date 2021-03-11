@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.test.common.external;
 
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 
 import java.io.Serializable;
@@ -39,7 +40,7 @@ public interface ExternalContext<T> extends Serializable, AutoCloseable {
      *
      * @return A new instance of Source
      */
-    Source<T, ?, ?> createSource();
+    Source<T, ?, ?> createSource(Boundedness boundedness);
 
     /**
      * Create a new instance of connector sink implemented in {@link Sink}.

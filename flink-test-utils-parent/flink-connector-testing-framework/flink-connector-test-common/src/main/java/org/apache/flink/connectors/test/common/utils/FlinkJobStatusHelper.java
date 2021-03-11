@@ -21,11 +21,18 @@ package org.apache.flink.connectors.test.common.utils;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** Helper components for checking Flink job status. */
 public class FlinkJobStatusHelper {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkJobStatusHelper.class);
 
     /**
      * Wait until the job enters expected status.
@@ -34,28 +41,27 @@ public class FlinkJobStatusHelper {
      * @param expectedStatus Expected job status
      */
     public static void waitForJobStatus(
-            JobClient client, JobStatus expectedStatus, Duration timeout) {
+            JobClient client, List<JobStatus> expectedStatus, Duration timeout) throws Exception {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
 
+        LOG.debug("Waiting for job entering status {}...", expectedStatus);
+
         JobStatus status = null;
-        try {
-            while (status == null || !status.equals(expectedStatus)) {
-                if (isTimeout(deadline)) {
-                    throw new TimeoutException(
-                            String.format(
-                                    "Timeout waiting for job entering %s status", expectedStatus));
-                }
-                status = client.getJobStatus().get();
-                if (status.isTerminalState()) {
-                    break;
-                }
+        while (status == null || !expectedStatus.contains(status)) {
+            if (isTimeout(deadline)) {
+                throw new TimeoutException(
+                        String.format(
+                                "Timeout waiting for job entering %s status. The last detected status was %s",
+                                expectedStatus, status));
             }
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to get status of the job", e);
+            status = client.getJobStatus().get();
+            if (status.isTerminalState()) {
+                break;
+            }
         }
 
         // If the job is entering an unexpected terminal status
-        if (status.isTerminalState() && !status.equals(expectedStatus)) {
+        if (status.isTerminalState() && !expectedStatus.contains(status)) {
             try {
                 // Exception will be exposed here if job failed
                 client.getJobExecutionResult().get();
@@ -70,6 +76,10 @@ public class FlinkJobStatusHelper {
                     String.format(
                             "Job has entered %s state, but expecting %s", status, expectedStatus));
         }
+    }
+
+    public static void terminateJob(JobClient client, Duration timeout) throws Exception {
+        client.cancel().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private static boolean isTimeout(long deadline) {

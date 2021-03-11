@@ -1,8 +1,10 @@
 package org.apache.flink.connectors.test.kafka.external;
 
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
 import org.apache.flink.connectors.test.common.external.ExternalContext;
@@ -18,6 +20,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,12 +37,15 @@ import java.util.concurrent.TimeUnit;
 /** Single topic. */
 public class KafkaSingleTopicExternalContext implements ExternalContext<String> {
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(KafkaSingleTopicExternalContext.class);
+
     protected String bootstrapServers;
     private static final String TOPIC_NAME_PREFIX = "kafka-single-topic";
 
     private final String topicName;
 
-    private static final int DEFAULT_TIMEOUT = 10;
+    private static final int DEFAULT_TIMEOUT = 30;
 
     private final Map<Integer, SourceSplitDataWriter<String>> partitionToSplitWriter =
             new HashMap<>();
@@ -55,7 +62,11 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     protected void createTopic(String topicName, int numPartitions, short replicationFactor) {
-        // Make sure Kafka container is running
+        LOG.debug(
+                "Creating new Kafka topic {} with {} partitions and {} replicas",
+                topicName,
+                numPartitions,
+                replicationFactor);
         NewTopic newTopic = new NewTopic(topicName, numPartitions, replicationFactor);
         try {
             kafkaAdminClient
@@ -68,6 +79,7 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     protected void deleteTopic(String topicName) {
+        LOG.debug("Deleting Kafka topic {}", topicName);
         try {
             kafkaAdminClient
                     .deleteTopics(Collections.singletonList(topicName))
@@ -87,10 +99,13 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     @Override
-    public Source<String, ?, ?> createSource() {
-        return KafkaSource.<String>builder()
-                .setUnbounded(OffsetsInitializer.latest())
-                .setGroupId("flink-kafka-test")
+    public Source<String, ?, ?> createSource(Boundedness boundedness) {
+        KafkaSourceBuilder<String> builder = KafkaSource.builder();
+
+        if (boundedness == Boundedness.BOUNDED) {
+            builder = builder.setBounded(OffsetsInitializer.latest());
+        }
+        return builder.setGroupId("flink-kafka-test")
                 .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
                 .setTopics(topicName)
                 .setBootstrapServers(bootstrapServers)
@@ -109,6 +124,7 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
             createTopic(topicName, 1, (short) 1);
             numSplits++;
         } else {
+            LOG.debug("Creating new partition for topic {}", topicName);
             kafkaAdminClient.createPartitions(
                     Collections.singletonMap(topicName, NewPartitions.increaseTo(++numSplits)));
         }
@@ -157,7 +173,7 @@ public class KafkaSingleTopicExternalContext implements ExternalContext<String> 
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         deleteTopic(topicName);
         partitionToSplitWriter.forEach(
                 (partitionId, splitWriter) -> {

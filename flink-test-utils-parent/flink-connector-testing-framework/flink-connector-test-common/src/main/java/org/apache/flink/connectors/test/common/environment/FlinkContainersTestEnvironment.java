@@ -18,9 +18,14 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
+import org.apache.flink.connectors.test.common.utils.FlinkJobStatusHelper;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import java.time.Duration;
+import java.util.Arrays;
 
 /** Test environment running job on {@link FlinkContainers}. */
 public class FlinkContainersTestEnvironment implements TestEnvironment, ClusterControllable {
@@ -62,13 +67,27 @@ public class FlinkContainersTestEnvironment implements TestEnvironment, ClusterC
     }
 
     @Override
-    public void triggerJobManagerFailover(JobID jobID, Runnable afterFailAction) {}
+    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction) {}
 
     @Override
-    public void triggerTaskManagerFailover(JobID jobID, Runnable afterFailAction) {
-        flinkContainers.restartTaskManagers(0);
+    public void triggerTaskManagerFailover(JobClient jobClient, Runnable afterFailAction) {
+        flinkContainers.restartTaskManagers(
+                0,
+                () -> {
+                    try {
+                        FlinkJobStatusHelper.waitForJobStatus(
+                                jobClient,
+                                Arrays.asList(
+                                        JobStatus.FAILING, JobStatus.FAILED, JobStatus.RESTARTING),
+                                Duration.ofSeconds(300));
+                        afterFailAction.run();
+                    } catch (Exception e) {
+                        throw new RuntimeException(
+                                "Error when waiting for job entering FAILING status", e);
+                    }
+                });
     }
 
     @Override
-    public void isolateNetwork(Runnable afterFailAction) {}
+    public void isolateNetwork(JobClient jobClient, Runnable afterFailAction) {}
 }

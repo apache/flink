@@ -1,7 +1,9 @@
 package org.apache.flink.connectors.test.kafka.external;
 
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
@@ -43,10 +45,14 @@ public class KafkaMultipleTopicExternalContext extends KafkaSingleTopicExternalC
     }
 
     @Override
-    public Source<String, ?, ?> createSource() {
-        return KafkaSource.<String>builder()
-                .setBounded(OffsetsInitializer.latest())
-                .setGroupId("flink-kafka-multiple-topic-test")
+    public Source<String, ?, ?> createSource(Boundedness boundedness) {
+        KafkaSourceBuilder<String> builder = KafkaSource.builder();
+
+        if (boundedness == Boundedness.BOUNDED) {
+            builder = builder.setBounded(OffsetsInitializer.latest());
+        }
+
+        return builder.setGroupId("flink-kafka-multiple-topic-test")
                 .setBootstrapServers(bootstrapServers)
                 .setTopicPattern(Pattern.compile(TOPIC_PATTERN))
                 .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))

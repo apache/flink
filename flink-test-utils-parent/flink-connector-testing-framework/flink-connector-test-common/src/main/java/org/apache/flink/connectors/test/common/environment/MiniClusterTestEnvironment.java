@@ -18,7 +18,9 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.connectors.test.common.utils.FlinkJobStatusHelper;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -28,12 +30,16 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 
 /** Test environment for running jobs on Flink mini-cluster. */
 public class MiniClusterTestEnvironment implements TestEnvironment, ClusterControllable {
 
-    MiniClusterWithClientResource miniCluster;
+    private final MiniClusterWithClientResource miniCluster;
+
+    private int latestTMIndex = 0;
 
     private static final Logger LOG = LoggerFactory.getLogger(MiniClusterTestEnvironment.class);
 
@@ -54,27 +60,30 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     }
 
     @Override
-    public void triggerJobManagerFailover(JobID jobID, Runnable afterFailAction)
+    public void triggerJobManagerFailover(JobClient jobClient, Runnable afterFailAction)
             throws ExecutionException, InterruptedException {
         final HaLeadershipControl haLeadershipControl =
                 miniCluster.getMiniCluster().getHaLeadershipControl().get();
-        haLeadershipControl.revokeJobMasterLeadership(jobID).get();
+        haLeadershipControl.revokeJobMasterLeadership(jobClient.getJobID()).get();
         afterFailAction.run();
-        haLeadershipControl.grantJobMasterLeadership(jobID).get();
+        haLeadershipControl.grantJobMasterLeadership(jobClient.getJobID()).get();
     }
 
     @Override
-    public void triggerTaskManagerFailover(JobID jobID, Runnable afterFailAction) throws Exception {
-        LOG.debug("Terminating TaskManager 0...");
-        miniCluster.getMiniCluster().terminateTaskManager(0).get();
+    public void triggerTaskManagerFailover(JobClient jobClient, Runnable afterFailAction)
+            throws Exception {
+        terminateTaskManager();
+        FlinkJobStatusHelper.waitForJobStatus(
+                jobClient,
+                Arrays.asList(JobStatus.FAILING, JobStatus.FAILED, JobStatus.RESTARTING),
+                Duration.ofSeconds(30));
         afterFailAction.run();
-        LOG.debug("Restarting TaskManager 0...");
-        miniCluster.getMiniCluster().startTaskManager();
+        startTaskManager();
     }
 
     @Override
-    public void isolateNetwork(Runnable afterFailAction) {
-        throw new UnsupportedOperationException("Cannot isolate network");
+    public void isolateNetwork(JobClient jobClient, Runnable afterFailAction) {
+        throw new UnsupportedOperationException("Cannot isolate network in a MiniCluster");
     }
 
     @Override
@@ -85,5 +94,16 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     @Override
     public void tearDown() {
         this.miniCluster.after();
+    }
+
+    private void terminateTaskManager() throws Exception {
+        miniCluster.getMiniCluster().terminateTaskManager(latestTMIndex).get();
+        LOG.debug("TaskManager {} has been terminated.", latestTMIndex);
+    }
+
+    private void startTaskManager() throws Exception {
+        miniCluster.getMiniCluster().startTaskManager();
+        latestTMIndex++;
+        LOG.debug("New TaskManager {} has been launched.", latestTMIndex);
     }
 }

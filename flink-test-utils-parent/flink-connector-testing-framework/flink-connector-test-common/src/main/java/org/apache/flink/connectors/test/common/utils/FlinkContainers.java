@@ -470,7 +470,7 @@ public class FlinkContainers implements TestResource {
      *
      * @param taskManagerIndex Index of task manager container to be restarted
      */
-    public void restartTaskManagers(int taskManagerIndex) {
+    public void restartTaskManagers(int taskManagerIndex, Runnable afterFailAction) {
         if (taskManagerIndex >= taskManagers.size()) {
             throw new IndexOutOfBoundsException(
                     "Invalid TaskManager index "
@@ -480,7 +480,10 @@ public class FlinkContainers implements TestResource {
         }
         final GenericContainer<?> taskManager = taskManagers.get(taskManagerIndex);
         taskManager.stop();
+        LOG.debug("TaskManager has been terminated");
+        afterFailAction.run();
         taskManager.start();
+        LOG.debug("A new TaskManager has been launched");
     }
 
     /** Builder of {@link FlinkContainers}. */
@@ -502,6 +505,9 @@ public class FlinkContainers implements TestResource {
             this.flinkProperties.put("jobmanager.rpc.address", JOBMANAGER_HOSTNAME);
             this.flinkProperties.put(
                     "state.checkpoints.dir", "file://" + checkpointDirInside.getAbsolutePath());
+            this.flinkProperties.put("heartbeat.interval", "1000");
+            this.flinkProperties.put("heartbeat.timeout", "5000");
+            this.flinkProperties.put("slot.request.timeout", "10000");
         }
 
         public FlinkContainers.Builder dependOn(GenericContainer<?> container) {
