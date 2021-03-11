@@ -20,10 +20,14 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
@@ -75,6 +79,32 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                     containsMessage(
                             "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
         }
+    }
+
+    @Test
+    public void testCreatePreviousAllocationSlotSelectionStrategyForLocalRecoveryStreamingJob() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+
+        final SlotSelectionStrategy slotSelectionStrategy =
+                DefaultSchedulerComponents.selectSlotSelectionStrategy(
+                        JobType.STREAMING, configuration);
+
+        assertThat(
+                slotSelectionStrategy, instanceOf(PreviousAllocationSlotSelectionStrategy.class));
+    }
+
+    @Test
+    public void testCreateLocationPreferenceSlotSelectionStrategyForLocalRecoveryBatchJob() {
+        final Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+
+        final SlotSelectionStrategy slotSelectionStrategy =
+                DefaultSchedulerComponents.selectSlotSelectionStrategy(
+                        JobType.BATCH, configuration);
+
+        assertThat(
+                slotSelectionStrategy, instanceOf(LocationPreferenceSlotSelectionStrategy.class));
     }
 
     private static DefaultSchedulerComponents createSchedulerComponents(
