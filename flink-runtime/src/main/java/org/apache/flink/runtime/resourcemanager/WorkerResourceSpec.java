@@ -108,6 +108,10 @@ public final class WorkerResourceSpec implements Serializable {
         return managedMemSize;
     }
 
+    public MemorySize getTotalMemSize() {
+        return taskHeapSize.add(taskOffHeapSize).add(networkMemSize).add(managedMemSize);
+    }
+
     public int getNumSlots() {
         return numSlots;
     }
