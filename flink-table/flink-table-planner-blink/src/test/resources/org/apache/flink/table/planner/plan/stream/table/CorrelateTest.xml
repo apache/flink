@@ -31,6 +31,28 @@ PythonCorrelate(invocation=[org$apache$flink$table$planner$utils$MockPythonTable
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCorrelateTuple12">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable, LATERAL TABLE(func1(c)) AS T
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f0=[$3], f1=[$4], f2=[$5], f3=[$6], f4=[$7], f5=[$8], f6=[$9], f7=[$10], f8=[$11], f9=[$12], f10=[$13], f11=[$14])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[*org.apache.flink.api.java.tuple.Tuple12* NOT NULL])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, VARCHAR(2147483647) f3, VARCHAR(2147483647) f4, VARCHAR(2147483647) f5, INTEGER f6, INTEGER f7, INTEGER f8, INTEGER f9, INTEGER f10, INTEGER f11)], joinType=[INNER])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCorrelateWithMultiFilter">
     <Resource name="ast">
       <![CDATA[
