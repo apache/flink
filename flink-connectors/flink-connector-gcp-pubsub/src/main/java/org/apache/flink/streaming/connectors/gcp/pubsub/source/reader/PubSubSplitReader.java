@@ -1,4 +1,22 @@
-package org.apache.flink.streaming.connectors.gcp.pubsub.source;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.streaming.connectors.gcp.pubsub.source.reader;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
@@ -7,6 +25,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplit;
 import org.apache.flink.util.Collector;
 
 import com.google.pubsub.v1.ReceivedMessage;
@@ -17,15 +36,24 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** @param <T> the type of the record. */
+/**
+ * A {@link SplitReader} to read from a given {@link PubSubSubscriber}.
+ *
+ * @param <T> the type of the record.
+ */
 public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSubSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSplitReader.class);
     private final PubSubSubscriber subscriber;
     private final PubSubDeserializationSchema<T> deserializationSchema;
     private final PubSubCollector collector;
+    // Store the IDs of GCP Pub/Sub messages that yet have to be acknowledged so that they are not
+    // resent.
     private final List<String> messageIdsToAcknowledge = new ArrayList<>();
-    private boolean isEndOfStreamSignalled = false;
 
+    /**
+     * @param deserializationSchema a deserialization schema to apply to incoming message payloads.
+     * @param subscriber a subscriber object to read messages from.
+     */
     public PubSubSplitReader(
             PubSubDeserializationSchema deserializationSchema, PubSubSubscriber subscriber) {
 
@@ -40,6 +68,10 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
         for (ReceivedMessage receivedMessage : subscriber.pull()) {
             try {
+                // Deserialize messages into a collector so that logic in the user-provided
+                // deserialization schema decides how to map GCP Pub/Sub messages to records in
+                // Flink. This allows e.g. batching together multiple Flink records in a single GCP
+                // Pub/Sub message.
                 deserializationSchema.deserialize(receivedMessage.getMessage(), collector);
                 collector
                         .getMessages()
@@ -49,6 +81,9 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
                                                 PubSubSplit.SPLIT_ID,
                                                 new Tuple2<>(
                                                         message,
+                                                        // A timestamp provided by GCP Pub/Sub
+                                                        // indicating when the message was initially
+                                                        // published
                                                         receivedMessage
                                                                 .getMessage()
                                                                 .getPublishTime()
@@ -59,9 +94,6 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
                 collector.reset();
             }
 
-            //            LOG.info(
-            //                    "About to add message ID {} to messages to be acknowledged",
-            //                    receivedMessage.getAckId());
             messageIdsToAcknowledge.add(receivedMessage.getAckId());
         }
 
@@ -116,6 +148,13 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
     //    ------------------------------------------------------
 
+    /**
+     * Acknowledge the reception of messages towards GCP Pub/Sub since the last checkpoint. As long
+     * as a received message has not been acknowledged, GCP Pub/Sub will attempt to deliver it
+     * again.
+     *
+     * <p>Calling this message is enqueued by the {@link PubSubSourceFetcherManager} on checkpoint.
+     */
     public void notifyCheckpointComplete() {
         LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
         if (!messageIdsToAcknowledge.isEmpty()) {

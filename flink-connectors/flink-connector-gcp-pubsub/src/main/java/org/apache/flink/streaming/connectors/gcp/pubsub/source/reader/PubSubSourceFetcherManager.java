@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub.source;
+package org.apache.flink.streaming.connectors.gcp.pubsub.source.reader;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -25,6 +25,7 @@ import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherTask;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.function.Supplier;
 
-/** */
+/**
+ * A custom {@link SingleThreadFetcherManager} so that the reception of GCP Pub/Sub messages can be
+ * acknowledged towards GCP Pub/Sub once they have been successfully checkpointed in Flink. As long
+ * as a received message has not been acknowledged, GCP Pub/Sub will attempt to deliver it again.
+ */
 public class PubSubSourceFetcherManager<T>
         extends SingleThreadFetcherManager<Tuple2<T, Long>, PubSubSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSourceFetcherManager.class);
@@ -43,10 +48,13 @@ public class PubSubSourceFetcherManager<T>
         super(elementsQueue, splitReaderSupplier);
     }
 
+    /**
+     * Creates a {@link SplitFetcher} if there's none available yet and enqueues a task to
+     * acknowledge GCP Pub/Sub messages.
+     */
     public void acknowledgeMessages() {
         SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher = fetchers.get(0);
 
-        LOG.info("in fetcher manager");
         if (splitFetcher != null) {
             enqueueAcknowledgeMessageTask(splitFetcher);
         } else {
@@ -56,6 +64,13 @@ public class PubSubSourceFetcherManager<T>
         }
     }
 
+    /**
+     * Enqueues a task that, when run, notifies a {@link PubSubSplitReader} of a successful
+     * checkpoint so that GCP Pub/Sub messages received since the previous checkpoint can be
+     * acknowledged.
+     *
+     * @param splitFetcher the split fetcher on which the acknowledge task should be enqueued.
+     */
     private void enqueueAcknowledgeMessageTask(
             SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher) {
         PubSubSplitReader<T> pubSubSplitReader =

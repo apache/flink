@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,7 +48,7 @@ import static org.apache.flink.streaming.connectors.gcp.pubsub.SimpleStringSchem
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/** Test of the PubSub SOURCE with the Google PubSub emulator. */
+/** Test of {@link PubSubSource} against the GCP Pub/Sub emulator SDK. */
 public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
     private static final String PROJECT_NAME = "FLProject";
     private static final String TOPIC_NAME = "FLTopic";
@@ -124,11 +125,9 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
-        //		env.setParallelism(4);
-        env.setParallelism(1);
+        env.setParallelism(4);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
-        // TODO: use builder
         PubSubSource<String> source =
                 PubSubSource.newBuilder()
                         .withDeserializationSchema(new SimpleStringSchemaWithStopMarkerDetection())
@@ -140,39 +139,17 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
                                         getPubSubHostPort(),
                                         PROJECT_NAME,
                                         SUBSCRIPTION_NAME,
-                                        //                                        10,
-                                        2,
-                                        Duration.ofSeconds(1), // timeout
+                                        10,
+                                        Duration.ofSeconds(1),
                                         3))
-                        // TODOI: necessary?
                         .setProps(new Properties())
                         .build();
 
         DataStream<String> fromPubSub =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "test-pubsub-new-source");
-        //                        .name("PubSub source");
-
-        //        fromPubSub.addSink(
-        //                new RichSinkFunction<String>() {
-        //                    @Override
-        //                    public void open(Configuration parameters) throws Exception {
-        //                        getRuntimeContext().addAccumulator("result", new
-        // ListAccumulator<String>());
-        //                    }
-        //
-        //                    @Override
-        //                    public void invoke(String value, SinkFunction.Context context)
-        //                            throws Exception {
-        //                        getRuntimeContext().getAccumulator("result").add(value);
-        //                    }
-        //                });
-        //        List<String> output = env.execute().getAccumulatorResult("result");
 
         List<String> output = new ArrayList<>();
-        DataStreamUtils
-                //			TODO: deprecated
-                .collect(fromPubSub)
-                .forEachRemaining(output::add);
+        DataStreamUtils.collect(fromPubSub).forEachRemaining(output::add);
 
         assertEquals("Wrong number of elements", input.size(), output.size());
         for (String test : input) {

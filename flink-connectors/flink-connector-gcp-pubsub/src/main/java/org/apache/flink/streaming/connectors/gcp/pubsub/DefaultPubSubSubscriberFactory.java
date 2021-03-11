@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.PubSubSource;
 
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
@@ -34,12 +35,25 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
 import java.time.Duration;
 
+/**
+ * A default {@link PubSubSubscriberFactory} used by the {@link PubSubSource.PubSubSourceBuilder} to
+ * obtain a subscriber with which messages can be pulled from GCP Pub/Sub.
+ */
 public class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
     private final int retries;
     private final Duration timeout;
     private final int maxMessagesPerPull;
     private final String projectSubscriptionName;
 
+    /**
+     * @param projectSubscriptionName The formatted name of the Pub/Sub project and subscription to
+     *     pull messages from. Can be easily obtained through {@link
+     *     com.google.pubsub.v1.ProjectSubscriptionName}.
+     * @param retries The number of times the reception of a message should be retried in case of
+     *     failure.
+     * @param pullTimeout The timeout after which the reception of a message is deemed a failure.
+     * @param maxMessagesPerPull The maximum number of messages that should be pulled in one go.
+     */
     public DefaultPubSubSubscriberFactory(
             String projectSubscriptionName,
             int retries,

@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,6 +36,14 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.DefaultPubSubSubscriberF
 import org.apache.flink.streaming.connectors.gcp.pubsub.DeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorCheckpoint;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorCheckpointSerializer;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubSourceEnumerator;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubRecordEmitter;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubSourceReader;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubSplitReader;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplit;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplitSerializer;
 import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
@@ -47,7 +56,35 @@ import java.util.function.Supplier;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
 
-/** */
+/**
+ * A source implementation to pull messages from GCP Pub/Sub into Flink. A {@link PubSubSource} can
+ * be constructed through the {@link PubSubSourceBuilder} like so:
+ *
+ * <pre>{@code
+ * PubSubSource.newBuilder()
+ *         // The deserialization schema to deserialize Pub/Sub messages
+ *         .withDeserializationSchema(new SimpleStringSchema())
+ *         // The name string of your Pub/Sub project
+ *         .withProjectName(PROJECT_NAME)
+ *         // The name string of the subscription you would like to receive messages from
+ *         .withSubscriptionName(SUBSCRIPTION_NAME)
+ *         // An instance of the com.google.auth.Credentials class to authenticate against Google Cloud
+ *         .withCredentials(CREDENTIALS)
+ *         .withPubSubSubscriberFactory(
+ *                 // The maximum number of messages that should be pulled in one go
+ *                 3,
+ *                 // The timeout after which the reception of a message is deemed a failure
+ *                 Duration.ofSeconds(1),
+ *                 // The number of times the reception of a message should be retried in case of failure
+ *                 10)
+ *         .setProps(new Properties())
+ *         .build();
+ * }</pre>
+ *
+ * <p>More details can be found at {@link PubSubSourceBuilder}
+ *
+ * @param <OUT> The output type of the source.
+ */
 public class PubSubSource<OUT>
         implements Source<OUT, PubSubSplit, PubSubEnumeratorCheckpoint>, ResultTypeQueryable<OUT> {
     protected final PubSubDeserializationSchema<OUT> deserializationSchema;
@@ -117,7 +154,6 @@ public class PubSubSource<OUT>
     @Override
     public SimpleVersionedSerializer<PubSubEnumeratorCheckpoint>
             getEnumeratorCheckpointSerializer() {
-        //        TODO:
         return new PubSubEnumeratorCheckpointSerializer();
     }
 
@@ -126,6 +162,11 @@ public class PubSubSource<OUT>
         return deserializationSchema.getProducedType();
     }
 
+    /**
+     * Get a builder to build a {@link PubSubSource}.
+     *
+     * @return A builder for a @{link PubSubSource}.
+     */
     public static DeserializationSchemaBuilder newBuilder() {
         return new DeserializationSchemaBuilder();
     }
@@ -140,14 +181,23 @@ public class PubSubSource<OUT>
         private PubSubSubscriberFactory pubSubSubscriberFactory;
         private Properties props;
         private Credentials credentials;
-        //        TODO:
-        private int messagePerSecondRateLimit = 100000;
 
+        /**
+         * Use any {@link DeserializationSchema} to use in the {@link PubSubSource}. The schema will
+         * be wrapped automatically for compatibility with the source.
+         *
+         * @param deserializationSchema The deserialization schema to use.
+         */
         private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {
             Preconditions.checkNotNull(deserializationSchema);
             this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
         }
 
+        /**
+         * Use a {@link PubSubDeserializationSchema} for the {@link PubSubSource}.
+         *
+         * @param deserializationSchema The deserialization schema to use.
+         */
         private PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema) {
             Preconditions.checkNotNull(deserializationSchema);
             this.deserializationSchema = deserializationSchema;
@@ -189,12 +239,6 @@ public class PubSubSource<OUT>
             return this;
         }
 
-        public PubSubSourceBuilder<OUT> withMessageRateLimit(int messagePerSecondRateLimit) {
-            this.messagePerSecondRateLimit = messagePerSecondRateLimit;
-            return this;
-        }
-
-        //        TODO:
         public PubSubSourceBuilder setProps(Properties props) {
             this.props = props;
             return this;
@@ -214,15 +258,11 @@ public class PubSubSource<OUT>
                                 100);
             }
 
-            // TODO:
-            //                    new GuavaFlinkConnectorRateLimiter(),
-            //                    messagePerSecondRateLimit);
             return new PubSubSource(
                     deserializationSchema, pubSubSubscriberFactory, props, credentials);
         }
     }
 
-    //    TODO: are these three needed?
     /** Part of {@link PubSubSourceBuilder} to set required fields. */
     public static class DeserializationSchemaBuilder {
         /**

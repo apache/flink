@@ -15,13 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.gcp.pubsub.source;
+
+package org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
-/** */
+/**
+ * A stub to serialize the contents of a {@link PubSubEnumeratorCheckpoint}. Because no data is
+ * stored in such a checkpoint, no proper serialization is necessary.
+ */
 public class PubSubEnumeratorCheckpointSerializer
         implements SimpleVersionedSerializer<PubSubEnumeratorCheckpoint> {
 
@@ -34,26 +38,12 @@ public class PubSubEnumeratorCheckpointSerializer
 
     @Override
     public byte[] serialize(PubSubEnumeratorCheckpoint enumeratorCheckpoint) throws IOException {
-        //        return SerdeUtils.serializeSplitAssignments(
-        //                enumeratorCheckpoint.getCurrentAssignment(), new PubSubSplitSerializer());
         return new byte[0];
     }
 
     @Override
     public PubSubEnumeratorCheckpoint deserialize(int version, byte[] serialized)
             throws IOException {
-        //        if (version == 0) {
-        //            Map<Integer, Set<PubSubSplit>> currentPartitionAssignment =
-        //                    SerdeUtils.deserializeSplitAssignments(
-        //                            serialized, new PubSubSplitSerializer(), HashSet::new);
-        //            return new PubSubEnumeratorCheckpoint(currentPartitionAssignment);
-        //        }
-        //        throw new IOException(
-        //                String.format(
-        //                        "The bytes are serialized with version %d, "
-        //                                + "while this deserializer only supports version up to
-        // %d",
-        //                        version, CURRENT_VERSION));
         return new PubSubEnumeratorCheckpoint();
     }
 }
