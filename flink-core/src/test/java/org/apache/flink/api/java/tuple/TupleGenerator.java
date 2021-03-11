@@ -43,6 +43,8 @@ class TupleGenerator {
 
     private static final String GEN_TYPE_PREFIX = "T";
 
+    private static final String SETTER_ARG_NAME = "f";
+
     // Parameters for tuple-dependent classes
     private static final String BEGIN_INDICATOR = "BEGIN_OF_TUPLE_DEPENDENT_CODE";
 
@@ -245,12 +247,12 @@ class TupleGenerator {
         }
         w.println();
 
-        String paramList = "("; // This will be like "(T0 value0, T1 value1)"
+        String paramList = "("; // This will be like "(T0 f0, T1 f1)"
         for (int i = 0; i < numFields; i++) {
             if (i > 0) {
                 paramList += ", ";
             }
-            paramList += GEN_TYPE_PREFIX + i + " value" + i;
+            paramList += GEN_TYPE_PREFIX + i + " " + SETTER_ARG_NAME + i;
         }
         paramList += ")";
 
@@ -264,12 +266,12 @@ class TupleGenerator {
         w.println("\t * Creates a new tuple and assigns the given values to the tuple's fields.");
         w.println("\t *");
         for (int i = 0; i < numFields; i++) {
-            w.println("\t * @param value" + i + " The value for field " + i);
+            w.println("\t * @param " + SETTER_ARG_NAME + i + " The value for field " + i);
         }
         w.println("\t */");
         w.println("\tpublic " + className + paramList + " {");
         for (int i = 0; i < numFields; i++) {
-            w.println("\t\tthis.f" + i + " = value" + i + ';');
+            w.println("\t\tthis.f" + i + " = " + SETTER_ARG_NAME + i + ';');
         }
         w.println("\t}");
         w.println();
@@ -314,12 +316,12 @@ class TupleGenerator {
         w.println("\t * Sets new values to all fields of the tuple.");
         w.println("\t *");
         for (int i = 0; i < numFields; i++) {
-            w.println("\t * @param value" + i + " The value for field " + i);
+            w.println("\t * @param " + SETTER_ARG_NAME + i + " The value for field " + i);
         }
         w.println("\t */");
         w.println("\tpublic void setFields" + paramList + " {");
         for (int i = 0; i < numFields; i++) {
-            w.println("\t\tthis.f" + i + " = value" + i + ';');
+            w.println("\t\tthis.f" + i + " = " + SETTER_ARG_NAME + i + ';');
         }
         w.println("\t}");
         w.println();
@@ -466,12 +468,12 @@ class TupleGenerator {
                         + paramList
                         + " {");
 
-        w.print("\t\treturn new " + className + "<>(value0");
+        w.print("\t\treturn new " + className + "<>(" + SETTER_ARG_NAME + "0");
         if (numFields > 1) {
             w.println(",");
         }
         for (int i = 1; i < numFields; i++) {
-            w.print("\t\t\tvalue" + i);
+            w.print("\t\t\t" + SETTER_ARG_NAME + i);
             if (i < numFields - 1) {
                 w.println(",");
             }
@@ -552,7 +554,7 @@ class TupleGenerator {
             if (i > 0) {
                 w.print(", ");
             }
-            w.print(GEN_TYPE_PREFIX + i + " value" + i);
+            w.print(GEN_TYPE_PREFIX + i + " " + SETTER_ARG_NAME + i);
         }
         w.println("){");
         w.print("\t\ttuples.add(new Tuple" + numFields + "<>(");
@@ -560,7 +562,7 @@ class TupleGenerator {
             if (i > 0) {
                 w.print(", ");
             }
-            w.print("value" + i);
+            w.print(SETTER_ARG_NAME + i);
         }
         w.println("));");
         w.println("\t\treturn this;");
