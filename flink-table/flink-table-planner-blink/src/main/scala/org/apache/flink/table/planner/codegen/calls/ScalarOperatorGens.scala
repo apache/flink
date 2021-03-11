@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
+import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
@@ -201,7 +202,7 @@ object ScalarOperatorGens {
           (l, r) => s"$l"
         }
 
-      case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
+      case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
@@ -210,7 +211,7 @@ object ScalarOperatorGens {
           }
         }
 
-      case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
+      case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
           (l, r) => {
             val leftTerm = s"$l.getMillisecond()"
@@ -242,10 +243,10 @@ object ScalarOperatorGens {
                   val leftTerm = s"$ll.getMillisecond()"
                   val rightTerm = s"$rr.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
-                case (TIMESTAMP_WITHOUT_TIME_ZONE, _) =>
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
                   val leftTerm = s"$ll.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rr)"
-                case (_, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                   val rightTerm = s"$rr.getMillisecond()"
                   s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rightTerm)"
                 case _ =>
@@ -272,6 +273,50 @@ object ScalarOperatorGens {
             }
         }
 
+      // minus arithmetic of time points (i.e. for TIMESTAMPDIFF for TIMESTAMP_LTZ)
+      case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, t)
+        if t.getFamilies.contains(DATETIME) && !plus =>
+        generateTimestampLtzMinus(ctx, resultType, left, right)
+      case (t, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+        if t.getFamilies.contains(DATETIME) && !plus =>
+        generateTimestampLtzMinus(ctx, resultType, left, right)
+      case _ =>
+        throw new CodeGenException("Unsupported temporal arithmetic.")
+    }
+  }
+
+  private def generateTimestampLtzMinus(
+     ctx: CodeGeneratorContext,
+     resultType: LogicalType,
+     left: GeneratedExpression,
+     right: GeneratedExpression)
+  : GeneratedExpression = {
+    resultType.getTypeRoot match {
+      case INTERVAL_YEAR_MONTH =>
+        generateOperatorIfNotNull(ctx, resultType, left, right) {
+          (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
+            case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+              val leftTerm = s"$ll.getMillisecond()"
+              val rightTerm = s"$rr.getMillisecond()"
+              s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
+            case _ =>
+              throw new CodeGenException(
+                "TIMESTAMP_LTZ only supports diff between the same type.")
+          }
+        }
+
+      case INTERVAL_DAY_TIME =>
+        generateOperatorIfNotNull(ctx, resultType, left, right) {
+          (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
+            case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+              val leftTerm = s"$ll.getMillisecond()"
+              val rightTerm = s"$rr.getMillisecond()"
+              s"$leftTerm - $rightTerm"
+            case _ =>
+              throw new CodeGenException(
+                "TIMESTAMP_LTZ only supports diff between the same type.")
+          }
+        }
       case _ =>
         throw new CodeGenException("Unsupported temporal arithmetic.")
     }
