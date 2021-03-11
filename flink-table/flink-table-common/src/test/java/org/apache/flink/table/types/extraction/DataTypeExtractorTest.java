@@ -20,6 +20,7 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple12;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -445,7 +446,27 @@ public class DataTypeExtractorTest {
                                                         DataTypes.INT(), DataTypes.STRING())))),
                 TestSpec.forType("Invalid data view", AccumulatorWithInvalidView.class)
                         .expectErrorMessage(
-                                "Annotated list views should have a logical type of ARRAY."));
+                                "Annotated list views should have a logical type of ARRAY."),
+                TestSpec.forGeneric(
+                                "Assigning constructor for tuples",
+                                TableFunction.class,
+                                0,
+                                Tuple12TableFunction.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        Tuple12.class,
+                                        DataTypes.FIELD("f0", DataTypes.STRING()),
+                                        DataTypes.FIELD("f1", DataTypes.STRING()),
+                                        DataTypes.FIELD("f2", DataTypes.STRING()),
+                                        DataTypes.FIELD("f3", DataTypes.STRING()),
+                                        DataTypes.FIELD("f4", DataTypes.STRING()),
+                                        DataTypes.FIELD("f5", DataTypes.STRING()),
+                                        DataTypes.FIELD("f6", DataTypes.STRING()),
+                                        DataTypes.FIELD("f7", DataTypes.STRING()),
+                                        DataTypes.FIELD("f8", DataTypes.STRING()),
+                                        DataTypes.FIELD("f9", DataTypes.STRING()),
+                                        DataTypes.FIELD("f10", DataTypes.STRING()),
+                                        DataTypes.FIELD("f11", DataTypes.INT()))));
     }
 
     @Parameter public TestSpec testSpec;
@@ -1028,5 +1049,28 @@ public class DataTypeExtractorTest {
     public static class AccumulatorWithInvalidView {
         @DataTypeHint("INT")
         public ListView<?> listView;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Table function that uses a big tuple with constructor defined field order. */
+    public static class Tuple12TableFunction
+            extends TableFunction<
+                    Tuple12<
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            Integer>> {
+        public void eval() {
+            // nothing to do
+        }
     }
 }
