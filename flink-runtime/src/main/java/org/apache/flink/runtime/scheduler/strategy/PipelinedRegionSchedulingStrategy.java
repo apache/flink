@@ -131,13 +131,19 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                                                     .stream())
                             .collect(Collectors.toSet());
 
+            // for POINTWISE consumers of a BLOCKING partition, it's possible that some of the
+            // consumers are not affected by the restarting of sibling vertices so they are still in
+            // SCHEDULED/DEPLOYING/RUNNING/FINISHED. We should skip rescheduling these vertices.
             final Set<SchedulingPipelinedRegion> consumerRegions =
                     finishedPartitions.stream()
                             .flatMap(
                                     partition ->
                                             partitionConsumerRegions.get(partition.getId())
                                                     .stream())
+                            .distinct()
+                            .filter(region -> areRegionVerticesAllInCreatedState(region))
                             .collect(Collectors.toSet());
+
             maybeScheduleRegions(consumerRegions);
         }
     }

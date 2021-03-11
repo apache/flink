@@ -23,10 +23,13 @@ import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -49,6 +52,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -82,8 +86,25 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
                 cause.get().getMessage(), containsString("Slot request bulk is not fulfillable!"));
     }
 
-    private JobResult executeSchedulingTest(int numSlots) throws Exception {
+    @Test(timeout = 120000)
+    public void testRecoverFromPartitionException() throws Exception {
         final Configuration configuration = new Configuration();
+        configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+
+        OneTimeFailingReceiverWithPartitionException.hasFailed.set(false);
+
+        final JobResult jobResult =
+                executeSchedulingTest(createJobGraphWithThreeStages(2), 2, configuration);
+        assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+    }
+
+    private JobResult executeSchedulingTest(int numSlots) throws Exception {
+        return executeSchedulingTest(createJobGraph(2), numSlots, new Configuration());
+    }
+
+    private JobResult executeSchedulingTest(
+            JobGraph jobGraph, int numSlots, Configuration configuration) throws Exception {
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
 
@@ -99,8 +120,6 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 
             final MiniClusterClient miniClusterClient =
                     new MiniClusterClient(configuration, miniCluster);
-
-            final JobGraph jobGraph = createJobGraph(10);
 
             // wait for the submission to succeed
             final JobID jobID = miniClusterClient.submitJob(jobGraph).get();
@@ -138,6 +157,33 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
                 source2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         return JobGraphTestUtils.batchJobGraph(source1, source2, sink);
+    }
+
+    private JobGraph createJobGraphWithThreeStages(final int parallelism) {
+        final SlotSharingGroup group1 = new SlotSharingGroup();
+        final JobVertex source = new JobVertex("source");
+        source.setInvokableClass(NoOpInvokable.class);
+        source.setParallelism(parallelism);
+        source.setSlotSharingGroup(group1);
+
+        final SlotSharingGroup group2 = new SlotSharingGroup();
+        final JobVertex map = new JobVertex("map");
+        map.setInvokableClass(NoOpInvokable.class);
+        map.setParallelism(parallelism);
+        map.setSlotSharingGroup(group2);
+
+        final SlotSharingGroup group3 = new SlotSharingGroup();
+        final JobVertex sink = new JobVertex("sink");
+        sink.setInvokableClass(OneTimeFailingReceiverWithPartitionException.class);
+        sink.setParallelism(parallelism);
+        sink.setSlotSharingGroup(group3);
+
+        map.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        sink.connectNewDataSetAsInput(
+                map, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        return JobGraphTestUtils.batchJobGraph(source, map, sink);
     }
 
     /**
@@ -201,6 +247,24 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
                 while (reader.hasNext()) {
                     reader.next();
                 }
+            }
+        }
+    }
+
+    /** Invokable which fails exactly once with a {@link PartitionException}. */
+    public static class OneTimeFailingReceiverWithPartitionException extends AbstractInvokable {
+
+        private static final AtomicBoolean hasFailed = new AtomicBoolean(false);
+
+        public OneTimeFailingReceiverWithPartitionException(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            if (hasFailed.compareAndSet(false, true)) {
+                throw new PartitionNotFoundException(
+                        getEnvironment().getInputGate(0).getChannel(1).getPartitionId());
             }
         }
     }
