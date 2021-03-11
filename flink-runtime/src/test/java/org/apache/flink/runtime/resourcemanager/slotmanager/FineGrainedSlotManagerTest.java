@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -37,11 +38,13 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -705,6 +708,151 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     assertFutureCompleteAndReturn(unregisterTaskManagerFuture),
                                     is(true));
                             assertEquals(0, getSlotManager().getNumberRegisteredSlots());
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testMaxTotalResourceCpuExceeded() throws Exception {
+        Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
+                (smConfigBuilder) ->
+                        smConfigBuilder.setMaxTotalCpu(
+                                (CPUResource)
+                                        DEFAULT_TOTAL_RESOURCE_PROFILE
+                                                .getCpuCores()
+                                                .multiply(BigDecimal.valueOf(1.5)));
+
+        testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
+        testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);
+    }
+
+    @Test
+    public void testMaxTotalResourceMemoryExceeded() throws Exception {
+        Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
+                (smConfigBuilder) ->
+                        smConfigBuilder.setMaxTotalMem(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE.getTotalMemory().multiply(1.5));
+
+        testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
+        testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);
+    }
+
+    private void testMaxTotalResourceExceededAllocateResource(
+            Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter) throws Exception {
+        final JobID jobId = new JobID();
+        final List<CompletableFuture<Void>> allocateResourceFutures = new ArrayList<>();
+        allocateResourceFutures.add(new CompletableFuture<>());
+        allocateResourceFutures.add(new CompletableFuture<>());
+        final PendingTaskManager pendingTaskManager1 =
+                new PendingTaskManager(
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+        final PendingTaskManager pendingTaskManager2 =
+                new PendingTaskManager(
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+        new Context() {
+            {
+                maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
+
+                resourceActionsBuilder.setAllocateResourceConsumer(
+                        ignored -> {
+                            if (allocateResourceFutures.get(0).isDone()) {
+                                allocateResourceFutures.get(1).complete(null);
+                            } else {
+                                allocateResourceFutures.get(0).complete(null);
+                            }
+                        });
+
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
+                                ResourceAllocationResult.builder()
+                                        .addPendingTaskManagerAllocate(pendingTaskManager1)
+                                        .addPendingTaskManagerAllocate(pendingTaskManager2)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager1.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager2.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .build()));
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(jobId, 2)));
+                            assertFutureCompleteAndReturn(allocateResourceFutures.get(0));
+                            assertFutureNotComplete(allocateResourceFutures.get(1));
+                        });
+            }
+        };
+    }
+
+    private void testMaxTotalResourceExceededRegisterResource(
+            Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter) throws Exception {
+        final TaskExecutorConnection taskManagerConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection taskManagerConnection2 = createTaskExecutorConnection();
+        final CompletableFuture<Boolean> registerTaskManagerFuture1 = new CompletableFuture<>();
+        final CompletableFuture<Boolean> registerTaskManagerFuture2 = new CompletableFuture<>();
+        final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
+
+        new Context() {
+            {
+                maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
+
+                resourceActionsBuilder.setReleaseResourceConsumer(
+                        (instanceId, ignore) -> releaseResourceFuture.complete(instanceId));
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture1.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskManagerConnection1,
+                                                                    new SlotReport(),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture1),
+                                    is(true));
+                            assertFutureNotComplete(releaseResourceFuture);
+                            assertThat(
+                                    getTaskManagerTracker().getRegisteredTaskManagers().size(),
+                                    equalTo(1));
+                            assertTrue(
+                                    getTaskManagerTracker()
+                                            .getRegisteredTaskManager(
+                                                    taskManagerConnection1.getInstanceID())
+                                            .isPresent());
+
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture2.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskManagerConnection2,
+                                                                    new SlotReport(),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture2),
+                                    is(false));
+                            assertThat(
+                                    releaseResourceFuture.get(),
+                                    is(taskManagerConnection2.getInstanceID()));
+                            assertThat(
+                                    getTaskManagerTracker().getRegisteredTaskManagers().size(),
+                                    equalTo(1));
+                            assertFalse(
+                                    getTaskManagerTracker()
+                                            .getRegisteredTaskManager(
+                                                    taskManagerConnection2.getInstanceID())
+                                            .isPresent());
                         });
             }
         };
