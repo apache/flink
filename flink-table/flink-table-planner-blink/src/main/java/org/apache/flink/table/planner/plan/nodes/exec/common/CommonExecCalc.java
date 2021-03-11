@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -48,7 +49,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base class for exec Calc. */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
+public abstract class CommonExecCalc extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
@@ -97,18 +99,11 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData> {
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
                         retainHeader,
                         getClass().getSimpleName());
-        final Transformation<RowData> transformation =
-                new OneInputTransformation<>(
-                        inputTransform,
-                        getDescription(),
-                        substituteStreamOperator,
-                        InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transformation.setParallelism(1);
-            transformation.setMaxParallelism(1);
-        }
-        return transformation;
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDescription(),
+                substituteStreamOperator,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism());
     }
 }

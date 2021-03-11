@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.api.dag.Transformation;
 
-/** Base class for stream {@link ExecNode}. */
-@Internal
-public interface StreamExecNode<T> extends ExecNode<T> {}
+/**
+ * An {@link ExecNodeTranslator} that will generate only ONE {@link Transformation}.
+ *
+ * <p>It is just an convention that this translator just return one Transformation, the planner do
+ * not check the result.
+ *
+ * @param <T> The type of the elements that result from this translator.
+ */
+public interface SingleTransformationTranslator<T> extends ExecNodeTranslator<T> {}

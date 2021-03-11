@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -84,7 +85,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformT
 
 /** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
 
@@ -212,10 +213,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             trigger,
                             emitStrategy.getAllowLateness(),
                             config);
-        }
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
         }
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {

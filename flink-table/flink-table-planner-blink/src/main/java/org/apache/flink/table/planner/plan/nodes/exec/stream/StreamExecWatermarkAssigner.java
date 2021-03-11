@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory;
@@ -42,7 +43,7 @@ import java.util.Optional;
 
 /** Stream {@link ExecNode} which generates watermark based on the input elements. */
 public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private final RexNode watermarkExpr;
     private final int rowtimeFieldIndex;
 

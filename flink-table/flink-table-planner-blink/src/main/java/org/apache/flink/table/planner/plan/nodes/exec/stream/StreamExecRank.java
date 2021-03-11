@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -56,7 +57,8 @@ import java.util.Collections;
 import java.util.stream.IntStream;
 
 /** Stream {@link ExecNode} for Rank. */
-public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+public class StreamExecRank extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     // It is a experimental config, will may be removed later.
     @Experimental
@@ -229,11 +231,6 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                         partitionSpec.getFieldIndices(), inputRowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
         return transform;
     }
 }

@@ -16,11 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.delegation.Planner;
 
-/** Base class for stream {@link ExecNode}. */
+/**
+ * An {@link ExecNodeTranslator} is responsible for translating an {@link ExecNode} to {@link
+ * Transformation}s.
+ *
+ * @param <T> The type of the elements that result from this translator.
+ */
 @Internal
-public interface StreamExecNode<T> extends ExecNode<T> {}
+public interface ExecNodeTranslator<T> {
+
+    /**
+     * Translates this node into a {@link Transformation}.
+     *
+     * <p>NOTE: This method should return same translate result if called multiple times.
+     *
+     * @param planner The {@link Planner} of the translated Table.
+     */
+    Transformation<T> translateToPlan(Planner planner);
+}

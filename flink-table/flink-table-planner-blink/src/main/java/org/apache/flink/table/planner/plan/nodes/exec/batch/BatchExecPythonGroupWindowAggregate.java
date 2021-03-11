@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -54,7 +55,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private static final String ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch."

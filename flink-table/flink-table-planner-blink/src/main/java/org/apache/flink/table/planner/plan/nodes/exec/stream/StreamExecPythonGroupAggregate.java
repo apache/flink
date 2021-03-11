@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -53,7 +54,7 @@ import java.util.Collections;
 
 /** Stream {@link ExecNode} for Python unbounded group aggregate. */
 public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
@@ -134,11 +135,6 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);

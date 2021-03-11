@@ -48,6 +48,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
@@ -74,7 +75,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Base {@link ExecNode} to write data to an external sink defined by a {@link DynamicTableSink}.
  */
-public abstract class CommonExecSink extends ExecNodeBase<Object> {
+public abstract class CommonExecSink extends ExecNodeBase<Object>
+        implements MultipleTransformationTranslator<Object> {
 
     public static final String FIELD_NAME_DYNAMIC_TABLE_SINK = "dynamicTableSink";
 

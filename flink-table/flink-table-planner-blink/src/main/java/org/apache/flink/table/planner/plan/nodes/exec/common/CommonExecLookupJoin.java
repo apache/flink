@@ -50,6 +50,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -124,7 +125,8 @@ import java.util.Optional;
  * 3) join left input record and lookup-ed records <br>
  * 4) only outputs the rows which match to the condition <br>
  */
-public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
+public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
 
     private final FlinkJoinType joinType;
     /**
@@ -207,18 +209,12 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
         Transformation<RowData> inputTransformation =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
-        OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
-                        inputTransformation,
-                        getDescription(),
-                        operatorFactory,
-                        InternalTypeInfo.of(resultRowType),
-                        inputTransformation.getParallelism());
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-        return transform;
+        return new OneInputTransformation<>(
+                inputTransformation,
+                getDescription(),
+                operatorFactory,
+                InternalTypeInfo.of(resultRowType),
+                inputTransformation.getParallelism());
     }
 
     protected void validateLookupKeyType(

@@ -33,6 +33,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,7 +47,8 @@ import java.util.Collections;
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
  */
-public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
+public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
+        implements MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
