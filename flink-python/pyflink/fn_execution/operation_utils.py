@@ -237,12 +237,6 @@ def extract_data_stream_stateless_function(udf_proto):
         func = user_defined_func.map
     elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
         func = user_defined_func.flat_map
-    elif func_type == UserDefinedDataStreamFunction.REDUCE:
-        reduce_func = user_defined_func.reduce
-
-        def wrapped_func(value):
-            return reduce_func(value[0], value[1])
-        func = wrapped_func
     elif func_type == UserDefinedDataStreamFunction.CO_MAP:
         co_map_func = user_defined_func
 

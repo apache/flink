@@ -81,12 +81,11 @@ message UserDefinedDataStreamFunction {
   enum FunctionType {
     MAP = 0;
     FLAT_MAP = 1;
-    REDUCE = 2;
-    CO_MAP = 3;
-    CO_FLAT_MAP = 4;
-    PROCESS = 5;
-    KEYED_PROCESS = 6;
-    TIMESTAMP_ASSIGNER = 7;
+    CO_MAP = 2;
+    CO_FLAT_MAP = 3;
+    PROCESS = 4;
+    KEYED_PROCESS = 5;
+    TIMESTAMP_ASSIGNER = 6;
   }
 
   message JobParameter {

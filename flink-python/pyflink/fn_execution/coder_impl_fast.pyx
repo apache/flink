@@ -25,6 +25,7 @@ from libc.string cimport memcpy
 
 import datetime
 import decimal
+import pickle
 
 from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.table import Row
@@ -188,26 +189,6 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
         self._tmp_output_pos = 0
 
-    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
-                        item):
-        if coder_type == SIMPLE:
-            self._encode_field_simple(field_type, item)
-            self._encode_data_stream_field_simple(field_type, item)
-        else:
-            self._encode_field_complex(field_type, field_coder, item)
-            self._encode_data_stream_field_complex(field_type, field_coder, item)
-
-    cdef object _decode_field(self, CoderType coder_type, TypeName field_type,
-                        FieldCoder field_coder):
-        if coder_type == SIMPLE:
-            decoded_obj = self._decode_field_simple(field_type)
-            return decoded_obj if decoded_obj is not None \
-                else self._decode_data_stream_field_simple(field_type)
-        else:
-            decoded_obj = self._decode_field_complex(field_type, field_coder)
-            return decoded_obj if decoded_obj is not None \
-                else self._decode_data_stream_field_complex(field_type, field_coder)
-
     cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
         input_stream.read(&self._input_data)
         self._input_pos = 0
@@ -215,50 +196,6 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
         type_name = self._single_field_coder.type_name()
         decoded_obj = self._decode_field(coder_type, type_name, self._single_field_coder)
         return decoded_obj
-
-    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item):
-        if field_type == PICKLED_BYTES:
-            import pickle
-            pickled_bytes = pickle.dumps(item)
-            self._encode_bytes(pickled_bytes, len(pickled_bytes))
-        elif field_type == BIG_DEC:
-            item_bytes = str(item).encode('utf-8')
-            self._encode_bytes(item_bytes, len(item_bytes))
-
-    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
-                                           item):
-        if field_type == TUPLE:
-            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
-            tuple_field_count = len(tuple_field_coders)
-            tuple_value = list(item)
-            for i in range(tuple_field_count):
-                field_item = tuple_value[i]
-                tuple_field_coder = tuple_field_coders[i]
-                if field_item is not None:
-                    self._encode_field(tuple_field_coder.coder_type(),
-                                       tuple_field_coder.type_name(),
-                                       tuple_field_coder,
-                                       field_item)
-    cdef object _decode_data_stream_field_simple(self, TypeName field_type):
-        if field_type == PICKLED_BYTES:
-            decoded_bytes = self._decode_bytes()
-            import pickle
-            return pickle.loads(decoded_bytes)
-        elif field_type == BIG_DEC:
-            return decimal.Decimal(self._decode_bytes().decode("utf-8"))
-
-    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder):
-        if field_type == TUPLE:
-            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
-            tuple_field_count = len(tuple_field_coders)
-            decoded_list = []
-            for i in range(tuple_field_count):
-                decoded_list.append(self._decode_field(
-                    tuple_field_coders[i].coder_type(),
-                    tuple_field_coders[i].type_name(),
-                    tuple_field_coders[i]
-                ))
-            return (*decoded_list,)
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -425,6 +362,11 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             hours = minutes // 60
             minutes %= 60
             return datetime.time(hours, minutes, seconds, milliseconds * 1000)
+        elif field_type == PICKLED_BYTES:
+            decoded_bytes = self._decode_bytes()
+            return pickle.loads(decoded_bytes)
+        elif field_type == BIG_DEC:
+            return decimal.Decimal(self._decode_bytes().decode("utf-8"))
 
     cdef object _decode_field_complex(self, TypeName field_type, FieldCoder field_coder):
         cdef libc.stdint.int32_t nanoseconds, microseconds, seconds, length
@@ -501,6 +443,17 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         elif field_type == ROW:
             # Row
             return self._decode_field_row(field_coder)
+        elif field_type == TUPLE:
+            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
+            tuple_field_count = len(tuple_field_coders)
+            decoded_list = []
+            for i in range(tuple_field_count):
+                decoded_list.append(self._decode_field(
+                    tuple_field_coders[i].coder_type(),
+                    tuple_field_coders[i].type_name(),
+                    tuple_field_coders[i]
+                ))
+            return (*decoded_list,)
 
     cdef object _decode_field_row(self, RowCoderImpl field_coder):
         cdef list row_field_coders, row_field_names
@@ -621,6 +574,13 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             microsecond = item.microsecond
             milliseconds = hour * 3600000 + minute * 60000 + seconds * 1000 + microsecond // 1000
             self._encode_int(milliseconds)
+        elif field_type == PICKLED_BYTES:
+            # pickled object
+            pickled_bytes = pickle.dumps(item)
+            self._encode_bytes(pickled_bytes, len(pickled_bytes))
+        elif field_type == BIG_DEC:
+            item_bytes = str(item).encode('utf-8')
+            self._encode_bytes(item_bytes, len(item_bytes))
 
     cdef void _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item):
         cdef libc.stdint.int32_t nanoseconds, microseconds_of_second, length, row_field_count
@@ -711,6 +671,18 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                 if field_item is not None:
                     self._encode_field(row_field_coder.coder_type(), row_field_coder.type_name(),
                                        row_field_coder, field_item)
+        elif field_type == TUPLE:
+            tuple_field_coders = (<TupleCoderImpl> field_coder).field_coders
+            tuple_field_count = len(tuple_field_coders)
+            tuple_value = list(item)
+            for i in range(tuple_field_count):
+                field_item = tuple_value[i]
+                tuple_field_coder = tuple_field_coders[i]
+                if field_item is not None:
+                    self._encode_field(tuple_field_coder.coder_type(),
+                                       tuple_field_coder.type_name(),
+                                       tuple_field_coder,
+                                       field_item)
 
     cdef void _extend(self, size_t missing):
         while self._tmp_output_buffer_size < self._tmp_output_pos + missing:

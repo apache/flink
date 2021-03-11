@@ -114,11 +114,6 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
 
 cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef readonly FieldCoder _single_field_coder
-    cdef object _decode_data_stream_field_simple(self, TypeName field_type)
-    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder)
-    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item)
-    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
-                                                item)
 
 cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
