@@ -97,6 +97,7 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*</include>
 								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
