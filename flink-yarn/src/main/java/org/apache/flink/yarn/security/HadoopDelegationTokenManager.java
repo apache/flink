@@ -19,6 +19,8 @@
 package org.apache.flink.yarn.security;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenProvider;
 
 import org.apache.hadoop.security.Credentials;
 import org.slf4j.Logger;
@@ -27,9 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
 
 /**
  * HadoopDelegationTokenManager is responsible for managing delegation tokens. It can be used to
@@ -67,24 +67,25 @@ public class HadoopDelegationTokenManager {
     }
 
     private List<HadoopDelegationTokenProvider> loadProviders() {
-        ServiceLoader<HadoopDelegationTokenProviderFactory> serviceLoader =
-                ServiceLoader.load(HadoopDelegationTokenProviderFactory.class);
+        ServiceLoader<HadoopDelegationTokenProvider> serviceLoader =
+                ServiceLoader.load(HadoopDelegationTokenProvider.class);
 
-        List<HadoopDelegationTokenProviderFactory> providerFactories = new ArrayList<>();
+        List<HadoopDelegationTokenProvider> providers = new ArrayList<>();
 
-        Iterator<HadoopDelegationTokenProviderFactory> iterator = serviceLoader.iterator();
-        while (iterator.hasNext()) {
-            try {
-                providerFactories.add(iterator.next());
-            } catch (Throwable t) {
-                LOG.debug("Failed to load hadoop delegation provider factory.", t);
-            }
-        }
-
-        return providerFactories.stream()
-                .map(factory -> factory.createProvider(hadoopDelegationTokenConf))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        Iterator<HadoopDelegationTokenProvider> providerIterator = serviceLoader.iterator();
+        providerIterator.forEachRemaining(
+                provider -> {
+                    try {
+                        provider.init(hadoopDelegationTokenConf);
+                    } catch (Throwable throwable) {
+                        LOG.info(
+                                "Failed to initialize delegation provider {}, exception: {}",
+                                provider.serviceName(),
+                                throwable);
+                    }
+                    providers.add(provider);
+                });
+        return providers;
     }
 
     @VisibleForTesting

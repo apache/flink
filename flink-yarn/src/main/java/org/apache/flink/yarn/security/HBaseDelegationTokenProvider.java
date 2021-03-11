@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn.security;
 
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenProvider;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -37,18 +39,19 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseDelegationTokenProvider.class);
 
-    private final Configuration hadoopConf;
+    private Configuration hadoopConf;
 
     private Configuration hbaseConf;
-
-    public HBaseDelegationTokenProvider(Configuration hadoopConf) {
-        this.hadoopConf = hadoopConf;
-        this.hbaseConf = null;
-    }
 
     @Override
     public String serviceName() {
         return "hbase";
+    }
+
+    @Override
+    public void init(HadoopDelegationTokenConfiguration conf) {
+        this.hadoopConf = conf.getHadoopConf();
+        this.hbaseConf = null;
     }
 
     @Override
@@ -94,7 +97,7 @@ public class HBaseDelegationTokenProvider implements HadoopDelegationTokenProvid
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
+    public Optional<Long> obtainDelegationTokens(final Credentials credentials) {
         Token<?> token;
         try {
             Preconditions.checkNotNull(hbaseConf);

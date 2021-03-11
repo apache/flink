@@ -16,20 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.security;
+package org.apache.flink.runtime.security.delegationtokens;
 
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.function.FunctionUtils;
-import org.apache.flink.yarn.configuration.YarnConfigOptions;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /** Hadoop Delegation Token Related Configurations. */
 public class HadoopDelegationTokenConfiguration {
@@ -48,21 +37,7 @@ public class HadoopDelegationTokenConfiguration {
         return this.hadoopConf;
     }
 
-    public Set<FileSystem> getFileSystemsToAccess() throws IOException {
-        Set<FileSystem> fileSystemsToAccess = new HashSet<>();
-        // add default FS
-        fileSystemsToAccess.add(FileSystem.get(hadoopConf));
-
-        // add additional FSs
-        Set<FileSystem> additionalFileSystems =
-                ConfigUtils.decodeListFromConfig(
-                                flinkConf, YarnConfigOptions.YARN_ACCESS, Path::new)
-                        .stream()
-                        .map(
-                                FunctionUtils.uncheckedFunction(
-                                        path -> path.getFileSystem(hadoopConf)))
-                        .collect(Collectors.toSet());
-        fileSystemsToAccess.addAll(additionalFileSystems);
-        return fileSystemsToAccess;
+    public Configuration getFlinkConf() {
+        return this.flinkConf;
     }
 }

@@ -22,13 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
-import org.apache.flink.yarn.security.HadoopDelegationTokenConfiguration;
 import org.apache.flink.yarn.security.HadoopDelegationTokenManager;
 
 import org.apache.hadoop.conf.Configuration;

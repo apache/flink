@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.security;
 
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -52,10 +53,8 @@ public class HadoopFSDelegationTokenProviderTest {
         final Configuration hadoopConf = new Configuration();
         assumeTrue("simple".equals(hadoopConf.get(HADOOP_SECURITY_AUTHENTICATION)));
 
-        HadoopDelegationTokenConfiguration securityConf =
-                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
         HadoopFSDelegationTokenProvider provider =
-                new HadoopFSDelegationTokenProvider(securityConf);
+                createAndInitializeProvider(flinkConf, hadoopConf);
         assertFalse(
                 "Hadoop FS delegation tokens are not required when authentication is simple",
                 provider.delegationTokensRequired());
@@ -74,10 +73,8 @@ public class HadoopFSDelegationTokenProviderTest {
         hadoopConf.set(HADOOP_SECURITY_AUTHENTICATION, "kerberos");
         try {
             UserGroupInformation.setConfiguration(hadoopConf);
-            HadoopDelegationTokenConfiguration securityConf =
-                    new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
             HadoopFSDelegationTokenProvider provider =
-                    new HadoopFSDelegationTokenProvider(securityConf);
+                    createAndInitializeProvider(flinkConf, hadoopConf);
             assertTrue(
                     "Hadoop FS delegation tokens are required when authentication is not simple",
                     provider.delegationTokensRequired());
@@ -108,10 +105,19 @@ public class HadoopFSDelegationTokenProviderTest {
         expected.add(new Path(defaultFSs).getFileSystem(hadoopConf));
         expected.add(new Path(additionalFs).getFileSystem(hadoopConf));
 
-        HadoopDelegationTokenConfiguration securityConf =
-                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
-        Set<FileSystem> fileSystems = securityConf.getFileSystemsToAccess();
+        HadoopFSDelegationTokenProvider provider =
+                createAndInitializeProvider(flinkConf, hadoopConf);
+        Set<FileSystem> fileSystems = provider.getFileSystemsToAccess();
 
         assertThat(fileSystems, is(expected));
+    }
+
+    private static HadoopFSDelegationTokenProvider createAndInitializeProvider(
+            org.apache.flink.configuration.Configuration flinkConf, Configuration hadoopConf) {
+        HadoopDelegationTokenConfiguration conf =
+                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+        provider.init(conf);
+        return provider;
     }
 }

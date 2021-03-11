@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn.security;
 
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.junit.Test;

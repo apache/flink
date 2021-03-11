@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.security;
+package org.apache.flink.runtime.security.delegationtokens;
 
 import org.apache.hadoop.security.Credentials;
 
@@ -27,6 +27,9 @@ public interface HadoopDelegationTokenProvider {
 
     /** Name of the service to provide delegation tokens. This name should be unique. */
     String serviceName();
+
+    /** Called by HadoopDelegationTokenManager to initialize this provider after construction. */
+    void init(final HadoopDelegationTokenConfiguration conf);
 
     /**
      * Return true if delegation tokens are required for this service.
@@ -42,5 +45,5 @@ public interface HadoopDelegationTokenProvider {
      * @return If the returned tokens are renewable and can be renewed, return the time of the next
      *     renewal, otherwise Optional.EMPTY should be returned.
      */
-    Optional<Long> obtainDelegationTokens(Credentials credentials);
+    Optional<Long> obtainDelegationTokens(final Credentials credentials);
 }
