@@ -493,7 +493,7 @@ public final class FunctionCatalog {
                 new InlineCatalogFunction(functionDefinition));
     }
 
-    private void registerTemporarySystemFunction(
+    public void registerTemporarySystemFunction(
             String name, CatalogFunction function, boolean ignoreIfExists) {
         final String normalizedName = FunctionIdentifier.normalizeName(name);
 
@@ -666,11 +666,11 @@ public final class FunctionCatalog {
     }
 
     /** The CatalogFunction which holds a instantiated UDF. */
-    private static class InlineCatalogFunction implements CatalogFunction {
+    public static class InlineCatalogFunction implements CatalogFunction {
 
         private final FunctionDefinition definition;
 
-        InlineCatalogFunction(FunctionDefinition definition) {
+        public InlineCatalogFunction(FunctionDefinition definition) {
             this.definition = definition;
         }
 
