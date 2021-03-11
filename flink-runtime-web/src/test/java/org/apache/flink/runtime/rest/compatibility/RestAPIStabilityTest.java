@@ -161,7 +161,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
-                                + " being set.");
+                                + " being set. If you see this message in a CI pipeline, rerun the test locally and commit the generated changes.");
             }
         }
 
