@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 
 import java.math.BigDecimal;
 
+import static java.math.BigDecimal.ROUND_HALF_UP;
+
 /** Represents CPU resource. */
 @Internal
 public class CPUResource extends Resource {
@@ -41,5 +43,10 @@ public class CPUResource extends Resource {
     @Override
     public Resource create(BigDecimal value) {
         return new CPUResource(value);
+    }
+
+    public String toHumanReadableString() {
+        return String.format(
+                "%.2f cores", getValue().setScale(2, ROUND_HALF_UP).stripTrailingZeros());
     }
 }
