@@ -51,7 +51,6 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -274,24 +273,5 @@ public class DefaultContext {
                             + "via `-j` command option manually.",
                     e);
         }
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof DefaultContext)) {
-            return false;
-        }
-        DefaultContext context = (DefaultContext) o;
-        return Objects.equals(defaultEnv, context.defaultEnv)
-                && Objects.equals(dependencies, context.dependencies)
-                && Objects.equals(flinkConfig, context.flinkConfig);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(defaultEnv, dependencies, flinkConfig);
     }
 }
