@@ -20,10 +20,9 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.ImmutableBitSet
 import java.math.BigDecimal
 import java.util
@@ -139,59 +138,6 @@ object ExpandUtil {
         val duplicateFieldNewIdx: Integer = inputType.getFieldCount + 1 + idx
         (duplicateFieldIdx, duplicateFieldNewIdx)
     }.toMap[Integer, Integer]
-  }
-
-
-  /**
-    * Build row type for [[LogicalExpand]].
-    *
-    * the order of fields are:
-    * first, the input fields,
-    * second, expand_id field(to distinguish different expanded rows),
-    * last, optional duplicate fields.
-    *
-    * @param typeFactory Type factory.
-    * @param inputType Input row type.
-    * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
-    * @return Row type for [[LogicalExpand]].
-    */
-  @Deprecated
-  def buildExpandRowType(
-      typeFactory: RelDataTypeFactory,
-      inputType: RelDataType,
-      duplicateFieldIndexes: Array[Integer],
-      nullabilityMayChangedIndexes: util.List[Integer]): RelDataType = {
-
-    def createNewTypeIfNullabilityChanged(origField: RelDataTypeField): RelDataType = {
-      if (null != nullabilityMayChangedIndexes &&
-        nullabilityMayChangedIndexes.contains(origField.getIndex)) {
-        return typeFactory.createTypeWithNullability(origField.getType, true)
-      }
-      origField.getType
-    }
-
-    // 1. add original input fields
-    val typeList = mutable
-      .ListBuffer(inputType.getFieldList.map(createNewTypeIfNullabilityChanged): _*)
-    val fieldNameList = mutable.ListBuffer(inputType.getFieldNames: _*)
-    val allFieldNames = mutable.Set[String](fieldNameList: _*)
-
-    // 2. add expand_id('$e') field
-    typeList += typeFactory.createTypeWithNullability(
-      typeFactory.createSqlType(SqlTypeName.BIGINT), false)
-    var expandIdFieldName = buildUniqueFieldName(allFieldNames, "$e")
-    fieldNameList += expandIdFieldName
-
-    // 3. add duplicate fields
-    duplicateFieldIndexes.foreach {
-      duplicateFieldIdx =>
-        // duplicate fields' nullability should keep as it is
-        typeList += inputType.getFieldList.get(duplicateFieldIdx).getType
-        fieldNameList += buildUniqueFieldName(
-          allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
-    }
-
-    typeFactory.createStructType(typeList, fieldNameList)
   }
 
   /**
