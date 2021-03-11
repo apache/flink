@@ -61,10 +61,10 @@ public class Tuple1<T0> extends Tuple {
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
-     * @param value0 The value for field 0
+     * @param f0 The value for field 0
      */
-    public Tuple1(T0 value0) {
-        this.f0 = value0;
+    public Tuple1(T0 f0) {
+        this.f0 = f0;
     }
 
     @Override
@@ -98,10 +98,10 @@ public class Tuple1<T0> extends Tuple {
     /**
      * Sets new values to all fields of the tuple.
      *
-     * @param value0 The value for field 0
+     * @param f0 The value for field 0
      */
-    public void setFields(T0 value0) {
-        this.f0 = value0;
+    public void setFields(T0 f0) {
+        this.f0 = f0;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -164,7 +164,7 @@ public class Tuple1<T0> extends Tuple {
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <T0> Tuple1<T0> of(T0 value0) {
-        return new Tuple1<>(value0);
+    public static <T0> Tuple1<T0> of(T0 f0) {
+        return new Tuple1<>(f0);
     }
 }

@@ -155,80 +155,80 @@ public class Tuple24<
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
-     * @param value3 The value for field 3
-     * @param value4 The value for field 4
-     * @param value5 The value for field 5
-     * @param value6 The value for field 6
-     * @param value7 The value for field 7
-     * @param value8 The value for field 8
-     * @param value9 The value for field 9
-     * @param value10 The value for field 10
-     * @param value11 The value for field 11
-     * @param value12 The value for field 12
-     * @param value13 The value for field 13
-     * @param value14 The value for field 14
-     * @param value15 The value for field 15
-     * @param value16 The value for field 16
-     * @param value17 The value for field 17
-     * @param value18 The value for field 18
-     * @param value19 The value for field 19
-     * @param value20 The value for field 20
-     * @param value21 The value for field 21
-     * @param value22 The value for field 22
-     * @param value23 The value for field 23
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
+     * @param f5 The value for field 5
+     * @param f6 The value for field 6
+     * @param f7 The value for field 7
+     * @param f8 The value for field 8
+     * @param f9 The value for field 9
+     * @param f10 The value for field 10
+     * @param f11 The value for field 11
+     * @param f12 The value for field 12
+     * @param f13 The value for field 13
+     * @param f14 The value for field 14
+     * @param f15 The value for field 15
+     * @param f16 The value for field 16
+     * @param f17 The value for field 17
+     * @param f18 The value for field 18
+     * @param f19 The value for field 19
+     * @param f20 The value for field 20
+     * @param f21 The value for field 21
+     * @param f22 The value for field 22
+     * @param f23 The value for field 23
      */
     public Tuple24(
-            T0 value0,
-            T1 value1,
-            T2 value2,
-            T3 value3,
-            T4 value4,
-            T5 value5,
-            T6 value6,
-            T7 value7,
-            T8 value8,
-            T9 value9,
-            T10 value10,
-            T11 value11,
-            T12 value12,
-            T13 value13,
-            T14 value14,
-            T15 value15,
-            T16 value16,
-            T17 value17,
-            T18 value18,
-            T19 value19,
-            T20 value20,
-            T21 value21,
-            T22 value22,
-            T23 value23) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
-        this.f3 = value3;
-        this.f4 = value4;
-        this.f5 = value5;
-        this.f6 = value6;
-        this.f7 = value7;
-        this.f8 = value8;
-        this.f9 = value9;
-        this.f10 = value10;
-        this.f11 = value11;
-        this.f12 = value12;
-        this.f13 = value13;
-        this.f14 = value14;
-        this.f15 = value15;
-        this.f16 = value16;
-        this.f17 = value17;
-        this.f18 = value18;
-        this.f19 = value19;
-        this.f20 = value20;
-        this.f21 = value21;
-        this.f22 = value22;
-        this.f23 = value23;
+            T0 f0,
+            T1 f1,
+            T2 f2,
+            T3 f3,
+            T4 f4,
+            T5 f5,
+            T6 f6,
+            T7 f7,
+            T8 f8,
+            T9 f9,
+            T10 f10,
+            T11 f11,
+            T12 f12,
+            T13 f13,
+            T14 f14,
+            T15 f15,
+            T16 f16,
+            T17 f17,
+            T18 f18,
+            T19 f19,
+            T20 f20,
+            T21 f21,
+            T22 f22,
+            T23 f23) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
+        this.f5 = f5;
+        this.f6 = f6;
+        this.f7 = f7;
+        this.f8 = f8;
+        this.f9 = f9;
+        this.f10 = f10;
+        this.f11 = f11;
+        this.f12 = f12;
+        this.f13 = f13;
+        this.f14 = f14;
+        this.f15 = f15;
+        this.f16 = f16;
+        this.f17 = f17;
+        this.f18 = f18;
+        this.f19 = f19;
+        this.f20 = f20;
+        this.f21 = f21;
+        this.f22 = f22;
+        this.f23 = f23;
     }
 
     @Override
@@ -377,80 +377,80 @@ public class Tuple24<
     /**
      * Sets new values to all fields of the tuple.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
-     * @param value3 The value for field 3
-     * @param value4 The value for field 4
-     * @param value5 The value for field 5
-     * @param value6 The value for field 6
-     * @param value7 The value for field 7
-     * @param value8 The value for field 8
-     * @param value9 The value for field 9
-     * @param value10 The value for field 10
-     * @param value11 The value for field 11
-     * @param value12 The value for field 12
-     * @param value13 The value for field 13
-     * @param value14 The value for field 14
-     * @param value15 The value for field 15
-     * @param value16 The value for field 16
-     * @param value17 The value for field 17
-     * @param value18 The value for field 18
-     * @param value19 The value for field 19
-     * @param value20 The value for field 20
-     * @param value21 The value for field 21
-     * @param value22 The value for field 22
-     * @param value23 The value for field 23
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
+     * @param f5 The value for field 5
+     * @param f6 The value for field 6
+     * @param f7 The value for field 7
+     * @param f8 The value for field 8
+     * @param f9 The value for field 9
+     * @param f10 The value for field 10
+     * @param f11 The value for field 11
+     * @param f12 The value for field 12
+     * @param f13 The value for field 13
+     * @param f14 The value for field 14
+     * @param f15 The value for field 15
+     * @param f16 The value for field 16
+     * @param f17 The value for field 17
+     * @param f18 The value for field 18
+     * @param f19 The value for field 19
+     * @param f20 The value for field 20
+     * @param f21 The value for field 21
+     * @param f22 The value for field 22
+     * @param f23 The value for field 23
      */
     public void setFields(
-            T0 value0,
-            T1 value1,
-            T2 value2,
-            T3 value3,
-            T4 value4,
-            T5 value5,
-            T6 value6,
-            T7 value7,
-            T8 value8,
-            T9 value9,
-            T10 value10,
-            T11 value11,
-            T12 value12,
-            T13 value13,
-            T14 value14,
-            T15 value15,
-            T16 value16,
-            T17 value17,
-            T18 value18,
-            T19 value19,
-            T20 value20,
-            T21 value21,
-            T22 value22,
-            T23 value23) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
-        this.f3 = value3;
-        this.f4 = value4;
-        this.f5 = value5;
-        this.f6 = value6;
-        this.f7 = value7;
-        this.f8 = value8;
-        this.f9 = value9;
-        this.f10 = value10;
-        this.f11 = value11;
-        this.f12 = value12;
-        this.f13 = value13;
-        this.f14 = value14;
-        this.f15 = value15;
-        this.f16 = value16;
-        this.f17 = value17;
-        this.f18 = value18;
-        this.f19 = value19;
-        this.f20 = value20;
-        this.f21 = value21;
-        this.f22 = value22;
-        this.f23 = value23;
+            T0 f0,
+            T1 f1,
+            T2 f2,
+            T3 f3,
+            T4 f4,
+            T5 f5,
+            T6 f6,
+            T7 f7,
+            T8 f8,
+            T9 f9,
+            T10 f10,
+            T11 f11,
+            T12 f12,
+            T13 f13,
+            T14 f14,
+            T15 f15,
+            T16 f16,
+            T17 f17,
+            T18 f18,
+            T19 f19,
+            T20 f20,
+            T21 f21,
+            T22 f22,
+            T23 f23) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
+        this.f5 = f5;
+        this.f6 = f6;
+        this.f7 = f7;
+        this.f8 = f8;
+        this.f9 = f9;
+        this.f10 = f10;
+        this.f11 = f11;
+        this.f12 = f12;
+        this.f13 = f13;
+        this.f14 = f14;
+        this.f15 = f15;
+        this.f16 = f16;
+        this.f17 = f17;
+        this.f18 = f18;
+        this.f19 = f19;
+        this.f20 = f20;
+        this.f21 = f21;
+        this.f22 = f22;
+        this.f23 = f23;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -733,33 +733,32 @@ public class Tuple24<
                             T22,
                             T23>
                     of(
-                            T0 value0,
-                            T1 value1,
-                            T2 value2,
-                            T3 value3,
-                            T4 value4,
-                            T5 value5,
-                            T6 value6,
-                            T7 value7,
-                            T8 value8,
-                            T9 value9,
-                            T10 value10,
-                            T11 value11,
-                            T12 value12,
-                            T13 value13,
-                            T14 value14,
-                            T15 value15,
-                            T16 value16,
-                            T17 value17,
-                            T18 value18,
-                            T19 value19,
-                            T20 value20,
-                            T21 value21,
-                            T22 value22,
-                            T23 value23) {
+                            T0 f0,
+                            T1 f1,
+                            T2 f2,
+                            T3 f3,
+                            T4 f4,
+                            T5 f5,
+                            T6 f6,
+                            T7 f7,
+                            T8 f8,
+                            T9 f9,
+                            T10 f10,
+                            T11 f11,
+                            T12 f12,
+                            T13 f13,
+                            T14 f14,
+                            T15 f15,
+                            T16 f16,
+                            T17 f17,
+                            T18 f18,
+                            T19 f19,
+                            T20 f20,
+                            T21 f21,
+                            T22 f22,
+                            T23 f23) {
         return new Tuple24<>(
-                value0, value1, value2, value3, value4, value5, value6, value7, value8, value9,
-                value10, value11, value12, value13, value14, value15, value16, value17, value18,
-                value19, value20, value21, value22, value23);
+                f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18,
+                f19, f20, f21, f22, f23);
     }
 }
