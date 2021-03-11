@@ -37,7 +37,8 @@ import java.util.Set;
  *
  * <p>The serialized string representation is {@code TIMESTAMP(p) WITH LOCAL TIME ZONE} where {@code
  * p} is the number of digits of fractional seconds (=precision). {@code p} must have a value
- * between 0 and 9 (both inclusive). If no precision is specified, {@code p} is equal to 6.
+ * between 0 and 9 (both inclusive). If no precision is specified, {@code p} is equal to 6. {@code
+ * TIMESTAMP_LTZ(p)} is a synonym.
  *
  * <p>Compared to {@link ZonedTimestampType}, the time zone offset information is not stored
  * physically in every datum. Instead, the type assumes {@link java.time.Instant} semantics in UTC
@@ -62,6 +63,8 @@ public final class LocalZonedTimestampType extends LogicalType {
     public static final int DEFAULT_PRECISION = TimestampType.DEFAULT_PRECISION;
 
     private static final String FORMAT = "TIMESTAMP(%d) WITH LOCAL TIME ZONE";
+
+    private static final String SUMMARY_FORMAT = "TIMESTAMP_LTZ(%d)";
 
     private static final Set<String> NULL_OUTPUT_CONVERSION =
             conversionSet(
@@ -137,9 +140,9 @@ public final class LocalZonedTimestampType extends LogicalType {
     @Override
     public String asSummaryString() {
         if (kind != TimestampKind.REGULAR) {
-            return String.format("%s *%s*", asSerializableString(), kind);
+            return String.format("%s *%s*", withNullability(SUMMARY_FORMAT, precision), kind);
         }
-        return asSerializableString();
+        return withNullability(SUMMARY_FORMAT, precision);
     }
 
     @Override

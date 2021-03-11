@@ -332,7 +332,7 @@ public class LogicalTypesTest {
         testAll(
                 new LocalZonedTimestampType(9),
                 "TIMESTAMP(9) WITH LOCAL TIME ZONE",
-                "TIMESTAMP(9) WITH LOCAL TIME ZONE",
+                "TIMESTAMP_LTZ(9)",
                 new Class[] {java.time.Instant.class, long.class, int.class},
                 new Class[] {java.time.Instant.class},
                 new LogicalType[] {},
@@ -344,7 +344,7 @@ public class LogicalTypesTest {
         testAll(
                 new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 9),
                 "TIMESTAMP(9) WITH LOCAL TIME ZONE",
-                "TIMESTAMP(9) WITH LOCAL TIME ZONE *ROWTIME*",
+                "TIMESTAMP_LTZ(9) *ROWTIME*",
                 new Class[] {java.time.Instant.class, long.class, int.class},
                 new Class[] {java.time.Instant.class},
                 new LogicalType[] {},
