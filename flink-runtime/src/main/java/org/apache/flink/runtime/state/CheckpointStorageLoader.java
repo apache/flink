@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -185,16 +186,21 @@ public class CheckpointStorageLoader {
                     CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDirectory.toString());
         }
 
-        // Legacy state backends always take precedence
-        // for backwards compatibility.
-        if (configuredStateBackend instanceof CheckpointStorage) {
+        // Legacy state backends always take precedence for backwards compatibility.
+        StateBackend rootStateBackend =
+                (configuredStateBackend instanceof DelegatingStateBackend)
+                        ? ((DelegatingStateBackend) configuredStateBackend)
+                                .getDelegatedStateBackend()
+                        : configuredStateBackend;
+
+        if (rootStateBackend instanceof CheckpointStorage) {
             if (logger != null) {
                 logger.info(
                         "Using legacy state backend {} as Job checkpoint storage",
-                        configuredStateBackend);
+                        rootStateBackend);
             }
 
-            return (CheckpointStorage) configuredStateBackend;
+            return (CheckpointStorage) rootStateBackend;
         } else if (fromApplication instanceof ConfigurableCheckpointStorage) {
             if (logger != null) {
                 logger.info(

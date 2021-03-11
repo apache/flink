@@ -49,7 +49,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> Type of the key by which state is keyed.
  */
 public abstract class AbstractKeyedStateBackend<K>
-        implements CheckpointableKeyedStateBackend<K>, CheckpointListener {
+        implements CheckpointableKeyedStateBackend<K>,
+                CheckpointListener,
+                TestableKeyedStateBackend {
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -234,9 +236,26 @@ public abstract class AbstractKeyedStateBackend<K>
             final KeyedStateFunction<K, S> function)
             throws Exception {
 
+        applyToAllKeys(
+                namespace,
+                namespaceSerializer,
+                stateDescriptor,
+                function,
+                this::getPartitionedState);
+    }
+
+    public <N, S extends State, T> void applyToAllKeys(
+            final N namespace,
+            final TypeSerializer<N> namespaceSerializer,
+            final StateDescriptor<S, T> stateDescriptor,
+            final KeyedStateFunction<K, S> function,
+            final PartitionStateFactory partitionStateFactory)
+            throws Exception {
+
         try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
 
-            final S state = getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
+            final S state =
+                    partitionStateFactory.get(namespace, namespaceSerializer, stateDescriptor);
 
             keyStream.forEach(
                     (K key) -> {
@@ -278,7 +297,7 @@ public abstract class AbstractKeyedStateBackend<K>
         return (S) kvState;
     }
 
-    private void publishQueryableStateIfEnabled(
+    public void publishQueryableStateIfEnabled(
             StateDescriptor<?, ?> stateDescriptor, InternalKvState<?, ?, ?> kvState) {
         if (stateDescriptor.isQueryable()) {
             if (kvStateRegistry == null) {
@@ -339,10 +358,6 @@ public abstract class AbstractKeyedStateBackend<K>
         return keyGroupCompressionDecorator;
     }
 
-    /** Returns the total number of state entries across all keys/namespaces. */
-    @VisibleForTesting
-    public abstract int numKeyValueStateEntries();
-
     @VisibleForTesting
     public int numKeyValueStatesByName() {
         return keyValueStatesByName.size();
@@ -353,7 +368,11 @@ public abstract class AbstractKeyedStateBackend<K>
         return false;
     }
 
-    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
-        return false;
+    public interface PartitionStateFactory {
+        <N, S extends State> S get(
+                final N namespace,
+                final TypeSerializer<N> namespaceSerializer,
+                final StateDescriptor<S, ?> stateDescriptor)
+                throws Exception;
     }
 }

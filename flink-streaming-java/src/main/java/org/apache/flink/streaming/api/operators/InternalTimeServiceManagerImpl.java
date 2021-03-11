@@ -93,17 +93,17 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
-            CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+            CheckpointableKeyedStateBackend<K> keyedStateBackend,
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
             throws Exception {
-        final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
+        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
-                        keyGroupRange, keyContext, keyedStatedBackend, processingTimeService);
+                        keyGroupRange, keyContext, keyedStateBackend, processingTimeService);
 
         // and then initialize the timer services
         for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {

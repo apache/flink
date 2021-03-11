@@ -347,7 +347,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             final N namespace,
             final TypeSerializer<N> namespaceSerializer,
             final StateDescriptor<S, T> stateDescriptor,
-            final KeyedStateFunction<K, S> function)
+            final KeyedStateFunction<K, S> function,
+            final PartitionStateFactory partitionStateFactory)
             throws Exception {
 
         try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
@@ -356,7 +357,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             // when state.clear() is invoked in function.process().
             final List<K> keys = keyStream.collect(Collectors.toList());
 
-            final S state = getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
+            final S state =
+                    partitionStateFactory.get(namespace, namespaceSerializer, stateDescriptor);
 
             for (K key : keys) {
                 setCurrentKey(key);
