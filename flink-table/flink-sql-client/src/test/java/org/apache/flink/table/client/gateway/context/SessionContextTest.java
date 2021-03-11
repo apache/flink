@@ -128,6 +128,7 @@ public class SessionContextTest {
                         .getConfiguration()
                         .asMap()
                         .get("pipeline.name"));
+        // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
         Assert.assertEquals(
                 16,
                 sessionContext
@@ -143,6 +144,7 @@ public class SessionContextTest {
                         .getConfig()
                         .getConfiguration()
                         .getString(NAME, null));
+        // The value of OBJECT_REUSE in origin configuration is true
         Assert.assertTrue(
                 sessionContext
                         .getExecutionContext()
