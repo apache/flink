@@ -43,7 +43,13 @@ class FlinkLogicalExpand(
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalExpand(cluster, traitSet, inputs.get(0), outputFieldNames, projects, expandIdIndex)
+    new FlinkLogicalExpand(
+      cluster,
+      traitSet,
+      inputs.get(0),
+      outputFieldNames,
+      projects,
+      expandIdIndex)
   }
 
 }
