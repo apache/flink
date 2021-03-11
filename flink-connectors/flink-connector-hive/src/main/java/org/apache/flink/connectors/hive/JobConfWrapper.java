@@ -21,6 +21,7 @@ import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -43,6 +44,12 @@ public class JobConfWrapper implements Serializable {
 
     public JobConf conf() {
         return jobConf;
+    }
+
+    public String getDefaultPartitionName() {
+        return jobConf.get(
+                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {

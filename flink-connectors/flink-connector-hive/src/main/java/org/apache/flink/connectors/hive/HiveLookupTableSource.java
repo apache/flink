@@ -310,13 +310,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                                     partValues);
                     HiveTablePartition hiveTablePartition =
                             HivePartitionUtils.toHiveTablePartition(
-                                    partitionKeys,
-                                    fieldNames,
-                                    fieldTypes,
-                                    hiveShim,
-                                    tableProps,
-                                    defaultPartitionName,
-                                    partition);
+                                    partitionKeys, tableProps, partition);
                     return Optional.of(hiveTablePartition);
                 } catch (NoSuchObjectException e) {
                     return Optional.empty();

@@ -419,14 +419,7 @@ public class HiveTableSource
 
         /** Convert partition to HiveTablePartition. */
         public HiveTablePartition toHiveTablePartition(Partition partition) {
-            return HivePartitionUtils.toHiveTablePartition(
-                    partitionKeys,
-                    fieldNames,
-                    fieldTypes,
-                    hiveShim,
-                    tableProps,
-                    defaultPartitionName,
-                    partition);
+            return HivePartitionUtils.toHiveTablePartition(partitionKeys, tableProps, partition);
         }
 
         @Override
