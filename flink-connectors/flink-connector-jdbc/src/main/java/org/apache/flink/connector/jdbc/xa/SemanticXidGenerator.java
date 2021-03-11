@@ -20,11 +20,11 @@ package org.apache.flink.connector.jdbc.xa;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.util.AbstractID;
 
 import javax.transaction.xa.Xid;
 
 import java.security.SecureRandom;
-import java.util.Optional;
 
 /**
  * Generates {@link Xid} from:
@@ -50,35 +50,34 @@ class SemanticXidGenerator implements XidGenerator {
 
     private static final int FORMAT_ID = 201;
 
-    private transient byte[]
-            gtridBuffer; // globalTransactionId = job id + task index + checkpoint id
-    private transient byte[] bqualBuffer; // branchQualifier = random bytes
+    private transient byte[] gtridBuffer;
+    private transient byte[] bqualBuffer;
 
     @Override
     public void open() {
-        gtridBuffer = new byte[3 * Long.BYTES];
+        // globalTransactionId = job id + task index + checkpoint id
+        gtridBuffer = new byte[JobID.SIZE + Integer.BYTES + Long.BYTES];
+        // branchQualifier = random bytes
         bqualBuffer = getRandomBytes(Integer.BYTES);
     }
 
     @Override
     public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
-        Optional<JobID> jobId = runtimeContext.getJobId();
-        if (jobId.isPresent()) {
-            System.arraycopy(jobId.get().getBytes(), 0, gtridBuffer, 0, JobID.SIZE);
-        } else {
-            // fall back to RNG if jobId is unavailable for some reason
-            System.arraycopy(getRandomBytes(JobID.SIZE), 0, gtridBuffer, 0, JobID.SIZE);
-        }
+        byte[] jobIdOrRandomBytes =
+                runtimeContext
+                        .getJobId()
+                        .map(AbstractID::getBytes)
+                        .orElse(getRandomBytes(JobID.SIZE));
+        System.arraycopy(jobIdOrRandomBytes, 0, gtridBuffer, 0, JobID.SIZE);
 
-        writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, JobID.SIZE);
-        // deliberately write only 4 bytes of checkpoint id
-        writeNumber((int) checkpointId, gtridBuffer, JobID.SIZE + Integer.BYTES);
+        writeNumber(runtimeContext.getIndexOfThisSubtask(), Integer.BYTES, gtridBuffer, JobID.SIZE);
+        writeNumber(checkpointId, Long.BYTES, gtridBuffer, JobID.SIZE + Integer.BYTES);
         // relying on arrays copying inside XidImpl constructor
         return new XidImpl(FORMAT_ID, gtridBuffer, bqualBuffer);
     }
 
-    private static void writeNumber(int number, byte[] dst, int dstOffset) {
-        for (int i = dstOffset; i < dstOffset + Integer.BYTES; i++) {
+    private static void writeNumber(long number, int numBytes, byte[] dst, int dstOffset) {
+        for (int i = dstOffset; i < dstOffset + numBytes; i++) {
             dst[i] = (byte) number;
             number >>>= Byte.SIZE;
         }
