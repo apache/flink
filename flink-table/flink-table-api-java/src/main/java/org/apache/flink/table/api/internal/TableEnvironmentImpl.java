@@ -1658,8 +1658,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             functionCatalog.registerTemporarySystemFunction(
                     operation.getFunctionName(),
-                    operation.getFunctionClass(),
-                    operation.getFunctionLanguage(),
+                    operation.getCatalogFunction(),
                     operation.isIgnoreIfExists());
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {
