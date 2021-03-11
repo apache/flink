@@ -28,6 +28,7 @@ import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 import org.apache.flink.util.TestNameProvider;
 
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -95,6 +96,12 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             final PseudoRandomValueSelector valueSelector =
                     PseudoRandomValueSelector.create(testName != null ? testName : "unknown");
             valueSelector.select(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+            valueSelector.select(
+                    conf,
+                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    Duration.ofSeconds(0),
+                    Duration.ofMillis(100),
+                    Duration.ofSeconds(2));
         }
     }
 
