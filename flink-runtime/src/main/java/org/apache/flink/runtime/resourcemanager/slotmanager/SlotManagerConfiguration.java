@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -46,6 +48,8 @@ public class SlotManagerConfiguration {
     private final WorkerResourceSpec defaultWorkerResourceSpec;
     private final int numSlotsPerWorker;
     private final int maxSlotNum;
+    private final CPUResource maxTotalCpu;
+    private final MemorySize maxTotalMem;
     private final int redundantTaskManagerNum;
 
     public SlotManagerConfiguration(
@@ -57,6 +61,8 @@ public class SlotManagerConfiguration {
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
             int maxSlotNum,
+            CPUResource maxTotalCpu,
+            MemorySize maxTotalMem,
             int redundantTaskManagerNum) {
 
         this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
@@ -69,6 +75,8 @@ public class SlotManagerConfiguration {
         Preconditions.checkState(maxSlotNum > 0);
         this.numSlotsPerWorker = numSlotsPerWorker;
         this.maxSlotNum = maxSlotNum;
+        this.maxTotalCpu = Preconditions.checkNotNull(maxTotalCpu);
+        this.maxTotalMem = Preconditions.checkNotNull(maxTotalMem);
         Preconditions.checkState(redundantTaskManagerNum >= 0);
         this.redundantTaskManagerNum = redundantTaskManagerNum;
     }
@@ -103,6 +111,14 @@ public class SlotManagerConfiguration {
 
     public int getMaxSlotNum() {
         return maxSlotNum;
+    }
+
+    public CPUResource getMaxTotalCpu() {
+        return maxTotalCpu;
+    }
+
+    public MemorySize getMaxTotalMem() {
+        return maxTotalMem;
     }
 
     public int getRedundantTaskManagerNum() {
@@ -157,6 +173,8 @@ public class SlotManagerConfiguration {
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,
+                getMaxTotalCpu(configuration, defaultWorkerResourceSpec, maxSlotNum),
+                getMaxTotalMem(configuration, defaultWorkerResourceSpec, maxSlotNum),
                 redundantTaskManagerNum);
     }
 
@@ -173,5 +191,41 @@ public class SlotManagerConfiguration {
             slotRequestTimeoutMs = configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
         }
         return Time.milliseconds(slotRequestTimeoutMs);
+    }
+
+    private static CPUResource getMaxTotalCpu(
+            final Configuration configuration,
+            final WorkerResourceSpec defaultWorkerResourceSpec,
+            final int maxSlotNum) {
+        return configuration
+                .getOptional(ResourceManagerOptions.MAX_TOTAL_CPU)
+                .map(CPUResource::new)
+                .orElseGet(
+                        () ->
+                                maxSlotNum == Integer.MAX_VALUE
+                                        ? new CPUResource(Double.MAX_VALUE)
+                                        : (CPUResource)
+                                                defaultWorkerResourceSpec
+                                                        .getCpuCores()
+                                                        .divide(
+                                                                defaultWorkerResourceSpec
+                                                                        .getNumSlots())
+                                                        .multiply(maxSlotNum));
+    }
+
+    private static MemorySize getMaxTotalMem(
+            final Configuration configuration,
+            final WorkerResourceSpec defaultWorkerResourceSpec,
+            final int maxSlotNum) {
+        return configuration
+                .getOptional(ResourceManagerOptions.MAX_TOTAL_MEM)
+                .orElseGet(
+                        () ->
+                                maxSlotNum == Integer.MAX_VALUE
+                                        ? MemorySize.MAX_VALUE
+                                        : defaultWorkerResourceSpec
+                                                .getTotalMemSize()
+                                                .divide(defaultWorkerResourceSpec.getNumSlots())
+                                                .multiply(maxSlotNum));
     }
 }
