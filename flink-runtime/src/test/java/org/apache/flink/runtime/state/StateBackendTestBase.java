@@ -193,24 +193,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         return checkpointStreamFactory;
     }
 
-    protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer)
-            throws Exception {
+    protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
+            TypeSerializer<K> keySerializer) throws Exception {
         return createKeyedBackend(keySerializer, env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer, Environment env) throws Exception {
         return createKeyedBackend(keySerializer, 10, new KeyGroupRange(0, 9), env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
             Environment env)
             throws Exception {
 
-        AbstractKeyedStateBackend<K> backend =
+        CheckpointableKeyedStateBackend<K> backend =
                 getStateBackend()
                         .createKeyedStateBackend(
                                 env,
@@ -271,7 +271,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         final int namespace1ElementsNum = 1000;
         final int namespace2ElementsNum = 1000;
         String fieldName = "get-keys-test";
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         try {
             final String ns1 = "ns1";
             ValueState<Integer> keyedState1 =
@@ -336,7 +337,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testGetKeysAndNamespaces() throws Exception {
         final int elementsNum = 1000;
         String fieldName = "get-keys-test";
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         try {
             final String ns1 = "ns1";
             ValueState<Integer> keyedState1 =
@@ -384,7 +386,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         // cast because our test serializer is not typed to TestPojo
@@ -450,7 +452,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         // cast because our test serializer is not typed to TestPojo
@@ -518,7 +520,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testBackendUsesRegisteredKryoSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
         env.getExecutionConfig()
                 .registerTypeWithKryoSerializer(
@@ -582,7 +584,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         env.getExecutionConfig()
@@ -655,7 +657,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
@@ -727,7 +729,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = null;
+        CheckpointableKeyedStateBackend<Integer> backend = null;
 
         try {
             backend = createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -853,7 +855,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
-        AbstractKeyedStateBackend<Integer> backend = null;
+        CheckpointableKeyedStateBackend<Integer> backend = null;
 
         try {
             backend = createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -968,7 +970,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
         env.getExecutionConfig().registerKryoType(TestNestedPojoClassB.class);
 
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         try {
@@ -1097,7 +1099,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
         env.getExecutionConfig().registerPojoType(TestNestedPojoClassB.class);
 
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         try {
@@ -1192,7 +1194,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testValueState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -1393,7 +1396,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testValueStateWorkWithTtl() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         try {
             ValueStateDescriptor<MutableLong> kvId =
                     new ValueStateDescriptor<>("id", MutableLong.class);
@@ -1419,7 +1423,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testValueStateRace() throws Exception {
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         final Integer namespace = 1;
 
@@ -1549,7 +1553,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testMultipleValueStates() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, 1, new KeyGroupRange(0, 0), env);
 
         ValueStateDescriptor<String> desc1 =
@@ -1637,7 +1641,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<Long> kvId =
                 new ValueStateDescriptor<>("id", LongSerializer.INSTANCE, 42L);
@@ -1692,7 +1697,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testListState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -1917,7 +1923,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testListStateAddNull() throws Exception {
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -1945,7 +1951,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testListStateAddAllNullEntries() throws Exception {
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -1978,7 +1984,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testListStateAddAllNull() throws Exception {
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -2006,7 +2012,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testListStateUpdateNullEntries() throws Exception {
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -2039,7 +2045,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testListStateUpdateNull() throws Exception {
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -2064,7 +2070,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testListStateAPIs() throws Exception {
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -2130,7 +2136,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             // make sure all lists / maps are cleared
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2140,7 +2148,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     public void testListStateMerging() throws Exception {
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         final ListStateDescriptor<Long> stateDescr =
@@ -2248,7 +2256,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state.clear();
 
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2260,7 +2270,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testReducingState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ReducingStateDescriptor<String> kvId =
                 new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
@@ -2466,7 +2477,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", (a, b) -> a + b, Long.class);
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2510,7 +2521,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             // make sure all lists / maps are cleared
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2529,7 +2542,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         final Long expectedResult = 165L;
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2630,7 +2643,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state.clear();
 
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2644,7 +2659,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2688,7 +2703,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             // make sure all lists / maps are cleared
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2708,7 +2725,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         final Long expectedResult = 165L;
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2809,7 +2826,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state.clear();
 
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2823,7 +2842,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2867,7 +2886,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             // make sure all lists / maps are cleared
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -2887,7 +2908,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         final Long expectedResult = 165L;
 
-        AbstractKeyedStateBackend<String> keyedBackend =
+        CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
         try {
@@ -2988,7 +3009,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state.clear();
 
             assertThat(
-                    "State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+                    "State backend is not empty.",
+                    ((TestableKeyedStateBackend) keyedBackend).numKeyValueStateEntries(),
+                    is(0));
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -3000,7 +3023,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testMapState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<String> backend = createKeyedBackend(StringSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<String> backend =
+                createKeyedBackend(StringSerializer.INSTANCE);
 
         MapStateDescriptor<Integer, String> kvId =
                 new MapStateDescriptor<>("id", Integer.class, String.class);
@@ -3332,7 +3356,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             MapState<Integer, Long> state =
@@ -3367,7 +3392,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             MapState<Integer, Long> state =
@@ -3411,7 +3437,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /** Verify that {@link ValueStateDescriptor} allows {@code null} as default. */
     @Test
     public void testValueStateNullAsDefaultValue() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
 
@@ -3434,7 +3461,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /** Verify that an empty {@code ValueState} will yield the default value. */
     @Test
     public void testValueStateDefaultValue() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, "Hello");
 
@@ -3457,7 +3485,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /** Verify that an empty {@code ReduceState} yields {@code null}. */
     @Test
     public void testReducingStateDefaultValue() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ReducingStateDescriptor<String> kvId =
                 new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
@@ -3481,7 +3510,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /** Verify that an empty {@code ListState} yields {@code null}. */
     @Test
     public void testListStateDefaultValue() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -3504,7 +3534,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /** Verify that an empty {@code MapState} yields {@code null}. */
     @Test
     public void testMapStateDefaultValue() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         MapStateDescriptor<String, String> kvId =
                 new MapStateDescriptor<>("id", String.class, String.class);
@@ -3535,7 +3566,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testSnapshotNonAccessedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<String> backend = createKeyedBackend(StringSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<String> backend =
+                createKeyedBackend(StringSerializer.INSTANCE);
 
         final String stateName = "test-name";
         try {
@@ -3680,7 +3712,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         List<KeyGroupRange> keyGroupRanges = new ArrayList<>();
-        List<AbstractKeyedStateBackend<Integer>> stateBackends = new ArrayList<>();
+        List<CheckpointableKeyedStateBackend<Integer>> stateBackends = new ArrayList<>();
         for (int i = 0; i < sourceParallelism; ++i) {
             keyGroupRanges.add(
                     KeyGroupRange.of(
@@ -3702,7 +3734,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         List<Integer> keyInKeyGroups = new ArrayList<>(maxParallelism);
         List<String> expectedValue = new ArrayList<>(maxParallelism);
         for (int i = 0; i < sourceParallelism; ++i) {
-            AbstractKeyedStateBackend<Integer> backend = stateBackends.get(i);
+            CheckpointableKeyedStateBackend<Integer> backend = stateBackends.get(i);
             KeyGroupRange range = keyGroupRanges.get(i);
             for (int j = range.getStartKeyGroup(); j <= range.getEndKeyGroup(); ++j) {
                 ValueState<String> state =
@@ -3756,11 +3788,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
 
         // restore and verify
-        List<AbstractKeyedStateBackend<Integer>> targetBackends =
+        List<CheckpointableKeyedStateBackend<Integer>> targetBackends =
                 new ArrayList<>(targetParallelism);
 
         for (int i = 0; i < targetParallelism; ++i) {
-            AbstractKeyedStateBackend<Integer> backend =
+            CheckpointableKeyedStateBackend<Integer> backend =
                     restoreKeyedBackend(
                             IntSerializer.INSTANCE,
                             maxParallelism,
@@ -3794,7 +3826,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
         // use an IntSerializer at first
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -3837,7 +3870,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testValueStateRestoreWithWrongSerializers() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
@@ -3893,7 +3927,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testListStateRestoreWithWrongSerializers() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
@@ -3948,7 +3983,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testReducingStateRestoreWithWrongSerializers() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             ReducingStateDescriptor<String> kvId =
@@ -4007,7 +4043,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testMapStateRestoreWithWrongSerializers() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             MapStateDescriptor<String, String> kvId =
@@ -4064,7 +4101,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testCopyDefaultValue() throws Exception {
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<IntValue> kvId =
@@ -4094,7 +4131,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testRequireNonNullNamespace() throws Exception {
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<IntValue> kvId =
@@ -4128,7 +4165,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @SuppressWarnings("unchecked")
     protected void testConcurrentMapIfQueryable() throws Exception {
         final int numberOfKeyGroups = 1;
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(
                         IntSerializer.INSTANCE,
                         numberOfKeyGroups,
@@ -4260,7 +4297,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
         KeyGroupRange expectedKeyGroupRange = backend.getKeyGroupRange();
 
@@ -4324,7 +4361,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         try {
             CheckpointStreamFactory streamFactory = createStreamFactory();
             SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-            AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+            CheckpointableKeyedStateBackend<Integer> backend =
+                    createKeyedBackend(IntSerializer.INSTANCE);
 
             ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
@@ -4351,11 +4389,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testNumStateEntries() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
-        assertEquals(0, backend.numKeyValueStateEntries());
+        assertEquals(0, ((TestableKeyedStateBackend) backend).numKeyValueStateEntries());
 
         ValueState<String> state =
                 backend.getPartitionedState(
@@ -4365,22 +4404,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         state.update("hello");
         state.update("ciao");
 
-        assertEquals(1, backend.numKeyValueStateEntries());
+        assertEquals(1, ((TestableKeyedStateBackend) backend).numKeyValueStateEntries());
 
         backend.setCurrentKey(42);
         state.update("foo");
 
-        assertEquals(2, backend.numKeyValueStateEntries());
+        assertEquals(2, ((TestableKeyedStateBackend) backend).numKeyValueStateEntries());
 
         backend.setCurrentKey(0);
         state.clear();
 
-        assertEquals(1, backend.numKeyValueStateEntries());
+        assertEquals(1, ((TestableKeyedStateBackend) backend).numKeyValueStateEntries());
 
         backend.setCurrentKey(42);
         state.clear();
 
-        assertEquals(0, backend.numKeyValueStateEntries());
+        assertEquals(0, ((TestableKeyedStateBackend) backend).numKeyValueStateEntries());
 
         backend.dispose();
     }
@@ -4406,7 +4445,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         streamFactory.setBlockerLatch(blocker);
         streamFactory.setAfterNumberInvocations(10);
 
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
@@ -4476,7 +4515,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testNonConcurrentSnapshotTransformerAccess() throws Exception {
         BlockerCheckpointStreamFactory streamFactory =
                 new BlockerCheckpointStreamFactory(1024 * 1024);
-        AbstractKeyedStateBackend<Integer> backend = null;
+        CheckpointableKeyedStateBackend<Integer> backend = null;
         try {
             backend = createKeyedBackend(IntSerializer.INSTANCE);
             new StateSnapshotTransformerTest(backend, streamFactory)
@@ -4496,7 +4535,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 new BlockerCheckpointStreamFactory(1024 * 1024);
         streamFactory.setWaiterLatch(waiter);
 
-        AbstractKeyedStateBackend<Integer> backend = null;
+        CheckpointableKeyedStateBackend<Integer> backend = null;
         KeyedStateHandle stateHandle = null;
 
         try {
@@ -4585,7 +4624,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testConcurrentModificationWithApplyToAllKeys() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             ListStateDescriptor<String> listStateDescriptor =
@@ -4673,7 +4713,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testApplyToAllKeysLambdaFunction() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
             ListStateDescriptor<String> listStateDescriptor =
@@ -4713,7 +4754,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         streamFactory.setBlockerLatch(blocker);
         streamFactory.setAfterNumberInvocations(10);
 
-        final AbstractKeyedStateBackend<Integer> backend =
+        final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
         try {
@@ -4772,7 +4813,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         final int namespace1ElementsNum = 1000;
         final int namespace2ElementsNum = 1000;
         String fieldName = "get-keys-test";
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         try {
             final String ns1 = "ns1";
             MapState<String, Integer> keyedState1 =
@@ -4841,7 +4883,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testCheckConcurrencyProblemWhenPerformingCheckpointAsync() throws Exception {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        AbstractKeyedStateBackend<Integer> backend =
+        CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
 
         ExecutorService executorService = Executors.newScheduledThreadPool(1);
@@ -5264,7 +5306,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     @SuppressWarnings("serial")
-    private static class MutableAggregatingAddingFunction
+    public static class MutableAggregatingAddingFunction
             implements AggregateFunction<Long, MutableLong, Long> {
 
         @Override
@@ -5315,7 +5357,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
     }
 
-    private static final class MutableLong {
+    public static final class MutableLong {
         long value;
     }
 
