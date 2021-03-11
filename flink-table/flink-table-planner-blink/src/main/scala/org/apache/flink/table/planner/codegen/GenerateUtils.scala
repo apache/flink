@@ -504,7 +504,8 @@ object GenerateUtils {
 
   def generateCurrentTimestamp(
       ctx: CodeGeneratorContext): GeneratedExpression = {
-    new CurrentTimePointCallGen(false).generate(ctx, Seq(), new TimestampType(3))
+    //TODO return TIMESTAMP for PROCTIME(), will return TIMESTAMP_LTZ once FLINK-21617 finished
+    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new TimestampType(3))
   }
 
   def generateRowtimeAccess(

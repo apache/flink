@@ -30,7 +30,7 @@ import java.util.Objects;
  * {@link TypeInformation} for {@link Instant}.
  *
  * <p>The different between Types.INSTANT is the TypeInformation holds a precision Reminder:
- * Conversion from DateType to TypeInformation (and back) exists in
+ * Conversion from DataType to TypeInformation (and back) exists in
  * TableSourceUtil.computeIndexMapping, which should be fixed after we remove Legacy TypeInformation
  * TODO: https://issues.apache.org/jira/browse/FLINK-14927
  */
