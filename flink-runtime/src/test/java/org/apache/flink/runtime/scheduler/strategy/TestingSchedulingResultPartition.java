@@ -23,8 +23,11 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import static org.apache.flink.util.IterableUtils.flatMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple implementation of {@link SchedulingResultPartition} for testing. */
@@ -38,7 +41,9 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     private TestingSchedulingExecutionVertex producer;
 
-    private Collection<TestingSchedulingExecutionVertex> consumers;
+    private final List<ConsumerVertexGroup> consumerVertexGroups;
+
+    private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> executionVerticesById;
 
     private ResultPartitionState state;
 
@@ -48,7 +53,8 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         this.partitionType = type;
         this.state = state;
         this.intermediateResultPartitionID = new IntermediateResultPartitionID();
-        this.consumers = new ArrayList<>();
+        this.consumerVertexGroups = new ArrayList<>();
+        this.executionVerticesById = new HashMap<>();
     }
 
     @Override
@@ -78,11 +84,24 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     @Override
     public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
-        return consumers;
+        return () -> flatMap(consumerVertexGroups, executionVerticesById::get);
+    }
+
+    @Override
+    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
+        return consumerVertexGroups;
     }
 
     void addConsumer(TestingSchedulingExecutionVertex consumer) {
-        this.consumers.add(consumer);
+        this.consumerVertexGroups.add(ConsumerVertexGroup.fromSingleVertex(consumer.getId()));
+        this.executionVerticesById.putIfAbsent(consumer.getId(), consumer);
+    }
+
+    void addConsumerGroup(
+            ConsumerVertexGroup consumerVertexGroup,
+            Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById) {
+        this.consumerVertexGroups.add(consumerVertexGroup);
+        this.executionVerticesById.putAll(consumerVertexById);
     }
 
     void setProducer(TestingSchedulingExecutionVertex producer) {
