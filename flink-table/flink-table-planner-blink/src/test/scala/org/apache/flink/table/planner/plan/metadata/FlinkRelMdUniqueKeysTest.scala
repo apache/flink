@@ -117,15 +117,12 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
       expand => assertEquals(uniqueKeys(Array(0, 7)), mq.getUniqueKeys(expand).toSet)
     }
 
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      cluster.getTypeFactory,
+    val expandOutputFields = ExpandUtil.buildExpandFieldNames(
       studentLogicalScan.getRowType,
-      Array.empty[Integer],
-      ImmutableList.of(0, 1, 2, 3))
+      Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       studentLogicalScan.getCluster.getRexBuilder,
       studentLogicalScan.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2, 3),
       ImmutableList.of(
         ImmutableBitSet.of(0),
@@ -134,7 +131,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(3)),
       Array.empty[Integer])
     val expand = new LogicalExpand(cluster, studentLogicalScan.getTraitSet,
-      studentLogicalScan, expandOutputType, expandProjects, 7)
+      studentLogicalScan, expandOutputFields, expandProjects, 7)
     assertNull(mq.getUniqueKeys(expand))
   }
 

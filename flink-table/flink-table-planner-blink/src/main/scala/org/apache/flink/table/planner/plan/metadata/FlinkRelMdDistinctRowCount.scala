@@ -223,7 +223,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
         val groupKeyOfCurrentProject = new JArrayList[Int]()
         groupKeySkipExpandId.foreach { key =>
           project.get(key) match {
-            case literal: RexLiteral if literal.isNull => // do nothing
+            case literal: RexLiteral if literal.isNull || literal.isAlwaysFalse => // do nothing
             case inputRef: RexInputRef => groupKeyOfCurrentProject.add(inputRef.getIndex)
             case e => throw new TableException(s"Unknown expression ${e.toString}!")
           }

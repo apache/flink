@@ -19,16 +19,12 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
-import org.apache.flink.table.planner.plan.nodes.calcite.Expand
-
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.ImmutableBitSet
-
 import java.math.BigDecimal
 import java.util
 
@@ -43,7 +39,6 @@ object ExpandUtil {
     * and the created Expand node will be at the top of the stack of the RelBuilder.
     */
   def buildExpandNode(
-      cluster: RelOptCluster,
       relBuilder: FlinkRelBuilder,
       aggCalls: Seq[AggregateCall],
       groupSet: ImmutableBitSet,
@@ -77,32 +72,54 @@ object ExpandUtil {
     }.intersect(groupSet.asList()).sorted.toArray[Integer]
 
     val inputType = relBuilder.peek().getRowType
+    val duplicateFieldMap = buildDuplicateFieldMap(inputType, duplicateFieldIndexes)
 
     // expand output fields: original input fields + expand_id field + duplicate fields
     val expandIdIdxInExpand = inputType.getFieldCount
-    val duplicateFieldMap = buildDuplicateFieldMap(inputType, duplicateFieldIndexes)
+    val fieldNames = buildExpandFieldNames(inputType, duplicateFieldIndexes)
 
-    val unionGroupSet = groupSets.asList().reduce((g1, g2) => g1.union(g2))
-    // unionGroupSet - commonGroupSet
-    val nullabilityMayChangedIndexes = unionGroupSet.except(commonGroupSet).toList
-
-    val expandRowType = buildExpandRowType(
-      cluster.getTypeFactory,
-      inputType,
-      duplicateFieldIndexes,
-      nullabilityMayChangedIndexes)
     val expandProjects = createExpandProjects(
       relBuilder.getRexBuilder,
       inputType,
-      expandRowType,
       groupSet,
       groupSets,
       duplicateFieldIndexes)
 
-    relBuilder.expand(
-      expandRowType, expandProjects, expandIdIdxInExpand)
+    relBuilder.expand(fieldNames, expandProjects, expandIdIdxInExpand)
 
     (duplicateFieldMap, expandIdIdxInExpand)
+  }
+
+  /**
+   * Build final output field name list.
+   *
+   * the order of fields are:
+   * first, the input fields,
+   * second, expand_id field(to distinguish different expanded rows),
+   * last, optional duplicate fields.
+   *
+   * @param inputType Input row type.
+   * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
+   * @return final output field names.
+   */
+  def buildExpandFieldNames(
+      inputType: RelDataType,
+      duplicateFieldIndexes: Array[Integer]): util.List[String] = {
+    // 1. add original input fields
+    val fieldNameList = mutable.ListBuffer(inputType.getFieldNames: _*)
+    val allFieldNames = mutable.Set[String](fieldNameList: _*)
+
+    // 2. add expand_id('$e') field
+    var expandIdFieldName = buildUniqueFieldName(allFieldNames, "$e")
+    fieldNameList += expandIdFieldName
+
+    // 3. add duplicate fields
+    duplicateFieldIndexes.foreach {
+      duplicateFieldIdx =>
+        fieldNameList += buildUniqueFieldName(
+          allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
+    }
+    fieldNameList
   }
 
   /**
@@ -138,6 +155,7 @@ object ExpandUtil {
     * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
     * @return Row type for [[LogicalExpand]].
     */
+  @Deprecated
   def buildExpandRowType(
       typeFactory: RelDataTypeFactory,
       inputType: RelDataType,
@@ -167,7 +185,8 @@ object ExpandUtil {
     // 3. add duplicate fields
     duplicateFieldIndexes.foreach {
       duplicateFieldIdx =>
-        typeList += createNewTypeIfNullabilityChanged(inputType.getFieldList.get(duplicateFieldIdx))
+        // duplicate fields' nullability should keep as it is
+        typeList += inputType.getFieldList.get(duplicateFieldIdx).getType
         fieldNameList += buildUniqueFieldName(
           allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
     }
@@ -207,15 +226,12 @@ object ExpandUtil {
   def createExpandProjects(
       rexBuilder: RexBuilder,
       inputType: RelDataType,
-      outputType: RelDataType,
       groupSet: ImmutableBitSet,
       groupSets: ImmutableList[ImmutableBitSet],
       duplicateFieldIndexes: Array[Integer]): util.List[util.List[RexNode]] = {
 
     val fullGroupList = groupSet.toArray
     require(!groupSets.isEmpty && fullGroupList.nonEmpty)
-    val fieldCount = inputType.getFieldCount + 1 + duplicateFieldIndexes.length
-    require(fieldCount == outputType.getFieldCount)
 
     // expand for each groupSet
     val expandProjects = groupSets.map { subGroupSet =>

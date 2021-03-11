@@ -148,6 +148,25 @@ class GroupingSetsITCase extends BatchTestBase {
   }
 
   @Test
+  def testBooleanColumnOnGroupingSets(): Unit = {
+    checkResult(
+      s"""
+         |select
+         |  gender, city, manager, count(*) as cnt
+         |from emps group by grouping sets ((city), (gender, city, manager))
+         |""".stripMargin,
+      Seq(
+        row("F", "Vancouver", true, 1),
+        row("F", null, true, 1),
+        row("M", "San Francisco", false, 1),
+        row("M", "Vancouver", true, 1),
+        row(null, "San Francisco", null, 1),
+        row(null, "Vancouver", null, 2),
+        row(null, null, false, 1),
+        row(null, null, null, 2)))
+  }
+
+  @Test
   def testCoalesceOnGroupingSets(): Unit = {
     checkResult(
       s"""
@@ -158,14 +177,14 @@ class GroupingSetsITCase extends BatchTestBase {
       Seq(
         row("F", "Vancouver", -1, 1),
         row("F", "Vancouver", 40, 1),
-        row("F", "null", -1, 1),
-        row("F", "null", 20, 1),
+        row("F", null, -1, 1),
+        row("F", null, 20, 1),
         row("M", "San Francisco", -1, 1),
         row("M", "San Francisco", 20, 1),
         row("M", "Vancouver", -1, 1),
         row("M", "Vancouver", 40, 1),
-        row("null", "null", -1, 1),
-        row("null", "null", 10, 1)))
+        row(null, null, -1, 1),
+        row(null, null, 10, 1)))
   }
 
   @Test

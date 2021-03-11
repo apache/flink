@@ -84,11 +84,11 @@ class FlinkRelBuilder(
   }
 
   def expand(
-      outputRowType: RelDataType,
+      outputFieldNames: util.List[String],
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): RelBuilder = {
     val input = build()
-    val expand = expandFactory.createExpand(input, outputRowType, projects, expandIdIndex)
+    val expand = expandFactory.createExpand(input, outputFieldNames, projects, expandIdIndex)
     push(expand)
   }
 

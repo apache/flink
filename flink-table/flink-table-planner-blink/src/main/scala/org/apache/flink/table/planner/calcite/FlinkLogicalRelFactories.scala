@@ -234,10 +234,10 @@ object FlinkLogicalRelFactories {
   class ExpandFactoryImpl extends ExpandFactory {
     def createExpand(
         input: RelNode,
-        rowType: RelDataType,
+        outputFieldNames: util.List[String],
         projects: util.List[util.List[RexNode]],
         expandIdIndex: Int): RelNode = {
-      FlinkLogicalExpand.create(input, rowType, projects, expandIdIndex)
+      FlinkLogicalExpand.create(input, outputFieldNames, projects, expandIdIndex)
     }
   }
 

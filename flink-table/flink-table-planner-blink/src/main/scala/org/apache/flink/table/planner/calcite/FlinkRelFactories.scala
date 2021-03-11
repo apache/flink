@@ -62,7 +62,7 @@ object FlinkRelFactories {
   trait ExpandFactory {
     def createExpand(
         input: RelNode,
-        rowType: RelDataType,
+        outputFieldNames: util.List[String],
         projects: util.List[util.List[RexNode]],
         expandIdIndex: Int): RelNode
   }
@@ -73,9 +73,11 @@ object FlinkRelFactories {
   class ExpandFactoryImpl extends ExpandFactory {
     def createExpand(
         input: RelNode,
-        rowType: RelDataType,
+        outputFieldNames: util.List[String],
         projects: util.List[util.List[RexNode]],
-        expandIdIndex: Int): RelNode = LogicalExpand.create(input, rowType, projects, expandIdIndex)
+        expandIdIndex: Int): RelNode = {
+      LogicalExpand.create(input, outputFieldNames, projects, expandIdIndex)
+    }
   }
 
   /**

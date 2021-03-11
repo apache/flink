@@ -230,7 +230,7 @@ class SplitAggregateRule extends RelOptRule(
     val needExpand = newGroupSetsNum > 1
     val duplicateFieldMap = if (needExpand) {
       val (duplicateFieldMap, _) = ExpandUtil.buildExpandNode(
-        cluster, relBuilder, partialAggCalls, fullGroupSet, groupSets)
+        relBuilder, partialAggCalls, fullGroupSet, groupSets)
       duplicateFieldMap
     } else {
       Map.empty[Integer, Integer]

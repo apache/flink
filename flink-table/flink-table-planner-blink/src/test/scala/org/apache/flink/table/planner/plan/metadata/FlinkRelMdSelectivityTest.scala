@@ -151,16 +151,14 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetSelectivityOnExpand(): Unit = {
     val ts = relBuilder.scan("MyTable3").build()
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer], ImmutableList.of(0, 1))
+    val expandOutputFields = ExpandUtil.buildExpandFieldNames(ts.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1),
       ImmutableList.of(ImmutableBitSet.of(0), ImmutableBitSet.of(1)), Array.empty[Integer])
     val expand = new FlinkLogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects, 2)
+      ts.getCluster, ts.getTraitSet, ts, expandOutputFields, expandProjects, 2)
 
     relBuilder.push(expand)
     val predicate1 = relBuilder
@@ -289,16 +287,14 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
     relBuilder.clear()
     val ts = relBuilder.scan("MyTable4").build()
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer], ImmutableList.of(1, 2))
+    val expandOutputFields = ExpandUtil.buildExpandFieldNames(ts.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2),
       ImmutableList.of(ImmutableBitSet.of(0, 1), ImmutableBitSet.of(0, 2)), Array.empty[Integer])
     val expand = new LogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects, 4)
+      ts.getCluster, ts.getTraitSet, ts, expandOutputFields, expandProjects, 4)
 
     // agg output type: a, $e, b, c, count(d)
     val aggWithAuxGroupAndExpand = relBuilder.push(expand).aggregate(
