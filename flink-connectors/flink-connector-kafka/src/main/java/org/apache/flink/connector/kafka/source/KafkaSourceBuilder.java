@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -379,6 +380,11 @@ public class KafkaSourceBuilder<OUT> {
         return this;
     }
 
+    @VisibleForTesting
+    Properties getProps() {
+        return this.props;
+    }
+
     /**
      * Build the {@link KafkaSource}.
      *
@@ -407,7 +413,8 @@ public class KafkaSourceBuilder<OUT> {
         }
     }
 
-    private void parseAndSetRequiredProperties() {
+    @VisibleForTesting
+    void parseAndSetRequiredProperties() {
         maybeOverride(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class.getName(),
@@ -423,14 +430,15 @@ public class KafkaSourceBuilder<OUT> {
                 startingOffsetsInitializer.getAutoOffsetResetStrategy().name().toLowerCase(),
                 true);
 
-        // If the source is bounded, do not run periodic partition discovery.
-        if (maybeOverride(
-                KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
-                "-1",
-                boundedness == Boundedness.BOUNDED)) {
-            LOG.warn(
-                    "{} property is overridden to -1 because the source is bounded.",
-                    KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS);
+        // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic
+        // partition discovery.
+        boolean hasStoppingOffsets =
+                !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
+        boolean hasParitionDiscoverySetting =
+                props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
+        if (boundedness == Boundedness.BOUNDED
+                || (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
+            props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "-1");
         }
 
         // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
