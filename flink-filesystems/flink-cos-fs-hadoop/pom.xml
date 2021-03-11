@@ -114,17 +114,17 @@ under the License.
 								<!-- relocate the COS dependencies -->
 								<relocation>
 									<pattern>com.qcloud</pattern>
-									<shadedPattern>org.apache.flink.fs.osshadoop.shaded.com.qcloud</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.coshadoop.shaded.com.qcloud</shadedPattern>
 								</relocation>
 								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.fs.osshadoop.common</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.coshadoop.common</shadedPattern>
 								</relocation>
 								<!-- shade Flink's Hadoop FS utility classes, forces plugin classloader for them -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
-									<shadedPattern>org.apache.flink.fs.osshadoop.common</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.coshadoop.common</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
