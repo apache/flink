@@ -18,9 +18,9 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -51,11 +51,10 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
+        boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
-        // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
-        if (!isGeneric && !context.isTemporary()) {
+        // temporary table is considered generic
+        if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
                     "Hive table should be resolved by HiveDynamicTableFactory.");
         } else {
@@ -68,11 +67,10 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
+        boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
-        if (!isGeneric && !context.isTemporary()) {
+        if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
                     "Hive table should be resolved by HiveDynamicTableFactory.");
         } else {

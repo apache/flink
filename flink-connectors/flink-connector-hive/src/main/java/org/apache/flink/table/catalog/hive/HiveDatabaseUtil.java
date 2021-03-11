@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -32,8 +33,6 @@ import java.util.Map;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
-import static org.apache.flink.table.catalog.hive.HiveCatalog.isGenericForCreate;
-import static org.apache.flink.table.catalog.hive.HiveCatalog.isGenericForGet;
 
 /** Util methods for processing databases in HiveCatalog. */
 public class HiveDatabaseUtil {
@@ -44,7 +43,9 @@ public class HiveDatabaseUtil {
 
         Map<String, String> properties = database.getProperties();
 
-        boolean isGeneric = isGenericForCreate(properties);
+        properties.putIfAbsent(CatalogPropertiesUtil.IS_GENERIC, "true");
+
+        boolean isGeneric = Boolean.parseBoolean(properties.get(CatalogPropertiesUtil.IS_GENERIC));
 
         String dbLocationUri =
                 isGeneric ? null : properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
@@ -54,7 +55,10 @@ public class HiveDatabaseUtil {
 
     static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
         Map<String, String> params = hiveDB.getParameters();
-        boolean isGeneric = isGenericForGet(params);
+        boolean isGeneric =
+                params != null
+                        && Boolean.parseBoolean(
+                                params.getOrDefault(CatalogPropertiesUtil.IS_GENERIC, "false"));
         if (isGeneric) {
             // altering generic DB doesn't merge properties, see CatalogTest::testAlterDb
             hiveDB.setParameters(newDatabase.getProperties());

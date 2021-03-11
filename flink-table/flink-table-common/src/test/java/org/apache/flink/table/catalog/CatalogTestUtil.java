@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
@@ -47,13 +48,9 @@ public class CatalogTestUtil {
         assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
         assertEquals(t1.isPartitioned(), t2.isPartitioned());
 
-        assertEquals(
-                t1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC),
-                t2.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
-
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.parseBoolean(t1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC))) {
+        if (isGeneric(t1.getOptions())) {
             assertEquals(t1.getOptions(), t2.getOptions());
         } else {
             assertTrue(
@@ -72,7 +69,7 @@ public class CatalogTestUtil {
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.parseBoolean(v1.getOptions().get(CatalogPropertiesUtil.IS_GENERIC))) {
+        if (isGeneric(v1.getOptions())) {
             assertEquals(v1.getOptions(), v2.getOptions());
         } else {
             assertTrue(
@@ -88,7 +85,7 @@ public class CatalogTestUtil {
 
         // Hive tables may have properties created by itself
         // thus properties of Hive table is a super set of those in its corresponding Flink table
-        if (Boolean.valueOf(p1.getProperties().get(CatalogPropertiesUtil.IS_GENERIC))) {
+        if (isGeneric(p1.getProperties())) {
             assertEquals(p1.getProperties(), p2.getProperties());
         } else {
             assertTrue(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()));
@@ -208,5 +205,9 @@ public class CatalogTestUtil {
 
     private static void checkEquals(Date v1, Date v2) {
         assertEquals(v1.getDaysSinceEpoch(), v2.getDaysSinceEpoch());
+    }
+
+    private static boolean isGeneric(Map<String, String> properties) {
+        return !"hive".equalsIgnoreCase(properties.get(FactoryUtil.CONNECTOR.key()));
     }
 }

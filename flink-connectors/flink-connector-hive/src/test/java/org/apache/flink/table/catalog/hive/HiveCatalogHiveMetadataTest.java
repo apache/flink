@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -44,6 +45,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
 
@@ -266,7 +268,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, "false");
+        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));
@@ -303,5 +305,19 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     @Override
     protected CatalogFunction createAnotherFunction() {
         return new CatalogFunctionImpl(UDFRand.class.getName());
+    }
+
+    @Override
+    public CatalogDatabase createDb() {
+        CatalogDatabase database = super.createDb();
+        database.getProperties().put(CatalogPropertiesUtil.IS_GENERIC, "false");
+        return database;
+    }
+
+    @Override
+    public CatalogDatabase createAnotherDb() {
+        CatalogDatabase database = super.createAnotherDb();
+        database.getProperties().put(CatalogPropertiesUtil.IS_GENERIC, "false");
+        return database;
     }
 }
