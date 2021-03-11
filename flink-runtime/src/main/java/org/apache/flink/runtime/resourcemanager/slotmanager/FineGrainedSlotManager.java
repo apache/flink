@@ -20,7 +20,9 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -88,6 +90,9 @@ public class FineGrainedSlotManager implements SlotManager {
      */
     private final boolean waitResultConsumedBeforeRelease;
 
+    private final CPUResource maxTotalCpu;
+    private final MemorySize maxTotalMem;
+
     private boolean sendNotEnoughResourceNotifications = true;
 
     private final Set<JobID> unfulfillableJobs = new HashSet<>();
@@ -132,6 +137,9 @@ public class FineGrainedSlotManager implements SlotManager {
         this.taskManagerTracker = Preconditions.checkNotNull(taskManagerTracker);
         this.slotStatusSyncer = Preconditions.checkNotNull(slotStatusSyncer);
         this.resourceAllocationStrategy = Preconditions.checkNotNull(resourceAllocationStrategy);
+
+        this.maxTotalCpu = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalCpu());
+        this.maxTotalMem = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalMem());
 
         resourceManagerId = null;
         resourceActions = null;
@@ -299,24 +307,41 @@ public class FineGrainedSlotManager implements SlotManager {
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
             return false;
         } else {
+            Optional<PendingTaskManagerId> matchedPendingTaskManagerOptional =
+                    initialSlotReport.hasAllocatedSlot()
+                            ? Optional.empty()
+                            : findMatchingPendingTaskManager(
+                                    totalResourceProfile, defaultSlotResourceProfile);
+
+            if (!matchedPendingTaskManagerOptional.isPresent()
+                    && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
+                LOG.info(
+                        "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
+                        taskExecutorConnection.getResourceID(),
+                        maxTotalCpu,
+                        maxTotalMem.toHumanReadableString());
+                resourceActions.releaseResource(
+                        taskExecutorConnection.getInstanceID(),
+                        new FlinkException("The max total resource limitation is reached."));
+                return false;
+            }
+
             taskManagerTracker.addTaskManager(
                     taskExecutorConnection, totalResourceProfile, defaultSlotResourceProfile);
+
             if (initialSlotReport.hasAllocatedSlot()) {
                 slotStatusSyncer.reportSlotStatus(
                         taskExecutorConnection.getInstanceID(), initialSlotReport);
-            } else {
-                Optional<PendingTaskManagerId> matchedPendingTaskManagerOptional =
-                        findMatchingPendingTaskManager(
-                                totalResourceProfile, defaultSlotResourceProfile);
-                if (matchedPendingTaskManagerOptional.isPresent()) {
-                    PendingTaskManagerId pendingTaskManager =
-                            matchedPendingTaskManagerOptional.get();
-                    allocateSlotsForRegisteredPendingTaskManager(
-                            pendingTaskManager, taskExecutorConnection.getInstanceID());
-                    taskManagerTracker.removePendingTaskManager(pendingTaskManager);
-                    return true;
-                }
             }
+
+            if (matchedPendingTaskManagerOptional.isPresent()) {
+                PendingTaskManagerId pendingTaskManager = matchedPendingTaskManagerOptional.get();
+                allocateSlotsForRegisteredPendingTaskManager(
+                        pendingTaskManager, taskExecutorConnection.getInstanceID());
+                taskManagerTracker.removePendingTaskManager(pendingTaskManager);
+                return true;
+            }
+
             checkResourceRequirementsWithDelay();
             return true;
         }
@@ -667,6 +692,15 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
+        if (isMaxTotalResourceExceededAfterAdding(pendingTaskManager.getTotalResourceProfile())) {
+            LOG.info(
+                    "Could not allocate {}. Max total resource limitation <{}, {}> is reached.",
+                    pendingTaskManager,
+                    maxTotalCpu,
+                    maxTotalMem.toHumanReadableString());
+            return false;
+        }
+
         if (!resourceActions.allocateResource(
                 WorkerResourceSpec.fromTotalResourceProfile(
                         pendingTaskManager.getTotalResourceProfile(),
@@ -696,5 +730,14 @@ public class FineGrainedSlotManager implements SlotManager {
         Preconditions.checkNotNull(resourceManagerId);
         Preconditions.checkNotNull(mainThreadExecutor);
         Preconditions.checkNotNull(resourceActions);
+    }
+
+    private boolean isMaxTotalResourceExceededAfterAdding(ResourceProfile newResource) {
+        final ResourceProfile totalResourceAfterAdding =
+                newResource
+                        .merge(taskManagerTracker.getRegisteredResource())
+                        .merge(taskManagerTracker.getPendingResource());
+        return totalResourceAfterAdding.getCpuCores().compareTo(maxTotalCpu) > 0
+                || totalResourceAfterAdding.getTotalMemory().compareTo(maxTotalMem) > 0;
     }
 }
