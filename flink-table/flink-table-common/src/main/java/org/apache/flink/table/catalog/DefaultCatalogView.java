@@ -93,7 +93,7 @@ class DefaultCatalogView implements CatalogView {
 
     @Override
     public CatalogBaseTable copy() {
-        return this;
+        return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
     }
 
     @Override

@@ -43,6 +43,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -108,6 +109,8 @@ public final class CatalogPropertiesUtil {
     // Helper methods and constants
     // --------------------------------------------------------------------------------------------
 
+    private static final String SEPARATOR = ".";
+
     private static final String SCHEMA = "schema";
 
     private static final String NAME = "name";
@@ -120,7 +123,15 @@ public final class CatalogPropertiesUtil {
 
     private static final String VIRTUAL = "virtual";
 
-    private static final String PARTITION_KEYS = "partition.keys";
+    private static final String PRIMARY_KEY = "primary-key";
+
+    private static final String COLUMNS = "columns";
+
+    private static final String PARTITION = "partition";
+
+    private static final String KEYS = "keys";
+
+    private static final String PARTITION_KEYS = compoundKey(PARTITION, KEYS);
 
     private static final String WATERMARK = "watermark";
 
@@ -128,13 +139,14 @@ public final class CatalogPropertiesUtil {
 
     private static final String WATERMARK_STRATEGY = "strategy";
 
-    private static final String WATERMARK_STRATEGY_EXPR = WATERMARK_STRATEGY + '.' + EXPR;
+    private static final String WATERMARK_STRATEGY_EXPR = compoundKey(WATERMARK_STRATEGY, EXPR);
 
-    private static final String WATERMARK_STRATEGY_DATA_TYPE = WATERMARK_STRATEGY + '.' + DATA_TYPE;
+    private static final String WATERMARK_STRATEGY_DATA_TYPE =
+            compoundKey(WATERMARK_STRATEGY, DATA_TYPE);
 
-    private static final String PRIMARY_KEY_NAME = "primary-key.name";
+    private static final String PRIMARY_KEY_NAME = compoundKey(PRIMARY_KEY, NAME);
 
-    private static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
+    private static final String PRIMARY_KEY_COLUMNS = compoundKey(PRIMARY_KEY, COLUMNS);
 
     private static final String COMMENT = "comment";
 
@@ -143,8 +155,8 @@ public final class CatalogPropertiesUtil {
                 .filter(
                         e -> {
                             final String key = e.getKey();
-                            return !key.startsWith(SCHEMA + '.')
-                                    && !key.startsWith(PARTITION_KEYS + '.')
+                            return !key.startsWith(SCHEMA + SEPARATOR)
+                                    && !key.startsWith(PARTITION_KEYS + SEPARATOR)
                                     && !key.equals(COMMENT);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -154,7 +166,7 @@ public final class CatalogPropertiesUtil {
         final int partitionCount = getCount(map, PARTITION_KEYS, NAME);
         final List<String> partitionKeys = new ArrayList<>();
         for (int i = 0; i < partitionCount; i++) {
-            final String partitionNameKey = PARTITION_KEYS + '.' + i + '.' + NAME;
+            final String partitionNameKey = compoundKey(PARTITION_KEYS, i, NAME);
             final String partitionName = getValue(map, partitionNameKey);
             partitionKeys.add(partitionName);
         }
@@ -174,8 +186,8 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void deserializePrimaryKey(Map<String, String> map, Builder builder) {
-        final String constraintNameKey = SCHEMA + '.' + PRIMARY_KEY_NAME;
-        final String columnsKey = SCHEMA + '.' + PRIMARY_KEY_COLUMNS;
+        final String constraintNameKey = compoundKey(SCHEMA, PRIMARY_KEY_NAME);
+        final String columnsKey = compoundKey(SCHEMA, PRIMARY_KEY_COLUMNS);
         if (map.containsKey(constraintNameKey)) {
             final String constraintName = getValue(map, constraintNameKey);
             final String[] columns = getValue(map, columnsKey, s -> s.split(","));
@@ -184,11 +196,11 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void deserializeWatermark(Map<String, String> map, Builder builder) {
-        final String watermarkKey = SCHEMA + '.' + WATERMARK;
+        final String watermarkKey = compoundKey(SCHEMA, WATERMARK);
         final int watermarkCount = getCount(map, watermarkKey, WATERMARK_ROWTIME);
         for (int i = 0; i < watermarkCount; i++) {
-            final String rowtimeKey = watermarkKey + '.' + i + '.' + WATERMARK_ROWTIME;
-            final String exprKey = watermarkKey + '.' + i + '.' + WATERMARK_STRATEGY_EXPR;
+            final String rowtimeKey = compoundKey(watermarkKey, i, WATERMARK_ROWTIME);
+            final String exprKey = compoundKey(watermarkKey, i, WATERMARK_STRATEGY_EXPR);
 
             final String rowtime = getValue(map, rowtimeKey);
             final String expr = getValue(map, exprKey);
@@ -200,11 +212,11 @@ public final class CatalogPropertiesUtil {
         final int fieldCount = getCount(map, SCHEMA, NAME);
 
         for (int i = 0; i < fieldCount; i++) {
-            final String nameKey = SCHEMA + '.' + i + '.' + NAME;
-            final String dataTypeKey = SCHEMA + '.' + i + '.' + DATA_TYPE;
-            final String exprKey = SCHEMA + '.' + i + '.' + EXPR;
-            final String metadataKey = SCHEMA + '.' + i + '.' + METADATA;
-            final String virtualKey = SCHEMA + '.' + i + '.' + VIRTUAL;
+            final String nameKey = compoundKey(SCHEMA, i, NAME);
+            final String dataTypeKey = compoundKey(SCHEMA, i, DATA_TYPE);
+            final String exprKey = compoundKey(SCHEMA, i, EXPR);
+            final String metadataKey = compoundKey(SCHEMA, i, METADATA);
+            final String virtualKey = compoundKey(SCHEMA, i, VIRTUAL);
 
             final String name = getValue(map, nameKey);
 
@@ -253,8 +265,10 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializePrimaryKey(Map<String, String> map, UniqueConstraint constraint) {
-        map.put(SCHEMA + '.' + PRIMARY_KEY_NAME, constraint.getName());
-        map.put(SCHEMA + '.' + PRIMARY_KEY_COLUMNS, String.join(",", constraint.getColumns()));
+        map.put(compoundKey(SCHEMA, PRIMARY_KEY_NAME), constraint.getName());
+        map.put(
+                compoundKey(SCHEMA, PRIMARY_KEY_COLUMNS),
+                String.join(",", constraint.getColumns()));
     }
 
     private static void serializeWatermarkSpecs(
@@ -271,7 +285,7 @@ public final class CatalogPropertiesUtil {
             }
             putIndexedProperties(
                     map,
-                    SCHEMA + '.' + WATERMARK,
+                    compoundKey(SCHEMA, WATERMARK),
                     Arrays.asList(
                             WATERMARK_ROWTIME,
                             WATERMARK_STRATEGY_EXPR,
@@ -413,7 +427,7 @@ public final class CatalogPropertiesUtil {
             for (int keyIdx = 0; keyIdx < values.size(); keyIdx++) {
                 String value = values.get(keyIdx);
                 if (value != null) {
-                    map.put(key + '.' + idx + '.' + subKeys.get(keyIdx), values.get(keyIdx));
+                    map.put(compoundKey(key, idx, subKeys.get(keyIdx)), values.get(keyIdx));
                 }
             }
         }
@@ -431,7 +445,14 @@ public final class CatalogPropertiesUtil {
     private static int getCount(Map<String, String> map, String key, String suffix) {
         final String escapedKey = Pattern.quote(key);
         final String escapedSuffix = Pattern.quote(suffix);
-        final Pattern pattern = Pattern.compile(escapedKey + "\\.(\\d+)\\." + escapedSuffix);
+        final String escapedSeparator = Pattern.quote(SEPARATOR);
+        final Pattern pattern =
+                Pattern.compile(
+                        escapedKey
+                                + escapedSeparator
+                                + "(\\d+)"
+                                + escapedSeparator
+                                + escapedSuffix);
         final IntStream indexes =
                 map.keySet().stream()
                         .flatMapToInt(
@@ -462,6 +483,10 @@ public final class CatalogPropertiesUtil {
             throw new IllegalArgumentException(
                     String.format("Could not parse value for property key '%s': %s", key, value));
         }
+    }
+
+    private static String compoundKey(Object... components) {
+        return Stream.of(components).map(Object::toString).collect(Collectors.joining(SEPARATOR));
     }
 
     private CatalogPropertiesUtil() {
