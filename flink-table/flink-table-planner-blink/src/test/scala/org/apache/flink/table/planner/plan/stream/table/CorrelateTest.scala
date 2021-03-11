@@ -21,6 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFuncTuple12
 import org.apache.flink.table.planner.utils._
 
 import org.apache.calcite.rel.rules.CoreRules
@@ -187,5 +188,20 @@ class CorrelateTest extends TableTestBase {
     val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
 
     util.verifyExecPlan(result)
+  }
+
+  @Test
+  def testCorrelateTuple12(): Unit = {
+    val util = streamTestUtil()
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = new JavaTableFuncTuple12
+    util.addTemporarySystemFunction("func1", function)
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable, LATERAL TABLE(func1(c)) AS T
+        |""".stripMargin
+
+    util.verifyExecPlan(sql)
   }
 }
