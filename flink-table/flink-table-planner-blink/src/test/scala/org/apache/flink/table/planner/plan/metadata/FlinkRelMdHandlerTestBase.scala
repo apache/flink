@@ -1157,7 +1157,7 @@ class FlinkRelMdHandlerTestBase {
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
   private lazy val windowRef: PlannerWindowReference =
-  PlannerWindowReference.apply("w$", Some(new TimestampType(3)))
+    new PlannerWindowReference("w$", new TimestampType(3))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -1171,10 +1171,10 @@ class FlinkRelMdHandlerTestBase {
     )
 
   protected lazy val namedPropertiesOfWindowAgg: Seq[PlannerNamedWindowProperty] =
-    Seq(PlannerNamedWindowProperty("w$start", PlannerWindowStart(windowRef)),
-      PlannerNamedWindowProperty("w$end", PlannerWindowStart(windowRef)),
-      PlannerNamedWindowProperty("w$rowtime", PlannerRowtimeAttribute(windowRef)),
-      PlannerNamedWindowProperty("w$proctime", PlannerProctimeAttribute(windowRef)))
+    Seq(PlannerNamedWindowProperty("w$start", new PlannerWindowStart(windowRef)),
+      PlannerNamedWindowProperty("w$end", new PlannerWindowStart(windowRef)),
+      PlannerNamedWindowProperty("w$rowtime", new PlannerRowtimeAttribute(windowRef)),
+      PlannerNamedWindowProperty("w$proctime", new PlannerProctimeAttribute(windowRef)))
 
   // equivalent SQL is
   // select a, b, count(c) as s,
