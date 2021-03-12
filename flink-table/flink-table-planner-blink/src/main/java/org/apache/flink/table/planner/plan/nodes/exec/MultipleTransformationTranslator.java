@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 
 /**
@@ -25,4 +26,5 @@ import org.apache.flink.api.dag.Transformation;
  *
  * @param <T> The type of the elements that result from this translator.
  */
+@Internal
 public interface MultipleTransformationTranslator<T> extends ExecNodeTranslator<T> {}
