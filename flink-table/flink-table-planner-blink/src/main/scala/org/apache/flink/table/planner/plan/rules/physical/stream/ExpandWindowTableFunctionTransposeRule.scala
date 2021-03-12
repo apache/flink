@@ -136,7 +136,7 @@ class ExpandWindowTableFunctionTransposeRule
         cluster.getRexBuilder,
         calc.getProgram,
         inputRowType,
-        windowTVF.windowing.timeAttribute,
+        windowTVF.windowing.getTimeAttributeIndex,
         windowColumns.toArray)
     val newCalc = new StreamPhysicalCalc(
       cluster,
@@ -156,17 +156,17 @@ class ExpandWindowTableFunctionTransposeRule
     val newOutputType = SqlWindowTableFunction.inferRowType(
       typeFactory,
       newExpand.getRowType,
-      typeFactory.createFieldTypeFromLogicalType(windowTVF.windowing.timeAttributeType))
+      typeFactory.createFieldTypeFromLogicalType(windowTVF.windowing.getTimeAttributeType))
     val timeAttributeOnExpand = if (timeFieldAdded) {
       // the time attribute ref is appended
       newExpand.getRowType.getFieldCount - 1
     } else {
       newTimeField
     }
-    val newWindowing = TimeAttributeWindowingStrategy(
-      timeAttributeOnExpand,
-      windowTVF.windowing.timeAttributeType,
-      windowTVF.windowing.window)
+    val newWindowing = new TimeAttributeWindowingStrategy(
+      windowTVF.windowing.getWindow,
+      windowTVF.windowing.getTimeAttributeType,
+      timeAttributeOnExpand)
     val newWindowTVF = new StreamPhysicalWindowTableFunction(
       cluster,
       windowTVF.getTraitSet,

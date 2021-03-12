@@ -78,9 +78,9 @@ class StreamPhysicalWindowAggregate(
       // cast the type to not null type, because window properties should never be null
       val timeType = namedProp.property match {
         case PlannerWindowStart(_) | PlannerWindowEnd(_) =>
-          LogicalTypeUtils.removeTimeAttributes(windowing.timeAttributeType).copy(false)
+          LogicalTypeUtils.removeTimeAttributes(windowing.getTimeAttributeType).copy(false)
         case PlannerRowtimeAttribute(_) | PlannerProctimeAttribute(_) =>
-          windowing.timeAttributeType.copy(false)
+          windowing.getTimeAttributeType.copy(false)
       }
       builder.add(namedProp.name, typeFactory.createFieldTypeFromLogicalType(timeType))
     }

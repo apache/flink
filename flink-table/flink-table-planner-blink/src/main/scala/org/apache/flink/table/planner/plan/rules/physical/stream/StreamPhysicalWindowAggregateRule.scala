@@ -119,11 +119,11 @@ class StreamPhysicalWindowAggregateRule
     val providedTraitSet = agg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(agg.getInput, requiredTraitSet)
 
-    val windowingStrategy = WindowAttachedWindowingStrategy(
-      startColumns.head,
-      endColumns.head,
+    val windowingStrategy = new WindowAttachedWindowingStrategy(
+      relWindowProperties.getWindowSpec,
       relWindowProperties.getTimeAttributeType,
-      relWindowProperties.getWindowSpec)
+      startColumns.head,
+      endColumns.head)
 
     val windowProperties = createPlannerNamedWindowProperties(
       windowingStrategy,
@@ -182,7 +182,7 @@ class StreamPhysicalWindowAggregateRule
       endColumns: Array[Int],
       timeColumns: Array[Int]): Seq[PlannerNamedWindowProperty] = {
     val windowProperties = ArrayBuffer[PlannerNamedWindowProperty]()
-    val windowRef = PlannerWindowReference("w$", Some(windowingStrategy.timeAttributeType))
+    val windowRef = PlannerWindowReference("w$", Some(windowingStrategy.getTimeAttributeType))
     if (!startColumns.isEmpty) {
       windowProperties += PlannerNamedWindowProperty(WINDOW_START, PlannerWindowStart(windowRef))
     }
