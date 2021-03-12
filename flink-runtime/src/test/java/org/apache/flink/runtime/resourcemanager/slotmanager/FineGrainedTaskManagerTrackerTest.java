@@ -319,10 +319,14 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 defaultSlotResource,
                 SlotState.ALLOCATED);
+        taskManagerTracker.addPendingTaskManager(
+                new PendingTaskManager(ResourceProfile.fromResources(4, 200), 1));
 
         assertThat(taskManagerTracker.getFreeResource(), is(ResourceProfile.fromResources(6, 700)));
         assertThat(taskManagerTracker.getRegisteredResource(), is(totalResource));
         assertThat(taskManagerTracker.getNumberRegisteredSlots(), is(10));
         assertThat(taskManagerTracker.getNumberFreeSlots(), is(8));
+        assertThat(
+                taskManagerTracker.getPendingResource(), is(ResourceProfile.fromResources(4, 200)));
     }
 }

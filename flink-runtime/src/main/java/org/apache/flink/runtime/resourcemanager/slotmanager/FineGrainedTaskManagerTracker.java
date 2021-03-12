@@ -53,6 +53,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
             pendingSlotAllocationRecords;
 
     private ResourceProfile totalRegisteredResource = ResourceProfile.ZERO;
+    private ResourceProfile totalPendingResource = ResourceProfile.ZERO;
 
     /**
      * Pending task manager indexed by the tuple of total resource profile and default slot resource
@@ -116,6 +117,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         Preconditions.checkNotNull(pendingTaskManager);
         LOG.debug("Add pending task manager {}.", pendingTaskManager);
         pendingTaskManagers.put(pendingTaskManager.getPendingTaskManagerId(), pendingTaskManager);
+        totalPendingResource =
+                totalPendingResource.merge(pendingTaskManager.getTotalResourceProfile());
         totalAndDefaultSlotProfilesToPendingTaskManagers
                 .computeIfAbsent(
                         Tuple2.of(
@@ -131,6 +134,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         Preconditions.checkNotNull(pendingTaskManagerId);
         final PendingTaskManager pendingTaskManager =
                 Preconditions.checkNotNull(pendingTaskManagers.remove(pendingTaskManagerId));
+        totalPendingResource =
+                totalPendingResource.subtract(pendingTaskManager.getTotalResourceProfile());
         LOG.debug("Remove pending task manager {}.", pendingTaskManagerId);
         totalAndDefaultSlotProfilesToPendingTaskManagers.compute(
                 Tuple2.of(
@@ -331,11 +336,17 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     }
 
     @Override
+    public ResourceProfile getPendingResource() {
+        return totalPendingResource;
+    }
+
+    @Override
     public void clear() {
         slots.clear();
         taskManagerRegistrations.clear();
         totalRegisteredResource = ResourceProfile.ZERO;
         pendingTaskManagers.clear();
+        totalPendingResource = ResourceProfile.ZERO;
         pendingSlotAllocationRecords.clear();
     }
 }
