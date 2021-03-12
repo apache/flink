@@ -159,8 +159,8 @@ public class JdbcBatchingOutputFormat<
         checkFlushException();
 
         try {
-            In serializedRecord = serializeRecord(record);
-            addToBatch(record, jdbcRecordExtractor.apply(serializedRecord));
+            In recordCopy = copyIfNecessary(record);
+            addToBatch(record, jdbcRecordExtractor.apply(recordCopy));
             batchCount++;
             if (executionOptions.getBatchSize() > 0
                     && batchCount >= executionOptions.getBatchSize()) {
@@ -171,11 +171,11 @@ public class JdbcBatchingOutputFormat<
         }
     }
 
-    private In serializeRecord(In record) {
-        if (serializer == null) {
-            return record;
+    private In copyIfNecessary(In record) {
+        if (isObjectReuseEnabled) {
+            return serializer.copy(record);
         }
-        return serializer.copy(record);
+        return record;
     }
 
     protected void addToBatch(In original, JdbcIn extracted) throws SQLException {
