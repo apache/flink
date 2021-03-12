@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 
@@ -241,11 +242,13 @@ public class DefaultSlotTrackerTest extends TestLogger {
         // move slot2 to PENDING
         tracker.notifyAllocationStart(slotId2, jobId);
 
-        tracker.notifySlotStatus(
+        final List<SlotStatus> slotReport =
                 Arrays.asList(
                         new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
                         new SlotStatus(slotId2, ResourceProfile.ANY, null, new AllocationID()),
-                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID())));
+                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+
+        assertThat(tracker.notifySlotStatus(slotReport), is(true));
 
         // slot1 should now be allocated; slot2 should continue to be in a pending state; slot3
         // should be freed
@@ -253,6 +256,14 @@ public class DefaultSlotTrackerTest extends TestLogger {
 
         // if slot2 is not in a pending state, this will fail with an exception
         tracker.notifyAllocationComplete(slotId2, jobId);
+
+        final List<SlotStatus> idempotentSlotReport =
+                Arrays.asList(
+                        new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
+                        new SlotStatus(slotId2, ResourceProfile.ANY, jobId, new AllocationID()),
+                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+
+        assertThat(tracker.notifySlotStatus(idempotentSlotReport), is(false));
     }
 
     private static class SlotStateTransition {

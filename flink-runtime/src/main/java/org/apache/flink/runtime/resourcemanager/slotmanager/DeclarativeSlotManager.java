@@ -355,8 +355,9 @@ public class DeclarativeSlotManager implements SlotManager {
         LOG.debug("Received slot report from instance {}: {}.", instanceId, slotReport);
 
         if (taskExecutorManager.isTaskManagerRegistered(instanceId)) {
-            slotTracker.notifySlotStatus(slotReport);
-            checkResourceRequirements();
+            if (slotTracker.notifySlotStatus(slotReport)) {
+                checkResourceRequirements();
+            }
             return true;
         } else {
             LOG.debug(
