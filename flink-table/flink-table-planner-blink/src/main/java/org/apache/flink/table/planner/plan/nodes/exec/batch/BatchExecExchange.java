@@ -47,6 +47,7 @@ import org.apache.flink.table.types.logical.RowType;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -60,7 +61,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     @Nullable private ShuffleMode requiredShuffleMode;
 
     public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
-        super(inputProperty, outputType, description);
+        super(getNewNodeId(), Collections.singletonList(inputProperty), outputType, description);
     }
 
     public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
