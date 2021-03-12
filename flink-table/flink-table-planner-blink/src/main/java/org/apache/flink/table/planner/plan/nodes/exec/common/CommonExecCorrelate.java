@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
@@ -40,7 +41,8 @@ import java.util.Collections;
 import java.util.Optional;
 
 /** Base {@link ExecNode} which matches along with join a Java/Scala user defined table function. */
-public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
+public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
     private final FlinkJoinType joinType;
     private final RexCall invocation;
     @Nullable private final RexNode condition;
@@ -73,25 +75,18 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData> {
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(planner.getTableConfig())
                         .setOperatorBaseClass(operatorBaseClass);
-        final Transformation<RowData> transform =
-                CorrelateCodeGenerator.generateCorrelateTransformation(
-                        planner.getTableConfig(),
-                        ctx,
-                        inputTransform,
-                        (RowType) inputEdge.getOutputType(),
-                        invocation,
-                        JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
-                        (RowType) getOutputType(),
-                        joinType,
-                        inputTransform.getParallelism(),
-                        retainHeader,
-                        getClass().getSimpleName(),
-                        getDescription());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-        return transform;
+        return CorrelateCodeGenerator.generateCorrelateTransformation(
+                planner.getTableConfig(),
+                ctx,
+                inputTransform,
+                (RowType) inputEdge.getOutputType(),
+                invocation,
+                JavaScalaConversionUtil.toScala(Optional.ofNullable(condition)),
+                (RowType) getOutputType(),
+                joinType,
+                inputTransform.getParallelism(),
+                retainHeader,
+                getClass().getSimpleName(),
+                getDescription());
     }
 }

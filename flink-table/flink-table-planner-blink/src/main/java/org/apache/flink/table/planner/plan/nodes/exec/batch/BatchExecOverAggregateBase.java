@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -38,7 +39,7 @@ import java.util.List;
 
 /** Batch {@link ExecNode} base class for sort-based over window aggregate. */
 public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     protected final OverSpec overSpec;
 

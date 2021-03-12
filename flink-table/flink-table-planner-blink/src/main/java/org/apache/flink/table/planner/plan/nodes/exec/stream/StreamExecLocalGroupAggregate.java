@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -46,7 +47,7 @@ import java.util.Collections;
 
 /** Stream {@link ExecNode} for unbounded local group aggregate. */
 public class StreamExecLocalGroupAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
@@ -113,19 +114,11 @@ public class StreamExecLocalGroupAggregate extends ExecNodeBase<RowData>
                         AggregateUtil.createMiniBatchTrigger(planner.getTableConfig()),
                         selector);
 
-        final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
-                        inputTransform,
-                        getDescription(),
-                        operator,
-                        InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-
-        return transform;
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDescription(),
+                operator,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism());
     }
 }

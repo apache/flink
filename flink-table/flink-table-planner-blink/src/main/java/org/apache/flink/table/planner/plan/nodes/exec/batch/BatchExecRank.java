@@ -93,19 +93,11 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
                         rankEnd,
                         outputRankNumber);
 
-        OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
-                        inputTransform,
-                        getDescription(),
-                        SimpleOperatorFactory.of(operator),
-                        InternalTypeInfo.of((RowType) getOutputType()),
-                        inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-
-        return transform;
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDescription(),
+                SimpleOperatorFactory.of(operator),
+                InternalTypeInfo.of((RowType) getOutputType()),
+                inputTransform.getParallelism());
     }
 }

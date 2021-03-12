@@ -45,6 +45,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -78,7 +79,8 @@ import java.util.List;
 import java.util.Optional;
 
 /** Stream {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
-public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+public class StreamExecMatch extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
     private final MatchSpec matchSpec;
 

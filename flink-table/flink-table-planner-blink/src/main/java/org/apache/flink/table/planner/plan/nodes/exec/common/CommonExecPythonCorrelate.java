@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,7 +47,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 
 /** Base {@link ExecNode} which matches along with join a Python user defined table function. */
-public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
+public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.table.RowDataPythonTableFunctionOperator";
 
@@ -79,10 +81,6 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(inputTransform, config);
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }

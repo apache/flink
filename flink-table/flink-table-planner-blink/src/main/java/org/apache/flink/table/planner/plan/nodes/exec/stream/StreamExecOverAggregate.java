@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -70,7 +71,7 @@ import java.util.stream.IntStream;
 
 /** Stream {@link ExecNode} for time-based over operator. */
 public class StreamExecOverAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecOverAggregate.class);
 
     private final OverSpec overSpec;
@@ -207,10 +208,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
         return transform;
     }
 

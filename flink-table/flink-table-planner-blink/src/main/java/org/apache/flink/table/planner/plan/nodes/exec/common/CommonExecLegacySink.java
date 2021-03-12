@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
@@ -57,7 +58,8 @@ import java.util.List;
  *
  * @param <T> The return type of the {@link TableSink}.
  */
-public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object> {
+public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
+        implements MultipleTransformationTranslator<Object> {
     protected final TableSink<T> tableSink;
     protected final @Nullable String[] upsertKeys;
     protected final boolean needRetraction;

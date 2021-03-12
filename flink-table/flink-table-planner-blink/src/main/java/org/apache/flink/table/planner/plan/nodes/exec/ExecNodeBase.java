@@ -121,9 +121,16 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         edges.set(index, newInputEdge);
     }
 
+    @Override
     public Transformation<T> translateToPlan(Planner planner) {
         if (transformation == null) {
             transformation = translateToPlanInternal((PlannerBase) planner);
+            if (this instanceof SingleTransformationTranslator) {
+                if (inputsContainSingleton()) {
+                    transformation.setParallelism(1);
+                    transformation.setMaxParallelism(1);
+                }
+            }
         }
         return transformation;
     }

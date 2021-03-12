@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -50,7 +51,8 @@ import java.util.List;
  * <p>Regular joins are the most generic type of join in which any new records or changes to either
  * side of the join input are visible and are affecting the whole join result.
  */
-public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+public class StreamExecJoin extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final JoinSpec joinSpec;
     private final List<int[]> leftUniqueKeys;
@@ -141,11 +143,6 @@ public class StreamExecJoin extends ExecNodeBase<RowData> implements StreamExecN
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         // set KeyType and Selector for state
         RowDataKeySelector leftSelect =

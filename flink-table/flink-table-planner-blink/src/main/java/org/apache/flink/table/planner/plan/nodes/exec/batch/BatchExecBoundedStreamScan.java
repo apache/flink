@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
@@ -38,7 +39,7 @@ import java.util.Optional;
  * Batch {@link ExecNode} to connect a given bounded {@link DataStream} and consume data from it.
  */
 public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     private final DataStream<?> dataStream;
     private final DataType sourceType;
     private final int[] fieldIndexes;

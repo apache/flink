@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -53,7 +54,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Base class for exec Python Calc. */
-public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
+public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
 
     private static final String PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.scalar."
@@ -85,10 +87,6 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
         OneInputTransformation<RowData, RowData> ret =
                 createPythonOneInputTransformation(
                         inputTransform, calcProgram, getDescription(), config);
-        if (inputsContainSingleton()) {
-            ret.setParallelism(1);
-            ret.setMaxParallelism(1);
-        }
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }

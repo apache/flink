@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -106,20 +105,13 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
                             .getBytes();
         }
 
-        TwoInputTransformation<RowData, RowData, RowData> transform =
-                ExecNodeUtil.createTwoInputTransformation(
-                        leftInputTransform,
-                        rightInputTransform,
-                        getDescription(),
-                        operator,
-                        InternalTypeInfo.of(getOutputType()),
-                        parallelism,
-                        manageMem);
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-        return transform;
+        return ExecNodeUtil.createTwoInputTransformation(
+                leftInputTransform,
+                rightInputTransform,
+                getDescription(),
+                operator,
+                InternalTypeInfo.of(getOutputType()),
+                parallelism,
+                manageMem);
     }
 }
