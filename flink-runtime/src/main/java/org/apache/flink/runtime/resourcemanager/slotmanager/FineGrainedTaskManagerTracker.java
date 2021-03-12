@@ -52,6 +52,8 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     private final Map<PendingTaskManagerId, Map<JobID, ResourceCounter>>
             pendingSlotAllocationRecords;
 
+    private ResourceProfile totalRegisteredResource = ResourceProfile.ZERO;
+
     /**
      * Pending task manager indexed by the tuple of total resource profile and default slot resource
      * profile.
@@ -94,6 +96,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                         taskExecutorConnection, totalResourceProfile, defaultSlotResourceProfile);
         taskManagerRegistrations.put(
                 taskExecutorConnection.getInstanceID(), taskManagerRegistration);
+        totalRegisteredResource = totalRegisteredResource.merge(totalResourceProfile);
     }
 
     @Override
@@ -101,6 +104,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
         Preconditions.checkNotNull(instanceId);
         final FineGrainedTaskManagerRegistration taskManager =
                 Preconditions.checkNotNull(taskManagerRegistrations.remove(instanceId));
+        totalRegisteredResource = totalRegisteredResource.subtract(taskManager.getTotalResource());
         LOG.debug("Remove task manager {}.", instanceId);
         for (AllocationID allocationId : taskManager.getAllocatedSlots().keySet()) {
             slots.remove(allocationId);
@@ -302,9 +306,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
 
     @Override
     public ResourceProfile getRegisteredResource() {
-        return taskManagerRegistrations.values().stream()
-                .map(TaskManagerInfo::getTotalResource)
-                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+        return totalRegisteredResource;
     }
 
     @Override
@@ -332,6 +334,7 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     public void clear() {
         slots.clear();
         taskManagerRegistrations.clear();
+        totalRegisteredResource = ResourceProfile.ZERO;
         pendingTaskManagers.clear();
         pendingSlotAllocationRecords.clear();
     }
