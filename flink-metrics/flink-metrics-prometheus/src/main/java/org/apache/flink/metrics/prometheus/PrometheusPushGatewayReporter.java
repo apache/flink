@@ -56,42 +56,41 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private boolean deleteOnShutdown;
     private Map<String, String> groupingKey;
 
-    @Override
-    public void open(MetricConfig config) {
-        super.open(config);
+    PrometheusPushGatewayReporter(
+        @Nullable final String hostConfig,
+        @Nullable final int portConfig,
+        @Nullable final String jobNameConfig,
+        @Nullable final boolean randomJobSuffixConfig,
+        @Nullable final boolean deleteOnShutdownConfig,
+        @Nullable final Map<String, String> groupingKeyConfig
+    ) {
+        deleteOnShutdown = deleteOnShutdownConfig
+        groupingKey = parseGroupingKey(groupingKeyConfig)
 
-        String host = config.getString(HOST.key(), HOST.defaultValue());
-        int port = config.getInteger(PORT.key(), PORT.defaultValue());
-        String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
-        boolean randomSuffix =
-                config.getBoolean(
-                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
-        deleteOnShutdown =
-                config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
-        groupingKey =
-                parseGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
-
-        if (host == null || host.isEmpty() || port < 1) {
+        if (hostConfig == null || hostConfig.isEmpty() || portConfig < 1) {
             throw new IllegalArgumentException(
-                    "Invalid host/port configuration. Host: " + host + " Port: " + port);
+                    "Invalid host/port configuration. Host: " + hostConfig + " Port: " + portConfig);
         }
 
-        if (randomSuffix) {
-            this.jobName = configuredJobName + new AbstractID();
+        if (randomJobSuffixConfig) {
+            this.jobName = jobNameConfig + new AbstractID();
         } else {
-            this.jobName = configuredJobName;
+            this.jobName = jobNameConfig;
         }
 
-        pushGateway = new PushGateway(host + ':' + port);
+        pushGateway = new PushGateway(hostConfig + ':' + portConfig);
         log.info(
                 "Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
-                host,
-                port,
-                jobName,
-                randomSuffix,
+                hostConfig,
+                portConfig,
+                jobNameConfig,
+                randomJobSuffixConfig,
                 deleteOnShutdown,
                 groupingKey);
     }
+
+    @Override
+    public void open(MetricConfig config) { }
 
     Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
         if (!groupingKeyConfig.isEmpty()) {

@@ -27,8 +27,12 @@ import java.util.Properties;
         reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusReporter")
 public class PrometheusReporterFactory implements MetricReporterFactory {
 
+    static final String ARG_PORT = "port";
+    private static final String DEFAULT_PORT = "9249";
+
     @Override
     public PrometheusReporter createMetricReporter(Properties properties) {
-        return new PrometheusReporter();
+        String portsConfig = properties.getString(ARG_PORT, DEFAULT_PORT);
+        return new PrometheusReporter(portsConfig);
     }
 }

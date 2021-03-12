@@ -38,9 +38,6 @@ import java.util.Iterator;
         factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
 public class PrometheusReporter extends AbstractPrometheusReporter {
 
-    static final String ARG_PORT = "port";
-    private static final String DEFAULT_PORT = "9249";
-
     private HTTPServer httpServer;
     private int port;
 
@@ -50,11 +47,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         return port;
     }
 
-    @Override
-    public void open(MetricConfig config) {
-        super.open(config);
-
-        String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
+    PrometheusReporter(@Nullable final String portsConfig) {
         Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
         while (ports.hasNext()) {
@@ -75,6 +68,9 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
                             + portsConfig);
         }
     }
+
+    @Override
+    public void open(MetricConfig config) { }
 
     @Override
     public void close() {

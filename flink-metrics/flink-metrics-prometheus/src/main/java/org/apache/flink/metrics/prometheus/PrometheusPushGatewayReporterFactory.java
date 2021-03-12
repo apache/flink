@@ -22,6 +22,13 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
+
 /** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
 @InterceptInstantiationViaReflection(
         reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
@@ -29,6 +36,24 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
 
     @Override
     public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
-        return new PrometheusPushGatewayReporter();
+        String hostConfig = properties.getString(HOST.key(), HOST.defaultValue());
+        int portConfig = properties.getInteger(PORT.key(), PORT.defaultValue());
+        String jobNameConfig = properties.getString(JOB_NAME.key(), JOB_NAME.defaultValue())
+        boolean randomJobSuffixConfig =
+                config.getBoolean(
+                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
+        boolean deleteOnShutdownConfig =
+                config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+        Map<String, String> groupingKeyConfig =
+                parseGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+
+        return new PrometheusPushGatewayReporter(
+            hostConfig,
+            portConfig,
+            jobNameConfig,
+            randomJobSuffixConfig,
+            deleteOnShutdownConfig,
+            groupingKeyConfig
+        );
     }
 }
