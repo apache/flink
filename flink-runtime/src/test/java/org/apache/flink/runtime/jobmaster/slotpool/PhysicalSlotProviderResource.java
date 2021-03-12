@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -89,7 +89,9 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     public PhysicalSlotRequest createSimpleRequest() {
         return new PhysicalSlotRequest(
-                new SlotRequestId(), SlotProfile.noLocality(ResourceProfile.UNKNOWN), false);
+                new SlotRequestId(),
+                SlotProfileTestingUtils.noLocality(ResourceProfile.UNKNOWN),
+                false);
     }
 
     public ComponentMainThreadExecutor getMainThreadExecutor() {

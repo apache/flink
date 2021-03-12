@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,10 +35,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * SlotContext} against the slot profile and, potentially, further requirements.
  */
 public class SlotProfile {
-
-    /** Singleton object for a slot profile without any requirements. */
-    private static final SlotProfile NO_REQUIREMENTS = noLocality(ResourceProfile.UNKNOWN);
-
     /** This specifies the desired resource profile for the task slot. */
     private final ResourceProfile taskResourceProfile;
 
@@ -97,38 +91,6 @@ public class SlotProfile {
      */
     public Set<AllocationID> getPreviousExecutionGraphAllocations() {
         return previousExecutionGraphAllocations;
-    }
-
-    /** Returns a slot profile that has no requirements. */
-    @VisibleForTesting
-    public static SlotProfile noRequirements() {
-        return NO_REQUIREMENTS;
-    }
-
-    /** Returns a slot profile for the given resource profile, without any locality requirements. */
-    @VisibleForTesting
-    public static SlotProfile noLocality(ResourceProfile resourceProfile) {
-        return preferredLocality(resourceProfile, Collections.emptyList());
-    }
-
-    /**
-     * Returns a slot profile for the given resource profile and the preferred locations.
-     *
-     * @param resourceProfile specifying the slot requirements
-     * @param preferredLocations specifying the preferred locations
-     * @return Slot profile with the given resource profile and preferred locations
-     */
-    @VisibleForTesting
-    public static SlotProfile preferredLocality(
-            final ResourceProfile resourceProfile,
-            final Collection<TaskManagerLocation> preferredLocations) {
-
-        return priorAllocation(
-                resourceProfile,
-                resourceProfile,
-                preferredLocations,
-                Collections.emptyList(),
-                Collections.emptySet());
     }
 
     /**
