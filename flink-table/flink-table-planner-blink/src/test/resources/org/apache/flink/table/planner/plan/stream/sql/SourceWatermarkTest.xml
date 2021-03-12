@@ -130,4 +130,22 @@ Calc(select=[a, b], where=[(b > 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectTransposeWatermarkAssigner">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, ts FROM t1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], ts=[$5])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, 10000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-($2, 10000:INTERVAL SECOND)]]], fields=[a, b, t])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
