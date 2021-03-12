@@ -82,8 +82,10 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -195,9 +197,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         @Override
         public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
-            if (readerContext.getIndexOfSubtask() == 0) {
-                readerContext.sendSourceEventToCoordinator(new RestartEvent());
-            }
             return new LongSourceReader(
                     readerContext.getIndexOfSubtask(), minCheckpoints, expectedRestarts);
         }
@@ -209,7 +208,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     IntStream.range(0, numSplits)
                             .mapToObj(i -> new LongSplit(i, numSplits))
                             .collect(Collectors.toList());
-            return new LongSplitSplitEnumerator(enumContext, new EnumeratorState(splits, -1, 0));
+            return new LongSplitSplitEnumerator(enumContext, new EnumeratorState(splits, 0, 0));
         }
 
         @Override
@@ -385,16 +384,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
         }
 
-        private static class RestartEvent implements SourceEvent {
-
-            private RestartEvent() {}
-        }
-
         private static class SyncEvent implements SourceEvent {
             final int numRestarts;
             final int numCheckpoints;
 
-            private SyncEvent(int numRestarts, int numCheckpoints) {
+            SyncEvent(int numRestarts, int numCheckpoints) {
                 this.numRestarts = numRestarts;
                 this.numCheckpoints = numCheckpoints;
             }
@@ -428,6 +422,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 implements SplitEnumerator<LongSplit, EnumeratorState> {
             private final SplitEnumeratorContext<LongSplit> context;
             private final EnumeratorState state;
+            private final Map<Integer, Integer> subtaskRestarts = new HashMap<>();
 
             private LongSplitSplitEnumerator(
                     SplitEnumeratorContext<LongSplit> context, EnumeratorState state) {
@@ -436,31 +431,19 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
 
             @Override
-            public void start() {
-                state.numRestarts++;
-            }
-
-            @Override
-            public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-                if (sourceEvent instanceof RestartEvent) {
-                    state.numRestarts++;
-                    final SyncEvent event =
-                            new SyncEvent(state.numRestarts, state.numCompletedCheckpoints);
-                    context.registeredReaders()
-                            .keySet()
-                            .forEach(index -> context.sendEventToSourceReader(index, event));
-                }
-            }
+            public void start() {}
 
             @Override
             public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
             @Override
             public void addSplitsBack(List<LongSplit> splits, int subtaskId) {
-                if (!splits.isEmpty()) {
-                    LOG.info("addSplitsBack {}", splits);
-                    state.unassignedSplits.addAll(splits);
-                }
+                LOG.info("addSplitsBack {}", splits);
+                // Called on recovery
+                subtaskRestarts.compute(
+                        subtaskId,
+                        (id, oldCount) -> oldCount == null ? state.numRestarts + 1 : oldCount + 1);
+                state.unassignedSplits.addAll(splits);
             }
 
             @Override
@@ -475,9 +458,19 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         state.unassignedSplits.clear();
                     }
                     context.registeredReaders().keySet().forEach(context::signalNoMoreSplits);
+                    Optional<Integer> restarts =
+                            subtaskRestarts.values().stream().max(Comparator.naturalOrder());
+                    if (restarts.isPresent() && restarts.get() > state.numRestarts) {
+                        state.numRestarts = restarts.get();
+                        // Implicitly sync the restart count of all subtasks with state.numRestarts
+                        subtaskRestarts.clear();
+                        final SyncEvent event =
+                                new SyncEvent(state.numRestarts, state.numCompletedCheckpoints);
+                        context.registeredReaders()
+                                .keySet()
+                                .forEach(index -> context.sendEventToSourceReader(index, event));
+                    }
                 }
-                context.sendEventToSourceReader(
-                        subtaskId, new SyncEvent(state.numRestarts, state.numCompletedCheckpoints));
             }
 
             @Override
@@ -496,9 +489,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
 
         private static class EnumeratorState {
-            private final List<LongSplit> unassignedSplits;
-            private int numRestarts;
-            private int numCompletedCheckpoints;
+            final List<LongSplit> unassignedSplits;
+            int numRestarts;
+            int numCompletedCheckpoints;
 
             public EnumeratorState(
                     List<LongSplit> unassignedSplits,
