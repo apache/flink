@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.util.Preconditions;
@@ -45,6 +46,8 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
         this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
     }
 
+    protected TypeSerializer<T> serializer;
+
     @Override
     public void configure(Configuration parameters) {}
 
@@ -68,5 +71,9 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
     @VisibleForTesting
     public Connection getConnection() {
         return connectionProvider.getConnection();
+    }
+
+    public void setSerializer(TypeSerializer<T> serializer) {
+        this.serializer = serializer;
     }
 }

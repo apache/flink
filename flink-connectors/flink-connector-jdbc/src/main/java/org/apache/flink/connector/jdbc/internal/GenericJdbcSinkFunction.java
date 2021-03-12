@@ -19,7 +19,11 @@
 package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -34,7 +38,7 @@ import java.io.IOException;
 /** A generic SinkFunction for JDBC. */
 @Internal
 public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
-        implements CheckpointedFunction {
+        implements CheckpointedFunction, InputTypeConfigurable {
     private final AbstractJdbcOutputFormat<T> outputFormat;
 
     public GenericJdbcSinkFunction(@Nonnull AbstractJdbcOutputFormat<T> outputFormat) {
@@ -65,5 +69,13 @@ public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
     @Override
     public void close() {
         outputFormat.close();
+    }
+
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        if (executionConfig.isObjectReuseEnabled()) {
+            TypeSerializer<T> serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
+            outputFormat.setSerializer(serializer);
+        }
     }
 }

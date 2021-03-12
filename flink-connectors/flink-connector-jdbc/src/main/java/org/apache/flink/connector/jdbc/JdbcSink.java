@@ -73,13 +73,7 @@ public class JdbcSink {
                 new JdbcBatchingOutputFormat<>(
                         new SimpleJdbcConnectionProvider(connectionOptions),
                         executionOptions,
-                        context -> {
-                            Preconditions.checkState(
-                                    !context.getExecutionConfig().isObjectReuseEnabled(),
-                                    "objects can not be reused with JDBC sink function");
-                            return JdbcBatchStatementExecutor.simple(
-                                    sql, statementBuilder, Function.identity());
-                        },
+                        context -> JdbcBatchStatementExecutor.simple(sql, statementBuilder, Function.identity()),
                         JdbcBatchingOutputFormat.RecordExtractor.identity()));
     }
 
