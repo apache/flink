@@ -24,6 +24,7 @@ import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.schema.IntermediateRelTable;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
@@ -121,6 +122,12 @@ public final class LookupJoinUtil {
                 return tableSource.getLookupFunction(lookupFieldNamesInOrder);
             }
         }
+
+        if (temporalTable instanceof IntermediateRelTable) {
+            return getLookupFunction(
+                    ((IntermediateRelTable) temporalTable).relNode().getTable(), lookupKeys);
+        }
+
         throw new TableException(
                 String.format(
                         "table %s is neither TableSourceTable not LegacyTableSourceTable",

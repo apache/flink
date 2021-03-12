@@ -598,4 +598,74 @@ class DagOptimizationTest extends TableTestBase {
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testSameLookupTableWithMultipleLookupJoins(): Unit = {
+    // test case for FLINK-21477
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+
+    prepareTableForSameLookupTableTest()
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |INSERT INTO sink1
+        |SELECT T.id, D.val FROM scanTable AS T
+        |JOIN lookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.id = D.id
+        |""".stripMargin
+    )
+    stmtSet.addInsertSql(
+      """
+        |INSERT INTO sink2
+        |SELECT T.id, D.val FROM scanTable AS T
+        |JOIN lookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.id + 1 = D.id
+        |""".stripMargin
+    )
+    util.verifyExecPlan(stmtSet)
+  }
+
+  private def prepareTableForSameLookupTableTest(): Unit = {
+    val scanTableDdl =
+      s"""
+         |CREATE TABLE scanTable (
+         |  id INT,
+         |  proctime AS PROCTIME()
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(scanTableDdl)
+    val lookupTableDdl =
+      s"""
+         |CREATE TABLE lookupTable (
+         |  id INT,
+         |  val INT
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(lookupTableDdl)
+    val sink1Ddl =
+      """
+        |CREATE TABLE sink1 (
+        |  id INT,
+        |  val INT
+        |) WITH (
+        |  'connector' = 'blackhole'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(sink1Ddl)
+    val sink2Ddl =
+      """
+        |CREATE TABLE sink2 (
+        |  id INT,
+        |  val INT
+        |) WITH (
+        |  'connector' = 'blackhole'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(sink2Ddl)
+  }
 }

@@ -18,13 +18,11 @@
 package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.sources.LookupableTableSource
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, TemporalJoinUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
@@ -54,7 +52,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     }
 
     // Temporal table join implemented by lookup join only supports on LookupTableSource
-    if (!isTableSourceScan(tableScan) || !isLookupTableSource(tableScan)) {
+    if (!TemporalJoinUtil.isTableSourceScan(tableScan) ||
+        !TemporalJoinUtil.isLookupTableSource(tableScan)) {
       return false
     }
 
@@ -65,29 +64,6 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
       case _ => false
     }
     isProcessingTime
-  }
-
-  protected def isTableSourceScan(relNode: RelNode): Boolean = {
-    relNode match {
-      case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
-           _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
-      case _ => false
-    }
-  }
-
-  protected def isLookupTableSource(relNode: RelNode): Boolean = {
-    relNode match {
-      case scan: FlinkLogicalLegacyTableSourceScan =>
-        scan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case scan: CommonPhysicalLegacyTableSourceScan =>
-        scan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case scan: FlinkLogicalTableSourceScan =>
-        scan.tableSource.isInstanceOf[LookupTableSource]
-      case scan: CommonPhysicalTableSourceScan =>
-        scan.tableSource.isInstanceOf[LookupTableSource]
-      // TODO: find TableSource in FlinkLogicalIntermediateTableScan
-      case _ => false
-    }
   }
 
   // TODO Support `IS NOT DISTINCT FROM` in the future: FLINK-13509

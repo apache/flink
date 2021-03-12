@@ -20,17 +20,14 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
-import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
-import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.hep.{HepPlanner, HepRelVertex}
+import org.apache.calcite.plan.hep.HepPlanner
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rex._
 
@@ -52,15 +49,6 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
   def getFilterCondition(call: RelOptRuleCall): RexNode
 
   def getLogicalSnapshot(call: RelOptRuleCall): LogicalSnapshot
-
-  /** Trim out the HepRelVertex wrapper and get current relational expression. */
-  protected def trimHep(node: RelNode): RelNode = {
-    node match {
-      case hepRelVertex: HepRelVertex =>
-        hepRelVertex.getCurrentRel
-      case _ => node
-    }
-  }
 
   protected def validateSnapshotInCorrelate(
       snapshot: LogicalSnapshot,
@@ -91,51 +79,14 @@ abstract class LogicalCorrelateToJoinFromTemporalTableRule(
       case _ => false
     }
 
-    val tableScan = getTableScan(snapshotInput)
+    val tableScan = TemporalJoinUtil.getTableScan(snapshotInput)
     val snapshotOnLookupSource = tableScan match {
-      case Some(scan) => isTableSourceScan(scan) && isLookupTableSource(scan)
+      case Some(scan) =>
+        TemporalJoinUtil.isTableSourceScan(scan) && TemporalJoinUtil.isLookupTableSource(scan)
       case _ => false
     }
 
     isProcessingTime && snapshotOnLookupSource
-  }
-
-  private def getTableScan(snapshotInput: RelNode): Option[TableScan] = {
-    snapshotInput match {
-      case tableScan: TableScan => Some(tableScan)
-      // computed column on lookup table
-      case project: LogicalProject => getTableScan(trimHep(project.getInput))
-      case _ => None
-    }
-  }
-
-  private def isTableSourceScan(relNode: RelNode): Boolean = {
-    relNode match {
-      case r: LogicalTableScan =>
-        val table = r.getTable
-        table match {
-          case _: LegacyTableSourceTable[Any] | _: TableSourceTable => true
-          case _ => false
-        }
-      case _: FlinkLogicalLegacyTableSourceScan | _: FlinkLogicalTableSourceScan => true
-      case _ => false
-    }
-  }
-
-  private def isLookupTableSource(relNode: RelNode): Boolean = relNode match {
-    case scan: FlinkLogicalLegacyTableSourceScan =>
-      scan.tableSource.isInstanceOf[LookupableTableSource[_]]
-    case scan: FlinkLogicalTableSourceScan =>
-      scan.tableSource.isInstanceOf[LookupTableSource]
-    case scan: LogicalTableScan =>
-      scan.getTable match {
-        case table: LegacyTableSourceTable[_] =>
-          table.tableSource.isInstanceOf[LookupableTableSource[_]]
-        case table: TableSourceTable =>
-          table.tableSource.isInstanceOf[LookupTableSource]
-        case _ => false
-      }
-    case _ => false
   }
 }
 
@@ -335,7 +286,7 @@ class LogicalCorrelateToJoinFromLookupTableRuleWithFilter
   ) {
   override def matches(call: RelOptRuleCall): Boolean = {
     val snapshot: LogicalSnapshot = call.rel(3)
-    val snapshotInput: RelNode = trimHep(call.rel(4))
+    val snapshotInput: RelNode = TemporalJoinUtil.trimHep(call.rel(4))
     isLookupJoin(snapshot, snapshotInput)
   }
 
@@ -366,7 +317,7 @@ class LogicalCorrelateToJoinFromLookupTableRuleWithoutFilter
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val snapshot: LogicalSnapshot = call.rel(2)
-    val snapshotInput: RelNode = trimHep(call.rel(3))
+    val snapshotInput: RelNode = TemporalJoinUtil.trimHep(call.rel(3))
     isLookupJoin(snapshot, snapshotInput)
   }
 
@@ -397,7 +348,7 @@ class LogicalCorrelateToJoinFromTemporalTableRuleWithFilter
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val snapshot: LogicalSnapshot = call.rel(3)
-    val snapshotInput: RelNode = trimHep(call.rel(4))
+    val snapshotInput: RelNode = TemporalJoinUtil.trimHep(call.rel(4))
     !isLookupJoin(snapshot, snapshotInput)
   }
 
@@ -427,7 +378,7 @@ class LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val snapshot: LogicalSnapshot = call.rel(2)
-    val snapshotInput: RelNode = trimHep(call.rel(3))
+    val snapshotInput: RelNode = TemporalJoinUtil.trimHep(call.rel(3))
     !isLookupJoin(snapshot, snapshotInput)
   }
 

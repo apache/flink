@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, User
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkRelNode}
-import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
@@ -159,10 +159,14 @@ abstract class CommonPhysicalLookupJoin(
       case None =>
         resultFieldNames.mkString(", ")
     }
-    val tableIdentifier: ObjectIdentifier = temporalTable match {
+
+    @scala.annotation.tailrec
+    def getTableIdentifier(relNode: RelOptTable): ObjectIdentifier = relNode match {
       case t: TableSourceTable => t.tableIdentifier
       case t: LegacyTableSourceTable[_] => t.tableIdentifier
+      case t: IntermediateRelTable => getTableIdentifier(t.relNode.getTable)
     }
+    val tableIdentifier = getTableIdentifier(temporalTable)
 
     val lookupFunction: UserDefinedFunction =
       LookupJoinUtil.getLookupFunction(temporalTable, allLookupKeys.keys.map(Int.box).toList.asJava)

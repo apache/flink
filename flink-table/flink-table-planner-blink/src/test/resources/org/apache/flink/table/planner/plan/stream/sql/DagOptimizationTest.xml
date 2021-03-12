@@ -670,6 +670,79 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleSinkWithUDTF">
+    <Resource name="ast">
+      <![CDATA[
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10], s=[$11])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10])
+      :  +- LogicalFilter(condition=[AND(=($1, $4), =($0, $6))])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalJoin(condition=[true], joinType=[inner])
+      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]])
+      +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s], changelogMode=[NONE])
++- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
+   +- Join(joinType=[InnerJoin], where=[=(a, i)], select=[a, b, c, d, e, f, i, j, k, l, m], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+      :- Exchange(distribution=[hash[a]], changelogMode=[I])
+      :  +- Join(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+      :     :- Exchange(distribution=[hash[b]], changelogMode=[I])
+      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     +- Exchange(distribution=[hash[e]], changelogMode=[I])
+      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+      +- Exchange(distribution=[hash[i]], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]], fields=[i, j, k, l, m], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameLookupTableWithMultipleLookupJoins">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[id, val])
++- LogicalProject(id=[$0], val=[$3])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+      :- LogicalProject(id=[$0], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scanTable]])
+      +- LogicalFilter(condition=[=($cor0.id, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, lookupTable]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[id, val])
++- LogicalProject(id=[$0], val=[$3])
+   +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 1}])
+      :- LogicalProject(id=[$0], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scanTable]])
+      +- LogicalFilter(condition=[=(+($cor1.id, 1), $0)])
+         +- LogicalSnapshot(period=[$cor1.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, lookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, PROCTIME() AS proctime])(reuse_id=[1])
++- TableSourceScan(table=[[default_catalog, default_database, scanTable]], fields=[id])
+
+Sink(table=[default_catalog.default_database.sink1], fields=[id, val])
++- Calc(select=[id, val])
+   +- LookupJoin(table=[default_catalog.default_database.lookupTable], joinType=[InnerJoin], async=[false], lookup=[id=id], select=[id, id0, val])
+      +- Calc(select=[id])
+         +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[id, val])
++- Calc(select=[id, val])
+   +- LookupJoin(table=[default_catalog.default_database.lookupTable], joinType=[InnerJoin], async=[false], lookup=[id=$f2], select=[id, $f2, id0, val])
+      +- Calc(select=[id, (id + 1) AS $f2])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSharedUnionNode">
     <Resource name="ast">
       <![CDATA[
@@ -907,38 +980,6 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
                         +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                            +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
                               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleSinkWithUDTF">
-    <Resource name="ast">
-      <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10], s=[$11])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10])
-      :  +- LogicalFilter(condition=[AND(=($1, $4), =($0, $6))])
-      :     +- LogicalJoin(condition=[true], joinType=[inner])
-      :        :- LogicalJoin(condition=[true], joinType=[inner])
-      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]])
-      +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s], changelogMode=[NONE])
-+- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
-   +- Join(joinType=[InnerJoin], where=[=(a, i)], select=[a, b, c, d, e, f, i, j, k, l, m], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-      :- Exchange(distribution=[hash[a]], changelogMode=[I])
-      :  +- Join(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-      :     :- Exchange(distribution=[hash[b]], changelogMode=[I])
-      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-      :     +- Exchange(distribution=[hash[e]], changelogMode=[I])
-      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
-      +- Exchange(distribution=[hash[i]], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]], fields=[i, j, k, l, m], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

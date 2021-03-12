@@ -18,14 +18,25 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
+import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.LookupableTableSource
 import org.apache.flink.util.Preconditions.checkState
 
-import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{JoinInfo, Snapshot, TableScan}
+import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
+import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._
 
@@ -327,6 +338,77 @@ object TemporalJoinUtil {
     //(LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, PRIMARY_KEY)
     rexCall.getOperator == TEMPORAL_JOIN_CONDITION &&
       (rexCall.operands.length == 2 || rexCall.operands.length == 3)
+  }
+
+  def trimHep(node: RelNode): RelNode = {
+    node match {
+      case hepRelVertex: HepRelVertex =>
+        hepRelVertex.getCurrentRel
+      case subset: RelSubset =>
+        Util.first(subset.getBest, subset.getOriginal)
+      case _ => node
+    }
+  }
+
+  /**
+   * Check whether a relNode is a [[TableScan]] contains [[TableSourceTable]].
+   */
+  @scala.annotation.tailrec
+  def isTableSourceScan(relNode: RelNode): Boolean = {
+    relNode match {
+      case r: LogicalTableScan =>
+        val table = r.getTable
+        table match {
+          case _: LegacyTableSourceTable[Any] | _: TableSourceTable => true
+          case intermediate: IntermediateRelTable => isTableSourceScan(intermediate.relNode)
+          case _ => false
+        }
+      case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
+           _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
+      case scan: CommonIntermediateTableScan =>
+        isTableSourceScan(scan.intermediateTable.relNode)
+      case _ => false
+    }
+  }
+
+  /**
+   * Check whether a relNode is [[LookupTableSource]].
+   */
+  @scala.annotation.tailrec
+  def isLookupTableSource(relNode: RelNode): Boolean = relNode match {
+    case scan: FlinkLogicalLegacyTableSourceScan =>
+      scan.tableSource.isInstanceOf[LookupableTableSource[_]]
+    case scan: CommonPhysicalLegacyTableSourceScan =>
+      scan.tableSource.isInstanceOf[LookupableTableSource[_]]
+    case scan: FlinkLogicalTableSourceScan =>
+      scan.tableSource.isInstanceOf[LookupTableSource]
+    case scan: CommonPhysicalTableSourceScan =>
+      scan.tableSource.isInstanceOf[LookupTableSource]
+    case scan: CommonIntermediateTableScan =>
+      isLookupTableSource(scan.intermediateTable.relNode)
+    case scan: LogicalTableScan =>
+      scan.getTable match {
+        case table: LegacyTableSourceTable[_] =>
+          table.tableSource.isInstanceOf[LookupableTableSource[_]]
+        case table: TableSourceTable =>
+          table.tableSource.isInstanceOf[LookupTableSource]
+        case intermediate: IntermediateRelTable => isLookupTableSource(intermediate.relNode)
+        case _ => false
+      }
+    case _ => false
+  }
+
+  /**
+   * Get [[TableScan]] under a [[Snapshot]].
+   */
+  @scala.annotation.tailrec
+  def getTableScan(snapshotInput: RelNode): Option[TableScan] = {
+    snapshotInput match {
+      case tableScan: TableScan => Some(tableScan)
+      // computed column on lookup table
+      case project: LogicalProject => getTableScan(trimHep(project.getInput))
+      case _ => None
+    }
   }
 
   def validateTemporalFunctionCondition(
