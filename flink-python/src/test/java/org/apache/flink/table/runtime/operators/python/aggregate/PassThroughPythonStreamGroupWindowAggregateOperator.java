@@ -35,9 +35,9 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
@@ -101,7 +101,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             WindowAssigner<TimeWindow> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+            PlannerNamedWindowProperty[] namedProperties) {
         super(
                 config,
                 inputType,
@@ -189,10 +189,10 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 this);
     }
 
-    private void buildWindow(FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+    private void buildWindow(PlannerNamedWindowProperty[] namedProperties) {
         this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
         for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty namedProperty = namedProperties[i].property();
+            PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
             if (namedProperty instanceof PlannerWindowStart) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
             } else if (namedProperty instanceof PlannerWindowEnd) {

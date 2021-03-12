@@ -32,9 +32,9 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -101,7 +101,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
-    private final FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties;
+    private final PlannerNamedWindowProperty[] namedWindowProperties;
     private final WindowEmitStrategy emitStrategy;
     private final boolean needRetraction;
     private final boolean generateUpdateBefore;
@@ -110,7 +110,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
-            FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties,
+            PlannerNamedWindowProperty[] namedWindowProperties,
             WindowEmitStrategy emitStrategy,
             boolean generateUpdateBefore,
             boolean needRetraction,
@@ -390,7 +390,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             Trigger.class,
                             long.class,
-                            FlinkRelBuilder.PlannerNamedWindowProperty[].class,
+                            PlannerNamedWindowProperty[].class,
                             int[].class,
                             int[].class);
             return ctor.newInstance(
@@ -448,7 +448,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             LogicalWindow.class,
                             long.class,
-                            FlinkRelBuilder.PlannerNamedWindowProperty[].class);
+                            PlannerNamedWindowProperty[].class);
             return ctor.newInstance(
                     config,
                     inputType,

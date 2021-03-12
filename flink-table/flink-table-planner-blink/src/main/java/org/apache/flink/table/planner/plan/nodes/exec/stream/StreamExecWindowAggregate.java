@@ -25,10 +25,10 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
@@ -186,7 +186,7 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
         final List<PlannerWindowProperty> windowProperties =
                 Arrays.asList(
                         Arrays.stream(namedWindowProperties)
-                                .map(PlannerNamedWindowProperty::property)
+                                .map(PlannerNamedWindowProperty::getProperty)
                                 .toArray(PlannerWindowProperty[]::new));
 
         return generator.generateNamespaceAggsHandler(

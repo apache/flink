@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, FLINK_REL_BUILDER, RankFactory}
-import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
+import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
@@ -190,13 +189,6 @@ class FlinkRelBuilder(
 }
 
 object FlinkRelBuilder {
-
-  /**
-    * Information necessary to create a window aggregate.
-    *
-    * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
-    */
-  case class PlannerNamedWindowProperty(name: String, property: PlannerWindowProperty)
 
   case class NamedWindowProperty(name: String, property: WindowProperty)
 

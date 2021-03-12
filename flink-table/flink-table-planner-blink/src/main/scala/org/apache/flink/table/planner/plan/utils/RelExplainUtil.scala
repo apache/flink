@@ -20,16 +20,16 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 
 import com.google.common.collect.ImmutableMap
-import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
@@ -788,7 +788,7 @@ object RelExplainUtil {
       s"${call.getAggregation}($distinct$argList)$filter"
     })
 
-    val propStrings = namedProperties.map(_.property.toString)
+    val propStrings = namedProperties.map(_.getProperty.toString)
     (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
       case (f, o) => if (f == o) {
         f
