@@ -65,11 +65,7 @@ abstract class WatermarkAssigner(
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    val rowtimeFieldName = inputRel.getRowType.getFieldNames.get(rowtimeFieldIndex)
-    val newInputRel = inputs.get(0)
-    // the input fields maybe reordered, re-computed the rowtime index
-    val newIndex = newInputRel.getRowType.getFieldNames.indexOf(rowtimeFieldName)
-    copy(traitSet, newInputRel, newIndex, watermarkExpr)
+    copy(traitSet, inputs.get(0), rowtimeFieldIndex, watermarkExpr)
   }
 
   /**

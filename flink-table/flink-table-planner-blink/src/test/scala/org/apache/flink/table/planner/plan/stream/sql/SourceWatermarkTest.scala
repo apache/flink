@@ -137,4 +137,27 @@ class SourceWatermarkTest extends TableTestBase {
   def testWatermarkWithMetadata(): Unit = {
     util.verifyExecPlan("SELECT a, b FROM MyTable")
   }
+
+  @Test
+  def testProjectTransposeWatermarkAssigner(): Unit = {
+    val sourceDDL =
+      s"""
+         |CREATE TEMPORARY TABLE `t1` (
+         |  `a`  VARCHAR,
+         |  `b`  VARCHAR,
+         |  `c`  VARCHAR,
+         |  `d`  INT,
+         |  `t`  TIMESTAMP(3),
+         |  `ts` AS `t`,
+         |  WATERMARK FOR `ts` AS `ts`  - INTERVAL '10' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'enable-watermark-push-down' = 'true',
+         |  'bounded' = 'false',
+         |  'disable-lookup' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(sourceDDL)
+    util.verifyExecPlan("SELECT a, b, ts FROM t1")
+  }
 }
