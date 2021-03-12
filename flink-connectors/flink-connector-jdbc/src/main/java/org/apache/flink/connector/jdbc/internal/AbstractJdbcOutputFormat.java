@@ -36,7 +36,8 @@ import java.io.IOException;
 import java.sql.Connection;
 
 /** Base jdbc outputFormat. */
-public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable, InputTypeConfigurable {
+public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T>
+        implements Flushable, InputTypeConfigurable {
 
     private static final long serialVersionUID = 1L;
     public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
