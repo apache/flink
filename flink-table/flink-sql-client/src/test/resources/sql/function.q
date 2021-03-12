@@ -170,12 +170,12 @@ SET execution.result-mode=tableau;
 
 # run a query to verify the registered UDF works
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World'), (2, 'Hi')) as T(id, str);
-+-------------+----------------------+
-|          id |               EXPR$1 |
-+-------------+----------------------+
-|           1 |          hello world |
-|           2 |                   hi |
-+-------------+----------------------+
++----+-------------+----------------------+
+| op |          id |               EXPR$1 |
++----+-------------+----------------------+
+| +I |           1 |          hello world |
+| +I |           2 |                   hi |
++----+-------------+----------------------+
 Received a total of 2 rows
 !ok
 

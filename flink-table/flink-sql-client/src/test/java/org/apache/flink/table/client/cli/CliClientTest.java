@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -29,9 +31,10 @@ import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.context.SessionContext;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -44,6 +47,8 @@ import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -58,7 +63,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -119,9 +123,8 @@ public class CliClientTest extends TestLogger {
 
     @Test
     public void testHistoryFile() throws Exception {
-        final SessionContext context = new SessionContext("test-session", new Environment());
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession(context);
+        String sessionId = mockExecutor.openSession("test-session");
 
         InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
         Path historyFilePath = historyTempFile();
@@ -168,8 +171,7 @@ public class CliClientTest extends TestLogger {
     private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
         InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        SessionContext sessionContext = new SessionContext("test-session", new Environment());
-        String sessionId = executor.openSession(sessionContext);
+        String sessionId = executor.openSession("test-session");
 
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
@@ -181,10 +183,8 @@ public class CliClientTest extends TestLogger {
 
     private void verifyUpdateSubmission(
             String statement, boolean failExecution, boolean testFailure) throws Exception {
-        final SessionContext context = new SessionContext("test-session", new Environment());
-
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession(context);
+        String sessionId = mockExecutor.openSession("test-session");
         mockExecutor.failExecution = failExecution;
 
         try (CliClient client =
@@ -199,7 +199,6 @@ public class CliClientTest extends TestLogger {
             } else {
                 assertTrue(client.submitUpdate(statement));
                 assertEquals(statement, mockExecutor.receivedStatement);
-                assertEquals(context, mockExecutor.receivedContext);
             }
         }
     }
@@ -210,9 +209,8 @@ public class CliClientTest extends TestLogger {
             List<String> expectedHints,
             List<String> notExpectedHints)
             throws IOException {
-        final SessionContext context = new SessionContext("test-session", new Environment());
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession(context);
+        String sessionId = mockExecutor.openSession("test-session");
 
         final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
         final SqlMultiLineParser parser = new SqlMultiLineParser();
@@ -230,7 +228,6 @@ public class CliClientTest extends TestLogger {
             assertTrue(results.containsAll(expectedHints));
 
             assertEquals(statement, mockExecutor.receivedStatement);
-            assertEquals(context, mockExecutor.receivedContext);
             assertEquals(position, mockExecutor.receivedPosition);
             assertTrue(results.contains("HintA"));
             assertTrue(results.contains("Hint B"));
@@ -250,7 +247,6 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
-        public SessionContext receivedContext;
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
@@ -260,9 +256,15 @@ public class CliClientTest extends TestLogger {
         public void start() throws SqlExecutionException {}
 
         @Override
-        public String openSession(SessionContext session) throws SqlExecutionException {
-            String sessionId = UUID.randomUUID().toString();
-            sessionMap.put(sessionId, session);
+        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+            DefaultContext defaultContext =
+                    new DefaultContext(
+                            new Environment(),
+                            Collections.emptyList(),
+                            new Configuration(),
+                            Collections.singletonList(new DefaultCLI()));
+            SessionContext context = SessionContext.create(defaultContext, sessionId);
+            sessionMap.put(sessionId, context);
             helper.registerTables();
             return sessionId;
         }
@@ -286,7 +288,6 @@ public class CliClientTest extends TestLogger {
         @Override
         public TableResult executeSql(String sessionId, String statement)
                 throws SqlExecutionException {
-            receivedContext = sessionMap.get(sessionId);
             receivedStatement = statement;
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
@@ -310,7 +311,6 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public List<String> completeStatement(String sessionId, String statement, int position) {
-            receivedContext = sessionMap.get(sessionId);
             receivedStatement = statement;
             receivedPosition = position;
             return Arrays.asList("HintA", "Hint B");
