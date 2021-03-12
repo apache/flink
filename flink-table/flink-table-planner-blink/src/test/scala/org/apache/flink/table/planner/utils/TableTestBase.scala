@@ -745,7 +745,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val fileName = test.testName.getMethodName + ".out"
     val file = new File(s"./src/test/resources/$path/$fileName")
     if (file.exists()) {
-      val expected = TableTestUtil.readFromResource(s"/$path/$fileName")
+      val expected = TableTestUtil.readFromResource(s"$path/$fileName")
       assertEquals(
         TableTestUtil.replaceExecNodeId(
           TableTestUtil.getFormattedJson(expected)),
@@ -1634,8 +1634,13 @@ object TableTestUtil {
   }
 
   def readFromResource(path: String): String = {
-    val inputStream = getClass.getResource(path).getFile
-    val source = Source.fromFile(inputStream)
+    val basePath = getClass.getResource("/").getFile
+    val fullPath = if (path.startsWith("/")) {
+      s"$basePath${path.substring(1)}"
+    } else {
+      s"$basePath$path"
+    }
+    val source = Source.fromFile(fullPath)
     val str = source.mkString
     source.close()
     str

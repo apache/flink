@@ -78,7 +78,8 @@ class MiniBatchIntervalInferRule extends RelOptRule(
 
       case _ => if (rel.requireWatermark && miniBatchEnabled) {
         val mergedInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
-          miniBatchIntervalTrait.getMiniBatchInterval, MiniBatchInterval(0, MiniBatchMode.RowTime))
+          miniBatchIntervalTrait.getMiniBatchInterval,
+          new MiniBatchInterval(0, MiniBatchMode.RowTime))
         new MiniBatchIntervalTrait(mergedInterval)
       } else {
         miniBatchIntervalTrait
@@ -121,7 +122,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val mode = node.getTraitSet
       .getTrait(MiniBatchIntervalTraitDef.INSTANCE)
       .getMiniBatchInterval
-      .mode
+      .getMode
     node match {
       case _: StreamPhysicalDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
            _: StreamPhysicalTableSourceScan =>

@@ -35,7 +35,11 @@ import org.apache.flink.table.runtime.operators.wmassigners.RowTimeMiniBatchAssg
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,6 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_MINI_BATCH_INTERVAL = "miniBatchInterval";
+
+    @JsonProperty(FIELD_NAME_MINI_BATCH_INTERVAL)
     private final MiniBatchInterval miniBatchInterval;
 
     public StreamExecMiniBatchAssigner(
@@ -57,7 +65,22 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        this(
+                miniBatchInterval,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecMiniBatchAssigner(
+            @JsonProperty(FIELD_NAME_MINI_BATCH_INTERVAL) MiniBatchInterval miniBatchInterval,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
         this.miniBatchInterval = checkNotNull(miniBatchInterval);
     }
 
@@ -68,15 +91,15 @@ public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
         final OneInputStreamOperator<RowData, RowData> operator;
-        if (miniBatchInterval.mode() == MiniBatchMode.ProcTime()) {
-            operator = new ProcTimeMiniBatchAssignerOperator(miniBatchInterval.interval());
-        } else if (miniBatchInterval.mode() == MiniBatchMode.RowTime()) {
-            operator = new RowTimeMiniBatchAssginerOperator(miniBatchInterval.interval());
+        if (miniBatchInterval.getMode() == MiniBatchMode.ProcTime) {
+            operator = new ProcTimeMiniBatchAssignerOperator(miniBatchInterval.getInterval());
+        } else if (miniBatchInterval.getMode() == MiniBatchMode.RowTime) {
+            operator = new RowTimeMiniBatchAssginerOperator(miniBatchInterval.getInterval());
         } else {
             throw new TableException(
                     String.format(
                             "MiniBatchAssigner shouldn't be in %s mode this is a bug, please file an issue.",
-                            miniBatchInterval.mode()));
+                            miniBatchInterval.getMode()));
         }
 
         return new OneInputTransformation<>(
