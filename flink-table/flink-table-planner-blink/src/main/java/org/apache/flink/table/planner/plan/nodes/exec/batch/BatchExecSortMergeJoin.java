@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -31,6 +30,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -54,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link BatchExecNode} for Sort Merge Join. */
 public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final FlinkJoinType joinType;
     private final int[] leftKeys;
@@ -153,21 +153,14 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
         Transformation<RowData> rightInputTransform =
                 (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
-        TwoInputTransformation<RowData, RowData, RowData> transform =
-                ExecNodeUtil.createTwoInputTransformation(
-                        leftInputTransform,
-                        rightInputTransform,
-                        getDescription(),
-                        SimpleOperatorFactory.of(operator),
-                        InternalTypeInfo.of(getOutputType()),
-                        rightInputTransform.getParallelism(),
-                        managedMemory);
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-        return transform;
+        return ExecNodeUtil.createTwoInputTransformation(
+                leftInputTransform,
+                rightInputTransform,
+                getDescription(),
+                SimpleOperatorFactory.of(operator),
+                InternalTypeInfo.of(getOutputType()),
+                rightInputTransform.getParallelism(),
+                managedMemory);
     }
 
     private SortCodeGenerator newSortGen(

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -45,7 +46,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for (global) sort-based aggregate operator. */
 public class BatchExecSortAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData> {
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final int[] auxGrouping;

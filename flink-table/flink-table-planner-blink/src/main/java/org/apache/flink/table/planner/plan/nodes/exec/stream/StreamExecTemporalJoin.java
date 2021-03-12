@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -61,7 +62,7 @@ import java.util.stream.IntStream;
  * difference is the validation, we reuse most same logic here.
  */
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     public static final int FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE = -1;
 
@@ -135,11 +136,6 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            ret.setParallelism(1);
-            ret.setMaxParallelism(1);
-        }
 
         // set KeyType and Selector for state
         RowDataKeySelector leftKeySelector = getLeftKeySelector(leftInputType);

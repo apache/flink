@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.trait.MiniBatchInterval;
 import org.apache.flink.table.planner.plan.trait.MiniBatchMode;
 import org.apache.flink.table.runtime.operators.wmassigners.ProcTimeMiniBatchAssignerOperator;
@@ -48,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * mini-batch needs.
  */
 public class StreamExecMiniBatchAssigner extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private final MiniBatchInterval miniBatchInterval;
 
     public StreamExecMiniBatchAssigner(

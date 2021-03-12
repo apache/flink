@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -53,7 +54,7 @@ import java.util.Collections;
 
 /** Stream {@link ExecNode} for unbounded java/scala group table aggregate. */
 public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupTableAggregate.class);
 
     private final int[] grouping;
@@ -151,11 +152,6 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
