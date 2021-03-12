@@ -764,6 +764,7 @@ public class SqlDateTimeUtils {
             case MONTH:
             case YEAR:
             case QUARTER:
+            case WEEK:
                 int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
                 return julianDateFloor(range, days, true) * MILLIS_PER_DAY - offset;
             default:
@@ -794,6 +795,7 @@ public class SqlDateTimeUtils {
             case MONTH:
             case YEAR:
             case QUARTER:
+            case WEEK:
                 int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
                 return julianDateFloor(range, days, false) * MILLIS_PER_DAY - offset;
             default:
@@ -856,6 +858,13 @@ public class SqlDateTimeUtils {
                     quarter += 1;
                 }
                 return DateTimeUtils.ymdToUnixDate(year, quarter * 3 - 2, 1);
+            case WEEK:
+                int dow = (int) DateTimeUtils.floorMod(julian + 1, 7); // sun=0, sat=6
+                int offset = dow;
+                if (!floor && offset > 0) {
+                    offset -= 7;
+                }
+                return DateTimeUtils.ymdToUnixDate(year, month, day) - offset;
             default:
                 throw new AssertionError(range);
         }
