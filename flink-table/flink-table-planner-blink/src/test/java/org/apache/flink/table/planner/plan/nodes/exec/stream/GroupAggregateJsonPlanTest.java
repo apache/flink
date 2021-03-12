@@ -29,12 +29,25 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** Test json serialization/deserialization for group aggregate. */
+@RunWith(Parameterized.class)
 public class GroupAggregateJsonPlanTest extends TableTestBase {
+
+    @Parameterized.Parameter public boolean isMiniBatchEnabled;
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
+
+    @Parameterized.Parameters(name = "isMiniBatchEnabled={0}")
+    public static List<Boolean> testData() {
+        return Arrays.asList(true, false);
+    }
 
     @Before
     public void setup() {

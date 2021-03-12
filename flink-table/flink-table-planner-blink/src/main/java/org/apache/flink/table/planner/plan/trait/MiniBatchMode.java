@@ -16,18 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec;
+package org.apache.flink.table.planner.plan.trait;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.dag.Transformation;
+/** The type of mini-batch interval: rowtime or proctime. */
+public enum MiniBatchMode {
 
-/**
- * An {@link ExecNodeTranslator} that will generate only ONE {@link Transformation}.
- *
- * <p>This interface is just an convention that this translator will always return one
- * Transformation, while the planner does not check the result.
- *
- * @param <T> The type of the elements that result from this translator.
- */
-@Internal
-public interface SingleTransformationTranslator<T> extends ExecNodeTranslator<T> {}
+    /**
+     * An operator in {@code #ProcTime} mode requires watermarks emitted in proctime interval, i.e.,
+     * unbounded group agg with mini-batch enabled.
+     */
+    ProcTime,
+
+    /**
+     * An operator in {@code #RowTime} mode requires watermarks extracted from elements, and emitted
+     * in rowtime interval, e.g., window, window join...
+     */
+    RowTime,
+
+    /** Default value, meaning no mini-batch interval is required. */
+    None
+}

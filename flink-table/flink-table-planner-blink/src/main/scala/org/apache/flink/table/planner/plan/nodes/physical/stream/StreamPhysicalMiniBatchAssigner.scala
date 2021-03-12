@@ -56,8 +56,8 @@ class StreamPhysicalMiniBatchAssigner(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val miniBatchInterval = traits.getTrait(MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
     super.explainTerms(pw)
-      .item("interval", miniBatchInterval.interval + "ms")
-      .item("mode", miniBatchInterval.mode.toString)
+      .item("interval", miniBatchInterval.getInterval + "ms")
+      .item("mode", miniBatchInterval.getMode.toString)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

@@ -71,7 +71,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecExpand",
                     "StreamExecMultipleInput",
                     "StreamExecWatermarkAssigner",
-                    "StreamExecMiniBatchAssigner",
                     "StreamExecMatch",
                     "StreamExecUnion",
                     "StreamExecValues",
