@@ -159,7 +159,8 @@ public class JdbcBatchingOutputFormat<
         checkFlushException();
 
         try {
-            addToBatch(record, jdbcRecordExtractor.apply(record));
+            In serializedRecord = serializeRecord(record);
+            addToBatch(record, jdbcRecordExtractor.apply(serializedRecord));
             batchCount++;
             if (executionOptions.getBatchSize() > 0
                     && batchCount >= executionOptions.getBatchSize()) {
@@ -168,6 +169,13 @@ public class JdbcBatchingOutputFormat<
         } catch (Exception e) {
             throw new IOException("Writing records to JDBC failed.", e);
         }
+    }
+
+    private In serializeRecord(In record) {
+        if (serializer == null) {
+            return record;
+        }
+        return serializer.copy(record);
     }
 
     protected void addToBatch(In original, JdbcIn extracted) throws SQLException {
