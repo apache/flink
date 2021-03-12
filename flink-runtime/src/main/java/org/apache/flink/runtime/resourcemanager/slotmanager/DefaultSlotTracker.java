@@ -141,12 +141,15 @@ public class DefaultSlotTracker implements SlotTracker {
     // ---------------------------------------------------------------------------------------------
 
     @Override
-    public void notifySlotStatus(Iterable<SlotStatus> slotStatuses) {
+    public boolean notifySlotStatus(Iterable<SlotStatus> slotStatuses) {
         Preconditions.checkNotNull(slotStatuses);
+        boolean anyStatusChanged = false;
         for (SlotStatus slotStatus : slotStatuses) {
-            slotStatusStateReconciler.executeStateTransition(
-                    slots.get(slotStatus.getSlotID()), slotStatus.getJobID());
+            anyStatusChanged |=
+                    slotStatusStateReconciler.executeStateTransition(
+                            slots.get(slotStatus.getSlotID()), slotStatus.getJobID());
         }
+        return anyStatusChanged;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -246,36 +249,49 @@ public class DefaultSlotTracker implements SlotTracker {
             this.toAllocatedSlot = toAllocatedSlot;
         }
 
-        public void executeStateTransition(DeclarativeTaskManagerSlot slot, JobID jobId) {
-            if (jobId == null) { // free slot
-                switch (slot.getState()) {
+        public boolean executeStateTransition(DeclarativeTaskManagerSlot slot, JobID jobId) {
+            final SlotState reportedSlotState =
+                    jobId == null ? SlotState.FREE : SlotState.ALLOCATED;
+            final SlotState trackedSlotState = slot.getState();
+
+            if (reportedSlotState == SlotState.FREE) {
+                switch (trackedSlotState) {
+                    case FREE:
+                        // matching state
+                        return false;
                     case PENDING:
                         // don't do anything because we expect the slot to be allocated soon
-                        break;
+                        return false;
                     case ALLOCATED:
                         toFreeSlot.accept(slot);
+                        return true;
                 }
-            } else { // allocate slot
-                switch (slot.getState()) {
+            } else {
+                switch (trackedSlotState) {
                     case FREE:
                         toPendingSlot.accept(slot, jobId);
                         toAllocatedSlot.accept(slot, jobId);
-                        break;
+                        return true;
                     case PENDING:
                         if (!jobId.equals(slot.getJobId())) {
                             toFreeSlot.accept(slot);
                             toPendingSlot.accept(slot, jobId);
                         }
                         toAllocatedSlot.accept(slot, jobId);
-                        break;
+                        return true;
                     case ALLOCATED:
                         if (!jobId.equals(slot.getJobId())) {
                             toFreeSlot.accept(slot);
                             toPendingSlot.accept(slot, jobId);
                             toAllocatedSlot.accept(slot, jobId);
+                            return true;
+                        } else {
+                            // matching state
+                            return false;
                         }
                 }
             }
+            return false;
         }
     }
 
