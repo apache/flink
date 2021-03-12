@@ -29,9 +29,9 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
@@ -66,7 +66,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
     private final int inputTimeFieldIndex;
-    private final FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties;
+    private final PlannerNamedWindowProperty[] namedWindowProperties;
 
     public BatchExecPythonGroupWindowAggregate(
             int[] grouping,
@@ -74,7 +74,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             AggregateCall[] aggCalls,
             LogicalWindow window,
             int inputTimeFieldIndex,
-            FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties,
+            PlannerNamedWindowProperty[] namedWindowProperties,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -130,7 +130,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 Arrays.stream(namedWindowProperties)
                         .mapToInt(
                                 p -> {
-                                    PlannerWindowProperty property = p.property();
+                                    PlannerWindowProperty property = p.getProperty();
                                     if (property instanceof PlannerWindowStart) {
                                         return 0;
                                     }
