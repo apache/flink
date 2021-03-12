@@ -562,24 +562,22 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public int getNumberRegisteredSlots() {
-        return taskManagerTracker.getClusterResourceOverview().getNumberRegisteredSlots();
+        return taskManagerTracker.getNumberRegisteredSlots();
     }
 
     @Override
     public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
-        return taskManagerTracker
-                .getClusterResourceOverview()
-                .getNumberRegisteredSlotsOf(instanceId);
+        return taskManagerTracker.getNumberRegisteredSlotsOf(instanceId);
     }
 
     @Override
     public int getNumberFreeSlots() {
-        return taskManagerTracker.getClusterResourceOverview().getNumberFreeSlots();
+        return taskManagerTracker.getNumberFreeSlots();
     }
 
     @Override
     public int getNumberFreeSlotsOf(InstanceID instanceId) {
-        return taskManagerTracker.getClusterResourceOverview().getNumberFreeSlotsOf(instanceId);
+        return taskManagerTracker.getNumberFreeSlotsOf(instanceId);
     }
 
     @Override
@@ -595,22 +593,22 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public ResourceProfile getRegisteredResource() {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResource();
+        return taskManagerTracker.getRegisteredResource();
     }
 
     @Override
     public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getRegisteredResourceOf(instanceID);
     }
 
     @Override
     public ResourceProfile getFreeResource() {
-        return taskManagerTracker.getClusterResourceOverview().getFreeResource();
+        return taskManagerTracker.getFreeResource();
     }
 
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getRegisteredResourceOf(instanceID);
     }
 
     @Override

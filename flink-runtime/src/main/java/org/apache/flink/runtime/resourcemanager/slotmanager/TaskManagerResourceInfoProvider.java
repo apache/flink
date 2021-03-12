@@ -69,13 +69,6 @@ interface TaskManagerResourceInfoProvider {
     Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(AllocationID allocationId);
 
     /**
-     * Get the current {@link ClusterResourceOverview}.
-     *
-     * @return the current {@link ClusterResourceOverview}
-     */
-    ClusterResourceOverview getClusterResourceOverview();
-
-    /**
      * Get all pending task managers with given total and default slot profile.
      *
      * @param totalResourceProfile of the pending task manager
