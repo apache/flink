@@ -54,9 +54,9 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
      */
     private final ExecutionAttemptID executionId;
 
-    @Nullable protected final JobVertexID vertexId;
+    protected final JobVertexID vertexId;
 
-    @Nullable private final String taskName;
+    private final String taskName;
 
     protected final int subtaskIndex;
 
@@ -67,9 +67,9 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     public TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
-            @Nullable JobVertexID vertexId,
+            JobVertexID vertexId,
             ExecutionAttemptID executionId,
-            @Nullable String taskName,
+            String taskName,
             int subtaskIndex,
             int attemptNumber) {
         super(
@@ -86,8 +86,8 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
                 parent);
 
         this.executionId = checkNotNull(executionId);
-        this.vertexId = vertexId;
-        this.taskName = taskName;
+        this.vertexId = checkNotNull(vertexId);
+        this.taskName = checkNotNull(taskName);
         this.subtaskIndex = subtaskIndex;
         this.attemptNumber = attemptNumber;
 
