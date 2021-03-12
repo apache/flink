@@ -210,14 +210,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             final Collection<JobID> jobIds = waitForRunningJobs(clusterClient, timeout);
 
             assertThat(jobIds, hasSize(1));
-            final JobID jobId = jobIds.iterator().next();
 
             // kill the TaskManager after the job started to run
             taskManagerProcess.destroy();
             taskManagerProcess = null;
-
-            // try to cancel the job
-            clusterClient.cancel(jobId).get();
 
             // we should see a failure within reasonable time (10s is the ask timeout).
             // since the CI environment is often slow, we conservatively give it up to 2 minutes,
