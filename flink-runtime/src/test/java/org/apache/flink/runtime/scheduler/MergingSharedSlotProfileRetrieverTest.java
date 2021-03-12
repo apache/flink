@@ -72,7 +72,7 @@ public class MergingSharedSlotProfileRetrieverTest {
         assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
         assertThat(slotProfile.getPreferredLocations(), hasSize(0));
         assertThat(slotProfile.getPreferredAllocations(), hasSize(0));
-        assertThat(slotProfile.getPreviousExecutionGraphAllocations(), hasSize(0));
+        assertThat(slotProfile.getReservedAllocations(), hasSize(0));
     }
 
     @Test
@@ -147,7 +147,7 @@ public class MergingSharedSlotProfileRetrieverTest {
                 slotProfile.getPreferredAllocations(),
                 containsInAnyOrder(prevAllocationID1, prevAllocationID2));
         assertThat(
-                slotProfile.getPreviousExecutionGraphAllocations(),
+                slotProfile.getReservedAllocations(),
                 containsInAnyOrder(prevAllocationIDs.toArray()));
     }
 

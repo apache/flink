@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Collection;
@@ -47,21 +48,21 @@ public class SlotProfile {
     /** This contains desired allocation ids of the slot. */
     private final Collection<AllocationID> preferredAllocations;
 
-    /** This contains all prior allocation ids from the whole execution graph. */
-    private final Set<AllocationID> previousExecutionGraphAllocations;
+    /** This contains all reserved allocation ids from the whole execution graph. */
+    private final Set<AllocationID> reservedAllocations;
 
     private SlotProfile(
             final ResourceProfile taskResourceProfile,
             final ResourceProfile physicalSlotResourceProfile,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> preferredAllocations,
-            final Set<AllocationID> previousExecutionGraphAllocations) {
+            final Set<AllocationID> reservedAllocations) {
 
         this.taskResourceProfile = checkNotNull(taskResourceProfile);
         this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
         this.preferredLocations = checkNotNull(preferredLocations);
         this.preferredAllocations = checkNotNull(preferredAllocations);
-        this.previousExecutionGraphAllocations = checkNotNull(previousExecutionGraphAllocations);
+        this.reservedAllocations = checkNotNull(reservedAllocations);
     }
 
     /** Returns the desired resource profile for the task slot. */
@@ -85,12 +86,14 @@ public class SlotProfile {
     }
 
     /**
-     * Returns a set of all previous allocation ids from the execution graph.
+     * Returns a set of all reserved allocation ids from the execution graph. It will used by {@link
+     * PreviousAllocationSlotSelectionStrategy} to support local recovery. In this case, a vertex
+     * cannot take an reserved allocation unless it exactly prefers that allocation.
      *
      * <p>This is optional and can be empty if unused.
      */
-    public Set<AllocationID> getPreviousExecutionGraphAllocations() {
-        return previousExecutionGraphAllocations;
+    public Set<AllocationID> getReservedAllocations() {
+        return reservedAllocations;
     }
 
     /**
@@ -102,8 +105,7 @@ public class SlotProfile {
      *     host this task slot
      * @param preferredLocations specifying the preferred locations
      * @param priorAllocations specifying the prior allocations
-     * @param previousExecutionGraphAllocations specifying all prior allocation ids from the whole
-     *     execution graph
+     * @param reservedAllocations specifying all reserved allocations
      * @return Slot profile with all the given information
      */
     public static SlotProfile priorAllocation(
@@ -111,13 +113,13 @@ public class SlotProfile {
             final ResourceProfile physicalSlotResourceProfile,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> priorAllocations,
-            final Set<AllocationID> previousExecutionGraphAllocations) {
+            final Set<AllocationID> reservedAllocations) {
 
         return new SlotProfile(
                 taskResourceProfile,
                 physicalSlotResourceProfile,
                 preferredLocations,
                 priorAllocations,
-                previousExecutionGraphAllocations);
+                reservedAllocations);
     }
 }
