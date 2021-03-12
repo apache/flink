@@ -257,11 +257,6 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     }
 
     @Override
-    public ClusterResourceOverview getClusterResourceOverview() {
-        return new ClusterResourceOverview(taskManagerRegistrations);
-    }
-
-    @Override
     public Collection<PendingTaskManager>
             getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
                     ResourceProfile totalResourceProfile,
@@ -270,6 +265,67 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 totalAndDefaultSlotProfilesToPendingTaskManagers.getOrDefault(
                         Tuple2.of(totalResourceProfile, defaultSlotResourceProfile),
                         Collections.emptySet()));
+    }
+
+    @Override
+    public int getNumberRegisteredSlots() {
+        return taskManagerRegistrations.values().stream()
+                .mapToInt(TaskManagerInfo::getDefaultNumSlots)
+                .sum();
+    }
+
+    @Override
+    public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceId))
+                .map(TaskManagerInfo::getDefaultNumSlots)
+                .orElse(0);
+    }
+
+    @Override
+    public int getNumberFreeSlots() {
+        return taskManagerRegistrations.keySet().stream()
+                .mapToInt(this::getNumberFreeSlotsOf)
+                .sum();
+    }
+
+    @Override
+    public int getNumberFreeSlotsOf(InstanceID instanceId) {
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceId))
+                .map(
+                        taskManager ->
+                                Math.max(
+                                        taskManager.getDefaultNumSlots()
+                                                - taskManager.getAllocatedSlots().size(),
+                                        0))
+                .orElse(0);
+    }
+
+    @Override
+    public ResourceProfile getRegisteredResource() {
+        return taskManagerRegistrations.values().stream()
+                .map(TaskManagerInfo::getTotalResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+    }
+
+    @Override
+    public ResourceProfile getRegisteredResourceOf(InstanceID instanceId) {
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceId))
+                .map(TaskManagerInfo::getTotalResource)
+                .orElse(ResourceProfile.ZERO);
+    }
+
+    @Override
+    public ResourceProfile getFreeResource() {
+        return taskManagerRegistrations.values().stream()
+                .map(TaskManagerInfo::getAvailableResource)
+                .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
+    }
+
+    @Override
+    public ResourceProfile getFreeResourceOf(InstanceID instanceId) {
+        return Optional.ofNullable(taskManagerRegistrations.get(instanceId))
+                .map(TaskManagerInfo::getAvailableResource)
+                .orElse(ResourceProfile.ZERO);
     }
 
     @Override

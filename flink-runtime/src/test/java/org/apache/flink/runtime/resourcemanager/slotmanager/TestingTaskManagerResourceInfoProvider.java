@@ -42,7 +42,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
     private final Supplier<Collection<PendingTaskManager>> pendingTaskManagersSupplier;
     private final Function<AllocationID, Optional<TaskManagerSlotInformation>>
             getAllocatedOrPendingSlotFunction;
-    private final Supplier<ClusterResourceOverview> clusterResourceOverviewSupplier;
     private final BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
             getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction;
 
@@ -54,7 +53,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
             Supplier<Collection<PendingTaskManager>> pendingTaskManagersSupplier,
             Function<AllocationID, Optional<TaskManagerSlotInformation>>
                     getAllocatedOrPendingSlotFunction,
-            Supplier<ClusterResourceOverview> clusterResourceOverviewSupplier,
             BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
                     getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction) {
         this.getPendingAllocationsOfPendingTaskManagerFunction =
@@ -66,8 +64,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
         this.pendingTaskManagersSupplier = Preconditions.checkNotNull(pendingTaskManagersSupplier);
         this.getAllocatedOrPendingSlotFunction =
                 Preconditions.checkNotNull(getAllocatedOrPendingSlotFunction);
-        this.clusterResourceOverviewSupplier =
-                Preconditions.checkNotNull(clusterResourceOverviewSupplier);
         this.getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
                 Preconditions.checkNotNull(
                         getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction);
@@ -101,11 +97,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
     }
 
     @Override
-    public ClusterResourceOverview getClusterResourceOverview() {
-        return clusterResourceOverviewSupplier.get();
-    }
-
-    @Override
     public Collection<PendingTaskManager>
             getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
                     ResourceProfile totalResourceProfile,
@@ -130,17 +121,9 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
                 Collections::emptyList;
         private Function<AllocationID, Optional<TaskManagerSlotInformation>>
                 getAllocatedOrPendingSlotFunction = ignore -> Optional.empty();
-        private Supplier<ClusterResourceOverview> clusterResourceOverviewSupplier =
-                () -> new ClusterResourceOverview(Collections.emptyMap());
         private BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
                 getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
                         (ignored1, ignored2) -> Collections.emptyList();
-
-        public Builder setClusterResourceOverviewSupplier(
-                Supplier<ClusterResourceOverview> clusterResourceOverviewSupplier) {
-            this.clusterResourceOverviewSupplier = clusterResourceOverviewSupplier;
-            return this;
-        }
 
         public Builder setGetAllocatedOrPendingSlotFunction(
                 Function<AllocationID, Optional<TaskManagerSlotInformation>>
@@ -190,7 +173,6 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
                     getRegisteredTaskManagerFunction,
                     pendingTaskManagersSupplier,
                     getAllocatedOrPendingSlotFunction,
-                    clusterResourceOverviewSupplier,
                     getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction);
         }
     }
