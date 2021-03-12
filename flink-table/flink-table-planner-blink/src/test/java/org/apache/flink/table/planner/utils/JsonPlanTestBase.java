@@ -116,6 +116,18 @@ public abstract class JsonPlanTestBase {
         createTestValuesSinkTable(tableName, fieldNameAndTypes, new HashMap<>());
     }
 
+    protected void createTestNonInsertOnlyValuesSinkTable(
+            String tableName, String... fieldNameAndTypes) {
+        createTestValuesSinkTable(
+                tableName,
+                fieldNameAndTypes,
+                new HashMap<String, String>() {
+                    {
+                        put("sink-insert-only", "false");
+                    }
+                });
+    }
+
     protected void createTestValuesSinkTable(
             String tableName, String[] fieldNameAndTypes, Map<String, String> extraProperties) {
         createTestValuesSinkTable(tableName, fieldNameAndTypes, null, extraProperties);

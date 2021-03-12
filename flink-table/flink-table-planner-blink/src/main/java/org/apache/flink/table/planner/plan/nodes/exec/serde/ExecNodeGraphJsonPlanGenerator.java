@@ -46,6 +46,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
@@ -109,6 +110,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addSerializer(new RelDataTypeJsonSerializer());
         // RexNode is used in many exec nodes, so we register its serializer directly here
         module.addSerializer(new RexNodeJsonSerializer());
+        module.addSerializer(new AggregateCallJsonSerializer());
     }
 
     private static void registerDeserializers(SimpleModule module) {
@@ -120,6 +122,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         // RexNode is used in many exec nodes, so we register its deserializer directly here
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
+        module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
     }
 
     /** Check whether the given {@link ExecNodeGraph} is completely legal. */
