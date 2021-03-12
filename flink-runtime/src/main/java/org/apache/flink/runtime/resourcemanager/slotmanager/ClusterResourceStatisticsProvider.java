@@ -47,4 +47,7 @@ public interface ClusterResourceStatisticsProvider {
 
     /** Get profile of free resources from the TaskManager with the given instance id. */
     ResourceProfile getFreeResourceOf(InstanceID instanceId);
+
+    /** Get profile of total pending resources. */
+    ResourceProfile getPendingResource();
 }
