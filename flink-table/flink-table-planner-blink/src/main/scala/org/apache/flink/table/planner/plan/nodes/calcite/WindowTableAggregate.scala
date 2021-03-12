@@ -56,7 +56,7 @@ abstract class WindowTableAggregate(
     namedProperties.foreach { namedProp =>
       builder.add(
         namedProp.name,
-        typeFactory.createFieldTypeFromLogicalType(namedProp.property.resultType)
+        typeFactory.createFieldTypeFromLogicalType(namedProp.property.getResultType)
       )
     }
     builder.build()

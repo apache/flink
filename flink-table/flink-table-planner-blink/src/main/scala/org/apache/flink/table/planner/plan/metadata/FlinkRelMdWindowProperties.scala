@@ -18,14 +18,6 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.calcite.plan.hep.HepRelVertex
-import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core._
-import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.util.{ImmutableBitSet, Util}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
@@ -36,6 +28,15 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.WindowUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, isWindowTableFunctionCall}
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
+
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.metadata._
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util.Collections
 
@@ -247,13 +248,13 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val propertyOffset = rel.grouping.length + rel.aggCalls.size()
     rel.namedWindowProperties.map(_.property).zipWithIndex.foreach { case (p, index) =>
       p match {
-        case PlannerWindowStart(_) =>
+        case _: PlannerWindowStart =>
           starts += propertyOffset + index
 
-        case PlannerWindowEnd(_) =>
+        case _: PlannerWindowEnd =>
           ends += propertyOffset + index
 
-        case PlannerRowtimeAttribute(_) | PlannerProctimeAttribute(_) =>
+        case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
           times += propertyOffset + index
       }
     }

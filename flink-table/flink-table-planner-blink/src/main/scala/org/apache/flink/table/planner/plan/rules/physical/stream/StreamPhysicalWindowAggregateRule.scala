@@ -18,11 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rex.{RexInputRef, RexProgram}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.expressions._
@@ -35,6 +30,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalWindowAggregateRule.{WINDOW_END, WINDOW_START, WINDOW_TIME}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.WindowUtil
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.rex.{RexInputRef, RexProgram}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -182,18 +183,19 @@ class StreamPhysicalWindowAggregateRule
       endColumns: Array[Int],
       timeColumns: Array[Int]): Seq[PlannerNamedWindowProperty] = {
     val windowProperties = ArrayBuffer[PlannerNamedWindowProperty]()
-    val windowRef = PlannerWindowReference("w$", Some(windowingStrategy.getTimeAttributeType))
+    val windowRef = new PlannerWindowReference("w$", windowingStrategy.getTimeAttributeType)
     if (!startColumns.isEmpty) {
-      windowProperties += PlannerNamedWindowProperty(WINDOW_START, PlannerWindowStart(windowRef))
+      windowProperties +=
+        PlannerNamedWindowProperty(WINDOW_START, new PlannerWindowStart(windowRef))
     }
     if (!endColumns.isEmpty) {
-      windowProperties += PlannerNamedWindowProperty(WINDOW_END, PlannerWindowEnd(windowRef))
+      windowProperties += PlannerNamedWindowProperty(WINDOW_END, new PlannerWindowEnd(windowRef))
     }
     if (!timeColumns.isEmpty) {
       val property = if (windowingStrategy.isRowtime) {
-        PlannerRowtimeAttribute(windowRef)
+        new PlannerRowtimeAttribute(windowRef)
       } else {
-        PlannerProctimeAttribute(windowRef)
+        new PlannerProctimeAttribute(windowRef)
       }
       windowProperties += PlannerNamedWindowProperty(WINDOW_TIME, property)
     }

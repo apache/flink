@@ -109,8 +109,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import scala.Some;
-
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
@@ -585,7 +583,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             DataType windowType = window.getTimeAttribute().getOutputDataType();
             PlannerWindowReference windowReference =
                     new PlannerWindowReference(
-                            window.getAlias(), new Some<>(fromDataToLogicalType(windowType)));
+                            window.getAlias(), fromDataToLogicalType(windowType));
             switch (window.getType()) {
                 case SLIDE:
                     return new SlidingGroupWindow(

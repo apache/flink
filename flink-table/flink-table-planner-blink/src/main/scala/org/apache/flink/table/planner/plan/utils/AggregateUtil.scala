@@ -975,21 +975,21 @@ object AggregateUtil extends Enumeration {
       case (p, (s, e, rt, i)) => p match {
         case PlannerNamedWindowProperty(_, prop) =>
           prop match {
-            case PlannerWindowStart(_) if s.isDefined =>
+            case _: PlannerWindowStart if s.isDefined =>
               throw new TableException(
                 "Duplicate window start property encountered. This is a bug.")
-            case PlannerWindowStart(_) =>
+            case _: PlannerWindowStart =>
               (Some(i), e, rt, i - 1)
-            case PlannerWindowEnd(_) if e.isDefined =>
+            case _: PlannerWindowEnd if e.isDefined =>
               throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case PlannerWindowEnd(_) =>
+            case _: PlannerWindowEnd =>
               (s, Some(i), rt, i - 1)
-            case PlannerRowtimeAttribute(_) if rt.isDefined =>
+            case _: PlannerRowtimeAttribute if rt.isDefined =>
               throw new TableException(
                 "Duplicate window rowtime property encountered. This is a bug.")
-            case PlannerRowtimeAttribute(_) =>
+            case _: PlannerRowtimeAttribute =>
               (s, e, Some(i), i - 1)
-            case PlannerProctimeAttribute(_) =>
+            case _: PlannerProctimeAttribute =>
               // ignore this property, it will be null at the position later
               (s, e, rt, i - 1)
           }

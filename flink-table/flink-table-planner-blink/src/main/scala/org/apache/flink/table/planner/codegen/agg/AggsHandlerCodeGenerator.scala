@@ -1033,24 +1033,24 @@ class AggsHandlerCodeGenerator(
             s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
             "false",
             "",
-            w.resultType)
+            w.getResultType)
         case w: PlannerWindowEnd =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM)",
             "false",
             "",
-            w.resultType)
+            w.getResultType)
         case r: PlannerRowtimeAttribute =>
           // return a rowtime, use TimestampData as internal type
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM - 1)",
             "false",
             "",
-            r.resultType)
+            r.getResultType)
         case p: PlannerProctimeAttribute =>
           // ignore this property, it will be null at the position later
-          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.resultType)
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
       }
     } else {
       windowProperties.map {
@@ -1060,24 +1060,24 @@ class AggsHandlerCodeGenerator(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
             "false",
             "",
-            w.resultType)
+            w.getResultType)
         case w: PlannerWindowEnd =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
             "false",
             "",
-            w.resultType)
+            w.getResultType)
         case r: PlannerRowtimeAttribute =>
           // return a rowtime, use TimestampData as internal type
           GeneratedExpression(
             s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
             "false",
             "",
-            r.resultType)
+            r.getResultType)
         case p: PlannerProctimeAttribute =>
           // ignore this property, it will be null at the position later
-          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.resultType)
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
       }
     }
   }

@@ -339,8 +339,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       rowType: RelDataType): LogicalWindow = {
 
     val timeField = getTimeFieldReference(windowExpr.getOperands.get(0), windowExprIdx, rowType)
-    val resultType = Some(fromDataTypeToLogicalType(timeField.getOutputDataType))
-    val windowRef = PlannerWindowReference("w$", resultType)
+    val resultType = fromDataTypeToLogicalType(timeField.getOutputDataType)
+    val windowRef = new PlannerWindowReference("w$", resultType)
     windowExpr.getOperator match {
       case FlinkSqlOperatorTable.TUMBLE_OLD =>
         val interval = getOperandAsLong(windowExpr, 1)
