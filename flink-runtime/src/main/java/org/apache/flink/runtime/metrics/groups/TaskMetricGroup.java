@@ -144,31 +144,32 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     //  operators and cleanup
     // ------------------------------------------------------------------------
 
-    public OperatorMetricGroup getOrAddOperator(String name) {
-        return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), name);
+    public OperatorMetricGroup getOrAddOperator(String operatorName) {
+        return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), operatorName);
     }
 
-    public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
-        final String metricName;
-        if (name != null && name.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
+    public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String operatorName) {
+        final String truncatedOperatorName;
+        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
             LOG.warn(
                     "The operator name {} exceeded the {} characters length limit and was truncated.",
-                    name,
+                    operatorName,
                     METRICS_OPERATOR_NAME_MAX_LENGTH);
-            metricName = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+            truncatedOperatorName = operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
         } else {
-            metricName = name;
+            truncatedOperatorName = operatorName;
         }
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
         // operators
-        final String key = operatorID + metricName;
+        final String key = operatorID + truncatedOperatorName;
 
         synchronized (this) {
             return operators.computeIfAbsent(
                     key,
                     operator ->
-                            new OperatorMetricGroup(this.registry, this, operatorID, metricName));
+                            new OperatorMetricGroup(
+                                    this.registry, this, operatorID, truncatedOperatorName));
         }
     }
 
