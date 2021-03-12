@@ -201,9 +201,10 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
     // ------------------------------------------------------------------------------------------
 
     private static SliceAssigner createSliceAssigner(WindowingStrategy windowingStrategy) {
-        WindowSpec windowSpec = windowingStrategy.window();
+        WindowSpec windowSpec = windowingStrategy.getWindow();
         if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
-            int windowEndIndex = ((WindowAttachedWindowingStrategy) windowingStrategy).windowEnd();
+            int windowEndIndex =
+                    ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowEnd();
             // we don't need time attribute to assign windows, use a magic value in this case
             SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
             return SliceAssigners.windowed(windowEndIndex, innerAssigner);
@@ -212,7 +213,8 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
             final int timeAttributeIndex;
             if (windowingStrategy.isRowtime()) {
                 timeAttributeIndex =
-                        ((TimeAttributeWindowingStrategy) windowingStrategy).timeAttribute();
+                        ((TimeAttributeWindowingStrategy) windowingStrategy)
+                                .getTimeAttributeIndex();
             } else {
                 timeAttributeIndex = -1;
             }
@@ -226,12 +228,12 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
     private static SliceAssigner createSliceAssigner(
             WindowSpec windowSpec, int timeAttributeIndex) {
         if (windowSpec instanceof TumblingWindowSpec) {
-            Duration size = ((TumblingWindowSpec) windowSpec).size();
+            Duration size = ((TumblingWindowSpec) windowSpec).getSize();
             return SliceAssigners.tumbling(timeAttributeIndex, size);
 
         } else if (windowSpec instanceof HoppingWindowSpec) {
-            Duration size = ((HoppingWindowSpec) windowSpec).size();
-            Duration slide = ((HoppingWindowSpec) windowSpec).slide();
+            Duration size = ((HoppingWindowSpec) windowSpec).getSize();
+            Duration slide = ((HoppingWindowSpec) windowSpec).getSlide();
             if (size.toMillis() % slide.toMillis() != 0) {
                 throw new TableException(
                         String.format(
@@ -242,8 +244,8 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
             return SliceAssigners.hopping(timeAttributeIndex, size, slide);
 
         } else if (windowSpec instanceof CumulativeWindowSpec) {
-            Duration maxSize = ((CumulativeWindowSpec) windowSpec).maxSize();
-            Duration step = ((CumulativeWindowSpec) windowSpec).step();
+            Duration maxSize = ((CumulativeWindowSpec) windowSpec).getMaxSize();
+            Duration step = ((CumulativeWindowSpec) windowSpec).getStep();
             if (maxSize.toMillis() % step.toMillis() != 0) {
                 throw new TableException(
                         String.format(

@@ -70,11 +70,11 @@ class StreamPhysicalWindowRankRule
     val providedTraitSet = rank.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(rank.getInput, requiredTraitSet)
 
-    val windowingStrategy = WindowAttachedWindowingStrategy(
-      startColumns.toArray.head,
-      endColumns.toArray.head,
+    val windowingStrategy = new WindowAttachedWindowingStrategy(
+      relWindowProperties.getWindowSpec,
       relWindowProperties.getTimeAttributeType,
-      relWindowProperties.getWindowSpec)
+      startColumns.toArray.head,
+      endColumns.toArray.head)
 
     new StreamPhysicalWindowRank(
       rank.getCluster,
