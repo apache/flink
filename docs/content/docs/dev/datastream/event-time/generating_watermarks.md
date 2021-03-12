@@ -457,7 +457,7 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 {{< /tab >}}
 {{< /tabs >}}
 
-{{< img src="/fig/parallel_kafka_watermarks" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" >}}
+{{< img src="/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" >}}
 
 ## How Operators Process Watermarks
 
