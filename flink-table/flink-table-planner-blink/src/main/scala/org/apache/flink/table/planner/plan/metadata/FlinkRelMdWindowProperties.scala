@@ -195,8 +195,8 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
         ImmutableBitSet.of(fieldCount - 3),
         ImmutableBitSet.of(fieldCount - 2),
         ImmutableBitSet.of(fieldCount - 1),
-        windowingStrategy.window,
-        windowingStrategy.timeAttributeType)
+        windowingStrategy.getWindow,
+        windowingStrategy.getTimeAttributeType)
     } else {
       null
     }
@@ -233,8 +233,8 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       ImmutableBitSet.of(fieldCount - 3),
       ImmutableBitSet.of(fieldCount - 2),
       ImmutableBitSet.of(fieldCount - 1),
-      rel.windowing.window,
-      rel.windowing.timeAttributeType
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
     )
   }
 
@@ -261,8 +261,8 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       ImmutableBitSet.of(starts :_*),
       ImmutableBitSet.of(ends :_*),
       ImmutableBitSet.of(times :_*),
-      rel.windowing.window,
-      rel.windowing.timeAttributeType
+      rel.windowing.getWindow,
+      rel.windowing.getTimeAttributeType
     )
   }
 
