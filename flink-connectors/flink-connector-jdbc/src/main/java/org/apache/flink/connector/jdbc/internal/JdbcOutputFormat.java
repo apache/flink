@@ -20,9 +20,13 @@ package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
@@ -41,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Flushable;
 import java.io.IOException;
@@ -60,12 +65,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A JDBC outputFormat that supports batching records before writing records to database. */
 @Internal
 public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExecutor<JdbcIn>>
-        extends RichOutputFormat<In> implements Flushable {
+        extends RichOutputFormat<In> implements Flushable, InputTypeConfigurable {
 
     public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
     public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
     protected final JdbcConnectionProvider connectionProvider;
+    @Nullable private TypeSerializer<In> serializer;
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        if (executionConfig.isObjectReuseEnabled()) {
+            this.serializer = (TypeSerializer<In>) type.createSerializer(executionConfig);
+        }
+    }
 
     /**
      * An interface to extract a value from given argument.
@@ -175,7 +189,8 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
         checkFlushException();
 
         try {
-            addToBatch(record, jdbcRecordExtractor.apply(record));
+            In recordCopy = copyIfNecessary(record);
+            addToBatch(record, jdbcRecordExtractor.apply(recordCopy));
             batchCount++;
             if (executionOptions.getBatchSize() > 0
                     && batchCount >= executionOptions.getBatchSize()) {
@@ -184,6 +199,10 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
         } catch (Exception e) {
             throw new IOException("Writing records to JDBC failed.", e);
         }
+    }
+
+    private In copyIfNecessary(In record) {
+        return serializer == null ? record : serializer.copy(record);
     }
 
     protected void addToBatch(In original, JdbcIn extracted) throws SQLException {
