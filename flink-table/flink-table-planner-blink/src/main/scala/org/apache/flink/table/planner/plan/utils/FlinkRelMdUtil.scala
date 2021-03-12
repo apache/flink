@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}

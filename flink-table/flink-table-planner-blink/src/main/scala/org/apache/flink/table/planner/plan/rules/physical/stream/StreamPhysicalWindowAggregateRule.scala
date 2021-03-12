@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, RelWindowProperties}
 import org.apache.flink.table.planner.plan.logical.{WindowAttachedWindowingStrategy, WindowingStrategy}
@@ -186,10 +185,11 @@ class StreamPhysicalWindowAggregateRule
     val windowRef = new PlannerWindowReference("w$", windowingStrategy.getTimeAttributeType)
     if (!startColumns.isEmpty) {
       windowProperties +=
-        PlannerNamedWindowProperty(WINDOW_START, new PlannerWindowStart(windowRef))
+        new PlannerNamedWindowProperty(WINDOW_START, new PlannerWindowStart(windowRef))
     }
     if (!endColumns.isEmpty) {
-      windowProperties += PlannerNamedWindowProperty(WINDOW_END, new PlannerWindowEnd(windowRef))
+      windowProperties +=
+        new PlannerNamedWindowProperty(WINDOW_END, new PlannerWindowEnd(windowRef))
     }
     if (!timeColumns.isEmpty) {
       val property = if (windowingStrategy.isRowtime) {
@@ -197,7 +197,7 @@ class StreamPhysicalWindowAggregateRule
       } else {
         new PlannerProctimeAttribute(windowRef)
       }
-      windowProperties += PlannerNamedWindowProperty(WINDOW_TIME, property)
+      windowProperties += new PlannerNamedWindowProperty(WINDOW_TIME, property)
     }
     windowProperties
   }
@@ -243,11 +243,11 @@ class StreamPhysicalWindowAggregateRule
     var endPos = -1
     var timePos = -1
     windowProperties.zipWithIndex.foreach { case (p, idx) =>
-      if (WINDOW_START.equals(p.name)) {
+      if (WINDOW_START.equals(p.getName)) {
         startPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_END.equals(p.name)) {
+      } else if (WINDOW_END.equals(p.getName)) {
         endPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_TIME.equals(p.name)) {
+      } else if (WINDOW_TIME.equals(p.getName)) {
         timePos = windowPropsIndexOffset + idx
       }
     }

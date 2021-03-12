@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.expressions.PlannerWindowStart;
@@ -50,8 +50,6 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import scala.Some;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
 
@@ -296,8 +294,7 @@ public class PythonStreamGroupWindowAggregateOperatorTest
         SlidingWindowAssigner windowAssigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(size), Duration.ofMillis(slide))
                         .withEventTime();
-        PlannerWindowReference windowRef =
-                new PlannerWindowReference("w$", new Some<>(new TimestampType(3)));
+        PlannerWindowReference windowRef = new PlannerWindowReference("w$", new TimestampType(3));
         LogicalWindow window =
                 new SlidingGroupWindow(
                         windowRef,
@@ -328,11 +325,9 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 windowAssigner,
                 window,
                 0L,
-                new FlinkRelBuilder.PlannerNamedWindowProperty[] {
-                    new FlinkRelBuilder.PlannerNamedWindowProperty(
-                            "start", new PlannerWindowStart(null)),
-                    new FlinkRelBuilder.PlannerNamedWindowProperty(
-                            "end", new PlannerWindowEnd(null))
+                new PlannerNamedWindowProperty[] {
+                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
+                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
                 });
     }
 }

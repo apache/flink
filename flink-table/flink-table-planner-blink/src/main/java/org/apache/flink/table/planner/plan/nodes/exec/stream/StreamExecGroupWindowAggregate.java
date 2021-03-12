@@ -25,12 +25,12 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
@@ -180,7 +180,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final LogicalType[] aggResultTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] windowPropertyTypes =
                 Arrays.stream(namedWindowProperties)
-                        .map(p -> p.property().getResultType())
+                        .map(p -> p.getProperty().getResultType())
                         .toArray(LogicalType[]::new);
 
         final EqualiserCodeGenerator generator =
@@ -262,7 +262,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final List<PlannerWindowProperty> windowProperties =
                 Arrays.asList(
                         Arrays.stream(namedWindowProperties)
-                                .map(PlannerNamedWindowProperty::property)
+                                .map(PlannerNamedWindowProperty::getProperty)
                                 .toArray(PlannerWindowProperty[]::new));
         final boolean isTableAggregate =
                 isTableAggregate(Arrays.asList(aggInfoList.getActualAggregateCalls()));

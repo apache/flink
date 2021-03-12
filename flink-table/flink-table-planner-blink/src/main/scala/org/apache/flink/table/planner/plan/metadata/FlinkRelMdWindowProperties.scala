@@ -246,7 +246,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val ends = ArrayBuffer[Int]()
     val times = ArrayBuffer[Int]()
     val propertyOffset = rel.grouping.length + rel.aggCalls.size()
-    rel.namedWindowProperties.map(_.property).zipWithIndex.foreach { case (p, index) =>
+    rel.namedWindowProperties.map(_.getProperty).zipWithIndex.foreach { case (p, index) =>
       p match {
         case _: PlannerWindowStart =>
           starts += propertyOffset + index

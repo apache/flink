@@ -34,7 +34,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
@@ -143,7 +143,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             WindowAssigner<W> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+            PlannerNamedWindowProperty[] namedProperties) {
         super(
                 config,
                 inputType,
@@ -321,8 +321,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         emitTriggerTimerData(timer, REGISTER_PROCESSING_TIMER);
     }
 
-    private void buildWindow(
-            LogicalWindow window, FlinkRelBuilder.PlannerNamedWindowProperty[] namedProperties) {
+    private void buildWindow(LogicalWindow window, PlannerNamedWindowProperty[] namedProperties) {
         ValueLiteralExpression size = null;
         ValueLiteralExpression slide = null;
         ValueLiteralExpression gap = null;
@@ -359,7 +358,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
 
         this.namedProperties = new FlinkFnApi.GroupWindow.WindowProperty[namedProperties.length];
         for (int i = 0; i < namedProperties.length; i++) {
-            PlannerWindowProperty namedProperty = namedProperties[i].property();
+            PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
             if (namedProperty instanceof PlannerWindowStart) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
             } else if (namedProperty instanceof PlannerWindowEnd) {

@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
@@ -177,7 +178,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             List<RexNode> groupings = convertToRexNodes(windowAggregate.getGroupingExpressions());
             LogicalWindow logicalWindow = toLogicalWindow(windowAggregate.getGroupWindow());
             PlannerWindowReference windowReference = logicalWindow.aliasAttribute();
-            List<FlinkRelBuilder.PlannerNamedWindowProperty> windowProperties =
+            List<PlannerNamedWindowProperty> windowProperties =
                     windowAggregate.getWindowPropertiesExpressions().stream()
                             .map(expr -> convertToWindowProperty(expr, windowReference))
                             .collect(toList());
@@ -187,7 +188,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     .build();
         }
 
-        private FlinkRelBuilder.PlannerNamedWindowProperty convertToWindowProperty(
+        private PlannerNamedWindowProperty convertToWindowProperty(
                 Expression expression, PlannerWindowReference windowReference) {
             Preconditions.checkArgument(
                     expression instanceof CallExpression, "This should never happened");
@@ -205,16 +206,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             CallExpression windowPropertyCallExpr = (CallExpression) windowPropertyExpr;
             FunctionDefinition fd = windowPropertyCallExpr.getFunctionDefinition();
             if (BuiltInFunctionDefinitions.WINDOW_START == fd) {
-                return new FlinkRelBuilder.PlannerNamedWindowProperty(
+                return new PlannerNamedWindowProperty(
                         name, new PlannerWindowStart(windowReference));
             } else if (BuiltInFunctionDefinitions.WINDOW_END == fd) {
-                return new FlinkRelBuilder.PlannerNamedWindowProperty(
-                        name, new PlannerWindowEnd(windowReference));
+                return new PlannerNamedWindowProperty(name, new PlannerWindowEnd(windowReference));
             } else if (BuiltInFunctionDefinitions.PROCTIME == fd) {
-                return new FlinkRelBuilder.PlannerNamedWindowProperty(
+                return new PlannerNamedWindowProperty(
                         name, new PlannerProctimeAttribute(windowReference));
             } else if (BuiltInFunctionDefinitions.ROWTIME == fd) {
-                return new FlinkRelBuilder.PlannerNamedWindowProperty(
+                return new PlannerNamedWindowProperty(
                         name, new PlannerRowtimeAttribute(windowReference));
             } else {
                 throw new TableException("Invalid literal.");
