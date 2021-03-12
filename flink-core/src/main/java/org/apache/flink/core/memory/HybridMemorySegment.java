@@ -132,10 +132,14 @@ public final class HybridMemorySegment extends MemorySegment {
     @Override
     public void free() {
         super.free();
+        runCleanerAtMostOnce();
+        offHeapBuffer = null; // to enable GC of unsafe memory
+    }
+
+    private synchronized void runCleanerAtMostOnce() {
         if (cleaner != null) {
             cleaner.run();
         }
-        offHeapBuffer = null; // to enable GC of unsafe memory
         cleaner = null;
     }
 
