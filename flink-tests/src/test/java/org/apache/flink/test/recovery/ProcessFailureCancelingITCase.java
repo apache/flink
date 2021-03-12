@@ -66,14 +66,13 @@ import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -100,6 +99,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
     @Test
     public void testCancelingOnProcessFailure() throws Exception {
+        Assume.assumeTrue(
+                "---- Skipping Process Failure test : Could not find java executable ----",
+                getJavaCommandPath() != null);
+
         final Time timeout = Time.minutes(2L);
 
         RestClusterClient<String> clusterClient = null;
@@ -141,15 +144,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
         try {
-
-            // check that we run this test only if the java command
-            // is available on this machine
-            if (getJavaCommandPath() == null) {
-                System.out.println(
-                        "---- Skipping Process Failure test : Could not find java executable ----");
-                return;
-            }
-
             dispatcherResourceManagerComponent =
                     resourceManagerComponentFactory.create(
                             config,
@@ -162,9 +156,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                             new MemoryExecutionGraphInfoStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
                             fatalErrorHandler);
-
-            final Map<String, String> keyValues = config.toMap();
-            final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
 
             TestProcessBuilder taskManagerProcessBuilder =
                     new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
@@ -208,8 +199,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                     };
 
             Thread programThread = new Thread(programRunner);
-
-            // kill the TaskManager
             programThread.start();
 
             final DispatcherGateway dispatcherGateway =
