@@ -78,7 +78,12 @@ public final class FunctionCatalog {
 
     public FunctionCatalog(
             TableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        this.config = checkNotNull(config).getConfiguration();
+        this(checkNotNull(config).getConfiguration(), catalogManager, moduleManager);
+    }
+
+    public FunctionCatalog(
+            ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
+        this.config = checkNotNull(config);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
     }

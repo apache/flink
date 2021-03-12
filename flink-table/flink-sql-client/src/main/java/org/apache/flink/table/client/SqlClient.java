@@ -18,31 +18,21 @@
 
 package org.apache.flink.table.client;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.local.LocalContextUtils;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
-import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two modes: a gateway and
@@ -69,8 +59,6 @@ public class SqlClient {
     public static final String MODE_EMBEDDED = "embedded";
     public static final String MODE_GATEWAY = "gateway";
 
-    public static final String DEFAULT_SESSION_ID = "default";
-
     public SqlClient(boolean isEmbedded, CliOptions options) {
         this.isEmbedded = isEmbedded;
         this.options = options;
@@ -79,33 +67,13 @@ public class SqlClient {
     private void start() {
         if (isEmbedded) {
             // create local executor with default environment
-            final List<URL> jars;
-            if (options.getJars() != null) {
-                jars = options.getJars();
-            } else {
-                jars = Collections.emptyList();
-            }
-            final List<URL> libDirs;
-            if (options.getLibraryDirs() != null) {
-                libDirs = options.getLibraryDirs();
-            } else {
-                libDirs = Collections.emptyList();
-            }
-            final Executor executor = new LocalExecutor(options.getDefaults(), jars, libDirs);
+
+            DefaultContext defaultContext = LocalContextUtils.buildDefaultContext(options);
+            final Executor executor = new LocalExecutor(defaultContext);
             executor.start();
 
-            // create CLI client with session environment
-            final Environment sessionEnv = readSessionEnvironment(options.getEnvironment());
-            appendPythonConfig(sessionEnv, options.getPythonConfiguration());
-            final SessionContext context;
-            if (options.getSessionId() == null) {
-                context = new SessionContext(DEFAULT_SESSION_ID, sessionEnv);
-            } else {
-                context = new SessionContext(options.getSessionId(), sessionEnv);
-            }
-
             // Open an new session
-            String sessionId = executor.openSession(context);
+            String sessionId = executor.openSession(options.getSessionId());
             try {
                 // add shutdown hook
                 Runtime.getRuntime()
@@ -152,32 +120,6 @@ public class SqlClient {
                 }
             }
         }
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static Environment readSessionEnvironment(URL envUrl) {
-        // use an empty environment by default
-        if (envUrl == null) {
-            System.out.println("No session environment specified.");
-            return new Environment();
-        }
-
-        System.out.println("Reading session environment from: " + envUrl);
-        LOG.info("Using session environment file: {}", envUrl);
-        try {
-            return Environment.parse(envUrl);
-        } catch (IOException e) {
-            throw new SqlClientException(
-                    "Could not read session environment file at: " + envUrl, e);
-        }
-    }
-
-    private static void appendPythonConfig(Environment env, Configuration pythonConfiguration) {
-        Map<String, Object> pythonConfig = new HashMap<>(pythonConfiguration.toMap());
-        Map<String, Object> combinedConfig =
-                new HashMap<>(merge(env.getConfiguration(), create(pythonConfig)).asMap());
-        env.setConfiguration(combinedConfig);
     }
 
     // --------------------------------------------------------------------------------------------

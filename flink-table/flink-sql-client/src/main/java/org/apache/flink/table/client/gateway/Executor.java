@@ -22,6 +22,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 
@@ -32,13 +34,13 @@ public interface Executor {
     void start() throws SqlExecutionException;
 
     /**
-     * Open a new session by using the given {@link SessionContext}.
+     * Open a new session by using the given session id.
      *
-     * @param session context to create new session.
-     * @return session identifier to track the session.
+     * @param sessionId session identifier.
+     * @return used session identifier to track the session.
      * @throws SqlExecutionException if any error happen
      */
-    String openSession(SessionContext session) throws SqlExecutionException;
+    String openSession(@Nullable String sessionId) throws SqlExecutionException;
 
     /**
      * Close the resources of session for given session id.

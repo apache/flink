@@ -183,7 +183,7 @@ public class ExecutionEntry extends ConfigEntry {
         return properties
                 .getOptionalString(EXECUTION_TYPE)
                 .map((v) -> v.equals(EXECUTION_TYPE_VALUE_STREAMING))
-                .orElse(false);
+                .orElse(true);
     }
 
     public boolean inBatchMode() {
