@@ -105,23 +105,24 @@ object WindowPropertiesRules {
     val windowType = getWindowType(w)
 
     val startEndProperties = Seq(
-      PlannerNamedWindowProperty(propertyName(w, "start"), PlannerWindowStart(w.aliasAttribute)),
-      PlannerNamedWindowProperty(propertyName(w, "end"), PlannerWindowEnd(w.aliasAttribute)))
+      PlannerNamedWindowProperty(
+        propertyName(w, "start"), new PlannerWindowStart(w.aliasAttribute)),
+      PlannerNamedWindowProperty(propertyName(w, "end"), new PlannerWindowEnd(w.aliasAttribute)))
 
     // allow rowtime/proctime for rowtime windows and proctime for proctime windows
     val timeProperties = windowType match {
       case 'streamRowtime =>
         Seq(
           PlannerNamedWindowProperty(propertyName(w, "rowtime"),
-            PlannerRowtimeAttribute(w.aliasAttribute)),
+            new PlannerRowtimeAttribute(w.aliasAttribute)),
           PlannerNamedWindowProperty(propertyName(w, "proctime"),
-            PlannerProctimeAttribute(w.aliasAttribute)))
+            new PlannerProctimeAttribute(w.aliasAttribute)))
       case 'streamProctime =>
         Seq(PlannerNamedWindowProperty(propertyName(w, "proctime"),
-          PlannerProctimeAttribute(w.aliasAttribute)))
+          new PlannerProctimeAttribute(w.aliasAttribute)))
       case 'batchRowtime =>
         Seq(PlannerNamedWindowProperty(propertyName(w, "rowtime"),
-          PlannerRowtimeAttribute(w.aliasAttribute)))
+          new PlannerRowtimeAttribute(w.aliasAttribute)))
       case _ =>
         throw new TableException("Unknown window type encountered. Please report this bug.")
     }
@@ -164,7 +165,7 @@ object WindowPropertiesRules {
 
   /** Generates a property name for a window. */
   private def propertyName(window: LogicalWindow, name: String): String =
-    window.aliasAttribute.asInstanceOf[PlannerWindowReference].name + name
+    window.aliasAttribute.asInstanceOf[PlannerWindowReference].getName + name
 
   /** Replace group auxiliaries with field references. */
   def replaceGroupAuxiliaries(

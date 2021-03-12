@@ -180,7 +180,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final LogicalType[] aggResultTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] windowPropertyTypes =
                 Arrays.stream(namedWindowProperties)
-                        .map(p -> p.property().resultType())
+                        .map(p -> p.property().getResultType())
                         .toArray(LogicalType[]::new);
 
         final EqualiserCodeGenerator generator =
