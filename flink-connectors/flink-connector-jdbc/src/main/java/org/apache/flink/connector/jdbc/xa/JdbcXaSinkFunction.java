@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
@@ -129,7 +128,11 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
  */
 @Internal
 public class JdbcXaSinkFunction<T> extends AbstractRichFunction
-        implements CheckpointedFunction, CheckpointListener, SinkFunction<T>, AutoCloseable, InputTypeConfigurable {
+        implements CheckpointedFunction,
+                CheckpointListener,
+                SinkFunction<T>,
+                AutoCloseable,
+                InputTypeConfigurable {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcXaSinkFunction.class);
 
@@ -166,7 +169,9 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                 new JdbcBatchingOutputFormat<>(
                         xaFacade,
                         executionOptions,
-                        context -> JdbcBatchStatementExecutor.simple(sql, statementBuilder, Function.identity()),
+                        context ->
+                                JdbcBatchStatementExecutor.simple(
+                                        sql, statementBuilder, Function.identity()),
                         JdbcBatchingOutputFormat.RecordExtractor.identity()),
                 xaFacade,
                 XidGenerator.semanticXidGenerator(),
