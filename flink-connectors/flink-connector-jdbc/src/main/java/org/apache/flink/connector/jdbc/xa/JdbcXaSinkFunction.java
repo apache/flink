@@ -365,9 +365,6 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
 
     @Override
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-        if (executionConfig.isObjectReuseEnabled()) {
-            TypeSerializer<T> serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
-            outputFormat.setSerializer(serializer);
-        }
+        outputFormat.setInputType(type, executionConfig);
     }
 }

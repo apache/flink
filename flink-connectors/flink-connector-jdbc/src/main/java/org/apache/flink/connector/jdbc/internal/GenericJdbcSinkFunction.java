@@ -73,9 +73,6 @@ public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
 
     @Override
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-        if (executionConfig.isObjectReuseEnabled()) {
-            TypeSerializer<T> serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
-            outputFormat.setSerializer(serializer);
-        }
+        outputFormat.setInputType(type, executionConfig);
     }
 }
