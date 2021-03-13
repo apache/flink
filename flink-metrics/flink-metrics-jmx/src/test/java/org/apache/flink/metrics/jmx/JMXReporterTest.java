@@ -18,12 +18,12 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;

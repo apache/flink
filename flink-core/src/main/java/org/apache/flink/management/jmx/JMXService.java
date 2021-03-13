@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management;
+package org.apache.flink.management.jmx;
 
 import org.apache.flink.util.NetUtils;
 

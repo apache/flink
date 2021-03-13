@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.configuration.JMXServerOptions;
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -29,7 +30,6 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 

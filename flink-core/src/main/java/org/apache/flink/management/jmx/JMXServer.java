@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management;
+package org.apache.flink.management.jmx;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
