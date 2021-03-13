@@ -22,6 +22,7 @@ import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenC
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -43,7 +44,8 @@ import static org.junit.Assume.assumeTrue;
 /** Tests for {@link HadoopFSDelegationTokenProvider}. */
 public class HadoopFSDelegationTokenProviderTest {
 
-    public static final String HADOOP_SECURITY_AUTHENTICATION = "hadoop.security.authentication";
+    public static final String HADOOP_SECURITY_AUTHENTICATION =
+            CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION;
     private final org.apache.flink.configuration.Configuration flinkConf =
             new org.apache.flink.configuration.Configuration();
 
