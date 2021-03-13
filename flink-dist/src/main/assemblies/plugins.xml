@@ -46,7 +46,7 @@
 		</file>
 
 		<file>
-			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-influx/</outputDirectory>
 			<destName>flink-metrics-influxdb-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
