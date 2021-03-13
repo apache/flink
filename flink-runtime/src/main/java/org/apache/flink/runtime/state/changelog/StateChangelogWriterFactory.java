@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 /**
@@ -30,7 +29,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 public interface StateChangelogWriterFactory<Handle extends StateChangelogHandle<?>>
         extends AutoCloseable {
 
-    StateChangelogWriter<Handle> createWriter(OperatorID operatorID, KeyGroupRange keyGroupRange);
+    StateChangelogWriter<Handle> createWriter(String operatorID, KeyGroupRange keyGroupRange);
 
     @Override
     default void close() throws Exception {}
