@@ -22,13 +22,9 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
 
@@ -53,11 +49,11 @@ public class WaitingForResourcesTest extends TestLogger {
 
     /** WaitingForResources is transitioning to Executing if there are enough resources. */
     @Test
-    public void testTransitionToExecuting() throws Exception {
+    public void testTransitionToCreatingExecutionGraph() throws Exception {
         try (MockContext ctx = new MockContext()) {
             ctx.setHasEnoughResources(() -> true);
 
-            ctx.setExpectExecuting(assertNonNull());
+            ctx.setExpectCreatingExecutionGraph();
 
             new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             // run delayed actions
@@ -65,31 +61,6 @@ public class WaitingForResourcesTest extends TestLogger {
                 scheduledRunnable.runAction();
                 if (ctx.hasStateTransition()) {
                     break;
-                }
-            }
-        }
-    }
-
-    @Test
-    public void testTransitionToFinishedOnExecutionGraphInitializationFailure() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasEnoughResources(() -> true);
-            ctx.setCreateExecutionGraphWithAvailableResources(
-                    () -> {
-                        throw new RuntimeException("Test exception");
-                    });
-
-            ctx.setExpectFinished(
-                    (archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
-                    }));
-
-            new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
-
-            // run delayed actions
-            for (ScheduledRunnable scheduledRunnable : ctx.getScheduledRunnables()) {
-                if (!ctx.hasStateTransition()) {
-                    scheduledRunnable.runAction();
                 }
             }
         }
@@ -114,7 +85,7 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             ctx.setHasEnoughResources(() -> true); // make resources available
-            ctx.setExpectExecuting(assertNonNull());
+            ctx.setExpectCreatingExecutionGraph();
             wfr.notifyNewResourcesAvailable(); // .. and notify
         }
     }
@@ -126,7 +97,7 @@ public class WaitingForResourcesTest extends TestLogger {
             WaitingForResources wfr =
                     new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
 
-            ctx.setExpectExecuting(assertNonNull());
+            ctx.setExpectCreatingExecutionGraph();
 
             // immediately execute all scheduled runnables
             assertThat(ctx.getScheduledRunnables().size(), greaterThan(0));
@@ -195,15 +166,12 @@ public class WaitingForResourcesTest extends TestLogger {
 
     private static class MockContext implements WaitingForResources.Context, AutoCloseable {
 
-        private final StateValidator<ExecutionGraph> executingStateValidator =
+        private final StateValidator<Void> creatingExecutionGraphStateValidator =
                 new StateValidator<>("executing");
         private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
                 new StateValidator<>("finished");
 
         private Supplier<Boolean> hasEnoughResourcesSupplier = () -> false;
-        private SupplierWithException<ExecutionGraph, FlinkException>
-                createExecutionGraphWithAvailableResources =
-                        () -> TestingDefaultExecutionGraphBuilder.newBuilder().build();
         private final List<ScheduledRunnable> scheduledRunnables = new ArrayList<>();
         private boolean hasStateTransition = false;
 
@@ -215,22 +183,17 @@ public class WaitingForResourcesTest extends TestLogger {
             hasEnoughResourcesSupplier = sup;
         }
 
-        public void setCreateExecutionGraphWithAvailableResources(
-                SupplierWithException<ExecutionGraph, FlinkException> sup) {
-            this.createExecutionGraphWithAvailableResources = sup;
-        }
-
         void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
             finishedStateValidator.expectInput(asserter);
         }
 
-        void setExpectExecuting(Consumer<ExecutionGraph> asserter) {
-            executingStateValidator.expectInput(asserter);
+        void setExpectCreatingExecutionGraph() {
+            creatingExecutionGraphStateValidator.expectInput(none -> {});
         }
 
         @Override
         public void close() throws Exception {
-            executingStateValidator.close();
+            creatingExecutionGraphStateValidator.close();
             finishedStateValidator.close();
         }
 
@@ -249,11 +212,6 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public ExecutionGraph createExecutionGraphWithAvailableResources() throws FlinkException {
-            return createExecutionGraphWithAvailableResources.get();
-        }
-
-        @Override
         public void runIfState(State expectedState, Runnable action, Duration delay) {
             scheduledRunnables.add(new ScheduledRunnable(expectedState, action, delay));
         }
@@ -265,8 +223,8 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public void goToExecuting(ExecutionGraph executionGraph) {
-            executingStateValidator.validateInput(executionGraph);
+        public void goToCreatingExecutionGraph() {
+            creatingExecutionGraphStateValidator.validateInput(null);
             hasStateTransition = true;
         }
 

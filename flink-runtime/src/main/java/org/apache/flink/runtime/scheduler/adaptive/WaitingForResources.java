@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -101,19 +100,7 @@ class WaitingForResources implements State, ResourceConsumer {
     }
 
     private void createExecutionGraphWithAvailableResources() {
-        try {
-            final ExecutionGraph executionGraph =
-                    context.createExecutionGraphWithAvailableResources();
-
-            context.goToExecuting(executionGraph);
-        } catch (Exception exception) {
-            log.info(
-                    "Failed to go from {} to {} because the ExecutionGraph creation failed.",
-                    WaitingForResources.class.getSimpleName(),
-                    Executing.class.getSimpleName(),
-                    exception);
-            context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, exception));
-        }
+        context.goToCreatingExecutionGraph();
     }
 
     /** Context of the {@link WaitingForResources} state. */
@@ -126,12 +113,8 @@ class WaitingForResources implements State, ResourceConsumer {
          */
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
 
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Executing} state
-         */
-        void goToExecuting(ExecutionGraph executionGraph);
+        /** Transitions into the {@link CreatingExecutionGraph} state. */
+        void goToCreatingExecutionGraph();
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
@@ -151,14 +134,6 @@ class WaitingForResources implements State, ResourceConsumer {
          * @return {@code true} if we have enough resources; otherwise {@code false}
          */
         boolean hasEnoughResources(ResourceCounter desiredResources);
-
-        /**
-         * Creates an {@link ExecutionGraph} with the available resources.
-         *
-         * @return the created {@link ExecutionGraph}
-         * @throws Exception if the creation of the {@link ExecutionGraph} fails
-         */
-        ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception;
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.

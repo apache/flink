@@ -149,6 +149,7 @@ public class AdaptiveScheduler
         implements SchedulerNG,
                 Created.Context,
                 WaitingForResources.Context,
+                CreatingExecutionGraph.Context,
                 Executing.Context,
                 Restarting.Context,
                 Failing.Context,
@@ -599,112 +600,6 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception {
-        final ParallelismAndResourceAssignments parallelismAndResourceAssignments =
-                determineParallelismAndAssignResources(slotAllocator);
-
-        JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
-        for (JobVertex vertex : adjustedJobGraph.getVertices()) {
-            vertex.setParallelism(parallelismAndResourceAssignments.getParallelism(vertex.getID()));
-        }
-
-        final ExecutionGraph executionGraph = createExecutionGraphAndRestoreState(adjustedJobGraph);
-
-        executionGraph.start(componentMainThreadExecutor);
-        executionGraph.transitionToRunning();
-
-        executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this));
-
-        for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
-            final LogicalSlot assignedSlot =
-                    parallelismAndResourceAssignments.getAssignedSlot(executionVertex.getID());
-            executionVertex
-                    .getCurrentExecutionAttempt()
-                    .registerProducedPartitions(assignedSlot.getTaskManagerLocation(), false);
-            executionVertex.tryAssignResource(assignedSlot);
-        }
-        return executionGraph;
-    }
-
-    private ExecutionGraph createExecutionGraphAndRestoreState(JobGraph adjustedJobGraph)
-            throws Exception {
-        ExecutionDeploymentListener executionDeploymentListener =
-                new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
-        ExecutionStateUpdateListener executionStateUpdateListener =
-                (execution, newState) -> {
-                    if (newState.isTerminal()) {
-                        executionDeploymentTracker.stopTrackingDeploymentOf(execution);
-                    }
-                };
-
-        final ExecutionGraph newExecutionGraph =
-                DefaultExecutionGraphBuilder.buildGraph(
-                        adjustedJobGraph,
-                        configuration,
-                        futureExecutor,
-                        ioExecutor,
-                        userCodeClassLoader,
-                        completedCheckpointStore,
-                        checkpointsCleaner,
-                        checkpointIdCounter,
-                        rpcTimeout,
-                        jobManagerJobMetricGroup,
-                        blobWriter,
-                        LOG,
-                        shuffleMaster,
-                        partitionTracker,
-                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
-                                .MUST_BE_KNOWN, // AdaptiveScheduler only supports streaming jobs
-                        executionDeploymentListener,
-                        executionStateUpdateListener,
-                        initializationTimestamp,
-                        vertexAttemptNumberStore);
-
-        final CheckpointCoordinator checkpointCoordinator =
-                newExecutionGraph.getCheckpointCoordinator();
-
-        if (checkpointCoordinator != null) {
-            // check whether we find a valid checkpoint
-            if (!checkpointCoordinator.restoreInitialCheckpointIfPresent(
-                    new HashSet<>(newExecutionGraph.getAllVertices().values()))) {
-
-                // check whether we can restore from a savepoint
-                tryRestoreExecutionGraphFromSavepoint(
-                        newExecutionGraph, adjustedJobGraph.getSavepointRestoreSettings());
-            }
-        }
-
-        return newExecutionGraph;
-    }
-
-    /**
-     * Tries to restore the given {@link ExecutionGraph} from the provided {@link
-     * SavepointRestoreSettings}, iff checkpointing is enabled.
-     *
-     * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
-     * @param savepointRestoreSettings {@link SavepointRestoreSettings} containing information about
-     *     the savepoint to restore from
-     * @throws Exception if the {@link ExecutionGraph} could not be restored
-     */
-    private void tryRestoreExecutionGraphFromSavepoint(
-            ExecutionGraph executionGraphToRestore,
-            SavepointRestoreSettings savepointRestoreSettings)
-            throws Exception {
-        if (savepointRestoreSettings.restoreSavepoint()) {
-            final CheckpointCoordinator checkpointCoordinator =
-                    executionGraphToRestore.getCheckpointCoordinator();
-            if (checkpointCoordinator != null) {
-                checkpointCoordinator.restoreSavepoint(
-                        savepointRestoreSettings.getRestorePath(),
-                        savepointRestoreSettings.allowNonRestoredState(),
-                        executionGraphToRestore.getAllVertices(),
-                        userCodeClassLoader);
-            }
-        }
-    }
-
-    @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createFromInitializingJob(
@@ -810,6 +705,125 @@ public class AdaptiveScheduler
     @Override
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
         transitionToState(new Finished.Factory(this, archivedExecutionGraph, LOG));
+    }
+
+    @Override
+    public void goToCreatingExecutionGraph() {
+        CompletableFuture<ExecutionGraph> executionGraphFuture;
+
+        try {
+            final ExecutionGraph executionGraph = createExecutionGraphWithAvailableResources();
+            executionGraphFuture = CompletableFuture.completedFuture(executionGraph);
+        } catch (Exception exception) {
+            executionGraphFuture = FutureUtils.completedExceptionally(exception);
+        }
+
+        transitionToState(new CreatingExecutionGraph.Factory(this, executionGraphFuture, LOG));
+    }
+
+    ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception {
+        final ParallelismAndResourceAssignments parallelismAndResourceAssignments =
+                determineParallelismAndAssignResources(slotAllocator);
+
+        JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
+        for (JobVertex vertex : adjustedJobGraph.getVertices()) {
+            vertex.setParallelism(parallelismAndResourceAssignments.getParallelism(vertex.getID()));
+        }
+
+        final ExecutionGraph executionGraph = createExecutionGraphAndRestoreState(adjustedJobGraph);
+
+        executionGraph.start(componentMainThreadExecutor);
+        executionGraph.transitionToRunning();
+
+        executionGraph.setInternalTaskFailuresListener(
+                new UpdateSchedulerNgOnInternalFailuresListener(this));
+
+        for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+            final LogicalSlot assignedSlot =
+                    parallelismAndResourceAssignments.getAssignedSlot(executionVertex.getID());
+            executionVertex
+                    .getCurrentExecutionAttempt()
+                    .registerProducedPartitions(assignedSlot.getTaskManagerLocation(), false);
+            executionVertex.tryAssignResource(assignedSlot);
+        }
+        return executionGraph;
+    }
+
+    private ExecutionGraph createExecutionGraphAndRestoreState(JobGraph adjustedJobGraph)
+            throws Exception {
+        ExecutionDeploymentListener executionDeploymentListener =
+                new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
+        ExecutionStateUpdateListener executionStateUpdateListener =
+                (execution, newState) -> {
+                    if (newState.isTerminal()) {
+                        executionDeploymentTracker.stopTrackingDeploymentOf(execution);
+                    }
+                };
+
+        final ExecutionGraph newExecutionGraph =
+                DefaultExecutionGraphBuilder.buildGraph(
+                        adjustedJobGraph,
+                        configuration,
+                        futureExecutor,
+                        ioExecutor,
+                        userCodeClassLoader,
+                        completedCheckpointStore,
+                        checkpointsCleaner,
+                        checkpointIdCounter,
+                        rpcTimeout,
+                        jobManagerJobMetricGroup,
+                        blobWriter,
+                        LOG,
+                        shuffleMaster,
+                        partitionTracker,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                .MUST_BE_KNOWN, // AdaptiveScheduler only supports streaming jobs
+                        executionDeploymentListener,
+                        executionStateUpdateListener,
+                        initializationTimestamp,
+                        vertexAttemptNumberStore);
+
+        final CheckpointCoordinator checkpointCoordinator =
+                newExecutionGraph.getCheckpointCoordinator();
+
+        if (checkpointCoordinator != null) {
+            // check whether we find a valid checkpoint
+            if (!checkpointCoordinator.restoreInitialCheckpointIfPresent(
+                    new HashSet<>(newExecutionGraph.getAllVertices().values()))) {
+
+                // check whether we can restore from a savepoint
+                tryRestoreExecutionGraphFromSavepoint(
+                        newExecutionGraph, adjustedJobGraph.getSavepointRestoreSettings());
+            }
+        }
+
+        return newExecutionGraph;
+    }
+
+    /**
+     * Tries to restore the given {@link ExecutionGraph} from the provided {@link
+     * SavepointRestoreSettings}, iff checkpointing is enabled.
+     *
+     * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
+     * @param savepointRestoreSettings {@link SavepointRestoreSettings} containing information about
+     *     the savepoint to restore from
+     * @throws Exception if the {@link ExecutionGraph} could not be restored
+     */
+    private void tryRestoreExecutionGraphFromSavepoint(
+            ExecutionGraph executionGraphToRestore,
+            SavepointRestoreSettings savepointRestoreSettings)
+            throws Exception {
+        if (savepointRestoreSettings.restoreSavepoint()) {
+            final CheckpointCoordinator checkpointCoordinator =
+                    executionGraphToRestore.getCheckpointCoordinator();
+            if (checkpointCoordinator != null) {
+                checkpointCoordinator.restoreSavepoint(
+                        savepointRestoreSettings.getRestorePath(),
+                        savepointRestoreSettings.allowNonRestoredState(),
+                        executionGraphToRestore.getAllVertices(),
+                        userCodeClassLoader);
+            }
+        }
     }
 
     @Override
@@ -934,6 +948,11 @@ public class AdaptiveScheduler
     public void runIfState(State expectedState, Runnable action, Duration delay) {
         componentMainThreadExecutor.schedule(
                 () -> runIfState(expectedState, action), delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public CreatingExecutionGraph.AssignmentResult tryToAssignSlots(ExecutionGraph executionGraph) {
+        return CreatingExecutionGraph.AssignmentResult.success(executionGraph);
     }
 
     // ----------------------------------------------------------------
