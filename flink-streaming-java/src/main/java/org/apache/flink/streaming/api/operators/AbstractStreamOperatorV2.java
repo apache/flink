@@ -37,7 +37,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -181,7 +180,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
                         MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
                         granularity);
             }
-            TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
+            MetricGroup jobMetricGroup = this.metrics.getJobMetricGroup();
             return new LatencyStats(
                     jobMetricGroup.addGroup("latency"),
                     historySize,
