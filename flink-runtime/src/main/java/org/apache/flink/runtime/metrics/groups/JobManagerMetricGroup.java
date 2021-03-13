@@ -39,12 +39,17 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 
     private final String hostname;
 
-    public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
+    JobManagerMetricGroup(MetricRegistry registry, String hostname) {
         super(
                 registry,
                 registry.getScopeFormats().getJobManagerFormat().formatScope(hostname),
                 null);
         this.hostname = hostname;
+    }
+
+    public static JobManagerMetricGroup createJobManagerMetricGroup(
+            final MetricRegistry metricRegistry, final String hostname) {
+        return new JobManagerMetricGroup(metricRegistry, hostname);
     }
 
     public String hostname() {

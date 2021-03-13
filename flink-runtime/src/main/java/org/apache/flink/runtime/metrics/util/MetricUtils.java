@@ -31,7 +31,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -98,14 +97,6 @@ public class MetricUtils {
                 interval -> instantiateSystemMetrics(processMetricGroup, interval));
 
         return processMetricGroup;
-    }
-
-    public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
-            final MetricRegistry metricRegistry, final String hostname) {
-        final JobManagerMetricGroup jobManagerMetricGroup =
-                new JobManagerMetricGroup(metricRegistry, hostname);
-
-        return jobManagerMetricGroup;
     }
 
     public static TaskManagerMetricGroup createTaskManagerMetricGroup(
