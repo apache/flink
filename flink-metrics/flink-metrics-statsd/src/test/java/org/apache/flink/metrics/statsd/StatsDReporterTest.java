@@ -35,7 +35,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
@@ -52,8 +51,7 @@ import static org.junit.Assert.assertTrue;
 public class StatsDReporterTest extends TestLogger {
 
     @Test
-    public void testReplaceInvalidChars()
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public void testReplaceInvalidChars() {
         StatsDReporter reporter = new StatsDReporter();
 
         assertEquals("", reporter.filterCharacters(""));
@@ -63,7 +61,7 @@ public class StatsDReporterTest extends TestLogger {
 
     /** Tests that the registered metrics' names don't contain invalid characters. */
     @Test
-    public void testAddingMetrics() throws Exception {
+    public void testAddingMetrics() {
         String counterName = "testCounter";
 
         final String scope = "scope";
@@ -186,7 +184,7 @@ public class StatsDReporterTest extends TestLogger {
         Set<String> expectedLines = new HashSet<>(2);
         expectedLines.add("metric:75|g");
 
-        testMetricAndAssert((Gauge) () -> 75, "metric", expectedLines);
+        testMetricAndAssert((Gauge<Integer>) () -> 75, "metric", expectedLines);
     }
 
     @Test
@@ -195,7 +193,7 @@ public class StatsDReporterTest extends TestLogger {
         expectedLines.add("metric:0|g");
         expectedLines.add("metric:-12345|g");
 
-        testMetricAndAssert((Gauge) () -> -12345, "metric", expectedLines);
+        testMetricAndAssert((Gauge<Integer>) () -> -12345, "metric", expectedLines);
     }
 
     private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation)
