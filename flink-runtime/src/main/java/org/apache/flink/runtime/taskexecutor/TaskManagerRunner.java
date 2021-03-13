@@ -91,7 +91,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class is the executable entry point for the task manager in yarn or standalone mode. It
  * constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
  * and starts them.
+ * TaskManagerRunner 启动类
  */
+
 public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskManagerRunner.class);

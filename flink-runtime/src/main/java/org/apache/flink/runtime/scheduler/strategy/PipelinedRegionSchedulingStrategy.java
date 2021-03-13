@@ -166,6 +166,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
                 SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
                         regionVerticesSorted.get(region), id -> deploymentOption);
+        //TODO
         schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
     }
 

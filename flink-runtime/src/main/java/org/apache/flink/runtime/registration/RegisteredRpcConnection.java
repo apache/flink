@@ -98,7 +98,7 @@ public abstract class RegisteredRpcConnection<
         checkState(
                 !isConnected() && pendingRegistration == null,
                 "The RPC connection is already started");
-
+        //TODO
         final RetryingRegistration<F, G, S> newRegistration = createNewRegistration();
 
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {

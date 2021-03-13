@@ -150,6 +150,7 @@ public class JobManagerRunnerImpl
 
         synchronized (lock) {
             try {
+                //TODO  start  JobMaster
                 leaderElectionService.start(this);
             } catch (Exception e) {
                 log.error(
@@ -310,6 +311,7 @@ public class JobManagerRunnerImpl
                                 leadershipOperation.thenCompose(
                                         (ignored) -> {
                                             synchronized (lock) {
+                                                //TODO  start jobMaster
                                                 return verifyJobSchedulingStatusAndStartJobManager(
                                                         leaderSessionID);
                                             }
@@ -330,6 +332,7 @@ public class JobManagerRunnerImpl
                     if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
                         return jobAlreadyDone();
                     } else {
+                        //TODO
                         return startJobMaster(leaderSessionId);
                     }
                 });
@@ -356,6 +359,7 @@ public class JobManagerRunnerImpl
 
         final CompletableFuture<Acknowledge> startFuture;
         try {
+            //TODO
             startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
         } catch (Exception e) {
             return FutureUtils.completedExceptionally(

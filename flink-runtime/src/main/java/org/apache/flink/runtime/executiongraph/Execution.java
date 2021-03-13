@@ -806,7 +806,7 @@ public class Execution
                                                                                 .NO_RESCALE)),
                         "Rescaling from unaligned checkpoint is not yet supported.");
             }
-
+                //TODO task描述器，
             final TaskDeploymentDescriptor deployment =
                     TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
                             .createDeploymentDescriptor(
@@ -827,6 +827,7 @@ public class Execution
             // We run the submission in the future executor so that the serialization of large TDDs
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
+            //TODO 提交task到TaskManager
             CompletableFuture.supplyAsync(
                             () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
                     .thenCompose(Function.identity())

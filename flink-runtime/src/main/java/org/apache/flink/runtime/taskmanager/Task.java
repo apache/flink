@@ -560,6 +560,7 @@ public class Task
 
     /** Starts the task's thread. */
     public void startTaskThread() {
+        //TODO 接下来启动Task执行线程，调用task.run()方法
         executingThread.start();
     }
 
@@ -567,13 +568,14 @@ public class Task
     @Override
     public void run() {
         try {
+            //TODO
             doRun();
         } finally {
             terminationFuture.complete(executionState);
         }
     }
 
-    private void doRun() {
+    private void  doRun() {
         // ----------------------------
         //  Initial State transition
         // ----------------------------
@@ -726,6 +728,7 @@ public class Task
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
             // now load and instantiate the task's invokable code
+            //TODO
             invokable =
                     loadAndInstantiateInvokable(
                             userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
@@ -752,6 +755,7 @@ public class Task
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
             // run the invokable
+            //TODO
             invokable.invoke();
 
             // make sure, we enter the catch block if the task leaves the invoke() method due

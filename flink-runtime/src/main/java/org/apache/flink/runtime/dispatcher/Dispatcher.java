@@ -477,7 +477,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return CompletableFuture.supplyAsync(
                 () -> {
                     try {
-                        //TODO 创建JobManagerRunner
+                        //TODO 创建JobManagerRunner 启动jobMaster
                         JobManagerRunner runner =
                                 jobManagerRunnerFactory.createJobManagerRunner(
                                         jobGraph,
@@ -490,7 +490,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                                 jobManagerMetricGroup),
                                         fatalErrorHandler,
                                         initializationTimestamp);
-                        //TODO 启动JobMaster
+                        //TODO
                         runner.start();
                         return runner;
                     } catch (Exception e) {

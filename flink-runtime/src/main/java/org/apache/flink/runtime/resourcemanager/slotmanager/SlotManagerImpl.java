@@ -1112,6 +1112,7 @@ public class SlotManagerImpl implements SlotManager {
 
         // RPC call to the task manager
         CompletableFuture<Acknowledge> requestFuture =
+                //TODO SlotManager（ResourceManager的组件）向TM请求Slot
                 gateway.requestSlot(
                         slotId,
                         pendingSlotRequest.getJobId(),

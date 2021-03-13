@@ -502,6 +502,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         closeJobManagerConnection(jobId, cause);
     }
 
+    //TODO
     @Override
     public CompletableFuture<Acknowledge> requestSlot(
             JobMasterId jobMasterId, SlotRequest slotRequest, final Time timeout) {
@@ -518,6 +519,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         slotRequest.getAllocationId());
 
                 try {
+                    //TODO 
                     slotManager.registerSlotRequest(slotRequest);
                 } catch (ResourceManagerException e) {
                     return FutureUtils.completedExceptionally(e);

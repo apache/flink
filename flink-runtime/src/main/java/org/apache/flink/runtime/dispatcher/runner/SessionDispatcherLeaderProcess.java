@@ -75,7 +75,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     protected void onStart() {
         startServices();
 
-        //TODO
+        //TODO start
         onGoingRecoveryOperation =
                 recoverJobsAsync()
                         .thenAccept(this::createDispatcherIfRunning)
@@ -101,6 +101,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     private void createDispatcher(Collection<JobGraph> jobGraphs) {
 
         final DispatcherGatewayService dispatcherService =
+                //TODO start。。
                 dispatcherGatewayServiceFactory.create(
                         DispatcherId.fromUuid(getLeaderSessionId()), jobGraphs, jobGraphStore);
 

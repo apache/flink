@@ -202,7 +202,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 "Starting scheduling with scheduling strategy [{}]",
                 schedulingStrategy.getClass().getName());
         prepareExecutionGraphForNgScheduling();
-        //TODO 
+        //TODO 默认调度策略PipeLinedRegion
         schedulingStrategy.startScheduling();
     }
 
@@ -377,6 +377,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         deploymentOptionsByVertex,
                         slotExecutionVertexAssignments);
 
+        //TODO
         waitForAllSlotsAndDeploy(deploymentHandles);
     }
 
@@ -462,7 +463,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 final CompletableFuture<LogicalSlot> slotAssigned =
                         slotExecutionVertexAssignment.getLogicalSlotFuture();
                 checkState(slotAssigned.isDone());
-
+                //TODO 部署每个执行顶点
                 FutureUtils.assertNoException(
                         slotAssigned.handle(deployOrHandleError(deploymentHandle)));
             }
@@ -551,6 +552,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             }
 
             if (throwable == null) {
+                //TODO 部署
                 deployTaskSafe(executionVertexId);
             } else {
                 handleTaskDeploymentFailure(executionVertexId, throwable);

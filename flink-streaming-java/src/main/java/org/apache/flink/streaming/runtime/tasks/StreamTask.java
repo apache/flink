@@ -570,6 +570,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             }
 
             // let the task do its work
+            //TODO 核心的task执行逻辑
             runMailboxLoop();
 
             // if this left the run() method cleanly despite the fact that this was canceled,

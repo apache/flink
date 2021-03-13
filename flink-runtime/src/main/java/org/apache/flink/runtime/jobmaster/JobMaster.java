@@ -374,11 +374,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
      * @return Future acknowledge if the job could be started. Otherwise the future contains an
      *     exception
      */
+    //TODO
     public CompletableFuture<Acknowledge> start(final JobMasterId newJobMasterId) throws Exception {
         // make sure we receive RPC and async calls
         start();
 
         return callAsyncWithoutFencing(
+                //TODO  JobMaster的启动 requestSlot 及offerSlot，和Task调度
                 () -> startJobExecution(newJobMasterId), RpcUtils.INF_TIMEOUT);
     }
 
@@ -863,7 +865,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         }
 
         setNewFencingToken(newJobMasterId);
-
+        //TODO 真正启动JobMaster服务,包含requestSlot的OfferSlot的逻辑
         startJobMasterServices();
 
         log.info(
@@ -878,6 +880,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     private void startJobMasterServices() throws Exception {
+        //TODO JobMaster 维持和 ResourceManager、TaskManager的心跳
         startHeartbeatServices();
 
         // start the slot pool make sure the slot pool now accepts messages for this leader
@@ -995,6 +998,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         jobManagerJobMetricGroup = newJobManagerJobMetricGroup;
     }
 
+    /**
+     *
+     * @throws Exception
+     */
     private void resetAndStartScheduler() throws Exception {
         validateRunsInMainThread();
 
@@ -1330,6 +1337,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         // filter out outdated connections
                         //noinspection ObjectEquality
                         if (this == resourceManagerConnection) {
+                            //TODO 包含requestSlot的逻辑
                             establishResourceManagerConnection(success);
                         }
                     });

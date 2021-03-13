@@ -367,6 +367,7 @@ public class SlotPoolImpl implements SlotPool {
                 allocationId);
 
         CompletableFuture<Acknowledge> rmResponse =
+                //TODO requestSlot
                 resourceManagerGateway.requestSlot(
                         jobMasterId,
                         new SlotRequest(

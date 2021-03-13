@@ -528,6 +528,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // Task lifecycle RPCs
     // ----------------------------------------------------------------------
 
+    //TODO
     @Override
     public CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
@@ -713,6 +714,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
 
             if (taskAdded) {
+                //TODO
                 task.startTaskThread();
 
                 setupResultPartitionBookkeeping(
@@ -1055,6 +1057,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         }
 
         if (job.isConnected()) {
+            //TODO
             offerSlotsToJobManager(jobId);
         }
 
@@ -1439,6 +1442,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
 
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
+                    //TM向 JobMaster提供Slot
                     jobMasterGateway.offerSlots(
                             getResourceID(), reservedSlots, taskManagerConfiguration.getTimeout());
 
