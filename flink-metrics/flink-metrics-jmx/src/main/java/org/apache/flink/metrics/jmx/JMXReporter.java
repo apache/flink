@@ -24,14 +24,13 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,8 +197,7 @@ public class JMXReporter implements MetricReporter {
 
     static String generateJmxDomain(String metricName, MetricGroup group) {
         return JMX_DOMAIN_PREFIX
-                + ((FrontMetricGroup<AbstractMetricGroup<?>>) group)
-                        .getLogicalScope(CHARACTER_FILTER, '.')
+                + LogicalScopeProvider.castFrom(group).getLogicalScope(CHARACTER_FILTER, '.')
                 + '.'
                 + metricName;
     }
