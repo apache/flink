@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -38,7 +39,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
@@ -509,21 +510,17 @@ public class StreamTaskTestHarness<OUT> {
         }
     }
 
-    /**
-     * The task metric group for implementing the custom registry to store the registered metrics.
-     */
-    static class TestTaskMetricGroup extends TaskMetricGroup {
-
-        TestTaskMetricGroup(Map<String, Metric> metrics) {
-            super(
-                    new TestMetricRegistry(metrics),
-                    new UnregisteredMetricGroups.UnregisteredTaskManagerJobMetricGroup(),
-                    new JobVertexID(0, 0),
-                    new ExecutionAttemptID(),
-                    "test",
-                    0,
-                    0);
-        }
+    static TaskMetricGroup createTaskMetricGroup(Map<String, Metric> metrics) {
+        return MetricUtils.createTaskManagerMetricGroup(
+                        new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
+                .addTaskForJob(
+                        new JobID(),
+                        "jobName",
+                        new JobVertexID(0, 0),
+                        new ExecutionAttemptID(),
+                        "test",
+                        0,
+                        0);
     }
 
     /** The metric registry for storing the registered metrics to verify in tests. */
