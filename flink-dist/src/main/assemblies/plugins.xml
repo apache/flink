@@ -53,7 +53,7 @@
 		</file>
 
 		<file>
-			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-prometheus/</outputDirectory>
 			<destName>flink-metrics-prometheus-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
