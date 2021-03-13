@@ -479,7 +479,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 createSlotOffersForResourceRequirements(
                         ResourceCounter.withResource(ResourceProfile.UNKNOWN, PARALLELISM)));
 
-        assertThat(scheduler.getState(), instanceOf(Executing.class));
+        assertThat(scheduler.getState(), instanceOf(CreatingExecutionGraph.class));
     }
 
     @Test
