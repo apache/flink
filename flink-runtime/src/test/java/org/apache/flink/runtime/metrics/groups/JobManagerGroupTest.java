@@ -21,7 +21,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -54,24 +53,9 @@ public class JobManagerGroupTest extends TestLogger {
         final String jobName1 = "testjob";
         final String jobName2 = "anotherJob";
 
-        JobManagerJobMetricGroup jmJobGroup11 =
-                group.addJob(
-                        JobGraphBuilder.newStreamingJobGraphBuilder()
-                                .setJobId(jid1)
-                                .setJobName(jobName1)
-                                .build());
-        JobManagerJobMetricGroup jmJobGroup12 =
-                group.addJob(
-                        JobGraphBuilder.newStreamingJobGraphBuilder()
-                                .setJobId(jid1)
-                                .setJobName(jobName1)
-                                .build());
-        JobManagerJobMetricGroup jmJobGroup21 =
-                group.addJob(
-                        JobGraphBuilder.newStreamingJobGraphBuilder()
-                                .setJobId(jid2)
-                                .setJobName(jobName2)
-                                .build());
+        JobManagerJobMetricGroup jmJobGroup11 = group.addJob(jid1, jobName1);
+        JobManagerJobMetricGroup jmJobGroup12 = group.addJob(jid1, jobName1);
+        JobManagerJobMetricGroup jmJobGroup21 = group.addJob(jid2, jobName2);
 
         assertEquals(jmJobGroup11, jmJobGroup12);
 
@@ -103,18 +87,8 @@ public class JobManagerGroupTest extends TestLogger {
         final String jobName1 = "testjob";
         final String jobName2 = "anotherJob";
 
-        JobManagerJobMetricGroup jmJobGroup11 =
-                group.addJob(
-                        JobGraphBuilder.newStreamingJobGraphBuilder()
-                                .setJobId(jid1)
-                                .setJobName(jobName1)
-                                .build());
-        JobManagerJobMetricGroup jmJobGroup21 =
-                group.addJob(
-                        JobGraphBuilder.newStreamingJobGraphBuilder()
-                                .setJobId(jid2)
-                                .setJobName(jobName2)
-                                .build());
+        JobManagerJobMetricGroup jmJobGroup11 = group.addJob(jid1, jobName1);
+        JobManagerJobMetricGroup jmJobGroup21 = group.addJob(jid2, jobName2);
 
         group.close();
 
