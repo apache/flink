@@ -32,7 +32,7 @@
 		<!-- Metrics -->
 
 		<file>
-			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-jmx/</outputDirectory>
 			<destName>flink-metrics-jmx-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
