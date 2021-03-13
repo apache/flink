@@ -20,9 +20,8 @@ package org.apache.flink.metrics.influxdb;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,7 +62,7 @@ class MeasurementInfoProvider implements MetricInfoProvider<MeasurementInfo> {
     }
 
     private static String getLogicalScope(MetricGroup group) {
-        return ((FrontMetricGroup<AbstractMetricGroup<?>>) group)
+        return LogicalScopeProvider.castFrom(group)
                 .getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
     }
 }
