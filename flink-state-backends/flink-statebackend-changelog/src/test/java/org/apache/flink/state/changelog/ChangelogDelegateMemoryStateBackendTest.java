@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.MemoryStateBackendTest;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
@@ -50,7 +51,8 @@ public class ChangelogDelegateMemoryStateBackendTest extends MemoryStateBackendT
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(super.getStateBackend()),
+                new ChangelogStateBackend(
+                        super.getStateBackend(), new InMemoryStateChangelogStorage()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
@@ -59,7 +61,8 @@ public class ChangelogDelegateMemoryStateBackendTest extends MemoryStateBackendT
 
     @Override
     protected ConfigurableStateBackend getStateBackend() {
-        return new ChangelogStateBackend(super.getStateBackend());
+        return new ChangelogStateBackend(
+                super.getStateBackend(), new InMemoryStateChangelogStorage());
     }
 
     @Override

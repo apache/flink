@@ -19,14 +19,19 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRange;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * A factory for {@link StateChangelogWriter} and {@link StateChangelogHandleReader}. Please use
  * {@link StateChangelogStorageLoader} to obtain an instance.
  */
 @Internal
-public interface StateChangelogStorage<Handle extends ChangelogStateHandle> extends AutoCloseable {
+public interface StateChangelogStorage<Handle extends ChangelogStateHandle>
+        extends AutoCloseable, Serializable {
 
     StateChangelogWriter<Handle> createWriter(String operatorID, KeyGroupRange keyGroupRange);
 
@@ -34,4 +39,7 @@ public interface StateChangelogStorage<Handle extends ChangelogStateHandle> exte
 
     @Override
     default void close() throws Exception {}
+
+    /** Configure this factory. Should be called at most once. */
+    void configure(ReadableConfig config) throws IOException;
 }

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.util.IOUtils;
 
@@ -113,7 +114,11 @@ public class ChangelogDelegateStateTest {
 
         try {
             delegatedBackend = createKeyedBackend(backend.get(), env);
-            changelogBackend = createKeyedBackend(new ChangelogStateBackend(backend.get()), env);
+            changelogBackend =
+                    createKeyedBackend(
+                            new ChangelogStateBackend(
+                                    backend.get(), new InMemoryStateChangelogStorage()),
+                            env);
 
             State state =
                     changelogBackend.getPartitionedState(

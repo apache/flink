@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
@@ -63,6 +63,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
     private static final Logger LOG = LoggerFactory.getLogger(ChangelogStateBackend.class);
 
     private final StateBackend delegatedStateBackend;
+    private final StateChangelogStorage<?> stateChangelogStorage;
 
     /**
      * Delegate a state backend by a ChangelogStateBackend.
@@ -71,8 +72,10 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
      *
      * @param stateBackend the delegated state backend.
      */
-    ChangelogStateBackend(StateBackend stateBackend) {
+    ChangelogStateBackend(
+            StateBackend stateBackend, StateChangelogStorage<?> stateChangelogStorage) {
         this.delegatedStateBackend = Preconditions.checkNotNull(stateBackend);
+        this.stateChangelogStorage = stateChangelogStorage;
 
         Preconditions.checkArgument(
                 !(stateBackend instanceof DelegatingStateBackend),
@@ -185,7 +188,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         if (delegatedStateBackend instanceof ConfigurableStateBackend) {
             return new ChangelogStateBackend(
                     ((ConfigurableStateBackend) delegatedStateBackend)
-                            .configure(config, classLoader));
+                            .configure(config, classLoader),
+                    this.stateChangelogStorage);
         }
 
         return this;
@@ -200,10 +204,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             Collection<KeyedStateHandle> stateHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
-        // todo: FLINK-21804 get from Environment.getTaskStateManager
-        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
         return ChangelogBackendRestoreOperation.restore(
-                changelogStorage.createReader(),
+                stateChangelogStorage.createReader(),
                 env.getUserCodeClassLoader().asClassLoader(),
                 castHandles(stateHandles),
                 baseBackendBuilder,
@@ -212,7 +214,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 baseBackend,
                                 env.getExecutionConfig(),
                                 ttlTimeProvider,
-                                changelogStorage.createWriter(operatorIdentifier, keyGroupRange),
+                                stateChangelogStorage.createWriter(
+                                        operatorIdentifier, keyGroupRange),
                                 baseState));
     }
 

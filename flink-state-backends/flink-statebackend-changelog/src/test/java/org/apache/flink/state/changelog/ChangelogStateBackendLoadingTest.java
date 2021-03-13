@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -147,7 +148,10 @@ public class ChangelogStateBackendLoadingTest {
     @Test(expected = IllegalArgumentException.class)
     public void testRecursiveDelegation() throws Exception {
         final StateBackend appBackend =
-                new ChangelogStateBackend(new ChangelogStateBackend(new MockStateBackend()));
+                new ChangelogStateBackend(
+                        new ChangelogStateBackend(
+                                new MockStateBackend(), new InMemoryStateChangelogStorage()),
+                        new InMemoryStateChangelogStorage());
 
         StateBackendLoader.fromApplicationOrConfigOrDefault(
                 appBackend, TernaryBoolean.UNDEFINED, config("rocksdb", true), cl, null);
