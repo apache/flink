@@ -157,7 +157,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
+			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
