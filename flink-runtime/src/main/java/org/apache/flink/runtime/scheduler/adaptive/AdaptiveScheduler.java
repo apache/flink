@@ -112,6 +112,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -123,6 +124,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -730,7 +732,8 @@ public class AdaptiveScheduler
             vertex.setParallelism(parallelismAndResourceAssignments.getParallelism(vertex.getID()));
         }
 
-        final ExecutionGraph executionGraph = createExecutionGraphAndRestoreState(adjustedJobGraph);
+        final ExecutionGraph executionGraph =
+                createExecutionGraphAndRestoreStateAsync(adjustedJobGraph).join();
 
         executionGraph.start(componentMainThreadExecutor);
         executionGraph.transitionToRunning();
@@ -749,6 +752,20 @@ public class AdaptiveScheduler
         return executionGraph;
     }
 
+    private CompletableFuture<ExecutionGraph> createExecutionGraphAndRestoreStateAsync(
+            JobGraph adjustedJobGraph) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    try {
+                        return createExecutionGraphAndRestoreState(adjustedJobGraph);
+                    } catch (Exception exception) {
+                        throw new CompletionException(exception);
+                    }
+                },
+                ioExecutor);
+    }
+
+    @Nonnull
     private ExecutionGraph createExecutionGraphAndRestoreState(JobGraph adjustedJobGraph)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
