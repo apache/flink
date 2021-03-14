@@ -106,7 +106,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
         registeredKVStates.clear();
         registeredPQStates.clear();
 
-        boolean keySerializerRestored = false;
+        boolean firstRun = true;
 
         for (KeyedStateHandle keyedStateHandle : restoreStateHandles) {
 
@@ -133,27 +133,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 
                 serializationProxy.read(inView);
 
-                if (!keySerializerRestored) {
-                    // fetch current serializer now because if it is incompatible, we can't access
-                    // it anymore to improve the error message
-                    TypeSerializer<K> currentSerializer =
-                            keySerializerProvider.currentSchemaSerializer();
-                    // check for key serializer compatibility; this also reconfigures the
-                    // key serializer to be compatible, if it is required and is possible
-                    TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
-                            keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(
-                                    serializationProxy.getKeySerializerSnapshot());
-                    if (keySerializerSchemaCompat.isCompatibleAfterMigration()
-                            || keySerializerSchemaCompat.isIncompatible()) {
-                        throw new StateMigrationException(
-                                "The new key serializer ("
-                                        + currentSerializer
-                                        + ") must be compatible with the previous key serializer ("
-                                        + keySerializerProvider.previousSchemaSerializer()
-                                        + ").");
-                    }
-
-                    keySerializerRestored = true;
+                if (firstRun) {
+                    restoreKeySerializer(serializationProxy);
                 }
 
                 List<StateMetaInfoSnapshot> restoredMetaInfos =
@@ -172,6 +153,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                         serializationProxy.getReadVersion(),
                         serializationProxy.isUsingKeyGroupCompression());
                 LOG.info("Finished restoring from state handle: {}.", keyedStateHandle);
+
+                firstRun = false;
             } finally {
                 if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
                     IOUtils.closeQuietly(fsDataInputStream);
@@ -179,6 +162,27 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             }
         }
         return null;
+    }
+
+    private void restoreKeySerializer(KeyedBackendSerializationProxy<K> serializationProxy) throws StateMigrationException {
+        // fetch current serializer now because if it is incompatible, we can't access
+        // it anymore to improve the error message
+        TypeSerializer<K> currentSerializer =
+                keySerializerProvider.currentSchemaSerializer();
+        // check for key serializer compatibility; this also reconfigures the
+        // key serializer to be compatible, if it is required and is possible
+        TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
+                keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(
+                        serializationProxy.getKeySerializerSnapshot());
+        if (keySerializerSchemaCompat.isCompatibleAfterMigration()
+                || keySerializerSchemaCompat.isIncompatible()) {
+            throw new StateMigrationException(
+                    "The new key serializer ("
+                            + currentSerializer
+                            + ") must be compatible with the previous key serializer ("
+                            + keySerializerProvider.previousSchemaSerializer()
+                            + ").");
+        }
     }
 
     private void readStateHandleStateData(
