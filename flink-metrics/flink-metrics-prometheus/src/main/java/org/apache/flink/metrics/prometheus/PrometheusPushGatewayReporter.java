@@ -48,12 +48,13 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final boolean deleteOnShutdown;
 
     PrometheusPushGatewayReporter(
-        @Nullable PushGateway pushGateway,
-        @Nullable String jobName,
-        @Nullable Map<String, String> groupingKey,
+        String host,
+        int port,
+        String jobName,
+        Map<String, String> groupingKey,
         final boolean deleteOnShutdown
         ) {
-        this.pushGateway = Preconditions.checkNotNull(pushGateway);
+        this.pushGateway = new PushGateway(host + ':' + port);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;

@@ -49,11 +49,24 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         return port;
     }
 
-    PrometheusReporter(
-        final int port, 
-        @Nullable HTTPServer httpServer) {
-        this.httpServer = Preconditions.checkNotNull(httpServer);
-        this.port = port;
+    PrometheusReporter(Iterator<Integer> ports) {
+        while (ports.hasNext()) {
+            port = ports.next();
+            try {
+                // internally accesses CollectorRegistry.defaultRegistry
+                httpServer = new HTTPServer(port);
+                log.info("Started PrometheusReporter HTTP server on port {}.", port);
+                break;
+            } catch (IOException ioe) { // assume port conflict
+                log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
+            }
+        }
+
+        if (httpServer == null) {
+            throw new RuntimeException(
+                    "Could not start PrometheusReporter HTTP server on any configured port. Ports: "
+                            + ports);
+        }
     }
 
     @Override

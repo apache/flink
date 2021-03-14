@@ -73,7 +73,6 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
             jobName = configuredJobName + new AbstractID();
         } 
 
-        PushGateway pushGateway = new PushGateway(host + ':' + port);
         LOG.info(
                 "Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
                 host,
@@ -83,7 +82,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                 deleteOnShutdown,
                 groupingKey);
 
-        return new PrometheusPushGatewayReporter(pushGateway, jobName, groupingKey, deleteOnShutdown);
+        return new PrometheusPushGatewayReporter(host, port, jobName, groupingKey, deleteOnShutdown);
     }
 
     static Map<String, String> parseGroupingKey(final String groupingKeyConfig) {

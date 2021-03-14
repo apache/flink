@@ -39,8 +39,6 @@ import java.util.Properties;
         reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusReporter")
 public class PrometheusReporterFactory implements MetricReporterFactory {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporterFactory.class);
-
     static final String ARG_PORT = "port";
     private static final String DEFAULT_PORT = "9249";
 
@@ -49,26 +47,7 @@ public class PrometheusReporterFactory implements MetricReporterFactory {
         MetricConfig metricConfig = (MetricConfig)properties;
         String portsConfig = metricConfig.getString(ARG_PORT, DEFAULT_PORT);
         Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-        Integer port = null;
-        HTTPServer httpServer = null;
-        while (ports.hasNext()) {
-            port = ports.next();
-            try {
-                // internally accesses CollectorRegistry.defaultRegistry
-                httpServer = new HTTPServer(port);
-                LOG.info("Started PrometheusReporter HTTP server on port {}.", port);
-                break;
-            } catch (IOException ioe) { // assume port conflict
-                LOG.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
-            }
-        }
-        
-        if (httpServer == null) {
-            throw new RuntimeException(
-                    "Could not start PrometheusReporter HTTP server on any configured port. Ports: "
-                            + portsConfig);
-        }
 
-        return new PrometheusReporter(port, httpServer);
+        return new PrometheusReporter(ports);
     }
 }
