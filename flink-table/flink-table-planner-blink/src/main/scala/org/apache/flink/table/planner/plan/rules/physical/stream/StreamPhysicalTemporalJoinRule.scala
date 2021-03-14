@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTemporalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.containsWindowStartEqualityOrEndEquality
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -52,9 +53,11 @@ class StreamPhysicalTemporalJoinRule
     supportedJoinTypes.contains(join.getJoinType)
   }
 
-  private def matchesTemporalTableFunctionJoin(join: FlinkLogicalJoin): Boolean = {
+  private def matchesTemporalTableFunctionJoin(
+      join: FlinkLogicalJoin): Boolean = {
     val (windowBounds, _) = extractWindowBounds(join)
-    windowBounds.isEmpty && join.getJoinType == JoinRelType.INNER
+    windowBounds.isEmpty && join.getJoinType == JoinRelType.INNER &&
+      !containsWindowStartEqualityOrEndEquality(join)
   }
 
   override protected def transform(

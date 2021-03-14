@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelateBase, StreamPhysicalMiniBatchAssigner, StreamPhysicalTemporalJoin, StreamPhysicalWindowAggregate, StreamPhysicalWindowRank, StreamPhysicalWindowTableFunction}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelateBase, StreamPhysicalMiniBatchAssigner, StreamPhysicalTemporalJoin, StreamPhysicalWindowAggregate, StreamPhysicalWindowJoin, StreamPhysicalWindowRank, StreamPhysicalWindowTableFunction}
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.WindowUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, isWindowTableFunctionCall}
@@ -314,6 +314,38 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       mq: RelMetadataQuery): RelWindowProperties = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getRelWindowProperties(rel.getLeft)
+  }
+
+  def getWindowProperties(
+      rel: StreamPhysicalWindowJoin,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    val leftFieldCnt = rel.getLeft.getRowType.getFieldCount
+    val rightFieldCnt = rel.getRight.getRowType.getFieldCount
+
+    def inferWindowPropertyAfterWindowJoin(
+        leftWindowProperty: ImmutableBitSet,
+        rightWindowProperty: ImmutableBitSet): ImmutableBitSet = {
+      val fieldMapping = new JHashMap[Integer, Integer]()
+      (0 until rightFieldCnt).foreach(idx => fieldMapping.put(idx, leftFieldCnt + idx))
+      val rightWindowPropertyAfterWindowJoin = rightWindowProperty.permute(fieldMapping)
+      leftWindowProperty.union(rightWindowPropertyAfterWindowJoin)
+    }
+
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val leftWindowProperties = fmq.getRelWindowProperties(rel.getLeft)
+    val rightWindowProperties = fmq.getRelWindowProperties(rel.getRight)
+    assert(leftWindowProperties.getWindowSpec == rightWindowProperties.getWindowSpec)
+    assert(leftWindowProperties.getTimeAttributeType == rightWindowProperties.getTimeAttributeType)
+    val startColumns = inferWindowPropertyAfterWindowJoin(
+      leftWindowProperties.getWindowStartColumns,
+      rightWindowProperties.getWindowStartColumns)
+    val endColumns = inferWindowPropertyAfterWindowJoin(
+      leftWindowProperties.getWindowEndColumns,
+      rightWindowProperties.getWindowEndColumns)
+    val timeColumns = inferWindowPropertyAfterWindowJoin(
+      leftWindowProperties.getWindowTimeColumns,
+      rightWindowProperties.getWindowTimeColumns)
+    leftWindowProperties.copy(startColumns, endColumns, timeColumns)
   }
 
   def getWindowProperties(
