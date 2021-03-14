@@ -148,8 +148,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     @Override
-    public Map<ExecutionVertexID, LogicalSlot> reserveResources(
-            VertexParallelism vertexParallelism) {
+    public Optional<ReservedSlots> tryReserveResources(VertexParallelism vertexParallelism) {
         Preconditions.checkArgument(
                 vertexParallelism instanceof VertexParallelismWithSlotSharing,
                 String.format(
@@ -176,7 +175,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             }
         }
 
-        return assignedSlots;
+        return Optional.of(ReservedSlots.create(assignedSlots));
     }
 
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {

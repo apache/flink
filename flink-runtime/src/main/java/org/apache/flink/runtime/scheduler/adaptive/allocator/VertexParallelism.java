@@ -27,7 +27,7 @@ import java.util.Map;
  * the parallelism each vertex could be scheduled with.
  *
  * <p>{@link SlotAllocator} implementations may encode additional information to be used in {@link
- * SlotAllocator#reserveResources(VertexParallelism)}.
+ * SlotAllocator#tryReserveResources(VertexParallelism)}.
  */
 public interface VertexParallelism {
     Map<JobVertexID, Integer> getMaxParallelismForVertices();

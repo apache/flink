@@ -147,8 +147,11 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
         final VertexParallelismWithSlotSharing slotAssignments =
                 slotAllocator.determineParallelism(jobInformation, getSlots(50)).get();
 
-        final Map<ExecutionVertexID, LogicalSlot> assignedResources =
-                slotAllocator.reserveResources(slotAssignments);
+        final ReservedSlots reservedSlots =
+                slotAllocator
+                        .tryReserveResources(slotAssignments)
+                        .orElseThrow(
+                                () -> new RuntimeException("Expected that reservation succeeds."));
 
         final Map<ExecutionVertexID, SlotInfo> expectedAssignments = new HashMap<>();
         for (SlotSharingSlotAllocator.ExecutionSlotSharingGroupAndSlot assignment :
@@ -161,7 +164,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
 
         for (Map.Entry<ExecutionVertexID, SlotInfo> expectedAssignment :
                 expectedAssignments.entrySet()) {
-            final LogicalSlot assignedSlot = assignedResources.get(expectedAssignment.getKey());
+            final LogicalSlot assignedSlot = reservedSlots.getSlotFor(expectedAssignment.getKey());
 
             final SlotInfo backingSlot = expectedAssignment.getValue();
 

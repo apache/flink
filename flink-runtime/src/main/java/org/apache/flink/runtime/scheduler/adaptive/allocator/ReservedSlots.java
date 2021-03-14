@@ -16,34 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.adaptive;
+package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 
-/** Assignment of slots to execution vertices. */
-public final class ParallelismAndResourceAssignments {
-    private final ReservedSlots reservedSlots;
+/** Container for the set of reserved slots for {@link ExecutionVertexID}. */
+public final class ReservedSlots {
+    private final Map<ExecutionVertexID, LogicalSlot> slotPerExecutionVertex;
 
-    private final Map<JobVertexID, Integer> parallelismPerJobVertex;
-
-    public ParallelismAndResourceAssignments(
-            ReservedSlots reservedSlots, Map<JobVertexID, Integer> parallelismPerJobVertex) {
-        this.reservedSlots = reservedSlots;
-        this.parallelismPerJobVertex = parallelismPerJobVertex;
+    private ReservedSlots(Map<ExecutionVertexID, LogicalSlot> slotPerExecutionVertex) {
+        this.slotPerExecutionVertex = slotPerExecutionVertex;
     }
 
-    public int getParallelism(JobVertexID jobVertexId) {
-        Preconditions.checkState(parallelismPerJobVertex.containsKey(jobVertexId));
-        return parallelismPerJobVertex.get(jobVertexId);
+    public LogicalSlot getSlotFor(ExecutionVertexID executionVertexId) {
+        return Preconditions.checkNotNull(slotPerExecutionVertex.get(executionVertexId));
     }
 
-    public LogicalSlot getAssignedSlot(ExecutionVertexID executionVertexId) {
-        return reservedSlots.getSlotFor(executionVertexId);
+    public static ReservedSlots create(Map<ExecutionVertexID, LogicalSlot> assignedSlots) {
+        return new ReservedSlots(assignedSlots);
     }
 }
