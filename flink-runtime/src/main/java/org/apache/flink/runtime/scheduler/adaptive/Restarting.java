@@ -27,6 +27,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.concurrent.ScheduledFuture;
 
@@ -36,6 +38,8 @@ class Restarting extends StateWithExecutionGraph {
     private final Context context;
 
     private final Duration backoffTime;
+
+    @Nullable private ScheduledFuture<?> goToWaitingForResourcesFuture;
 
     Restarting(
             Context context,
@@ -49,6 +53,15 @@ class Restarting extends StateWithExecutionGraph {
         this.backoffTime = backoffTime;
 
         getExecutionGraph().cancel();
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        if (goToWaitingForResourcesFuture != null) {
+            goToWaitingForResourcesFuture.cancel(false);
+        }
+
+        super.onLeave(newState);
     }
 
     @Override
@@ -75,7 +88,8 @@ class Restarting extends StateWithExecutionGraph {
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
-        context.runIfState(this, context::goToWaitingForResources, backoffTime);
+        goToWaitingForResourcesFuture =
+                context.runIfState(this, context::goToWaitingForResources, backoffTime);
     }
 
     /** Context of the {@link Restarting} state. */
