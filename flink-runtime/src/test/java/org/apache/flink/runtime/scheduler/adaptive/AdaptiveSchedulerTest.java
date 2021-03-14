@@ -35,6 +35,8 @@ import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -67,6 +69,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.scheduler.GloballyTerminalJobStatusListener;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -90,6 +93,8 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -722,25 +727,50 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraphWithNewOperator.getJobID());
 
-        final AdaptiveScheduler adaptiveScheduler =
-                new AdaptiveSchedulerBuilder(jobGraphWithNewOperator, mainThreadExecutor)
-                        .setDeclarativeSlotPool(declarativeSlotPool)
-                        .build();
+        final GloballyTerminalJobStatusListener jobStatusListener =
+                new GloballyTerminalJobStatusListener();
 
-        adaptiveScheduler.startScheduling();
+        final ScheduledExecutorService singleThreadExecutor =
+                Executors.newSingleThreadScheduledExecutor();
 
-        offerSlots(
-                declarativeSlotPool,
-                createSlotOffersForResourceRequirements(
-                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
+        try {
+            final ComponentMainThreadExecutor singleMainThreadExecutor =
+                    ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                            singleThreadExecutor);
+            final AdaptiveScheduler adaptiveScheduler =
+                    new AdaptiveSchedulerBuilder(jobGraphWithNewOperator, singleMainThreadExecutor)
+                            .setDeclarativeSlotPool(declarativeSlotPool)
+                            .setJobStatusListener(jobStatusListener)
+                            .build();
 
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                adaptiveScheduler.requestJob().getArchivedExecutionGraph();
+            adaptiveScheduler.startScheduling();
 
-        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
-        assertThat(
-                archivedExecutionGraph.getFailureInfo().getException(),
-                FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
+            singleMainThreadExecutor.execute(
+                    () ->
+                            offerSlots(
+                                    declarativeSlotPool,
+                                    createSlotOffersForResourceRequirements(
+                                            ResourceCounter.withResource(
+                                                    ResourceProfile.UNKNOWN, 1))));
+
+            assertThat(jobStatusListener.getTerminationFuture().join(), is(JobStatus.FAILED));
+
+            final ArchivedExecutionGraph archivedExecutionGraph =
+                    CompletableFuture.supplyAsync(
+                                    () ->
+                                            adaptiveScheduler
+                                                    .requestJob()
+                                                    .getArchivedExecutionGraph(),
+                                    singleMainThreadExecutor)
+                            .join();
+
+            assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
+            assertThat(
+                    archivedExecutionGraph.getFailureInfo().getException(),
+                    FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
+        } finally {
+            singleThreadExecutor.shutdownNow();
+        }
     }
 
     @Test
