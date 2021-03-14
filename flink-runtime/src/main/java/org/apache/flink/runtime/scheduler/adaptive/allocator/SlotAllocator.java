@@ -17,13 +17,10 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 
 /** Component for calculating the slot requirements and mapping of vertices to slots. */
@@ -45,12 +42,8 @@ public interface SlotAllocator {
      * <p>If a {@link VertexParallelism} is returned then it covers all vertices contained in the
      * given job information.
      *
-     * <p>A returned {@link VertexParallelism} should be directly consumed afterwards (by either
-     * discarding it or calling {@link #reserveResources(VertexParallelism)}, as there is no
-     * guarantee that the assignment remains valid over time (because slots can be lost).
-     *
      * <p>Implementations of this method must be side-effect free. There is no guarantee that the
-     * result of this method is ever passed to {@link #reserveResources(VertexParallelism)}.
+     * result of this method is ever passed to {@link #tryReserveResources(VertexParallelism)}.
      *
      * @param jobInformation information about the job graph
      * @param slots slots to consider for determining the parallelism
@@ -62,10 +55,13 @@ public interface SlotAllocator {
             JobInformation jobInformation, Collection<? extends SlotInfo> slots);
 
     /**
-     * Reserves slots according to the given assignment.
+     * Reserves slots according to the given assignment if possible. If the underlying set of
+     * resources has changed and the reservation with respect to vertexParallelism is no longer
+     * possible, then this method returns {@link Optional#empty()}.
      *
      * @param vertexParallelism information on how slots should be assigned to the slots
-     * @return mapping of vertices to slots
+     * @return Set of reserved slots if the reservation was successful; otherwise {@link
+     *     Optional#empty()}
      */
-    Map<ExecutionVertexID, LogicalSlot> reserveResources(VertexParallelism vertexParallelism);
+    Optional<ReservedSlots> tryReserveResources(VertexParallelism vertexParallelism);
 }

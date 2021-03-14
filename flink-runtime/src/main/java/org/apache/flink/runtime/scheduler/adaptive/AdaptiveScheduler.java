@@ -94,12 +94,12 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -121,7 +121,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -594,11 +593,17 @@ public class AdaptiveScheduler
                                                 jobInformation.getJobID(),
                                                 "Not enough resources available for scheduling."));
 
-        final Map<ExecutionVertexID, LogicalSlot> slotAssignments =
-                slotAllocator.reserveResources(vertexParallelism);
+        final ReservedSlots reservedSlots =
+                slotAllocator
+                        .tryReserveResources(vertexParallelism)
+                        .orElseThrow(
+                                () ->
+                                        new JobExecutionException(
+                                                jobInformation.getJobID(),
+                                                "Could not reserve all required slots."));
 
         return new ParallelismAndResourceAssignments(
-                slotAssignments, vertexParallelism.getMaxParallelismForVertices());
+                reservedSlots, vertexParallelism.getMaxParallelismForVertices());
     }
 
     @Override
