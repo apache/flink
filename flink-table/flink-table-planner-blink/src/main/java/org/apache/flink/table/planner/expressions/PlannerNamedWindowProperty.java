@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.expressions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.tools.RelBuilder;
 
 /**
@@ -26,10 +29,19 @@ import org.apache.calcite.tools.RelBuilder;
  * <p>Similar to {@link RelBuilder.AggCall} or {@link RelBuilder.GroupKey}.
  */
 public class PlannerNamedWindowProperty {
+    public static final String FIELD_NAME_NAME = "name";
+    public static final String FIELD_NAME_PROPERTY = "property";
+
+    @JsonProperty(FIELD_NAME_NAME)
     private final String name;
+
+    @JsonProperty(FIELD_NAME_PROPERTY)
     private final PlannerWindowProperty property;
 
-    public PlannerNamedWindowProperty(String name, PlannerWindowProperty property) {
+    @JsonCreator
+    public PlannerNamedWindowProperty(
+            @JsonProperty(FIELD_NAME_NAME) String name,
+            @JsonProperty(FIELD_NAME_PROPERTY) PlannerWindowProperty property) {
         this.name = name;
         this.property = property;
     }
