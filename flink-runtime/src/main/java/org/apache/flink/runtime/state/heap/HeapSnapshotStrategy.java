@@ -76,8 +76,11 @@ public class HeapSnapshotStrategy<K>
     }
 
     @Override
-    public HeapSnapshotResources<K> syncPrepareResources(long checkpointId) {
+    public HeapSnapshotResources<K> syncPrepareResources(
+            long checkpointId, CheckpointOptions checkpointOptions) {
         return HeapSnapshotResources.create(
+                checkpointId,
+                checkpointOptions,
                 registeredKVStates,
                 registeredPQStates,
                 keyGroupCompressionDecorator,

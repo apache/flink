@@ -231,19 +231,17 @@ public abstract class SavepointStateBackendSwitchTestBase {
         priorityQueue.add(new TimerHeapInternalTimer<>(2345L, "mno", namespace2));
         priorityQueue.add(new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
 
+        CheckpointOptions checkpointOptions =
+                new CheckpointOptions(
+                        CheckpointType.SAVEPOINT, CheckpointStorageLocationReference.getDefault());
         SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
                 savepointRunner =
                         StreamOperatorStateHandler.prepareSavepoint(
-                                keyedBackend, new CloseableRegistry());
+                                0L, checkpointOptions, keyedBackend, new CloseableRegistry());
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
                 savepointRunner.snapshot(
-                        0L,
-                        0L,
-                        new MemCheckpointStreamFactory(4 * 1024 * 1024),
-                        new CheckpointOptions(
-                                CheckpointType.SAVEPOINT,
-                                CheckpointStorageLocationReference.getDefault()));
+                        0L, 0L, new MemCheckpointStreamFactory(4 * 1024 * 1024), checkpointOptions);
 
         snapshot.run();
 

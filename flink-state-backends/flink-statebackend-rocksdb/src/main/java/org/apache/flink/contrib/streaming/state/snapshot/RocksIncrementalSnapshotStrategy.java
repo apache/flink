@@ -143,8 +143,8 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public IncrementalRocksDBSnapshotResources syncPrepareResources(long checkpointId)
-            throws Exception {
+    public IncrementalRocksDBSnapshotResources syncPrepareResources(
+            long checkpointId, CheckpointOptions checkpointOptions) throws Exception {
 
         final SnapshotDirectory snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
         LOG.trace("Local RocksDB checkpoint goes to backup path {}.", snapshotDirectory);

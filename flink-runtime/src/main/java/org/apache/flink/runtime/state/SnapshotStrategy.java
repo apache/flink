@@ -45,9 +45,11 @@ public interface SnapshotStrategy<S extends StateObject, SR extends SnapshotReso
      * used in the asynchronous part.
      *
      * @param checkpointId The ID of the checkpoint.
+     * @param checkpointOptions
      * @return Resources needed to finish the snapshot.
      */
-    SR syncPrepareResources(long checkpointId) throws Exception;
+    SR syncPrepareResources(long checkpointId, CheckpointOptions checkpointOptions)
+            throws Exception;
 
     /**
      * Operation that writes a snapshot into a stream that is provided by the given {@link

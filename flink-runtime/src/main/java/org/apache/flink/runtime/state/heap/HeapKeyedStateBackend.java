@@ -318,10 +318,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() {
+    public SavepointResources<K> savepoint(long checkpointId, CheckpointOptions checkpointOptions) {
 
         HeapSnapshotResources<K> snapshotResources =
                 HeapSnapshotResources.create(
+                        checkpointId,
+                        checkpointOptions,
                         registeredKVStates,
                         priorityQueuesManager.getRegisteredPQStates(),
                         keyGroupCompressionDecorator,

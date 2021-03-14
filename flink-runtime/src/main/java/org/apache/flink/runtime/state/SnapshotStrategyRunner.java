@@ -74,7 +74,8 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
         long startTime = System.currentTimeMillis();
-        SR snapshotResources = snapshotStrategy.syncPrepareResources(checkpointId);
+        SR snapshotResources =
+                snapshotStrategy.syncPrepareResources(checkpointId, checkpointOptions);
         logCompletedInternal(LOG_SYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
         SnapshotStrategy.SnapshotResultSupplier<T> asyncSnapshot =
                 snapshotStrategy.asyncSnapshot(

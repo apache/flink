@@ -322,7 +322,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
             implements SnapshotStrategy<OperatorStateHandle, SnapshotResources> {
 
         @Override
-        public SnapshotResources syncPrepareResources(long checkpointId) {
+        public SnapshotResources syncPrepareResources(
+                long checkpointId, CheckpointOptions checkpointOptions) {
             return null;
         }
 
