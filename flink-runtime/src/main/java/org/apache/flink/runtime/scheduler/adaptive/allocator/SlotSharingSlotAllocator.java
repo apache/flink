@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
-public class SlotSharingSlotAllocator implements SlotAllocator<VertexParallelismWithSlotSharing> {
+public class SlotSharingSlotAllocator implements SlotAllocator {
 
     private final ReserveSlotFunction reserveSlotFunction;
     private final FreeSlotFunction freeSlotFunction;
@@ -148,7 +149,17 @@ public class SlotSharingSlotAllocator implements SlotAllocator<VertexParallelism
 
     @Override
     public Map<ExecutionVertexID, LogicalSlot> reserveResources(
-            VertexParallelismWithSlotSharing vertexParallelismWithSlotSharing) {
+            VertexParallelism vertexParallelism) {
+        Preconditions.checkArgument(
+                vertexParallelism instanceof VertexParallelismWithSlotSharing,
+                String.format(
+                        "%s expects %s as argument.",
+                        SlotSharingSlotAllocator.class.getSimpleName(),
+                        VertexParallelismWithSlotSharing.class.getSimpleName()));
+
+        final VertexParallelismWithSlotSharing vertexParallelismWithSlotSharing =
+                (VertexParallelismWithSlotSharing) vertexParallelism;
+
         final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
         for (ExecutionSlotSharingGroupAndSlot executionSlotSharingGroup :

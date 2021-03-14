@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** Component for calculating the slot requirements and mapping of vertices to slots. */
-public interface SlotAllocator<T extends VertexParallelism> {
+public interface SlotAllocator {
 
     /**
      * Calculates the total resources required for scheduling the given vertices.
@@ -58,7 +58,7 @@ public interface SlotAllocator<T extends VertexParallelism> {
      *     how the vertices could be assigned to slots, if all vertices could be run with the given
      *     slots
      */
-    Optional<T> determineParallelism(
+    Optional<? extends VertexParallelism> determineParallelism(
             JobInformation jobInformation, Collection<? extends SlotInfo> slots);
 
     /**
@@ -67,5 +67,5 @@ public interface SlotAllocator<T extends VertexParallelism> {
      * @param vertexParallelism information on how slots should be assigned to the slots
      * @return mapping of vertices to slots
      */
-    Map<ExecutionVertexID, LogicalSlot> reserveResources(T vertexParallelism);
+    Map<ExecutionVertexID, LogicalSlot> reserveResources(VertexParallelism vertexParallelism);
 }
