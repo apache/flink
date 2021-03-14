@@ -112,7 +112,7 @@ public class SortMergeResultPartition extends ResultPartition {
 
         PartitionedFileWriter fileWriter = null;
         try {
-            // allocate at most 4M direct memory for caching of index entries
+            // allocate at most 4M heap memory for caching of index entries
             fileWriter = new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
         } catch (Throwable throwable) {
             ExceptionUtils.rethrow(throwable);
