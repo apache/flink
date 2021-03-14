@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -28,12 +29,14 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,38 +44,58 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link SortMergeResultPartition}. */
-public class SortMergeResultPartitionTest {
-
-    private static final BufferAvailabilityListener listener = new NoOpBufferAvailablityListener();
+public class SortMergeResultPartitionTest extends TestLogger {
 
     private static final int bufferSize = 1024;
 
     private static final int totalBuffers = 1000;
 
+    private static final int totalBytes = 32 * 1024 * 1024;
+
+    private static final int numThreads = 4;
+
+    private final TestBufferAvailabilityListener listener = new TestBufferAvailabilityListener();
+
     private FileChannelManager fileChannelManager;
 
     private NetworkBufferPool globalPool;
 
+    private BatchShuffleReadBufferPool readBufferPool;
+
+    private ExecutorService readIOExecutor;
+
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
+    @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
 
     @Before
     public void setUp() {
         fileChannelManager =
                 new FileChannelManagerImpl(new String[] {tmpFolder.getRoot().getPath()}, "testing");
         globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
+        readBufferPool = new BatchShuffleReadBufferPool(totalBytes, bufferSize);
+        readIOExecutor = Executors.newFixedThreadPool(numThreads);
     }
 
     @After
     public void shutdown() throws Exception {
         fileChannelManager.close();
         globalPool.destroy();
+        readBufferPool.destroy();
+        readIOExecutor.shutdown();
     }
 
     @Test
@@ -99,9 +122,7 @@ public class SortMergeResultPartitionTest {
         Arrays.fill(numBytesRead, 0);
 
         for (int i = 0; i < numRecords; ++i) {
-            byte[] data = new byte[random.nextInt(2 * bufferSize) + 1];
-            random.nextBytes(data);
-            ByteBuffer record = ByteBuffer.wrap(data);
+            ByteBuffer record = generateRandomData(random.nextInt(2 * bufferSize) + 1, random);
             boolean isBroadCast = random.nextBoolean();
 
             if (isBroadCast) {
@@ -130,22 +151,26 @@ public class SortMergeResultPartitionTest {
                     record, dataWritten, subpartition, numBytesWritten, DataType.EVENT_BUFFER);
         }
 
+        ResultSubpartitionView[] views = new ResultSubpartitionView[numSubpartitions];
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            ResultSubpartitionView view = partition.createSubpartitionView(subpartition, listener);
-            while (view.isAvailable(Integer.MAX_VALUE)) {
-                Buffer buffer = view.getNextBuffer().buffer();
-                int numBytes = buffer.readableBytes();
-                numBytesRead[subpartition] += numBytes;
-
-                MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
-                segment.put(0, buffer.getNioBufferReadable(), numBytes);
-                buffersRead[subpartition].add(
-                        new NetworkBuffer(segment, (buf) -> {}, buffer.getDataType(), numBytes));
-                buffer.recycleBuffer();
-            }
-            view.releaseAllResources();
+            views[subpartition] = partition.createSubpartitionView(subpartition, listener);
         }
 
+        readData(
+                views,
+                bufferWithChannel -> {
+                    Buffer buffer = bufferWithChannel.getBuffer();
+                    int subpartition = bufferWithChannel.getChannelIndex();
+
+                    int numBytes = buffer.readableBytes();
+                    numBytesRead[subpartition] += numBytes;
+
+                    MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
+                    segment.put(0, buffer.getNioBufferReadable(), numBytes);
+                    buffersRead[subpartition].add(
+                            new NetworkBuffer(
+                                    segment, (buf) -> {}, buffer.getDataType(), numBytes));
+                });
         PartitionSortedBufferTest.checkWriteReadResult(
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
     }
@@ -161,6 +186,37 @@ public class SortMergeResultPartitionTest {
         numBytesWritten[subpartition] += record.remaining();
     }
 
+    private ByteBuffer generateRandomData(int dataSize, Random random) {
+        byte[] dataWritten = new byte[dataSize];
+        random.nextBytes(dataWritten);
+        return ByteBuffer.wrap(dataWritten);
+    }
+
+    private void readData(
+            ResultSubpartitionView[] views, Consumer<BufferWithChannel> bufferProcessor)
+            throws Exception {
+        int numEndOfPartitionEvents = 0;
+        while (numEndOfPartitionEvents < views.length) {
+            listener.waitForData();
+            for (int subpartition = 0; subpartition < views.length; ++subpartition) {
+                ResultSubpartitionView view = views[subpartition];
+                ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
+                while (bufferAndBacklog != null) {
+                    Buffer buffer = bufferAndBacklog.buffer();
+                    bufferProcessor.accept(new BufferWithChannel(buffer, subpartition));
+                    buffer.recycleBuffer();
+
+                    if (!buffer.isBuffer()) {
+                        ++numEndOfPartitionEvents;
+                        assertFalse(view.isAvailable(Integer.MAX_VALUE));
+                        view.releaseAllResources();
+                    }
+                    bufferAndBacklog = view.getNextBuffer();
+                }
+            }
+        }
+    }
+
     @Test
     public void testWriteLargeRecord() throws Exception {
         int numBuffers = 100;
@@ -168,10 +224,7 @@ public class SortMergeResultPartitionTest {
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
 
-        byte[] dataWritten = new byte[bufferSize * numBuffers];
-        Random random = new Random();
-        random.nextBytes(dataWritten);
-        ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
+        ByteBuffer recordWritten = generateRandomData(bufferSize * numBuffers, new Random());
         partition.emitRecord(recordWritten, 0);
         assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
@@ -180,15 +233,14 @@ public class SortMergeResultPartitionTest {
 
         ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
         ByteBuffer recordRead = ByteBuffer.allocate(bufferSize * numBuffers);
-        while (view.isAvailable(Integer.MAX_VALUE)) {
-            Buffer buffer = view.getNextBuffer().buffer();
-            if (buffer.isBuffer()) {
-                recordRead.put(buffer.getNioBufferReadable());
-            }
-            buffer.recycleBuffer();
-        }
-        view.releaseAllResources();
-
+        readData(
+                new ResultSubpartitionView[] {view},
+                bufferWithChannel -> {
+                    Buffer buffer = bufferWithChannel.getBuffer();
+                    if (buffer.isBuffer()) {
+                        recordRead.put(buffer.getNioBufferReadable());
+                    }
+                });
         recordWritten.rewind();
         recordRead.flip();
         assertEquals(recordWritten, recordRead);
@@ -251,7 +303,7 @@ public class SortMergeResultPartitionTest {
     }
 
     @Test
-    public void testReleaseWhileReading() throws Exception {
+    public void testRelease() throws Exception {
         int numBuffers = 10;
         int numWriteBuffers = numBuffers / 2;
         int numBuffersForSort = numBuffers - numWriteBuffers;
@@ -266,22 +318,23 @@ public class SortMergeResultPartitionTest {
         partition.close();
 
         assertEquals(2, partition.getResultFile().getNumRegions());
-        assertEquals(2, fileChannelManager.getPaths()[0].list().length);
+        assertEquals(2, checkNotNull(fileChannelManager.getPaths()[0].list()).length);
 
         ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
-        view.getNextBuffer().buffer().recycleBuffer();
         partition.release();
 
-        assertEquals(2, partition.getResultFile().getNumRegions());
-        assertEquals(2, fileChannelManager.getPaths()[0].list().length);
-
-        while (view.isAvailable(Integer.MAX_VALUE)) {
-            view.getNextBuffer().buffer().recycleBuffer();
+        while (!view.isReleased()) {
+            ResultSubpartition.BufferAndBacklog bufferAndBacklog = view.getNextBuffer();
+            if (bufferAndBacklog != null) {
+                bufferAndBacklog.buffer().recycleBuffer();
+            }
         }
-        view.releaseAllResources();
 
-        assertNull(partition.getResultFile());
-        assertEquals(0, fileChannelManager.getPaths()[0].list().length);
+        // wait util partition file is released
+        while (partition.getResultFile() != null) {
+            Thread.sleep(100);
+        }
+        assertEquals(0, checkNotNull(fileChannelManager.getPaths()[0].list()).length);
     }
 
     @Test
@@ -328,6 +381,12 @@ public class SortMergeResultPartitionTest {
 
     private SortMergeResultPartition createSortMergedPartition(
             int numSubpartitions, BufferPool bufferPool) throws IOException {
+        return createSortMergedPartition(numSubpartitions, bufferPool, readBufferPool);
+    }
+
+    private SortMergeResultPartition createSortMergedPartition(
+            int numSubpartitions, BufferPool bufferPool, BatchShuffleReadBufferPool readBufferPool)
+            throws IOException {
         SortMergeResultPartition sortMergedResultPartition =
                 new SortMergeResultPartition(
                         "SortMergedResultPartitionTest",
@@ -336,12 +395,34 @@ public class SortMergeResultPartitionTest {
                         ResultPartitionType.BLOCKING,
                         numSubpartitions,
                         numSubpartitions,
-                        bufferSize,
+                        readBufferPool,
+                        readIOExecutor,
                         new ResultPartitionManager(),
                         fileChannelManager.createChannel().getPath(),
                         null,
                         () -> bufferPool);
         sortMergedResultPartition.setup();
         return sortMergedResultPartition;
+    }
+
+    private static final class TestBufferAvailabilityListener
+            implements BufferAvailabilityListener {
+
+        private int numNotifications;
+
+        @Override
+        public synchronized void notifyDataAvailable() {
+            if (numNotifications == 0) {
+                notifyAll();
+            }
+            ++numNotifications;
+        }
+
+        public synchronized void waitForData() throws InterruptedException {
+            if (numNotifications == 0) {
+                wait();
+            }
+            numNotifications = 0;
+        }
     }
 }

@@ -36,10 +36,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -56,14 +54,13 @@ public class BatchShuffleReadBufferPool {
      */
     private static final int NUM_BYTES_PER_REQUEST = 8 * 1024 * 1024;
 
+    /**
+     * Wait for at most 2 seconds before return if there is no enough available buffers currently.
+     */
+    private static final Duration WAITING_TIME = Duration.ofSeconds(2);
+
     /** Total direct memory size in bytes can can be allocated and used by this buffer pool. */
     private final long totalBytes;
-
-    /**
-     * Maximum time to wait when requesting read buffers from this buffer pool before throwing an
-     * exception.
-     */
-    private final Duration requestTimeout;
 
     /** The number of total buffers in this buffer pool. */
     private final int numTotalBuffers;
@@ -86,7 +83,7 @@ public class BatchShuffleReadBufferPool {
     @GuardedBy("buffers")
     private boolean initialized;
 
-    public BatchShuffleReadBufferPool(long totalBytes, int bufferSize, Duration requestTimeout) {
+    public BatchShuffleReadBufferPool(long totalBytes, int bufferSize) {
         checkArgument(totalBytes > 0, "Total memory size must be positive.");
         checkArgument(bufferSize > 0, "Size of buffer must be positive.");
         checkArgument(
@@ -101,7 +98,6 @@ public class BatchShuffleReadBufferPool {
 
         this.totalBytes = totalBytes;
         this.bufferSize = bufferSize;
-        this.requestTimeout = checkNotNull(requestTimeout);
 
         this.numTotalBuffers = (int) Math.min(totalBytes / bufferSize, Integer.MAX_VALUE);
         this.numBuffersPerRequest =
@@ -114,28 +110,31 @@ public class BatchShuffleReadBufferPool {
     }
 
     @VisibleForTesting
-    int getNumBuffersPerRequest() {
-        return numBuffersPerRequest;
-    }
-
-    @VisibleForTesting
-    int getNumTotalBuffers() {
+    public int getNumTotalBuffers() {
         return numTotalBuffers;
     }
 
     @VisibleForTesting
-    int getAvailableBuffers() {
+    public int getAvailableBuffers() {
         synchronized (buffers) {
             return buffers.size();
         }
+    }
+
+    public int getNumBuffersPerRequest() {
+        return numBuffersPerRequest;
     }
 
     public int getMaxConcurrentRequests() {
         return numBuffersPerRequest > 0 ? numTotalBuffers / numBuffersPerRequest : 0;
     }
 
+    public int getBufferSize() {
+        return bufferSize;
+    }
+
     /** Initializes this buffer pool which allocates all the buffers. */
-    private void initialize() {
+    public void initialize() {
         LOG.info(
                 "Initializing batch shuffle IO buffer pool: numBuffers={}, bufferSize={}.",
                 numTotalBuffers,
@@ -180,8 +179,7 @@ public class BatchShuffleReadBufferPool {
 
     /**
      * Requests a collection of buffers (determined by {@link #numBuffersPerRequest}) from this
-     * buffer pool. Exception will be thrown if no enough buffers can be allocated in the given
-     * timeout.
+     * buffer pool.
      */
     public List<MemorySegment> requestBuffers() throws Exception {
         List<MemorySegment> allocated = new ArrayList<>(numBuffersPerRequest);
@@ -192,18 +190,13 @@ public class BatchShuffleReadBufferPool {
                 initialize();
             }
 
-            Deadline deadline = Deadline.fromNow(requestTimeout);
+            Deadline deadline = Deadline.fromNow(WAITING_TIME);
             while (buffers.size() < numBuffersPerRequest) {
                 checkState(!destroyed, "Buffer pool is already destroyed.");
 
-                buffers.wait(requestTimeout.toMillis());
+                buffers.wait(WAITING_TIME.toMillis());
                 if (!deadline.hasTimeLeft()) {
-                    throw new TimeoutException(
-                            String.format(
-                                    "Can't allocate enough buffers in the given timeout, which means"
-                                            + " there is a fierce contention for read buffers, please"
-                                            + " increase '%s'.",
-                                    TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
+                    return allocated; // return the empty list
                 }
             }
 

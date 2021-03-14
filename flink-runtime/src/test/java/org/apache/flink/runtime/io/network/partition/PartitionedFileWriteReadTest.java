@@ -23,12 +23,16 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.util.IOUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,16 +92,19 @@ public class PartitionedFileWriteReadTest {
         }
         PartitionedFile partitionedFile = fileWriter.finish();
 
+        FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
+        FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             PartitionedFileReader fileReader =
-                    new PartitionedFileReader(partitionedFile, subpartition);
+                    new PartitionedFileReader(
+                            partitionedFile, subpartition, dataFileChannel, indexFileChannel);
             while (fileReader.hasRemaining()) {
                 MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-                Buffer buffer = fileReader.readBuffer(readBuffer, (buf) -> {});
+                Buffer buffer = fileReader.readCurrentRegion(readBuffer, (buf) -> {});
                 buffersRead[subpartition].add(buffer);
             }
-            fileReader.close();
         }
+        IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
 
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             assertEquals(buffersWritten[subpartition].size(), buffersRead[subpartition].size());
@@ -133,17 +140,20 @@ public class PartitionedFileWriteReadTest {
         }
         PartitionedFile partitionedFile = fileWriter.finish();
 
+        FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
+        FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             PartitionedFileReader fileReader =
-                    new PartitionedFileReader(partitionedFile, subpartition);
+                    new PartitionedFileReader(
+                            partitionedFile, subpartition, dataFileChannel, indexFileChannel);
             while (fileReader.hasRemaining()) {
                 MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-                Buffer buffer = checkNotNull(fileReader.readBuffer(readBuffer, (buf) -> {}));
+                Buffer buffer = checkNotNull(fileReader.readCurrentRegion(readBuffer, (buf) -> {}));
                 assertBufferEquals(checkNotNull(subpartitionBuffers[subpartition].poll()), buffer);
             }
-            fileReader.close();
             assertTrue(subpartitionBuffers[subpartition].isEmpty());
         }
+        IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
     }
 
     private void assertBufferEquals(Buffer expected, Buffer actual) {
@@ -196,35 +206,26 @@ public class PartitionedFileWriteReadTest {
         partitionedFileWriter.finish();
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testReadClosedPartitionedFile() throws Exception {
-        PartitionedFileReader partitionedFileReader = createAndClosePartitionedFiledReader();
-
-        MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
-        partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE);
-    }
-
     @Test
     public void testReadEmptyPartitionedFile() throws Exception {
-        try (PartitionedFileReader partitionedFileReader = createPartitionedFiledReader()) {
-            MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
-            assertNull(partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE));
-        }
+        PartitionedFile partitionedFile = createPartitionedFile();
+
+        FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
+        FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
+        PartitionedFileReader partitionedFileReader =
+                new PartitionedFileReader(partitionedFile, 1, dataFileChannel, indexFileChannel);
+        MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
+
+        assertNull(partitionedFileReader.readCurrentRegion(target, FreeingBufferRecycler.INSTANCE));
+        IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+    }
+
+    private FileChannel openFileChannel(Path path) throws IOException {
+        return FileChannel.open(path, StandardOpenOption.READ);
     }
 
     private List<BufferWithChannel> getBufferWithChannels(Buffer buffer, int channelIndex) {
         return Collections.singletonList(new BufferWithChannel(buffer, channelIndex));
-    }
-
-    private PartitionedFileReader createAndClosePartitionedFiledReader() throws IOException {
-        PartitionedFileReader fileReader = createPartitionedFiledReader();
-        fileReader.close();
-        return fileReader;
-    }
-
-    private PartitionedFileReader createPartitionedFiledReader() throws IOException {
-        PartitionedFile partitionedFile = createPartitionedFile();
-        return new PartitionedFileReader(partitionedFile, 1);
     }
 
     private PartitionedFile createPartitionedFile() throws IOException {
