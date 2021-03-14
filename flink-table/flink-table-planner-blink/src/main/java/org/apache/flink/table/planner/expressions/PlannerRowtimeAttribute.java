@@ -24,10 +24,17 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 /** Rowtime property. */
+@JsonTypeName("Rowtime")
 public class PlannerRowtimeAttribute extends AbstractPlannerWindowProperty {
 
-    public PlannerRowtimeAttribute(PlannerWindowReference reference) {
+    @JsonCreator
+    public PlannerRowtimeAttribute(
+            @JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
         super(reference);
     }
 

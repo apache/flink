@@ -18,7 +18,16 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 /** Logical representation of a window specification. */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = TumblingWindowSpec.class),
+    @JsonSubTypes.Type(value = HoppingWindowSpec.class),
+    @JsonSubTypes.Type(value = CumulativeWindowSpec.class)
+})
 public interface WindowSpec {
 
     String toSummaryString(String windowing);

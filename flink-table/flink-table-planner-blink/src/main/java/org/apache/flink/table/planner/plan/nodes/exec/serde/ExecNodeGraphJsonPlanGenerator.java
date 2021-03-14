@@ -52,6 +52,7 @@ import org.apache.calcite.rex.RexNode;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -111,6 +112,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         // RexNode is used in many exec nodes, so we register its serializer directly here
         module.addSerializer(new RexNodeJsonSerializer());
         module.addSerializer(new AggregateCallJsonSerializer());
+        module.addSerializer(new DurationJsonSerializer());
     }
 
     private static void registerDeserializers(SimpleModule module) {
@@ -123,6 +125,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         // RexNode is used in many exec nodes, so we register its deserializer directly here
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
+        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
     }
 
     /** Check whether the given {@link ExecNodeGraph} is completely legal. */

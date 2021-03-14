@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import java.time.Duration;
 import java.util.Objects;
 
@@ -25,10 +29,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
 /** Logical representation of a tumbling window specification. */
+@JsonTypeName("TumblingWindow")
 public class TumblingWindowSpec implements WindowSpec {
+    public static final String FIELD_NAME_SIZE = "size";
+
+    @JsonProperty(FIELD_NAME_SIZE)
     private final Duration size;
 
-    public TumblingWindowSpec(Duration size) {
+    @JsonCreator
+    public TumblingWindowSpec(@JsonProperty(FIELD_NAME_SIZE) Duration size) {
         this.size = checkNotNull(size);
     }
 

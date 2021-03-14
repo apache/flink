@@ -22,10 +22,17 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 /** Proctime property. */
+@JsonTypeName("Proctime")
 public class PlannerProctimeAttribute extends AbstractPlannerWindowProperty {
 
-    public PlannerProctimeAttribute(PlannerWindowReference reference) {
+    @JsonCreator
+    public PlannerProctimeAttribute(
+            @JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
         super(reference);
     }
 

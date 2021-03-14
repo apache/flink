@@ -21,10 +21,17 @@ package org.apache.flink.table.planner.expressions;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 /** Window start property. */
+@JsonTypeName("WindowStart")
 public class PlannerWindowStart extends AbstractPlannerWindowProperty {
 
-    public PlannerWindowStart(PlannerWindowReference reference) {
+    @JsonCreator
+    public PlannerWindowStart(
+            @JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
         super(reference);
     }
 

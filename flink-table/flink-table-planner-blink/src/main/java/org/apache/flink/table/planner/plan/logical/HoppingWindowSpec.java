@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import java.time.Duration;
 import java.util.Objects;
 
@@ -25,11 +29,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
 /** Logical representation of a hopping window specification. */
+@JsonTypeName("HoppingWindow")
 public class HoppingWindowSpec implements WindowSpec {
+    public static final String FIELD_NAME_SIZE = "size";
+    public static final String FIELD_NAME_SLIDE = "slide";
+
+    @JsonProperty(FIELD_NAME_SIZE)
     private final Duration size;
+
+    @JsonProperty(FIELD_NAME_SLIDE)
     private final Duration slide;
 
-    public HoppingWindowSpec(Duration size, Duration slide) {
+    @JsonCreator
+    public HoppingWindowSpec(
+            @JsonProperty(FIELD_NAME_SIZE) Duration size,
+            @JsonProperty(FIELD_NAME_SLIDE) Duration slide) {
         this.size = checkNotNull(size);
         this.slide = checkNotNull(slide);
     }
