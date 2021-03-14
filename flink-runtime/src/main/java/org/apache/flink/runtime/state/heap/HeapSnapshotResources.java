@@ -137,11 +137,15 @@ public final class HeapSnapshotResources<K> implements FullSnapshotResources<K> 
             stateNamesToId.put(stateUid, stateNamesToId.size());
             StateSnapshotRestore state = kvState.getValue();
             if (null != state) {
-                final StateSnapshot stateSnapshot = state.stateSnapshot();
+                StateSnapshot stateSnapshot = snapshot(state);
                 metaInfoSnapshots.add(stateSnapshot.getMetaInfoSnapshot());
                 cowStateStableSnapshots.put(stateUid, stateSnapshot);
             }
         }
+    }
+
+    protected static StateSnapshot snapshot(StateSnapshotRestore state) {
+        return state.stateSnapshot();
     }
 
     @Override

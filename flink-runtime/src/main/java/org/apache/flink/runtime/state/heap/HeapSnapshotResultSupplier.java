@@ -103,8 +103,15 @@ public class HeapSnapshotResultSupplier<K>
                         keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
                     DataOutputViewStreamWrapper kgCompressionView =
                             new DataOutputViewStreamWrapper(kgCompressionOut);
-                    kgCompressionView.writeShort(stateNamesToId.get(stateSnapshot.getKey()));
-                    partitionedSnapshot.writeStateInKeyGroup(kgCompressionView, keyGroupId);
+                    writeHeader(
+                            kgCompressionView,
+                            stateNamesToId.get(stateSnapshot.getKey()),
+                            stateSnapshot.getValue());
+                    writeBody(
+                            keyGroupId,
+                            partitionedSnapshot,
+                            kgCompressionView,
+                            stateSnapshot.getKey());
                 } // this will just close the outer compression stream
             }
         }
@@ -118,5 +125,20 @@ public class HeapSnapshotResultSupplier<K>
         } else {
             throw new IOException("Stream already unregistered.");
         }
+    }
+
+    protected void writeHeader(
+            DataOutputViewStreamWrapper kgCompressionView, int stateId, StateSnapshot snapshot)
+            throws IOException {
+        kgCompressionView.writeShort(stateId);
+    }
+
+    protected void writeBody(
+            int keyGroupId,
+            StateSnapshot.StateKeyGroupWriter partitionedSnapshot,
+            DataOutputViewStreamWrapper kgCompressionView,
+            StateUID stateUID)
+            throws IOException {
+        partitionedSnapshot.writeStateInKeyGroup(kgCompressionView, keyGroupId);
     }
 }
