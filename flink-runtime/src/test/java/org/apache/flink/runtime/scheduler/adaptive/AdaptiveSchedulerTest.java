@@ -76,6 +76,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -769,7 +770,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                     archivedExecutionGraph.getFailureInfo().getException(),
                     FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
         } finally {
-            singleThreadExecutor.shutdownNow();
+            ExecutorUtils.gracefulShutdown(10L, TimeUnit.SECONDS, singleThreadExecutor);
         }
     }
 

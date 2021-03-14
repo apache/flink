@@ -41,6 +41,8 @@ class WaitingForResources implements State, ResourceConsumer {
 
     private final ResourceCounter desiredResources;
 
+    private final ScheduledFuture<?> resourceTimeoutFuture;
+
     WaitingForResources(
             Context context,
             Logger log,
@@ -53,9 +55,15 @@ class WaitingForResources implements State, ResourceConsumer {
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
 
         // since state transitions are not allowed in state constructors, schedule calls for later.
-        context.runIfState(
-                this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
+        resourceTimeoutFuture =
+                context.runIfState(
+                        this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
         context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        resourceTimeoutFuture.cancel(false);
     }
 
     @Override
