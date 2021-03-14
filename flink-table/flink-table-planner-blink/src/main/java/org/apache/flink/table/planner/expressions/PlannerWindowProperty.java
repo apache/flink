@@ -20,7 +20,20 @@ package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 /** The interface that describes window's property. */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = PlannerProctimeAttribute.class),
+    @JsonSubTypes.Type(value = PlannerRowtimeAttribute.class),
+    @JsonSubTypes.Type(value = PlannerWindowStart.class),
+    @JsonSubTypes.Type(value = PlannerWindowEnd.class)
+})
 public interface PlannerWindowProperty {
+
+    @JsonIgnore
     LogicalType getResultType();
 }

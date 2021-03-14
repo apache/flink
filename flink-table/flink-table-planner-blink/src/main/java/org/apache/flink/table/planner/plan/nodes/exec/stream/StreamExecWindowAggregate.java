@@ -59,6 +59,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -66,6 +69,9 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link ExecNode} for window table-valued based aggregate.
@@ -80,9 +86,21 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
 
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
+    public static final String FIELD_NAME_GROUPING = "grouping";
+    public static final String FIELD_NAME_AGG_CALLS = "aggCalls";
+    public static final String FIELD_NAME_WINDOWING = "windowing";
+    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
+
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    @JsonProperty(FIELD_NAME_WINDOWING)
     private final WindowingStrategy windowing;
+
+    @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final PlannerNamedWindowProperty[] namedWindowProperties;
 
     public StreamExecWindowAggregate(
@@ -93,11 +111,34 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.grouping = grouping;
-        this.aggCalls = aggCalls;
-        this.windowing = windowing;
-        this.namedWindowProperties = namedWindowProperties;
+        this(
+                grouping,
+                aggCalls,
+                windowing,
+                namedWindowProperties,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecWindowAggregate(
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
+            @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
+                    PlannerNamedWindowProperty[] namedWindowProperties,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.grouping = checkNotNull(grouping);
+        this.aggCalls = checkNotNull(aggCalls);
+        this.windowing = checkNotNull(windowing);
+        this.namedWindowProperties = checkNotNull(namedWindowProperties);
     }
 
     @SuppressWarnings("unchecked")

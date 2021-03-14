@@ -20,18 +20,33 @@ package org.apache.flink.table.planner.plan.logical;
 
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A windowing strategy that gets windows from input columns as windows have been assigned and
  * attached to the physical columns.
  */
+@JsonTypeName("WindowAttached")
 public class WindowAttachedWindowingStrategy extends WindowingStrategy {
+    public static final String FIELD_NAME_WINDOW_START = "windowStart";
+    public static final String FIELD_NAME_WINDOW_END = "windowEnd";
+
+    @JsonProperty(FIELD_NAME_WINDOW_START)
     private final int windowStart;
+
+    @JsonProperty(FIELD_NAME_WINDOW_END)
     private final int windowEnd;
 
+    @JsonCreator
     public WindowAttachedWindowingStrategy(
-            WindowSpec window, LogicalType timeAttributeType, int windowStart, int windowEnd) {
+            @JsonProperty(FIELD_NAME_WINDOW) WindowSpec window,
+            @JsonProperty(value = FIELD_NAME_TIME_ATTRIBUTE_TYPE) LogicalType timeAttributeType,
+            @JsonProperty(FIELD_NAME_WINDOW_START) int windowStart,
+            @JsonProperty(FIELD_NAME_WINDOW_END) int windowEnd) {
         super(window, timeAttributeType);
         this.windowStart = windowStart;
         this.windowEnd = windowEnd;

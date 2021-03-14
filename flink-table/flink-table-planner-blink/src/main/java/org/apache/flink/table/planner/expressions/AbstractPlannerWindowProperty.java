@@ -18,9 +18,14 @@
 
 package org.apache.flink.table.planner.expressions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 /** The base class of {@link PlannerWindowProperty}. */
 public abstract class AbstractPlannerWindowProperty implements PlannerWindowProperty {
 
+    public static final String FIELD_NAME_REFERENCE = "reference";
+
+    @JsonProperty(FIELD_NAME_REFERENCE)
     protected final PlannerWindowReference reference;
 
     protected AbstractPlannerWindowProperty(PlannerWindowReference reference) {

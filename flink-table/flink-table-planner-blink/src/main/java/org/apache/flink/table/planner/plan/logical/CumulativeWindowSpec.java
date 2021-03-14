@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import java.time.Duration;
 import java.util.Objects;
 
@@ -25,11 +29,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
 /** Logical representation of a cumulative window specification. */
+@JsonTypeName("CumulativeWindow")
 public class CumulativeWindowSpec implements WindowSpec {
+    public static final String FIELD_NAME_MAX_SIZE = "maxSize";
+    public static final String FIELD_NAME_STEP = "step";
+
+    @JsonProperty(FIELD_NAME_MAX_SIZE)
     private final Duration maxSize;
+
+    @JsonProperty(FIELD_NAME_STEP)
     private final Duration step;
 
-    public CumulativeWindowSpec(Duration maxSize, Duration step) {
+    @JsonCreator
+    public CumulativeWindowSpec(
+            @JsonProperty(FIELD_NAME_MAX_SIZE) Duration maxSize,
+            @JsonProperty(FIELD_NAME_STEP) Duration step) {
         this.maxSize = checkNotNull(maxSize);
         this.step = checkNotNull(step);
     }
