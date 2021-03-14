@@ -27,31 +27,23 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matcher;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -77,14 +69,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.apache.flink.table.client.gateway.context.ExecutionContextTest.MODULES_ENVIRONMENT_FILE;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.CoreMatchers.hasItems;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
@@ -496,236 +483,6 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test
-    public void testLoadModuleWithModuleConfEnabled() throws Exception {
-        // only blink planner supports LOAD MODULE syntax
-        Assume.assumeTrue(planner.equals("blink"));
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(
-                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
-                        udfDependency);
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-
-        assertThrows(
-                "Could not execute statement: load module core",
-                SqlExecutionException.class,
-                () -> executor.executeSql(sessionId, "load module core"));
-
-        executor.executeSql(sessionId, "load module hive");
-        assertEquals(
-                executor.listModules(sessionId),
-                Arrays.asList("core", "mymodule", "myhive", "myhive2", "hive"));
-    }
-
-    @Test
-    public void testUnloadModuleWithModuleConfEnabled() throws Exception {
-        // only blink planner supports UNLOAD MODULE syntax
-        Assume.assumeTrue(planner.equals("blink"));
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(
-                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
-                        Collections.emptyList());
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-
-        executor.executeSql(sessionId, "unload module mymodule");
-        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "myhive", "myhive2"));
-
-        exception.expect(SqlExecutionException.class);
-        exception.expectMessage("Could not execute statement: unload module mymodule");
-        executor.executeSql(sessionId, "unload module mymodule");
-    }
-
-    @Test
-    public void testHiveBuiltInFunctionWithHiveModuleEnabled() throws Exception {
-        // only blink planner supports LOAD MODULE syntax
-        Assume.assumeTrue(planner.equals("blink"));
-
-        final URL url = getClass().getClassLoader().getResource("test-data.csv");
-        Objects.requireNonNull(url);
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
-        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        replaceVars.put("$VAR_RESULT_MODE", "table");
-
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(replaceVars), Collections.emptyList());
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-
-        // cannot use hive built-in function without loading hive module
-        assertThrows(
-                "Could not execute statement: select substring_index('www.apache.org', '.', 2) from TableNumber1",
-                SqlExecutionException.class,
-                () ->
-                        executor.executeSql(
-                                sessionId,
-                                "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
-
-        executor.executeSql(sessionId, "load module hive");
-        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "hive"));
-
-        assertShowResult(
-                executor.executeSql(
-                        sessionId,
-                        "select substring_index('www.apache.org', '.', 2) from TableNumber1"),
-                hasItems("www.apache"));
-    }
-
-    @Test
-    public void testUseModulesWithModuleConfEnabled() throws Exception {
-        // only blink planner supports USE MODULES syntax
-        Assume.assumeTrue(planner.equals("blink"));
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(
-                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
-                        Collections.emptyList());
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-        assertEquals(
-                executor.listModules(sessionId),
-                Arrays.asList("core", "mymodule", "myhive", "myhive2"));
-        assertEquals(
-                executor.listFullModules(sessionId),
-                Arrays.asList(
-                        new ModuleEntry("core", true),
-                        new ModuleEntry("mymodule", true),
-                        new ModuleEntry("myhive", true),
-                        new ModuleEntry("myhive2", true)));
-
-        // change resolution order
-        executor.executeSql(sessionId, "use modules myhive2, core, mymodule, myhive");
-        assertEquals(
-                executor.listModules(sessionId),
-                Arrays.asList("myhive2", "core", "mymodule", "myhive"));
-        assertEquals(
-                executor.listFullModules(sessionId),
-                Arrays.asList(
-                        new ModuleEntry("myhive2", true),
-                        new ModuleEntry("core", true),
-                        new ModuleEntry("mymodule", true),
-                        new ModuleEntry("myhive", true)));
-
-        // disable modules by not using
-        executor.executeSql(sessionId, "use modules core, myhive");
-        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "myhive"));
-        assertEquals(
-                executor.listFullModules(sessionId),
-                Arrays.asList(
-                        new ModuleEntry("core", true),
-                        new ModuleEntry("myhive", true),
-                        new ModuleEntry("mymodule", false),
-                        new ModuleEntry("myhive2", false)));
-
-        // use duplicate module names
-        assertThrows(
-                "Could not execute statement: use modules core, myhive, core",
-                SqlExecutionException.class,
-                () -> executor.executeSql(sessionId, "use modules core, myhive, core"));
-
-        // use non-existed module name
-        assertThrows(
-                "Could not execute statement: use modules core, dummy",
-                SqlExecutionException.class,
-                () -> executor.executeSql(sessionId, "use modules core, dummy"));
-    }
-
-    @Test
-    public void testHiveBuiltInFunctionWithoutUsingHiveModule() throws Exception {
-        // only blink planner supports USE MODULES syntax
-        Assume.assumeTrue(planner.equals("blink"));
-
-        final URL url = getClass().getClassLoader().getResource("test-data.csv");
-        Objects.requireNonNull(url);
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
-        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        replaceVars.put("$VAR_RESULT_MODE", "table");
-
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(replaceVars), Collections.emptyList());
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-
-        executor.executeSql(sessionId, "load module hive");
-        assertEquals(executor.listModules(sessionId), Arrays.asList("core", "hive"));
-        assertEquals(
-                executor.listFullModules(sessionId),
-                Arrays.asList(new ModuleEntry("core", true), new ModuleEntry("hive", true)));
-
-        assertShowResult(
-                executor.executeSql(
-                        sessionId,
-                        "select substring_index('www.apache.org', '.', 2) from TableNumber1"),
-                hasItems("www.apache"));
-
-        // cannot use hive built-in function without using hive module
-        executor.executeSql(sessionId, "use modules core");
-        assertEquals(executor.listModules(sessionId), Collections.singletonList("core"));
-        assertEquals(
-                executor.listFullModules(sessionId),
-                Arrays.asList(new ModuleEntry("core", true), new ModuleEntry("hive", false)));
-        assertThrows(
-                "Could not execute statement: select substring_index('www.apache.org', '.', 2) from TableNumber1",
-                SqlExecutionException.class,
-                () ->
-                        executor.executeSql(
-                                sessionId,
-                                "select substring_index('www.apache.org', '.', 2) from TableNumber1"));
-    }
-
-    @Test
-    public void testShowModules() throws Exception {
-        // only blink planner supports SHOW [FULL] MODULES syntax
-        Assume.assumeTrue(planner.equals("blink"));
-
-        final LocalExecutor executor =
-                createLocalExecutor(
-                        createModifiedEnvironment(
-                                MODULES_ENVIRONMENT_FILE, createModuleReplaceVars()),
-                        Collections.emptyList());
-        String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
-
-        verifyShowModules(
-                executor,
-                sessionId,
-                Arrays.asList(
-                        Row.of("core", true),
-                        Row.of("mymodule", true),
-                        Row.of("myhive", true),
-                        Row.of("myhive2", true)));
-
-        // check result after using modules
-        executor.executeSql(sessionId, "USE MODULES mymodule, core");
-        verifyShowModules(
-                executor,
-                sessionId,
-                Arrays.asList(
-                        Row.of("mymodule", true),
-                        Row.of("core", true),
-                        Row.of("myhive", false),
-                        Row.of("myhive2", false)));
-
-        // check result after unloading modules
-        executor.executeSql(sessionId, "UNLOAD MODULE mymodule");
-        executor.executeSql(sessionId, "UNLOAD MODULE myhive2");
-        verifyShowModules(
-                executor, sessionId, Arrays.asList(Row.of("core", true), Row.of("myhive", false)));
-    }
-
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
@@ -739,16 +496,6 @@ public class LocalExecutorITCase extends TestLogger {
                         clusterClient.getFlinkConfiguration(),
                         Collections.singletonList(new DefaultCLI()));
         return new LocalExecutor(defaultContext);
-    }
-
-    private Map<String, String> createModuleReplaceVars() {
-        Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "blink");
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        return replaceVars;
     }
 
     private void executeStreamQueryTable(
@@ -776,14 +523,6 @@ public class LocalExecutorITCase extends TestLogger {
         } finally {
             executor.closeSession(sessionId);
         }
-    }
-
-    private void assertShowResult(TableResult showResult, Matcher<Iterable<String>> matcher) {
-        List<String> actual =
-                CollectionUtil.iteratorToList(showResult.collect()).stream()
-                        .map(r -> checkNotNull(r.getField(0)).toString())
-                        .collect(Collectors.toList());
-        assertThat(actual, matcher);
     }
 
     private void verifySinkResult(String path) throws IOException {
@@ -874,38 +613,6 @@ public class LocalExecutorITCase extends TestLogger {
             }
         }
         return actualResults;
-    }
-
-    private static TableSchema getShowModulesTableSchema(boolean requireFull) {
-        return TableSchema.builder()
-                .fields(
-                        requireFull
-                                ? new String[] {"module name", "used"}
-                                : new String[] {"module name"},
-                        requireFull
-                                ? new DataType[] {DataTypes.STRING(), DataTypes.BOOLEAN()}
-                                : new DataType[] {DataTypes.STRING()})
-                .build();
-    }
-
-    private void verifyShowModules(
-            LocalExecutor executor, String sessionId, List<Row> rowOfEntries) {
-        TableSchema showModulesTableSchema = getShowModulesTableSchema(false);
-        TableSchema showFullModulesTableSchema = getShowModulesTableSchema(true);
-        List<Row> rowOfNames =
-                rowOfEntries.stream()
-                        .filter(row -> row.getFieldAs(1))
-                        .map(row -> Row.project(row, new int[] {0}))
-                        .collect(Collectors.toList());
-
-        TableResult showModules = executor.executeSql(sessionId, "SHOW MODULES");
-        TableResult showFullModules = executor.executeSql(sessionId, "SHOW FULL MODULES");
-
-        assertEquals(showModulesTableSchema, showModules.getTableSchema());
-        assertEquals(showFullModulesTableSchema, showFullModules.getTableSchema());
-
-        assertEquals(rowOfNames, CollectionUtil.iteratorToList(showModules.collect()));
-        assertEquals(rowOfEntries, CollectionUtil.iteratorToList(showFullModules.collect()));
     }
 
     // --------------------------------------------------------------------------------------------

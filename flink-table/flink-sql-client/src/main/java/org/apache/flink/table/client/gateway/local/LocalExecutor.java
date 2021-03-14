@@ -37,7 +37,6 @@ import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -264,20 +263,6 @@ public class LocalExecutor implements Executor {
     @Override
     public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
         cancelQueryInternal(resultId);
-    }
-
-    @VisibleForTesting
-    List<String> listModules(String sessionId) throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
-        final TableEnvironment tableEnv = context.getTableEnvironment();
-        return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listModules()));
-    }
-
-    @VisibleForTesting
-    List<ModuleEntry> listFullModules(String sessionId) throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
-        final TableEnvironment tableEnv = context.getTableEnvironment();
-        return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listFullModules()));
     }
 
     // --------------------------------------------------------------------------------------------
