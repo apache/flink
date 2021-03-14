@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /** State which describes a job which is currently being restarted. */
 class Restarting extends StateWithExecutionGraph {
@@ -105,8 +106,9 @@ class Restarting extends StateWithExecutionGraph {
          *     the delay
          * @param action action to run if the state equals the expected state
          * @param delay delay after which the action should be executed
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     static class Factory implements StateFactory<Restarting> {

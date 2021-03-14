@@ -27,17 +27,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 /**
@@ -316,85 +311,5 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
         nonPeriodicScheduledTasks.offer(scheduledTask);
 
         return scheduledTask;
-    }
-
-    private static final class ScheduledTask<T> implements ScheduledFuture<T> {
-
-        private final Callable<T> callable;
-
-        private final long delay;
-
-        private final long period;
-
-        private final CompletableFuture<T> result;
-
-        private ScheduledTask(Callable<T> callable, long delay) {
-            this(callable, delay, 0);
-        }
-
-        private ScheduledTask(Callable<T> callable, long delay, long period) {
-            this.callable = Objects.requireNonNull(callable);
-            this.result = new CompletableFuture<>();
-            this.delay = delay;
-            this.period = period;
-        }
-
-        private boolean isPeriodic() {
-            return period > 0;
-        }
-
-        public void execute() {
-            if (!result.isDone()) {
-                if (!isPeriodic()) {
-                    try {
-                        result.complete(callable.call());
-                    } catch (Exception e) {
-                        result.completeExceptionally(e);
-                    }
-                } else {
-                    try {
-                        callable.call();
-                    } catch (Exception e) {
-                        result.completeExceptionally(e);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public long getDelay(TimeUnit unit) {
-            return unit.convert(delay, TimeUnit.MILLISECONDS);
-        }
-
-        @Override
-        public int compareTo(Delayed o) {
-            return Long.compare(getDelay(TimeUnit.MILLISECONDS), o.getDelay(TimeUnit.MILLISECONDS));
-        }
-
-        @Override
-        public boolean cancel(boolean mayInterruptIfRunning) {
-            return result.cancel(mayInterruptIfRunning);
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return result.isCancelled();
-        }
-
-        @Override
-        public boolean isDone() {
-            return result.isDone();
-        }
-
-        @Override
-        public T get() throws InterruptedException, ExecutionException {
-            return result.get();
-        }
-
-        @Override
-        public T get(long timeout, @Nonnull TimeUnit unit)
-                throws InterruptedException, ExecutionException, TimeoutException {
-            return result.get(timeout, unit);
-        }
     }
 }

@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * State which waits for the creation of the {@link ExecutionGraph}. If the creation fails, then the
@@ -149,8 +150,9 @@ public class CreatingExecutionGraph implements State {
          *     the action
          * @param action action to run if the expected state equals the actual state
          * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
 
         /**
          * Try to assign slots to the created {@link ExecutionGraph}. If it is possible, then this
