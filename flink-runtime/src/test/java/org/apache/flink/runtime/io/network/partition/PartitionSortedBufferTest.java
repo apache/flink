@@ -99,7 +99,7 @@ public class PartitionSortedBufferTest {
         // read all data from the sort buffer
         while (sortBuffer.hasRemaining()) {
             MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-            SortBuffer.BufferWithChannel bufferAndChannel = sortBuffer.copyIntoSegment(readBuffer);
+            BufferWithChannel bufferAndChannel = sortBuffer.copyIntoSegment(readBuffer);
             int subpartition = bufferAndChannel.getChannelIndex();
             buffersRead[subpartition].add(bufferAndChannel.getBuffer());
             numBytesRead[subpartition] += bufferAndChannel.getBuffer().readableBytes();
@@ -192,7 +192,7 @@ public class PartitionSortedBufferTest {
     private void checkReadResult(
             SortBuffer sortBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-        SortBuffer.BufferWithChannel bufferWithChannel = sortBuffer.copyIntoSegment(segment);
+        BufferWithChannel bufferWithChannel = sortBuffer.copyIntoSegment(segment);
         assertEquals(expectedChannel, bufferWithChannel.getChannelIndex());
         assertEquals(expectedBuffer, bufferWithChannel.getBuffer().getNioBufferReadable());
     }
@@ -319,7 +319,8 @@ public class PartitionSortedBufferTest {
         BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
         SortBuffer sortBuffer =
-                new PartitionSortedBuffer(new Object(), bufferPool, 1, bufferSize, null);
+                new PartitionSortedBuffer(
+                        new Object(), bufferPool, 1, bufferSize, bufferPoolSize, null);
         sortBuffer.append(ByteBuffer.allocate(recordSize), 0, Buffer.DataType.DATA_BUFFER);
 
         assertEquals(bufferPoolSize, bufferPool.bestEffortGetNumOfUsedBuffers());
@@ -347,7 +348,12 @@ public class PartitionSortedBufferTest {
         BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
         return new PartitionSortedBuffer(
-                new Object(), bufferPool, numSubpartitions, bufferSize, customReadOrder);
+                new Object(),
+                bufferPool,
+                numSubpartitions,
+                bufferSize,
+                bufferPoolSize,
+                customReadOrder);
     }
 
     public static int[] getRandomSubpartitionOrder(int numSubpartitions) {

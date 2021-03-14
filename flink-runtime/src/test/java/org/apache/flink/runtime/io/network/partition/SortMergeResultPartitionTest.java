@@ -46,7 +46,6 @@ import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for {@link SortMergeResultPartition}. */
 public class SortMergeResultPartitionTest {
@@ -165,6 +164,7 @@ public class SortMergeResultPartitionTest {
     @Test
     public void testWriteLargeRecord() throws Exception {
         int numBuffers = 100;
+        int numWriteBuffers = numBuffers / 2;
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
 
@@ -173,7 +173,7 @@ public class SortMergeResultPartitionTest {
         random.nextBytes(dataWritten);
         ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
         partition.emitRecord(recordWritten, 0);
-        assertEquals(0, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.finish();
         partition.close();
@@ -197,22 +197,24 @@ public class SortMergeResultPartitionTest {
     @Test
     public void testFlush() throws Exception {
         int numBuffers = 10;
+        int numWriteBuffers = numBuffers / 2;
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 1);
-        assertEquals(3, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(3 + numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.flush(0);
-        assertEquals(0, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 2);
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 3);
-        assertEquals(3, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(3 + numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.flushAll();
-        assertEquals(0, bufferPool.bestEffortGetNumOfUsedBuffers());
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         assertNull(partition.getResultFile());
         partition.finish();
@@ -224,11 +226,15 @@ public class SortMergeResultPartitionTest {
     @Test(expected = IllegalStateException.class)
     public void testReleaseWhileWriting() throws Exception {
         int numBuffers = 10;
+        int numWriteBuffers = numBuffers / 2;
+        int numBuffersForSort = numBuffers - numWriteBuffers;
+
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffersForSort - 1)), 0);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffersForSort - 1)), 1);
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 2);
         assertNull(partition.getResultFile());
@@ -242,18 +248,20 @@ public class SortMergeResultPartitionTest {
 
             throw exception;
         }
-
-        fail("Should throw ClosedChannelException.");
     }
 
     @Test
     public void testReleaseWhileReading() throws Exception {
         int numBuffers = 10;
+        int numWriteBuffers = numBuffers / 2;
+        int numBuffersForSort = numBuffers - numWriteBuffers;
+
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffersForSort - 1)), 0);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffersForSort - 1)), 1);
         partition.finish();
         partition.close();
 
@@ -279,10 +287,14 @@ public class SortMergeResultPartitionTest {
     @Test
     public void testCloseReleasesAllBuffers() throws Exception {
         int numBuffers = 100;
+        int numWriteBuffers = numBuffers / 2;
+        int numBuffersForSort = numBuffers - numWriteBuffers;
+
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
+        assertEquals(numWriteBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 5);
+        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffersForSort - 1)), 5);
         assertEquals(numBuffers, bufferPool.bestEffortGetNumOfUsedBuffers());
 
         partition.close();

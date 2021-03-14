@@ -31,8 +31,8 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.List;
 
-import static org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil.writeToByteChannel;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -46,9 +46,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class PartitionedFileWriter implements AutoCloseable {
 
     private static final int MIN_INDEX_BUFFER_SIZE = 50 * PartitionedFile.INDEX_ENTRY_SIZE;
-
-    /** Used when writing data buffers. */
-    private final ByteBuffer[] header = BufferReaderWriterUtil.allocatedWriteBufferArray();
 
     /** Number of channels. When writing a buffer, target subpartition must be in this range. */
     private final int numSubpartitions;
@@ -70,9 +67,6 @@ public class PartitionedFileWriter implements AutoCloseable {
 
     /** Number of buffers written for each subpartition in the current region. */
     private final int[] subpartitionBuffers;
-
-    /** Used to cache data before writing to disk for better read performance. */
-    private ByteBuffer writeDataCache;
 
     /** Maximum number of bytes can be used to buffer index entries. */
     private final int maxIndexBufferSize;
@@ -113,12 +107,6 @@ public class PartitionedFileWriter implements AutoCloseable {
 
         this.indexBuffer = ByteBuffer.allocate(MIN_INDEX_BUFFER_SIZE);
         BufferReaderWriterUtil.configureByteBuffer(indexBuffer);
-
-        // allocate 4M unmanaged direct memory for caching of data before writing
-        // to disk because bulk writing is helpful to allocate consecutive blocks
-        // on disk which can improve read performance
-        this.writeDataCache = ByteBuffer.allocateDirect(4 * 1024 * 1024);
-        BufferReaderWriterUtil.configureByteBuffer(writeDataCache);
 
         this.dataFileChannel = openFileChannel(dataFilePath);
         try {
@@ -202,26 +190,47 @@ public class PartitionedFileWriter implements AutoCloseable {
     }
 
     /**
-     * Writes a {@link Buffer} of the given subpartition to the this {@link PartitionedFile}. In a
-     * data region, all data of the same subpartition must be written together.
+     * Writes a list of {@link Buffer}s to this {@link PartitionedFile}. It guarantees that after
+     * the return of this method, the target buffers can be released. In a data region, all data of
+     * the same subpartition must be written together.
      *
-     * <p>Note: The caller is responsible for recycling the target buffer and releasing the failed
+     * <p>Note: The caller is responsible for recycling the target buffers and releasing the failed
      * {@link PartitionedFile} if any exception occurs.
      */
-    public void writeBuffer(Buffer target, int targetSubpartition) throws IOException {
+    public void writeBuffers(List<BufferWithChannel> bufferWithChannels) throws IOException {
         checkState(!isFinished, "File writer is already finished.");
         checkState(!isClosed, "File writer is already closed.");
 
-        if (targetSubpartition != currentSubpartition) {
-            checkState(
-                    subpartitionBuffers[targetSubpartition] == 0,
-                    "Must write data of the same channel together.");
-            subpartitionOffsets[targetSubpartition] = totalBytesWritten;
-            currentSubpartition = targetSubpartition;
+        if (bufferWithChannels.isEmpty()) {
+            return;
         }
 
-        totalBytesWritten += writeToByteChannel(dataFileChannel, target, writeDataCache, header);
-        ++subpartitionBuffers[targetSubpartition];
+        long expectedBytes = 0;
+        ByteBuffer[] bufferWithHeaders = new ByteBuffer[2 * bufferWithChannels.size()];
+
+        for (int i = 0; i < bufferWithChannels.size(); i++) {
+            BufferWithChannel bufferWithChannel = bufferWithChannels.get(i);
+            Buffer buffer = bufferWithChannel.getBuffer();
+            int subpartitionIndex = bufferWithChannel.getChannelIndex();
+            if (subpartitionIndex != currentSubpartition) {
+                checkState(
+                        subpartitionBuffers[subpartitionIndex] == 0,
+                        "Must write data of the same channel together.");
+                subpartitionOffsets[subpartitionIndex] = totalBytesWritten;
+                currentSubpartition = subpartitionIndex;
+            }
+
+            ByteBuffer header = BufferReaderWriterUtil.allocatedHeaderBuffer();
+            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, header);
+            bufferWithHeaders[2 * i] = header;
+            bufferWithHeaders[2 * i + 1] = buffer.getNioBufferReadable();
+
+            int numBytes = header.remaining() + buffer.readableBytes();
+            expectedBytes += numBytes;
+            totalBytesWritten += numBytes;
+            ++subpartitionBuffers[subpartitionIndex];
+        }
+        BufferReaderWriterUtil.writeBuffers(dataFileChannel, expectedBytes, bufferWithHeaders);
     }
 
     /**
@@ -236,12 +245,6 @@ public class PartitionedFileWriter implements AutoCloseable {
         checkState(!isClosed, "File writer is already closed.");
 
         isFinished = true;
-
-        writeDataCache.flip();
-        if (writeDataCache.hasRemaining()) {
-            BufferReaderWriterUtil.writeBuffer(dataFileChannel, writeDataCache);
-        }
-        writeDataCache = null;
 
         writeRegionIndex();
         flushIndexBuffer();
