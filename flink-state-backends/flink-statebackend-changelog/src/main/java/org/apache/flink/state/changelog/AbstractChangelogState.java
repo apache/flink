@@ -21,6 +21,8 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Base class for changelog state wrappers of state objects.
  *
@@ -34,6 +36,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     protected final S delegatedState;
 
     AbstractChangelogState(S state) {
+        checkArgument(!(state instanceof AbstractChangelogState));
         this.delegatedState = state;
     }
 
