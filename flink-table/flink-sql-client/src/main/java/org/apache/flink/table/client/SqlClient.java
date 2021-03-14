@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
@@ -184,8 +185,14 @@ public class SqlClient {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            CliOptionsParser.printHelpClient();
-            return;
+            args = new String[]{MODE_EMBEDDED};
+        } else {
+            String mode = args[0];
+            if (!MODE_EMBEDDED.equals(mode)) {
+                List<String> params = Arrays.stream(args).collect(Collectors.toList());
+                params.add(0, MODE_EMBEDDED);
+                args = params.toArray(new String[params.size()]);
+            }
         }
 
         switch (args[0]) {
