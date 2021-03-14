@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.FlinkException;
@@ -31,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -187,10 +189,12 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void runIfState(State expectedState, Runnable action, Duration delay) {
+        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
             if (!hadStateTransitionHappened) {
                 action.run();
             }
+
+            return CompletedScheduledFuture.create(null);
         }
 
         @Override

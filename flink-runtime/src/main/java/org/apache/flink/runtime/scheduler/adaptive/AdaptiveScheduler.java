@@ -127,6 +127,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -962,8 +963,8 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void runIfState(State expectedState, Runnable action, Duration delay) {
-        componentMainThreadExecutor.schedule(
+    public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
+        return componentMainThreadExecutor.schedule(
                 () -> runIfState(expectedState, action), delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
