@@ -111,7 +111,7 @@ public class PartitionedFileWriter implements AutoCloseable {
         this.dataFilePath = new File(basePath + PartitionedFile.DATA_FILE_SUFFIX).toPath();
         this.indexFilePath = new File(basePath + PartitionedFile.INDEX_FILE_SUFFIX).toPath();
 
-        this.indexBuffer = ByteBuffer.allocateDirect(MIN_INDEX_BUFFER_SIZE);
+        this.indexBuffer = ByteBuffer.allocate(MIN_INDEX_BUFFER_SIZE);
         BufferReaderWriterUtil.configureByteBuffer(indexBuffer);
 
         // allocate 4M unmanaged direct memory for caching of data before writing
@@ -173,7 +173,7 @@ public class PartitionedFileWriter implements AutoCloseable {
         }
 
         int newIndexBufferSize = Math.min(maxIndexBufferSize, 2 * indexBuffer.capacity());
-        ByteBuffer newIndexBuffer = ByteBuffer.allocateDirect(newIndexBufferSize);
+        ByteBuffer newIndexBuffer = ByteBuffer.allocate(newIndexBufferSize);
         indexBuffer.flip();
         newIndexBuffer.put(indexBuffer);
         BufferReaderWriterUtil.configureByteBuffer(newIndexBuffer);
