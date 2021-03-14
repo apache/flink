@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -45,18 +46,19 @@ import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.
 import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.createSimpleStream;
 
 /** A strategy how to perform a snapshot of a {@link HeapKeyedStateBackend}. */
-class HeapSnapshotStrategy<K>
+@Internal
+public class HeapSnapshotStrategy<K>
         implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotResources<K>> {
 
-    private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
-    private final StreamCompressionDecorator keyGroupCompressionDecorator;
-    private final LocalRecoveryConfig localRecoveryConfig;
-    private final KeyGroupRange keyGroupRange;
-    private final StateSerializerProvider<K> keySerializerProvider;
-    private final int totalKeyGroups;
+    protected final Map<String, StateTable<K, ?, ?>> registeredKVStates;
+    protected final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
+    protected final StreamCompressionDecorator keyGroupCompressionDecorator;
+    protected final LocalRecoveryConfig localRecoveryConfig;
+    protected final KeyGroupRange keyGroupRange;
+    protected final StateSerializerProvider<K> keySerializerProvider;
+    protected final int totalKeyGroups;
 
-    HeapSnapshotStrategy(
+    protected HeapSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             StreamCompressionDecorator keyGroupCompressionDecorator,

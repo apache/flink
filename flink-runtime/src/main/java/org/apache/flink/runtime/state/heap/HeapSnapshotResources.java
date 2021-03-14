@@ -41,7 +41,7 @@ import java.util.Map;
  * HeapKeyedStateBackend}.
  */
 @Internal
-final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
+public final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     private final List<StateMetaInfoSnapshot> metaInfoSnapshots;
     private final Map<StateUID, StateSnapshot> cowStateStableSnapshots;
     private final StreamCompressionDecorator streamCompressionDecorator;
@@ -50,7 +50,7 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     private final TypeSerializer<K> keySerializer;
     private final int totalKeyGroups;
 
-    private HeapSnapshotResources(
+    protected HeapSnapshotResources(
             List<StateMetaInfoSnapshot> metaInfoSnapshots,
             Map<StateUID, StateSnapshot> cowStateStableSnapshots,
             StreamCompressionDecorator streamCompressionDecorator,

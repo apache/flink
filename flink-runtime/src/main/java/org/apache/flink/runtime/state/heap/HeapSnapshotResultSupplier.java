@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -39,16 +40,22 @@ import java.util.Map;
 
 import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult;
 
-class HeapSnapshotResultSupplier<K>
+/**
+ * Writes out HeapState snapshot.
+ *
+ * @param <K> key type.
+ */
+@Internal
+public class HeapSnapshotResultSupplier<K>
         implements SnapshotStrategy.SnapshotResultSupplier<KeyedStateHandle> {
-    private final HeapSnapshotResources<K> syncPartResource;
-    private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+    protected final HeapSnapshotResources<K> syncPartResource;
+    protected final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
             checkpointStreamSupplier;
-    private final KeyedBackendSerializationProxy<K> serializationProxy;
-    private final KeyGroupRange keyGroupRange;
-    private final StreamCompressionDecorator keyGroupCompressionDecorator;
+    protected final KeyedBackendSerializationProxy<K> serializationProxy;
+    protected final KeyGroupRange keyGroupRange;
+    protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
-    public HeapSnapshotResultSupplier(
+    protected HeapSnapshotResultSupplier(
             HeapSnapshotResources<K> syncPartResource,
             SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                     checkpointStreamSupplier,
