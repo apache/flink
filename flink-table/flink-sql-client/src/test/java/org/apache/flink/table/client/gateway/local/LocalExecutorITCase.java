@@ -42,10 +42,8 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matcher;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -71,11 +69,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
@@ -502,16 +498,6 @@ public class LocalExecutorITCase extends TestLogger {
         return new LocalExecutor(defaultContext);
     }
 
-    private Map<String, String> createModuleReplaceVars() {
-        Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "blink");
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        return replaceVars;
-    }
-
     private void executeStreamQueryTable(
             Map<String, String> replaceVars, String query, List<String> expectedResults)
             throws Exception {
@@ -537,14 +523,6 @@ public class LocalExecutorITCase extends TestLogger {
         } finally {
             executor.closeSession(sessionId);
         }
-    }
-
-    private void assertShowResult(TableResult showResult, Matcher<Iterable<String>> matcher) {
-        List<String> actual =
-                CollectionUtil.iteratorToList(showResult.collect()).stream()
-                        .map(r -> checkNotNull(r.getField(0)).toString())
-                        .collect(Collectors.toList());
-        assertThat(actual, matcher);
     }
 
     private void verifySinkResult(String path) throws IOException {
