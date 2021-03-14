@@ -18,24 +18,17 @@
 
 package org.apache.flink.table.client.gateway.context;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.client.config.ConfigurationUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
-import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
@@ -49,7 +42,6 @@ import org.slf4j.LoggerFactory;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -89,7 +81,9 @@ public class DefaultContext {
 
         // put environment entry into Configuration
         // reset to flinkConfig because we have stored all the options into the flinkConfig
-        initConfigurationFromEnvironment();
+        defaultEnv.getConfiguration().asMap().forEach(flinkConfig::setString);
+        flinkConfig.addAll(
+                ConfigurationUtils.convertExecutionEntryToConfiguration(defaultEnv.getExecution()));
         try {
             CommandLine deploymentCommandLine =
                     createCommandLine(defaultEnv.getDeployment(), commandLineOptions);
@@ -122,68 +116,6 @@ public class DefaultContext {
         }
         return CliFrontendParser.mergeOptions(
                 CliFrontendParser.getRunCommandOptions(), customOptions);
-    }
-
-    private void initConfigurationFromEnvironment() {
-        defaultEnv.getConfiguration().asMap().forEach(flinkConfig::setString);
-        ExecutionEntry execution = defaultEnv.getExecution();
-        flinkConfig.set(
-                ExecutionConfigOptions.IDLE_STATE_RETENTION,
-                Duration.ofMillis(execution.getMinStateRetention()));
-
-        if (execution.getParallelism().isPresent()) {
-            flinkConfig.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism().get());
-        }
-        flinkConfig.set(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
-        flinkConfig.set(
-                StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
-        if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
-            flinkConfig.set(
-                    PipelineOptions.AUTO_WATERMARK_INTERVAL,
-                    Duration.ofMillis(execution.getPeriodicWatermarksInterval()));
-        }
-
-        setRestartStrategy();
-    }
-
-    private void setRestartStrategy() {
-        RestartStrategies.RestartStrategyConfiguration restartStrategy =
-                defaultEnv.getExecution().getRestartStrategy();
-        if (restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration) {
-            flinkConfig.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
-        } else if (restartStrategy
-                instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration) {
-            flinkConfig.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
-            RestartStrategies.FixedDelayRestartStrategyConfiguration fixedDelay =
-                    ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy);
-            flinkConfig.set(
-                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
-                    fixedDelay.getRestartAttempts());
-            flinkConfig.set(
-                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
-                    Duration.ofMillis(
-                            fixedDelay.getDelayBetweenAttemptsInterval().toMilliseconds()));
-        } else if (restartStrategy
-                instanceof RestartStrategies.FailureRateRestartStrategyConfiguration) {
-            flinkConfig.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
-            RestartStrategies.FailureRateRestartStrategyConfiguration failureRate =
-                    (RestartStrategies.FailureRateRestartStrategyConfiguration) restartStrategy;
-            flinkConfig.set(
-                    RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
-                    failureRate.getMaxFailureRate());
-            flinkConfig.set(
-                    RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
-                    Duration.ofMillis(failureRate.getFailureInterval().toMilliseconds()));
-            flinkConfig.set(
-                    RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY,
-                    Duration.ofMillis(
-                            failureRate.getDelayBetweenAttemptsInterval().toMilliseconds()));
-        } else if (restartStrategy
-                instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
-            // default is FallbackRestartStrategyConfiguration
-            // see ExecutionConfig.restartStrategyConfiguration
-            flinkConfig.removeConfig(RestartStrategyOptions.RESTART_STRATEGY);
-        }
     }
 
     private static Configuration createExecutionConfig(

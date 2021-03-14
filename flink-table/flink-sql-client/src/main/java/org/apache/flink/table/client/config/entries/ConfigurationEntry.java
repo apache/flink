@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.apache.flink.table.client.config.Environment.CONFIGURATION_ENTRY;
 
 /** Configuration for configuring {@link org.apache.flink.table.api.TableConfig}. */
+@Deprecated
 public class ConfigurationEntry extends ConfigEntry {
 
     public static final ConfigurationEntry DEFAULT_INSTANCE =

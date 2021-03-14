@@ -21,6 +21,7 @@ package org.apache.flink.table.client.config.entries;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /** Configuration of a table view. */
+@Deprecated
 public class ViewEntry extends TableEntry {
 
     private static final String TABLES_QUERY = "query";

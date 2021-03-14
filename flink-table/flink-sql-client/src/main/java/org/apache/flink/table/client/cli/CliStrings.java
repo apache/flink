@@ -180,6 +180,12 @@ public final class CliStrings {
 
     public static final String MESSAGE_SET = "Session property has been set.";
 
+    public static final String MESSAGE_SET_DEPRECATED_KEY =
+            "The specified key is deprecated. Ignore.";
+
+    public static final String MESSAGE_SET_ENVIRONMENT_KEY =
+            "The specified key is a YAML key. Set the corresponding config option and YAML key together.";
+
     public static final String MESSAGE_EMPTY = "Result was empty.";
 
     public static final String MESSAGE_RESULT_QUIT = "Result retrieval cancelled.";
@@ -334,6 +340,14 @@ public final class CliStrings {
         return new AttributedStringBuilder()
                 .style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.BLUE))
                 .append("[INFO] ")
+                .append(message)
+                .toAttributedString();
+    }
+
+    public static AttributedString messageWarning(String message) {
+        return new AttributedStringBuilder()
+                .style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.YELLOW))
+                .append("[WARNING] ")
                 .append(message)
                 .toAttributedString();
     }

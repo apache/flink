@@ -43,6 +43,7 @@ import static org.apache.flink.table.client.config.Environment.DEPLOYMENT_ENTRY;
  *
  * <p>All properties of this entry are optional and evaluated lazily.
  */
+@Deprecated
 public class DeploymentEntry extends ConfigEntry {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeploymentEntry.class);

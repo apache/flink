@@ -30,6 +30,7 @@ import java.util.Objects;
  * entries are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL
  * Client's environment files only.
  */
+@Deprecated
 abstract class ConfigEntry {
 
     protected final DescriptorProperties properties;

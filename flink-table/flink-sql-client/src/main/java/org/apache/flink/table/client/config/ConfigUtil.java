@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Auxiliary functions for configuration file handling. */
+@Deprecated
 public class ConfigUtil {
 
     private ConfigUtil() {

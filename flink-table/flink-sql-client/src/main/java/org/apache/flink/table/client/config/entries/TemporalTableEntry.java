@@ -23,6 +23,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import java.util.List;
 
 /** Configuration of a temporal table. */
+@Deprecated
 public class TemporalTableEntry extends TableEntry {
 
     private static final String TABLES_HISTORY_TABLE = "history-table";

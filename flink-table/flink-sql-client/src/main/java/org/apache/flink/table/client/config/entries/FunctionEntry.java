@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.Map;
 
 /** Describes a user-defined function configuration entry. */
+@Deprecated
 public class FunctionEntry extends ConfigEntry {
 
     public static final String FUNCTIONS_NAME = "name";

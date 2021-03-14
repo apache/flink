@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /** Describes a module configuration entry. */
+@Deprecated
 public class ModuleEntry extends ConfigEntry {
 
     public static final String MODULE_NAME = "name";

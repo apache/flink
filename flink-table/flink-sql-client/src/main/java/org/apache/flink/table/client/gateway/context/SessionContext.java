@@ -22,12 +22,13 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.ConfigurationUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -52,8 +53,6 @@ public class SessionContext {
     private final String sessionId;
     private final DefaultContext defaultContext;
 
-    // store the value from the YAML and used to build TableEnvironment.
-    private Environment sessionEnv;
     // store all options and use Configuration to build SessionState and TableConfig.
     private final Configuration sessionConfiguration;
 
@@ -64,14 +63,12 @@ public class SessionContext {
     private SessionContext(
             DefaultContext defaultContext,
             String sessionId,
-            Environment sessionEnv,
             Configuration sessionConfiguration,
             URLClassLoader classLoader,
             SessionState sessionState,
             ExecutionContext executionContext) {
         this.defaultContext = defaultContext;
         this.sessionId = sessionId;
-        this.sessionEnv = sessionEnv;
         this.sessionConfiguration = sessionConfiguration;
         this.classLoader = classLoader;
         this.sessionState = sessionState;
@@ -86,12 +83,12 @@ public class SessionContext {
         return this.sessionId;
     }
 
-    public Environment getSessionEnvironment() {
-        return this.sessionEnv;
-    }
-
     public ExecutionContext getExecutionContext() {
         return this.executionContext;
+    }
+
+    public ReadableConfig getReadableConfig() {
+        return sessionConfiguration;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -105,33 +102,31 @@ public class SessionContext {
      * command to their default values.
      */
     public void reset() {
-        sessionEnv = defaultContext.getDefaultEnv().clone();
         // SessionState is built from the sessionConfiguration.
         // If rebuild a new Configuration, it loses control of the SessionState if users wants to
         // modify the configuration
-        for (String key : sessionConfiguration.toMap().keySet()) {
-            // Don't care the type of the option
-            ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
-            sessionConfiguration.removeConfig(keyToDelete);
-        }
-        sessionConfiguration.addAll(defaultContext.getFlinkConfig());
-        executionContext = new ExecutionContext(sessionEnv, executionContext);
+        resetSessionConfigurationToValue(defaultContext.getFlinkConfig());
+        this.executionContext = new ExecutionContext(executionContext);
     }
 
     /** Set properties. It will rebuild a new {@link ExecutionContext} */
     public void set(String key, String value) {
-        // put key-value into the Environment
-        try {
-            this.sessionEnv = Environment.enrich(sessionEnv, Collections.singletonMap(key, value));
-            sessionConfiguration.setString(key, value);
-        } catch (Throwable t) {
-            throw new SqlExecutionException("Could not set session property.", t);
-        }
+        Configuration originConfiguration = sessionConfiguration.clone();
 
-        // Renew the ExecutionContext by new environment.
-        // Book keep all the session states of current ExecutionContext then
-        // re-register them into the new one.
-        this.executionContext = new ExecutionContext(sessionEnv, executionContext);
+        ConfigurationUtils.setKeyToConfiguration(sessionConfiguration, key, value);
+        try {
+            // Renew the ExecutionContext.
+            // Book keep all the session states of current ExecutionContext then
+            // re-register them into the new one.
+            ExecutionContext newContext = new ExecutionContext(executionContext);
+            // update the reference
+            this.executionContext = newContext;
+        } catch (Exception e) {
+            // get error and reset the key with old value
+            resetSessionConfigurationToValue(originConfiguration);
+            throw new SqlExecutionException(
+                    String.format("Failed to set key %s with value %s.", key, value), e);
+        }
     }
 
     /** Close resources, e.g. catalogs. */
@@ -157,7 +152,6 @@ public class SessionContext {
         // Init config
         // --------------------------------------------------------------------------------------------------------------
 
-        Environment sessionEnv = defaultContext.getDefaultEnv().clone();
         Configuration configuration = defaultContext.getFlinkConfig().clone();
 
         // --------------------------------------------------------------------------------------------------------------
@@ -177,7 +171,7 @@ public class SessionContext {
 
         ModuleManager moduleManager = new ModuleManager();
 
-        final EnvironmentSettings settings = sessionEnv.getExecution().getEnvironmentSettings();
+        final EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
 
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()
@@ -200,14 +194,15 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
 
         ExecutionContext executionContext =
-                new ExecutionContext(sessionEnv, configuration, classLoader, sessionState);
+                new ExecutionContext(configuration, classLoader, sessionState);
         LegacyTableEnvironmentInitializer.initializeSessionState(
-                executionContext.getTableEnvironment(), sessionEnv, classLoader);
+                executionContext.getTableEnvironment(),
+                defaultContext.getDefaultEnv(),
+                classLoader);
 
         return new SessionContext(
                 defaultContext,
                 sessionId,
-                sessionEnv,
                 configuration,
                 classLoader,
                 sessionState,
@@ -233,5 +228,16 @@ public class SessionContext {
             this.moduleManager = moduleManager;
             this.functionCatalog = functionCatalog;
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private void resetSessionConfigurationToValue(Configuration newValue) {
+        for (String key : sessionConfiguration.toMap().keySet()) {
+            // Don't care the type of the option
+            ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
+            sessionConfiguration.removeConfig(keyToDelete);
+        }
+        sessionConfiguration.addAll(newValue);
     }
 }

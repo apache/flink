@@ -21,6 +21,7 @@ package org.apache.flink.table.client.config.entries;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /** Configuration of a table source and sink. */
+@Deprecated
 public class SourceSinkTableEntry extends TableEntry {
 
     SourceSinkTableEntry(String name, DescriptorProperties properties) {

@@ -18,7 +18,7 @@
 # validation test
 set execution.parallelism = 10a;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Property 'parallelism' must be a integer value but was: 10a
+java.lang.NumberFormatException: For input string: "10a"
 !error
 
 # test set a configuration
@@ -42,18 +42,9 @@ CREATE TABLE hive_table (
 [INFO] Table has been created.
 !info
 
-# list the configured configuration
-set;
-table.sql-dialect=hive
-!ok
-
 # reset the configuration
 reset;
 [INFO] All session properties have been set to their default values.
-!info
-
-set;
-[INFO] Result was empty.
 !info
 
 # should fail because default dialect doesn't support hive dialect

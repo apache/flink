@@ -18,20 +18,21 @@
 
 package org.apache.flink.table.client.gateway.context;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlannerType;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -56,7 +57,6 @@ public class ExecutionContext {
 
     // TODO: merge the ExecutionContext into the SessionContext.
     // Members that should be reused in the same session.
-    private final Environment environment;
     private final Configuration flinkConfig;
     private final SessionState sessionState;
     private final URLClassLoader classLoader;
@@ -64,11 +64,7 @@ public class ExecutionContext {
     private final TableEnvironment tableEnv;
 
     public ExecutionContext(
-            Environment environment,
-            Configuration flinkConfig,
-            URLClassLoader classLoader,
-            SessionState sessionState) {
-        this.environment = environment;
+            Configuration flinkConfig, URLClassLoader classLoader, SessionState sessionState) {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
         this.classLoader = classLoader;
@@ -80,13 +76,9 @@ public class ExecutionContext {
      * Create a new {@link ExecutionContext}.
      *
      * <p>It just copies from the {@link ExecutionContext} and rebuild a new {@link
-     * TableEnvironment}. But it still needs {@link Environment} because {@link Environment} doesn't
-     * allow modification.
-     *
-     * <p>When FLINK-21462 finishes, the constructor only uses {@link ExecutionContext} as input.
+     * TableEnvironment}.
      */
-    public ExecutionContext(Environment environment, ExecutionContext context) {
-        this.environment = environment;
+    public ExecutionContext(ExecutionContext context) {
         this.flinkConfig = context.flinkConfig;
         this.sessionState = context.sessionState;
         this.classLoader = context.classLoader;
@@ -112,15 +104,17 @@ public class ExecutionContext {
     // ------------------------------------------------------------------------------------------------------------------
 
     private TableEnvironment createTableEnvironment() {
-        EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
+        // check the value of TABLE_PLANNER and RUNTIME_MODE
+        EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
         TableConfig config = new TableConfig();
         config.addConfiguration(flinkConfig);
-        // Override the value in configuration.
-        // TODO: use `table.planner` and `execution.runtime-mode` to configure the TableEnvironment
-        // in FLINK-21462.
-        config.addConfiguration(settings.toConfiguration());
+        if (flinkConfig.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)
+                && flinkConfig.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
 
-        if (environment.getExecution().isStreamingPlanner()) {
+            ExecutionEnvironment execEnv = createExecutionEnvironment();
+            return new BatchTableEnvironmentImpl(
+                    execEnv, config, sessionState.catalogManager, sessionState.moduleManager);
+        } else {
             StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
             final Map<String, String> executorProperties = settings.toExecutorProperties();
@@ -134,12 +128,6 @@ public class ExecutionContext {
                     sessionState.moduleManager,
                     sessionState.functionCatalog,
                     classLoader);
-        } else if (environment.getExecution().isBatchPlanner()) {
-            ExecutionEnvironment execEnv = createExecutionEnvironment();
-            return new BatchTableEnvironmentImpl(
-                    execEnv, config, sessionState.catalogManager, sessionState.moduleManager);
-        } else {
-            throw new SqlExecutionException("Unsupported execution type specified.");
         }
     }
 
@@ -200,16 +188,7 @@ public class ExecutionContext {
         // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
         // to execute existing StreamGraph.
         // This requires StreamExecutionEnvironment to have a full flink configuration.
-        final StreamExecutionEnvironment env =
-                new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
-        // for TimeCharacteristic validation in StreamTableEnvironmentImpl
-        env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-        if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
-            env.getConfig()
-                    .setAutoWatermarkInterval(
-                            environment.getExecution().getPeriodicWatermarksInterval());
-        }
-        return env;
+        return new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
     }
 
     private ExecutionEnvironment createExecutionEnvironment() {

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
+import org.apache.flink.table.client.config.ConfigurationUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -52,6 +53,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_DEPRECATED_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_ENVIRONMENT_KEY;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */
@@ -431,22 +436,27 @@ public class CliClient implements AutoCloseable {
                 terminal.writer()
                         .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
             } else {
-                properties.entrySet().stream()
-                        .map((e) -> e.getKey() + "=" + e.getValue())
-                        .sorted()
-                        .forEach((p) -> terminal.writer().println(p));
+                List<String> prettyEntries = ConfigurationUtils.getPropertiesInPretty(properties);
+                prettyEntries.forEach(entry -> terminal.writer().println(entry));
             }
         }
         // set a property
         else {
+            String key = cmdCall.operands[0].trim();
+            String value = cmdCall.operands[1].trim();
             try {
-                executor.setSessionProperty(
-                        sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
+                executor.setSessionProperty(sessionId, key, value);
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
                 return;
             }
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
+            if (ConfigurationUtils.isDeprecatedKey(key)) {
+                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_DEPRECATED_KEY));
+                return;
+            } else if (ConfigurationUtils.isYamlKey(key)) {
+                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_ENVIRONMENT_KEY));
+            }
+            terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
         }
         terminal.flush();
     }

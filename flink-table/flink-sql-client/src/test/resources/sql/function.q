@@ -30,6 +30,7 @@ show user functions;
 !ok
 
 SET execution.result-mode=tableau;
+[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
 [INFO] Session property has been set.
 !info
 

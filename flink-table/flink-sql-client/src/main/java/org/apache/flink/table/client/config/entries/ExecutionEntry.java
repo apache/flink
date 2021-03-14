@@ -43,6 +43,7 @@ import static org.apache.flink.table.client.config.Environment.EXECUTION_ENTRY;
  *
  * <p>All properties of this entry are optional and evaluated lazily.
  */
+@Deprecated
 public class ExecutionEntry extends ConfigEntry {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionEntry.class);
@@ -50,7 +51,7 @@ public class ExecutionEntry extends ConfigEntry {
     public static final ExecutionEntry DEFAULT_INSTANCE =
             new ExecutionEntry(new DescriptorProperties(true));
 
-    private static final String EXECUTION_PLANNER = "planner";
+    public static final String EXECUTION_PLANNER = "planner";
 
     public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
 
@@ -62,25 +63,25 @@ public class ExecutionEntry extends ConfigEntry {
 
     private static final String EXECUTION_TYPE_VALUE_BATCH = "batch";
 
-    private static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
+    public static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
 
     private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME = "event-time";
 
     private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME =
             "processing-time";
 
-    private static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL =
+    public static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL =
             "periodic-watermarks-interval";
 
-    private static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
+    public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
-    private static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
+    public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
 
-    private static final String EXECUTION_PARALLELISM = "parallelism";
+    public static final String EXECUTION_PARALLELISM = "parallelism";
 
-    private static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
+    public static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
 
-    private static final String EXECUTION_RESULT_MODE = "result-mode";
+    public static final String EXECUTION_RESULT_MODE = "result-mode";
 
     private static final String EXECUTION_RESULT_MODE_VALUE_CHANGELOG = "changelog";
 
@@ -88,9 +89,9 @@ public class ExecutionEntry extends ConfigEntry {
 
     private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
 
-    private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
+    public static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
-    private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
+    public static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
 
     private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK = "fallback";
 
@@ -100,14 +101,14 @@ public class ExecutionEntry extends ConfigEntry {
 
     private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FAILURE_RATE = "failure-rate";
 
-    private static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
+    public static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
 
-    private static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
+    public static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
 
-    private static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL =
+    public static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL =
             "restart-strategy.failure-rate-interval";
 
-    private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL =
+    public static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL =
             "restart-strategy.max-failures-per-interval";
 
     public static final String EXECUTION_CURRENT_CATALOG = "current-catalog";

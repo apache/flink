@@ -64,11 +64,8 @@ import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 
-/**
- * Utils to initialize {@link TableEnvironment} from {@link Environment}.
- *
- * <p>It will be removed when sql-client.yaml is deprecated.
- */
+/** Utils to initialize {@link TableEnvironment} from {@link Environment}. */
+@Deprecated
 public class LegacyTableEnvironmentInitializer {
 
     public static void initializeSessionState(

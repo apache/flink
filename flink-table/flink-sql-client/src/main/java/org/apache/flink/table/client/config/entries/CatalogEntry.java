@@ -28,6 +28,7 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
 /** Describes a catalog configuration entry. */
+@Deprecated
 public class CatalogEntry extends ConfigEntry {
 
     public static final String CATALOG_NAME = "name";

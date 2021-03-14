@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 /** Describes a table-like configuration entry. */
+@Deprecated
 public abstract class TableEntry extends ConfigEntry {
 
     public static final String TABLES_NAME = "name";
