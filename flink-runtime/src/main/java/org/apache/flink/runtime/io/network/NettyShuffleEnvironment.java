@@ -25,6 +25,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -58,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
@@ -99,6 +101,10 @@ public class NettyShuffleEnvironment
 
     private final Executor ioExecutor;
 
+    private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
+
+    private final ExecutorService batchShuffleReadIOExecutor;
+
     private boolean isClosed;
 
     NettyShuffleEnvironment(
@@ -110,7 +116,9 @@ public class NettyShuffleEnvironment
             FileChannelManager fileChannelManager,
             ResultPartitionFactory resultPartitionFactory,
             SingleInputGateFactory singleInputGateFactory,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            BatchShuffleReadBufferPool batchShuffleReadBufferPool,
+            ExecutorService batchShuffleReadIOExecutor) {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.config = config;
         this.networkBufferPool = networkBufferPool;
@@ -121,6 +129,8 @@ public class NettyShuffleEnvironment
         this.resultPartitionFactory = resultPartitionFactory;
         this.singleInputGateFactory = singleInputGateFactory;
         this.ioExecutor = ioExecutor;
+        this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
+        this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.isClosed = false;
     }
 
@@ -141,6 +151,16 @@ public class NettyShuffleEnvironment
     @VisibleForTesting
     public NetworkBufferPool getNetworkBufferPool() {
         return networkBufferPool;
+    }
+
+    @VisibleForTesting
+    public BatchShuffleReadBufferPool getBatchShuffleReadBufferPool() {
+        return batchShuffleReadBufferPool;
+    }
+
+    @VisibleForTesting
+    public ExecutorService getBatchShuffleReadIOExecutor() {
+        return batchShuffleReadIOExecutor;
     }
 
     @VisibleForTesting
@@ -361,6 +381,18 @@ public class NettyShuffleEnvironment
                 fileChannelManager.close();
             } catch (Throwable t) {
                 LOG.warn("Cannot close the file channel manager properly.", t);
+            }
+
+            try {
+                batchShuffleReadBufferPool.destroy();
+            } catch (Throwable t) {
+                LOG.warn("Cannot shut down batch shuffle read buffer pool properly.", t);
+            }
+
+            try {
+                batchShuffleReadIOExecutor.shutdown();
+            } catch (Throwable t) {
+                LOG.warn("Cannot shut down batch shuffle read IO executor properly.", t);
             }
 
             isClosed = true;

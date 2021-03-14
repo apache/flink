@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -67,6 +68,9 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int sortShuffleMinParallelism;
 
+    /** Size of direct memory to be allocated for blocking shuffle data read. */
+    private final long batchShuffleReadMemoryBytes;
+
     private final Duration requestSegmentsTimeout;
 
     private final boolean isNetworkDetailedMetrics;
@@ -98,6 +102,7 @@ public class NettyShuffleEnvironmentConfiguration {
             boolean blockingShuffleCompressionEnabled,
             String compressionCodec,
             int maxBuffersPerChannel,
+            long batchShuffleReadMemoryBytes,
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism) {
 
@@ -115,6 +120,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
         this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
         this.maxBuffersPerChannel = maxBuffersPerChannel;
+        this.batchShuffleReadMemoryBytes = batchShuffleReadMemoryBytes;
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
     }
@@ -143,6 +149,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int floatingNetworkBuffersPerGate() {
         return floatingNetworkBuffersPerGate;
+    }
+
+    public long batchShuffleReadMemoryBytes() {
+        return batchShuffleReadMemoryBytes;
     }
 
     public int sortShuffleMinBuffers() {
@@ -240,6 +250,9 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
+        long batchShuffleReadMemoryBytes =
+                configuration.get(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY).getBytes();
+
         int sortShuffleMinBuffers =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
@@ -282,6 +295,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 blockingShuffleCompressionEnabled,
                 compressionCodec,
                 maxBuffersPerChannel,
+                batchShuffleReadMemoryBytes,
                 sortShuffleMinBuffers,
                 sortShuffleMinParallelism);
     }
@@ -417,6 +431,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
         result = 31 * result + Objects.hashCode(compressionCodec);
         result = 31 * result + maxBuffersPerChannel;
+        result = 31 * result + Objects.hashCode(batchShuffleReadMemoryBytes);
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
         return result;
@@ -438,6 +453,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     && this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff
                     && this.networkBuffersPerChannel == that.networkBuffersPerChannel
                     && this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate
+                    && this.batchShuffleReadMemoryBytes == that.batchShuffleReadMemoryBytes
                     && this.sortShuffleMinBuffers == that.sortShuffleMinBuffers
                     && this.sortShuffleMinParallelism == that.sortShuffleMinParallelism
                     && this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout)
@@ -479,6 +495,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 + compressionCodec
                 + ", maxBuffersPerChannel="
                 + maxBuffersPerChannel
+                + ", batchShuffleReadMemoryBytes="
+                + batchShuffleReadMemoryBytes
                 + ", sortShuffleMinBuffers="
                 + sortShuffleMinBuffers
                 + ", sortShuffleMinParallelism="
