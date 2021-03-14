@@ -23,13 +23,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -50,11 +48,6 @@ public class BatchShuffleReadBufferPoolTest {
     @Test(expected = IllegalArgumentException.class)
     public void testIllegalBufferSize() {
         createBufferPool(32 * 1024 * 1024, 0);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testIllegalRequestTimeout() {
-        createBufferPool(null);
     }
 
     @Test
@@ -105,21 +98,6 @@ public class BatchShuffleReadBufferPoolTest {
         assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
     }
 
-    @Test(expected = TimeoutException.class)
-    public void testRequestBuffersTimeout() throws Exception {
-        BatchShuffleReadBufferPool bufferPool = createBufferPool(Duration.ofSeconds(1));
-        List<MemorySegment> buffers = new ArrayList<>();
-
-        try {
-            while (true) {
-                buffers.addAll(bufferPool.requestBuffers());
-            }
-        } finally {
-            bufferPool.recycle(buffers);
-            bufferPool.destroy();
-        }
-    }
-
     @Test
     public void testBufferFulfilledByRecycledBuffers() throws Exception {
         int numRequestThreads = 2;
@@ -141,7 +119,11 @@ public class BatchShuffleReadBufferPoolTest {
                                 () -> {
                                     try {
                                         Object owner = new Object();
-                                        buffers.put(owner, bufferPool.requestBuffers());
+                                        List<MemorySegment> allocated = null;
+                                        while (allocated == null || allocated.isEmpty()) {
+                                            allocated = bufferPool.requestBuffers();
+                                        }
+                                        buffers.put(owner, allocated);
                                     } catch (Throwable throwable) {
                                         exception.set(throwable);
                                     }
@@ -279,14 +261,10 @@ public class BatchShuffleReadBufferPoolTest {
     }
 
     private BatchShuffleReadBufferPool createBufferPool(long totalBytes, int bufferSize) {
-        return new BatchShuffleReadBufferPool(totalBytes, bufferSize, Duration.ofMinutes(5));
+        return new BatchShuffleReadBufferPool(totalBytes, bufferSize);
     }
 
     private BatchShuffleReadBufferPool createBufferPool() {
         return createBufferPool(32 * 1024 * 1024, 32 * 1024);
-    }
-
-    private BatchShuffleReadBufferPool createBufferPool(Duration requestTimeout) {
-        return new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024, requestTimeout);
     }
 }

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
@@ -55,7 +54,7 @@ public class ResultPartitionBuilder {
     private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
     private BatchShuffleReadBufferPool batchShuffleReadBufferPool =
-            new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024, Duration.ofMinutes(5));
+            new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024);
 
     private ExecutorService batchShuffleReadIOExecutor = Executors.newDirectExecutorService();
 
