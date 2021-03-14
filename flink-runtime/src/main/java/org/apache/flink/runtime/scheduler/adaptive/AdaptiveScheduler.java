@@ -190,7 +190,7 @@ public class AdaptiveScheduler
 
     private final JobStatusListener jobStatusListener;
 
-    private final SlotAllocator<?> slotAllocator;
+    private final SlotAllocator slotAllocator;
 
     private final ScaleUpController scaleUpController;
 
@@ -581,11 +581,10 @@ public class AdaptiveScheduler
         return outstandingResources.isEmpty();
     }
 
-    private <T extends VertexParallelism>
-            ParallelismAndResourceAssignments determineParallelismAndAssignResources(
-                    SlotAllocator<T> slotAllocator) throws JobExecutionException {
+    private ParallelismAndResourceAssignments determineParallelismAndAssignResources(
+            SlotAllocator slotAllocator) throws JobExecutionException {
 
-        final T vertexParallelism =
+        final VertexParallelism vertexParallelism =
                 slotAllocator
                         .determineParallelism(
                                 jobInformation, declarativeSlotPool.getFreeSlotsInformation())
