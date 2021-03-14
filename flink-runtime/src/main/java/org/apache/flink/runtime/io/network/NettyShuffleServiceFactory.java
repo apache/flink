@@ -41,7 +41,6 @@ import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 
-import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -130,9 +129,7 @@ public class NettyShuffleServiceFactory
         // dead lock or "insufficient network buffer" error
         BatchShuffleReadBufferPool batchShuffleReadBufferPool =
                 new BatchShuffleReadBufferPool(
-                        config.batchShuffleReadMemoryBytes(),
-                        config.networkBufferSize(),
-                        Duration.ofMinutes(5)); // 5 min buffer request timeout by default
+                        config.batchShuffleReadMemoryBytes(), config.networkBufferSize());
 
         // we create a separated IO executor pool here for batch shuffle instead of reusing the
         // TaskManager IO executor pool directly to avoid the potential side effects of execution

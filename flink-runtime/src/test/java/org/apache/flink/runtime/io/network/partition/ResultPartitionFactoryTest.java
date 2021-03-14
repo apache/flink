@@ -32,7 +32,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -125,8 +124,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         manager,
                         fileChannelManager,
                         new NetworkBufferPool(1, SEGMENT_SIZE),
-                        new BatchShuffleReadBufferPool(
-                                10 * SEGMENT_SIZE, SEGMENT_SIZE, Duration.ofMinutes(5)),
+                        new BatchShuffleReadBufferPool(10 * SEGMENT_SIZE, SEGMENT_SIZE),
                         Executors.newDirectExecutorService(),
                         BoundedBlockingSubpartitionType.AUTO,
                         1,

@@ -18,9 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -29,6 +34,8 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -128,5 +135,36 @@ public enum PartitionTestUtils {
                         .build();
         return new ResultPartitionDeploymentDescriptor(
                 partitionDescriptor, shuffleDescriptor, 1, true);
+    }
+
+    public static PartitionedFile createPartitionedFile(
+            String basePath,
+            int numSubpartitions,
+            int numBuffersPerSubpartition,
+            int bufferSize,
+            byte[] dataBytes)
+            throws Exception {
+        List<BufferWithChannel> buffers = new ArrayList<>();
+        for (int i = 0; i < numSubpartitions; ++i) {
+            for (int j = 0; j < numBuffersPerSubpartition; ++j) {
+                Buffer.DataType dataType =
+                        j == numBuffersPerSubpartition - 1
+                                ? Buffer.DataType.EVENT_BUFFER
+                                : Buffer.DataType.DATA_BUFFER;
+
+                MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+                segment.put(0, dataBytes);
+                Buffer buffer =
+                        new NetworkBuffer(
+                                segment, FreeingBufferRecycler.INSTANCE, dataType, bufferSize);
+                buffers.add(new BufferWithChannel(buffer, i));
+            }
+        }
+
+        PartitionedFileWriter fileWriter =
+                new PartitionedFileWriter(numSubpartitions, 1024, basePath);
+        fileWriter.startNewRegion();
+        fileWriter.writeBuffers(buffers);
+        return fileWriter.finish();
     }
 }
