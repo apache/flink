@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -33,12 +34,12 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -57,12 +58,7 @@ public class WaitingForResourcesTest extends TestLogger {
 
             new WaitingForResources(ctx, log, RESOURCE_COUNTER, Duration.ZERO);
             // run delayed actions
-            for (ScheduledRunnable scheduledRunnable : ctx.getScheduledRunnables()) {
-                scheduledRunnable.runAction();
-                if (ctx.hasStateTransition()) {
-                    break;
-                }
-            }
+            ctx.runScheduledTasks();
         }
     }
 
@@ -100,12 +96,7 @@ public class WaitingForResourcesTest extends TestLogger {
             ctx.setExpectCreatingExecutionGraph();
 
             // immediately execute all scheduled runnables
-            assertThat(ctx.getScheduledRunnables().size(), greaterThan(0));
-            for (ScheduledRunnable scheduledRunnable : ctx.getScheduledRunnables()) {
-                if (scheduledRunnable.getExpectedState() == wfr) {
-                    scheduledRunnable.runAction();
-                }
-            }
+            ctx.runScheduledTasks();
         }
     }
 
@@ -172,12 +163,8 @@ public class WaitingForResourcesTest extends TestLogger {
                 new StateValidator<>("finished");
 
         private Supplier<Boolean> hasEnoughResourcesSupplier = () -> false;
-        private final List<ScheduledRunnable> scheduledRunnables = new ArrayList<>();
+        private final List<ScheduledTask<Void>> scheduledTasks = new ArrayList<>();
         private boolean hasStateTransition = false;
-
-        public List<ScheduledRunnable> getScheduledRunnables() {
-            return scheduledRunnables;
-        }
 
         public void setHasEnoughResources(Supplier<Boolean> sup) {
             hasEnoughResourcesSupplier = sup;
@@ -189,6 +176,12 @@ public class WaitingForResourcesTest extends TestLogger {
 
         void setExpectCreatingExecutionGraph() {
             creatingExecutionGraphStateValidator.expectInput(none -> {});
+        }
+
+        void runScheduledTasks() {
+            for (ScheduledTask<Void> scheduledTask : scheduledTasks) {
+                scheduledTask.execute();
+            }
         }
 
         @Override
@@ -212,8 +205,21 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public void runIfState(State expectedState, Runnable action, Duration delay) {
-            scheduledRunnables.add(new ScheduledRunnable(expectedState, action, delay));
+        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
+            final ScheduledTask<Void> scheduledTask =
+                    new ScheduledTask<>(
+                            () -> {
+                                if (!hasStateTransition) {
+                                    action.run();
+                                }
+
+                                return null;
+                            },
+                            delay.toMillis());
+
+            scheduledTasks.add(scheduledTask);
+
+            return scheduledTask;
         }
 
         @Override
@@ -230,26 +236,6 @@ public class WaitingForResourcesTest extends TestLogger {
 
         public boolean hasStateTransition() {
             return hasStateTransition;
-        }
-    }
-
-    private static final class ScheduledRunnable {
-        private final Runnable action;
-        private final State expectedState;
-        private final Duration delay;
-
-        private ScheduledRunnable(State expectedState, Runnable action, Duration delay) {
-            this.expectedState = expectedState;
-            this.action = action;
-            this.delay = delay;
-        }
-
-        public void runAction() {
-            action.run();
-        }
-
-        public State getExpectedState() {
-            return expectedState;
         }
     }
 

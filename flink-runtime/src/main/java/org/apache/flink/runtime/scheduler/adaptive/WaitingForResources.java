@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * State which describes that the scheduler is waiting for resources in order to execute the job.
@@ -142,8 +143,9 @@ class WaitingForResources implements State, ResourceConsumer {
          *     the action
          * @param action action to run if the expected state equals the actual state
          * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     static class Factory implements StateFactory<WaitingForResources> {
