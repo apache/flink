@@ -30,6 +30,8 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+
 /** Batch exec node which matches along with join a Java/Scala user defined table function. */
 public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExecNode<RowData> {
 
@@ -46,7 +48,8 @@ public class BatchExecCorrelate extends CommonExecCorrelate implements BatchExec
                 condition,
                 TableStreamOperator.class,
                 false, // retainHeader
-                inputProperty,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }

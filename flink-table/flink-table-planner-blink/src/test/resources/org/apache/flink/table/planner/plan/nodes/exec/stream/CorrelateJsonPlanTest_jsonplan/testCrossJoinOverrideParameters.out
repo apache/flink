@@ -1,0 +1,237 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.3.data-type" : "TIMESTAMP(3)",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "d",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT NOT NULL"
+      }
+    },
+    "id" : 13,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "d" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate",
+    "joinType" : "INNER",
+    "functionCall" : {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "func1",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ {
+        "kind" : "FIELD_ACCESS",
+        "name" : "c",
+        "expr" : {
+          "kind" : "CORREL_VARIABLE",
+          "correl" : "$cor0",
+          "type" : {
+            "structKind" : "FULLY_QUALIFIED",
+            "nullable" : false,
+            "fields" : [ {
+              "typeName" : "BIGINT",
+              "nullable" : true,
+              "fieldName" : "a"
+            }, {
+              "typeName" : "INTEGER",
+              "nullable" : false,
+              "fieldName" : "b"
+            }, {
+              "typeName" : "VARCHAR",
+              "nullable" : true,
+              "precision" : 2147483647,
+              "fieldName" : "c"
+            }, {
+              "typeName" : "TIMESTAMP",
+              "nullable" : true,
+              "precision" : 3,
+              "fieldName" : "d"
+            }, {
+              "typeName" : "VARCHAR",
+              "nullable" : true,
+              "precision" : 2147483647,
+              "fieldName" : "s"
+            } ]
+          }
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : "$",
+        "type" : {
+          "typeName" : "CHAR",
+          "nullable" : false,
+          "precision" : 1
+        }
+      } ],
+      "type" : {
+        "structKind" : "FULLY_QUALIFIED",
+        "nullable" : false,
+        "fields" : [ {
+          "typeName" : "VARCHAR",
+          "nullable" : true,
+          "precision" : 2147483647,
+          "fieldName" : "f0"
+        } ]
+      }
+    },
+    "condition" : null,
+    "id" : 14,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "d" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "f0" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Correlate(invocation=[func1($cor0.c, _UTF-16LE'$')], correlate=[table(func1($cor0.c,_UTF-16LE'$'))], select=[a,b,c,d,f0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) d, VARCHAR(2147483647) f0)], joinType=[INNER])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "condition" : null,
+    "id" : 15,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "s" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Calc(select=[c, f0 AS s])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "table-sink-class" : "DEFAULT",
+        "connector" : "values",
+        "schema.0.data-type" : "VARCHAR(2147483647)",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "VARCHAR(2147483647)"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 16,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "s" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, s])"
+  } ],
+  "edges" : [ {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 15,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
