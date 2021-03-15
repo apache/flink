@@ -90,10 +90,10 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20_000)
     public void testAsyncCheckpointFailureTriggerJobFailed() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(100);
+        env.enableCheckpointing(500);
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.setStateBackend(new AsyncFailureStateBackend());
         env.addSource(new StringGeneratingSourceFunction()).addSink(new DiscardingSink<>());
