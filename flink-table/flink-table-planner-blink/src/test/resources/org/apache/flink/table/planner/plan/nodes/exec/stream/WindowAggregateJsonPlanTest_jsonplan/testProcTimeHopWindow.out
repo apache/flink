@@ -289,9 +289,9 @@
         "tableName" : "MySink"
       },
       "catalogTable" : {
-        "schema.1.name" : "sum_a",
         "connector" : "values",
         "schema.0.data-type" : "BIGINT",
+        "schema.1.name" : "sum_a",
         "schema.0.name" : "b",
         "schema.1.data-type" : "INT"
       }

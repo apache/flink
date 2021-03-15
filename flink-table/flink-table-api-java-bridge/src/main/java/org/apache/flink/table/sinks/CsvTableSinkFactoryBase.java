@@ -43,6 +43,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
@@ -90,6 +91,8 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
         properties.add(SCHEMA + ".#." + DescriptorProperties.EXPR);
         // schema watermark
         properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
+        // comment
+        properties.add(COMMENT);
         return properties;
     }
 

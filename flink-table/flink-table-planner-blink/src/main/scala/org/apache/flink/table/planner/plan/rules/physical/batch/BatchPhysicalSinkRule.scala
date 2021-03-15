@@ -60,7 +60,7 @@ class BatchPhysicalSinkRule extends ConverterRule(
           val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
               .filter(!sinkNode.staticPartitions.contains(_))
           val fieldNames = sinkNode.catalogTable
-            .getSchema
+            .getResolvedSchema
             .toPhysicalRowDataType
             .getLogicalType.asInstanceOf[RowType]
             .getFieldNames

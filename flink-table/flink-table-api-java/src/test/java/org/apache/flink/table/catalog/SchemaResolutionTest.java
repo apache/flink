@@ -39,6 +39,7 @@ import java.util.Collections;
 import static org.apache.flink.table.api.Expressions.callSql;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertFalse;
@@ -305,7 +306,11 @@ public class SchemaResolutionTest {
                                 DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
                         .notNull();
-        assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
+        final DataType sourceRowDataType = resolvedSchema.toSourceRowDataType();
+        assertThat(sourceRowDataType, equalTo(expectedDataType));
+
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(4).getLogicalType()));
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(6).getLogicalType()));
     }
 
     // --------------------------------------------------------------------------------------------

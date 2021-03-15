@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.types.utils.DataTypeUtils.removeTimeAttribute;
 
 /**
  * Schema of a table or view consisting of columns, constraints, and watermark specifications.
@@ -131,9 +132,7 @@ public final class ResolvedSchema {
      */
     public DataType toSourceRowDataType() {
         final DataTypes.Field[] fields =
-                columns.stream()
-                        .map(column -> FIELD(column.getName(), column.getDataType()))
-                        .toArray(DataTypes.Field[]::new);
+                columns.stream().map(ResolvedSchema::columnToField).toArray(DataTypes.Field[]::new);
         // the row should never be null
         return ROW(fields).notNull();
     }
@@ -152,7 +151,7 @@ public final class ResolvedSchema {
         final DataTypes.Field[] fields =
                 columns.stream()
                         .filter(Column::isPhysical)
-                        .map(column -> FIELD(column.getName(), column.getDataType()))
+                        .map(ResolvedSchema::columnToField)
                         .toArray(DataTypes.Field[]::new);
         // the row should never be null
         return ROW(fields).notNull();
@@ -175,7 +174,7 @@ public final class ResolvedSchema {
         final DataTypes.Field[] fields =
                 columns.stream()
                         .filter(Column::isPersisted)
-                        .map(column -> FIELD(column.getName(), column.getDataType()))
+                        .map(ResolvedSchema::columnToField)
                         .toArray(DataTypes.Field[]::new);
         // the row should never be null
         return ROW(fields).notNull();
@@ -212,5 +211,16 @@ public final class ResolvedSchema {
     @Override
     public int hashCode() {
         return Objects.hash(columns, watermarkSpecs, primaryKey);
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private static DataTypes.Field columnToField(Column column) {
+        return FIELD(
+                column.getName(),
+                // only a column in a schema should have a time attribute,
+                // a field should not propagate the attribute because it might be used in a
+                // completely different context
+                removeTimeAttribute(column.getDataType()));
     }
 }
