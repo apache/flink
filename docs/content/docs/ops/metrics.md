@@ -1465,6 +1465,28 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
   </tbody>
 </table>
 
+#### HBase Connectors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>lookupCacheHitRate</td>
+      <td>n/a</td>
+      <td>Cache hit ratio for lookup.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
 ### System resources
 
 System resources reporting is disabled by default. When `metrics.system-resource`

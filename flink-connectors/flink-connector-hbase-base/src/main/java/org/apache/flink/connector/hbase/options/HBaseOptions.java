@@ -94,6 +94,33 @@ public class HBaseOptions {
                                     + "Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' "
                                     + "can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
 
+    public static final ConfigOption<Boolean> LOOKUP_ASYNC =
+            ConfigOptions.key("lookup.async")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("whether to set async lookup.");
+
+    public static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS =
+            ConfigOptions.key("lookup.cache.max-rows")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            "the max number of rows of lookup cache, over this value, the oldest rows will "
+                                    + "be eliminated. \"cache.max-rows\" and \"cache.ttl\" options must all be specified if any of them is "
+                                    + "specified. Cache is not enabled as default.");
+
+    public static final ConfigOption<Duration> LOOKUP_CACHE_TTL =
+            ConfigOptions.key("lookup.cache.ttl")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0))
+                    .withDescription("the cache time to live.");
+
+    public static final ConfigOption<Integer> LOOKUP_MAX_RETRIES =
+            ConfigOptions.key("lookup.max-retries")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription("the max retry times if lookup database failed.");
+
     // Prefix for HBase specific properties.
     public static final String PROPERTIES_PREFIX = "properties.";
 
@@ -140,6 +167,15 @@ public class HBaseOptions {
         builder.setBufferFlushMaxSizeInBytes(
                 tableOptions.get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
         builder.setParallelism(tableOptions.getOptional(SINK_PARALLELISM).orElse(null));
+        return builder.build();
+    }
+
+    public static HBaseLookupOptions getHBaseLookupOptions(ReadableConfig tableOptions) {
+        HBaseLookupOptions.Builder builder = HBaseLookupOptions.builder();
+        builder.setLookupAsync(tableOptions.get(LOOKUP_ASYNC));
+        builder.setMaxRetryTimes(tableOptions.get(LOOKUP_MAX_RETRIES));
+        builder.setCacheExpireMs(tableOptions.get(LOOKUP_CACHE_TTL).toMillis());
+        builder.setCacheMaxSize(tableOptions.get(LOOKUP_CACHE_MAX_ROWS));
         return builder.build();
     }
 

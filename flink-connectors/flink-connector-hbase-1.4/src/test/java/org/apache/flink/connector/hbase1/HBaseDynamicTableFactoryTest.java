@@ -20,6 +20,7 @@ package org.apache.flink.connector.hbase1;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
@@ -244,6 +245,28 @@ public class HBaseDynamicTableFactoryTest {
                 (SinkFunctionProvider)
                         hbaseSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
         assertEquals(2, (long) provider.getParallelism().get());
+    }
+
+    @Test
+    public void testLookupOptions() {
+        Map<String, String> options = getAllOptions();
+        options.put("lookup.cache.max-rows", "1000");
+        options.put("lookup.cache.ttl", "10s");
+        options.put("lookup.max-retries", "10");
+        TableSchema schema =
+                TableSchema.builder()
+                        .field(ROWKEY, STRING())
+                        .field(FAMILY1, ROW(FIELD(COL1, DOUBLE()), FIELD(COL2, INT())))
+                        .build();
+        DynamicTableSource source = createTableSource(schema, options);
+        HBaseLookupOptions actual = ((HBaseDynamicTableSource) source).getLookupOptions();
+        HBaseLookupOptions expected =
+                HBaseLookupOptions.builder()
+                        .setCacheMaxSize(1000)
+                        .setCacheExpireMs(10_000)
+                        .setMaxRetryTimes(10)
+                        .build();
+        assertEquals(expected, actual);
     }
 
     @Test

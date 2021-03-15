@@ -21,6 +21,7 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -45,16 +46,19 @@ public abstract class AbstractHBaseDynamicTableSource
     protected final String tableName;
     protected HBaseTableSchema hbaseSchema;
     protected final String nullStringLiteral;
+    protected final HBaseLookupOptions lookupOptions;
 
     public AbstractHBaseDynamicTableSource(
             Configuration conf,
             String tableName,
             HBaseTableSchema hbaseSchema,
-            String nullStringLiteral) {
+            String nullStringLiteral,
+            HBaseLookupOptions lookupOptions) {
         this.conf = conf;
         this.tableName = tableName;
         this.hbaseSchema = hbaseSchema;
         this.nullStringLiteral = nullStringLiteral;
+        this.lookupOptions = lookupOptions;
     }
 
     @Override
@@ -81,7 +85,8 @@ public abstract class AbstractHBaseDynamicTableSource
                 "Currently, HBase table only supports lookup by rowkey field.");
 
         return TableFunctionProvider.of(
-                new HBaseRowDataLookupFunction(conf, tableName, hbaseSchema, nullStringLiteral));
+                new HBaseRowDataLookupFunction(
+                        conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
     }
 
     @Override
