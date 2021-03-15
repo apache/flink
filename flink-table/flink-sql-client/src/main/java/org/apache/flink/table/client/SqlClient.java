@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
@@ -26,8 +27,6 @@ import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
-
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +34,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
@@ -184,21 +178,21 @@ public class SqlClient {
     // --------------------------------------------------------------------------------------------
 
     public static void main(String[] args) {
-        if (args.length < 1) {
-            args = new String[]{MODE_EMBEDDED};
+        final String model;
+        final String[] modeArgs;
+        if (args.length < 1 || args[0].startsWith("-")) {
+            // mode is not specified, use the default `embedded` mode
+            model = MODE_EMBEDDED;
+            modeArgs = args;
         } else {
-            String mode = args[0];
-            if (!MODE_EMBEDDED.equals(mode)) {
-                List<String> params = Arrays.stream(args).collect(Collectors.toList());
-                params.add(0, MODE_EMBEDDED);
-                args = params.toArray(new String[params.size()]);
-            }
+            // mode is specified, extract the mode value and reaming args
+            model = args[0];
+            modeArgs = Arrays.copyOfRange(args, 1, args.length);
         }
 
-        switch (args[0]) {
+        switch (model) {
             case MODE_EMBEDDED:
                 // remove mode
-                final String[] modeArgs = Arrays.copyOfRange(args, 1, args.length);
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
                 if (options.isPrintHelp()) {
                     CliOptionsParser.printHelpEmbeddedModeClient();
