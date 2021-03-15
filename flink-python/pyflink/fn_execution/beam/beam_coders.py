@@ -81,10 +81,11 @@ class BeamTableFunctionRowCoder(FastCoder):
     def to_type_hint(self):
         return typehints.List
 
-    @Coder.register_urn(coders.FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN, flink_fn_execution_pb2.Schema)
-    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+    @Coder.register_urn(coders.FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN,
+                        flink_fn_execution_pb2.CoderParam)
+    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
         return BeamTableFunctionRowCoder(
-            coders.TableFunctionRowCoder.from_schema_proto(schema_proto))
+            coders.TableFunctionRowCoder.from_schema_proto(coder_praram_proto))
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._table_function_row_coder)
@@ -118,10 +119,10 @@ class BeamAggregateFunctionRowCoder(FastCoder):
         return typehints.List
 
     @Coder.register_urn(coders.FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
-                        flink_fn_execution_pb2.Schema)
-    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+                        flink_fn_execution_pb2.CoderParam)
+    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
         return BeamAggregateFunctionRowCoder(
-            coders.AggregateFunctionRowCoder.from_schema_proto(schema_proto))
+            coders.AggregateFunctionRowCoder.from_schema_proto(coder_praram_proto))
 
     def __repr__(self):
         return 'BeamAggregateFunctionRowCoder[%s]' % repr(self._aggregate_function_row_coder)
@@ -156,9 +157,9 @@ class BeamFlattenRowCoder(FastCoder):
         return typehints.List
 
     @Coder.register_urn(coders.FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN,
-                        flink_fn_execution_pb2.Schema)
-    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
-        return BeamFlattenRowCoder(coders.FlattenRowCoder.from_schema_proto(schema_proto))
+                        flink_fn_execution_pb2.CoderParam)
+    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
+        return BeamFlattenRowCoder(coders.FlattenRowCoder.from_schema_proto(coder_praram_proto))
 
     def __repr__(self):
         return 'BeamFlattenRowCoder[%s]' % repr(self._flatten_coder)
@@ -192,10 +193,10 @@ class ArrowCoder(FastCoder):
         return pd.Series
 
     @Coder.register_urn(coders.FLINK_SCHEMA_ARROW_CODER_URN,
-                        flink_fn_execution_pb2.Schema)
+                        flink_fn_execution_pb2.CoderParam)
     @Coder.register_urn(coders.FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN,
-                        flink_fn_execution_pb2.Schema)
-    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+                        flink_fn_execution_pb2.CoderParam)
+    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
 
         def _to_arrow_schema(row_type):
             return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
@@ -248,6 +249,7 @@ class ArrowCoder(FastCoder):
             return RowType([RowField(f.name, _to_data_type(f.type)) for f in row_schema.fields])
 
         timezone = pytz.timezone(os.environ['table.exec.timezone'])
+        schema_proto = coder_praram_proto.schema
         row_type = _to_row_type(schema_proto)
         return ArrowCoder(_to_arrow_schema(row_type), row_type, timezone)
 
@@ -269,11 +271,11 @@ class OverWindowArrowCoder(FastCoder):
     def to_type_hint(self):
         return typehints.List
 
-    @Coder.register_urn(coders.FLINK_OVER_WINDOW_ARROW_CODER_URN, flink_fn_execution_pb2.Schema)
-    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+    @Coder.register_urn(coders.FLINK_OVER_WINDOW_ARROW_CODER_URN, flink_fn_execution_pb2.CoderParam)
+    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
         return OverWindowArrowCoder(
             ArrowCoder._pickle_from_runner_api_parameter(
-                schema_proto, unused_components, unused_context))
+                coder_praram_proto, unused_components, unused_context))
 
     def __repr__(self):
         return 'OverWindowArrowCoder[%s]' % self._arrow_coder

@@ -438,14 +438,6 @@ class GroupAggFunctionBase(object):
             accumulator_state.clear()
             self.aggs_handle.cleanup()
 
-    @staticmethod
-    def is_retract_msg(data: Row):
-        return data.get_row_kind() == RowKind.UPDATE_BEFORE or data.get_row_kind() == RowKind.DELETE
-
-    @staticmethod
-    def is_accumulate_msg(data: Row):
-        return data.get_row_kind() == RowKind.UPDATE_AFTER or data.get_row_kind() == RowKind.INSERT
-
     @abstractmethod
     def finish_bundle(self):
         pass
@@ -477,7 +469,7 @@ class GroupAggFunction(GroupAggFunctionBase):
             start_index = 0
             if accumulators is None:
                 for i in range(len(input_rows)):
-                    if self.is_retract_msg(input_rows[i]):
+                    if input_rows[i]._is_retract_msg():
                         start_index += 1
                     else:
                         break
@@ -494,7 +486,7 @@ class GroupAggFunction(GroupAggFunctionBase):
 
             for input_row in input_rows[start_index:]:
                 # update aggregate result and set to the newRow
-                if self.is_accumulate_msg(input_row):
+                if input_row._is_accumulate_msg():
                     # accumulate input
                     self.aggs_handle.accumulate(input_row._values)
                 else:
@@ -572,7 +564,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
             start_index = 0
             if accumulators is None:
                 for i in range(len(input_rows)):
-                    if self.is_retract_msg(input_rows[i]):
+                    if input_rows[i]._is_retract_msg():
                         start_index += 1
                     else:
                         break
@@ -589,7 +581,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
 
             for input_row in input_rows[start_index:]:
                 # update aggregate result and set to the newRow
-                if self.is_accumulate_msg(input_row):
+                if input_row._is_accumulate_msg():
                     # accumulate input
                     self.aggs_handle.accumulate(input_row._values)
                 else:

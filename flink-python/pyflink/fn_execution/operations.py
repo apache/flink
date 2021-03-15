@@ -28,20 +28,32 @@ from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListState
     AggregatingStateDescriptor, AggregatingState
 from pyflink.datastream import TimeDomain, TimerService
 from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
+from pyflink.datastream.timerservice import TimerOperandType, InternalTimer, InternalTimerImpl
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.state_data_view import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
+from pyflink.fn_execution.window_assigner import TumblingWindowAssigner, CountTumblingWindowAssigner
+from pyflink.fn_execution.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
+    CountTrigger
+
 try:
     from pyflink.fn_execution.aggregate_fast import RowKeySelector, SimpleAggsHandleFunction, \
         GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction, \
         GroupTableAggFunction
+    from pyflink.fn_execution.window_aggregate_fast import SimpleNamespaceAggsHandleFunction, \
+        GroupWindowAggFunction
+    from pyflink.fn_execution.coder_impl_fast import InternalRow
+    has_cython = True
 except ImportError:
     from pyflink.fn_execution.aggregate_slow import RowKeySelector, SimpleAggsHandleFunction, \
         GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction,\
         GroupTableAggFunction
+    from pyflink.fn_execution.window_aggregate_slow import SimpleNamespaceAggsHandleFunction, \
+        GroupWindowAggFunction
+    has_cython = False
 
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
@@ -52,6 +64,7 @@ SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
 STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
 STREAM_GROUP_TABLE_AGGREGATE_URN = "flink:transform:stream_group_table_aggregate:v1"
+STREAM_GROUP_WINDOW_AGGREGATE_URN = "flink:transform:stream_group_window_aggregate:v1"
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
 PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
     "flink:transform:batch_over_window_aggregate_function:arrow:v1"
@@ -272,7 +285,10 @@ class StatefulFunctionOperation(Operation):
             self.keyed_state_backend.commit()
 
 
+NORMAL_RECORD = 0
 TRIGGER_TIMER = 1
+REGISTER_EVENT_TIMER = 0
+REGISTER_PROCESSING_TIMER = 1
 
 
 class AbstractStreamGroupAggregateOperation(StatefulFunctionOperation):
@@ -341,7 +357,7 @@ class AbstractStreamGroupAggregateOperation(StatefulFunctionOperation):
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
         for input_data in input_datas:
-            if input_data[0] != TRIGGER_TIMER:
+            if input_data[0] == NORMAL_RECORD:
                 self.group_agg_function.process_element(input_data[1])
             else:
                 self.group_agg_function.on_timer(input_data[3])
@@ -404,6 +420,117 @@ class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation):
             self.generate_update_before,
             self.state_cleaning_enabled,
             self.index_of_count_star)
+
+
+class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation):
+    def __init__(self, spec, keyed_state_backend):
+        self._window = spec.serialized_fn.group_window
+        self._named_property_extractor = self._create_named_property_function()
+        self._is_time_window = None
+        super(StreamGroupWindowAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
+                                distinct_indexes, distinct_view_descriptors, key_selector,
+                                state_value_coder):
+        self._is_time_window = self._window.is_time_window
+        self._namespace_coder = self.keyed_state_backend._namespace_coder_impl
+        if self._window.window_type == flink_fn_execution_pb2.GroupWindow.TUMBLING_GROUP_WINDOW:
+            if self._is_time_window:
+                window_assigner = TumblingWindowAssigner(
+                    self._window.window_size, 0, self._window.is_row_time)
+            else:
+                window_assigner = CountTumblingWindowAssigner(self._window.window_size)
+        elif self._window.window_type == flink_fn_execution_pb2.GroupWindow.SLIDING_GROUP_WINDOW:
+            raise Exception("General Python UDAF in Sliding window will be implemented in "
+                            "FLINK-21629")
+        else:
+            raise Exception("General Python UDAF in Sessiong window will be implemented in "
+                            "FLINK-21630")
+        if self._is_time_window:
+            if self._window.is_row_time:
+                trigger = EventTimeTrigger()
+            else:
+                trigger = ProcessingTimeTrigger()
+        else:
+            trigger = CountTrigger(self._window.window_size)
+
+        window_aggregator = SimpleNamespaceAggsHandleFunction(
+            user_defined_aggs,
+            input_extractors,
+            self.index_of_count_star,
+            self.count_star_inserted,
+            self._named_property_extractor,
+            self.data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors)
+        return GroupWindowAggFunction(
+            self._window.allowedLateness,
+            key_selector,
+            self.keyed_state_backend,
+            state_value_coder,
+            window_assigner,
+            window_aggregator,
+            trigger,
+            self._window.time_field_index)
+
+    def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
+        results = []
+        if input_data[0] == NORMAL_RECORD:
+            self.group_agg_function.process_watermark(input_data[3])
+            if has_cython:
+                input_row = InternalRow(input_data[1]._values, input_data[1].get_row_kind().value)
+            else:
+                input_row = input_data[1]
+            result_datas = self.group_agg_function.process_element(input_row)
+            for result_data in result_datas:
+                result = [NORMAL_RECORD, result_data, None]
+                results.append(result)
+            timers = self.group_agg_function.get_timers()
+            for timer in timers:
+                timer_operand_type = timer[0]  # type: TimerOperandType
+                internal_timer = timer[1]  # type: InternalTimer
+                window = internal_timer.get_namespace()
+                key = internal_timer.get_key()
+                timestamp = internal_timer.get_timestamp()
+                encoded_window = self._namespace_coder.encode_nested(window)
+                timer_data = [TRIGGER_TIMER, None,
+                              [timer_operand_type.value, key, timestamp, encoded_window]]
+                results.append(timer_data)
+        else:
+            timestamp = input_data[2]
+            timer_data = input_data[4]
+            key = list(timer_data[1])
+            timer_type = timer_data[0]
+            namespace = self._namespace_coder.decode_nested(timer_data[2])
+            timer = InternalTimerImpl(timestamp, key, namespace)
+            if timer_type == REGISTER_EVENT_TIMER:
+                result_datas = self.group_agg_function.on_event_time(timer)
+            else:
+                result_datas = self.group_agg_function.on_processing_time(timer)
+            for result_data in result_datas:
+                result = [NORMAL_RECORD, result_data, None]
+                results.append(result)
+        return results
+
+    def _create_named_property_function(self):
+        named_property_extractor_array = []
+        for named_property in self._window.namedProperties:
+            if named_property == flink_fn_execution_pb2.GroupWindow.WINDOW_START:
+                named_property_extractor_array.append("value.start")
+            elif named_property == flink_fn_execution_pb2.GroupWindow.WINDOW_END:
+                named_property_extractor_array.append("value.end")
+            elif named_property == flink_fn_execution_pb2.GroupWindow.ROW_TIME_ATTRIBUTE:
+                named_property_extractor_array.append("value.end - 1")
+            elif named_property == flink_fn_execution_pb2.GroupWindow.PROC_TIME_ATTRIBUTE:
+                named_property_extractor_array.append("-1")
+            else:
+                raise Exception("Unexpected property %s" % named_property)
+        named_property_extractor_str = ','.join(named_property_extractor_array)
+        if named_property_extractor_str:
+            return eval('lambda value: [%s]' % named_property_extractor_str)
+        else:
+            return None
 
 
 class DataStreamStatelessFunctionOperation(Operation):

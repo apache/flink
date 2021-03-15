@@ -27,6 +27,7 @@ import datetime
 import decimal
 import pickle
 
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.table import Row
 from pyflink.table.types import RowKind
@@ -35,6 +36,14 @@ cdef class InternalRow:
     def __cinit__(self, list values, InternalRowKind row_kind):
         self.values = values
         self.row_kind = row_kind
+
+    cdef bint is_retract_msg(self):
+        return self.row_kind == InternalRowKind.UPDATE_BEFORE or \
+           self.row_kind == InternalRowKind.DELETE
+
+    cdef bint is_accumulate_msg(self):
+        return self.row_kind == InternalRowKind.UPDATE_AFTER or \
+           self.row_kind == InternalRowKind.INSERT
 
     def __eq__(self, other):
         if not other:
@@ -45,7 +54,10 @@ cdef class InternalRow:
         return self.values[item]
 
     def __iter__(self):
-        return self.values
+        return iter(self.values)
+
+    def __repr__(self):
+        return "InternalRow(%s, %s)" % (self.row_kind, self.values)
 
 cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
@@ -200,7 +212,7 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
 ROW_KIND_BIT_SIZE = 2
 
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, output_mode=CoderParam.SINGLE):
         self._field_coders = field_coders
         self._field_count = len(self._field_coders)
         self._field_type = <TypeName*> malloc(self._field_count * sizeof(TypeName))
@@ -216,9 +228,18 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._mask = <bint*> malloc((self._field_count + ROW_KIND_BIT_SIZE) * sizeof(bint))
         self._init_attribute()
         self.row = [None for _ in range(self._field_count)]
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        if output_mode == flink_fn_execution_pb2.CoderParam.MULTIPLE:
+            self._single_output = False
+        else:
+            self._single_output = True
 
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
-        self._encode_one_row(value, output_stream)
+        if self._single_output:
+            self._encode_one_row(value, output_stream)
+        else:
+            for item in value:
+                self._encode_one_row(item, output_stream)
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
         self._decode_next_row(input_stream)
@@ -590,6 +611,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         cdef TypeName value_type, key_type
         cdef CoderType value_coder_type, key_coder_type
         cdef FieldCoder row_field_coder
+        cdef unsigned char row_kind_value
         cdef list row_field_coders, row_value
 
         if field_type == DECIMAL:
@@ -663,7 +685,12 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             leading_complete_bytes_num = (row_field_count + ROW_KIND_BIT_SIZE) // 8
             remaining_bits_num = (row_field_count + ROW_KIND_BIT_SIZE) % 8
             row_value = list(item)
-            row_kind_value = item._row_kind.value
+            if isinstance(item, InternalRow):
+                row_kind_value = item.row_kind
+            elif isinstance(item, Row):
+                row_kind_value = item._row_kind.value
+            else:
+                row_kind_value = 0
             self._write_mask(row_value, leading_complete_bytes_num, remaining_bits_num, row_kind_value, row_field_count)
             for i in range(row_field_count):
                 field_item = row_value[i]
@@ -793,6 +820,9 @@ cdef class WindowCoderImpl(BaseCoderImpl):
     cpdef bytes encode_nested(self, value):
         pass
 
+    cpdef decode_nested(self, bytes encoded_bytes):
+        pass
+
     cdef void _encode_bigint(self, libc.stdint.int64_t v):
         self._tmp_output_data[self._tmp_output_pos] = <unsigned char> (v >> 56)
         self._tmp_output_data[self._tmp_output_pos + 1] = <unsigned char> (v >> 48)
@@ -804,21 +834,50 @@ cdef class WindowCoderImpl(BaseCoderImpl):
         self._tmp_output_data[self._tmp_output_pos + 7] = <unsigned char> v
         self._tmp_output_pos += 8
 
+    cdef libc.stdint.int64_t _decode_bigint(self) except? -1:
+        self._input_pos += 8
+        return (<unsigned char> self._input_data[self._input_pos - 1]
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 2] << 8
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 3] << 16
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 4] << 24
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 5] << 32
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 6] << 40
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[self._input_pos - 7] << 48
+                | <libc.stdint.uint64_t> <unsigned char> self._input_data[
+                    self._input_pos - 8] << 56)
+
     def __dealloc__(self):
         if self._tmp_output_data:
             free(self._tmp_output_data)
 
 cdef class TimeWindowCoderImpl(WindowCoderImpl):
     cpdef bytes encode_nested(self, value: TimeWindow):
+        self._tmp_output_pos = 0
         self._encode_bigint(value.start)
         self._encode_bigint(value.end)
         return self._tmp_output_data[:16]
 
+    cpdef decode_nested(self, bytes encoded_bytes):
+        cdef libc.stdint.int64_t start, end
+        self._input_pos = 0
+        self._input_data = encoded_bytes
+        start = self._decode_bigint()
+        end = self._decode_bigint()
+        return TimeWindow(start, end)
+
 
 cdef class CountWindowCoderImpl(WindowCoderImpl):
     cpdef bytes encode_nested(self, value: CountWindow):
+        self._tmp_output_pos = 0
         self._encode_bigint(value.id)
         return self._tmp_output_data[:8]
+
+    cpdef decode_nested(self, bytes encoded_bytes):
+        cdef libc.stdint.int64_t id
+        self._input_pos = 0
+        self._input_data = encoded_bytes
+        id = self._decode_bigint()
+        return CountWindow(id)
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self):

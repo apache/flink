@@ -302,6 +302,31 @@ message Schema {
   repeated Field fields = 1;
 }
 
+// A representation of the coder
+message CoderParam {
+  enum DataType {
+    FLATTEN_ROW = 0;
+    ROW = 1;
+    RAW = 2;
+    ARROW = 3;
+  }
+
+  enum OutputMode {
+    SINGLE = 0;
+    MULTIPLE = 1;
+    MULTIPLE_WITH_END = 2;
+  }
+
+  oneof data_info {
+    Schema schema = 1;
+    TypeInfo type_info = 2;
+  }
+
+  DataType data_type = 3;
+
+  OutputMode output_mode = 4;
+}
+
 // A representation of the data type information in DataStream.
 message TypeInfo {
   enum TypeName {
