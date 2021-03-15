@@ -61,7 +61,8 @@ public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamGrou
                 indexOfCountStar,
                 generateUpdateBefore,
                 minRetentionTime,
-                maxRetentionTime);
+                maxRetentionTime,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.countStarInserted = countStarInserted;
     }
 

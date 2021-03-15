@@ -54,8 +54,10 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
-            double managedMemoryFraction) {
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(
                 taskName,
                 environmentManager,
@@ -64,8 +66,10 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
-                managedMemoryFraction);
+                managedMemoryFraction,
+                outputMode);
         this.coderUrn = Preconditions.checkNotNull(coderUrn);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
@@ -79,11 +83,11 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
 
     @Override
     protected RunnerApi.Coder getInputCoderProto() {
-        return getRowCoderProto(inputType, coderUrn);
+        return getRowCoderProto(inputType, coderUrn, outputMode);
     }
 
     @Override
     protected RunnerApi.Coder getOutputCoderProto() {
-        return getRowCoderProto(outputType, coderUrn);
+        return getRowCoderProto(outputType, coderUrn, outputMode);
     }
 }

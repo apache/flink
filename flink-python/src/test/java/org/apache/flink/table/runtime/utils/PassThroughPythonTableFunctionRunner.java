@@ -62,7 +62,8 @@ public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPyth
                 jobOptions,
                 flinkMetricContainer,
                 null,
-                0.0);
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
         this.buffer = new LinkedList<>();
     }
 

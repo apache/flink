@@ -68,8 +68,10 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
+                null,
                 memoryManager,
-                managedMemoryFraction);
+                managedMemoryFraction,
+                null);
         this.inputType = inputType;
         this.outputTupe = outputType;
         this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;

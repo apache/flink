@@ -71,8 +71,8 @@ class TableFunctionRowCoder(BaseCoder):
         return coder_impl.TableFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+    def from_schema_proto(coder_param_proto):
+        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
@@ -100,8 +100,8 @@ class AggregateFunctionRowCoder(BaseCoder):
         return coder_impl.AggregateFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+    def from_schema_proto(coder_param_proto):
+        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
 
     def __repr__(self):
         return 'AggregateFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
@@ -123,15 +123,19 @@ class FlattenRowCoder(BaseCoder):
     of a row object.
     """
 
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, output_mode=flink_fn_execution_pb2.CoderParam.SINGLE):
         self._field_coders = field_coders
+        self._output_mode = output_mode
 
     def get_impl(self):
-        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
+        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders],
+                                              self._output_mode)
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
+    def from_schema_proto(coder_param_proto):
+        schema_proto = coder_param_proto.schema
+        output_mode = coder_param_proto.output_mode
+        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields], output_mode)
 
     def __repr__(self):
         return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
