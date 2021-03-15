@@ -38,9 +38,7 @@ fi
 
 # Add TaskManager specific JVM options
 export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
-parseTmArgsAndExportLogs "${ARGS[@]}"
-
-# Do not need to add ${DYNAMIC_PARAMETERS[@]} to ${ARGS[@]} since it is already done in native Kubernetes integration.
+export JVM_ARGS="$JVM_ARGS $FLINK_TM_JVM_MEM_OPTS"
 
 ARGS=("--configDir" "${FLINK_CONF_DIR}" "${ARGS[@]}")
 

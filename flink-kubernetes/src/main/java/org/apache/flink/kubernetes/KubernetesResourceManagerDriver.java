@@ -43,6 +43,7 @@ import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -259,11 +260,13 @@ public class KubernetesResourceManagerDriver
 
         final String dynamicProperties =
                 BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
-
+        final String jvmMemOpts =
+                ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec);
         return new KubernetesTaskManagerParameters(
                 flinkConfig,
                 podName,
                 dynamicProperties,
+                jvmMemOpts,
                 taskManagerParameters,
                 ExternalResourceUtils.getExternalResources(
                         flinkConfig,

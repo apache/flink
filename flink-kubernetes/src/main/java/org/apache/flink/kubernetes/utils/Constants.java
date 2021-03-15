@@ -107,4 +107,6 @@ public class Constants {
     // Kubernetes start scripts
     public static final String KUBERNETES_JOB_MANAGER_SCRIPT_PATH = "kubernetes-jobmanager.sh";
     public static final String KUBERNETES_TASK_MANAGER_SCRIPT_PATH = "kubernetes-taskmanager.sh";
+
+    public static final String ENV_TM_JVM_MEM_OPTS = "FLINK_TM_JVM_MEM_OPTS";
 }
