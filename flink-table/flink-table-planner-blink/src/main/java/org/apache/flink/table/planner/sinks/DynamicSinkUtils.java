@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
@@ -82,7 +83,7 @@ public final class DynamicSinkUtils {
             RelNode input,
             CatalogSinkModifyOperation sinkOperation,
             DynamicTableSink sink,
-            CatalogTable table) {
+            ResolvedCatalogTable table) {
         final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
         final TableSchema schema = table.getSchema();
 
@@ -279,7 +280,7 @@ public final class DynamicSinkUtils {
      * SupportsWritingMetadata#listWritableMetadata()}.
      *
      * <p>This method assumes that sink and schema have been validated via {@link
-     * #prepareDynamicSink(CatalogSinkModifyOperation, DynamicTableSink, CatalogTable)}.
+     * #prepareDynamicSink(CatalogSinkModifyOperation, DynamicTableSink, CatalogTable, List)}.
      */
     private static List<String> createRequiredMetadataKeys(
             TableSchema schema, DynamicTableSink sink) {

@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.CatalogTableJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.CatalogTableJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.ObjectIdentifierJsonDeserializer;
@@ -51,13 +51,14 @@ public class CatalogTableSpecBase {
     @JsonProperty(value = FIELD_NAME_CATALOG_TABLE, required = true)
     @JsonSerialize(using = CatalogTableJsonSerializer.class)
     @JsonDeserialize(using = CatalogTableJsonDeserializer.class)
-    protected final CatalogTable catalogTable;
+    protected final ResolvedCatalogTable catalogTable;
 
     @JsonIgnore protected ClassLoader classLoader;
 
     @JsonIgnore protected ReadableConfig configuration;
 
-    protected CatalogTableSpecBase(ObjectIdentifier objectIdentifier, CatalogTable catalogTable) {
+    protected CatalogTableSpecBase(
+            ObjectIdentifier objectIdentifier, ResolvedCatalogTable catalogTable) {
         this.objectIdentifier = checkNotNull(objectIdentifier);
         this.catalogTable = checkNotNull(catalogTable);
     }
@@ -76,7 +77,7 @@ public class CatalogTableSpecBase {
     }
 
     @JsonIgnore
-    public CatalogTable getCatalogTable() {
+    public ResolvedCatalogTable getCatalogTable() {
         return catalogTable;
     }
 

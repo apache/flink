@@ -854,7 +854,8 @@ public final class CatalogManager {
         return String.format("Could not execute %s in path %s", commandName, objectIdentifier);
     }
 
-    private ResolvedCatalogBaseTable<?> resolveCatalogBaseTable(CatalogBaseTable baseTable) {
+    /** Resolves a {@link CatalogBaseTable} to a validated {@link ResolvedCatalogBaseTable}. */
+    public ResolvedCatalogBaseTable<?> resolveCatalogBaseTable(CatalogBaseTable baseTable) {
         Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
         if (baseTable instanceof CatalogTable) {
             return resolveCatalogTable((CatalogTable) baseTable);

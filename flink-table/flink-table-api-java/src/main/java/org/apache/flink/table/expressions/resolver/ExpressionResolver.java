@@ -46,6 +46,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -138,7 +139,13 @@ public class ExpressionResolver {
                 localReferences.stream()
                         .collect(
                                 Collectors.toMap(
-                                        LocalReferenceExpression::getName, Function.identity()));
+                                        LocalReferenceExpression::getName,
+                                        Function.identity(),
+                                        (u, v) -> {
+                                            throw new IllegalStateException(
+                                                    "Duplicate local reference: " + u);
+                                        },
+                                        LinkedHashMap::new));
         this.localOverWindows = prepareOverWindows(localOverWindows);
     }
 

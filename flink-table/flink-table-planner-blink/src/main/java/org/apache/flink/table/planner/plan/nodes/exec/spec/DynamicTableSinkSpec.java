@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
@@ -52,7 +52,7 @@ public class DynamicTableSinkSpec extends CatalogTableSpecBase {
     @JsonCreator
     public DynamicTableSinkSpec(
             @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable,
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ResolvedCatalogTable catalogTable,
             @Nullable @JsonProperty(FIELD_NAME_SINK_ABILITY_SPECS)
                     List<SinkAbilitySpec> sinkAbilitySpecs) {
         super(objectIdentifier, catalogTable);

@@ -108,7 +108,7 @@ public final class ResolvedCatalogTable
     }
 
     @Override
-    public CatalogTable copy(Map<String, String> options) {
+    public ResolvedCatalogTable copy(Map<String, String> options) {
         return new ResolvedCatalogTable(origin.copy(options), resolvedSchema);
     }
 }

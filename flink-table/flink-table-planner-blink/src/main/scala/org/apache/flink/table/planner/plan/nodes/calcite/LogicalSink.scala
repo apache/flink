@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
 
@@ -39,7 +39,7 @@ final class LogicalSink(
     traitSet: RelTraitSet,
     input: RelNode,
     tableIdentifier: ObjectIdentifier,
-    catalogTable: CatalogTable,
+    catalogTable: ResolvedCatalogTable,
     tableSink: DynamicTableSink,
     val staticPartitions: Map[String, String],
     val abilitySpecs: Array[SinkAbilitySpec])
@@ -63,7 +63,7 @@ object LogicalSink {
   def create(
       input: RelNode,
       tableIdentifier: ObjectIdentifier,
-      catalogTable: CatalogTable,
+      catalogTable: ResolvedCatalogTable,
       tableSink: DynamicTableSink,
       staticPartitions: util.Map[String, String],
       abilitySpecs: Array[SinkAbilitySpec]): LogicalSink = {

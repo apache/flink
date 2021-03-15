@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -42,7 +42,7 @@ class BatchPhysicalSink(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     tableIdentifier: ObjectIdentifier,
-    catalogTable: CatalogTable,
+    catalogTable: ResolvedCatalogTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec])
   extends Sink(cluster, traitSet, inputRel, tableIdentifier, catalogTable, tableSink)

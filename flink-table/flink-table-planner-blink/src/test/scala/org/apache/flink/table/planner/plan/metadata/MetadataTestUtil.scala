@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.{TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, CatalogTableImpl, ObjectIdentifier}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.catalog.{CatalogTable, CatalogTableImpl, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
@@ -37,6 +37,7 @@ import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.sql.{SqlCall, SqlNode}
 
+import java.util
 import java.util.Collections
 
 import scala.collection.JavaConversions._
@@ -238,7 +239,7 @@ object MetadataTestUtil {
   }
 
   private def createProjectedTableSourceTable(): Table = {
-    val catalogTable = CatalogTableImpl.fromProperties(
+    val catalogTable = CatalogTable.fromProperties(
       Map(
         "connector" -> "values",
         "bounded" -> "true",
@@ -254,6 +255,15 @@ object MetadataTestUtil {
         "schema.primary-key.columns" -> "a,d")
     )
 
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT()),
+        Column.physical("c", DataTypes.STRING()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")))
+
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a", "c", "d"),
@@ -264,7 +274,7 @@ object MetadataTestUtil {
       rowType,
       new TestTableSource(),
       true,
-      catalogTable,
+      new ResolvedCatalogTable(catalogTable, resolvedSchema),
       Array("project=[a, c, d]"))
   }
 
@@ -322,7 +332,7 @@ class MockTableSourceTable(
     rowType: RelDataType,
     tableSource: DynamicTableSource,
     isStreamingMode: Boolean,
-    catalogTable: CatalogTable,
+    catalogTable: ResolvedCatalogTable,
     extraDigests: Array[String] = Array.empty)
   extends TableSourceTable(
     null,

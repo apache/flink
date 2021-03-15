@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -61,9 +62,11 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.removeTimeAttributes;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /** Utilities for handling {@link DataType}s. */
@@ -206,6 +209,18 @@ public final class DataTypeUtils {
     public static DataType replaceLogicalType(DataType dataType, LogicalType replacement) {
         return LogicalTypeDataTypeConverter.toDataType(replacement)
                 .bridgedTo(dataType.getConversionClass());
+    }
+
+    /**
+     * Removes time attributes from the {@link DataType}. As everywhere else in the code base, this
+     * method does not support nested time attributes for now.
+     */
+    public static DataType removeTimeAttribute(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (hasFamily(type, LogicalTypeFamily.TIMESTAMP)) {
+            return replaceLogicalType(dataType, removeTimeAttributes(type));
+        }
+        return dataType;
     }
 
     /**

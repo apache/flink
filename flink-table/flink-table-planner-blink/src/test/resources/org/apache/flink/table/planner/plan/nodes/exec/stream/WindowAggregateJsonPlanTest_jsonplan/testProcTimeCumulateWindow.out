@@ -290,9 +290,9 @@
         "tableName" : "MySink"
       },
       "catalogTable" : {
-        "schema.1.name" : "cnt",
         "connector" : "values",
         "schema.0.data-type" : "BIGINT",
+        "schema.1.name" : "cnt",
         "schema.0.name" : "b",
         "schema.1.data-type" : "BIGINT"
       }

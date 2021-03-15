@@ -112,6 +112,8 @@ public class DescriptorProperties {
 
     public static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
 
+    public static final String COMMENT = "comment";
+
     private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");
 
     private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
