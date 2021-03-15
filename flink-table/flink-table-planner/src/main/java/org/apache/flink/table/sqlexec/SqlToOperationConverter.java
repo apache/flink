@@ -73,6 +73,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -574,7 +575,8 @@ public class SqlToOperationConverter {
 
     /** Convert SHOW FUNCTIONS statement. */
     private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
-        return new ShowFunctionsOperation();
+        return new ShowFunctionsOperation(
+                sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL);
     }
 
     /** Convert CREATE VIEW statement. */

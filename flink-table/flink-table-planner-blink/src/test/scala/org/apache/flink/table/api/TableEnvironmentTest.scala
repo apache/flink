@@ -504,6 +504,18 @@ class TableEnvironmentTest {
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
+
+    val funcName = classOf[TestUDF].getName
+    val tableResult1 = tableEnv.executeSql(s"CREATE FUNCTION default_database.f1 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    val tableResult2 = tableEnv.executeSql("SHOW USER FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
+      tableResult2.getTableSchema)
+    checkData(
+      util.Arrays.asList(Row.of("f1")).iterator(),
+      tableResult2.collect())
   }
 
   @Test

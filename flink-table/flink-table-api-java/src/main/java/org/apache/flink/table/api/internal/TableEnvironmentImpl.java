@@ -188,7 +188,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
                     + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, "
-                    + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS"
+                    + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW [USER] FUNCTIONS, SHOW PARTITIONS"
                     + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD "
                     + "MODULE, USE MODULES, SHOW [FULL] MODULES.";
 
@@ -1110,7 +1110,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof ShowTablesOperation) {
             return buildShowResult("table name", listTables());
         } else if (operation instanceof ShowFunctionsOperation) {
-            return buildShowResult("function name", listFunctions());
+            ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
+            String[] functionNames = null;
+            ShowFunctionsOperation.FunctionScope functionScope =
+                    showFunctionsOperation.getFunctionScope();
+            switch (functionScope) {
+                case USER:
+                    functionNames = listUserDefinedFunctions();
+                    break;
+                case ALL:
+                    functionNames = listFunctions();
+                    break;
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format(
+                                    "SHOW FUNCTIONS with %s scope is not supported.",
+                                    functionScope));
+            }
+            return buildShowResult("function name", functionNames);
         } else if (operation instanceof ShowViewsOperation) {
             return buildShowResult("view name", listViews());
         } else if (operation instanceof ShowPartitionsOperation) {

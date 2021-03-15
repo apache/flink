@@ -28,7 +28,7 @@ under the License.
 
 
 
-SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出所有的 function，包括：临时系统 function，系统 function，临时 catalog function，当前 catalog 和 database 中的 catalog function。
+SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function，或者仅仅列出当前 catalog 和当前 database 中用户定义的 function。
 
 目前 Flink SQL 支持下列 SHOW 语句：
 - SHOW CATALOGS
@@ -138,6 +138,17 @@ tEnv.executeSql("SHOW FUNCTIONS").print();
 // |           ... |
 // +---------------+
 
+// create a user defined function
+tEnv.executeSql("CREATE FUNCTION f1 AS ...");
+// show user defined functions
+tEnv.executeSql("SHOW USER FUNCTIONS").print();
+// +---------------+
+// | function name |
+// +---------------+
+// |            f1 |
+// |           ... |
+// +---------------+
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -188,6 +199,17 @@ tEnv.executeSql("SHOW FUNCTIONS").print()
 // +---------------+
 // |           mod |
 // |        sha256 |
+// |           ... |
+// +---------------+
+
+// create a user defined function
+tEnv.executeSql("CREATE FUNCTION f1 AS ...")
+// show user defined functions
+tEnv.executeSql("SHOW USER FUNCTIONS").print()
+// +---------------+
+// | function name |
+// +---------------+
+// |            f1 |
 // |           ... |
 // +---------------+
 
@@ -244,6 +266,17 @@ table_env.execute_sql("SHOW FUNCTIONS").print()
 # |           ... |
 # +---------------+
 
+# create a user defined function
+table_env.execute_sql("CREATE FUNCTION f1 AS ...")
+# show user defined functions
+table_env.execute_sql("SHOW USER FUNCTIONS").print()
+# +---------------+
+# | function name |
+# +---------------+
+# |            f1 |
+# |           ... |
+# +---------------+
+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -270,6 +303,13 @@ my_view
 Flink SQL> SHOW FUNCTIONS;
 mod
 sha256
+...
+
+Flink SQL> CREATE FUNCTION f1 AS ...;
+[INFO] Function has been created.
+
+Flink SQL> SHOW USER FUNCTIONS;
+f1
 ...
 
 ```
@@ -329,7 +369,10 @@ SHOW VIEWS
 ## SHOW FUNCTIONS
 
 ```sql
-SHOW FUNCTIONS
+SHOW [USER] FUNCTIONS
 ```
 
-展示所有的 function，包括：临时系统 function, 系统 function, 临时 catalog function，当前 catalog 和 database 中的 catalog function。
+展示当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function。
+
+**USER**
+仅仅展示当前 catalog 和当前 database 中用户定义的 function。

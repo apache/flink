@@ -26,7 +26,7 @@ under the License.
 
 # SHOW Statements
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -138,6 +138,17 @@ tEnv.executeSql("SHOW FUNCTIONS").print();
 // |           ... |
 // +---------------+
 
+// create a user defined function
+tEnv.executeSql("CREATE FUNCTION f1 AS ...");
+// show user defined functions
+tEnv.executeSql("SHOW USER FUNCTIONS").print();
+// +---------------+
+// | function name |
+// +---------------+
+// |            f1 |
+// |           ... |
+// +---------------+
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -188,6 +199,17 @@ tEnv.executeSql("SHOW FUNCTIONS").print()
 // +---------------+
 // |           mod |
 // |        sha256 |
+// |           ... |
+// +---------------+
+
+// create a user defined function
+tEnv.executeSql("CREATE FUNCTION f1 AS ...")
+// show user defined functions
+tEnv.executeSql("SHOW USER FUNCTIONS").print()
+// +---------------+
+// | function name |
+// +---------------+
+// |            f1 |
 // |           ... |
 // +---------------+
 
@@ -244,6 +266,17 @@ table_env.execute_sql("SHOW FUNCTIONS").print()
 # |           ... |
 # +---------------+
 
+# create a user defined function
+table_env.execute_sql("CREATE FUNCTION f1 AS ...")
+# show user defined functions
+table_env.execute_sql("SHOW USER FUNCTIONS").print()
+# +---------------+
+# | function name |
+# +---------------+
+# |            f1 |
+# |           ... |
+# +---------------+
+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -270,6 +303,13 @@ my_view
 Flink SQL> SHOW FUNCTIONS;
 mod
 sha256
+...
+
+Flink SQL> CREATE FUNCTION f1 AS ...;
+[INFO] Function has been created.
+
+Flink SQL> SHOW USER FUNCTIONS;
+f1
 ...
 
 ```
@@ -329,7 +369,10 @@ Show all views in the current catalog and the current database.
 ## SHOW FUNCTIONS
 
 ```sql
-SHOW FUNCTIONS
+SHOW [USER] FUNCTIONS
 ```
 
-Show all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and current database.
+Show all functions including system functions and user-defined functions in the current catalog and current database.
+
+**USER**
+Show only user-defined functions in the current catalog and current database.

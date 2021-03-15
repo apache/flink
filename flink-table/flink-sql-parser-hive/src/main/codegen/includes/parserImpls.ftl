@@ -1035,18 +1035,22 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
 }
 
 /**
- * Hive syntax:
- *
- * SHOW FUNCTIONS [LIKE "<pattern>"];
- */
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, null);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 

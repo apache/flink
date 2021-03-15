@@ -177,8 +177,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowFunctions() {
         sql("show functions").ok("SHOW FUNCTIONS");
-        sql("show functions db1").ok("SHOW FUNCTIONS `DB1`");
-        sql("show functions catalog1.db1").ok("SHOW FUNCTIONS `CATALOG1`.`DB1`");
+        sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test

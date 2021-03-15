@@ -33,7 +33,7 @@ QUIT		Quits the SQL CLI client.
 RESET		Resets all session configuration properties.
 SELECT		Executes a SQL SELECT query on the Flink cluster.
 SET		Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties.
-SHOW FUNCTIONS		Shows all user-defined and built-in functions.
+SHOW FUNCTIONS		Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'
 SHOW TABLES		Shows all registered tables.
 SOURCE		Reads a SQL SELECT query from a file and executes it on the Flink cluster.
 USE CATALOG		Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'
