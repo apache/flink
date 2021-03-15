@@ -87,7 +87,7 @@ class TableSourceTable[T](
       val physicalSchema = DataTypeUtils.expandCompositeTypeToSchema(producedDataType)
       fieldIndexes.map(mapIndex(_,
         idx =>
-          TypeConversions.fromDataTypeToLegacyInfo(physicalSchema.getFieldDataType(idx).get()))
+          TypeConversions.fromDataTypeToLegacyInfo(physicalSchema.getColumnDataTypes.get(idx)))
       )
     } else {
       fieldIndexes.map(mapIndex(_, _ => TypeConversions.fromDataTypeToLegacyInfo(producedDataType)))

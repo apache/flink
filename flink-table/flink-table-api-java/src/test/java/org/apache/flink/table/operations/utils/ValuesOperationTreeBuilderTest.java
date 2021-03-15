@@ -22,8 +22,9 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -75,10 +76,10 @@ public class ValuesOperationTreeBuilderTest {
                                         asList(
                                                 asList(valueLiteral(1), valueLiteral("ABC")),
                                                 asList(valueLiteral(2), valueLiteral("EFG"))),
-                                        TableSchema.builder()
-                                                .field("f0", DataTypes.INT().notNull())
-                                                .field("f1", DataTypes.CHAR(3).notNull())
-                                                .build())),
+                                        ResolvedSchema.of(
+                                                Column.physical("f0", DataTypes.INT().notNull()),
+                                                Column.physical(
+                                                        "f1", DataTypes.CHAR(3).notNull())))),
                 TestSpec.test("Finding common type")
                         .values(row(1L, "ABC"), row(3.1f, "DEFG"))
                         .equalTo(
@@ -96,10 +97,10 @@ public class ValuesOperationTreeBuilderTest {
                                                         valueLiteral(
                                                                 "DEFG",
                                                                 DataTypes.VARCHAR(4).notNull()))),
-                                        TableSchema.builder()
-                                                .field("f0", DataTypes.FLOAT().notNull())
-                                                .field("f1", DataTypes.VARCHAR(4).notNull())
-                                                .build())),
+                                        ResolvedSchema.of(
+                                                Column.physical("f0", DataTypes.FLOAT().notNull()),
+                                                Column.physical(
+                                                        "f1", DataTypes.VARCHAR(4).notNull())))),
                 TestSpec.test("Explicit common type")
                         .values(
                                 DataTypes.ROW(
@@ -130,10 +131,9 @@ public class ValuesOperationTreeBuilderTest {
                                                                         DataTypes.STRING()
                                                                                 .notNull()),
                                                                 DataTypes.STRING()))),
-                                        TableSchema.builder()
-                                                .field("id", DataTypes.DECIMAL(10, 2))
-                                                .field("name", DataTypes.STRING())
-                                                .build())),
+                                        ResolvedSchema.of(
+                                                Column.physical("id", DataTypes.DECIMAL(10, 2)),
+                                                Column.physical("name", DataTypes.STRING())))),
                 TestSpec.test("Explicit common type for nested rows")
                         .values(
                                 DataTypes.ROW(
@@ -201,17 +201,17 @@ public class ValuesOperationTreeBuilderTest {
                                                                                         .notNull()),
                                                                         DataTypes.DECIMAL(
                                                                                 10, 2))))),
-                                        TableSchema.builder()
-                                                .field("id", DataTypes.DECIMAL(10, 2))
-                                                .field(
+                                        ResolvedSchema.of(
+                                                Column.physical("id", DataTypes.DECIMAL(10, 2)),
+                                                Column.physical(
                                                         "details",
                                                         DataTypes.ROW(
                                                                 DataTypes.FIELD(
                                                                         "name", DataTypes.STRING()),
                                                                 DataTypes.FIELD(
                                                                         "amount",
-                                                                        DataTypes.DECIMAL(10, 2))))
-                                                .build())),
+                                                                        DataTypes.DECIMAL(
+                                                                                10, 2))))))),
                 TestSpec.test("Finding a common type for nested rows")
                         .values(row(1L, row(1L, "ABC")), row(3.1f, row(3.1f, "DEFG")))
                         .equalTo(
@@ -267,9 +267,9 @@ public class ValuesOperationTreeBuilderTest {
                                                                         "DEFG",
                                                                         DataTypes.VARCHAR(4)
                                                                                 .notNull())))),
-                                        TableSchema.builder()
-                                                .field("f0", DataTypes.FLOAT().notNull())
-                                                .field(
+                                        ResolvedSchema.of(
+                                                Column.physical("f0", DataTypes.FLOAT().notNull()),
+                                                Column.physical(
                                                         "f1",
                                                         DataTypes.ROW(
                                                                         DataTypes.FIELD(
@@ -280,8 +280,7 @@ public class ValuesOperationTreeBuilderTest {
                                                                                 "f1",
                                                                                 DataTypes.VARCHAR(4)
                                                                                         .notNull()))
-                                                                .notNull())
-                                                .build())),
+                                                                .notNull())))),
                 TestSpec.test("Finding common type. Insert cast for calls")
                         .values(call(new IntScalarFunction()), row(3.1f))
                         .equalTo(
@@ -298,9 +297,8 @@ public class ValuesOperationTreeBuilderTest {
                                                         cast(
                                                                 valueLiteral(3.1f),
                                                                 DataTypes.FLOAT()))),
-                                        TableSchema.builder()
-                                                .field("f0", DataTypes.FLOAT())
-                                                .build())),
+                                        ResolvedSchema.of(
+                                                Column.physical("f0", DataTypes.FLOAT())))),
                 TestSpec.test("Row in a function result is not flattened")
                         .values(call(new RowScalarFunction()))
                         .equalTo(
@@ -318,15 +316,15 @@ public class ValuesOperationTreeBuilderTest {
                                                                                 "f1",
                                                                                 DataTypes
                                                                                         .STRING()))))),
-                                        TableSchema.builder()
-                                                .field(
+                                        ResolvedSchema.of(
+                                                Column.physical(
                                                         "f0",
                                                         DataTypes.ROW(
                                                                 DataTypes.FIELD(
                                                                         "f0", DataTypes.INT()),
                                                                 DataTypes.FIELD(
-                                                                        "f1", DataTypes.STRING())))
-                                                .build())),
+                                                                        "f1",
+                                                                        DataTypes.STRING())))))),
                 TestSpec.test("Cannot find a common super type")
                         .values(
                                 valueLiteral(LocalTime.of(1, 1)),
@@ -434,7 +432,8 @@ public class ValuesOperationTreeBuilderTest {
 
         if (testSpec.queryOperation != null) {
             assertThat(
-                    operation.getTableSchema(), equalTo(testSpec.queryOperation.getTableSchema()));
+                    operation.getResolvedSchema(),
+                    equalTo(testSpec.queryOperation.getResolvedSchema()));
             assertThat(operation.getValues(), equalTo(testSpec.queryOperation.getValues()));
         }
     }

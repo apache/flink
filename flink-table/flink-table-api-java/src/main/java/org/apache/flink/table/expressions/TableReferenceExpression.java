@@ -53,7 +53,7 @@ public final class TableReferenceExpression implements ResolvedExpression {
 
     @Override
     public DataType getOutputDataType() {
-        return queryOperation.getTableSchema().toRowDataType();
+        return queryOperation.getResolvedSchema().toSourceRowDataType();
     }
 
     @Override
