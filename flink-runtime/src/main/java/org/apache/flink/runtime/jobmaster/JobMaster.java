@@ -442,17 +442,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> updateTaskExecutionState(
             final TaskExecutionState taskExecutionState) {
-        checkNotNull(taskExecutionState, "taskExecutionState");
+        FlinkException taskExecutionException;
+        try {
+            checkNotNull(taskExecutionState, "taskExecutionState");
 
-        if (schedulerNG.updateTaskExecutionState(taskExecutionState)) {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } else {
-            return FutureUtils.completedExceptionally(
-                    new ExecutionGraphException(
-                            "The execution attempt "
-                                    + taskExecutionState.getID()
-                                    + " was not found."));
+            if (schedulerNG.updateTaskExecutionState(taskExecutionState)) {
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            } else {
+                taskExecutionException =
+                        new ExecutionGraphException(
+                                "The execution attempt "
+                                        + taskExecutionState.getID()
+                                        + " was not found.");
+            }
+        } catch (Exception e) {
+            taskExecutionException =
+                    new JobMasterException(
+                            "Could not update the state of task execution for JobMaster.", e);
+            handleJobMasterError(taskExecutionException);
         }
+        return FutureUtils.completedExceptionally(taskExecutionException);
     }
 
     @Override
