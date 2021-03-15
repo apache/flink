@@ -36,6 +36,11 @@ public class ShowFunctionsOperation implements ShowOperation {
 
     private final FunctionScope functionScope;
 
+    public ShowFunctionsOperation() {
+        // "SHOW FUNCTIONS" default is ALL scope
+        this.functionScope = FunctionScope.ALL;
+    }
+
     public ShowFunctionsOperation(FunctionScope functionScope) {
         this.functionScope = functionScope;
     }
