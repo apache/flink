@@ -187,12 +187,12 @@ public class SqlClient {
         } else {
             // mode is specified, extract the mode value and reaming args
             model = args[0];
+            // remove mode
             modeArgs = Arrays.copyOfRange(args, 1, args.length);
         }
 
         switch (model) {
             case MODE_EMBEDDED:
-                // remove mode
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
                 if (options.isPrintHelp()) {
                     CliOptionsParser.printHelpEmbeddedModeClient();
