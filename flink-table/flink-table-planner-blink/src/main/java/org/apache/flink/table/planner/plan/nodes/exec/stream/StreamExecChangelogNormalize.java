@@ -76,9 +76,13 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.uniqueKeys = uniqueKeys;
-        this.generateUpdateBefore = generateUpdateBefore;
+        this(
+                uniqueKeys,
+                generateUpdateBefore,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
     }
 
     @JsonCreator

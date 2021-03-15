@@ -48,7 +48,7 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
 
     public StreamExecDropUpdateBefore(
             InputProperty inputProperty, RowType outputType, String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        this(getNewNodeId(), Collections.singletonList(inputProperty), outputType, description);
     }
 
     @JsonCreator
