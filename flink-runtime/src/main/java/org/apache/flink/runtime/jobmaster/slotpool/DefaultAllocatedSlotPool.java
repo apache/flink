@@ -140,6 +140,11 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
+    public boolean containsFreeSlot(AllocationID allocationId) {
+        return freeSlotsSince.containsKey(allocationId);
+    }
+
+    @Override
     public AllocatedSlot reserveFreeSlot(AllocationID allocationId) {
         LOG.debug("Reserve free slot with allocation id {}.", allocationId);
         Preconditions.checkState(

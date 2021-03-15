@@ -478,6 +478,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public boolean containsFreeSlot(AllocationID allocationId) {
+        return slotPool.containsFreeSlot(allocationId);
+    }
+
+    @Override
     public boolean containsSlots(ResourceID owner) {
         return slotPool.containsSlots(owner);
     }
