@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate,
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelateBase, StreamPhysicalMiniBatchAssigner, StreamPhysicalTemporalJoin, StreamPhysicalWindowAggregate, StreamPhysicalWindowJoin, StreamPhysicalWindowRank, StreamPhysicalWindowTableFunction}
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.containsWindowStartEqualityOrEndEquality
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.containsWindowStartEqualityAndEndEquality
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, groupingContainsWindowStartEnd, isWindowTableFunctionCall}
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
 
@@ -331,7 +331,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   def getWindowProperties(
       rel: FlinkLogicalJoin,
       mq: RelMetadataQuery): RelWindowProperties = {
-    if (containsWindowStartEqualityOrEndEquality(rel)) {
+    if (containsWindowStartEqualityAndEndEquality(rel)) {
       getJoinWindowProperties(rel.getLeft, rel.getRight, mq)
     } else {
       null

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowJoin
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{containsWindowStartEqualityOrEndEquality, excludeWindowStartEqualityAndEndEqualityFromJoinCondition, getChildWindowProperties}
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{containsWindowStartEqualityAndEndEquality, excludeWindowStartEqualityAndEndEqualityFromJoinCondition, getChildWindowProperties}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -43,7 +43,7 @@ class StreamPhysicalWindowJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel[FlinkLogicalJoin](0)
-    containsWindowStartEqualityOrEndEquality(join)
+    containsWindowStartEqualityAndEndEquality(join)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

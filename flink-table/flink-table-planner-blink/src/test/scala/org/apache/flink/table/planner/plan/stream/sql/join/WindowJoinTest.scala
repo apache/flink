@@ -218,11 +218,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, the windowing TVFs must be the same of left and right inputs.
-         |In the future, we could support different window TVFs, for example, tumbling windows
-         | join sliding windows with the same window size.
-         |""".stripMargin)
+      "Currently, window join doesn't support different window table function of left and " +
+        "right inputs.")
     util.verifyRelPlan(sql)
   }
 
@@ -261,11 +258,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, the windowing TVFs must be the same of left and right inputs.
-         |In the future, we could support different window TVFs, for example, tumbling windows
-         | join sliding windows with the same window size.
-         |""".stripMargin)
+      "Currently, window join doesn't support different window table function of left and " +
+        "right inputs.")
     util.verifyRelPlan(sql)
   }
 
@@ -306,11 +300,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, time attribute type of left and right inputs should be both row-time or
-         |both proc-time. In the future, we could support different time attribute type.
-         |""".stripMargin
-    )
+      "Currently, window join doesn't support different time attribute type of left and " +
+        "right inputs.")
     util.verifyRelPlan(sql)
   }
 
@@ -352,11 +343,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 
@@ -392,11 +380,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 
@@ -434,11 +419,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 
@@ -474,11 +456,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 
@@ -518,11 +497,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 
@@ -562,11 +538,8 @@ class WindowJoinTest extends TableTestBase {
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      s"""
-         |Currently, window starts equality and window ends equality are both required for
-         |window join. In the future, we could support join clause which only includes window
-         |starts equality or window ends equality for TUMBLE or HOP window.
-         |""".stripMargin)
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.")
     util.verifyRelPlan(sql)
   }
 

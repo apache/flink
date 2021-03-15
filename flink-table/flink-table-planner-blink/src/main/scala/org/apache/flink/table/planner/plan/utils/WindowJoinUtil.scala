@@ -28,6 +28,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -48,14 +49,14 @@ object WindowJoinUtil {
   }
 
   /**
-   * Checks whether join condition contains window starts equality of input tables or window
+   * Checks whether join condition contains window starts equality of input tables and window
    * ends equality of input tables.
    *
    * @param join input join
    * @return True if join condition contains window starts equality of input tables and window
    *         ends equality of input tables. Else false.
    */
-  def containsWindowStartEqualityOrEndEquality(join: FlinkLogicalJoin): Boolean = {
+  def containsWindowStartEqualityAndEndEquality(join: FlinkLogicalJoin): Boolean = {
     val (windowStartEqualityLeftKeys, windowEndEqualityLeftKeys, _, _) =
       excludeWindowStartEqualityAndEndEqualityFromJoinInfoPairs(join)
     windowStartEqualityLeftKeys.nonEmpty && windowEndEqualityLeftKeys.nonEmpty
@@ -185,25 +186,22 @@ object WindowJoinUtil {
       if (
         leftWindowProperties.getTimeAttributeType != rightWindowProperties.getTimeAttributeType) {
         throw new TableException(
-          s"""
-             |Currently, time attribute type of left and right inputs should be both row-time or
-             |both proc-time. In the future, we could support different time attribute type.
-             |""".stripMargin)
+          "Currently, window join doesn't support different time attribute type of left and " +
+            "right inputs.\n" +
+            s"The left time attribute type is ${leftWindowProperties.getTimeAttributeType}.\n" +
+            s"The right time attribute type is ${rightWindowProperties.getTimeAttributeType}.")
       } else if (leftWindowProperties.getWindowSpec != rightWindowProperties.getWindowSpec) {
         throw new TableException(
-          s"""
-             |Currently, the windowing TVFs must be the same of left and right inputs.
-             |In the future, we could support different window TVFs, for example, tumbling windows
-             | join sliding windows with the same window size.
-             |""".stripMargin)
+          "Currently, window join doesn't support different window table function of left and " +
+            "right inputs.\n" +
+            s"The left window table function is ${leftWindowProperties}.\n" +
+            s"The right window table function is ${rightWindowProperties}.")
       }
     } else if (windowStartEqualityLeftKeys.nonEmpty || windowEndEqualityLeftKeys.nonEmpty) {
       throw new TableException(
-        s"""
-           |Currently, window starts equality and window ends equality are both required for
-           |window join. In the future, we could support join clause which only includes window
-           |starts equality or window ends equality for TUMBLE or HOP window.
-           |""".stripMargin)
+        "Currently, window join requires JOIN ON condition must contain both window starts " +
+          "equality of input tables and window ends equality of input tables.\n" +
+          s"But the current JOIN ON condition is ${join.getCondition}.")
     }
 
     (
