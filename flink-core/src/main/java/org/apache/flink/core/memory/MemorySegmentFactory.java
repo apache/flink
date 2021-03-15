@@ -168,15 +168,15 @@ public final class MemorySegmentFactory {
      *
      * @param size The size of the off-heap unsafe memory segment to allocate.
      * @param owner The owner to associate with the off-heap unsafe memory segment.
-     * @param customCleanupAction A custom action to run upon calling GC cleaner.
+     * @param gcCleanupAction A custom action to run upon calling GC cleaner.
      * @return A new memory segment, backed by off-heap unsafe memory.
      */
     public static MemorySegment allocateOffHeapUnsafeMemory(
-            int size, Object owner, Runnable customCleanupAction) {
+            int size, Object owner, Runnable gcCleanupAction) {
         long address = MemoryUtils.allocateUnsafe(size);
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
         Runnable cleaner =
-                MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, customCleanupAction);
+                MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address, gcCleanupAction);
         return new HybridMemorySegment(offHeapBuffer, owner, false, cleaner);
     }
 
