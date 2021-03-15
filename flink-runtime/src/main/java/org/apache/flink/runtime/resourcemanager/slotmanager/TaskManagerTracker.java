@@ -27,7 +27,8 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import java.util.Map;
 
 /** Tracks TaskManager's resource and slot status. */
-interface TaskManagerTracker extends TaskManagerResourceInfoProvider {
+interface TaskManagerTracker
+        extends TaskManagerResourceInfoProvider, ClusterResourceStatisticsProvider {
 
     // ---------------------------------------------------------------------------------------------
     // Add / Remove (pending) Resource

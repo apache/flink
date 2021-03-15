@@ -25,12 +25,12 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -89,7 +90,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformT
  * StreamExecGroupWindowAggregate} will be dropped.
  */
 public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
 
@@ -179,7 +180,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final LogicalType[] aggResultTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] windowPropertyTypes =
                 Arrays.stream(namedWindowProperties)
-                        .map(p -> p.property().resultType())
+                        .map(p -> p.getProperty().getResultType())
                         .toArray(LogicalType[]::new);
 
         final EqualiserCodeGenerator generator =
@@ -206,11 +207,6 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
@@ -266,7 +262,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final List<PlannerWindowProperty> windowProperties =
                 Arrays.asList(
                         Arrays.stream(namedWindowProperties)
-                                .map(PlannerNamedWindowProperty::property)
+                                .map(PlannerNamedWindowProperty::getProperty)
                                 .toArray(PlannerWindowProperty[]::new));
         final boolean isTableAggregate =
                 isTableAggregate(Arrays.asList(aggInfoList.getActualAggregateCalls()));

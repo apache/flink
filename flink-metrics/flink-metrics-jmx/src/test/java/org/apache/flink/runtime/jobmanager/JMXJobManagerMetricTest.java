@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -88,8 +89,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
             JobVertex sourceJobVertex = new JobVertex("Source");
             sourceJobVertex.setInvokableClass(BlockingInvokable.class);
 
-            JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
-            jobGraph.setSnapshotSettings(
+            final JobCheckpointingSettings jobCheckpointingSettings =
                     new JobCheckpointingSettings(
                             new CheckpointCoordinatorConfiguration(
                                     500,
@@ -101,7 +101,14 @@ public class JMXJobManagerMetricTest extends TestLogger {
                                     false,
                                     false,
                                     0),
-                            null));
+                            null);
+
+            final JobGraph jobGraph =
+                    JobGraphBuilder.newStreamingJobGraphBuilder()
+                            .setJobName("TestingJob")
+                            .addJobVertex(sourceJobVertex)
+                            .setJobCheckpointingSettings(jobCheckpointingSettings)
+                            .build();
 
             ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
             client.submitJob(jobGraph).get();

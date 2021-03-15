@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple12;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.TableFunction;
 
@@ -126,6 +127,42 @@ public class JavaUserDefinedTableFunctions {
         @Override
         public boolean isDeterministic() {
             return false;
+        }
+    }
+
+    /** Function with large tuple. */
+    public static class JavaTableFuncTuple12
+            extends TableFunction<
+                    Tuple12<
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            String,
+                            Integer,
+                            Integer,
+                            Integer,
+                            Integer,
+                            Integer,
+                            Integer>> {
+        private static final long serialVersionUID = -8258882510989374448L;
+
+        public void eval(String str) {
+            collect(
+                    Tuple12.of(
+                            str + "_a",
+                            str + "_b",
+                            str + "_c",
+                            str + "_d",
+                            str + "_e",
+                            str + "_f",
+                            str.length(),
+                            str.length() + 1,
+                            str.length() + 2,
+                            str.length() + 3,
+                            str.length() + 4,
+                            str.length() + 5));
         }
     }
 }

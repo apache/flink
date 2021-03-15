@@ -64,6 +64,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowDatabases"
     "org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase"
     "org.apache.flink.sql.parser.dql.SqlShowFunctions"
+    "org.apache.flink.sql.parser.dql.SqlShowModules"
     "org.apache.flink.sql.parser.dql.SqlShowTables"
     "org.apache.flink.sql.parser.dql.SqlShowViews"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
@@ -72,6 +73,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
@@ -113,6 +115,7 @@
     "VIRTUAL"
     "WATERMARK"
     "WATERMARKS"
+    "TIMESTAMP_LTZ"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -472,6 +475,7 @@
     "SqlShowTables()"
     "SqlRichDescribeTable()"
     "SqlAlterTable()"
+    "SqlShowModules()"
     "SqlShowViews()"
     "SqlUnloadModule()"
     "SqlUseModules()"

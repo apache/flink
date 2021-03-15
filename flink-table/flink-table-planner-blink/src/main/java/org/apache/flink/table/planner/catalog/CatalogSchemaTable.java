@@ -120,7 +120,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
         final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-        TableSchema tableSchema = lookupResult.getResolvedSchema();
+        TableSchema tableSchema = TableSchema.fromResolvedSchema(lookupResult.getResolvedSchema());
         final DataType[] fieldDataTypes = tableSchema.getFieldDataTypes();
         CatalogBaseTable catalogTable = lookupResult.getTable();
         if (!isStreamingMode

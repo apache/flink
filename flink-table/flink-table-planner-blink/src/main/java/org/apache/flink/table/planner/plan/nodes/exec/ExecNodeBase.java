@@ -101,7 +101,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return inputProperties;
     }
 
-    @JsonIgnore
     @Override
     public List<ExecEdge> getInputEdges() {
         return checkNotNull(
@@ -109,7 +108,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                 "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
-    @JsonIgnore
     @Override
     public void setInputEdges(List<ExecEdge> inputEdges) {
         checkNotNull(inputEdges, "inputEdges should not be null.");
@@ -123,9 +121,16 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         edges.set(index, newInputEdge);
     }
 
+    @Override
     public Transformation<T> translateToPlan(Planner planner) {
         if (transformation == null) {
             transformation = translateToPlanInternal((PlannerBase) planner);
+            if (this instanceof SingleTransformationTranslator) {
+                if (inputsContainSingleton()) {
+                    transformation.setParallelism(1);
+                    transformation.setMaxParallelism(1);
+                }
+            }
         }
         return transformation;
     }

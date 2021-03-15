@@ -72,7 +72,7 @@ from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
-from pyflink.table.module import Module
+from pyflink.table.module import Module, ModuleEntry
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
 from pyflink.table.sources import CsvTableSource, TableSource
@@ -105,6 +105,7 @@ __all__ = [
     'ListView',
     'MapView',
     'Module',
+    'ModuleEntry',
     'OverWindowedTable',
     'ResultKind',
     'Row',

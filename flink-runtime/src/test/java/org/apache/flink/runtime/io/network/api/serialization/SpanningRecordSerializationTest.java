@@ -192,7 +192,6 @@ public class SpanningRecordSerializationTest extends TestLogger {
 
         // assert that all records have been serialized and deserialized
         Assert.assertEquals(0, numRecords);
-        Assert.assertFalse(deserializer.hasUnfinishedData());
     }
 
     @Test

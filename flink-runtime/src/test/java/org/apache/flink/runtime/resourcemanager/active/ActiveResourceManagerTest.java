@@ -65,6 +65,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link ActiveResourceManager}. */
 public class ActiveResourceManagerTest extends TestLogger {
@@ -76,6 +77,7 @@ public class ActiveResourceManagerTest extends TestLogger {
     private static final long TIMEOUT_SEC = 5L;
     private static final Time TIMEOUT_TIME = Time.seconds(TIMEOUT_SEC);
     private static final Time TESTING_START_WORKER_INTERVAL = Time.milliseconds(50);
+    private static final long TESTING_START_WORKER_TIMEOUT_MS = 50;
 
     private static final WorkerResourceSpec WORKER_RESOURCE_SPEC = WorkerResourceSpec.ZERO;
 
@@ -687,7 +689,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     registerTaskExecutor(ResourceID.generate());
                             assertThat(
                                     registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
-                                    instanceOf(RegistrationResponse.Decline.class));
+                                    instanceOf(RegistrationResponse.Rejection.class));
                         });
             }
         };
@@ -706,6 +708,120 @@ public class ActiveResourceManagerTest extends TestLogger {
                                             .getErrorFuture()
                                             .get(TIMEOUT_SEC, TimeUnit.SECONDS);
                             assertThat(reportedError, is(fatalError));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testWorkerRegistrationTimeout() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId = ResourceID.generate();
+                final CompletableFuture<ResourceID> releaseResourceFuture =
+                        new CompletableFuture<>();
+
+                flinkConfig.set(
+                        ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT,
+                        Duration.ofMillis(TESTING_START_WORKER_TIMEOUT_MS));
+
+                driverBuilder
+                        .setRequestResourceFunction(
+                                taskExecutorProcessSpec ->
+                                        CompletableFuture.completedFuture(tmResourceId))
+                        .setReleaseResourceConsumer(releaseResourceFuture::complete);
+
+                runTest(
+                        () -> {
+                            // request new worker
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .startNewWorker(WORKER_RESOURCE_SPEC));
+
+                            // verify worker is released due to not registered in time
+                            assertThat(
+                                    releaseResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(tmResourceId));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testWorkerRegistrationTimeoutNotCountingAllocationTime() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId = ResourceID.generate();
+                final CompletableFuture<ResourceID> requestResourceFuture =
+                        new CompletableFuture<>();
+                final CompletableFuture<ResourceID> releaseResourceFuture =
+                        new CompletableFuture<>();
+
+                flinkConfig.set(
+                        ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT,
+                        Duration.ofMillis(TESTING_START_WORKER_TIMEOUT_MS));
+
+                driverBuilder
+                        .setRequestResourceFunction(
+                                taskExecutorProcessSpec -> requestResourceFuture)
+                        .setReleaseResourceConsumer(releaseResourceFuture::complete);
+
+                runTest(
+                        () -> {
+                            // request new worker
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .startNewWorker(WORKER_RESOURCE_SPEC));
+
+                            // resource allocation takes longer than worker registration timeout
+                            try {
+                                Thread.sleep(TESTING_START_WORKER_TIMEOUT_MS * 2);
+                                requestResourceFuture.complete(tmResourceId);
+                            } catch (InterruptedException e) {
+                                fail();
+                            }
+
+                            // worker registered, verify not released due to timeout
+                            CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
+                                    registerTaskExecutor(tmResourceId);
+                            assertThat(
+                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    instanceOf(RegistrationResponse.Success.class));
+                            assertFalse(releaseResourceFuture.isDone());
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testWorkerRegistrationTimeoutRecoveredFromPreviousAttempt() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId = ResourceID.generate();
+                final CompletableFuture<ResourceID> releaseResourceFuture =
+                        new CompletableFuture<>();
+
+                flinkConfig.set(
+                        ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT,
+                        Duration.ofMillis(TESTING_START_WORKER_TIMEOUT_MS));
+
+                driverBuilder.setReleaseResourceConsumer(releaseResourceFuture::complete);
+
+                runTest(
+                        () -> {
+                            // workers recovered
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .onPreviousAttemptWorkersRecovered(
+                                                            Collections.singleton(tmResourceId)));
+
+                            // verify worker is released due to not registered in time
+                            assertThat(
+                                    releaseResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(tmResourceId));
                         });
             }
         };
@@ -754,6 +870,8 @@ public class ActiveResourceManagerTest extends TestLogger {
                     new MockResourceManagerRuntimeServices(rpcService, TIMEOUT_TIME, slotManager);
             final Duration retryInterval =
                     configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
+            final Duration workerRegistrationTimeout =
+                    configuration.get(ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT);
 
             final ActiveResourceManager<ResourceID> activeResourceManager =
                     new ActiveResourceManager<>(
@@ -772,6 +890,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                             ActiveResourceManagerFactory.createStartWorkerFailureRater(
                                     configuration),
                             retryInterval,
+                            workerRegistrationTimeout,
                             ForkJoinPool.commonPool());
 
             activeResourceManager.start();

@@ -21,13 +21,13 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException, TableSchema}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
-import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
@@ -57,7 +57,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.util
-import java.util.function.{Function => JFunction, Supplier => JSupplier}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -91,23 +90,8 @@ abstract class PlannerBase(
       plannerContext.createSqlExprToRexConverter(tableRowType)
   }
 
-  private val parser: Parser = new ParserImpl(
-    catalogManager,
-    new JSupplier[FlinkPlannerImpl] {
-      override def get(): FlinkPlannerImpl = createFlinkPlanner
-    },
-    // we do not cache the parser in order to use the most up to
-    // date configuration. Users might change parser configuration in TableConfig in between
-    // parsing statements
-    new JSupplier[CalciteParser] {
-      override def get(): CalciteParser = plannerContext.createCalciteParser()
-    },
-    new JFunction[TableSchema, SqlExprToRexConverter] {
-      override def apply(t: TableSchema): SqlExprToRexConverter = {
-        sqlExprToRexConverterFactory.create(plannerContext.getTypeFactory.buildRelNodeRowType(t))
-      }
-    }
-  )
+  private var parser: Parser = _
+  private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
@@ -145,14 +129,30 @@ abstract class PlannerBase(
 
   def getTableConfig: TableConfig = config
 
+  def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
+
   private[flink] def getExecEnv: StreamExecutionEnvironment = {
     executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
   }
 
-  override def getParser: Parser = parser
+  def createNewParser: Parser = {
+    val parserProps = Map(TableConfigOptions.TABLE_SQL_DIALECT.key() ->
+      getTableConfig.getSqlDialect.name().toLowerCase)
+    ComponentFactoryService.find(classOf[ParserFactory], parserProps)
+      .create(catalogManager, plannerContext)
+  }
+
+  override def getParser: Parser = {
+    if (parser == null || getTableConfig.getSqlDialect != currentDialect) {
+      parser = createNewParser
+      currentDialect = getTableConfig.getSqlDialect
+    }
+    parser
+  }
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
@@ -182,12 +182,6 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
-    // prepare the execEnv before translating
-    getExecEnv.configure(
-      getTableConfig.getConfiguration,
-      Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
-
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
@@ -419,6 +413,7 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
@@ -429,18 +424,41 @@ abstract class PlannerBase(
     if (!isStreamingMode) {
       throw new TableException("Only streaming mode is supported now.")
     }
+    validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
-    // prepare the execEnv before translating
-    getExecEnv.configure(getTableConfig.getConfiguration, getClassLoader)
-    overrideEnvParallelism()
     translateToPlan(execGraph)
   }
 
   protected def createSerdeContext: SerdeContext = {
-    new SerdeContext(config.getConfiguration, getClassLoader)
+    val planner = createFlinkPlanner
+    new SerdeContext(
+      planner.config.getContext.asInstanceOf[FlinkContext],
+      getClassLoader,
+      plannerContext.getTypeFactory,
+      planner.operatorTable
+    )
   }
 
   private def getClassLoader: ClassLoader = {
     Thread.currentThread().getContextClassLoader
+  }
+
+  /**
+   * Different planner has different rules. Validate the planner and runtime mode is consistent with
+   * the configuration before planner do optimization with [[ModifyOperation]] or other works.
+   */
+  protected def validateAndOverrideConfiguration(): Unit = {
+    if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
+      throw new IllegalArgumentException(
+        "Mismatch between configured planner and actual planner. " +
+          "Currently, the 'table.planner' can only be set when instantiating the " +
+          "table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary.");
+    }
+
+    getExecEnv.configure(
+      getTableConfig.getConfiguration,
+      Thread.currentThread().getContextClassLoader)
+    overrideEnvParallelism()
   }
 }

@@ -541,26 +541,25 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         nodes = eval(self.env.get_execution_plan())['nodes']
 
         # The StreamGraph should be as bellow:
-        # Source: From Collection -> _stream_key_by_map_operator -> _keyed_stream_values_operator ->
+        # Source: From Collection -> _stream_key_by_map_operator ->
         # Plus Two Map -> Add From File Map -> Sink: Test Sink.
 
         # Source: From Collection and _stream_key_by_map_operator should have same parallelism.
         self.assertEqual(nodes[0]['parallelism'], nodes[1]['parallelism'])
 
-        # _keyed_stream_values_operator and Plus Two Map should have same parallisim.
-        self.assertEqual(nodes[3]['parallelism'], 3)
-        self.assertEqual(nodes[2]['parallelism'], nodes[3]['parallelism'])
+        # The parallelism of Plus Two Map should be 3
+        self.assertEqual(nodes[2]['parallelism'], 3)
 
-        # The ship_strategy for Source: From Collection and _stream_key_by_map_operator shoule be
+        # The ship_strategy for Source: From Collection and _stream_key_by_map_operator should be
         # FORWARD
         self.assertEqual(nodes[1]['predecessors'][0]['ship_strategy'], "FORWARD")
 
-        # The ship_strategy for _keyed_stream_values_operator and Plus Two Map shoule be
-        # FORWARD
-        self.assertEqual(nodes[3]['predecessors'][0]['ship_strategy'], "FORWARD")
+        # The ship_strategy for _keyed_stream_values_operator and Plus Two Map should be
+        # HASH
+        self.assertEqual(nodes[2]['predecessors'][0]['ship_strategy'], "HASH")
 
         # The parallelism of Sink: Test Sink should be 4
-        self.assertEqual(nodes[5]['parallelism'], 4)
+        self.assertEqual(nodes[4]['parallelism'], 4)
 
         env_config_with_dependencies = dict(get_gateway().jvm.org.apache.flink.python.util
                                             .PythonConfigUtil.getEnvConfigWithDependencies(

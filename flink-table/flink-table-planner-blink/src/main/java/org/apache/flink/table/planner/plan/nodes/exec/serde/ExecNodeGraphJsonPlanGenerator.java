@@ -24,11 +24,16 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -41,8 +46,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+
 import java.io.IOException;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,17 +99,33 @@ public class ExecNodeGraphJsonPlanGenerator {
         mapper.registerModule(module);
 
         final JsonPlanGraph jsonPlanGraph = mapper.readValue(jsonPlan, JsonPlanGraph.class);
-        return jsonPlanGraph.convertToExecNodeGraph();
+        return jsonPlanGraph.convertToExecNodeGraph(serdeCtx);
     }
 
     private static void registerSerializers(SimpleModule module) {
-        // ObjectIdentifierJsonSerializer is also needed for LogicalType serialization
+        // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
+        // LogicalTypeJsonSerializer is needed for RelDataType serialization
+        module.addSerializer(new LogicalTypeJsonSerializer());
+        // RelDataTypeJsonSerializer is needed for RexNode serialization
+        module.addSerializer(new RelDataTypeJsonSerializer());
+        // RexNode is used in many exec nodes, so we register its serializer directly here
+        module.addSerializer(new RexNodeJsonSerializer());
+        module.addSerializer(new AggregateCallJsonSerializer());
+        module.addSerializer(new DurationJsonSerializer());
     }
 
     private static void registerDeserializers(SimpleModule module) {
-        // ObjectIdentifierJsonDeserializer is also needed for LogicalType deserialization
+        // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
+        // LogicalTypeJsonSerializer is needed for RelDataType serialization
+        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
+        // RelDataTypeJsonSerializer is needed for RexNode serialization
+        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
+        // RexNode is used in many exec nodes, so we register its deserializer directly here
+        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
+        module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
+        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
     }
 
     /** Check whether the given {@link ExecNodeGraph} is completely legal. */
@@ -113,33 +139,6 @@ public class ExecNodeGraphJsonPlanGenerator {
                                     String.format(
                                             "%s does not implement @JsonCreator annotation on constructor.",
                                             node.getClass().getCanonicalName()));
-                        }
-
-                        // check whether the xx push-down has been applied to the DynamicTableSource
-                        // TODO this is a temporary solution, we will introduce new interface later
-                        //  to support serializing/deserializing the push-downs.
-                        if (node instanceof StreamExecTableSourceScan) {
-                            String description = node.getDescription();
-                            if (description.contains("project=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with project push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("filter=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with filter push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("limit=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with limit push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("partitions=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with partition push-down is not supported for JSON serialization now.");
-                            }
-                            if (description.contains("watermark=[")) {
-                                throw new TableException(
-                                        "DynamicTableSource with watermark push-down is not supported for JSON serialization now.");
-                            }
                         }
                         super.visitInputs(node);
                     }
@@ -218,7 +217,7 @@ public class ExecNodeGraphJsonPlanGenerator {
             return new JsonPlanGraph(execGraph.getFlinkVersion(), allNodes, allEdges);
         }
 
-        public ExecNodeGraph convertToExecNodeGraph() {
+        public ExecNodeGraph convertToExecNodeGraph(SerdeContext serdeCtx) {
             Map<Integer, ExecNode<?>> idToExecNodes = new HashMap<>();
             for (ExecNode<?> execNode : nodes) {
                 int id = execNode.getId();
@@ -228,7 +227,26 @@ public class ExecNodeGraphJsonPlanGenerator {
                                     "The id: %s is not unique for ExecNode: %s.\nplease check it.",
                                     id, execNode.getDescription()));
                 }
+                if (execNode instanceof CommonExecTableSourceScan) {
+                    DynamicTableSourceSpec tableSourceSpec =
+                            ((CommonExecTableSourceScan) execNode).getTableSourceSpec();
+                    tableSourceSpec.setReadableConfig(serdeCtx.getConfiguration());
+                    tableSourceSpec.setClassLoader(serdeCtx.getClassLoader());
+                } else if (execNode instanceof CommonExecSink) {
+                    DynamicTableSinkSpec tableSinkSpec =
+                            ((CommonExecSink) execNode).getTableSinkSpec();
+                    tableSinkSpec.setReadableConfig(serdeCtx.getConfiguration());
+                    tableSinkSpec.setClassLoader(serdeCtx.getClassLoader());
+                }
                 idToExecNodes.put(id, execNode);
+                if (execNode instanceof StreamExecTableSourceScan) {
+                    ((StreamExecTableSourceScan) execNode)
+                            .getTableSourceSpec()
+                            .setReadableConfig(serdeCtx.getConfiguration());
+                    ((StreamExecTableSourceScan) execNode)
+                            .getTableSourceSpec()
+                            .setClassLoader(serdeCtx.getClassLoader());
+                }
             }
             Map<Integer, List<ExecEdge>> idToInputEdges = new HashMap<>();
             Map<Integer, List<ExecEdge>> idToOutputEdges = new HashMap<>();

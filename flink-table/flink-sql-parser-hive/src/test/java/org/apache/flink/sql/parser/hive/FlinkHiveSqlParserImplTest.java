@@ -466,4 +466,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
         sql("use modules ^'hive'^")
                 .fails("(?s).*Encountered \"\\\\'hive\\\\'\" at line 1, column 13.\n.*");
     }
+
+    @Test
+    public void testShowModules() {
+        sql("show modules").ok("SHOW MODULES");
+
+        sql("show full modules").ok("SHOW FULL MODULES");
+    }
 }

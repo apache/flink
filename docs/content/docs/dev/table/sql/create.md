@@ -227,7 +227,7 @@ The following statement creates a table with an additional metadata column that 
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `record_time` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+  `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -235,7 +235,7 @@ CREATE TABLE MyTable (
 ```
 
 Every metadata field is identified by a string-based key and has a documented data type. For example,
-the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP(3) WITH LOCAL TIME ZONE`
+the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP_LTZ(3)`
 that can be used for both reading and writing records.
 
 In the example above, the metadata column `record_time` becomes part of the table's schema and can be
@@ -251,7 +251,7 @@ For convenience, the `FROM` clause can be omitted if the column name should be u
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA    -- use column name as metadata key
+  `timestamp` TIMESTAMP_LTZ(3) METADATA    -- use column name as metadata key
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -559,7 +559,7 @@ The key and value of expression `key1=val1` should both be string literal.
 ## CREATE VIEW
 ```sql
 CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
-  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  [( columnName [, columnName ]* )] [COMMENT view_comment]
   AS query_expression
 ```
 

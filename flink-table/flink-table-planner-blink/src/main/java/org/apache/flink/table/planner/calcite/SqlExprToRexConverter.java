@@ -24,18 +24,24 @@ import org.apache.calcite.rex.RexNode;
 public interface SqlExprToRexConverter {
 
     /**
+     * Converts the given SQL expression string to an expanded string with fully qualified function
+     * calls and escaped identifiers.
+     *
+     * <p>E.g. {@code my_udf(f0) + 1} to {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     */
+    String expand(String expr);
+
+    /**
      * Converts a SQL expression to a {@link RexNode} expression.
      *
-     * @param expr a SQL expression which must be quoted and expanded, e.g.
-     *     "`my_catalog`.`my_database`.`my_udf`(`f0`) + 1".
+     * @param expr a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
     RexNode convertToRexNode(String expr);
 
     /**
      * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
      *
-     * @param exprs SQL expressions which must be quoted and expanded, e.g.
-     *     "`my_catalog`.`my_database`.`my_udf`(`f0`) + 1".
+     * @param exprs a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
     RexNode[] convertToRexNodes(String[] exprs);
 }

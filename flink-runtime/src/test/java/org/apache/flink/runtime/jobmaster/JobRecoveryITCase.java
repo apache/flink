@@ -24,6 +24,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -36,6 +37,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -99,10 +101,11 @@ public class JobRecoveryITCase extends TestLogger {
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 
-        final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
-        jobGraph.setExecutionConfig(executionConfig);
-
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .addJobVertices(Arrays.asList(sender, receiver))
+                .setJobName(getClass().getSimpleName())
+                .setExecutionConfig(executionConfig)
+                .build();
     }
 
     /** Receiver which fails once before successfully completing. */

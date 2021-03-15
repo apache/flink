@@ -473,7 +473,10 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    StreamTableEnvironmentImpl.create(executionEnvironment, settings, new TableConfig)
+    val config = new TableConfig();
+    config.addConfiguration(settings.toConfiguration)
+    StreamTableEnvironmentImpl
+      .create(executionEnvironment, settings, config)
   }
 
   /**

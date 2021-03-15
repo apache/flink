@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
@@ -642,6 +643,24 @@ class TableEnvironmentTest {
       "Could not execute USE MODULES: [core, core]. " +
         "Module 'core' appears more than once")
     tableEnv.executeSql("USE MODULES core, core")
+  }
+
+  @Test
+  def testExecuteSqlWithShowModules(): Unit = {
+    validateShowModules(("core", true))
+
+    // check result after loading module
+    val statement = "LOAD MODULE dummy"
+    tableEnv.executeSql(statement)
+    validateShowModules(("core", true), ("dummy", true))
+
+    // check result after using modules
+    tableEnv.executeSql("USE MODULES dummy")
+    validateShowModules(("dummy", true), ("core", false))
+
+    // check result after unloading module
+    tableEnv.executeSql("UNLOAD MODULE dummy")
+    validateShowModules(("core", false))
   }
 
   @Test
@@ -1313,8 +1332,8 @@ class TableEnvironmentTest {
         Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
         Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
         Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-        Row.of("f19", "TIMESTAMP(3) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
-        Row.of("f20", "TIMESTAMP(6) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
         Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
         Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
         Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
@@ -1360,19 +1379,43 @@ class TableEnvironmentTest {
     assertEquals(expected.hasNext, actual.hasNext)
   }
 
-  private def checkListModules(expected: String *): Unit = {
+  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
+    val showModules = tableEnv.executeSql("SHOW MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
+    assertEquals(TableSchema.builder().field("module name", DataTypes.STRING()).build(),
+      showModules.getTableSchema)
+
+    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
+    assertEquals(TableSchema.builder().fields(
+      Array[String]("module name", "used"),
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())).build(),
+      showFullModules.getTableSchema)
+
+    // show modules only list used modules
+    checkData(
+      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
+      showModules.collect()
+    )
+
+    checkData(
+      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
+      showFullModules.collect())
+  }
+
+  private def checkListModules(expected: String*): Unit = {
     val actual = tableEnv.listModules()
     for ((module, i) <- expected.zipWithIndex) {
       assertEquals(module, actual.apply(i))
     }
   }
 
-  private def checkListFullModules(expected: (String, java.lang.Boolean) *): Unit = {
+  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
     val actual = tableEnv.listFullModules()
-      for ((elem, i) <- expected.zipWithIndex) {
-        assertEquals(
-          new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
-          actual.apply(i).asInstanceOf[Object])
-      }
+    for ((elem, i) <- expected.zipWithIndex) {
+      assertEquals(
+        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
+        actual.apply(i).asInstanceOf[Object])
+    }
   }
 }

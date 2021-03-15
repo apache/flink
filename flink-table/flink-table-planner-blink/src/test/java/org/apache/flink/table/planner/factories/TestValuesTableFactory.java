@@ -725,7 +725,7 @@ public final class TestValuesTableFactory
                             @Override
                             public DataStream<RowData> produceDataStream(
                                     StreamExecutionEnvironment execEnv) {
-                                return execEnv.addSource(function, type);
+                                return execEnv.addSource(function);
                             }
 
                             @Override

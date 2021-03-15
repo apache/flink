@@ -33,7 +33,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.DynamicTableSourceSpecJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -41,18 +41,17 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Collections;
 
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
  */
-public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
+public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
+        implements MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
-    @JsonDeserialize(using = DynamicTableSourceSpecJsonDeserializer.class)
     private final DynamicTableSourceSpec tableSourceSpec;
 
     protected CommonExecTableSourceScan(
@@ -64,13 +63,17 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
         this.tableSourceSpec = tableSourceSpec;
     }
 
+    public DynamicTableSourceSpec getTableSourceSpec() {
+        return tableSourceSpec;
+    }
+
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final String operatorName = getDescription();
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
-        final ScanTableSource tableSource = tableSourceSpec.getScanTableSource();
+        final ScanTableSource tableSource = tableSourceSpec.getScanTableSource(planner);
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         if (provider instanceof SourceFunctionProvider) {
@@ -84,10 +87,14 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
         } else if (provider instanceof SourceProvider) {
             Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            return env.fromSource(source, WatermarkStrategy.noWatermarks(), operatorName)
+            return env.fromSource(
+                            source, WatermarkStrategy.noWatermarks(), operatorName, outputTypeInfo)
                     .getTransformation();
         } else if (provider instanceof DataStreamScanProvider) {
-            return ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            Transformation<RowData> transformation =
+                    ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            transformation.setOutputType(outputTypeInfo);
+            return transformation;
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");

@@ -22,10 +22,10 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -199,7 +199,7 @@ public class HiveCatalogDataTypeTest {
                 new HashMap<String, String>() {
                     {
                         put("is_streaming", "false");
-                        put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+                        put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
                     }
                 },
                 "");

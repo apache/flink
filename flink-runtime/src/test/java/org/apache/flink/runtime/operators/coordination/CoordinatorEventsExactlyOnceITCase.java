@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -63,6 +64,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -140,8 +142,13 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                 buildJobVertex("TASK_1", numEvents1, delay1, OPERATOR_1_ACCUMULATOR);
         final JobVertex task2 =
                 buildJobVertex("TASK_2", numEvents2, delay2, OPERATOR_2_ACCUMULATOR);
-        final JobGraph jobGraph = new JobGraph("Coordinator Events Job", task1, task2);
-        jobGraph.setSnapshotSettings(createCheckpointSettings(task1, task2));
+
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobName("Coordinator Events Job")
+                        .addJobVertices(Arrays.asList(task1, task2))
+                        .setJobCheckpointingSettings(createCheckpointSettings(task1, task2))
+                        .build();
 
         final JobExecutionResult result = miniCluster.executeJobBlocking(jobGraph);
 

@@ -21,17 +21,21 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Collections;
+import java.util.List;
 
 /**
  * Base class for exec Exchange.
  *
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
-public abstract class CommonExecExchange extends ExecNodeBase<RowData> {
-    public CommonExecExchange(InputProperty inputProperty, RowType outputType, String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+public abstract class CommonExecExchange extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
+
+    public CommonExecExchange(
+            int id, List<InputProperty> inputProperties, RowType outputType, String description) {
+        super(id, inputProperties, outputType, description);
     }
 }

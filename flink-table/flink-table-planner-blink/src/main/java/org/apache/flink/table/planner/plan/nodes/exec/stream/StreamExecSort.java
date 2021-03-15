@@ -86,18 +86,11 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        Transformation<RowData> transform =
-                new OneInputTransformation<>(
-                        inputTransform,
-                        getDescription(),
-                        sortOperator,
-                        InternalTypeInfo.of(inputType),
-                        inputTransform.getParallelism());
-        // as input node is singleton exchange, its parallelism is 1.
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-        return transform;
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDescription(),
+                sortOperator,
+                InternalTypeInfo.of(inputType),
+                inputTransform.getParallelism());
     }
 }

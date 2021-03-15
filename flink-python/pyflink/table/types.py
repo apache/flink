@@ -2673,6 +2673,21 @@ class DataTypes(object):
         return LocalZonedTimestampType(precision, nullable)
 
     @staticmethod
+    def TIMESTAMP_LTZ(precision: int = 6, nullable: bool = True) \
+            -> LocalZonedTimestampType:
+        """
+        Data type of a timestamp WITH LOCAL time zone.
+        This is a shortcut for ``DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)``.
+
+        :param precision: int, the number of digits of fractional seconds.
+                          It must have a value between 0 and 9 (both inclusive). (default: 6)
+        :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. seealso:: :func:`~DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)`
+        """
+        return LocalZonedTimestampType(precision, nullable)
+
+    @staticmethod
     def ARRAY(element_type: DataType, nullable: bool = True) -> ArrayType:
         """
         Data type of an array of elements with same subtype.

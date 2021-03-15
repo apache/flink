@@ -163,7 +163,7 @@ The default planner supports the following set of SQL types:
 | `DATE` | |
 | `TIME` | Supports only a precision of `0`. |
 | `TIMESTAMP` | |
-| `TIMESTAMP WITH LOCAL TIME ZONE` | |
+| `TIMESTAMP_LTZ` | |
 | `INTERVAL` | Supports only interval of `MONTH` and `SECOND(3)`. |
 | `ARRAY` | |
 | `MULTISET` | |
@@ -730,13 +730,13 @@ the semantics are closer to `java.time.LocalDateTime`.
 
 A conversion from and to `BIGINT` (a JVM `long` type) is not supported as this would imply a time
 zone. However, this type is time zone free. For more `java.time.Instant`-like semantics use
-`TIMESTAMP WITH LOCAL TIME ZONE`.
+`TIMESTAMP_LTZ`.
 {{< /tab >}}
 {{< tab "Python" >}}
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
 
 A conversion from and to `BIGINT` is not supported as this would imply a time zone.
-However, this type is time zone free. If you have such a requirement please use `TIMESTAMP WITH LOCAL TIME ZONE`.
+However, this type is time zone free. If you have such a requirement please use `TIMESTAMP_LTZ`.
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -797,7 +797,7 @@ Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not s
 {{< /tab >}}
 {{< /tabs >}}
 
-Compared to `TIMESTAMP WITH LOCAL TIME ZONE`, the time zone offset information is physically
+Compared to `TIMESTAMP_LTZ`, the time zone offset information is physically
 stored in every datum. It is used individually for every computation, visualization, or communication
 to external systems.
 
@@ -840,7 +840,7 @@ precision is specified, `p` is equal to `6`.
 {{< /tab >}}
 {{< /tabs >}}
 
-#### `TIMESTAMP WITH LOCAL TIME ZONE`
+#### `TIMESTAMP_LTZ`
 
 Data type of a timestamp *with local* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
@@ -872,12 +872,16 @@ the interpretation of UTC timestamps according to the configured session time zo
 {{< tabs "75734ebe-7f16-4df8-83e9-99fcd2a28527" >}}
 {{< tab "SQL" >}}
 ```text
+TIMESTAMP_LTZ
+TIMESTAMP_LTZ(p)
+
 TIMESTAMP WITH LOCAL TIME ZONE
 TIMESTAMP(p) WITH LOCAL TIME ZONE
 ```
 {{< /tab >}}
 {{< tab "Java/Scala" >}}
 ```java
+DataTypes.TIMESTAMP_LTZ(p)
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 ```
 
@@ -895,16 +899,19 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+DataTypes.TIMESTAMP_LTZ(p)
 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 ```
 
-<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)` must be `3` currently.
+<span class="label label-danger">Attention</span> The `precision` specified in `DataTypes.TIMESTAMP_LTZ(p)` must be `3` currently.
 {{< /tab >}}
 {{< /tabs >}}
 
-The type can be declared using `TIMESTAMP(p) WITH LOCAL TIME ZONE` where `p` is the number
+The type can be declared using `TIMESTAMP_LTZ(p)` where `p` is the number
 of digits of fractional seconds (*precision*). `p` must have a value between `0` and `9`
 (both inclusive). If no precision is specified, `p` is equal to `6`.
+
+`TIMESTAMP(p) WITH LOCAL TIME ZONE` is a synonym for this type.
 
 #### `INTERVAL YEAR TO MONTH`
 
@@ -1521,7 +1528,7 @@ information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 | `java.sql.Timestamp`        | `TIMESTAMP(9)`                      |
 | `java.time.LocalDateTime`   | `TIMESTAMP(9)`                      |
 | `java.time.OffsetDateTime`  | `TIMESTAMP(9) WITH TIME ZONE`       |
-| `java.time.Instant`         | `TIMESTAMP(9) WITH LOCAL TIME ZONE` |
+| `java.time.Instant`         | `TIMESTAMP_LTZ(9)`                  |
 | `java.time.Duration`        | `INVERVAL SECOND(9)`                |
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |

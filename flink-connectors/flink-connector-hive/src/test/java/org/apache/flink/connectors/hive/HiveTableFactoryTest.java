@@ -22,11 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -74,7 +74,7 @@ public class HiveTableFactoryTest {
                         .build();
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+        properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(true));
         properties.put("connector", "COLLECTION");
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
@@ -112,7 +112,7 @@ public class HiveTableFactoryTest {
                         .build();
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
         ObjectPath path = new ObjectPath("mydb", "mytable");

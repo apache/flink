@@ -22,10 +22,12 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
@@ -83,7 +85,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
         final JobVertex jobVertex = new JobVertex("Test vertex");
         jobVertex.setInvokableClass(NoOpInvokable.class);
-        jobGraph = new JobGraph(jobVertex);
+        jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertex);
 
         executionGraphInfo =
                 new ExecutionGraphInfo(
@@ -263,6 +265,34 @@ public class JobManagerRunnerImplTest extends TestLogger {
         assertThat(
                 jobManagerRunner.getResultFuture(),
                 FlinkMatchers.futureWillCompleteExceptionally(Duration.ofSeconds(10L)));
+    }
+
+    @Test
+    public void testJobMasterCreationFailureCompletesJobManagerRunnerWithInitializationError()
+            throws Exception {
+
+        final FlinkException testException = new FlinkException("Test exception");
+        final TestingJobMasterServiceFactory jobMasterServiceFactory =
+                new TestingJobMasterServiceFactory(
+                        () -> {
+                            throw testException;
+                        });
+
+        final JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        final JobManagerRunnerResult jobManagerRunnerResult =
+                jobManagerRunner.getResultFuture().join();
+        assertTrue(jobManagerRunnerResult.isInitializationFailure());
+        assertTrue(
+                jobManagerRunnerResult.getInitializationFailure()
+                        instanceof JobInitializationException);
+        assertThat(
+                jobManagerRunnerResult.getInitializationFailure(),
+                FlinkMatchers.containsCause(testException));
     }
 
     @Nonnull

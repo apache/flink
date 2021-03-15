@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -42,7 +41,8 @@ import java.util.List;
  * @param <T> The type of the elements that result from this node.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "class")
-public interface ExecNode<T> {
+@Internal
+public interface ExecNode<T> extends ExecNodeTranslator<T> {
 
     String FIELD_NAME_ID = "id";
     String FIELD_NAME_DESCRIPTION = "description";
@@ -105,15 +105,6 @@ public interface ExecNode<T> {
      * @param newInputEdge New edge that should be put at position `index`.
      */
     void replaceInputEdge(int index, ExecEdge newInputEdge);
-
-    /**
-     * Translates this node into a Flink operator.
-     *
-     * <p>NOTE: This method should return same translate result if called multiple times.
-     *
-     * @param planner The {@link Planner} of the translated Table.
-     */
-    Transformation<T> translateToPlan(Planner planner);
 
     /**
      * Accepts a visit from a {@link ExecNodeVisitor}.

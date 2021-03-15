@@ -42,12 +42,12 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 class StateSnapshotTransformerTest {
-    private final AbstractKeyedStateBackend<Integer> backend;
+    private final CheckpointableKeyedStateBackend<Integer> backend;
     private final BlockerCheckpointStreamFactory streamFactory;
     private final StateSnapshotTransformFactory<?> snapshotTransformFactory;
 
     StateSnapshotTransformerTest(
-            AbstractKeyedStateBackend<Integer> backend,
+            CheckpointableKeyedStateBackend<Integer> backend,
             BlockerCheckpointStreamFactory streamFactory) {
 
         this.backend = backend;

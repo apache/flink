@@ -27,6 +27,12 @@
             <td>The local time zone defines current session time zone id. It is used when converting to/from &lt;code&gt;TIMESTAMP WITH LOCAL TIME ZONE&lt;/code&gt;. Internally, timestamps with local time zone are always represented in the UTC time zone. However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), the session time zone is used during conversion. The input of option is either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom timezone id such as "GMT-8:00".</td>
         </tr>
         <tr>
+            <td><h5>table.planner</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">BLINK</td>
+            <td><p>Enum</p>Possible values: [BLINK, OLD]</td>
+            <td>Use either 'blink' planner or 'old' planner. Default is blink planner. For TableEnvironment, this option is used to construct a TableEnvironment, but this option can't be changed after that. However, there is no such limitation for SQL Client. Note: The old planner will be removed in Flink 1.14, so this option will become obsolete.</td>
+        </tr>
+        <tr>
             <td><h5>table.sql-dialect</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>

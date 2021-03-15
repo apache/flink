@@ -70,17 +70,13 @@ public class RecordOrEventCollectingResultPartitionWriter<T>
     protected void deserializeBuffer(Buffer buffer) throws IOException {
         deserializer.setNextBuffer(buffer);
 
-        while (deserializer.hasUnfinishedData()) {
-            RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(delegate);
+        RecordDeserializer.DeserializationResult result;
+        do {
+            result = deserializer.getNextRecord(delegate);
 
             if (result.isFullRecord()) {
                 output.add(delegate.getInstance());
             }
-
-            if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-                    || result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-                break;
-            }
-        }
+        } while (!result.isBufferConsumed());
     }
 }

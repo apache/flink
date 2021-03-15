@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -65,7 +66,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator, Matchers.notNullValue());
         assertThat(checkpointCoordinator.isShutdown(), is(false));
 
-        graph.failGlobal(new Exception("Test Exception"));
+        graph.failJob(new Exception("Test Exception"));
 
         assertThat(checkpointCoordinator.isShutdown(), is(true));
         assertThat(counterShutdownFuture.get(), is(JobStatus.FAILED));
@@ -134,7 +135,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         final JobVertex jobVertex = new JobVertex("MockVertex");
         jobVertex.setInvokableClass(AbstractInvokable.class);
 
-        final JobGraph jobGraph = new JobGraph(jobVertex);
         final CheckpointCoordinatorConfiguration chkConfig =
                 new CheckpointCoordinatorConfiguration(
                         100,
@@ -148,7 +148,12 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         0);
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);
-        jobGraph.setSnapshotSettings(checkpointingSettings);
+
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertex(jobVertex)
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .build();
 
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(

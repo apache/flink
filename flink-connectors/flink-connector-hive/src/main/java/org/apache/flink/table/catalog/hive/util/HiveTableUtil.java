@@ -25,13 +25,10 @@ import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowForma
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -81,7 +78,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
-import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -344,10 +341,6 @@ public class HiveTableUtil {
 
     public static Table instantiateHiveTable(
             ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf) {
-        if (!(table instanceof CatalogTableImpl) && !(table instanceof CatalogViewImpl)) {
-            throw new CatalogException(
-                    "HiveCatalog only supports CatalogTableImpl and CatalogViewImpl");
-        }
         // let Hive set default parameters for us, e.g. serialization.format
         Table hiveTable =
                 org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(
@@ -381,8 +374,8 @@ public class HiveTableUtil {
             HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
             List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
             // Table columns and partition keys
-            if (table instanceof CatalogTableImpl) {
-                CatalogTable catalogTable = (CatalogTableImpl) table;
+            if (table instanceof CatalogTable) {
+                CatalogTable catalogTable = (CatalogTable) table;
 
                 if (catalogTable.isPartitioned()) {
                     int partitionKeySize = catalogTable.getPartitionKeys().size();
@@ -405,7 +398,7 @@ public class HiveTableUtil {
             hiveTable.getParameters().putAll(properties);
         }
 
-        if (table instanceof CatalogViewImpl) {
+        if (table instanceof CatalogView) {
             // TODO: [FLINK-12398] Support partitioned view in catalog API
             hiveTable.setPartitionKeys(new ArrayList<>());
 
@@ -428,7 +421,7 @@ public class HiveTableUtil {
                 .map(
                         e ->
                                 new Tuple2<>(
-                                        e.getKey().equals(CatalogConfig.IS_GENERIC)
+                                        e.getKey().equals(CatalogPropertiesUtil.IS_GENERIC)
                                                 ? e.getKey()
                                                 : FLINK_PROPERTY_PREFIX + e.getKey(),
                                         e.getValue()))

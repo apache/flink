@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -225,7 +226,8 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                         tableSource,
                         schemaTable.isStreamingMode(),
                         catalogTable,
-                        new String[0]);
+                        new String[0],
+                        new SourceAbilitySpec[0]);
 
         final LogicalTableScan scan = LogicalTableScan.create(cluster, tableSourceTable, hints);
         relBuilder.push(scan);

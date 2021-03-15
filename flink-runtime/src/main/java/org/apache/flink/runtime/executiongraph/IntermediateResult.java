@@ -51,8 +51,6 @@ public class IntermediateResult {
 
     private int partitionsAssigned;
 
-    private int numConsumers;
-
     private final int connectionIndex;
 
     private final ResultPartitionType resultType;
@@ -143,19 +141,6 @@ public class IntermediateResult {
 
     public ResultPartitionType getResultType() {
         return resultType;
-    }
-
-    public int registerConsumer() {
-        final int index = numConsumers;
-        numConsumers++;
-
-        for (IntermediateResultPartition p : partitions) {
-            if (p.addConsumerGroup() != index) {
-                throw new RuntimeException(
-                        "Inconsistent consumer mapping between intermediate result partitions.");
-            }
-        }
-        return index;
     }
 
     public int getConnectionIndex() {

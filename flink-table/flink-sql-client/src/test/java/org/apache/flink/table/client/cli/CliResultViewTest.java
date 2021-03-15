@@ -21,11 +21,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.delegation.Parser;
@@ -34,11 +31,12 @@ import org.apache.flink.types.Row;
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -82,9 +80,9 @@ public class CliResultViewTest {
             throws Exception {
         final CountDownLatch cancellationCounterLatch =
                 new CountDownLatch(expectedCancellationCount);
-        final SessionContext session = new SessionContext("test-session", new Environment());
+
         final MockExecutor executor = new MockExecutor(typedResult, cancellationCounterLatch);
-        String sessionId = executor.openSession(session);
+        String sessionId = executor.openSession("test-session");
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
                         "result-id",
@@ -101,7 +99,8 @@ public class CliResultViewTest {
                             TerminalUtils.createDummyTerminal(),
                             sessionId,
                             executor,
-                            File.createTempFile("history", "tmp").toPath());
+                            File.createTempFile("history", "tmp").toPath(),
+                            null);
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
         } finally {
@@ -134,8 +133,8 @@ public class CliResultViewTest {
         }
 
         @Override
-        public String openSession(SessionContext session) throws SqlExecutionException {
-            return UUID.randomUUID().toString();
+        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+            return sessionId;
         }
 
         @Override
@@ -159,11 +158,6 @@ public class CliResultViewTest {
         @Override
         public TableResult executeSql(String sessionId, String statement)
                 throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public List<String> listModules(String sessionId) throws SqlExecutionException {
             return null;
         }
 
@@ -206,12 +200,6 @@ public class CliResultViewTest {
         @Override
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             cancellationCounter.countDown();
-        }
-
-        @Override
-        public ProgramTargetDescriptor executeUpdate(String sessionId, String statement)
-                throws SqlExecutionException {
-            return null;
         }
     }
 

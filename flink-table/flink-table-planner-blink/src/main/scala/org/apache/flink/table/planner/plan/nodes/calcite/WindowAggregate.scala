@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 
 import com.google.common.collect.ImmutableList
@@ -65,8 +65,8 @@ abstract class WindowAggregate(
     builder.addAll(aggregateRowType.getFieldList)
     namedProperties.foreach { namedProp =>
       builder.add(
-        namedProp.name,
-        typeFactory.createFieldTypeFromLogicalType(namedProp.property.resultType)
+        namedProp.getName,
+        typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
       )
     }
     builder.build()
@@ -82,6 +82,6 @@ abstract class WindowAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("window", window)
-      .item("properties", namedProperties.map(_.name).mkString(", "))
+      .item("properties", namedProperties.map(_.getName).mkString(", "))
   }
 }

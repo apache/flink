@@ -44,15 +44,17 @@ public class JsonSerdeUtil {
 
     /** Create an {@link ObjectMapper} which DeserializationContext wraps a {@link SerdeContext}. */
     public static ObjectMapper createObjectMapper(SerdeContext serdeCtx) {
+        FlinkDeserializationContext ctx =
+                new FlinkDeserializationContext(
+                        new DefaultDeserializationContext.Impl(BeanDeserializerFactory.instance),
+                        serdeCtx);
         ObjectMapper mapper =
                 new ObjectMapper(
                         null, // JsonFactory
                         null, // DefaultSerializerProvider
-                        new FlinkDeserializationContext(
-                                new DefaultDeserializationContext.Impl(
-                                        BeanDeserializerFactory.instance),
-                                serdeCtx));
+                        ctx);
         mapper.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
+        ctx.setObjectMapper(mapper);
         return mapper;
     }
 

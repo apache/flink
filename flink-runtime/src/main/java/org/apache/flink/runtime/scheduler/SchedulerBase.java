@@ -43,14 +43,16 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -336,7 +338,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                     }
                 };
 
-        return ExecutionGraphBuilder.buildGraph(
+        return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfiguration,
                 futureExecutor,
@@ -351,9 +353,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 log,
                 shuffleMaster,
                 partitionTracker,
+                TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
+                        jobGraph.getJobType()),
                 executionDeploymentListener,
                 executionStateUpdateListener,
-                initializationTimestamp);
+                initializationTimestamp,
+                new DefaultVertexAttemptNumberStore());
     }
 
     /**

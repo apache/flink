@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import java.util
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWindowTableAggregate, WindowTableAggregate}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -26,10 +29,8 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWindowTableAggregate, WindowTableAggregate}
+
+import java.util
 
 /**
   * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window

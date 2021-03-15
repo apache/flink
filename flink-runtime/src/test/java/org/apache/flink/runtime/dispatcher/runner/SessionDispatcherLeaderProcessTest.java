@@ -24,6 +24,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
@@ -63,7 +64,7 @@ import static org.junit.Assert.fail;
 /** Tests for the {@link SessionDispatcherLeaderProcess}. */
 public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
-    private static final JobGraph JOB_GRAPH = new JobGraph("JobGraph");
+    private static final JobGraph JOB_GRAPH = JobGraphTestUtils.emptyJobGraph();
 
     private static ExecutorService ioExecutor;
 

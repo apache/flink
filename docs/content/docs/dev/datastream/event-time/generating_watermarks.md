@@ -93,8 +93,6 @@ WatermarkStrategy
     override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
   })
 ```
-
-(Using Scala Lambdas here currently doesn't work because Scala is stupid and it's hard to support this. #fus)
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -321,7 +319,7 @@ public class TimeLagWatermarkGenerator implements WatermarkGenerator<MyEvent> {
  * but only to a certain degree. The latest elements for a certain timestamp t will arrive
  * at most n milliseconds after the earliest elements for timestamp t.
  */
-class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
+class BoundedOutOfOrdernessGenerator extends WatermarkGenerator[MyEvent] {
 
     val maxOutOfOrderness = 3500L // 3.5 seconds
 
@@ -342,7 +340,7 @@ class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEv
  * time by a fixed amount. It assumes that elements arrive in Flink after 
  * a bounded delay.
  */
-class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
+class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
 
     val maxTimeLag = 5000L // 5 seconds
 
@@ -388,7 +386,7 @@ public class PunctuatedAssigner implements WatermarkGenerator<MyEvent> {
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
+class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
 
     override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
         if (event.hasWatermarkMarker()) {
@@ -459,7 +457,7 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 {{< /tab >}}
 {{< /tabs >}}
 
-{{< img src="/fig/parallel_kafka_watermarks" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" >}}
+{{< img src="/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" >}}
 
 ## How Operators Process Watermarks
 

@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -59,7 +60,7 @@ import java.util.Collections;
  * StreamExecRank}, this node could use mini-batch and access less state.
  */
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     @Experimental
     public static final ConfigOption<Boolean> TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE =
@@ -144,11 +145,6 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
-
         return transform;
     }
 
@@ -208,7 +204,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         abstract OneInputStreamOperator<RowData, RowData> createDeduplicateOperator();
     }
 
-    /** Translator to create process time deduplicate operator. */
+    /** Translator to create event time deduplicate operator. */
     private static class RowtimeDeduplicateOperatorTranslator
             extends DeduplicateOperatorTranslator {
 

@@ -52,7 +52,7 @@ import org.apache.calcite.util.Optionality
 @deprecated
 class AggSqlFunction(
     identifier: FunctionIdentifier,
-    displayName: String,
+    val displayName: String,
     val aggregateFunction: ImperativeAggregateFunction[_, _],
     val externalResultType: DataType,
     val externalAccType: DataType,

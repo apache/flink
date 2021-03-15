@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -39,6 +39,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -90,7 +91,6 @@ public class TestUtils {
     @Nonnull
     public static JobGraph createJobGraphFromJobVerticesWithCheckpointing(
             SavepointRestoreSettings savepointRestoreSettings, JobVertex... jobVertices) {
-        final JobGraph jobGraph = new JobGraph(jobVertices);
 
         // enable checkpointing which is required to resume from a savepoint
         final CheckpointCoordinatorConfiguration checkpoinCoordinatorConfiguration =
@@ -108,11 +108,12 @@ public class TestUtils {
                         .build();
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(checkpoinCoordinatorConfiguration, null);
-        jobGraph.setSnapshotSettings(checkpointingSettings);
-        jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-        jobGraph.setJobType(JobType.STREAMING);
 
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .addJobVertices(Arrays.asList(jobVertices))
+                .setJobCheckpointingSettings(checkpointingSettings)
+                .setSavepointRestoreSettings(savepointRestoreSettings)
+                .build();
     }
 
     private TestUtils() {

@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
 /** Base class for batch {@link ExecNode}. */
+@Internal
 public interface BatchExecNode<T> extends ExecNode<T> {}

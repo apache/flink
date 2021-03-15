@@ -24,10 +24,9 @@ import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
@@ -973,23 +972,23 @@ object AggregateUtil extends Enumeration {
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
       case (p, (s, e, rt, i)) => p match {
-        case PlannerNamedWindowProperty(_, prop) =>
-          prop match {
-            case PlannerWindowStart(_) if s.isDefined =>
+        case p: PlannerNamedWindowProperty =>
+          p.getProperty match {
+            case _: PlannerWindowStart if s.isDefined =>
               throw new TableException(
                 "Duplicate window start property encountered. This is a bug.")
-            case PlannerWindowStart(_) =>
+            case _: PlannerWindowStart =>
               (Some(i), e, rt, i - 1)
-            case PlannerWindowEnd(_) if e.isDefined =>
+            case _: PlannerWindowEnd if e.isDefined =>
               throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case PlannerWindowEnd(_) =>
+            case _: PlannerWindowEnd =>
               (s, Some(i), rt, i - 1)
-            case PlannerRowtimeAttribute(_) if rt.isDefined =>
+            case _: PlannerRowtimeAttribute if rt.isDefined =>
               throw new TableException(
                 "Duplicate window rowtime property encountered. This is a bug.")
-            case PlannerRowtimeAttribute(_) =>
+            case _: PlannerRowtimeAttribute =>
               (s, e, Some(i), i - 1)
-            case PlannerProctimeAttribute(_) =>
+            case _: PlannerProctimeAttribute =>
               // ignore this property, it will be null at the position later
               (s, e, rt, i - 1)
           }

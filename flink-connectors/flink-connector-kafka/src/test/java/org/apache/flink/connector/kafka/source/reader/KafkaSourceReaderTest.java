@@ -25,7 +25,7 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
@@ -210,7 +210,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     // ------------------------------------------
 
     @Override
-    protected SourceReader<Integer, KafkaPartitionSplit> createReader() {
+    protected SourceReader<Integer, KafkaPartitionSplit> createReader() throws Exception {
         return createReader(Boundedness.BOUNDED, "KafkaSourceReaderTestGroup");
     }
 
@@ -218,7 +218,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     protected List<KafkaPartitionSplit> getSplits(
             int numSplits, int numRecordsPerSplit, Boundedness boundedness) {
         List<KafkaPartitionSplit> splits = new ArrayList<>();
-        for (int i = 0; i < numRecordsPerSplit; i++) {
+        for (int i = 0; i < numSplits; i++) {
             splits.add(getSplit(i, numRecordsPerSplit, boundedness));
         }
         return splits;
@@ -241,12 +241,13 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     // ---------------------
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
-            Boundedness boundedness, String groupId) {
+            Boundedness boundedness, String groupId) throws Exception {
         KafkaSourceBuilder<Integer> builder =
                 KafkaSource.<Integer>builder()
                         .setClientIdPrefix("KafkaSourceReaderTest")
                         .setDeserializer(
-                                KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class))
+                                KafkaRecordDeserializationSchema.valueOnly(
+                                        IntegerDeserializer.class))
                         .setPartitions(Collections.singleton(new TopicPartition("AnyTopic", 0)))
                         .setProperty(
                                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,

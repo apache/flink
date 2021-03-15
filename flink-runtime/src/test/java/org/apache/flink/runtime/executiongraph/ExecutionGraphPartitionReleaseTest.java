@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -248,7 +248,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
             final JobMasterPartitionTracker partitionTracker, final JobVertex... vertices)
             throws Exception {
 
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test job", vertices);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(vertices);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
                                 jobGraph, mainThreadExecutor.getMainThreadExecutor())

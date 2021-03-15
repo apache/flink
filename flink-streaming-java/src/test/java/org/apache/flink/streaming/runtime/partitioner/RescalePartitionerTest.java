@@ -21,11 +21,13 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -114,7 +116,7 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         assertEquals(4, mapVertex.getParallelism());
         assertEquals(2, sinkVertex.getParallelism());
 
-        ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().build();
+        ExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
 
         try {
             eg.attachJobGraph(jobVertices);
@@ -138,11 +140,17 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         Map<Integer, Integer> mapInputPartitionCounts = new HashMap<>();
         for (ExecutionVertex mapTaskVertex : mapTaskVertices) {
             assertEquals(1, mapTaskVertex.getNumberOfInputs());
-            assertEquals(1, mapTaskVertex.getInputEdges(0).length);
-            ExecutionEdge inputEdge = mapTaskVertex.getInputEdges(0)[0];
+            assertEquals(1, mapTaskVertex.getConsumedPartitions(0).size());
+            IntermediateResultPartitionID consumedPartitionId =
+                    mapTaskVertex.getConsumedPartitions(0).getFirst();
             assertEquals(
-                    sourceVertex.getID(), inputEdge.getSource().getProducer().getJobvertexId());
-            int inputPartition = inputEdge.getSource().getPartitionNumber();
+                    sourceVertex.getID(),
+                    mapTaskVertex
+                            .getExecutionGraphAccessor()
+                            .getResultPartitionOrThrow(consumedPartitionId)
+                            .getProducer()
+                            .getJobvertexId());
+            int inputPartition = consumedPartitionId.getPartitionNumber();
             if (!mapInputPartitionCounts.containsKey(inputPartition)) {
                 mapInputPartitionCounts.put(inputPartition, 1);
             } else {
@@ -159,24 +167,23 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         assertEquals(1, execSinkVertex.getInputs().size());
         assertEquals(2, execSinkVertex.getParallelism());
         ExecutionVertex[] sinkTaskVertices = execSinkVertex.getTaskVertices();
+        InternalExecutionGraphAccessor executionGraphAccessor = execSinkVertex.getGraph();
 
         // verify each sink instance has two inputs from the map and that each map subpartition
         // only occurs in one unique input edge
         Set<Integer> mapSubpartitions = new HashSet<>();
         for (ExecutionVertex sinkTaskVertex : sinkTaskVertices) {
             assertEquals(1, sinkTaskVertex.getNumberOfInputs());
-            assertEquals(2, sinkTaskVertex.getInputEdges(0).length);
-            ExecutionEdge inputEdge1 = sinkTaskVertex.getInputEdges(0)[0];
-            ExecutionEdge inputEdge2 = sinkTaskVertex.getInputEdges(0)[1];
-            assertEquals(mapVertex.getID(), inputEdge1.getSource().getProducer().getJobvertexId());
-            assertEquals(mapVertex.getID(), inputEdge2.getSource().getProducer().getJobvertexId());
-
-            int inputPartition1 = inputEdge1.getSource().getPartitionNumber();
-            assertFalse(mapSubpartitions.contains(inputPartition1));
-            mapSubpartitions.add(inputPartition1);
-            int inputPartition2 = inputEdge2.getSource().getPartitionNumber();
-            assertFalse(mapSubpartitions.contains(inputPartition2));
-            mapSubpartitions.add(inputPartition2);
+            assertEquals(2, sinkTaskVertex.getConsumedPartitions(0).size());
+            for (IntermediateResultPartitionID consumedPartitionId :
+                    sinkTaskVertex.getConsumedPartitions(0)) {
+                IntermediateResultPartition consumedPartition =
+                        executionGraphAccessor.getResultPartitionOrThrow(consumedPartitionId);
+                assertEquals(mapVertex.getID(), consumedPartition.getProducer().getJobvertexId());
+                int partitionNumber = consumedPartition.getPartitionNumber();
+                assertFalse(mapSubpartitions.contains(partitionNumber));
+                mapSubpartitions.add(partitionNumber);
+            }
         }
 
         assertEquals(4, mapSubpartitions.size());

@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -42,16 +42,19 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -65,7 +68,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
@@ -77,6 +79,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -193,6 +196,11 @@ public class AdaptiveScheduler
 
     private boolean isTransitioningState = false;
 
+    private int numRestarts = 0;
+
+    private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
+            new DefaultVertexAttemptNumberStore();
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -248,12 +256,6 @@ public class AdaptiveScheduler
                         declarativeSlotPool::reserveFreeSlot,
                         declarativeSlotPool::freeReservedSlot);
 
-        for (JobVertex vertex : jobGraph.getVertices()) {
-            if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-                vertex.setParallelism(1);
-            }
-        }
-
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
         this.componentMainThreadExecutor = mainThreadExecutor;
@@ -262,6 +264,8 @@ public class AdaptiveScheduler
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
         this.resourceTimeout = configuration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT);
+
+        registerMetrics();
     }
 
     private static void ensureFullyPipelinedStreamingJob(JobGraph jobGraph)
@@ -269,10 +273,6 @@ public class AdaptiveScheduler
         Preconditions.checkState(
                 jobGraph.getJobType() == JobType.STREAMING,
                 "The adaptive scheduler only supports streaming jobs.");
-        Preconditions.checkState(
-                jobGraph.getScheduleMode()
-                        != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-                "The adaptive schedules does not support batch slot requests.");
 
         for (JobVertex vertex : jobGraph.getVertices()) {
             for (JobEdge jobEdge : vertex.getInputs()) {
@@ -290,6 +290,12 @@ public class AdaptiveScheduler
                 ResourceConsumer.class,
                 ResourceConsumer::notifyNewResourcesAvailable,
                 "newResourcesAvailable");
+    }
+
+    private void registerMetrics() {
+        final Gauge<Integer> numRestartsMetric = () -> numRestarts;
+        jobManagerJobMetricGroup.gauge(MetricNames.NUM_RESTARTS, numRestartsMetric);
+        jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, numRestartsMetric);
     }
 
     @Override
@@ -633,7 +639,7 @@ public class AdaptiveScheduler
                 };
 
         final ExecutionGraph newExecutionGraph =
-                ExecutionGraphBuilder.buildGraph(
+                DefaultExecutionGraphBuilder.buildGraph(
                         adjustedJobGraph,
                         configuration,
                         futureExecutor,
@@ -648,9 +654,12 @@ public class AdaptiveScheduler
                         LOG,
                         shuffleMaster,
                         partitionTracker,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                .MUST_BE_KNOWN, // AdaptiveScheduler only supports streaming jobs
                         executionDeploymentListener,
                         executionStateUpdateListener,
-                        initializationTimestamp);
+                        initializationTimestamp,
+                        vertexAttemptNumberStore);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
@@ -760,6 +769,17 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime) {
+
+        for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+            final int attemptNumber =
+                    executionVertex.getCurrentExecutionAttempt().getAttemptNumber();
+
+            this.vertexAttemptNumberStore.setAttemptCount(
+                    executionVertex.getJobvertexId(),
+                    executionVertex.getParallelSubtaskIndex(),
+                    attemptNumber + 1);
+        }
+
         transitionToState(
                 new Restarting.Factory(
                         this,
@@ -768,6 +788,7 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         backoffTime));
+        numRestarts++;
     }
 
     @Override

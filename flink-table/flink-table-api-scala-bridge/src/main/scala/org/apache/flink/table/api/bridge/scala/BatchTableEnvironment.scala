@@ -17,9 +17,11 @@
  */
 package org.apache.flink.table.api.bridge.scala
 
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{JobExecutionResult, RuntimeExecutionMode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE
 import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
@@ -39,7 +41,13 @@ import org.apache.flink.table.module.ModuleManager
   * - specify a SQL query on registered tables to obtain a [[Table]]
   * - convert a [[Table]] into a [[DataSet]]
   * - explain the AST and execution plan of a [[Table]]
+  *
+  * @deprecated [[BatchTableEnvironment]] will be dropped in Flink 1.14 because it only supports
+  *              the old planner. Use the unified [[TableEnvironment]] instead, which supports both
+  *              batch and streaming. More advanced operations previously covered by the DataSet API
+  *              can now use the DataStream API in BATCH execution mode.
   */
+@deprecated
 trait BatchTableEnvironment extends TableEnvironment {
 
   /**
@@ -338,6 +346,13 @@ trait BatchTableEnvironment extends TableEnvironment {
   override def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor
 }
 
+/**
+ * @deprecated [[BatchTableEnvironment]] will be dropped in Flink 1.14 because it only supports
+ *              the old planner. Use the unified [[TableEnvironment]] instead, which supports both
+ *              batch and streaming. More advanced operations previously covered by the DataSet API
+ *              can now use the DataStream API in BATCH execution mode.
+ */
+@deprecated
 object BatchTableEnvironment {
 
   /**
@@ -356,7 +371,11 @@ object BatchTableEnvironment {
     * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
     */
   def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
-    create(executionEnvironment, new TableConfig)
+    val configuration = new Configuration
+    configuration.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    val config = new TableConfig();
+    config.addConfiguration(configuration)
+    create(executionEnvironment, config)
   }
 
   /**

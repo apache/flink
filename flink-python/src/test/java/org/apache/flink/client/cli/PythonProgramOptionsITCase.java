@@ -60,13 +60,13 @@ public class PythonProgramOptionsITCase {
 
         final File[] dummyJobJar = {null};
         Files.walkFileTree(
-                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/dummy-job-jar"),
+                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/artifacts"),
                 new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                             throws IOException {
                         FileVisitResult result = super.visitFile(file, attrs);
-                        if (file.getFileName().toString().startsWith("flink-python")) {
+                        if (file.getFileName().toString().startsWith("dummy")) {
                             dummyJobJar[0] = file.toFile();
                         }
                         return result;

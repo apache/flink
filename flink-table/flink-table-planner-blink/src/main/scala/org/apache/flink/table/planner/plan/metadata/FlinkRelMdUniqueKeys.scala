@@ -20,17 +20,15 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner._
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
-import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
 
 import com.google.common.collect.ImmutableSet
@@ -58,20 +56,10 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       rel: TableScan,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getTableUniqueKeys(null, rel.getTable)
+    getTableUniqueKeys(rel.getTable)
   }
 
-  def getUniqueKeys(
-      rel: FlinkLogicalLegacyTableSourceScan,
-      mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    getTableUniqueKeys(rel.tableSource, rel.getTable)
-  }
-
-  private def getTableUniqueKeys(
-      tableSource: TableSource[_],
-      relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
-
+  private def getTableUniqueKeys(relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
     relOptTable match {
       case sourceTable: TableSourceTable =>
         val catalogTable = sourceTable.catalogTable
@@ -79,7 +67,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
           case act: CatalogTable =>
             val schema = act.getSchema
             if (schema.getPrimaryKey.isPresent) {
-              val columns = schema.getFieldNames
+              // use relOptTable's type which may be projected based on original schema
+              val columns = relOptTable.getRowType.getFieldNames
               val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
                 columns.indexOf(c)
               }

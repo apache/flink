@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -49,6 +48,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -73,6 +73,7 @@ import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
@@ -103,8 +104,10 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
@@ -149,8 +152,10 @@ public class SqlToOperationConverterTest {
 
     @Before
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(parser, isStreamingMode));
+        catalogManager.initSchemaResolver(
+                isStreamingMode,
+                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
+
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
         final TableSchema tableSchema =
@@ -345,6 +350,28 @@ public class SqlToOperationConverterTest {
 
         assertEquals(expectedModuleNames, useModulesOperation.getModuleNames());
         assertEquals("USE MODULES: [x, y, z]", useModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowModules() {
+        final String sql = "SHOW MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertFalse(showModulesOperation.requireFull());
+        assertEquals("SHOW MODULES", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowFullModules() {
+        final String sql = "SHOW FULL MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertTrue(showModulesOperation.requireFull());
+        assertEquals("SHOW FULL MODULES", showModulesOperation.asSummaryString());
     }
 
     @Test

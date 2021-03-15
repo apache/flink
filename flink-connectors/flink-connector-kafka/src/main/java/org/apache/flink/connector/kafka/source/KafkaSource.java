@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -38,10 +39,12 @@ import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscr
 import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.reader.KafkaRecordEmitter;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -60,7 +63,7 @@ import java.util.function.Supplier;
  *     .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
  *     .setGroupId("MyGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(new TestingKafkaRecordDeserializer())
+ *     .setDeserializer(new TestingKafkaRecordDeserializationSchema())
  *     .setStartingOffsets(OffsetsInitializer.earliest())
  *     .build();
  * }</pre>
@@ -80,7 +83,7 @@ public class KafkaSource<OUT>
     private final OffsetsInitializer stoppingOffsetsInitializer;
     // Boundedness
     private final Boundedness boundedness;
-    private final KafkaRecordDeserializer<OUT> deserializationSchema;
+    private final KafkaRecordDeserializationSchema<OUT> deserializationSchema;
     // The configurations.
     private final Properties props;
 
@@ -89,7 +92,7 @@ public class KafkaSource<OUT>
             OffsetsInitializer startingOffsetsInitializer,
             @Nullable OffsetsInitializer stoppingOffsetsInitializer,
             Boundedness boundedness,
-            KafkaRecordDeserializer<OUT> deserializationSchema,
+            KafkaRecordDeserializationSchema<OUT> deserializationSchema,
             Properties props) {
         this.subscriber = subscriber;
         this.startingOffsetsInitializer = startingOffsetsInitializer;
@@ -114,9 +117,23 @@ public class KafkaSource<OUT>
     }
 
     @Override
-    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext) {
+    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
+            throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
+        deserializationSchema.open(
+                new DeserializationSchema.InitializationContext() {
+                    @Override
+                    public MetricGroup getMetricGroup() {
+                        return readerContext.metricGroup().addGroup("deserializer");
+                    }
+
+                    @Override
+                    public UserCodeClassLoader getUserCodeClassLoader() {
+                        return readerContext.getUserCodeClassLoader();
+                    }
+                });
+
         Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
                 () ->
                         new KafkaPartitionSplitReader<>(

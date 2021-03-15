@@ -40,6 +40,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -64,7 +65,7 @@ public class RocksDBMemoryControllerUtilsTest {
         final AtomicLong actualWbmCapacity = new AtomicLong(0L);
 
         when(RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
-                        anyLong(), anyDouble(), anyDouble()))
+                        anyLong(), anyDouble(), anyDouble(), anyBoolean()))
                 .thenCallRealMethod();
 
         when(RocksDBMemoryControllerUtils.calculateActualCacheCapacity(anyLong(), anyDouble()))
@@ -99,7 +100,7 @@ public class RocksDBMemoryControllerUtilsTest {
         double highPriPoolRatio = 0.1;
         RocksDBSharedResources rocksDBSharedResources =
                 RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
-                        totalMemorySize, writeBufferRatio, highPriPoolRatio);
+                        totalMemorySize, writeBufferRatio, highPriPoolRatio, false);
         long expectedCacheCapacity =
                 RocksDBMemoryControllerUtils.calculateActualCacheCapacity(
                         totalMemorySize, writeBufferRatio);

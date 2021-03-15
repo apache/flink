@@ -242,6 +242,13 @@ under the License.
 				<artifactId>protobuf-java</artifactId>
 				<version>${protoc.version}</version>
 			</dependency>
+
+			<dependency>
+				<groupId>org.conscrypt</groupId>
+				<artifactId>conscrypt-openjdk-uber</artifactId>
+				<version>2.5.1</version>
+				<scope>runtime</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -429,85 +436,48 @@ under the License.
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
+				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>testUDF1</id>
+						<id>build-test-jars</id>
+						<phase>package</phase>
 						<goals>
-							<goal>test-jar</goal>
+							<goal>run</goal>
 						</goals>
 						<configuration>
-							<includes>
-								<include>**/TestScalarFunction1.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/func1
-							</outputDirectory>
+							<target>
+								<jar destfile="${project.build.directory}/artifacts/testUdf1.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction1.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testUdf2.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction2.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testJavaDdl.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/PythonFunctionFactoryTest.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testDataStream.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/dummy.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestJob.class">
+									<manifest>
+										<attribute name="Main-Class" value="org.apache.flink.client.cli.TestJob" />
+									</manifest>
+								</jar>
+							</target>
 						</configuration>
 					</execution>
-					<execution>
-						<id>testUDF2</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/TestScalarFunction2.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/func2
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>testJavaDDL</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/PythonFunctionFactoryTest.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/javaDDL
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>data-stream-test</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/DataStreamTestCollectSink.class</include>
-								<include>**/MyCustomSourceFunction.class</include>
-								<include>**/PartitionCustomTestMapFunction.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/data-stream-test
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>dummy-job-jar</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>org.apache.flink.client.cli.TestJob</mainClass>
-								</manifest>
-							</archive>
-							<includes>
-								<include>**/TestJob.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/dummy-job-jar
-							</outputDirectory>
-						</configuration>
-					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
 					<execution>
 						<id>test-jar</id>
 						<goals>

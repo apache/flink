@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -279,18 +280,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
 
-        jobGraph = new JobGraph();
-
         final ExecutionConfig config = new ExecutionConfig();
         config.setRestartStrategy(restartStrategy);
-        jobGraph.setExecutionConfig(config);
 
         final JobVertex vertex = new JobVertex("testVertex");
         vertex.setInvokableClass(invokable);
         vertex.setParallelism(PARALLELISM);
-        jobGraph.addVertex(vertex);
 
-        jobGraph.setSnapshotSettings(
+        final JobCheckpointingSettings jobCheckpointingSettings =
                 new JobCheckpointingSettings(
                         new CheckpointCoordinatorConfiguration(
                                 CHECKPOINT_INTERVAL,
@@ -302,7 +299,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
                                 false,
                                 false,
                                 0),
-                        null));
+                        null);
+
+        jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setExecutionConfig(config)
+                        .addJobVertex(vertex)
+                        .setJobCheckpointingSettings(jobCheckpointingSettings)
+                        .build();
 
         clusterClient.submitJob(jobGraph).get();
         assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));

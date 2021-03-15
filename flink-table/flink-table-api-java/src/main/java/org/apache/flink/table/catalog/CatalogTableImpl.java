@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.Schema;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,7 +29,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** A catalog table implementation. */
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+
+/**
+ * A catalog table implementation.
+ *
+ * @deprecated Use {@link CatalogTable#of(Schema, String, List, Map)} or a custom implementation
+ *     instead. Don't implement against this internal class. It can lead to unintended side effects
+ *     if code checks against this class instead of the common interface.
+ */
+@Deprecated
+@Internal
 public class CatalogTableImpl extends AbstractCatalogTable {
 
     public CatalogTableImpl(
@@ -68,11 +78,11 @@ public class CatalogTableImpl extends AbstractCatalogTable {
     public Map<String, String> toProperties() {
         DescriptorProperties descriptor = new DescriptorProperties();
 
-        descriptor.putTableSchema(Schema.SCHEMA, getSchema());
+        descriptor.putTableSchema(SCHEMA, getSchema());
         descriptor.putPartitionKeys(getPartitionKeys());
 
         Map<String, String> properties = new HashMap<>(getOptions());
-        properties.remove(CatalogConfig.IS_GENERIC);
+        properties.remove(CatalogPropertiesUtil.IS_GENERIC);
 
         descriptor.putProperties(properties);
 
@@ -88,7 +98,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
     public static CatalogTableImpl fromProperties(Map<String, String> properties) {
         DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putProperties(properties);
-        TableSchema tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA);
+        TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
         List<String> partitionKeys = descriptorProperties.getPartitionKeys();
         return new CatalogTableImpl(
                 tableSchema,
@@ -102,7 +112,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
             Map<String, String> properties, TableSchema schema, List<String> partitionKeys) {
         Map<String, String> ret = new HashMap<>(properties);
         DescriptorProperties descriptorProperties = new DescriptorProperties();
-        descriptorProperties.putTableSchema(Schema.SCHEMA, schema);
+        descriptorProperties.putTableSchema(SCHEMA, schema);
         descriptorProperties.putPartitionKeys(partitionKeys);
         descriptorProperties.asMap().keySet().forEach(ret::remove);
         return ret;

@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -85,7 +88,10 @@ public class LogicalTypeSerdeTest {
     public void testLogicalTypeSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new Configuration(), Thread.currentThread().getContextClassLoader());
+                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        Thread.currentThread().getContextClassLoader(),
+                        FlinkTypeFactory.INSTANCE(),
+                        FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
         SimpleModule module = new SimpleModule();
 
@@ -115,12 +121,16 @@ public class LogicalTypeSerdeTest {
                         new DoubleType(),
                         new DecimalType(10),
                         new DecimalType(15, 5),
+                        CharType.ofEmptyLiteral(),
                         new CharType(),
                         new CharType(5),
+                        VarCharType.ofEmptyLiteral(),
                         new VarCharType(),
                         new VarCharType(5),
+                        BinaryType.ofEmptyLiteral(),
                         new BinaryType(),
                         new BinaryType(100),
+                        VarBinaryType.ofEmptyLiteral(),
                         new VarBinaryType(),
                         new VarBinaryType(100),
                         new DateType(),

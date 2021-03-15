@@ -18,6 +18,7 @@
 package org.apache.flink.connector.jdbc.internal.connection;
 
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +43,7 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
     private final JdbcConnectionOptions jdbcOptions;
 
-    private transient Driver cachedDriver;
+    private transient Driver loadedDriver;
     private transient Connection connection;
 
     static {
@@ -72,16 +73,13 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
                 && connection.isValid(jdbcOptions.getConnectionCheckTimeoutSeconds());
     }
 
-    private Driver getDriver() throws SQLException, ClassNotFoundException {
-        if (cachedDriver != null) {
-            return cachedDriver;
-        }
-        String driverName = jdbcOptions.getDriverName();
+    private static Driver loadDriver(String driverName)
+            throws SQLException, ClassNotFoundException {
+        Preconditions.checkNotNull(driverName);
         Enumeration<Driver> drivers = DriverManager.getDrivers();
         while (drivers.hasMoreElements()) {
             Driver driver = drivers.nextElement();
             if (driver.getClass().getName().equals(driverName)) {
-                cachedDriver = driver;
                 return driver;
             }
         }
@@ -91,17 +89,32 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
         Class<?> clazz =
                 Class.forName(driverName, true, Thread.currentThread().getContextClassLoader());
         try {
-            cachedDriver = (Driver) clazz.newInstance();
-            return cachedDriver;
+            return (Driver) clazz.newInstance();
         } catch (Exception ex) {
             throw new SQLException("Fail to create driver of class " + driverName, ex);
         }
     }
 
+    private Driver getLoadedDriver() throws SQLException, ClassNotFoundException {
+        if (loadedDriver == null) {
+            loadedDriver = loadDriver(jdbcOptions.getDriverName());
+        }
+        return loadedDriver;
+    }
+
     @Override
     public Connection getOrEstablishConnection() throws SQLException, ClassNotFoundException {
-        if (connection == null) {
-            Driver driver = getDriver();
+        if (connection != null) {
+            return connection;
+        }
+        if (jdbcOptions.getDriverName() == null) {
+            connection =
+                    DriverManager.getConnection(
+                            jdbcOptions.getDbURL(),
+                            jdbcOptions.getUsername().orElse(null),
+                            jdbcOptions.getPassword().orElse(null));
+        } else {
+            Driver driver = getLoadedDriver();
             Properties info = new Properties();
             jdbcOptions.getUsername().ifPresent(user -> info.setProperty("user", user));
             jdbcOptions.getPassword().ifPresent(password -> info.setProperty("password", password));

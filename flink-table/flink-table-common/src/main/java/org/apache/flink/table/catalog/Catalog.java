@@ -229,7 +229,8 @@ public interface Catalog {
     List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException;
 
     /**
-     * Get a CatalogTable or CatalogView identified by tablePath.
+     * Returns a {@link CatalogTable} or {@link CatalogView} identified by the given {@link
+     * ObjectPath}. The framework will resolve the metadata objects when necessary.
      *
      * @param tablePath Path of the table or view
      * @return The requested table or view
@@ -273,7 +274,11 @@ public interface Catalog {
             throws TableNotExistException, TableAlreadyExistException, CatalogException;
 
     /**
-     * Create a new table or view.
+     * Creates a new table or view.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogTable} or {@link ResolvedCatalogView}. Those instances are easy to serialize
+     * for a durable catalog implementation.
      *
      * @param tablePath path of the table or view to be created
      * @param table the table definition
@@ -288,9 +293,13 @@ public interface Catalog {
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException;
 
     /**
-     * Modify an existing table or view. Note that the new and old CatalogBaseTable must be of the
-     * same type. For example, this doesn't allow alter a regular table to partitioned table, or
-     * alter a view to a table, and vice versa.
+     * Modifies an existing table or view. Note that the new and old {@link CatalogBaseTable} must
+     * be of the same kind. For example, this doesn't allow altering a regular table to partitioned
+     * table, or altering a view to a table, and vice versa.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogTable} or {@link ResolvedCatalogView}. Those instances are easy to serialize
+     * for a durable catalog implementation.
      *
      * @param tablePath path of the table or view to be modified
      * @param newTable the new table definition

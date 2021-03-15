@@ -886,7 +886,8 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         j_row_field_types = j_type_info.getFieldTypes()
         row_field_types = [_from_java_type(j_row_field_type) for j_row_field_type in
                            j_row_field_types]
-        return Types.ROW_NAMED(j_row_field_names, row_field_types)
+        row_field_names = [field_name for field_name in j_row_field_names]
+        return Types.ROW_NAMED(row_field_names, row_field_types)
 
     JTupleTypeInfo = gateway.jvm.org.apache.flink.api.java.typeutils.TupleTypeInfo
     if _is_instance_of(j_type_info, JTupleTypeInfo):

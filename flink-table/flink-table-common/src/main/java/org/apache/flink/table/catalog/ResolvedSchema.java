@@ -57,7 +57,7 @@ public final class ResolvedSchema {
     private final List<WatermarkSpec> watermarkSpecs;
     private final @Nullable UniqueConstraint primaryKey;
 
-    ResolvedSchema(
+    public ResolvedSchema(
             List<Column> columns,
             List<WatermarkSpec> watermarkSpecs,
             @Nullable UniqueConstraint primaryKey) {

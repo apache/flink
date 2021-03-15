@@ -23,10 +23,10 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
@@ -120,7 +120,7 @@ public class KinesisPubsubClient {
 
     private static AmazonKinesis createClientWithCredentials(Properties props)
             throws AmazonClientException {
-        AWSCredentialsProvider credentialsProvider = new EnvironmentVariableCredentialsProvider();
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(props);
         return AmazonKinesisClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withEndpointConfiguration(

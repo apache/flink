@@ -21,23 +21,20 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
-import org.apache.flink.table.utils.FunctionLookupMock;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.callSql;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
@@ -95,9 +92,10 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
-                                Column.metadata("topic", DataTypes.STRING(), true),
+                                Column.metadata("topic", DataTypes.STRING(), null, true),
                                 Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
-                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
+                                Column.metadata(
+                                        "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
@@ -291,7 +289,7 @@ public class SchemaResolutionTest {
 
     @Test
     public void testSourceRowDataType() {
-        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA, true, true);
+        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA);
         final DataType expectedDataType =
                 DataTypes.ROW(
                                 DataTypes.FIELD("id", DataTypes.INT().notNull()),
@@ -336,22 +334,10 @@ public class SchemaResolutionTest {
                 new DefaultSchemaResolver(
                         isStreamingMode,
                         supportsMetadata,
-                        dataTypeFactory(),
-                        expressionResolverBuilder());
+                        new DataTypeFactoryMock(),
+                        ExpressionResolverMocks.forSqlExpression(
+                                SchemaResolutionTest::resolveSqlExpression));
         return resolver.resolve(schema);
-    }
-
-    private static ExpressionResolver.ExpressionResolverBuilder expressionResolverBuilder() {
-        return ExpressionResolver.resolverFor(
-                new TableConfig(),
-                name -> Optional.empty(),
-                new FunctionLookupMock(Collections.emptyMap()),
-                dataTypeFactory(),
-                SchemaResolutionTest::resolveSqlExpression);
-    }
-
-    private static DataTypeFactory dataTypeFactory() {
-        return new DataTypeFactoryMock();
     }
 
     private static ResolvedExpression resolveSqlExpression(

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -57,7 +58,8 @@ public class ExecutionVertexTest extends TestLogger {
         partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
                 releasePartitionsFuture::complete);
 
-        final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
+        final JobGraph jobGraph =
+                JobGraphTestUtils.streamingJobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
                                 jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())

@@ -71,12 +71,25 @@ public class ShuffleDescriptorTest extends TestLogger {
 
             ShuffleDescriptor localShuffleDescriptor =
                     getConsumedPartitionShuffleDescriptor(
-                            localPartitionId, state, localPartition, true);
+                            localPartitionId,
+                            state,
+                            localPartition,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
             ShuffleDescriptor remoteShuffleDescriptor =
                     getConsumedPartitionShuffleDescriptor(
-                            remotePartitionId, state, remotePartition, true);
+                            remotePartitionId,
+                            state,
+                            remotePartition,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
             ShuffleDescriptor unknownShuffleDescriptor =
-                    getConsumedPartitionShuffleDescriptor(unknownPartitionId, state, null, true);
+                    getConsumedPartitionShuffleDescriptor(
+                            unknownPartitionId,
+                            state,
+                            null,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
 
             // These states are allowed
             if (state == ExecutionState.RUNNING
@@ -141,7 +154,10 @@ public class ShuffleDescriptorTest extends TestLogger {
         // This should work if lazy deployment is allowed
         ShuffleDescriptor unknownSdd =
                 getConsumedPartitionShuffleDescriptor(
-                        unknownPartitionId, ExecutionState.CREATED, null, true);
+                        unknownPartitionId,
+                        ExecutionState.CREATED,
+                        null,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN);
 
         assertThat(unknownSdd, instanceOf(UnknownShuffleDescriptor.class));
         assertThat(unknownSdd.isUnknown(), is(true));
@@ -150,7 +166,10 @@ public class ShuffleDescriptorTest extends TestLogger {
         try {
             // Fail if lazy deployment is *not* allowed
             getConsumedPartitionShuffleDescriptor(
-                    unknownPartitionId, ExecutionState.CREATED, null, false);
+                    unknownPartitionId,
+                    ExecutionState.CREATED,
+                    null,
+                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN);
             fail("Did not throw expected ExecutionGraphException");
         } catch (IllegalStateException ignored) {
         }
@@ -160,14 +179,15 @@ public class ShuffleDescriptorTest extends TestLogger {
             ResultPartitionID id,
             ExecutionState state,
             @Nullable ResultPartitionDeploymentDescriptor producedPartition,
-            boolean allowLazyDeployment) {
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                    partitionLocationConstraint) {
         ShuffleDescriptor shuffleDescriptor =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         id,
                         ResultPartitionType.PIPELINED,
                         true,
                         state,
-                        allowLazyDeployment,
+                        partitionLocationConstraint,
                         producedPartition);
         assertThat(shuffleDescriptor, is(notNullValue()));
         assertThat(shuffleDescriptor.getResultPartitionID(), is(id));

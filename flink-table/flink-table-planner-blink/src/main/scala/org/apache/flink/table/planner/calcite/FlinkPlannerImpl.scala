@@ -133,6 +133,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
         || sqlNode.isInstanceOf[SqlShowTables]
         || sqlNode.isInstanceOf[SqlShowFunctions]
+        || sqlNode.isInstanceOf[SqlShowModules]
         || sqlNode.isInstanceOf[SqlShowViews]
         || sqlNode.isInstanceOf[SqlShowPartitions]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
@@ -178,6 +179,25 @@ class FlinkPlannerImpl(
     }
   }
 
+  def validateExpression(sqlNode: SqlNode, inputRowType: RelDataType): SqlNode = {
+    validateExpression(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  }
+
+  private def validateExpression(
+      sqlNode: SqlNode,
+      sqlValidator: FlinkCalciteSqlValidator,
+      inputRowType: RelDataType): SqlNode = {
+      val nameToTypeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, field.getType)
+        }
+        .toMap[String, RelDataType]
+        .asJava
+      sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
+  }
+
   def rex(sqlNode: SqlNode, inputRowType: RelDataType): RexNode = {
     rex(sqlNode, getOrCreateSqlValidator(), inputRowType)
   }
@@ -187,16 +207,8 @@ class FlinkPlannerImpl(
       sqlValidator: FlinkCalciteSqlValidator,
       inputRowType: RelDataType) = {
     try {
+      val validatedSqlNode = validateExpression(sqlNode, sqlValidator, inputRowType)
       val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
-      val nameToTypeMap = inputRowType
-        .getFieldList
-        .asScala
-        .map { field =>
-          (field.getName, field.getType)
-        }
-        .toMap[String, RelDataType]
-        .asJava
-      val validatedSqlNode = sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
       val nameToNodeMap = inputRowType
         .getFieldList
         .asScala

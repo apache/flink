@@ -32,9 +32,9 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -84,7 +85,7 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformT
 
 /** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
 public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
 
@@ -100,7 +101,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
     private final LogicalWindow window;
-    private final FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties;
+    private final PlannerNamedWindowProperty[] namedWindowProperties;
     private final WindowEmitStrategy emitStrategy;
     private final boolean needRetraction;
     private final boolean generateUpdateBefore;
@@ -109,7 +110,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
-            FlinkRelBuilder.PlannerNamedWindowProperty[] namedWindowProperties,
+            PlannerNamedWindowProperty[] namedWindowProperties,
             WindowEmitStrategy emitStrategy,
             boolean generateUpdateBefore,
             boolean needRetraction,
@@ -212,10 +213,6 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             trigger,
                             emitStrategy.getAllowLateness(),
                             config);
-        }
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
         }
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
@@ -393,7 +390,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             Trigger.class,
                             long.class,
-                            FlinkRelBuilder.PlannerNamedWindowProperty[].class,
+                            PlannerNamedWindowProperty[].class,
                             int[].class,
                             int[].class);
             return ctor.newInstance(
@@ -451,7 +448,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             LogicalWindow.class,
                             long.class,
-                            FlinkRelBuilder.PlannerNamedWindowProperty[].class);
+                            PlannerNamedWindowProperty[].class);
             return ctor.newInstance(
                     config,
                     inputType,

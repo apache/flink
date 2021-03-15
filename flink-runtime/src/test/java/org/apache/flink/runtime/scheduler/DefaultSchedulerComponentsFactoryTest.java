@@ -22,7 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
@@ -31,15 +31,13 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.apache.flink.runtime.jobgraph.ScheduleMode.EAGER;
-import static org.apache.flink.runtime.jobgraph.ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
  * Tests for the factory method {@link DefaultSchedulerComponents#createSchedulerComponents(
- * ScheduleMode, boolean, Configuration, SlotPool, Time)}.
+ * JobType, boolean, Configuration, SlotPool, Time)}.
  */
 public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 
@@ -70,7 +68,7 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
         final Configuration configuration = new Configuration();
 
         try {
-            createSchedulerComponents(configuration, true, EAGER);
+            createSchedulerComponents(configuration, true, JobType.STREAMING);
             fail("expected failure");
         } catch (IllegalArgumentException e) {
             assertThat(
@@ -82,16 +80,15 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 
     private static DefaultSchedulerComponents createSchedulerComponents(
             final Configuration configuration) {
-        return createSchedulerComponents(
-                configuration, false, LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
+        return createSchedulerComponents(configuration, false, JobType.BATCH);
     }
 
     private static DefaultSchedulerComponents createSchedulerComponents(
             final Configuration configuration,
             boolean iApproximateLocalRecoveryEnabled,
-            ScheduleMode scheduleMode) {
+            JobType jobType) {
         return DefaultSchedulerComponents.createSchedulerComponents(
-                scheduleMode,
+                jobType,
                 iApproximateLocalRecoveryEnabled,
                 configuration,
                 new TestingSlotPoolImpl(new JobID()),

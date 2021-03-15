@@ -28,6 +28,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
+import scala.collection.JavaConversions._
+
 /**
   * Batch physical RelNode for [[Calc]].
   */
@@ -44,8 +46,16 @@ class BatchPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+    val condition = if (calcProgram.getCondition != null) {
+      calcProgram.expandLocalRef(calcProgram.getCondition)
+    } else {
+      null
+    }
+
     new BatchExecCalc(
-      getProgram,
+      projection,
+      condition,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

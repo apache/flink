@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -43,10 +44,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -57,11 +59,16 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -91,6 +98,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
+import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
@@ -245,6 +253,53 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void testExecutionGraphGenerationSetsInitializationTimestamp() throws Exception {
+        final long initializationTimestamp = 42L;
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setInitializationTimestamp(initializationTimestamp)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        adaptiveScheduler.startScheduling();
+
+        offerSlots(
+                declarativeSlotPool,
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
+
+        final ExecutionGraph executionGraph =
+                adaptiveScheduler.createExecutionGraphWithAvailableResources();
+
+        assertThat(
+                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
+                is(initializationTimestamp));
+    }
+
+    @Test
+    public void testInitializationTimestampForwarding() throws Exception {
+        final long expectedInitializationTimestamp = 42L;
+
+        final AdaptiveScheduler adaptiveScheduler =
+                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                        .setInitializationTimestamp(expectedInitializationTimestamp)
+                        .build();
+
+        final long initializationTimestamp =
+                adaptiveScheduler
+                        .requestJob()
+                        .getArchivedExecutionGraph()
+                        .getStatusTimestamp(JobStatus.INITIALIZING);
+
+        assertThat(initializationTimestamp, is(expectedInitializationTimestamp));
+    }
+
+    @Test
     public void testFatalErrorsForwardedToFatalErrorHandler() throws Exception {
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -292,6 +347,83 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                         scheduledTask.getDelay(TimeUnit.MINUTES)
                                                 == resourceTimeout.toMinutes());
         assertThat(b, is(true));
+    }
+
+    @Test
+    public void testNumRestartsMetric() throws Exception {
+        final CompletableFuture<Gauge<Integer>> numRestartsMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    if (MetricNames.NUM_RESTARTS.equals(name)) {
+                                        numRestartsMetricFuture.complete((Gauge<Integer>) metric);
+                                    }
+                                })
+                        .build();
+
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                new DefaultDeclarativeSlotPool(
+                        jobGraph.getJobID(),
+                        new DefaultAllocatedSlotPool(),
+                        ignored -> {},
+                        Time.minutes(10),
+                        Time.minutes(10));
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
+
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setJobManagerJobMetricGroup(
+                                new JobManagerJobMetricGroup(
+                                        metricRegistry,
+                                        createUnregisteredJobManagerMetricGroup(),
+                                        new JobID(),
+                                        "jobName"))
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        final Gauge<Integer> numRestartsMetric = numRestartsMetricFuture.get();
+
+        scheduler.startScheduling();
+
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
+        taskManagerGateway.setCancelConsumer(
+                executionAttemptId ->
+                        mainThreadExecutor.execute(
+                                () ->
+                                        scheduler.updateTaskExecutionState(
+                                                new TaskExecutionState(
+                                                        executionAttemptId,
+                                                        ExecutionState.CANCELED))));
+
+        declarativeSlotPool.offerSlots(
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                new LocalTaskManagerLocation(),
+                taskManagerGateway,
+                System.currentTimeMillis());
+
+        // trigger resource timeout and the deployment of the job
+        mainThreadExecutor.triggerAllNonPeriodicTasks();
+
+        assertThat(numRestartsMetric.getValue(), is(0));
+
+        // offer more slots, which will cause a restart in order to scale up
+        offerSlots(
+                declarativeSlotPool,
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, PARALLELISM)));
+
+        // trigger cancellation of tasks and the restart
+        mainThreadExecutor.triggerAllNonPeriodicTasks();
+
+        assertThat(numRestartsMetric.getValue(), is(1));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -579,6 +711,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // create a new operator
         final JobVertex jobVertex = new JobVertex("New operator");
         jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
 
         // this test will fail in the end due to the previously created Savepoint having a state for
         // a given OperatorID that does not match any operator of the newly created JobGraph
@@ -627,6 +760,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // create a new operator
         final JobVertex jobVertex = new JobVertex("New operator");
         jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
+
         final JobGraph jobGraphWithNewOperator =
                 TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                         savepointRestoreSettings, jobVertex);
@@ -676,9 +811,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     private static JobGraph createJobGraph() {
-        final JobGraph jobGraph = new JobGraph(JOB_VERTEX);
-        jobGraph.setJobType(JobType.STREAMING);
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(JOB_VERTEX);
     }
 
     private static class LifecycleMethodCapturingState extends DummyState {

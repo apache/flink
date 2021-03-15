@@ -1073,8 +1073,10 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
 *
-* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
-* and BYTES is synonym of VARBINARY(INT_MAX).
+* <p>For example:
+*  1. STRING is synonym of VARCHAR(INT_MAX),
+*  2. BYTES is synonym of VARBINARY(INT_MAX),
+*  3. TIMESTAMP_LTZ(precision) is synonym of TIMESTAMP(precision) WITH LOCAL TIME ZONE.
 */
 SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
@@ -1095,6 +1097,16 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
             typeAlias = token.image;
             precision = Integer.MAX_VALUE;
         }
+    |
+       <TIMESTAMP_LTZ>
+       {
+           typeAlias = token.image;
+       }
+       precision = PrecisionOpt()
+       {
+            typeName = SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+            return new SqlTimestampLtzTypeNameSpec(typeAlias, typeName, precision, getPos());
+       }
     )
     {
         return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
@@ -1500,5 +1512,25 @@ SqlUseModules SqlUseModules() :
     ]
     {
         return new SqlUseModules(s.end(this), moduleNames);
+    }
+}
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
     }
 }

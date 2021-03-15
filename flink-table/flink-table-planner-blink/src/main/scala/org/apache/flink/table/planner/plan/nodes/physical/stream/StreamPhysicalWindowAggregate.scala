@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -76,13 +75,13 @@ class StreamPhysicalWindowAggregate(
     namedWindowProperties.foreach { namedProp =>
       // use types from windowing strategy which keeps the precision and timestamp type
       // cast the type to not null type, because window properties should never be null
-      val timeType = namedProp.property match {
-        case PlannerWindowStart(_) | PlannerWindowEnd(_) =>
-          LogicalTypeUtils.removeTimeAttributes(windowing.timeAttributeType).copy(false)
-        case PlannerRowtimeAttribute(_) | PlannerProctimeAttribute(_) =>
-          windowing.timeAttributeType.copy(false)
+      val timeType = namedProp.getProperty match {
+        case _: PlannerWindowStart | _: PlannerWindowEnd =>
+          LogicalTypeUtils.removeTimeAttributes(windowing.getTimeAttributeType).copy(false)
+        case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
+          windowing.getTimeAttributeType.copy(false)
       }
-      builder.add(namedProp.name, typeFactory.createFieldTypeFromLogicalType(timeType))
+      builder.add(namedProp.getName, typeFactory.createFieldTypeFromLogicalType(timeType))
     }
     builder.build()
   }

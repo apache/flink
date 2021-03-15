@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -29,6 +30,11 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
+import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 
 /**
  * Defines all parameters that initialize a table environment. Those parameters are used only during
@@ -100,6 +106,56 @@ public class EnvironmentSettings {
         return new Builder();
     }
 
+    /** Creates an instance of {@link EnvironmentSettings} from {@link Configuration}. */
+    public static EnvironmentSettings fromConfiguration(Configuration configuration) {
+        Builder builder = new Builder();
+        if (configuration.get(RUNTIME_MODE).equals(STREAMING)) {
+            builder.inStreamingMode();
+        } else {
+            builder.inBatchMode();
+        }
+
+        switch (configuration.get(RUNTIME_MODE)) {
+            case STREAMING:
+                builder.inStreamingMode();
+                break;
+            case BATCH:
+                builder.inBatchMode();
+                break;
+            case AUTOMATIC:
+                throw new UnsupportedOperationException(
+                        "TableEnvironment currently doesn't support `AUTOMATIC` mode.");
+            default:
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Unrecognized value '%s' for option '%s'.",
+                                configuration.get(RUNTIME_MODE), RUNTIME_MODE.key()));
+        }
+
+        switch (configuration.get(TABLE_PLANNER)) {
+            case BLINK:
+                builder.useBlinkPlanner();
+                break;
+            case OLD:
+                builder.useOldPlanner();
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Unrecognized value '%s' for option '%s'.",
+                                configuration.get(TABLE_PLANNER), TABLE_PLANNER.key()));
+        }
+        return builder.build();
+    }
+
+    /** Convert the environment setting to the {@link Configuration}. */
+    public Configuration toConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(RUNTIME_MODE, isStreamingMode() ? STREAMING : BATCH);
+        configuration.set(TABLE_PLANNER, isBlinkPlanner() ? PlannerType.BLINK : PlannerType.OLD);
+        return configuration;
+    }
+
     /**
      * Gets the specified name of the initial catalog to be created when instantiating a {@link
      * TableEnvironment}.
@@ -119,6 +175,13 @@ public class EnvironmentSettings {
     /** Tells if the {@link TableEnvironment} should work in a batch or streaming mode. */
     public boolean isStreamingMode() {
         return isStreamingMode;
+    }
+
+    /** Tells if the {@link TableEnvironment} should work in the blink planner or old planner. */
+    boolean isBlinkPlanner() {
+        return (this.plannerClass == null && this.executorClass == null)
+                || (Builder.BLINK_PLANNER_FACTORY.equals(this.plannerClass)
+                        && Builder.BLINK_EXECUTOR_FACTORY.equals(this.executorClass));
     }
 
     @Internal
@@ -165,7 +228,11 @@ public class EnvironmentSettings {
         /**
          * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
          * is enabled.
+         *
+         * @deprecated The old planner will be dropped in Flink 1.14. Please update to the new
+         *     planner (i.e. Blink planner).
          */
+        @Deprecated
         public Builder useOldPlanner() {
             this.plannerClass = OLD_PLANNER_FACTORY;
             this.executorClass = OLD_EXECUTOR_FACTORY;

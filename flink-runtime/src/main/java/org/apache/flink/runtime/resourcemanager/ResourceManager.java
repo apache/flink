@@ -71,6 +71,7 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -157,6 +158,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     /** The heartbeat manager with job managers. */
     private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
+
+    private boolean hasLeadership = false;
 
     /**
      * Represents asynchronous state clearing work.
@@ -390,7 +393,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                                         + "This indicates that a JobMaster leader change has happened.",
                                                 leadingJobMasterId, jobMasterId);
                                 log.debug(declineMessage);
-                                return new RegistrationResponse.Decline(declineMessage);
+                                return new RegistrationResponse.Failure(
+                                        new FlinkException(declineMessage));
                             }
                         },
                         getMainThreadExecutor());
@@ -412,7 +416,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                     jobManagerAddress);
                         }
 
-                        return new RegistrationResponse.Decline(throwable.getMessage());
+                        return new RegistrationResponse.Failure(throwable);
                     } else {
                         return registrationResponse;
                     }
@@ -438,7 +442,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     if (taskExecutorGatewayFuture == taskExecutorGatewayFutures.get(resourceId)) {
                         taskExecutorGatewayFutures.remove(resourceId);
                         if (throwable != null) {
-                            return new RegistrationResponse.Decline(throwable.getMessage());
+                            return new RegistrationResponse.Failure(throwable);
                         } else {
                             return registerTaskExecutorInternal(
                                     taskExecutorGateway, taskExecutorRegistration);
@@ -447,8 +451,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         log.debug(
                                 "Ignoring outdated TaskExecutorGateway connection for {}.",
                                 resourceId.getStringWithMetadata());
-                        return new RegistrationResponse.Decline(
-                                "Decline outdated task executor registration.");
+                        return new RegistrationResponse.Failure(
+                                new FlinkException("Decline outdated task executor registration."));
                     }
                 },
                 getMainThreadExecutor());
@@ -941,7 +945,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             + "not recognize it",
                     taskExecutorResourceId.getStringWithMetadata(),
                     taskExecutorAddress);
-            return new RegistrationResponse.Decline("unrecognized TaskExecutor");
+            return new TaskExecutorRegistrationRejection(
+                    "The ResourceManager does not recognize this TaskExecutor.");
         } else {
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(
@@ -1200,7 +1205,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             startServicesOnLeadership();
 
-            return prepareLeadershipAsync().thenApply(ignored -> true);
+            return prepareLeadershipAsync().thenApply(ignored -> hasLeadership = true);
         } else {
             return CompletableFuture.completedFuture(false);
         }
@@ -1223,6 +1228,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     public void revokeLeadership() {
         runAsyncWithoutFencing(
                 () -> {
+                    hasLeadership = false;
+
                     log.info(
                             "ResourceManager {} was revoked leadership. Clearing fencing token.",
                             getAddress());
@@ -1268,6 +1275,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         onFatalError(
                 new ResourceManagerException(
                         "Received an error from the LeaderElectionService.", exception));
+    }
+
+    protected boolean hasLeadership() {
+        return hasLeadership;
     }
 
     // ------------------------------------------------------------------------

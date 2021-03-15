@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.planner.plan.utils._
@@ -61,7 +61,7 @@ abstract class StreamPhysicalGroupWindowAggregateBase(
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", window)
-      .itemIf("properties", namedWindowProperties.map(_.name).mkString(", "),
+      .itemIf("properties", namedWindowProperties.map(_.getName).mkString(", "),
         namedWindowProperties.nonEmpty)
       .item("select", RelExplainUtil.streamWindowAggregationToString(
         inputRowType,

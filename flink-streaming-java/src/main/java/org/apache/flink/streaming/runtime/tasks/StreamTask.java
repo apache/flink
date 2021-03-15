@@ -371,7 +371,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private CompletableFuture<Void> prepareInputSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         if (inputProcessor == null) {
             return FutureUtils.completedVoidFuture();
         }
@@ -543,9 +543,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             getEnvironment()
                                     .getTaskStateManager()
                                     .getSequentialChannelStateReader();
-                    // TODO: for UC rescaling, reenable notifyAndBlockOnCompletion for non-iterative
-                    // jobs
-                    reader.readOutputData(getEnvironment().getAllWriters(), false);
+                    reader.readOutputData(
+                            getEnvironment().getAllWriters(),
+                            !configuration.isGraphContainingLoops());
 
                     operatorChain.initializeStateAndOpenOperators(
                             createStreamTaskStateInitializer());

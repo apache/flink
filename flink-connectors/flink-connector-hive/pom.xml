@@ -871,6 +871,26 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr3-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>antlr</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<sourceDirectory>${basedir}/src/main/java</sourceDirectory>
+					<includes>
+						<include>**/HiveASTLexer.g</include>
+						<include>**/HiveASTParser.g</include>
+						<include>**/HiveASTHintParser.g</include>
+					</includes>
+				</configuration>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>

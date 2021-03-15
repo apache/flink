@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -46,6 +46,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -72,6 +73,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Range;
 
 import org.hamcrest.MatcherAssert;
+import org.hamcrest.core.Is;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -102,6 +104,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -119,8 +122,6 @@ import static org.junit.Assert.fail;
 public class DefaultSchedulerTest extends TestLogger {
 
     private static final int TIMEOUT_MS = 1000;
-
-    private static final JobID TEST_JOB_ID = new JobID();
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -185,6 +186,29 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final ExecutionVertexID executionVertexId = new ExecutionVertexID(onlyJobVertex.getID(), 0);
         assertThat(deployedExecutionVertices, contains(executionVertexId));
+    }
+
+    @Test
+    public void testCorrectSettingOfInitializationTimestamp() {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final ExecutionGraphInfo executionGraphInfo = scheduler.requestJob();
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
+
+        // ensure all statuses are set in the ExecutionGraph
+        assertThat(
+                archivedExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING), greaterThan(0L));
+        assertThat(archivedExecutionGraph.getStatusTimestamp(JobStatus.CREATED), greaterThan(0L));
+        assertThat(archivedExecutionGraph.getStatusTimestamp(JobStatus.RUNNING), greaterThan(0L));
+
+        // ensure correct order
+        assertThat(
+                archivedExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING)
+                        <= archivedExecutionGraph.getStatusTimestamp(JobStatus.CREATED),
+                Is.is(true));
     }
 
     @Test
@@ -387,7 +411,7 @@ public class DefaultSchedulerTest extends TestLogger {
         v2.connectNewDataSetAsInput(
                 v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final JobGraph jobGraph = new JobGraph(v1, v2);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(v1, v2);
 
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
         final TestSchedulingStrategy.Factory schedulingStrategyFactory =
@@ -1227,29 +1251,23 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private static JobGraph singleJobVertexJobGraph(final int parallelism) {
-        final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
         final JobVertex vertex = new JobVertex("source");
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(parallelism);
-        jobGraph.addVertex(vertex);
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(vertex);
     }
 
     private static JobGraph nonParallelSourceSinkJobGraph() {
-        final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
-
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(source);
 
         final JobVertex sink = new JobVertex("sink");
         sink.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(sink);
 
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
 
     private static JobVertex getOnlyJobVertex(final JobGraph jobGraph) {

@@ -52,10 +52,10 @@ public class SimpleJdbcConnectionProviderTest {
 
     private static JdbcConnectionProvider newFakeConnectionProviderWithDriverName(
             String driverName) {
-        return newProvider(driverName, FakeDBUtils.TEST_DB_URL);
+        return newProvider(FakeDBUtils.TEST_DB_URL, driverName);
     }
 
-    private static JdbcConnectionProvider newProvider(String driverName, String url) {
+    private static JdbcConnectionProvider newProvider(String url, String driverName) {
         JdbcConnectionOptions options =
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                         .withUrl(url)
@@ -79,6 +79,24 @@ public class SimpleJdbcConnectionProviderTest {
         assertFalse(connection.isClosed());
         assertTrue(provider.isConnectionValid());
         assertThat(connection, instanceOf(FakeConnection.class));
+
+        assertNotNull(provider.getConnection());
+        assertSame(connection, provider.getConnection());
+        assertSame(connection, provider.getOrEstablishConnection());
+    }
+
+    @Test
+    public void testEstablishConnectionWithoutDriverName() throws Exception {
+        JdbcConnectionProvider provider = newProvider(FakeDBUtils.TEST_DB_URL, null);
+        assertNull(provider.getConnection());
+        assertFalse(provider.isConnectionValid());
+
+        Connection connection = provider.getOrEstablishConnection();
+        assertNotNull(connection);
+        assertFalse(connection.isClosed());
+        assertTrue(provider.isConnectionValid());
+        assertThat(connection, instanceOf(FakeConnection.class));
+        assertThat(connection, not(instanceOf(FakeConnection3.class)));
 
         assertNotNull(provider.getConnection());
         assertSame(connection, provider.getConnection());
@@ -117,7 +135,7 @@ public class SimpleJdbcConnectionProviderTest {
     @Test
     public void testInvalidDriverUrl() throws Exception {
         JdbcConnectionProvider provider =
-                newProvider(FakeDBUtils.DRIVER1_CLASS_NAME, FakeDBUtils.TEST_DB_INVALID_URL);
+                newProvider(FakeDBUtils.TEST_DB_INVALID_URL, FakeDBUtils.DRIVER1_CLASS_NAME);
         try {
             provider.getOrEstablishConnection();
             fail("expect exception");

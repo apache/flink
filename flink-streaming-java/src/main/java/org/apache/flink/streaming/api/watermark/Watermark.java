@@ -42,6 +42,8 @@ public final class Watermark extends StreamElement {
 
     /** The watermark that signifies end-of-event-time. */
     public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
+    /** The watermark that signifies is used before any actual watermark has been generated. */
+    public static final Watermark UNINITIALIZED = new Watermark(Long.MIN_VALUE);
 
     // ------------------------------------------------------------------------
 
@@ -65,7 +67,7 @@ public final class Watermark extends StreamElement {
         return this == o
                 || o != null
                         && o.getClass() == Watermark.class
-                        && ((Watermark) o).timestamp == this.timestamp;
+                        && ((Watermark) o).timestamp == timestamp;
     }
 
     @Override

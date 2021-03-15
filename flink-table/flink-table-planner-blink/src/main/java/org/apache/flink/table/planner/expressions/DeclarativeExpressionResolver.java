@@ -99,7 +99,8 @@ public abstract class DeclarativeExpressionResolver
     public static ResolvedExpression toRexInputRef(RelBuilder builder, int i, LogicalType t) {
         RelDataType tp =
                 ((FlinkTypeFactory) builder.getTypeFactory()).createFieldTypeFromLogicalType(t);
-        return new RexNodeExpression(new RexInputRef(i, tp), fromLogicalTypeToDataType(t));
+        return new RexNodeExpression(
+                new RexInputRef(i, tp), fromLogicalTypeToDataType(t), null, null);
     }
 
     public static ResolvedExpression toRexDistinctKey(
@@ -110,6 +111,8 @@ public abstract class DeclarativeExpressionResolver
                         ((FlinkTypeFactory) builder.getTypeFactory())
                                 .createFieldTypeFromLogicalType(t),
                         t),
-                fromLogicalTypeToDataType(t));
+                fromLogicalTypeToDataType(t),
+                null,
+                null);
     }
 }

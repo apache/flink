@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.planner.plan.abilities.source.LimitPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
@@ -68,33 +70,33 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
         return onlyLimit
                 && tableSourceTable != null
                 && tableSourceTable.tableSource() instanceof SupportsLimitPushDown
-                && Arrays.stream(tableSourceTable.extraDigests())
-                        .noneMatch(str -> str.startsWith("limit=["));
+                && Arrays.stream(tableSourceTable.abilitySpecs())
+                        .noneMatch(spec -> spec instanceof LimitPushDownSpec);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
         Sort sort = call.rel(0);
         FlinkLogicalTableSourceScan scan = call.rel(1);
-        TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
         int offset = sort.offset == null ? 0 : RexLiteral.intValue(sort.offset);
         int limit = offset + RexLiteral.intValue(sort.fetch);
 
-        TableSourceTable newTableSourceTable = applyLimit(limit, tableSourceTable);
-
+        TableSourceTable newTableSourceTable = applyLimit(limit, scan);
         FlinkLogicalTableSourceScan newScan =
                 FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
         Sort newSort = sort.copy(sort.getTraitSet(), Collections.singletonList(newScan));
         call.transformTo(newSort);
     }
 
-    private TableSourceTable applyLimit(long limit, FlinkPreparingTableBase relOptTable) {
+    private TableSourceTable applyLimit(long limit, FlinkLogicalTableSourceScan scan) {
+        TableSourceTable relOptTable = scan.getTable().unwrap(TableSourceTable.class);
         TableSourceTable oldTableSourceTable = relOptTable.unwrap(TableSourceTable.class);
         DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
-        ((SupportsLimitPushDown) newTableSource).applyLimit(limit);
+        LimitPushDownSpec limitPushDownSpec = new LimitPushDownSpec(limit);
+        limitPushDownSpec.apply(newTableSource, SourceAbilityContext.from(scan));
 
         FlinkStatistic statistic = relOptTable.getStatistic();
-        long newRowCount = 0;
+        final long newRowCount;
         if (statistic.getRowCount() != null) {
             newRowCount = Math.min(limit, statistic.getRowCount().longValue());
         } else {
@@ -105,9 +107,10 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
         FlinkStatistic newStatistic =
                 FlinkStatistic.builder().statistic(statistic).tableStats(newTableStats).build();
 
-        // update extraDigests
-        String[] newExtraDigests = new String[] {"limit=[" + limit + "]"};
-
-        return oldTableSourceTable.copy(newTableSource, newStatistic, newExtraDigests);
+        return oldTableSourceTable.copy(
+                newTableSource,
+                newStatistic,
+                new String[] {"limit=[" + limit + "]"},
+                new SourceAbilitySpec[] {limitPushDownSpec});
     }
 }

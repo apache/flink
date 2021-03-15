@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
 from pyflink.java_gateway import get_gateway
+
+from pyflink.common import Configuration
 
 __all__ = ['EnvironmentSettings']
 
@@ -30,7 +33,6 @@ class EnvironmentSettings(object):
     ::
 
         >>> EnvironmentSettings.new_instance() \\
-        ...     .use_old_planner() \\
         ...     .in_streaming_mode() \\
         ...     .with_built_in_catalog_name("my_catalog") \\
         ...     .with_built_in_database_name("my_database") \\
@@ -53,14 +55,19 @@ class EnvironmentSettings(object):
             This is the default behavior.
 
             :return: This object.
+
+            .. note:: The old planner will be dropped in Flink 1.14. Please update to the new
+                      planner (i.e. Blink planner).
             """
+            warnings.warn(
+                "Deprecated in 1.13. Please update to the new planner (i.e. Blink planner).",
+                DeprecationWarning)
             self._j_builder = self._j_builder.useOldPlanner()
             return self
 
         def use_blink_planner(self) -> 'EnvironmentSettings.Builder':
             """
-            Sets the Blink planner as the required module. By default, :func:`use_old_planner` is
-            enabled.
+            Sets the Blink planner as the required module.
 
             :return: This object.
             """
@@ -73,7 +80,7 @@ class EnvironmentSettings(object):
 
             A planner will be discovered automatically, if there is only one planner available.
 
-            By default, :func:`use_old_planner` is enabled.
+            By default, :func:`use_blink_planner` is enabled.
 
             :return: This object.
             """
@@ -174,6 +181,17 @@ class EnvironmentSettings(object):
         """
         return self._j_environment_settings.isStreamingMode()
 
+    def to_configuration(self) -> Configuration:
+        """
+        Convert to `pyflink.common.Configuration`.
+
+        It sets the `table.planner` and `execution.runtime-mode` according to the current
+        EnvironmentSetting.
+
+        :return: Configuration with specified value.
+        """
+        return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
+
     @staticmethod
     def new_instance() -> 'EnvironmentSettings.Builder':
         """
@@ -185,3 +203,13 @@ class EnvironmentSettings(object):
         :return: A builder of EnvironmentSettings.
         """
         return EnvironmentSettings.Builder()
+
+    @staticmethod
+    def from_configuration(config: Configuration) -> 'EnvironmentSettings':
+        """
+        Create the EnvironmentSetting with specified Configuration.
+
+        :return: EnvironmentSettings.
+        """
+        return EnvironmentSettings(
+            get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))

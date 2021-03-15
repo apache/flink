@@ -104,6 +104,7 @@ public class FailingCollectionSource<T>
         this.serializer = serializer;
         this.elementsSerialized = baos.toByteArray();
         this.numElements = count;
+        checkArgument(count > 0, "testing elements of values source shouldn't be empty.");
         checkArgument(failureAfterNumElements > 0);
         this.failureAfterNumElements = failureAfterNumElements;
         this.checkpointedEmittedNums = new HashMap<>();

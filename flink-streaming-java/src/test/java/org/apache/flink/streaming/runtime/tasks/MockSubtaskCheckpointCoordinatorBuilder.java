@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -43,7 +44,8 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
     private StreamTaskActionExecutor actionExecutor = IMMEDIATE;
     private CloseableRegistry closeableRegistry = new CloseableRegistry();
     private ExecutorService executorService = Executors.newDirectExecutorService();
-    private BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+    private BiFunctionWithException<
+                    ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
             prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
     private boolean unalignedCheckpointEnabled;
     private int maxRecordAbortedCheckpoints = 10;
@@ -54,7 +56,8 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
     }
 
     public MockSubtaskCheckpointCoordinatorBuilder setPrepareInputSnapshot(
-            BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException>
+            BiFunctionWithException<
+                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot) {
         this.prepareInputSnapshot = prepareInputSnapshot;
         return this;

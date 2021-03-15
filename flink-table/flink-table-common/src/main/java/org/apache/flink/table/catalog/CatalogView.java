@@ -18,8 +18,52 @@
 
 package org.apache.flink.table.catalog;
 
-/** Represents a view in a catalog. */
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.Schema;
+
+import javax.annotation.Nullable;
+
+import java.util.Map;
+
+/**
+ * Represents the unresolved metadata of a view in a {@link Catalog}.
+ *
+ * <p>It contains all characteristics that can be expressed in a SQL {@code CREATE VIEW} statement.
+ * The framework will resolve instances of this interface to a {@link ResolvedCatalogView} before
+ * usage.
+ *
+ * <p>A catalog implementer can either use {@link #of(Schema, String, String, String, Map)} for a
+ * basic implementation of this interface or create a custom class that allows passing
+ * catalog-specific objects (if necessary).
+ */
+@PublicEvolving
 public interface CatalogView extends CatalogBaseTable {
+
+    /**
+     * Creates a basic implementation of this interface.
+     *
+     * <p>The signature is similar to a SQL {@code CREATE VIEW} statement.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param originalQuery original text of the view definition
+     * @param expandedQuery expanded text of the original view definition with materialized
+     *     identifiers
+     * @param options options to configure the connector
+     */
+    static CatalogView of(
+            Schema schema,
+            @Nullable String comment,
+            String originalQuery,
+            String expandedQuery,
+            Map<String, String> options) {
+        return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
+    }
+
+    @Override
+    default TableKind getTableKind() {
+        return TableKind.VIEW;
+    }
 
     /**
      * Original text of the view definition that also preserves the original formatting.
