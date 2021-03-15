@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
@@ -72,9 +73,8 @@ class Restarting extends StateWithExecutionGraph {
 
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
-        if (globallyTerminalState == JobStatus.CANCELED) {
-            context.runIfState(this, context::goToWaitingForResources, backoffTime);
-        }
+        Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
+        context.runIfState(this, context::goToWaitingForResources, backoffTime);
     }
 
     /** Context of the {@link Restarting} state. */
