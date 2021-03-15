@@ -118,8 +118,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @ClassRule
-    public static final TestExecutorResource TEST_EXECUTOR_SERVICE_RESOURCE =
-            new TestExecutorResource(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
+    public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
+            new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
 
     @Before
     public void setup() {
