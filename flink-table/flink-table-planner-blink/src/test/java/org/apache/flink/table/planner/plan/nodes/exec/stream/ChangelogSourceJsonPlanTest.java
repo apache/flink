@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Test json serialization/deserialization for {@link StreamExecChangelogNormalize}. */
+/** Test json serialization/deserialization for changelog source, including upsert source. */
 public class ChangelogSourceJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
