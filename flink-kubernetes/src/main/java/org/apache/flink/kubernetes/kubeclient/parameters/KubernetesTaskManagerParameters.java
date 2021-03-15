@@ -42,6 +42,8 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     private final String dynamicProperties;
 
+    private final String jvmMemOptsEnv;
+
     private final ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
     private final Map<String, Long> taskManagerExternalResources;
@@ -50,11 +52,13 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
             Configuration flinkConfig,
             String podName,
             String dynamicProperties,
+            String jvmMemOptsEnv,
             ContaineredTaskManagerParameters containeredTaskManagerParameters,
             Map<String, Long> taskManagerExternalResources) {
         super(flinkConfig);
         this.podName = checkNotNull(podName);
         this.dynamicProperties = checkNotNull(dynamicProperties);
+        this.jvmMemOptsEnv = checkNotNull(jvmMemOptsEnv);
         this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
         this.taskManagerExternalResources = checkNotNull(taskManagerExternalResources);
     }
@@ -134,6 +138,10 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     public String getDynamicProperties() {
         return dynamicProperties;
+    }
+
+    public String getJvmMemOptsEnv() {
+        return jvmMemOptsEnv;
     }
 
     public ContaineredTaskManagerParameters getContaineredTaskManagerParameters() {
