@@ -18,16 +18,13 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -35,12 +32,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
@@ -55,8 +47,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -64,7 +54,6 @@ import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryT
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.Assume;
 import org.junit.Rule;
@@ -72,16 +61,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -103,9 +87,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                 "---- Skipping Process Failure test : Could not find java executable ----",
                 getJavaCommandPath() != null);
 
-        final Time timeout = Time.minutes(2L);
-
-        RestClusterClient<String> clusterClient = null;
         TestProcess taskManagerProcess = null;
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -184,6 +165,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                                                     @Override
                                                     public Long map(Long value) throws Exception {
                                                         synchronized (this) {
+                                                            System.out.println("waiting");
                                                             wait();
                                                         }
                                                         return 0L;
@@ -201,15 +183,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             Thread programThread = new Thread(programRunner);
             programThread.start();
 
-            final DispatcherGateway dispatcherGateway =
-                    retrieveDispatcherGateway(rpcService, haServices);
-            waitUntilAllSlotsAreUsed(dispatcherGateway, timeout);
-
-            clusterClient = new RestClusterClient<>(config, "standalone");
-
-            final Collection<JobID> jobIds = waitForRunningJobs(clusterClient, timeout);
-
-            assertThat(jobIds, hasSize(1));
+            assertTrue(
+                    "tasks have not been deployed in time or the task executor has shut down.",
+                    waitUntilAtLeastOneTaskHasBeenDeployed(taskManagerProcess));
 
             // kill the TaskManager after the job started to run
             taskManagerProcess.destroy();
@@ -242,9 +218,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             if (taskManagerProcess != null) {
                 taskManagerProcess.destroy();
             }
-            if (clusterClient != null) {
-                clusterClient.close();
-            }
             if (dispatcherResourceManagerComponent != null) {
                 dispatcherResourceManagerComponent.deregisterApplicationAndClose(
                         ApplicationStatus.SUCCEEDED, null);
@@ -258,53 +231,16 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         }
     }
 
-    /**
-     * Helper method to wait until the {@link Dispatcher} has set its fencing token.
-     *
-     * @param rpcService to use to connect to the dispatcher
-     * @param haServices high availability services to connect to the dispatcher
-     * @return {@link DispatcherGateway}
-     * @throws Exception if something goes wrong
-     */
-    static DispatcherGateway retrieveDispatcherGateway(
-            RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
-        final LeaderConnectionInfo leaderConnectionInfo =
-                LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-                        haServices.getDispatcherLeaderRetriever(), Duration.ofSeconds(10L));
-
-        return rpcService
-                .connect(
-                        leaderConnectionInfo.getAddress(),
-                        DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
-                        DispatcherGateway.class)
-                .get();
-    }
-
-    private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout)
-            throws ExecutionException, InterruptedException {
-        FutureUtils.retrySuccessfulWithDelay(
-                        () -> dispatcherGateway.requestClusterOverview(timeout),
-                        Time.milliseconds(50L),
-                        Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
-                        clusterOverview ->
-                                clusterOverview.getNumTaskManagersConnected() >= 1
-                                        && clusterOverview.getNumSlotsAvailable() == 0
-                                        && clusterOverview.getNumSlotsTotal() == 2,
-                        TestingUtils.defaultScheduledExecutor())
-                .get();
-    }
-
-    private Collection<JobID> waitForRunningJobs(ClusterClient<?> clusterClient, Time timeout)
-            throws ExecutionException, InterruptedException {
-        return FutureUtils.retrySuccessfulWithDelay(
-                        CheckedSupplier.unchecked(clusterClient::listJobs),
-                        Time.milliseconds(50L),
-                        Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
-                        jobs -> !jobs.isEmpty(),
-                        TestingUtils.defaultScheduledExecutor())
-                .get().stream()
-                .map(JobStatusMessage::getJobId)
-                .collect(Collectors.toList());
+    private static boolean waitUntilAtLeastOneTaskHasBeenDeployed(TestProcess taskManagerProcess)
+            throws InterruptedException {
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
+        while (taskManagerProcess.getProcess().isAlive() && deadline.hasTimeLeft()) {
+            if (taskManagerProcess.getProcessOutput().toString().contains("waiting")) {
+                return true;
+            }
+            Thread.sleep(50);
+        }
+        return false;
     }
 
     private void printProcessLog(String processName, String log) {
