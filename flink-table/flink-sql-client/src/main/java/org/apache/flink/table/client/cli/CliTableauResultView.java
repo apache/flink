@@ -154,7 +154,7 @@ public class CliTableauResultView implements AutoCloseable {
             switch (result.getType()) {
                 case EMPTY:
                     try {
-                        // prevent cpu idling
+                        // prevent busy loop
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
                         // get ctrl+c from terminal and fallback
