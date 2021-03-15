@@ -42,12 +42,8 @@ public class RabbitMQCollector<T> implements Collector<T> {
     private long deliveryTag;
     private String correlationId;
 
-    private RabbitMQCollector(int capacity) {
-        this.unpolledMessageQueue = new LinkedBlockingQueue<>(capacity);
-    }
-
     public RabbitMQCollector() {
-        this(Integer.MAX_VALUE);
+        this.unpolledMessageQueue = new LinkedBlockingQueue<>();
     }
 
     /** @return boolean true if there are messages remaining in the collector. */

@@ -168,7 +168,9 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
 
     @Override
     public CompletableFuture<Void> isAvailable() {
-        return FutureCompletingBlockingQueue.AVAILABLE;
+        return CompletableFuture.runAsync(() -> {
+            while (!collector.hasUnpolledMessages());
+        });
     }
 
     /**
