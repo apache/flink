@@ -27,18 +27,26 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
  */
 public class RabbitMQSourceEnumStateSerializer
         implements SimpleVersionedSerializer<RabbitMQSourceEnumState> {
+    private static final int CURRENT_VERSION = 1;
+
     @Override
     public int getVersion() {
-        return 0;
+        return CURRENT_VERSION;
     }
 
     @Override
     public byte[] serialize(RabbitMQSourceEnumState rabbitMQSourceEnumState) {
-        return new byte[0];
+        if (getVersion() == 1) {
+            return new byte[0];
+        }
+        throw new RuntimeException("Version " + getVersion() + " is not supported");
     }
 
     @Override
     public RabbitMQSourceEnumState deserialize(int i, byte[] bytes) {
-        return new RabbitMQSourceEnumState();
+        if (getVersion() == 1) {
+            return new RabbitMQSourceEnumState();
+        }
+        throw new RuntimeException("Version " + getVersion() + " is not supported");
     }
 }

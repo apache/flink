@@ -28,7 +28,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * The collector for the messages received from rabbitmq. Deserialized receive their identifiers
+ * The collector for the messages received from RabbitMQ. Deserialized receive their identifiers
  * through {@link #setMessageIdentifiers(String, long)} before they are collected through {@link
  * #collect(Object)}. Messages can be polled in order to be processed by the output.
  *

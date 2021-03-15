@@ -42,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 import static org.rnorth.visibleassertions.VisibleAssertions.assertTrue;
 
 /**
- * Tests for to assure the rabbitmq container client is working correctly.
+ * Tests for to assure the RabbitMQ container client is working correctly.
  *
  * @see RabbitMQContainerClient
  */

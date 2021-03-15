@@ -46,10 +46,10 @@ import java.util.stream.Collectors;
  * polled by the output are stored so they can be later acknowledged. During a checkpoint the
  * messages that were polled since the last checkpoint are associated with the id of the current
  * checkpoint. Once the checkpoint is completed, the messages for the checkpoint are acknowledged in
- * a transaction to assure that rabbitmq successfully receives the acknowledgements.
+ * a transaction to assure that RabbitMQ successfully receives the acknowledgements.
  *
  * <p>In order for the exactly-once source reader to work, checkpointing needs to be enabled and the
- * message from rabbitmq need to have a correlation id.
+ * message from RabbitMQ need to have a correlation id.
  *
  * @param <T> The output type of the source.
  * @see RabbitMQSourceReaderBase

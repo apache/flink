@@ -40,12 +40,11 @@ import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplit;
 import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import com.esotericsoftware.minlog.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The source implementation of rabbitmq. Please use a {@link RabbitMQSourceBuilder} to construct
+ * The source implementation of RabbitMQ. Please use a {@link RabbitMQSourceBuilder} to construct
  * the source. The following example shows how to create a RabbitMQSource emitting records of <code>
  * String</code> type.
  *
@@ -82,7 +81,7 @@ public class RabbitMQSource<T>
         this.deserializationSchema = deserializationSchema;
         this.consistencyMode = consistencyMode;
 
-        LOG.info("Create rabbitmq source");
+        LOG.info("Create RabbitMQ source");
     }
 
     /**
@@ -97,7 +96,7 @@ public class RabbitMQSource<T>
     }
 
     /**
-     * The boundedness is always continuous unbounded.
+     * The boundedness is always continuous unbounded as this is a streaming-only source.
      *
      * @return Boundedness continuous unbounded.
      * @see Boundedness
@@ -129,7 +128,7 @@ public class RabbitMQSource<T>
                 return new RabbitMQSourceReaderExactlyOnce<>(
                         sourceReaderContext, deserializationSchema);
             default:
-                Log.error("The requested reader of type " + consistencyMode + " is not supported");
+                LOG.error("The requested reader of type " + consistencyMode + " is not supported");
                 return null;
         }
     }

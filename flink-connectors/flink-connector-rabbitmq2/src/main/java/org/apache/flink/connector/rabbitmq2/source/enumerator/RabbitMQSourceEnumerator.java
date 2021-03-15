@@ -69,7 +69,7 @@ public class RabbitMQSourceEnumerator
 
     @Override
     public void start() {
-        LOG.info("Start rabbitmq source enumerator");
+        LOG.info("Start RabbitMQ source enumerator");
     }
 
     @Override
@@ -85,7 +85,9 @@ public class RabbitMQSourceEnumerator
             return;
         }
         // Every Source Reader will only receive one splits, thus we will never get back more.
-        assert list.size() == 1;
+        if (list.size() != 1) {
+            throw new RuntimeException("There should only be one split added back at time.");
+        }
         split = list.get(0);
     }
 

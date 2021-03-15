@@ -16,7 +16,7 @@
  */
 
 /*
- * This class is copied from the old rabbitmq connector.
+ *
  */
 
 package org.apache.flink.connector.rabbitmq2;
@@ -35,11 +35,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
 /**
+ * This class is copied from the previous RabbitMQ connector.
  * Connection Configuration for RMQ. If {@link Builder#setUri(String)} has been set then {@link
  * RabbitMQConnectionConfig#RabbitMQConnectionConfig(String, Integer, Boolean, Boolean, Integer,
- * Integer, Integer, Integer, Integer)} will be used for initialize the RMQ connection or {@link
+ * Integer, Integer, Integer, Integer)} will be used to initialize the RMQ connection or {@link
  * RabbitMQConnectionConfig#RabbitMQConnectionConfig(String, Integer, String, String, String,
- * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Integer)} will be used for
+ * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Integer)} will be used to
  * initialize the RMQ connection.
  */
 public class RabbitMQConnectionConfig implements Serializable {

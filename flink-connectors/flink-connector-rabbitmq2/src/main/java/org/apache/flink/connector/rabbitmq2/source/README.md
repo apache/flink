@@ -1,10 +1,10 @@
 # RabbitMQ Source
 
-Flink's RabbitMQ connector provides a source which enables you to receive messages from a RabbitMQ
+Flink's RabbitMQ connector provides a streaming-only source which enables you to receive messages from a RabbitMQ
 queue in three different consistency modes: at-most-once, at-least-once, and exactly-once.
 
 ## Consistency Behaviour
-With __at-most-once__, the source will reach each message and automatically acknowledges it to
+With __at-most-once__, the source will receive each message and automatically acknowledges it to
 RabbitMQ. The message content is then polled by the output. If the system crashes in the meantime,
 the messages that the source buffers are lost.
 
@@ -15,7 +15,7 @@ polled are acknowledged to RabbitMQ. Therefore, the mode requires _checkpointing
 it is assured that the messages are correctly processed by the system. If the system crashes in the
 meantime, the unacknowledged messages will be resend by RabbitMQ to assure at-least-once behavior.
 
-The __exactly-once-mode__ mode uses _correlation ids_ to deduplicate messages. Correlation ids need
+The __exactly-once-mode__ mode uses _correlation ids_ to deduplicate messages. Correlation ids are properties of the messages and need
 to be set by the user in order for the mode to function. In addition, it requires _checkpointing enabled_
 and only _parallelism 1_ is allowed. Similar to at-least-once, the messages are received from RabbitMQ,
 buffered, and passed to the output when polled. A set of seen correlation ids is maintained to apply
@@ -30,34 +30,39 @@ checkpoint have either many or just a few messages.
 
 ## How to use it
 ```java
-RabbitMQSource<T> source =
-                RabbitMQSource.<T>builder()
-                        .setConnectionConfig(<RMQConnectionConfig>)
-                        .setQueueName(<RabbitMQ Queue Name>)
-                        .setDeserializationSchema(<Deserialization Schema>)
-                        .setConsistencyMode(<ConsistencyMode>)
-                        .build();
-
-// ******************* An example usage looks like this *******************
+public class Main {
+    public static void main(String[]args) {
+            
+        RabbitMQSource<T> source =
+                        RabbitMQSource.<T>builder()
+                                .setConnectionConfig(RMQ_CONNECTION_CONFIG)
+                                .setQueueName(RABBITMQ_QUEUE_NAME)
+                                .setDeserializationSchema(DESERIALIZATION_SCHEMA)
+                                .setConsistencyMode(CONSISTENCY_MODE)
+                                .build();
         
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-RMQConnectionConfig rmqConnectionConfig =
-                new RMQConnectionConfig.Builder()
-                        .setHost("localhost")
-                        .setVirtualHost("/")
-                        .setUserName("guest")
-                        .setPassword("guest")
-                        .setPort(5672)
-                        .build();
-                        
-RabbitMQSource<String> rmqSource =
-                RabbitMQSource.<String>builder()
-                        .setConnectionConfig(rmqConnectionConfig)
-                        .setQueueName("consume-queue")
-                        .setDeserializationSchema(new SimpleStringSchema())
-                        .setConsistencyMode(ConsistencyMode.AT_MOST_ONCE)
-                        .build();
-
-DataStream<String> stream = env.fromSource(rmqSource, WatermarkStrategy.noWatermarks(), "RMQSource");
+        // ******************* An example usage looks like this *******************
+                
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        
+        RMQConnectionConfig rmqConnectionConfig =
+                        new RMQConnectionConfig.Builder()
+                                .setHost("localhost")
+                                .setVirtualHost("/")
+                                .setUserName("guest")
+                                .setPassword("guest")
+                                .setPort(5672)
+                                .build();
+                                
+        RabbitMQSource<String> rmqSource =
+                        RabbitMQSource.<String>builder()
+                                .setConnectionConfig(rmqConnectionConfig)
+                                .setQueueName("consume-queue")
+                                .setDeserializationSchema(new SimpleStringSchema())
+                                .setConsistencyMode(ConsistencyMode.AT_MOST_ONCE)
+                                .build();
+        
+        DataStream<String> stream = env.fromSource(rmqSource, WatermarkStrategy.noWatermarks(), "RMQSource");
+    }
+}
 ```

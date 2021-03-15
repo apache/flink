@@ -19,7 +19,7 @@
 package org.apache.flink.connector.rabbitmq2.source.common;
 
 /**
- * A wrapper class for the message received from rabbitmq that holds the deserialized message, the
+ * A wrapper class for the message received from RabbitMQ that holds the deserialized message, the
  * delivery tag and the correlation id.
  *
  * @param <T> The type of the message to hold.

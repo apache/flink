@@ -39,7 +39,7 @@ import java.util.Set;
  */
 public class RabbitMQSourceSplitSerializer
         implements SimpleVersionedSerializer<RabbitMQSourceSplit> {
-    private static final int CURRENT_VERSION = 0;
+    private static final int CURRENT_VERSION = 1;
 
     @Override
     public int getVersion() {
@@ -48,30 +48,36 @@ public class RabbitMQSourceSplitSerializer
 
     @Override
     public byte[] serialize(RabbitMQSourceSplit rabbitMQSourceSplit) throws IOException {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                DataOutputStream out = new DataOutputStream(baos);
-                ObjectOutputStream objectOutputStream = new ObjectOutputStream(out)) {
-            objectOutputStream.writeObject(rabbitMQSourceSplit.getConnectionConfig());
-            out.writeUTF(rabbitMQSourceSplit.getQueueName());
-            writeStringSet(out, rabbitMQSourceSplit.getCorrelationIds());
-            out.flush();
-            return baos.toByteArray();
+        if (getVersion() == 1) {
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    DataOutputStream out = new DataOutputStream(baos);
+                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(out)) {
+                objectOutputStream.writeObject(rabbitMQSourceSplit.getConnectionConfig());
+                out.writeUTF(rabbitMQSourceSplit.getQueueName());
+                writeStringSet(out, rabbitMQSourceSplit.getCorrelationIds());
+                out.flush();
+                return baos.toByteArray();
+            }
         }
+        throw new RuntimeException("Version " + getVersion() + " is not supported");
     }
 
     @Override
     public RabbitMQSourceSplit deserialize(int i, byte[] bytes) throws IOException {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-                DataInputStream in = new DataInputStream(bais);
-                ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
-            RabbitMQConnectionConfig config =
-                    (RabbitMQConnectionConfig) objectInputStream.readObject();
-            String queueName = in.readUTF();
-            Set<String> correlationIds = readStringSet(in);
-            return new RabbitMQSourceSplit(config, queueName, correlationIds);
-        } catch (ClassNotFoundException e) {
-            throw new IOException(e.getException());
+        if (getVersion() == 1) {
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+                    DataInputStream in = new DataInputStream(bais);
+                    ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
+                RabbitMQConnectionConfig config =
+                        (RabbitMQConnectionConfig) objectInputStream.readObject();
+                String queueName = in.readUTF();
+                Set<String> correlationIds = readStringSet(in);
+                return new RabbitMQSourceSplit(config, queueName, correlationIds);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e.getException());
+            }
         }
+        throw new RuntimeException("Version " + getVersion() + " is not supported");
     }
 
     private static void writeStringSet(DataOutputStream out, Set<String> strings)

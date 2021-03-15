@@ -46,9 +46,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 
 /**
- * The base class for rabbitmq tests. It sets up a flink cluster and a docker image for rabbitmq. It
- * provides behavior to easily add onto the stream, send message to rabbitmq and get the messages in
- * rabbitmq.
+ * The base class for RabbitMQ tests. It sets up a flink cluster and a docker image for RabbitMQ. It
+ * provides behavior to easily add onto the stream, send message to RabbitMQ and get the messages in
+ * RabbitMQ.
  */
 public abstract class RabbitMQBaseTest {
 
@@ -135,7 +135,7 @@ public abstract class RabbitMQBaseTest {
         return stream;
     }
 
-    public void sendToRabbit(List<String> messages) throws IOException, InterruptedException {
+    public void sendToRabbit(List<String> messages) throws IOException {
         for (String message : messages) {
             client.sendMessages(new SimpleStringSchema(), message);
         }
@@ -188,9 +188,9 @@ public abstract class RabbitMQBaseTest {
 
         public CollectSink(CountDownLatch latch, int failAtNthMessage) {
             super();
-            this.latch = latch;
-            this.failAtNthMessage = failAtNthMessage;
-            this.VALUES.clear();
+            CollectSink.latch = latch;
+            CollectSink.failAtNthMessage = failAtNthMessage;
+            VALUES.clear();
         }
 
         public CollectSink(CountDownLatch latch) {

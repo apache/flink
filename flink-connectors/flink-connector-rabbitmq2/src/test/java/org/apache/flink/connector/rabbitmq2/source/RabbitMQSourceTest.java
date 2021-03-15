@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * The tests for the rabbitmq source with different consistency modes. As the tests are working a
+ * The tests for the RabbitMQ source with different consistency modes. As the tests are working a
  * lot with timeouts to uphold stream it is possible that tests might fail.
  */
 public class RabbitMQSourceTest extends RabbitMQBaseTest {

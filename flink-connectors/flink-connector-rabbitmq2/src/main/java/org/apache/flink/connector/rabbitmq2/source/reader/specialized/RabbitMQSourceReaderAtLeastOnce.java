@@ -37,8 +37,8 @@ import java.util.List;
  * consumed by the output. This means that the deliveryTags of the messages that were polled by the
  * output are stored separately. Once a snapshot is executed the deliveryTags get associated with
  * the checkpoint id. When the checkpoint is completed successfully, all messages from before are
- * acknowledged. In the case of a failure of and a successful restart does rabbitmq resend the
- * messages that were unacknowledged. This way at-least-once is guaranteed.
+ * acknowledged. In the case of a system failure and a successful restart, the messages that are
+ * unacknowledged, are resend by RabbitMQ. This way at-least-once is guaranteed.
  *
  * <p>In order for the at-least-once source reader to work, checkpointing needs to be enabled.
  *

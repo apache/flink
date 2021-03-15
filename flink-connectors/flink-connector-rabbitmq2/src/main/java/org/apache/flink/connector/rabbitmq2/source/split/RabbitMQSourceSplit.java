@@ -79,9 +79,9 @@ public class RabbitMQSourceSplit implements SourceSplit {
     }
 
     /**
-     * Get the connection configuration of rabbitmq defined in the split.
+     * Get the connection configuration of RabbitMQ defined in the split.
      *
-     * @return RMQConnectionConfig connection configuration of rabbitmq.
+     * @return RMQConnectionConfig connection configuration of RabbitMQ.
      * @see RabbitMQConnectionConfig
      */
     public RabbitMQConnectionConfig getConnectionConfig() {

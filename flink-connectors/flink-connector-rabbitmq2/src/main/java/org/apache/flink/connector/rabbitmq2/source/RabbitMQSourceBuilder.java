@@ -44,11 +44,11 @@ import org.apache.flink.connector.rabbitmq2.RabbitMQConnectionConfig;
  * @param <T> the output type of the source.
  */
 public class RabbitMQSourceBuilder<T> {
-    // The configuration for the rabbitmq connection.
+    // The configuration for the RabbitMQ connection.
     private RabbitMQConnectionConfig connectionConfig;
     // Name of the queue to consume from.
     private String queueName;
-    // The deserializer for the messages of rabbitmq.
+    // The deserializer for the messages of RabbitMQ.
     private DeserializationSchema<T> deserializationSchema;
     // The consistency mode for the source.
     private ConsistencyMode consistencyMode;
@@ -64,9 +64,9 @@ public class RabbitMQSourceBuilder<T> {
     }
 
     /**
-     * Set the connection config for rabbitmq.
+     * Set the connection config for RabbitMQ.
      *
-     * @param connectionConfig the connection configuration for rabbitmq.
+     * @param connectionConfig the connection configuration for RabbitMQ.
      * @return this RabbitMQSourceBuilder
      * @see RabbitMQConnectionConfig
      */
@@ -87,9 +87,9 @@ public class RabbitMQSourceBuilder<T> {
     }
 
     /**
-     * Set the deserializer for the message deliveries from rabbitmq.
+     * Set the deserializer for the message deliveries from RabbitMQ.
      *
-     * @param deserializationSchema a deserializer for the message deliveries from rabbitmq.
+     * @param deserializationSchema a deserializer for the message deliveries from RabbitMQ.
      * @return this RabbitMQSourceBuilder
      * @see DeserializationSchema
      */

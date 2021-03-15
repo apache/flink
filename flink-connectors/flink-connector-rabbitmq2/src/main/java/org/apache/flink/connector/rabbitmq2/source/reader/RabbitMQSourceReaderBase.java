@@ -46,7 +46,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The source reader for rabbitmq queues. This is the base class the different consistency modes.
+ * The source reader for RabbitMQ queues. This is the base class of the different consistency modes.
  *
  * @param <T> The output type of the source.
  */
@@ -55,14 +55,14 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
 
     // The assigned split from the enumerator.
     private RabbitMQSourceSplit split;
-    // Rabbitmq
+
     private Connection rmqConnection;
     private Channel rmqChannel;
 
     private final SourceReaderContext sourceReaderContext;
-    // The deserialization schema for the messages of rabbitmq.
+    // The deserialization schema for the messages of RabbitMQ.
     private final DeserializationSchema<T> deliveryDeserializer;
-    // The collector keeps the messages received from rabbitmq.
+    // The collector keeps the messages received from RabbitMQ.
     private final RabbitMQCollector<T> collector;
 
     public RabbitMQSourceReaderBase(
@@ -79,7 +79,7 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
         sourceReaderContext.sendSplitRequest();
     }
 
-    // ------------- start rabbitmq methods  --------------
+    // ------------- start RabbitMQ methods  --------------
 
     private void setupRabbitMQ() {
         try {
@@ -100,16 +100,16 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
         rmqConnection = setupConnectionFactory().newConnection();
     }
 
-    /** @return boolean whether messages should be automatically acknowledged to rabbitmq. */
+    /** @return boolean whether messages should be automatically acknowledged to RabbitMQ. */
     protected abstract boolean isAutoAck();
 
     /**
-     * This function will be called when a new message from rabbitmq gets pushed to the source. The
-     * message will be deserialized and forwarded to our message collector where is buffered until
-     * it can be processed.
+     * This function will be called when a new message from RabbitMQ gets pushed to the source. The
+     * message will be deserialized and forwarded to our message collector where it is buffered
+     * until it can be processed.
      *
      * @param consumerTag The consumer tag of the message.
-     * @param delivery The delivery from rabbitmq.
+     * @param delivery The delivery from RabbitMQ.
      * @throws IOException if something fails during deserialization.
      */
     protected void handleMessageReceivedCallback(String consumerTag, Delivery delivery)
@@ -127,7 +127,7 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
 
         // Set maximum of unacknowledged messages
         if (getSplit().getConnectionConfig().getPrefetchCount().isPresent()) {
-            // global: false - the prefetch count is set per consumer, not per rabbitmq channel
+            // global: false - the prefetch count is set per consumer, not per RabbitMQ channel
             rmqChannel.basicQos(getSplit().getConnectionConfig().getPrefetchCount().get(), false);
         }
 
@@ -136,7 +136,7 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
                 split.getQueueName(), isAutoAck(), deliverCallback, consumerTag -> {});
     }
 
-    // ------------- end rabbitmq methods  --------------
+    // ------------- end RabbitMQ methods  --------------
 
     /**
      * This method provides a hook that is called when a message gets polled by the output.
@@ -175,7 +175,7 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
 
     /**
      * Assign the split from the enumerator. If the source reader already has a split nothing
-     * happens. After the split is assigned, the connection to rabbitmq can be setup.
+     * happens. After the split is assigned, the connection to RabbitMQ can be setup.
      *
      * @param list RabbitMQSourceSplits with only one element.
      * @see RabbitMQSourceEnumerator
@@ -186,7 +186,9 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
         if (split != null) {
             return;
         }
-        assert list.size() == 1;
+        if (list.size() != 1) {
+            throw new RuntimeException("The number of added splits should be exaclty one.");
+        }
         split = list.get(0);
         setupRabbitMQ();
     }
@@ -201,7 +203,7 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
     public void notifyCheckpointComplete(long checkpointId) {}
 
     /**
-     * Acknowledge a list of message ids in the rabbitmq channel.
+     * Acknowledge a list of message ids in the RabbitMQ channel.
      *
      * @param messageIds ids that will be acknowledged.
      * @throws RuntimeException if an error occurs during the acknowledgement.
@@ -227,30 +229,12 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
             return;
         }
 
-        try {
-            if (rmqChannel != null) {
-                rmqChannel.close();
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "Error while closing RMQ channel with %s"
-                            + split.getQueueName()
-                            + " at "
-                            + getSplit().getConnectionConfig().getHost(),
-                    e);
+        if (rmqChannel != null) {
+            rmqChannel.close();
         }
 
-        try {
-            if (rmqConnection != null) {
-                rmqConnection.close();
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "Error while closing RMQ connection with "
-                            + split.getQueueName()
-                            + " at "
-                            + getSplit().getConnectionConfig().getHost(),
-                    e);
+        if (rmqConnection != null) {
+            rmqConnection.close();
         }
     }
 
