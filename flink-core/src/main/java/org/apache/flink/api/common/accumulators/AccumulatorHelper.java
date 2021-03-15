@@ -170,6 +170,7 @@ public class AccumulatorHelper {
         return builder.toString();
     }
 
+    /** Copy the Map with accumulators into a new Map. */
     public static Map<String, Accumulator<?, ?>> copy(Map<String, Accumulator<?, ?>> accumulators) {
         Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
 
