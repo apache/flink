@@ -86,16 +86,16 @@ class StreamPhysicalWindowJoinRule
     val (leftWindowProperties, rightWindowProperties) = getChildWindowProperties(join)
     // It's safe to directly get first element from windowStartEqualityLeftKeys because window
     // start equality is required in join condition for window join.
-    val leftWindowing = WindowAttachedWindowingStrategy(
-      windowStartEqualityLeftKeys.getInt(0),
-      windowEndEqualityLeftKeys.getInt(0),
+    val leftWindowing = new WindowAttachedWindowingStrategy(
+      leftWindowProperties.getWindowSpec,
       leftWindowProperties.getTimeAttributeType,
-      leftWindowProperties.getWindowSpec)
-    val rightWindowing = WindowAttachedWindowingStrategy(
-      windowStartEqualityRightKeys.getInt(0),
-      windowEndEqualityRightKeys.getInt(0),
+      windowStartEqualityLeftKeys.getInt(0),
+      windowEndEqualityLeftKeys.getInt(0))
+    val rightWindowing = new WindowAttachedWindowingStrategy(
+      rightWindowProperties.getWindowSpec,
       rightWindowProperties.getTimeAttributeType,
-      rightWindowProperties.getWindowSpec)
+      windowStartEqualityRightKeys.getInt(0),
+      windowEndEqualityRightKeys.getInt(0))
 
     val newWindowJoin = new StreamPhysicalWindowJoin(
       join.getCluster,

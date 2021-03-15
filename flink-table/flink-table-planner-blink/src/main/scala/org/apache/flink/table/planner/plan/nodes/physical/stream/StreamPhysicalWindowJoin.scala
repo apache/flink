@@ -62,14 +62,14 @@ class StreamPhysicalWindowJoin(
   isValid(Litmus.THROW, null)
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
-    if (leftWindowing.timeAttributeType != rightWindowing.timeAttributeType) {
+    if (leftWindowing.getTimeAttributeType != rightWindowing.getTimeAttributeType) {
       return litmus.fail(
         s"""
            |Currently, time attribute type of left and right inputs should be both row-time or
            |both proc-time. In the future, we could support different time attribute type.
            |""".stripMargin)
     }
-    if (leftWindowing.window != rightWindowing.window) {
+    if (leftWindowing.getWindow != rightWindowing.getWindow) {
       return litmus.fail(
         s"""
            |Currently, the windowing TVFs must be the same of left and right inputs.
