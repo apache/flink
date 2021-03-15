@@ -33,6 +33,7 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.rules.Timeout;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -41,12 +42,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
  * The base class for rabbitmq tests. It sets up a flink cluster and a docker image for rabbitmq. It
- * provides behavior to easily add onto the stream, send message to rabbitmq and get the message in
+ * provides behavior to easily add onto the stream, send message to rabbitmq and get the messages in
  * rabbitmq.
  */
 public abstract class RabbitMQBaseTest {
@@ -54,6 +56,9 @@ public abstract class RabbitMQBaseTest {
     protected static final int RABBITMQ_PORT = 5672;
     protected RabbitMQContainerClient client;
     protected String queueName;
+
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(10);
 
     @Rule
     public MiniClusterWithClientResource flinkCluster =
@@ -106,7 +111,7 @@ public abstract class RabbitMQBaseTest {
         return client.readMessages(new SimpleStringSchema());
     }
 
-    public DataStream<String> getSinkOn(
+    public DataStream<String> addSourceOn(
             StreamExecutionEnvironment env, ConsistencyMode consistencyMode)
             throws IOException, TimeoutException {
         queueName = UUID.randomUUID().toString();
@@ -135,27 +140,13 @@ public abstract class RabbitMQBaseTest {
         for (String message : messages) {
             client.sendMessages(new SimpleStringSchema(), message);
         }
-
-        TimeUnit.SECONDS.sleep(3);
     }
 
     public void sendToRabbit(List<String> messages, List<String> correlationIds)
-            throws IOException, InterruptedException {
-        sendToRabbit(messages, correlationIds, 100);
-    }
-
-    public void sendToRabbit(List<String> messages, List<String> correlationIds, int delay)
-            throws IOException, InterruptedException {
+            throws IOException {
         for (int i = 0; i < messages.size(); i++) {
-            TimeUnit.MILLISECONDS.sleep(delay);
             client.sendMessages(new SimpleStringSchema(), messages.get(i), correlationIds.get(i));
         }
-
-        TimeUnit.SECONDS.sleep(3);
-    }
-
-    public void sendToRabbit(int numberOfMessage) throws IOException, InterruptedException {
-        sendToRabbit(getRandomMessages(numberOfMessage));
     }
 
     public List<String> getRandomMessages(int numberOfMessages) {
@@ -180,8 +171,12 @@ public abstract class RabbitMQBaseTest {
         return messages;
     }
 
-    public void addCollectorSink(DataStream<String> stream) {
-        stream.addSink(new CollectSink());
+    public void addCollectorSink(DataStream<String> stream, CountDownLatch latch, int failAtNthMessage) {
+        stream.addSink(new CollectSink(latch, failAtNthMessage));
+    }
+
+    public void addCollectorSink(DataStream<String> stream, CountDownLatch latch) {
+        stream.addSink(new CollectSink(latch));
     }
 
     /** CollectSink to access the messages from the stream. */
@@ -189,10 +184,31 @@ public abstract class RabbitMQBaseTest {
 
         // must be static
         public static final List<String> VALUES = Collections.synchronizedList(new ArrayList<>());
+        private static CountDownLatch latch;
+        private static int failAtNthMessage;
+
+        public CollectSink(CountDownLatch latch, int failAtNthMessage) {
+            super();
+            this.latch = latch;
+            this.failAtNthMessage = failAtNthMessage;
+            this.VALUES.clear();
+        }
+
+        public CollectSink(CountDownLatch latch) {
+            this(latch, -1);
+        }
 
         @Override
-        public void invoke(String value) {
+        public void invoke(String value) throws Exception {
+            if (failAtNthMessage > 0) {
+                failAtNthMessage -= 1;
+                if (failAtNthMessage == 0) {
+                    throw new Exception("This is supposed to be thrown.");
+                }
+            }
+
             VALUES.add(value);
+            latch.countDown();
         }
     }
 }
