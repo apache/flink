@@ -204,14 +204,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             assertTrue(error instanceof ProgramInvocationException);
             // all seems well :-)
-        } catch (Exception e) {
+        } catch (Exception | Error e) {
             if (taskManagerProcess != null) {
                 printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
-            }
-            throw e;
-        } catch (Error e) {
-            if (taskManagerProcess != null) {
-                printProcessLog("TaskManager 1", taskManagerProcess.getErrorOutput().toString());
             }
             throw e;
         } finally {
