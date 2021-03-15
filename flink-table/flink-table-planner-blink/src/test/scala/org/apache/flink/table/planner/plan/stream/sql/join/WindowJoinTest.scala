@@ -184,7 +184,7 @@ class WindowJoinTest extends TableTestBase {
   // ----------------------------------------------------------------------------------------
 
   /** Window type in left and right child should be same **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNotSameWindowType(): Unit = {
     val sql =
       """
@@ -215,11 +215,19 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, the windowing TVFs must be the same of left and right inputs.
+         |In the future, we could support different window TVFs, for example, tumbling windows
+         | join sliding windows with the same window size.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
   /** Window spec in left and right child should be same **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNotSameWindowSpec(): Unit = {
     val sql =
       """
@@ -250,11 +258,19 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, the windowing TVFs must be the same of left and right inputs.
+         |In the future, we could support different window TVFs, for example, tumbling windows
+         | join sliding windows with the same window size.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
   /** Window spec in left and right child should be same **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNotSameTimeAttributeType(): Unit = {
     val sql =
       """
@@ -287,6 +303,14 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, time attribute type of left and right inputs should be both row-time or
+         |both proc-time. In the future, we could support different time attribute type.
+         |""".stripMargin
+    )
     util.verifyRelPlan(sql)
   }
 
@@ -296,7 +320,7 @@ class WindowJoinTest extends TableTestBase {
   //  equality or window ends equality for TUMBLE or HOP window.
   // ----------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowEndInConditionForTumbleWindow(): Unit = {
     val sql =
       """
@@ -325,10 +349,18 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowStartInConditionForTumbleWindow(): Unit = {
     val sql =
       """
@@ -357,10 +389,18 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowEndInConditionForHopWindow(): Unit = {
     val sql =
       """
@@ -391,10 +431,18 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowStartInConditionForHopWindow(): Unit = {
     val sql =
       """
@@ -423,10 +471,18 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowEndInConditionForCumulateWindow(): Unit = {
     val sql =
       """
@@ -459,10 +515,18 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMissWindowStartInConditionForCumulateWindow(): Unit = {
     val sql =
       """
@@ -495,6 +559,14 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      s"""
+         |Currently, window starts equality and window ends equality are both required for
+         |window join. In the future, we could support join clause which only includes window
+         |starts equality or window ends equality for TUMBLE or HOP window.
+         |""".stripMargin)
     util.verifyRelPlan(sql)
   }
 

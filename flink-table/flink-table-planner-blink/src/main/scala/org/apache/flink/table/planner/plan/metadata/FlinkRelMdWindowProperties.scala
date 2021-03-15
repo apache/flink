@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, WatermarkAssigner}
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCorrelate, FlinkLogicalJoin, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelateBase, StreamPhysicalMiniBatchAssigner, StreamPhysicalTemporalJoin, StreamPhysicalWindowAggregate, StreamPhysicalWindowJoin, StreamPhysicalWindowRank, StreamPhysicalWindowTableFunction}
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
-import org.apache.flink.table.planner.plan.utils.WindowUtil
-import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, isWindowTableFunctionCall}
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{containsWindowStartEqualityOrEndEquality}
+import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, groupingContainsWindowStartEnd, isWindowTableFunctionCall}
 import org.apache.flink.table.planner.{JArrayList, JHashMap, JList}
 
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -209,7 +209,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val windowProperties = fmq.getRelWindowProperties(agg.getInput)
     val grouping = agg.getGroupSet
-    if (!WindowUtil.groupingContainsWindowStartEnd(grouping, windowProperties)) {
+    if (!groupingContainsWindowStartEnd(grouping, windowProperties)) {
       return null
     }
 
@@ -275,6 +275,18 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   }
 
   def getWindowProperties(
+      rel: FlinkLogicalRank,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val windowProperties = fmq.getRelWindowProperties(rel.getInput)
+    if (groupingContainsWindowStartEnd(rel.partitionKey, windowProperties)) {
+      windowProperties
+    } else {
+      null
+    }
+  }
+
+  def getWindowProperties(
       rel: FlinkLogicalCorrelate,
       mq: RelMetadataQuery): RelWindowProperties = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
@@ -317,10 +329,27 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   }
 
   def getWindowProperties(
+      rel: FlinkLogicalJoin,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    if (containsWindowStartEqualityOrEndEquality(rel)) {
+      getJoinWindowProperties(rel.getLeft, rel.getRight, mq)
+    } else {
+      null
+    }
+  }
+
+  def getWindowProperties(
       rel: StreamPhysicalWindowJoin,
       mq: RelMetadataQuery): RelWindowProperties = {
-    val leftFieldCnt = rel.getLeft.getRowType.getFieldCount
-    val rightFieldCnt = rel.getRight.getRowType.getFieldCount
+    getJoinWindowProperties(rel.getLeft, rel.getRight, mq)
+  }
+
+  private def getJoinWindowProperties(
+      left: RelNode,
+      right: RelNode,
+      mq: RelMetadataQuery): RelWindowProperties = {
+    val leftFieldCnt = left.getRowType.getFieldCount
+    val rightFieldCnt = right.getRowType.getFieldCount
 
     def inferWindowPropertyAfterWindowJoin(
         leftWindowProperty: ImmutableBitSet,
@@ -332,10 +361,9 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     }
 
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
-    val leftWindowProperties = fmq.getRelWindowProperties(rel.getLeft)
-    val rightWindowProperties = fmq.getRelWindowProperties(rel.getRight)
-    assert(leftWindowProperties.getWindowSpec == rightWindowProperties.getWindowSpec)
-    assert(leftWindowProperties.getTimeAttributeType == rightWindowProperties.getTimeAttributeType)
+    val leftWindowProperties = fmq.getRelWindowProperties(left)
+    val rightWindowProperties = fmq.getRelWindowProperties(right)
+
     val startColumns = inferWindowPropertyAfterWindowJoin(
       leftWindowProperties.getWindowStartColumns,
       rightWindowProperties.getWindowStartColumns)

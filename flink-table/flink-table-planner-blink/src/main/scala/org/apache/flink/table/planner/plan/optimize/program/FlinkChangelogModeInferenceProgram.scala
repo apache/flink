@@ -267,8 +267,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(join, children, providedTrait, requiredTrait, requester)
 
       case windowJoin: StreamPhysicalWindowJoin =>
-        // window join support all changes in input
-        val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
+        // Currently, window join only supports INSERT_ONLY in input
+        val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(
           windowJoin, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 

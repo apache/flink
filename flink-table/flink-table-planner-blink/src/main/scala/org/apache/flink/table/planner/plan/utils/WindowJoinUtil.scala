@@ -58,7 +58,7 @@ object WindowJoinUtil {
   def containsWindowStartEqualityOrEndEquality(join: FlinkLogicalJoin): Boolean = {
     val (windowStartEqualityLeftKeys, windowEndEqualityLeftKeys, _, _) =
       excludeWindowStartEqualityAndEndEqualityFromJoinInfoPairs(join)
-    windowStartEqualityLeftKeys.nonEmpty || windowEndEqualityLeftKeys.nonEmpty
+    windowStartEqualityLeftKeys.nonEmpty && windowEndEqualityLeftKeys.nonEmpty
   }
 
   /**

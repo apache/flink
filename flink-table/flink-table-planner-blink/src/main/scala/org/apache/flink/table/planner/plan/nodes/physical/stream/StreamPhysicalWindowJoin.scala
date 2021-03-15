@@ -28,6 +28,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.util.Litmus
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -58,6 +59,26 @@ class StreamPhysicalWindowJoin(
       "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
+  isValid(Litmus.THROW, null)
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    if (leftWindowing.timeAttributeType != rightWindowing.timeAttributeType) {
+      return litmus.fail(
+        s"""
+           |Currently, time attribute type of left and right inputs should be both row-time or
+           |both proc-time. In the future, we could support different time attribute type.
+           |""".stripMargin)
+    }
+    if (leftWindowing.window != rightWindowing.window) {
+      return litmus.fail(
+        s"""
+           |Currently, the windowing TVFs must be the same of left and right inputs.
+           |In the future, we could support different window TVFs, for example, tumbling windows
+           | join sliding windows with the same window size.
+           |""".stripMargin)
+    }
+    super.isValid(litmus, context)
+  }
   override def requireWatermark: Boolean = leftWindowing.isRowtime || rightWindowing.isRowtime
 
   override def copy(

@@ -1016,8 +1016,8 @@ LogicalProject(window_start=[$0], window_end=[$1], a=[$2], l_cnt=[$3], l_uv=[$4]
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, a, cnt AS l_cnt, uv AS l_uv, cnt0 AS r_cnt, uv0 AS r_uv, rownum])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[window_start, window_end], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0, rownum])
-   +- Exchange(distribution=[hash[window_start, window_end]])
++- WindowRank(window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0, rownum])
+   +- Exchange(distribution=[single])
       +- WindowJoin(leftWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rightWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
