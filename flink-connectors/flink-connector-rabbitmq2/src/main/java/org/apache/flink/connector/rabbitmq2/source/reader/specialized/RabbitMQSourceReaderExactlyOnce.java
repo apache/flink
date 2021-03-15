@@ -169,7 +169,6 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
                             + " messages. CorrelationIds will be rolled back. Error: "
                             + e.getMessage());
             this.correlationIds.addAll(correlationIds);
-            e.printStackTrace();
         }
     }
 }
