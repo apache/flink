@@ -36,15 +36,28 @@ import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOpe
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexNode;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} which generates watermark based on the input elements. */
 public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+    public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
+    public static final String FIELD_NAME_ROWTIME_FIELD_INDEX = "rowtimeFieldIndex";
+
+    @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
     private final RexNode watermarkExpr;
+
+    @JsonProperty(FIELD_NAME_ROWTIME_FIELD_INDEX)
     private final int rowtimeFieldIndex;
 
     public StreamExecWatermarkAssigner(
@@ -53,8 +66,26 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.watermarkExpr = watermarkExpr;
+        this(
+                watermarkExpr,
+                rowtimeFieldIndex,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecWatermarkAssigner(
+            @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
+            @JsonProperty(FIELD_NAME_ROWTIME_FIELD_INDEX) int rowtimeFieldIndex,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.watermarkExpr = checkNotNull(watermarkExpr);
         this.rowtimeFieldIndex = rowtimeFieldIndex;
     }
 
