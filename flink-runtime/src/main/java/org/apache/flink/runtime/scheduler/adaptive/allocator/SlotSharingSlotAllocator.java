@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,11 +48,15 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
     private final ReserveSlotFunction reserveSlotFunction;
     private final FreeSlotFunction freeSlotFunction;
+    private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
     public SlotSharingSlotAllocator(
-            ReserveSlotFunction reserveSlot, FreeSlotFunction freeSlotFunction) {
+            ReserveSlotFunction reserveSlot,
+            FreeSlotFunction freeSlotFunction,
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
+        this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
     }
 
     @Override
@@ -159,23 +166,52 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         final VertexParallelismWithSlotSharing vertexParallelismWithSlotSharing =
                 (VertexParallelismWithSlotSharing) vertexParallelism;
 
-        final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
+        final Collection<AllocationID> expectedSlots =
+                calculateExpectedSlots(vertexParallelismWithSlotSharing.getAssignments());
 
-        for (ExecutionSlotSharingGroupAndSlot executionSlotSharingGroup :
-                vertexParallelismWithSlotSharing.getAssignments()) {
-            final SharedSlot sharedSlot =
-                    reserveSharedSlot(executionSlotSharingGroup.getSlotInfo());
+        if (areAllExpectedSlotsAvailableAndFree(expectedSlots)) {
+            final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
-            for (ExecutionVertexID executionVertexId :
-                    executionSlotSharingGroup
-                            .getExecutionSlotSharingGroup()
-                            .getContainedExecutionVertices()) {
-                final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
-                assignedSlots.put(executionVertexId, logicalSlot);
+            for (ExecutionSlotSharingGroupAndSlot executionSlotSharingGroup :
+                    vertexParallelismWithSlotSharing.getAssignments()) {
+                final SharedSlot sharedSlot =
+                        reserveSharedSlot(executionSlotSharingGroup.getSlotInfo());
+
+                for (ExecutionVertexID executionVertexId :
+                        executionSlotSharingGroup
+                                .getExecutionSlotSharingGroup()
+                                .getContainedExecutionVertices()) {
+                    final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
+                    assignedSlots.put(executionVertexId, logicalSlot);
+                }
+            }
+
+            return Optional.of(ReservedSlots.create(assignedSlots));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Nonnull
+    private Collection<AllocationID> calculateExpectedSlots(
+            Iterable<? extends ExecutionSlotSharingGroupAndSlot> assignments) {
+        final Collection<AllocationID> requiredSlots = new ArrayList<>();
+
+        for (ExecutionSlotSharingGroupAndSlot assignment : assignments) {
+            requiredSlots.add(assignment.getSlotInfo().getAllocationId());
+        }
+        return requiredSlots;
+    }
+
+    private boolean areAllExpectedSlotsAvailableAndFree(
+            Iterable<? extends AllocationID> requiredSlots) {
+        for (AllocationID requiredSlot : requiredSlots) {
+            if (!isSlotAvailableAndFreeFunction.isSlotAvailableAndFree(requiredSlot)) {
+                return false;
             }
         }
 
-        return Optional.of(ReservedSlots.create(assignedSlots));
+        return true;
     }
 
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
