@@ -198,7 +198,8 @@ abstract class PlannerBase(
         val input = getRelBuilder.queryOperation(s.getChild).build()
         // convert query schema to sink schema
         val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
-          SelectTableSinkSchemaConverter.changeDefaultConversionClass(s.getChild.getTableSchema))
+          SelectTableSinkSchemaConverter.changeDefaultConversionClass(
+            TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema)))
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
         val sink = createSelectTableSink(sinkSchema)

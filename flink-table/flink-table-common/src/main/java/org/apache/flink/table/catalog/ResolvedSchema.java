@@ -30,10 +30,13 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -68,6 +71,34 @@ public final class ResolvedSchema {
         this.primaryKey = primaryKey;
     }
 
+    /** Shortcut for a resolved schema of only columns. */
+    public static ResolvedSchema of(List<Column> columns) {
+        return new ResolvedSchema(columns, Collections.emptyList(), null);
+    }
+
+    /** Shortcut for a resolved schema of only columns. */
+    public static ResolvedSchema of(Column... columns) {
+        return ResolvedSchema.of(Arrays.asList(columns));
+    }
+
+    /** Shortcut for a resolved schema of only physical columns. */
+    public static ResolvedSchema physical(
+            List<String> columnNames, List<DataType> columnDataTypes) {
+        Preconditions.checkArgument(
+                columnNames.size() == columnDataTypes.size(),
+                "Mismatch between number of columns names and data types.");
+        final List<Column> columns =
+                IntStream.range(0, columnNames.size())
+                        .mapToObj(i -> Column.physical(columnNames.get(i), columnDataTypes.get(i)))
+                        .collect(Collectors.toList());
+        return new ResolvedSchema(columns, Collections.emptyList(), null);
+    }
+
+    /** Shortcut for a resolved schema of only physical columns. */
+    public static ResolvedSchema physical(String[] columnNames, DataType[] columnDataTypes) {
+        return physical(Arrays.asList(columnNames), Arrays.asList(columnDataTypes));
+    }
+
     /** Returns the number of {@link Column}s of this schema. */
     public int getColumnCount() {
         return columns.size();
@@ -76,6 +107,18 @@ public final class ResolvedSchema {
     /** Returns all {@link Column}s of this schema. */
     public List<Column> getColumns() {
         return columns;
+    }
+
+    /** Returns all column names. It does not distinguish between different kinds of columns. */
+    public List<String> getColumnNames() {
+        return columns.stream().map(Column::getName).collect(Collectors.toList());
+    }
+
+    /**
+     * Returns all column data types. It does not distinguish between different kinds of columns.
+     */
+    public List<DataType> getColumnDataTypes() {
+        return columns.stream().map(Column::getDataType).collect(Collectors.toList());
     }
 
     /**

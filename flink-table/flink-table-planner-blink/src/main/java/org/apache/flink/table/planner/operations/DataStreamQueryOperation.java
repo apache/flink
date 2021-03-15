@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -49,7 +50,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
     private final ObjectIdentifier identifier;
     private final DataStream<E> dataStream;
     private final int[] fieldIndices;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
     // TODO remove this while TableSchema supports fieldNullables
     private final boolean[] fieldNullables;
     private final FlinkStatistic statistic;
@@ -58,12 +59,12 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
             int[] fieldIndices,
-            TableSchema tableSchema,
+            ResolvedSchema resolvedSchema,
             boolean[] fieldNullables,
             FlinkStatistic statistic) {
         this.identifier = identifier;
         this.dataStream = dataStream;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
         this.fieldNullables = fieldNullables;
         this.fieldIndices = fieldIndices;
         this.statistic = statistic;
@@ -78,8 +79,8 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override
@@ -90,7 +91,7 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
         } else {
             args.put("id", dataStream.getId());
         }
-        args.put("fields", tableSchema.getFieldNames());
+        args.put("fields", resolvedSchema.getColumnNames());
 
         return OperationUtils.formatWithChildren(
                 "DataStream", args, getChildren(), Operation::asSummaryString);

@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.operations.QueryOperation;
@@ -71,11 +72,11 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        final TableSchema tableSchema =
+                TableSchema.fromResolvedSchema(underlyingHistoryTable.getResolvedSchema());
         return TypeInference.newBuilder()
                 .inputTypeStrategy(InputTypeStrategies.explicitSequence(DataTypes.TIMESTAMP(3)))
-                .outputTypeStrategy(
-                        TypeStrategies.explicit(
-                                underlyingHistoryTable.getTableSchema().toRowDataType()))
+                .outputTypeStrategy(TypeStrategies.explicit(tableSchema.toRowDataType()))
                 .build();
     }
 
@@ -93,12 +94,12 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
     public static TemporalTableFunction create(
             QueryOperation operationTree, Expression timeAttribute, Expression primaryKey) {
+        final TableSchema tableSchema =
+                TableSchema.fromResolvedSchema(operationTree.getResolvedSchema());
         return new TemporalTableFunctionImpl(
                 operationTree,
                 timeAttribute,
                 primaryKey,
-                new RowTypeInfo(
-                        operationTree.getTableSchema().getFieldTypes(),
-                        operationTree.getTableSchema().getFieldNames()));
+                new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames()));
     }
 }

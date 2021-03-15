@@ -137,7 +137,9 @@ object TableSinkUtils {
       // and infer the sink schema via field names, see expandPojoTypeToSchema().
       fromDataTypeToTypeInfo(requestedOutputType) match {
         case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
-        case _ => DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType)
+        case _ =>
+          TableSchema.fromResolvedSchema(
+            DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType))
       }
     } else {
       // atomic type
@@ -171,7 +173,8 @@ object TableSinkUtils {
       }
       DataTypes.FIELD(name, fieldDataType)
     })
-    DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*))
+    TableSchema.fromResolvedSchema(
+      DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*)))
   }
 
   /**

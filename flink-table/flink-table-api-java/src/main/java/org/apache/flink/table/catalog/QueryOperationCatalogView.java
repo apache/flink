@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.HashMap;
@@ -40,7 +41,7 @@ public class QueryOperationCatalogView extends AbstractCatalogView {
         super(
                 queryOperation.asSummaryString(),
                 queryOperation.asSummaryString(),
-                queryOperation.getTableSchema(),
+                TableSchema.fromResolvedSchema(queryOperation.getResolvedSchema()),
                 new HashMap<>(),
                 comment);
         this.queryOperation = queryOperation;
