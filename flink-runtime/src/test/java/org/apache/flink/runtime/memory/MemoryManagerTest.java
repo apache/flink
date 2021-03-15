@@ -35,6 +35,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the memory manager. */
@@ -403,5 +404,29 @@ public class MemoryManagerTest {
         } catch (MemoryReservationException maex) {
             // expected
         }
+    }
+
+    private UnsafeMemoryBudget allocateLeakingPagesAndGetBudget() throws MemoryAllocationException {
+        // We create a new memory manager here since we want it and all its segments to be leaking.
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder()
+                        .setMemorySize(MEMORY_SIZE)
+                        .setPageSize(PAGE_SIZE)
+                        .build();
+        memoryManager.allocatePages(new Object(), (int) memoryManager.getMemorySize() / PAGE_SIZE);
+
+        return memoryManager.getMemoryBudget();
+    }
+
+    @Test
+    public void testGcCleanup() throws Exception {
+        UnsafeMemoryBudget memoryBudget = allocateLeakingPagesAndGetBudget();
+        for (int i = 0;
+                i < 20 && memoryBudget.getAvailableMemorySize() < memoryBudget.getTotalMemorySize();
+                i++) {
+            System.gc();
+            Thread.sleep(50);
+        }
+        assertTrue(memoryBudget.verifyEmpty());
     }
 }

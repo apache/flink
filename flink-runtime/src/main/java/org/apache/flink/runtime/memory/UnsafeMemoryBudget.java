@@ -213,4 +213,16 @@ class UnsafeMemoryBudget {
                             size, currentAvailableMemorySize, totalMemorySize));
         }
     }
+
+    /**
+     * Generates an release memory action that can be performed later
+     *
+     * <p>The generated runnable could be safely referenced by possible gc cleaner action without
+     * worrying about cycle reference back to memory manager.
+     */
+    Runnable getReleaseMemoryAction(@Nonnegative long size) {
+        return () -> {
+            releaseMemory(size);
+        };
+    }
 }

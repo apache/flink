@@ -156,6 +156,12 @@ public class MemoryManager {
         }
     }
 
+    /** Gets memory budget. */
+    @VisibleForTesting
+    public UnsafeMemoryBudget getMemoryBudget() {
+        return memoryBudget;
+    }
+
     /**
      * Checks whether the MemoryManager has been shut down.
      *
@@ -234,7 +240,7 @@ public class MemoryManager {
                     String.format("Could not allocate %d pages", numberOfPages), e);
         }
 
-        Runnable pageCleanup = this::releasePage;
+        Runnable gcCleanup = memoryBudget.getReleaseMemoryAction(getPageSize());
         allocatedSegments.compute(
                 owner,
                 (o, currentSegmentsForOwner) -> {
@@ -244,7 +250,7 @@ public class MemoryManager {
                                     : currentSegmentsForOwner;
                     for (long i = numberOfPages; i > 0; i--) {
                         MemorySegment segment =
-                                allocateOffHeapUnsafeMemory(getPageSize(), owner, pageCleanup);
+                                allocateOffHeapUnsafeMemory(getPageSize(), owner, gcCleanup);
                         target.add(segment);
                         segmentsForOwner.add(segment);
                     }
@@ -252,10 +258,6 @@ public class MemoryManager {
                 });
 
         Preconditions.checkState(!isShutDown, "Memory manager has been concurrently shut down.");
-    }
-
-    private void releasePage() {
-        memoryBudget.releaseMemory(getPageSize());
     }
 
     /**
