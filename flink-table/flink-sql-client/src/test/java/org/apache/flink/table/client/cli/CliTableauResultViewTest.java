@@ -149,8 +149,8 @@ public class CliTableauResultViewTest {
                         Timestamp.valueOf("2020-03-04 18:39:14")));
 
         streamingData = new ArrayList<>();
-        for (int i = 0; i < data.size(); ++i) {
-            Row row = Row.copy(data.get(i));
+        for (Row datum : data) {
+            Row row = Row.copy(datum);
             streamingData.add(row);
         }
     }
@@ -221,11 +221,11 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults());
+        Future<?> furture = executorService.submit(view::displayResults);
 
         // wait until we trying to get batch result
         CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 0,
+                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1,
                 Deadline.now().plus(Duration.ofSeconds(5)),
                 50L);
 
@@ -423,7 +423,7 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults());
+        Future<?> furture = executorService.submit(view::displayResults);
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(
