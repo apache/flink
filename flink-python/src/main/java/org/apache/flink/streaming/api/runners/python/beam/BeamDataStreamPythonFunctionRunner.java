@@ -68,6 +68,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
+                null,
                 memoryManager,
                 managedMemoryFraction);
         this.inputType = inputType;

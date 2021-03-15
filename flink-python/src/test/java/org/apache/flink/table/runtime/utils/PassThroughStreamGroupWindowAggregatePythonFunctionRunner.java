@@ -67,6 +67,7 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 keyedStateBackend,
                 keySerializer,
                 null,
+                null,
                 0.0);
         this.operator = operator;
     }

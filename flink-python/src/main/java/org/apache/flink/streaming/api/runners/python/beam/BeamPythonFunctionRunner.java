@@ -198,6 +198,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
             @Nullable TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             @Nullable MemoryManager memoryManager,
             double managedMemoryFraction) {
         this.taskName = Preconditions.checkNotNull(taskName);
@@ -206,7 +207,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
         this.stateRequestHandler =
-                getStateRequestHandler(keyedStateBackend, keySerializer, null, jobOptions);
+                getStateRequestHandler(
+                        keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
         this.resultTuple = new Tuple2<>();

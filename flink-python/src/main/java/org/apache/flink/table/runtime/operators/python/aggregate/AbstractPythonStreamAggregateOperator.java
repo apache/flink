@@ -206,6 +206,7 @@ public abstract class AbstractPythonStreamAggregateOperator
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
+                getWindowSerializer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -249,6 +250,10 @@ public abstract class AbstractPythonStreamAggregateOperator
         RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputType));
         return selector.getProducedType().toRowType();
+    }
+
+    TypeSerializer getWindowSerializer() {
+        return null;
     }
 
     /**

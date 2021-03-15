@@ -62,6 +62,7 @@ public class BeamTableStatelessPythonFunctionRunner extends BeamPythonFunctionRu
                 flinkMetricContainer,
                 null,
                 null,
+                null,
                 memoryManager,
                 managedMemoryFraction);
         this.coderUrn = Preconditions.checkNotNull(coderUrn);

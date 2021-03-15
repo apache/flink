@@ -30,6 +30,8 @@ cdef enum InternalRowKind:
 cdef class InternalRow:
     cdef readonly list values
     cdef readonly InternalRowKind row_kind
+    cdef bint is_retract_msg(self)
+    cdef bint is_accumulate_msg(self)
 
 cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)

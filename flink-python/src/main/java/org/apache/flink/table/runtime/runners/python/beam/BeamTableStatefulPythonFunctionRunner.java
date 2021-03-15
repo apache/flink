@@ -54,6 +54,7 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction) {
         super(
@@ -64,6 +65,7 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
                 managedMemoryFraction);
         this.coderUrn = Preconditions.checkNotNull(coderUrn);

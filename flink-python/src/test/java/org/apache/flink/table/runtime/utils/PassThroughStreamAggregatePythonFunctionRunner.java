@@ -72,6 +72,7 @@ public class PassThroughStreamAggregatePythonFunctionRunner
                 keyedStateBackend,
                 keySerializer,
                 null,
+                null,
                 0.0);
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;

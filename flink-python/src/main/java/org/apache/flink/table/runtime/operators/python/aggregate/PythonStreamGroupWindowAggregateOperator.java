@@ -50,6 +50,7 @@ import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -220,7 +221,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 window = (W) new CountWindow(id);
             }
             synchronized (getKeyedStateBackend()) {
-                setCurrentKey(key);
+                setCurrentKey(((RowDataSerializer) getKeySerializer()).toBinaryRow(key));
 
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
                     internalTimerService.registerEventTimeTimer(window, timestamp);
@@ -309,6 +310,11 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         }
         builder.setGroupWindow(windowBuilder);
         return builder.build();
+    }
+
+    @Override
+    public TypeSerializer<W> getWindowSerializer() {
+        return windowSerializer;
     }
 
     @Override

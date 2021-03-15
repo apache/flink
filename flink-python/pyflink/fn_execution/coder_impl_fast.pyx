@@ -36,6 +36,14 @@ cdef class InternalRow:
         self.values = values
         self.row_kind = row_kind
 
+    cdef bint is_retract_msg(self):
+        return self.row_kind == InternalRowKind.UPDATE_BEFORE or \
+           self.row_kind == InternalRowKind.DELETE
+
+    cdef bint is_accumulate_msg(self):
+        return self.row_kind == InternalRowKind.UPDATE_AFTER or \
+           self.row_kind == InternalRowKind.INSERT
+
     def __eq__(self, other):
         if not other:
             return False
@@ -45,7 +53,10 @@ cdef class InternalRow:
         return self.values[item]
 
     def __iter__(self):
-        return self.values
+        return iter(self.values)
+
+    def __repr__(self):
+        return "InternalRow(%s, %s)" % (self.row_kind, self.values)
 
 cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
@@ -107,8 +118,11 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
                 self._encode_internal_row(value, output_stream)
         else:
             for result in results:
-                for value in result:
-                    self._encode_internal_row(value, output_stream)
+                if isinstance(result[0], InternalRow):
+                    for value in result:
+                        self._encode_internal_row(value, output_stream)
+                else:
+                    self._encode_one_row_with_row_kind(result, output_stream, 0)
 
     cdef void _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream):
         self._encode_one_row_to_buffer(row.values, row.row_kind)
@@ -590,6 +604,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         cdef TypeName value_type, key_type
         cdef CoderType value_coder_type, key_coder_type
         cdef FieldCoder row_field_coder
+        cdef unsigned char row_kind_value
         cdef list row_field_coders, row_value
 
         if field_type == DECIMAL:
@@ -663,7 +678,12 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             leading_complete_bytes_num = (row_field_count + ROW_KIND_BIT_SIZE) // 8
             remaining_bits_num = (row_field_count + ROW_KIND_BIT_SIZE) % 8
             row_value = list(item)
-            row_kind_value = item._row_kind.value
+            if isinstance(item, InternalRow):
+                row_kind_value = item.row_kind
+            elif isinstance(item, Row):
+                row_kind_value = item._row_kind.value
+            else:
+                row_kind_value = 0
             self._write_mask(row_value, leading_complete_bytes_num, remaining_bits_num, row_kind_value, row_field_count)
             for i in range(row_field_count):
                 field_item = row_value[i]
@@ -810,6 +830,7 @@ cdef class WindowCoderImpl(BaseCoderImpl):
 
 cdef class TimeWindowCoderImpl(WindowCoderImpl):
     cpdef bytes encode_nested(self, value: TimeWindow):
+        self._tmp_output_pos = 0
         self._encode_bigint(value.start)
         self._encode_bigint(value.end)
         return self._tmp_output_data[:16]
@@ -817,6 +838,7 @@ cdef class TimeWindowCoderImpl(WindowCoderImpl):
 
 cdef class CountWindowCoderImpl(WindowCoderImpl):
     cpdef bytes encode_nested(self, value: CountWindow):
+        self._tmp_output_pos = 0
         self._encode_bigint(value.id)
         return self._tmp_output_data[:8]
 
