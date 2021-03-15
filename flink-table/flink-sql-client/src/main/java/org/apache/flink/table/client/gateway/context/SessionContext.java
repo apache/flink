@@ -232,7 +232,7 @@ public class SessionContext {
 
     // --------------------------------------------------------------------------------------------
 
-    private void resetSessionConfigurationToValue(Configuration newValue) {
+    private void resetSessionConfigurationToDefault(Configuration defaultConf) {
         for (String key : sessionConfiguration.toMap().keySet()) {
             // Don't care the type of the option
             ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
