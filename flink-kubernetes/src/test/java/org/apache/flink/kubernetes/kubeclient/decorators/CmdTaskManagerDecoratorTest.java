@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import org.junit.Test;
 
 import java.util.List;
@@ -78,5 +79,17 @@ public class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                 + " "
                                 + mainClassArgs);
         assertThat(resultFlinkPod.getMainContainer().getArgs(), contains(flinkCommands.toArray()));
+    }
+
+    @Test
+    public void testTaskManagerJvmMemOptsEnv() {
+        final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod);
+        assertThat(
+                resultFlinkPod.getMainContainer().getEnv(),
+                contains(
+                        new EnvVarBuilder()
+                                .withName(Constants.ENV_TM_JVM_MEM_OPTS)
+                                .withValue(JVM_MEM_OPTS_ENV)
+                                .build()));
     }
 }

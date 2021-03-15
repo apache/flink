@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 
 import java.util.List;
 
@@ -47,6 +48,12 @@ public class CmdTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 new ContainerBuilder(flinkPod.getMainContainer())
                         .withCommand(kubernetesTaskManagerParameters.getContainerEntrypoint())
                         .withArgs(getTaskManagerStartCommand())
+                        .addToEnv(
+                                new EnvVarBuilder()
+                                        .withName(Constants.ENV_TM_JVM_MEM_OPTS)
+                                        .withValue(
+                                                kubernetesTaskManagerParameters.getJvmMemOptsEnv())
+                                        .build())
                         .build();
 
         return new FlinkPod.Builder(flinkPod).withMainContainer(mainContainerWithStartCmd).build();
