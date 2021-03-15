@@ -334,6 +334,22 @@ public class SqlCommandParserTest {
                         // show full modules
                         TestItem.validSql(
                                 "SHOW FULL MODULES", SqlCommand.SHOW_MODULES, "SHOW FULL MODULES"),
+                        // show functions
+                        TestItem.validSql(
+                                "SHOW FUNCTIONS;", SqlCommand.SHOW_FUNCTIONS, "SHOW FUNCTIONS"),
+                        TestItem.validSql(
+                                "  SHOW FUNCTIONS   ;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW FUNCTIONS"),
+                        // show user functions
+                        TestItem.validSql(
+                                "SHOW USER FUNCTIONS;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW USER FUNCTIONS"),
+                        TestItem.validSql(
+                                "  SHOW USER FUNCTIONS   ;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW USER FUNCTIONS"),
                         // Test create function.
                         TestItem.invalidSql(
                                 "CREATE FUNCTION ",

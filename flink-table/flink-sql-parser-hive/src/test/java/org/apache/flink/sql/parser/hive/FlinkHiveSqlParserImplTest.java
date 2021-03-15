@@ -250,8 +250,8 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testShowFunctions() {
-        // TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
         sql("show functions").ok("SHOW FUNCTIONS");
+        sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test

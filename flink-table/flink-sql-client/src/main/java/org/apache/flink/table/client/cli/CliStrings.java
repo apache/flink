@@ -89,7 +89,7 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     SqlCommand.SHOW_FUNCTIONS,
-                                    "Shows all user-defined and built-in functions."))
+                                    "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
                     .append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
                     .append(
                             formatCommand(

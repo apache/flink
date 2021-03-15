@@ -312,7 +312,7 @@ public class CliClient implements AutoCloseable {
                 callShowViews();
                 break;
             case SHOW_FUNCTIONS:
-                callShowFunctions();
+                callShowFunctions(cmdCall);
                 break;
             case SHOW_MODULES:
                 callShowModules(cmdCall);
@@ -568,10 +568,10 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
-    private void callShowFunctions() {
+    private void callShowFunctions(SqlCommandCall cmdCall) {
         final List<String> functions;
         try {
-            functions = getShowResult("FUNCTIONS");
+            functions = getShowResult(cmdCall);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
