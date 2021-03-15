@@ -17,8 +17,7 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import io.prometheus.client.exporter.PushGateway;
-
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
@@ -50,8 +49,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
 
     @Override
     public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
-        MetricConfig metricConfig = (MetricConfig)properties;
-
+        MetricConfig metricConfig = (MetricConfig) properties;
         String host = metricConfig.getString(HOST.key(), HOST.defaultValue());
         int port = metricConfig.getInteger(PORT.key(), PORT.defaultValue());
         String configuredJobName = metricConfig.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
@@ -71,7 +69,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         String jobName = configuredJobName;
         if (randomSuffix) {
             jobName = configuredJobName + new AbstractID();
-        } 
+        }
 
         LOG.info(
                 "Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
@@ -85,6 +83,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         return new PrometheusPushGatewayReporter(host, port, jobName, groupingKey, deleteOnShutdown);
     }
 
+    @VisibleForTesting
     static Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
         if (!groupingKeyConfig.isEmpty()) {
             Map<String, String> groupingKey = new HashMap<>();

@@ -52,12 +52,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
-
-import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 
 /** Basic test for {@link PrometheusReporter}. */
 public class PrometheusReporterTest extends TestLogger {

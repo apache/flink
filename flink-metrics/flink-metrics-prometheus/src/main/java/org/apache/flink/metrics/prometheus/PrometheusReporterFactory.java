@@ -17,20 +17,11 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import io.prometheus.client.exporter.HTTPServer;
-
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.util.NetUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.Properties;
 
@@ -44,7 +35,7 @@ public class PrometheusReporterFactory implements MetricReporterFactory {
 
     @Override
     public PrometheusReporter createMetricReporter(Properties properties) {
-        MetricConfig metricConfig = (MetricConfig)properties;
+        MetricConfig metricConfig = (MetricConfig) properties;
         String portsConfig = metricConfig.getString(ARG_PORT, DEFAULT_PORT);
         Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 

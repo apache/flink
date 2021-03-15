@@ -28,8 +28,6 @@ import org.apache.flink.util.Preconditions;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.Map;
 
