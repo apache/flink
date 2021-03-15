@@ -273,7 +273,7 @@ abstract class BatchTableEnvImpl(
                case o: PlannerQueryOperation if o.getCalciteTree.isInstanceOf[LogicalTableModify] =>
                  o.getCalciteTree.getInput(0).getRowType.getFieldNames.asScala.toArray[String]
                case _ =>
-                 queryOperation.getTableSchema.getFieldNames
+                 queryOperation.getResolvedSchema.getColumnNames.asScala.toArray[String]
              }
              val dataSet = translate[Row](
                optimizedNode,
@@ -286,7 +286,9 @@ abstract class BatchTableEnvImpl(
                batchTableEnv,
                optimizedNode,
                tableSink,
-               getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
+               getTableSchema(
+                 modifyOperation.getChild.getResolvedSchema.getColumnNames.asScala.toArray[String],
+                 optimizedNode))
            case o =>
              throw new TableException("Unsupported Operation: " + o.asSummaryString())
          }
@@ -417,7 +419,7 @@ abstract class BatchTableEnvImpl(
     val tableOperation = new DataSetQueryOperation[T](
       dataSet,
       fieldsInfo.getIndices,
-      fieldsInfo.toTableSchema)
+      fieldsInfo.toResolvedSchema)
     tableOperation
   }
 
@@ -483,7 +485,9 @@ abstract class BatchTableEnvImpl(
           batchTableEnv,
           optimizedNode,
           tableSink,
-          getTableSchema(modifyOperation.getChild.getTableSchema.getFieldNames, optimizedNode))
+          getTableSchema(
+            modifyOperation.getChild.getResolvedSchema.getColumnNames.asScala.toArray[String],
+            optimizedNode))
     }.asJava
   }
 
@@ -565,7 +569,9 @@ abstract class BatchTableEnvImpl(
     val dataSetPlan = optimize(relNode)
     translate(
       dataSetPlan,
-      getTableSchema(queryOperation.getTableSchema.getFieldNames, dataSetPlan))
+      getTableSchema(
+        queryOperation.getResolvedSchema.getColumnNames.asScala.toArray[String],
+        dataSetPlan))
   }
 
   /**

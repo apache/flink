@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -110,7 +111,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
@@ -152,7 +152,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             List<RexNode> rexNodes = convertToRexNodes(projection.getProjectList());
 
             return relBuilder
-                    .project(rexNodes, asList(projection.getTableSchema().getFieldNames()), true)
+                    .project(rexNodes, projection.getResolvedSchema().getColumnNames(), true)
                     .build();
         }
 
@@ -301,7 +301,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
             return relBuilder
                     .functionScan(sqlFunction, 0, parameters)
-                    .rename(Arrays.asList(calculatedTable.getTableSchema().getFieldNames()))
+                    .rename(calculatedTable.getResolvedSchema().getColumnNames())
                     .build();
         }
 
@@ -310,12 +310,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 TableFunctionDefinition functionDefinition,
                 List<RexNode> parameters,
                 FlinkTypeFactory typeFactory) {
-            String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
+            List<String> fieldNames = calculatedTable.getResolvedSchema().getColumnNames();
 
             TableFunction<?> tableFunction = functionDefinition.getTableFunction();
             DataType resultType = fromLegacyInfoToDataType(functionDefinition.getResultType());
             TypedFlinkTableFunction function =
-                    new TypedFlinkTableFunction(tableFunction, fieldNames, resultType);
+                    new TypedFlinkTableFunction(
+                            tableFunction, fieldNames.toArray(new String[0]), resultType);
 
             final TableSqlFunction sqlFunction =
                     new TableSqlFunction(
@@ -351,7 +352,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         @Override
         public RelNode visit(ValuesQueryOperation values) {
             RelDataType rowType =
-                    relBuilder.getTypeFactory().buildRelNodeRowType(values.getTableSchema());
+                    relBuilder
+                            .getTypeFactory()
+                            .buildRelNodeRowType(
+                                    TableSchema.fromResolvedSchema(values.getResolvedSchema()));
             if (values.getValues().isEmpty()) {
                 relBuilder.values(rowType);
                 return relBuilder.build();
@@ -389,8 +393,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                                 LogicalValues.createOneRow(
                                                         relBuilder.getCluster()));
                                         relBuilder.project(
-                                                exprs,
-                                                asList(values.getTableSchema().getFieldNames()));
+                                                exprs, values.getResolvedSchema().getColumnNames());
                                         return relBuilder.build();
                                     })
                             .collect(toList());
@@ -430,7 +433,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return convertToDataStreamScan(
                         dataStreamQueryOperation.getDataStream(),
                         dataStreamQueryOperation.getFieldIndices(),
-                        dataStreamQueryOperation.getTableSchema(),
+                        dataStreamQueryOperation.getResolvedSchema(),
                         dataStreamQueryOperation.getIdentifier());
             } else if (other instanceof ScalaDataStreamQueryOperation) {
                 ScalaDataStreamQueryOperation dataStreamQueryOperation =
@@ -438,7 +441,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return convertToDataStreamScan(
                         dataStreamQueryOperation.getDataStream(),
                         dataStreamQueryOperation.getFieldIndices(),
-                        dataStreamQueryOperation.getTableSchema(),
+                        dataStreamQueryOperation.getResolvedSchema(),
                         dataStreamQueryOperation.getIdentifier());
             }
 
@@ -519,7 +522,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     DataStreamTable$.MODULE$.getRowType(
                             relBuilder.getTypeFactory(),
                             operation.getDataStream(),
-                            operation.getTableSchema().getFieldNames(),
+                            operation.getResolvedSchema().getColumnNames().toArray(new String[0]),
                             operation.getFieldIndices(),
                             scala.Option.apply(operation.getFieldNullables()));
             DataStreamTable<?> dataStreamTable =
@@ -529,7 +532,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                             rowType,
                             operation.getDataStream(),
                             operation.getFieldIndices(),
-                            operation.getTableSchema().getFieldNames(),
+                            operation.getResolvedSchema().getColumnNames().toArray(new String[0]),
                             operation.getStatistic(),
                             scala.Option.apply(operation.getFieldNullables()));
             return LogicalTableScan.create(
@@ -539,7 +542,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         private RelNode convertToDataStreamScan(
                 DataStream<?> dataStream,
                 int[] fieldIndices,
-                TableSchema tableSchema,
+                ResolvedSchema resolvedSchema,
                 Optional<ObjectIdentifier> identifier) {
             List<String> names;
             if (identifier.isPresent()) {
@@ -556,7 +559,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     DataStreamTable$.MODULE$.getRowType(
                             relBuilder.getTypeFactory(),
                             dataStream,
-                            tableSchema.getFieldNames(),
+                            resolvedSchema.getColumnNames().toArray(new String[0]),
                             fieldIndices,
                             scala.Option.empty());
             DataStreamTable<?> dataStreamTable =
@@ -566,7 +569,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                             rowType,
                             dataStream,
                             fieldIndices,
-                            tableSchema.getFieldNames(),
+                            resolvedSchema.getColumnNames().toArray(new String[0]),
                             FlinkStatistic.UNKNOWN(),
                             scala.Option.empty());
             return LogicalTableScan.create(

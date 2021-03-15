@@ -270,7 +270,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                     identifier,
                     operation.getDataStream(),
                     operation.getFieldIndices(),
-                    operation.getTableSchema());
+                    operation.getResolvedSchema());
         } else {
             return queryOperation;
         }
@@ -395,7 +395,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         .orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
 
         return new JavaDataStreamQueryOperation<>(
-                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toTableSchema());
+                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toResolvedSchema());
     }
 
     private void validateTimeCharacteristic(boolean isRowtimeDefined) {

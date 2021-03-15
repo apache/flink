@@ -546,11 +546,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         return catalogManager
                 .getTable(tableIdentifier)
-                .map(
-                        t ->
-                                new CatalogQueryOperation(
-                                        tableIdentifier,
-                                        TableSchema.fromResolvedSchema(t.getResolvedSchema())));
+                .map(t -> new CatalogQueryOperation(tableIdentifier, t.getResolvedSchema()));
     }
 
     @Override
@@ -762,7 +758,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.builder()
                     .jobClient(jobClient)
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .tableSchema(operation.getTableSchema())
+                    .tableSchema(TableSchema.fromResolvedSchema(operation.getResolvedSchema()))
                     .data(resultProvider.getResultIterator())
                     .setPrintStyle(
                             TableResultImpl.PrintStyle.tableau(

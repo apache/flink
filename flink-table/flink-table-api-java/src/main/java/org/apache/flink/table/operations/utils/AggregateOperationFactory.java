@@ -27,9 +27,9 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
 import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -135,9 +135,8 @@ final class AggregateOperationFactory {
                                                                 p, Arrays.asList(groupNames))))
                         .toArray(String[]::new);
 
-        TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
-
-        return new AggregateQueryOperation(groupings, aggregates, child, tableSchema);
+        return new AggregateQueryOperation(
+                groupings, aggregates, child, ResolvedSchema.physical(fieldNames, fieldTypes));
     }
 
     /**
@@ -184,10 +183,13 @@ final class AggregateOperationFactory {
                                         .map(expr -> extractName(expr).orElseGet(expr::toString)))
                         .toArray(String[]::new);
 
-        TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
-
         return new WindowAggregateQueryOperation(
-                groupings, aggregates, windowProperties, window, child, tableSchema);
+                groupings,
+                aggregates,
+                windowProperties,
+                window,
+                child,
+                ResolvedSchema.physical(fieldNames, fieldTypes));
     }
 
     /**

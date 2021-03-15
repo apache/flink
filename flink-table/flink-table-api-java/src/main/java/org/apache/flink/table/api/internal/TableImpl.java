@@ -103,7 +103,7 @@ public class TableImpl implements Table {
 
     @Override
     public TableSchema getSchema() {
-        return operationTree.getTableSchema();
+        return TableSchema.fromResolvedSchema(operationTree.getResolvedSchema());
     }
 
     @Override
@@ -168,7 +168,7 @@ public class TableImpl implements Table {
     @Override
     public Table as(String field, String... fields) {
         final List<Expression> fieldsExprs;
-        if (fields.length == 0 && operationTree.getTableSchema().getFieldCount() > 1) {
+        if (fields.length == 0 && operationTree.getResolvedSchema().getColumnCount() > 1) {
             fieldsExprs = ExpressionParser.parseExpressionList(field);
         } else {
             fieldsExprs = new ArrayList<>();

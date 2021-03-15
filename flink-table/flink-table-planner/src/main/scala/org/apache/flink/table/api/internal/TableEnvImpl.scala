@@ -462,7 +462,7 @@ abstract class TableEnvImpl(
       .map(t =>
         new CatalogQueryOperation(
           objectIdentifier,
-          TableSchema.fromResolvedSchema(t.getResolvedSchema)))
+          t.getResolvedSchema))
   }
 
   override def listModules(): Array[String] = {
@@ -607,7 +607,7 @@ abstract class TableEnvImpl(
   }
 
   override def executeInternal(operation: QueryOperation): TableResult = {
-    val tableSchema = operation.getTableSchema
+    val tableSchema = TableSchema.fromResolvedSchema(operation.getResolvedSchema)
     val tableSink = new BatchSelectTableSink(tableSchema)
     val dataSink = writeToSinkAndTranslate(operation, tableSink)
     try {

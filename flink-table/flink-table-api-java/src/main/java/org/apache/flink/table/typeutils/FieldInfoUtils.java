@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -152,8 +153,8 @@ public class FieldInfoUtils {
             return isRowtimeDefined;
         }
 
-        public TableSchema toTableSchema() {
-            return TableSchema.builder().fields(fieldNames, fieldTypes).build();
+        public ResolvedSchema toResolvedSchema() {
+            return ResolvedSchema.physical(fieldNames, fieldTypes);
         }
     }
 

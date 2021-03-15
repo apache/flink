@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -39,7 +39,7 @@ import java.util.List;
 public class PlannerQueryOperation implements QueryOperation {
 
     private final RelNode calciteTree;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public PlannerQueryOperation(RelNode calciteTree) {
         this.calciteTree = calciteTree;
@@ -54,7 +54,7 @@ public class PlannerQueryOperation implements QueryOperation {
                                                 FlinkTypeFactory.toLogicalType(field.getType())))
                         .toArray(DataType[]::new);
 
-        this.tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
+        this.resolvedSchema = ResolvedSchema.physical(fieldNames, fieldTypes);
     }
 
     public RelNode getCalciteTree() {
@@ -62,8 +62,8 @@ public class PlannerQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

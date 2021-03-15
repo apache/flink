@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.operations.QueryOperation
 
@@ -44,13 +44,14 @@ object TableSinkUtils {
       sink: TableSink[_])
     : Unit = {
     // validate schema of source table and table sink
-    val srcFieldTypes = query.getTableSchema.getFieldTypes
+    val schema = TableSchema.fromResolvedSchema(query.getResolvedSchema)
+    val srcFieldTypes = schema.getFieldTypes
     val sinkFieldTypes = sink.getTableSchema.getFieldTypes
 
     if (srcFieldTypes.length != sinkFieldTypes.length ||
       srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
-      val srcFieldNames = query.getTableSchema.getFieldNames
+      val srcFieldNames = schema.getFieldNames
       val sinkFieldNames = sink.getTableSchema.getFieldNames
 
       // format table and table sink schema strings

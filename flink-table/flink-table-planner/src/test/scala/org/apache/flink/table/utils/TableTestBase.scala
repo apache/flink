@@ -48,6 +48,7 @@ import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
+import scala.collection.JavaConversions.asScalaBuffer
 import scala.io.Source
 import scala.util.control.Breaks._
 
@@ -207,15 +208,15 @@ object TableTestUtil {
   def batchTableNode(table: Table): String = {
     val dataSetTable = table.getQueryOperation.asInstanceOf[DataSetQueryOperation[_]]
     s"DataSetScan(ref=[${System.identityHashCode(dataSetTable.getDataSet)}], " +
-      s"fields=[${dataSetTable.getTableSchema.getFieldNames.mkString(", ")}])"
+      s"fields=[${dataSetTable.getResolvedSchema.getColumnNames.mkString(", ")}])"
   }
 
   def streamTableNode(table: Table): String = {
     val (id, fieldNames) = table.getQueryOperation match {
       case q: JavaDataStreamQueryOperation[_] =>
-        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+        (q.getDataStream.getId, q.getResolvedSchema.getColumnNames)
       case q: ScalaDataStreamQueryOperation[_] =>
-        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+        (q.getDataStream.getId, q.getResolvedSchema.getColumnNames)
       case n => throw new AssertionError(s"Unexpected table node $n")
     }
 
