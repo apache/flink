@@ -32,22 +32,40 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /** Base {@link ExecNode} which matches along with join a Java/Scala user defined table function. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_JOIN_TYPE = "joinType";
+    public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
+    public static final String FIELD_NAME_CONDITION = "condition";
+
+    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
+
+    @JsonProperty(FIELD_NAME_FUNCTION_CALL)
     private final RexCall invocation;
-    @Nullable private final RexNode condition;
-    private final Class<?> operatorBaseClass;
-    private final boolean retainHeader;
+
+    @JsonProperty(FIELD_NAME_CONDITION)
+    @Nullable
+    private final RexNode condition;
+
+    @JsonIgnore private final Class<?> operatorBaseClass;
+    @JsonIgnore private final boolean retainHeader;
 
     public CommonExecCorrelate(
             FlinkJoinType joinType,
@@ -58,7 +76,29 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        this(
+                joinType,
+                invocation,
+                condition,
+                operatorBaseClass,
+                retainHeader,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    public CommonExecCorrelate(
+            FlinkJoinType joinType,
+            RexCall invocation,
+            @Nullable RexNode condition,
+            Class<?> operatorBaseClass,
+            boolean retainHeader,
+            int id,
+            List<InputProperty> inputProperty,
+            RowType outputType,
+            String description) {
+        super(id, inputProperty, outputType, description);
         this.joinType = joinType;
         this.invocation = invocation;
         this.condition = condition;
