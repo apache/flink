@@ -257,7 +257,8 @@ public class AdaptiveScheduler
         this.slotAllocator =
                 new SlotSharingSlotAllocator(
                         declarativeSlotPool::reserveFreeSlot,
-                        declarativeSlotPool::freeReservedSlot);
+                        declarativeSlotPool::freeReservedSlot,
+                        declarativeSlotPool::containsFreeSlot);
 
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
