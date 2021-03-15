@@ -102,6 +102,16 @@ public interface DeclarativeSlotPool {
     Collection<? extends SlotInfo> getAllSlotsInformation();
 
     /**
+     * Checks whether the slot pool contains a slot with the given {@link AllocationID} and if it is
+     * free.
+     *
+     * @param allocationId allocationId specifies the slot to check for
+     * @return {@code true} if the slot pool contains a free slot registered under the given
+     *     allocation id; otherwise {@code false}
+     */
+    boolean containsFreeSlot(AllocationID allocationId);
+
+    /**
      * Reserves the free slot identified by the given allocationId and maps it to the given
      * requiredSlotProfile.
      *

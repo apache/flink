@@ -234,6 +234,34 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
         slotPool.removeSlots(ResourceID.generate());
     }
 
+    @Test
+    public void testContainsFreeSlotReturnsTrueIfSlotIsFree() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+        final AllocatedSlot allocatedSlot = createAllocatedSlot(ResourceID.generate());
+
+        slotPool.addSlots(Collections.singleton(allocatedSlot), 0);
+
+        assertTrue(slotPool.containsFreeSlot(allocatedSlot.getAllocationId()));
+    }
+
+    @Test
+    public void testContainsFreeSlotReturnsFalseIfSlotDoesNotExist() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+
+        assertFalse(slotPool.containsFreeSlot(new AllocationID()));
+    }
+
+    @Test
+    public void testContainsFreeSlotReturnsFalseIfSlotIsReserved() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+        final AllocatedSlot allocatedSlot = createAllocatedSlot(ResourceID.generate());
+
+        slotPool.addSlots(Collections.singleton(allocatedSlot), 0);
+        slotPool.reserveFreeSlot(allocatedSlot.getAllocationId());
+
+        assertFalse(slotPool.containsFreeSlot(allocatedSlot.getAllocationId()));
+    }
+
     private void assertSlotPoolContainsSlots(
             DefaultAllocatedSlotPool slotPool, Collection<AllocatedSlot> slots) {
         assertThat(slotPool.getAllSlotsInformation(), hasSize(slots.size()));

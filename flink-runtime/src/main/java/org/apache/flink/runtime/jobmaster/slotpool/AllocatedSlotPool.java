@@ -74,6 +74,16 @@ public interface AllocatedSlotPool {
     boolean containsSlot(AllocationID allocationId);
 
     /**
+     * Checks whether the slot pool contains a slot with the given {@link AllocationID} and if it is
+     * free.
+     *
+     * @param allocationId allocationId specifies the slot to check for
+     * @return {@code true} if the slot pool contains a free slot registered under the given
+     *     allocation id; otherwise {@code false}
+     */
+    boolean containsFreeSlot(AllocationID allocationId);
+
+    /**
      * Reserves the free slot specified by the given allocationId.
      *
      * @param allocationId allocationId identifying the free slot to reserve
