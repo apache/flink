@@ -213,4 +213,16 @@ class UnsafeMemoryBudget {
                             size, currentAvailableMemorySize, totalMemorySize));
         }
     }
+
+    /**
+     * Return an runnable to postpone memory release.
+     *
+     * <p>The returned runnable could be safely referenced by possible gc cleaner action without
+     * worrying about cycle reference back to memory manager.
+     */
+    Runnable cleanupMemory(@Nonnegative long size) {
+        return () -> {
+            releaseMemory(size);
+        };
+    }
 }
