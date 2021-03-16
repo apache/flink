@@ -208,14 +208,9 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
      * @param messageIds ids that will be acknowledged.
      * @throws RuntimeException if an error occurs during the acknowledgement.
      */
-    protected void acknowledgeMessageIds(List<Long> messageIds) {
-        try {
-            for (long id : messageIds) {
-                rmqChannel.basicAck(id, false);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "Messages could not be acknowledged during checkpoint creation.", e);
+    protected void acknowledgeMessageIds(List<Long> messageIds) throws IOException {
+        for (long id : messageIds) {
+            rmqChannel.basicAck(id, false);
         }
     }
 

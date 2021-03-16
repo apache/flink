@@ -134,7 +134,11 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
                     checkpointIterator.next();
             long nextCheckpointId = nextCheckpoint.f0;
             if (nextCheckpointId <= checkpointId) {
-                acknowledgeMessages(nextCheckpoint.f1);
+                try {
+                    acknowledgeMessages(nextCheckpoint.f1);
+                } catch (IOException e) {
+                    throw new RuntimeException("Messages could not be acknowledged during checkpoint complete.", e);
+                }
                 checkpointIterator.remove();
             }
         }
@@ -147,7 +151,7 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
         getRmqChannel().txSelect();
     }
 
-    private void acknowledgeMessages(List<RabbitMQMessageWrapper<T>> messages) {
+    private void acknowledgeMessages(List<RabbitMQMessageWrapper<T>> messages) throws IOException {
         List<String> correlationIds =
                 messages.stream()
                         .map(RabbitMQMessageWrapper::getCorrelationId)
@@ -169,6 +173,7 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
                             + " messages. CorrelationIds will be rolled back. Error: "
                             + e.getMessage());
             this.correlationIds.addAll(correlationIds);
+            throw e;
         }
     }
 }

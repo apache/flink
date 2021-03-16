@@ -25,6 +25,7 @@ import org.apache.flink.connector.rabbitmq2.source.common.RabbitMQMessageWrapper
 import org.apache.flink.connector.rabbitmq2.source.reader.RabbitMQSourceReaderBase;
 import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplit;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -89,7 +90,11 @@ public class RabbitMQSourceReaderAtLeastOnce<T> extends RabbitMQSourceReaderBase
             final Tuple2<Long, List<Long>> nextCheckpoint = checkpointIterator.next();
             long nextCheckpointId = nextCheckpoint.f0;
             if (nextCheckpointId <= checkpointId) {
-                acknowledgeMessageIds(nextCheckpoint.f1);
+                try {
+                    acknowledgeMessageIds(nextCheckpoint.f1);
+                } catch (IOException e) {
+                    throw new RuntimeException("Messages could not be acknowledged during checkpoint complete.", e);
+                }
                 checkpointIterator.remove();
             }
         }
