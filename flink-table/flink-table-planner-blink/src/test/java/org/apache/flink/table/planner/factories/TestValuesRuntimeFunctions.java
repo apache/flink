@@ -507,8 +507,10 @@ final class TestValuesRuntimeFunctions {
             assert row != null;
             localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
             if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                row.setKind(RowKind.INSERT);
                 localRetractResult.add(row.toString());
             } else {
+                row.setKind(RowKind.INSERT);
                 boolean contains = localRetractResult.remove(row.toString());
                 if (!contains) {
                     throw new RuntimeException(

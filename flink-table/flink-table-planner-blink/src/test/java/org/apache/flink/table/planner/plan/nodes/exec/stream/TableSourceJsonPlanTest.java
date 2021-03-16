@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -118,11 +117,6 @@ public class TableSourceJsonPlanTest extends TableTestBase {
 
     @Test
     public void testLimitPushDown() {
-        exception.expect(TableException.class);
-        // currently, there is a StreamExecLimit in the plan, once StreamExecLimit does support
-        // json serialization/deserialization, the following exception checking should be removed.
-        exception.expectMessage(
-                "StreamExecLimit does not implement @JsonCreator annotation on constructor");
         util.verifyJsonPlan("insert into MySink select * from MyTable limit 3");
     }
 
