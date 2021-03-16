@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.rabbitmq2.source.reader.specialized;
 
+import org.apache.commons.compress.compressors.lz77support.LZ77Compressor;
+
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,10 +35,16 @@ import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -55,12 +63,19 @@ import java.util.stream.Collectors;
  * @see RabbitMQSourceReaderBase
  */
 public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase<T> {
-    // Message that were polled by the output since the last checkpoint.
+    // Message that were polled by the output since the last checkpoint was created.
+    // These messages are currently forward but not yet acknowledged to RabbitMQ.
+    // It needs to be ensured they are persisted before they can be acknowledged and thus be delete
+    // in RabbitMQ.
     private final List<RabbitMQMessageWrapper<T>>
             polledAndUnacknowledgedMessagesSinceLastCheckpoint;
-    //
-    private final Deque<Tuple2<Long, List<RabbitMQMessageWrapper<T>>>>
+
+    // All message in polledAndUnacknowledgedMessagesSinceLastCheckpoint will move to hear when
+    // a new checkpoint is created and therefore the messages can be mapped to it. This mapping is
+    // necessary to ensure we acknowledge only message which belong to a completed checkpoint.
+    private final BlockingQueue<Tuple2<Long, List<RabbitMQMessageWrapper<T>>>>
             polledAndUnacknowledgedMessagesPerCheckpoint;
+
     // Set of correlation ids that have been seen and are not acknowledged yet.
     private final ConcurrentHashMap.KeySetView<String, Boolean> correlationIds;
 
@@ -68,8 +83,8 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
             SourceReaderContext sourceReaderContext,
             DeserializationSchema<T> deliveryDeserializer) {
         super(sourceReaderContext, deliveryDeserializer);
-        this.polledAndUnacknowledgedMessagesSinceLastCheckpoint = new ArrayList<>();
-        this.polledAndUnacknowledgedMessagesPerCheckpoint = new ArrayDeque<>();
+        this.polledAndUnacknowledgedMessagesSinceLastCheckpoint = Collections.synchronizedList(new ArrayList<>());
+        this.polledAndUnacknowledgedMessagesPerCheckpoint = new LinkedBlockingQueue<>();
         this.correlationIds = ConcurrentHashMap.newKeySet();
     }
 

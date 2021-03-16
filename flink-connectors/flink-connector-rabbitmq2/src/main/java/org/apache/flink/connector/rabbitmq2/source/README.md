@@ -1,7 +1,8 @@
 # RabbitMQ Source
 
-Flink's RabbitMQ connector provides a streaming-only source which enables you to receive messages from a RabbitMQ
-queue in three different consistency modes: at-most-once, at-least-once, and exactly-once.
+Flink's RabbitMQ connector provides a streaming-only source which enables you to receive messages
+from a RabbitMQqueue in three different consistency modes: at-most-once, at-least-once, 
+and exactly-once.
 
 ## Consistency Behaviour
 With __at-most-once__, the source will receive each message and automatically acknowledges it to
@@ -15,8 +16,11 @@ polled are acknowledged to RabbitMQ. Therefore, the mode requires _checkpointing
 it is assured that the messages are correctly processed by the system. If the system crashes in the
 meantime, the unacknowledged messages will be resend by RabbitMQ to assure at-least-once behavior.
 
-The __exactly-once-mode__ mode uses _correlation ids_ to deduplicate messages. Correlation ids are properties of the messages and need
-to be set by the user in order for the mode to function. In addition, it requires _checkpointing enabled_
+The __exactly-once-mode__ mode uses _correlation ids_ to deduplicate messages. Correlation ids are
+properties of the messages and need to be set by the user in order for the mode to function. 
+The user has the obligation to ensure that the set correlation id for a message is unique, 
+otherwise no exactly-once can be guaranteed here since RabbitMQ itself has no support for automatic 
+exactly-once ids or the required behavior. In addition, it requires _checkpointing enabled_
 and only _parallelism 1_ is allowed. Similar to at-least-once, the messages are received from RabbitMQ,
 buffered, and passed to the output when polled. A set of seen correlation ids is maintained to apply
 the deduplication. During a checkpoint, the seen correlation ids are stored so that in case of
