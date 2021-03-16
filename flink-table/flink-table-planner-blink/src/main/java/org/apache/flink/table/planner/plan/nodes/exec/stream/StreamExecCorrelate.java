@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,13 +51,12 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(
+        this(
                 joinType,
                 invocation,
                 condition,
-                TableStreamOperator.class,
-                true, // retainHeader
-                inputProperty,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }
