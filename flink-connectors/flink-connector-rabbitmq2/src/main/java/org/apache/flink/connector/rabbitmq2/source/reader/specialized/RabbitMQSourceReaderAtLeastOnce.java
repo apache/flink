@@ -28,9 +28,12 @@ import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplit;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * The RabbitMQSourceReaderAtLeastOnce provides at-least-once guarantee. The deliveryTag from the
@@ -52,14 +55,14 @@ public class RabbitMQSourceReaderAtLeastOnce<T> extends RabbitMQSourceReaderBase
     private final List<Long> polledAndUnacknowledgedMessageIds;
     // List of tuples of checkpoint id and deliveryTags that were polled by the output since the
     // last checkpoint.
-    private final Deque<Tuple2<Long, List<Long>>> polledAndUnacknowledgedMessageIdsPerCheckpoint;
+    private final BlockingQueue<Tuple2<Long, List<Long>>> polledAndUnacknowledgedMessageIdsPerCheckpoint;
 
     public RabbitMQSourceReaderAtLeastOnce(
             SourceReaderContext sourceReaderContext,
             DeserializationSchema<T> deliveryDeserializer) {
         super(sourceReaderContext, deliveryDeserializer);
-        this.polledAndUnacknowledgedMessageIds = new ArrayList<>();
-        this.polledAndUnacknowledgedMessageIdsPerCheckpoint = new ArrayDeque<>();
+        this.polledAndUnacknowledgedMessageIds = Collections.synchronizedList(new ArrayList<>());
+        this.polledAndUnacknowledgedMessageIdsPerCheckpoint = new LinkedBlockingQueue<>();
     }
 
     @Override

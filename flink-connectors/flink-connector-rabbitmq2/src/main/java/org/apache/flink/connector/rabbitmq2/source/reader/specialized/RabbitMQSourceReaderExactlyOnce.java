@@ -114,10 +114,14 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
         long deliveryTag = envelope.getDeliveryTag();
 
         if (correlationIds.add(correlationId)) {
-            // handle the message only if the correlation id hasn't been seen before
+            // Handle the message only if the correlation id hasn't been seen before.
+            // The message will follow the normal process and be acknowledge when it got polled.
             super.handleMessageReceivedCallback(consumerTag, delivery);
         } else {
-            // otherwise, store the new delivery-tag for later acknowledgments
+            // Otherwise, store the new delivery-tag for later acknowledgments. The correlation id
+            // was seen before and therefore this is a duplicate received from RabbitMQ.
+            // Instead of letting the message to be polled, the message will directly be marked
+            // to be acknowledged in the next wave of acknowledgments under their new deliveryTag.
             polledAndUnacknowledgedMessagesSinceLastCheckpoint.add(
                     new RabbitMQMessageWrapper<>(deliveryTag, correlationId));
         }
