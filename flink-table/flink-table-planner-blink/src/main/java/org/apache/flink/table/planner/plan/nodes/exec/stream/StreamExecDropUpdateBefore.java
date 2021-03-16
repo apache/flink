@@ -30,19 +30,34 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.runtime.operators.misc.DropUpdateBeforeFunction;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Stream {@link ExecNode} which will drop the UPDATE_BEFORE messages. This is usually used as an
  * optimization for the downstream operators that doesn't need the UPDATE_BEFORE messages, but the
  * upstream operator can't drop it by itself (e.g. the source).
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     public StreamExecDropUpdateBefore(
             InputProperty inputProperty, RowType outputType, String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        this(getNewNodeId(), Collections.singletonList(inputProperty), outputType, description);
+    }
+
+    @JsonCreator
+    public StreamExecDropUpdateBefore(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
     }
 
     @SuppressWarnings("unchecked")
