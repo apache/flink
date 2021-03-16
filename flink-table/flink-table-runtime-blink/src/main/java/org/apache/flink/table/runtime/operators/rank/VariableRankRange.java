@@ -18,18 +18,30 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /** changing rank limit depends on input. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class VariableRankRange implements RankRange {
 
+    public static final String FIELD_NAME_END_INDEX = "endIndex";
+
     private static final long serialVersionUID = 5579785886506433955L;
+
+    @JsonProperty(FIELD_NAME_END_INDEX)
     private int rankEndIndex;
 
-    public VariableRankRange(int rankEndIndex) {
+    @JsonCreator
+    public VariableRankRange(@JsonProperty(FIELD_NAME_END_INDEX) int rankEndIndex) {
         this.rankEndIndex = rankEndIndex;
     }
 
+    @JsonIgnore
     public int getRankEndIndex() {
         return rankEndIndex;
     }
@@ -37,6 +49,12 @@ public class VariableRankRange implements RankRange {
     @Override
     public String toString(List<String> inputFieldNames) {
         return "rankEnd=" + inputFieldNames.get(rankEndIndex);
+    }
+
+    @Override
+    @JsonProperty(FIELD_NAME_TYPE)
+    public String getType() {
+        return "Variable";
     }
 
     @Override

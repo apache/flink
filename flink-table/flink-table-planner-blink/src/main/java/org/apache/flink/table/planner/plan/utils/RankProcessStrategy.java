@@ -23,6 +23,13 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram;
 import org.apache.flink.table.planner.plan.trait.RelModifiedMonotonicity;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
@@ -37,7 +44,25 @@ import java.util.List;
 import java.util.Set;
 
 /** Base class of Strategy to choose different rank process function. */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes(
+        value = {
+            @JsonSubTypes.Type(
+                    value = RankProcessStrategy.UndefinedStrategy.class,
+                    name = "Undefined"),
+            @JsonSubTypes.Type(
+                    value = RankProcessStrategy.AppendFastStrategy.class,
+                    name = "AppendFast"),
+            @JsonSubTypes.Type(value = RankProcessStrategy.RetractStrategy.class, name = "Retract"),
+            @JsonSubTypes.Type(
+                    value = RankProcessStrategy.UpdateFastStrategy.class,
+                    name = "UpdateFast"),
+        })
 public interface RankProcessStrategy {
+
+    String FIELD_NAME_TYPE = "type";
+
+    String getType();
 
     UndefinedStrategy UNDEFINED_STRATEGY = new UndefinedStrategy();
 
@@ -49,32 +74,56 @@ public interface RankProcessStrategy {
      * A placeholder strategy which will be inferred after {@link
      * FlinkChangelogModeInferenceProgram}.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     class UndefinedStrategy implements RankProcessStrategy {
-        private UndefinedStrategy() {}
+        @JsonCreator
+        public UndefinedStrategy() {}
 
         @Override
         public String toString() {
             return "UndefinedStrategy";
         }
+
+        @Override
+        @JsonProperty(FIELD_NAME_TYPE)
+        public String getType() {
+            return "Undefined";
+        }
     }
 
     /** A strategy which only works when input only contains insertion changes. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     class AppendFastStrategy implements RankProcessStrategy {
-        private AppendFastStrategy() {}
+        @JsonCreator
+        public AppendFastStrategy() {}
 
         @Override
         public String toString() {
             return "AppendFastStrategy";
         }
+
+        @Override
+        @JsonProperty(FIELD_NAME_TYPE)
+        public String getType() {
+            return "AppendFast";
+        }
     }
 
     /** A strategy which works when input contains update or deletion changes. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     class RetractStrategy implements RankProcessStrategy {
-        private RetractStrategy() {}
+        @JsonCreator
+        public RetractStrategy() {}
 
         @Override
         public String toString() {
             return "RetractStrategy";
+        }
+
+        @Override
+        @JsonProperty(FIELD_NAME_TYPE)
+        public String getType() {
+            return "Retract";
         }
     }
 
@@ -82,14 +131,20 @@ public interface RankProcessStrategy {
      * A strategy which only works when input shouldn't contains deletion changes and input should
      * have the given {@link #primaryKeys} and should be monotonic on the order by field.
      */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     class UpdateFastStrategy implements RankProcessStrategy {
 
+        public static final String FIELD_NAME_PRIMARY_KEYS = "primaryKeys";
+
+        @JsonProperty(FIELD_NAME_PRIMARY_KEYS)
         private final int[] primaryKeys;
 
-        public UpdateFastStrategy(int[] primaryKeys) {
+        @JsonCreator
+        public UpdateFastStrategy(@JsonProperty(FIELD_NAME_PRIMARY_KEYS) int[] primaryKeys) {
             this.primaryKeys = primaryKeys;
         }
 
+        @JsonIgnore
         public int[] getPrimaryKeys() {
             return primaryKeys;
         }
@@ -97,6 +152,12 @@ public interface RankProcessStrategy {
         @Override
         public String toString() {
             return String.format("UpdateFastStrategy[%s]", StringUtils.join(primaryKeys, ','));
+        }
+
+        @Override
+        @JsonProperty(FIELD_NAME_TYPE)
+        public String getType() {
+            return "UpdateFast";
         }
     }
 

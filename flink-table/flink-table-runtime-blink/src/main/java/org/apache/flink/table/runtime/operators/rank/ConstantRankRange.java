@@ -18,24 +18,42 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /** rankStart and rankEnd are inclusive, rankStart always start from one. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ConstantRankRange implements RankRange {
 
+    public static final String FIELD_NAME_START = "start";
+    public static final String FIELD_NAME_END = "end";
+
     private static final long serialVersionUID = 9062345289888078376L;
+
+    @JsonProperty(FIELD_NAME_START)
     private long rankStart;
+
+    @JsonProperty(FIELD_NAME_END)
     private long rankEnd;
 
-    public ConstantRankRange(long rankStart, long rankEnd) {
+    @JsonCreator
+    public ConstantRankRange(
+            @JsonProperty(FIELD_NAME_START) long rankStart,
+            @JsonProperty(FIELD_NAME_END) long rankEnd) {
         this.rankStart = rankStart;
         this.rankEnd = rankEnd;
     }
 
+    @JsonIgnore
     public long getRankStart() {
         return rankStart;
     }
 
+    @JsonIgnore
     public long getRankEnd() {
         return rankEnd;
     }
@@ -43,6 +61,12 @@ public class ConstantRankRange implements RankRange {
     @Override
     public String toString(List<String> inputFieldNames) {
         return toString();
+    }
+
+    @Override
+    @JsonProperty(FIELD_NAME_TYPE)
+    public String getType() {
+        return "Constant";
     }
 
     @Override
