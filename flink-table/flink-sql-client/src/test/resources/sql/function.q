@@ -21,7 +21,12 @@ create function func1 as 'LowerUDF' LANGUAGE JAVA;
 !info
 
 show user functions;
-func1
++---------------+
+| function name |
++---------------+
+|         func1 |
++---------------+
+1 row in set
 !ok
 
 SET execution.result-mode=tableau;
@@ -46,8 +51,13 @@ create temporary function if not exists func2 as 'LowerUDF' LANGUAGE JAVA;
 !info
 
 show user functions;
-func1
-func2
++---------------+
+| function name |
++---------------+
+|         func1 |
+|         func2 |
++---------------+
+2 rows in set
 !ok
 
 # ====== test function with full qualified name ======
@@ -78,8 +88,13 @@ create temporary function if not exists c1.db.func4 as 'LowerUDF' LANGUAGE JAVA;
 
 # no func3 and func4 because we are not under catalog c1
 show user functions;
-func1
-func2
++---------------+
+| function name |
++---------------+
+|         func1 |
+|         func2 |
++---------------+
+2 rows in set
 !ok
 
 use catalog c1;
@@ -92,8 +107,13 @@ use db;
 
 # should show func3 and func4 now
 show user functions;
-func3
-func4
++---------------+
+| function name |
++---------------+
+|         func4 |
+|         func3 |
++---------------+
+2 rows in set
 !ok
 
 # test create function with database name
@@ -111,8 +131,13 @@ use `default`;
 
 # should show func5 and func6
 show user functions;
-func5
-func6
++---------------+
+| function name |
++---------------+
+|         func5 |
+|         func6 |
++---------------+
+2 rows in set
 !ok
 
 # ==========================================================================
@@ -145,9 +170,14 @@ drop function if exists non_func;
 
 # should contain func11, not contain func10
 show user functions;
-func11
-func3
-func4
++---------------+
+| function name |
++---------------+
+|         func4 |
+|        func11 |
+|         func3 |
++---------------+
+3 rows in set
 !ok
 
 # ==========================================================================
@@ -188,5 +218,10 @@ create function lowerudf AS 'LowerUDF';
 !info
 
 show user functions;
-lowerudf
++---------------+
+| function name |
++---------------+
+|      lowerudf |
++---------------+
+1 row in set
 !ok

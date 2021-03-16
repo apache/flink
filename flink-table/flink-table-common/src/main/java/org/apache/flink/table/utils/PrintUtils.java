@@ -145,36 +145,30 @@ public class PrintUtils {
             it = rows.iterator();
         }
 
-        final String borderline = PrintUtils.genBorderLine(colWidths);
-        // print border line
-        printWriter.println(borderline);
-        // print field names
-        PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
-        // print border line
-        printWriter.println(borderline);
-        printWriter.flush();
-
-        long numRows = 0;
-        while (it.hasNext()) {
-            String[] cols = rowToString(it.next(), nullColumn, printRowKind);
-
-            // print content
-            printSingleRow(colWidths, cols, printWriter);
-            numRows++;
-        }
-
-        if (numRows > 0) {
+        if (it.hasNext()) {
+            final String borderline = PrintUtils.genBorderLine(colWidths);
             // print border line
             printWriter.println(borderline);
-        }
+            // print field names
+            PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
+            // print border line
+            printWriter.println(borderline);
 
-        final String rowTerm;
-        if (numRows > 1) {
-            rowTerm = "rows";
+            long numRows = 0;
+            while (it.hasNext()) {
+                String[] cols = rowToString(it.next(), nullColumn, printRowKind);
+                // print content
+                printSingleRow(colWidths, cols, printWriter);
+                numRows++;
+            }
+
+            // print border line
+            printWriter.println(borderline);
+            final String rowTerm = numRows > 1 ? "rows" : "row";
+            printWriter.println(numRows + " " + rowTerm + " in set");
         } else {
-            rowTerm = "row";
+            printWriter.println("Empty set");
         }
-        printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
     }
 
