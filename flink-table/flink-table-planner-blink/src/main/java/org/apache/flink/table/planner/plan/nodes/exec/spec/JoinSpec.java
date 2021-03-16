@@ -30,6 +30,8 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -107,5 +109,30 @@ public class JoinSpec {
     @JsonIgnore
     public int getJoinKeySize() {
         return leftKeys.length;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JoinSpec joinSpec = (JoinSpec) o;
+        return joinType == joinSpec.joinType
+                && Arrays.equals(leftKeys, joinSpec.leftKeys)
+                && Arrays.equals(rightKeys, joinSpec.rightKeys)
+                && Arrays.equals(filterNulls, joinSpec.filterNulls)
+                && Objects.equals(nonEquiCondition, joinSpec.nonEquiCondition);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(joinType, nonEquiCondition);
+        result = 31 * result + Arrays.hashCode(leftKeys);
+        result = 31 * result + Arrays.hashCode(rightKeys);
+        result = 31 * result + Arrays.hashCode(filterNulls);
+        return result;
     }
 }
