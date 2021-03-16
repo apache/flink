@@ -21,6 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -32,24 +37,37 @@ import java.util.Optional;
  *
  * <p>This class corresponds to {@link org.apache.calcite.rel.core.Join} rel node.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class JoinSpec {
+    public static final String FIELD_NAME_JOIN_TYPE = "joinType";
+    public static final String FIELD_NAME_LEFT_KEYS = "leftKeys";
+    public static final String FIELD_NAME_RIGHT_KEYS = "rightKeys";
+    public static final String FIELD_NAME_FILTER_NULLS = "filterNulls";
+    public static final String FIELD_NAME_NON_EQUI_CONDITION = "nonEquiCondition";
+
     /** {@link FlinkJoinType} of the join. */
+    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
     /** 0-based index of join keys in left side. */
+    @JsonProperty(FIELD_NAME_LEFT_KEYS)
     private final int[] leftKeys;
     /** 0-based index of join keys in right side. */
+    @JsonProperty(FIELD_NAME_RIGHT_KEYS)
     private final int[] rightKeys;
     /** whether to filter null values or not for each corresponding index join key. */
+    @JsonProperty(FIELD_NAME_FILTER_NULLS)
     private final boolean[] filterNulls;
     /** Non Equi join conditions. */
+    @JsonProperty(FIELD_NAME_NON_EQUI_CONDITION)
     private final @Nullable RexNode nonEquiCondition;
 
+    @JsonCreator
     public JoinSpec(
-            FlinkJoinType joinType,
-            int[] leftKeys,
-            int[] rightKeys,
-            boolean[] filterNulls,
-            @Nullable RexNode nonEquiCondition) {
+            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
+            @JsonProperty(FIELD_NAME_LEFT_KEYS) int[] leftKeys,
+            @JsonProperty(FIELD_NAME_RIGHT_KEYS) int[] rightKeys,
+            @JsonProperty(FIELD_NAME_FILTER_NULLS) boolean[] filterNulls,
+            @JsonProperty(FIELD_NAME_NON_EQUI_CONDITION) @Nullable RexNode nonEquiCondition) {
         this.joinType = Preconditions.checkNotNull(joinType);
         this.leftKeys = Preconditions.checkNotNull(leftKeys);
         this.rightKeys = Preconditions.checkNotNull(rightKeys);
@@ -60,27 +78,33 @@ public class JoinSpec {
         this.nonEquiCondition = nonEquiCondition;
     }
 
+    @JsonIgnore
     public FlinkJoinType getJoinType() {
         return joinType;
     }
 
+    @JsonIgnore
     public int[] getLeftKeys() {
         return leftKeys;
     }
 
+    @JsonIgnore
     public int[] getRightKeys() {
         return rightKeys;
     }
 
+    @JsonIgnore
     public boolean[] getFilterNulls() {
         return filterNulls;
     }
 
+    @JsonIgnore
     public Optional<RexNode> getNonEquiCondition() {
         return Optional.ofNullable(nonEquiCondition);
     }
 
     /** Gets number of keys in join key. */
+    @JsonIgnore
     public int getJoinKeySize() {
         return leftKeys.length;
     }
