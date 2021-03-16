@@ -169,7 +169,9 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
     public CompletableFuture<Void> isAvailable() {
         return CompletableFuture.runAsync(
                 () -> {
-                    while (!collector.hasUnpolledMessages()) ;
+                    while (!collector.hasUnpolledMessages()) {
+                        // supposed to be empty
+                    }
                 });
     }
 

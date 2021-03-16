@@ -18,8 +18,6 @@
 
 package org.apache.flink.connector.rabbitmq2.source.reader.specialized;
 
-import org.apache.commons.compress.compressors.lz77support.LZ77Compressor;
-
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,15 +31,10 @@ import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -85,7 +78,8 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
             SourceReaderContext sourceReaderContext,
             DeserializationSchema<T> deliveryDeserializer) {
         super(sourceReaderContext, deliveryDeserializer);
-        this.polledAndUnacknowledgedMessagesSinceLastCheckpoint = Collections.synchronizedList(new ArrayList<>());
+        this.polledAndUnacknowledgedMessagesSinceLastCheckpoint =
+                Collections.synchronizedList(new ArrayList<>());
         this.polledAndUnacknowledgedMessagesPerCheckpoint = new LinkedBlockingQueue<>();
         this.correlationIds = ConcurrentHashMap.newKeySet();
     }

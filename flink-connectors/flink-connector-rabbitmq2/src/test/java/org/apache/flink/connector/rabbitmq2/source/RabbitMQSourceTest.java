@@ -40,7 +40,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
 
     // --------------- at most once ---------------
     @Test
-    public void AtMostOnceTest() throws Exception {
+    public void atMostOnceTest() throws Exception {
         List<String> messages = getRandomMessages(100);
         CountDownLatch latch = new CountDownLatch(messages.size());
 
@@ -58,7 +58,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
 
     // --------------- at least once ---------------
     @Test
-    public void AtLeastOnceTest() throws Exception {
+    public void atLeastOnceTest() throws Exception {
         List<String> messages = getRandomMessages(100);
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.AT_LEAST_ONCE);
         CountDownLatch latch = new CountDownLatch(messages.size());
@@ -74,7 +74,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
     }
 
     @Test
-    public void AtLeastOnceFailureTest() throws Exception {
+    public void atLeastOnceFailureTest() throws Exception {
         // An exception is thrown in the MapFunction in order to trigger a restart of Flink and it
         // is assured that the source receives the messages again.
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.AT_LEAST_ONCE);
@@ -96,7 +96,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
 
     // --------------- exactly once ---------------
     @Test
-    public void FilterCorrelationIdsTest() throws Exception {
+    public void filterCorrelationIdsTest() throws Exception {
         List<String> messages = getRandomMessages(5);
         CountDownLatch latch = new CountDownLatch(3);
 
@@ -116,7 +116,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
     }
 
     @Test
-    public void ExactlyOnceWithFailure() throws Exception {
+    public void exactlyOnceWithFailure() throws Exception {
         // An exception is thrown in the MapFunction in order to trigger a restart of Flink and it
         // is assured that the system receives the messages only once.
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.EXACTLY_ONCE);
