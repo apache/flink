@@ -271,3 +271,32 @@ case class TimestampDiff(
 
   override private[flink] def resultType = INT_TYPE_INFO
 }
+
+case class ToTimestampLtz(
+    numericEpochTime: PlannerExpression,
+    precision: PlannerExpression)
+  extends PlannerExpression {
+
+  override private[flink] def children: Seq[PlannerExpression] =
+    numericEpochTime :: precision :: Nil
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (TypeInfoCheckUtils.assertNumericExpr(
+      numericEpochTime.resultType, "toTimestampLtz").isFailure) {
+      return ValidationFailure(
+        s"$this requires numeric type for the first input, " +
+          s"but the actual type '${numericEpochTime.resultType}'.")
+    }
+    if (TypeInfoCheckUtils
+      .assertNumericExpr(precision.resultType, "toTimestampLtz").isFailure) {
+      return ValidationFailure(
+        s"$this requires numeric type for the second input, " +
+          s"but the actual type '${numericEpochTime.resultType}'.")
+    }
+    ValidationSuccess
+  }
+
+  override def toString: String = s"toTimestampLtz(${children.mkString(", ")})"
+
+  override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
+}

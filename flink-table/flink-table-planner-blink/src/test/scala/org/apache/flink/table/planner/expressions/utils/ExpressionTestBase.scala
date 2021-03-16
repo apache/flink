@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, ValidationException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
@@ -48,19 +48,25 @@ import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 abstract class ExpressionTestBase {
 
   val config = new TableConfig()
 
   // (originalExpr, optimizedExpr, expectedResult)
-  private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+  private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+  // (originalSqlExpr, keywords, exceptionClass)
+  private val invalidSqlExprs = mutable.ArrayBuffer[(String, String, Class[_ <: Throwable])]()
+  // (originalTableApiExpr, keywords, exceptionClass)
+  private val invalidTableApiExprs = mutable
+    .ArrayBuffer[(Expression, String, Class[_ <: Throwable])]()
+
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
   private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
@@ -103,11 +109,164 @@ abstract class ExpressionTestBase {
     relBuilder.scan(tableName)
 
     // reset test exprs
-    testExprs.clear()
+    validExprs.clear()
+    invalidSqlExprs.clear()
+    invalidTableApiExprs.clear()
   }
 
   @After
   def evaluateExprs(): Unit = {
+
+    // evaluate valid expressions
+    evaluateGivenExprs(validExprs)
+
+    // evaluate invalid expressions
+    invalidSqlExprs.foreach {
+      case (sqlExpr, keywords, clazz) => {
+        try {
+          val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+          addSqlTestExpr(sqlExpr, keywords, invalidExprs, clazz)
+          evaluateGivenExprs(invalidExprs)
+          fail(s"Expected a $clazz, but no exception is thrown.")
+        } catch {
+          case e if e.getClass == clazz =>
+            if (keywords != null) {
+              assertTrue(
+                s"The actual exception message \n${e.getMessage}\n" +
+                  s"doesn't contain expected keyword \n$keywords\n",
+                e.getMessage.contains(keywords))
+            }
+          case e: Throwable =>
+            e.printStackTrace()
+            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+        }
+      }
+    }
+
+    invalidTableApiExprs.foreach {
+      case (tableExpr, keywords, clazz) => {
+        try {
+          val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+          addTableApiTestExpr(tableExpr, keywords, invalidExprs, clazz)
+          evaluateGivenExprs(invalidExprs)
+          fail(s"Expected a $clazz, but no exception is thrown.")
+        } catch {
+          case e if e.getClass == clazz =>
+            if (keywords != null) {
+              assertTrue(
+                s"The actual exception message \n${e.getMessage}\n" +
+                  s"doesn't contain expected keyword \n$keywords\n",
+                e.getMessage.contains(keywords))
+            }
+          case e: Throwable =>
+            e.printStackTrace()
+            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+        }
+      }
+    }
+  }
+
+  def testAllApis(
+      expr: Expression,
+      sqlExpr: String,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected, validExprs)
+    addSqlTestExpr(sqlExpr, expected, validExprs)
+  }
+
+  def testTableApi(
+      expr: Expression,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected, validExprs)
+  }
+
+  def testSqlApi(
+      sqlExpr: String,
+      expected: String): Unit = {
+    addSqlTestExpr(sqlExpr, expected, validExprs)
+  }
+
+  def testExpectedAllApisException(
+      expr: Expression,
+      sqlExpr: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidTableApiExprs += ((expr, keywords, clazz))
+    invalidSqlExprs += ((sqlExpr, keywords, clazz))
+  }
+  def testExpectedSqlException(
+      sqlExpr: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidSqlExprs += ((sqlExpr, keywords, clazz))
+  }
+
+  def testExpectedTableApiException(
+      expr: Expression,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidTableApiExprs += ((expr, keywords, clazz))
+  }
+
+  private def testTableApiTestExpr(tableApiString: String, expected: String): Unit = {
+    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected, validExprs)
+  }
+
+  private def addSqlTestExpr(
+      sqlExpr: String,
+      expected: String,
+      exprsContainer: mutable.ArrayBuffer[_],
+      exceptionClass: Class[_ <: Throwable] = null)
+  : Unit = {
+    // create RelNode from SQL expression
+    val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
+    val validated = calcitePlanner.validate(parsed)
+    val converted = calcitePlanner.rel(validated).rel
+    addTestExpr(converted, expected, sqlExpr, exceptionClass, exprsContainer)
+  }
+
+  private def addTableApiTestExpr(
+      tableApiExpr: Expression,
+      expected: String,
+      exprsContainer: mutable.ArrayBuffer[_],
+      exceptionClass: Class[_ <: Throwable] = null): Unit = {
+    // create RelNode from Table API expression
+    val relNode = relBuilder
+        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
+
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString(), null, exprsContainer)
+  }
+
+  private def addTestExpr(
+      relNode: RelNode,
+      expected: String,
+      summaryString: String,
+      exceptionClass: Class[_ <: Throwable],
+      exprs: mutable.ArrayBuffer[_]): Unit = {
+    val builder = new HepProgramBuilder()
+    builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
+    val hep = new HepPlanner(builder.build())
+    hep.setRoot(relNode)
+    val optimized = hep.findBestExp()
+
+    // throw exception if plan contains more than a calc
+    if (!optimized.getInput(0).getInputs.isEmpty) {
+      fail("Expression is converted into more than a Calc operation. Use a different test method.")
+    }
+
+    exprs.asInstanceOf[mutable.ArrayBuffer[(String, RexNode, String)]] +=
+      ((summaryString, extractRexNode(optimized), expected))
+  }
+
+  private def extractRexNode(node: RelNode): RexNode = {
+    val calcProgram = node
+      .asInstanceOf[LogicalCalc]
+      .getProgram
+    calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
+  }
+
+  private def evaluateGivenExprs(exprArray: mutable.ArrayBuffer[(String, RexNode, String)])
+  : Unit = {
     val ctx = CodeGeneratorContext(config)
     val inputType = if (containsLegacyTypes) {
       fromTypeInfoToLogicalType(typeInfo)
@@ -117,10 +276,10 @@ abstract class ExpressionTestBase {
     val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
+    val stringTestExprs = exprArray.map(expr => relBuilder.cast(expr._2, VARCHAR))
 
     // generate code
-    val resultType = RowType.of(Seq.fill(testExprs.size)(
+    val resultType = RowType.of(Seq.fill(exprArray.size)(
       new VarCharType(VarCharType.MAX_LENGTH)): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
@@ -130,7 +289,7 @@ abstract class ExpressionTestBase {
       s"""
          |${genExpr.code}
          |return ${genExpr.resultTerm};
-        """.stripMargin
+          """.stripMargin
 
     val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[RowData, BinaryRowData]](
       ctx,
@@ -178,13 +337,13 @@ abstract class ExpressionTestBase {
     }
 
     // compare
-    testExprs
+    exprArray
       .zipWithIndex
       .foreach {
         case ((originalExpr, optimizedExpr, expected), index) =>
 
           // adapt string result
-          val actual = if(!result.asInstanceOf[BinaryRowData].isNullAt(index)) {
+          val actual = if (!result.asInstanceOf[BinaryRowData].isNullAt(index)) {
             result.asInstanceOf[BinaryRowData].getString(index).toString
           } else {
             null
@@ -197,68 +356,6 @@ abstract class ExpressionTestBase {
             expected,
             if (actual == null) "null" else actual)
       }
-  }
-
-  private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
-    // create RelNode from SQL expression
-    val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
-    val validated = calcitePlanner.validate(parsed)
-    val converted = calcitePlanner.rel(validated).rel
-    addTestExpr(converted, expected, sqlExpr)
-  }
-
-  private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
-    val builder = new HepProgramBuilder()
-    builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
-    val hep = new HepPlanner(builder.build())
-    hep.setRoot(relNode)
-    val optimized = hep.findBestExp()
-
-    // throw exception if plan contains more than a calc
-    if (!optimized.getInput(0).getInputs.isEmpty) {
-      fail("Expression is converted into more than a Calc operation. Use a different test method.")
-    }
-
-    testExprs += ((summaryString, extractRexNode(optimized), expected))
-  }
-
-  private def extractRexNode(node: RelNode): RexNode = {
-    val calcProgram = node
-      .asInstanceOf[LogicalCalc]
-      .getProgram
-    calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
-  }
-
-  def testAllApis(
-      expr: Expression,
-      sqlExpr: String,
-      expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addSqlTestExpr(sqlExpr, expected)
-  }
-
-  def testTableApi(
-      expr: Expression,
-      expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-  }
-
-  private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected)
-  }
-
-  private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
-    // create RelNode from Table API expression
-    val relNode = relBuilder
-        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
-
-    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
-  }
-
-  def testSqlApi(
-      sqlExpr: String,
-      expected: String): Unit = {
-    addSqlTestExpr(sqlExpr, expected)
   }
 
   def testData: Row
@@ -287,9 +384,9 @@ abstract class ExpressionTestBase {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addTableApiTestExpr(exprString, expected)
-    addSqlTestExpr(sqlExpr, expected)
+    testTableApi(expr, expected)
+    testTableApiTestExpr(exprString, expected)
+    testSqlApi(sqlExpr, expected)
   }
 
   @deprecated
@@ -297,7 +394,7 @@ abstract class ExpressionTestBase {
       expr: Expression,
       exprString: String,
       expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addTableApiTestExpr(exprString, expected)
+    testTableApi(expr, expected)
+    testTableApiTestExpr(exprString, expected)
   }
 }

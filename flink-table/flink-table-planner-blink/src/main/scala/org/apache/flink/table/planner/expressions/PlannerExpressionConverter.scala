@@ -234,6 +234,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 3)
             TimestampDiff(args.head, args(1), args.last)
 
+          case TO_TIMESTAMP_LTZ =>
+            assert(args.size == 2)
+            ToTimestampLtz(args.head, args.last)
+
           case AT =>
             assert(args.size == 2)
             ItemAt(args.head, args.last)

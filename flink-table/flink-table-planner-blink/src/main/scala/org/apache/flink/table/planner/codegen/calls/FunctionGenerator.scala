@@ -695,6 +695,38 @@ object FunctionGenerator {
     BuiltInMethods.DECIMAL_TO_TIMESTAMP)
 
   INTEGRAL_TYPES foreach (
+    dt => {
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt),
+        BuiltInMethods.LONG_TO_TIMESTAMP_LTZ)
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt, INTEGER),
+        BuiltInMethods.LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
+
+  FRACTIONAL_TYPES foreach (
+    dt => {
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt),
+        BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ)
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt, INTEGER),
+        BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
+
+  addSqlFunctionMethod(
+    TO_TIMESTAMP_LTZ,
+    Seq(DECIMAL),
+    BuiltInMethods.DECIMAL_TO_TIMESTAMP_LTZ)
+
+  addSqlFunctionMethod(
+    TO_TIMESTAMP_LTZ,
+    Seq(DECIMAL, INTEGER),
+    BuiltInMethods.DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION)
+
+  INTEGRAL_TYPES foreach (
     dt => addSqlFunctionMethod(
       FROM_UNIXTIME,
       Seq(dt),

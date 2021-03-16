@@ -456,6 +456,27 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts a numeric type epoch seconds to {@link DataTypes#TIMESTAMP_LTZ()}.
+   */
+  def toTimestampLtz(numericEpochTime: Expression): Expression = {
+    Expressions.toTimestampLtz(numericEpochTime, lit(0))
+  }
+
+  /**
+   * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ()}.
+   *
+   * <p>The supported precision is 0 or 3:
+   *
+   * <ul>
+   *   <li>0 means the numericEpochTime is in second.
+   *   <li>3 means the numericEpochTime is in millisecond.
+   * </ul>
+   */
+  def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
+    Expressions.toTimestampLtz(numericEpochTime, precision)
+  }
+
+  /**
     * Determines whether two anchored time intervals overlap. Time point and temporal are
     * transformed into a range defined by two time points (start, end). The function
     * evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.
