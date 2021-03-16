@@ -63,7 +63,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecSort",
                     "StreamExecExpand",
                     "StreamExecMultipleInput",
-                    "StreamExecMatch",
                     "StreamExecValues");
 
     @SuppressWarnings({"rawtypes"})
