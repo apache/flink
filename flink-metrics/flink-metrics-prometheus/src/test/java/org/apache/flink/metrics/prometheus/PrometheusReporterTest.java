@@ -52,7 +52,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
+import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -71,6 +71,8 @@ public class PrometheusReporterTest extends TestLogger {
     private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
     private static final String SCOPE_PREFIX = "flink_taskmanager_";
 
+    private static final PrometheusReporterFactory prometheusReporterFactory =
+            new PrometheusReporterFactory();
     private static final PortRangeProvider portRangeProvider = new PortRangeProvider();
 
     @Rule public ExpectedException thrown = ExpectedException.none();
@@ -373,7 +375,10 @@ public class PrometheusReporterTest extends TestLogger {
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(ARG_PORT, portString);
 
-        return ReporterSetup.forReporter(reporterName, metricConfig, new PrometheusReporter());
+        PrometheusReporter metricReporter =
+                prometheusReporterFactory.createMetricReporter(metricConfig);
+
+        return ReporterSetup.forReporter(reporterName, metricConfig, metricReporter);
     }
 
     @After
