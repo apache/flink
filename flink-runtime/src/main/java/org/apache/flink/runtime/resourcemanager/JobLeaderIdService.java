@@ -110,7 +110,7 @@ public class JobLeaderIdService {
      * @return True if the service has been started; otherwise false
      */
     public boolean isStarted() {
-        return jobLeaderIdActions == null;
+        return jobLeaderIdActions != null;
     }
 
     /**
