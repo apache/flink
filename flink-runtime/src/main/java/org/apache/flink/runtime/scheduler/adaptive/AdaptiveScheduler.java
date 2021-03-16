@@ -96,7 +96,6 @@ import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
-import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
@@ -208,6 +207,7 @@ public class AdaptiveScheduler
             JobGraph jobGraph,
             Configuration configuration,
             DeclarativeSlotPool declarativeSlotPool,
+            SlotAllocator slotAllocator,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
             ClassLoader userCodeClassLoader,
@@ -254,11 +254,7 @@ public class AdaptiveScheduler
                         jobGraph, checkpointRecoveryFactory);
         this.checkpointsCleaner = new CheckpointsCleaner();
 
-        this.slotAllocator =
-                new SlotSharingSlotAllocator(
-                        declarativeSlotPool::reserveFreeSlot,
-                        declarativeSlotPool::freeReservedSlot,
-                        declarativeSlotPool::containsFreeSlot);
+        this.slotAllocator = slotAllocator;
 
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
