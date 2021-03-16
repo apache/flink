@@ -31,9 +31,19 @@ import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collections;
+import java.util.List;
+
 /** Stream {@link ExecNode} for Limit. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecLimit extends StreamExecRank {
 
+    @JsonIgnore
     private final long limitEnd;
 
     public StreamExecLimit(
@@ -44,18 +54,38 @@ public class StreamExecLimit extends StreamExecRank {
             InputProperty inputProperty,
             RowType outputType,
             String description) {
+        this(
+                new ConstantRankRange(limitStart + 1, limitEnd),
+                getRankStrategy(needRetraction),
+                generateUpdateBefore,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecLimit(
+            @JsonProperty(FIELD_NAME_RANK_RANG) ConstantRankRange rankRange,
+            @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 RankType.ROW_NUMBER,
                 PartitionSpec.ALL_IN_ONE,
                 SortSpec.ANY,
-                new ConstantRankRange(limitStart + 1, limitEnd),
-                getRankStrategy(needRetraction),
-                false, // outputRankNumber
+                rankRange,
+                rankStrategy,
+                false,
                 generateUpdateBefore,
+                id,
                 inputProperty,
                 outputType,
                 description);
-        this.limitEnd = limitEnd;
+        this.limitEnd = rankRange.getRankEnd();
     }
 
     private static RankProcessStrategy getRankStrategy(boolean needRetraction) {
