@@ -28,7 +28,7 @@ under the License.
 
 # 文件系统
 
-Apache Flink 使用文件系统来消费和持久化地存储数据，以处理应用结果以及容错与恢复。以下是一些最常用的文件系统：*本地存储*，*hadoop-compatible*，*Amazon S3*，*MapR FS*，*OpenStack Swift FS*，*阿里云 OSS* 和 *Azure Blob Storage*。
+Apache Flink 使用文件系统来消费和持久化地存储数据，以处理应用结果以及容错与恢复。以下是一些最常用的文件系统：*本地存储*，*hadoop-compatible*，*Amazon S3*，*MapR FS*，*阿里云 OSS* 和 *Azure Blob Storage*。
 
 文件使用的文件系统通过其 URI Scheme 指定。例如 `file:///home/user/text.txt` 表示一个在本地文件系统中的文件，`hdfs://namenode:50010/data/user/text.txt` 表示一个在指定 HDFS 集群中的文件。
 
