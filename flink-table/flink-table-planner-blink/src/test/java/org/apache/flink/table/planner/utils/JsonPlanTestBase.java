@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
@@ -67,6 +68,10 @@ public abstract class JsonPlanTestBase {
     @After
     public void after() {
         TestValuesTableFactory.clearAllData();
+    }
+
+    protected TableResult executeSqlWithJsonPlanVerified(String sql) {
+        return tableEnv.executeJsonPlan(tableEnv.getJsonPlan(sql));
     }
 
     protected void createTestValuesSourceTable(
