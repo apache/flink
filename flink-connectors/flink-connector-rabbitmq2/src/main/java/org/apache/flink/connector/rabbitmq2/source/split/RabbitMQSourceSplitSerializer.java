@@ -77,6 +77,7 @@ public class RabbitMQSourceSplitSerializer
              ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
             RabbitMQConnectionConfig config =
                     (RabbitMQConnectionConfig) objectInputStream.readObject();
+            // Queue names may be up to 255 bytes of UTF-8 characters.
             String queueName = in.readUTF();
             Set<String> correlationIds = readStringSet(in);
             return new RabbitMQSourceSplit(config, queueName, correlationIds);
