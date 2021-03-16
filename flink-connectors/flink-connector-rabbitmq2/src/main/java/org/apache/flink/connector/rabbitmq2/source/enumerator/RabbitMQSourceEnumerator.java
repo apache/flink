@@ -80,14 +80,19 @@ public class RabbitMQSourceEnumerator
 
     @Override
     public void addSplitsBack(List<RabbitMQSourceSplit> list, int i) {
-        LOG.info("Splits returned from reader " + i);
         if (list.size() == 0) {
             return;
         }
-        // Every Source Reader will only receive one splits, thus we will never get back more.
+
+        // Every Source Reader will only receive one split, thus we will never get back more.
         if (list.size() != 1) {
-            throw new RuntimeException("There should only be one split added back at time.");
+            throw new RuntimeException("There should only be one split added back at a time. per reader");
         }
+
+        LOG.info("Split returned from reader " + i);
+        // In case of exactly-once (parallelism 1) the single split gets updated with the
+        // correlation ids and in case of a recovery we have to store this split until we can
+        // assign it to the recovered reader.
         split = list.get(0);
     }
 
