@@ -68,7 +68,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testCalculateRequiredSlots() {
         final SlotSharingSlotAllocator slotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
                         TEST_IS_SLOT_FREE_FUNCTION);
@@ -87,7 +87,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testDetermineParallelismWithMinimumSlots() {
         final SlotSharingSlotAllocator slotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
                         TEST_IS_SLOT_FREE_FUNCTION);
@@ -109,7 +109,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testDetermineParallelismWithManySlots() {
         final SlotSharingSlotAllocator slotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
                         TEST_IS_SLOT_FREE_FUNCTION);
@@ -137,7 +137,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testDetermineParallelismUnsuccessfulWithLessSlotsThanSlotSharingGroups() {
         final SlotSharingSlotAllocator slotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
                         TEST_IS_SLOT_FREE_FUNCTION);
@@ -154,7 +154,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testReserveAvailableResources() {
         final SlotSharingSlotAllocator slotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
                         TEST_IS_SLOT_FREE_FUNCTION);
@@ -193,7 +193,7 @@ public class SlotSharingSlotAllocatorTest extends TestLogger {
     @Test
     public void testReserveUnavailableResources() {
         final SlotSharingSlotAllocator slotSharingSlotAllocator =
-                new SlotSharingSlotAllocator(
+                SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION, TEST_FREE_SLOT_FUNCTION, ignored -> false);
 
         final JobInformation jobInformation =
