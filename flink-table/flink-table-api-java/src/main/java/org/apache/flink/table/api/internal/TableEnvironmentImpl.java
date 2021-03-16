@@ -75,8 +75,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -1195,11 +1195,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             String catalogName = operation.getCatalogName();
             Map<String, String> properties = operation.getProperties();
-            final CatalogFactory factory =
-                    TableFactoryService.find(CatalogFactory.class, properties, userClassLoader);
 
-            Catalog catalog = factory.createCatalog(catalogName, properties);
+            Catalog catalog =
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            properties,
+                            tableConfig.getConfiguration(),
+                            userClassLoader);
             catalogManager.registerCatalog(catalogName, catalog);
+
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {
             throw new ValidationException(exMsg, e);

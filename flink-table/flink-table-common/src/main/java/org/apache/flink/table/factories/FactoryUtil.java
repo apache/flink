@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -46,6 +47,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -72,6 +74,13 @@ public final class FactoryUtil {
                     .withDescription(
                             "Uniquely identifies the connector of a dynamic table that is used for accessing data in "
                                     + "an external system. Its value is used during table source and table sink discovery.");
+
+    public static final ConfigOption<String> CATALOG_TYPE =
+            ConfigOptions.key("type")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Uniquely identifies the catalog. Its value is used during catalog discovery.");
 
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
@@ -199,6 +208,59 @@ public final class FactoryUtil {
     public static TableFactoryHelper createTableFactoryHelper(
             DynamicTableFactory factory, DynamicTableFactory.Context context) {
         return new TableFactoryHelper(factory, context);
+    }
+
+    /**
+     * Attempts to discover an appropriate catalog factory and creates an instance of the catalog.
+     *
+     * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
+     * CatalogFactory}. If none is found, it falls back to the new stack using {@link Factory}
+     * instead.
+     */
+    public static Catalog createCatalog(
+            String catalogName,
+            Map<String, String> options,
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
+        // Use the legacy mechanism first for compatibility
+        try {
+            final CatalogFactory legacyFactory =
+                    TableFactoryService.find(CatalogFactory.class, options, classLoader);
+            return legacyFactory.createCatalog(catalogName, options);
+        } catch (NoMatchingTableFactoryException e) {
+            // No matching legacy factory found, try using the new stack
+
+            final DefaultCatalogContext discoveryContext =
+                    new DefaultCatalogContext(catalogName, options, configuration, classLoader);
+            try {
+                final CatalogFactory factory = getCatalogFactory(discoveryContext);
+
+                // The type option is only used for discovery, we don't actually want to forward it
+                // to the catalog factory itself.
+                final Map<String, String> factoryOptions =
+                        options.entrySet().stream()
+                                .filter(entry -> !CATALOG_TYPE.key().equals(entry.getKey()))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                final DefaultCatalogContext context =
+                        new DefaultCatalogContext(
+                                catalogName, factoryOptions, configuration, classLoader);
+
+                return factory.createCatalog(context);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
+                                catalogName,
+                                options.entrySet().stream()
+                                        .map(
+                                                optionEntry ->
+                                                        stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue()))
+                                        .sorted()
+                                        .collect(Collectors.joining("\n"))));
+            }
+        }
     }
 
     /**
@@ -355,6 +417,18 @@ public final class FactoryUtil {
         } catch (ValidationException e) {
             throw enrichNoMatchingConnectorError(factoryClass, context, connectorOption);
         }
+    }
+
+    private static CatalogFactory getCatalogFactory(CatalogFactory.Context context) {
+        final String catalogType = context.getOptions().get(CATALOG_TYPE.key());
+        if (catalogType == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Catalog options do not contain an option key '%s' for discovering a catalog.",
+                            CATALOG_TYPE.key()));
+        }
+
+        return discoverFactory(context.getClassLoader(), CatalogFactory.class, catalogType);
     }
 
     private static ValidationException enrichNoMatchingConnectorError(
@@ -673,6 +747,45 @@ public final class FactoryUtil {
         @Override
         public boolean isTemporary() {
             return isTemporary;
+        }
+    }
+
+    /** Default implementation of {@link CatalogFactory.Context}. */
+    public static class DefaultCatalogContext implements CatalogFactory.Context {
+        private final String name;
+        private final Map<String, String> options;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+
+        public DefaultCatalogContext(
+                String name,
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.name = name;
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
         }
     }
 

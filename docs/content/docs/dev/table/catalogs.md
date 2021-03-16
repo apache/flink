@@ -61,10 +61,11 @@ Flink's [Hive documentation]({{< ref "docs/connectors/table/hive/overview" >}}) 
 ### User-Defined Catalog
 
 Catalogs are pluggable and users can develop custom catalogs by implementing the `Catalog` interface.
-To use custom catalogs in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing the `CatalogFactory` interface.
 
-The catalog factory defines a set of properties for configuring the catalog when the SQL CLI bootstraps.
-The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate a corresponding catalog instance.
+In order to use custom catalogs with Flink SQL, users should implement a corresponding catalog factory by implementing the `CatalogFactory` interface.
+The factory is discovered using Java's Service Provider Interfaces (SPI).
+Classes that implement this interface can be added to  `META_INF/services/org.apache.flink.table.factories.Factory` in JAR files.
+The provided factory identifier will be used for matching against the required `type` property in a SQL `CREATE CATALOG` DDL statement.
 
 ## How to Create and Register Flink Tables to Catalog
 
