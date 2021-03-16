@@ -63,7 +63,8 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
  * <p>When read all entries from the {@link Configuration}, read the key from {@link ExecutionEntry}
  * first and then read the {@link ConfigOption}.
  *
- * <p>When YAML is removed from the project, it should also remove this helper class.
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
  */
 @Deprecated
 public class YamlConfigUtils {

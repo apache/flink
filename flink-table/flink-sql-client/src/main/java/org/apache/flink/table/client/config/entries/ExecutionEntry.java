@@ -40,6 +40,9 @@ import static org.apache.flink.table.client.config.Environment.EXECUTION_ENTRY;
  * ExecutionEnvironment/StreamExecutionEnvironment/TableEnvironment or as code in a Flink job.
  *
  * <p>All properties of this entry are optional and evaluated lazily.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
  */
 @Deprecated
 public class ExecutionEntry extends ConfigEntry {
@@ -80,12 +83,6 @@ public class ExecutionEntry extends ConfigEntry {
     public static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
 
     public static final String EXECUTION_RESULT_MODE = "result-mode";
-
-    private static final String EXECUTION_RESULT_MODE_VALUE_CHANGELOG = "changelog";
-
-    private static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
-
-    private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
 
     public static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 

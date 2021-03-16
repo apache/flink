@@ -33,7 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Auxiliary functions for configuration file handling. */
+/**
+ * Auxiliary functions for configuration file handling.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ */
 @Deprecated
 public class ConfigUtil {
 

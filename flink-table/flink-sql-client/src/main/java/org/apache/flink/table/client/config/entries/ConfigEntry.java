@@ -29,6 +29,9 @@ import java.util.Objects;
  * Describes an environment configuration entry (such as catalogs, table, functions, views). Config
  * entries are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL
  * Client's environment files only.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
  */
 @Deprecated
 abstract class ConfigEntry {

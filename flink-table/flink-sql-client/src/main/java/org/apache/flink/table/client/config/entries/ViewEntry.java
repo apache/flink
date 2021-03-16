@@ -20,7 +20,12 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
-/** Configuration of a table view. */
+/**
+ * Configuration of a table view.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
+ */
 @Deprecated
 public class ViewEntry extends TableEntry {
 

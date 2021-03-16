@@ -26,7 +26,11 @@ import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import java.util.Collections;
 import java.util.Map;
 
-/** Describes a user-defined function configuration entry. */
+/**
+ * Describes a user-defined function configuration entry.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ */
 @Deprecated
 public class FunctionEntry extends ConfigEntry {
 

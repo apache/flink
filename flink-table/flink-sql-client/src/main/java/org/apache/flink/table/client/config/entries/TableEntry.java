@@ -25,7 +25,11 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import java.util.Arrays;
 import java.util.Map;
 
-/** Describes a table-like configuration entry. */
+/**
+ * Describes a table-like configuration entry.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ */
 @Deprecated
 public abstract class TableEntry extends ConfigEntry {
 

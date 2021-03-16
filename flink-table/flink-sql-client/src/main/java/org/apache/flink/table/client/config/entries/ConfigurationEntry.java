@@ -26,7 +26,11 @@ import java.util.Map;
 
 import static org.apache.flink.table.client.config.Environment.CONFIGURATION_ENTRY;
 
-/** Configuration for configuring {@link org.apache.flink.table.api.TableConfig}. */
+/**
+ * Configuration for configuring {@link org.apache.flink.table.api.TableConfig}.
+ *
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ */
 @Deprecated
 public class ConfigurationEntry extends ConfigEntry {
 
