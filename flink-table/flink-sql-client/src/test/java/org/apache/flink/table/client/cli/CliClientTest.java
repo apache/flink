@@ -197,7 +197,7 @@ public class CliClientTest extends TestLogger {
                 new TestingExecutorBuilder()
                         .setExecuteSqlConsumer(
                                 (ignored1, sql) -> {
-                                    if (sql.toLowerCase().equals("use catalog cat")) {
+                                    if (sql.toLowerCase().equals("use catalog `cat`")) {
                                         return TestTableResult.TABLE_RESULT_OK;
                                     } else if (sql.toLowerCase().equals("show current catalog")) {
                                         SHOW_ROW.setField(0, "cat");
@@ -218,7 +218,7 @@ public class CliClientTest extends TestLogger {
 
         String output = testExecuteSql(executor, "use catalog cat;");
         assertThat(executor.getNumExecuteSqlCalls(), is(1));
-        assertFalse(output.contains("unexpected catalog name"));
+        assertFalse(output.contains("unexpected sql statement"));
 
         output = testExecuteSql(executor, "show current catalog;");
         assertThat(executor.getNumExecuteSqlCalls(), is(2));
@@ -231,7 +231,7 @@ public class CliClientTest extends TestLogger {
                 new TestingExecutorBuilder()
                         .setExecuteSqlConsumer(
                                 (ignored1, sql) -> {
-                                    if (sql.toLowerCase().equals("use db")) {
+                                    if (sql.toLowerCase().equals("use `db`")) {
                                         return TestTableResult.TABLE_RESULT_OK;
                                     } else if (sql.toLowerCase().equals("show current database")) {
                                         SHOW_ROW.setField(0, "db");
