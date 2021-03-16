@@ -39,7 +39,7 @@ functions as Flink built-in functions.
 
 ### CoreModule
 
-`CoreModule` contains all of Flink's system (built-in) functions and is loaded by default.
+`CoreModule` contains all of Flink's system (built-in) functions and is loaded and enabled by default.
 
 ### HiveModule
 
@@ -55,25 +55,358 @@ the `ModuleFactory` interface.
 A module factory defines a set of properties for configuring the module when the SQL CLI bootstraps.
 Properties are passed to a discovery service where the service tries to match the properties to
  a `ModuleFactory` and instantiate a corresponding module instance.
- 
 
-## Namespace and Resolution Order
+##  Module Lifecycle and Resolution Order
+
+A module can be loaded, enabled, disabled and unloaded. When TableEnvironment loads a module initially, it enables the module by default. Flink supports multiple modules and keeps track of the loading order to resolve metadata. *E.g.*, when there are two functions of the same name residing in two modules, Flink always resolves the function reference to the one in the 1st enabled module.
+
+Users can change the resolution order by using modules in a different declared order. *E.g.*, users can specify Flink to find functions first in Hive by `USE MODULES hive, core`. 
+
+Besides, users can also disable modules by not declaring them. *E.g.*, users can specify Flink to disable core module by `USE MODULES hive` (However, it is strongly not recommended disabling core module). Disable a module does not unload it, and users can enable it again by using it. *E.g.*, users can bring back core module and place it in the first by `USE MODULES core, hive`. A module can be enabled only when it is loaded already. Using an unloaded module will throw an Exception. Eventually, users can unload a module. 
+
+Flink only resolves the functions among enabled modules. The difference between disabling and unloading a module is that TableEnvironment still keeps the disabled modules, and users can list all loaded modules to view the disabled modules.
+
+## Namespace
 
 Objects provided by modules are considered part of Flink's system (built-in) objects; thus, they don't have any namespaces.
 
-When there are two objects of the same name residing in two modules, Flink always resolves the object reference to the one in the 1st loaded module.
+## How to Load, Unload, Use and List Modules
 
-## Module API
+### Using SQL
 
-### Loading and unloading a Module
+Users can use SQL to load/unload/use/list modules in both Table API and SQL CLI.
 
-Users can load and unload modules in an existing Flink session.
-
-{{< tabs "8af50989-0812-4ab9-b1e6-30422753d340" >}}
-{{< tab "Java/Scala" >}}
+{{< tabs "SQL snippets" >}}
+{{< tab "Java" >}}
 ```java
-tableEnv.loadModule("myModule", new CustomModule());
-tableEnv.unloadModule("myModule");
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
+TableEnvironment tableEnv = TableEnvironment.create(setting);
+
+// Show initially loaded and enabled modules
+tableEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// +-------------+------+
+
+// Load a hive module
+tableEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '...')");
+
+// Show all enabled modules
+tableEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// |        hive |
+// +-------------+
+
+// Show all loaded modules with both name and use status
+tableEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// |        hive | true |
+// +-------------+------+
+
+// Change resolution order
+tableEnv.executeSql("USE MODULES hive, core");
+tableEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// |        core |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        hive | true |
+// |        core | true |
+// +-------------+------+
+
+// Disable core module
+tableEnv.executeSql("USE MODULES hive");
+tableEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
+
+// Unload hive module
+tableEnv.executeSql("UNLOAD MODULE hive");
+tableEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive | false |
+// +-------------+-------+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val tableEnv = TableEnvironment.create(setting)
+
+// Show initially loaded and enabled modules
+tableEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// +-------------+------+
+
+// Load a hive module
+tableEnv.executeSql("LOAD MODULE hive WITH ('hive-version' = '...')")
+
+// Show all enabled modules
+tableEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// |        hive |
+// +-------------+
+
+// Show all loaded modules with both name and use status
+tableEnv.executeSql("SHOW FULL MODULES")
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// |        hive | true |
+// +-------------+------+
+
+// Change resolution order
+tableEnv.executeSql("USE MODULES hive, core")
+tableEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// |        core |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        hive | true |
+// |        core | true |
+// +-------------+------+
+
+// Disable core module
+tableEnv.executeSql("USE MODULES hive")
+tableEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
+
+// Unload hive module
+tableEnv.executeSql("UNLOAD MODULE hive")
+tableEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+tableEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive | false |
+// +-------------+-------+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table import *
+
+# environment configuration
+settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+t_env = TableEnvironment.create(settings)
+
+# Show initially loaded and enabled modules
+t_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+# |        core |
+# +-------------+
+t_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        core | true |
+# +-------------+------+
+
+# Load a hive module
+t_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '...')")
+
+# Show all enabled modules
+t_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+# |        core |
+# |        hive |
+# +-------------+
+
+# Show all loaded modules with both name and use status
+t_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        core | true |
+# |        hive | true |
+# +-------------+------+
+
+# Change resolution order
+t_env.execute_sql("USE MODULES hive, core")
+t_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+# |        hive |
+# |        core |
+# +-------------+
+t_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        hive | true |
+# |        core | true |
+# +-------------+------+
+
+# Disable core module
+t_env.execute_sql("USE MODULES hive")
+t_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+# |        hive |
+# +-------------+
+t_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive |  true |
+# |        core | false |
+# +-------------+-------+
+
+# Unload hive module
+t_env.execute_sql("UNLOAD MODULE hive")
+t_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+t_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive | false |
+# +-------------+-------+
+```
+{{< /tab >}}
+{{< tab "SQL Client" >}}
+```sql
+-- Show initially loaded and enabled modules
+Flink SQL> SHOW MODULES;
+-- +-------------+
+-- | module name |
+-- +-------------+
+-- |        core |
+-- +-------------+
+Flink SQL> SHOW FULL MODULES;
+-- +-------------+------+
+-- | module name | used |
+-- +-------------+------+
+-- |        core | true |
+-- +-------------+------+
+
+-- Load a hive module
+Flink SQL> LOAD MODULE hive WITH ('hive-version' = '...');
+
+-- Show all enabled modules
+Flink SQL> SHOW MODULES;
+-- +-------------+
+-- | module name |
+-- +-------------+
+-- |        core |
+-- |        hive |
+-- +-------------+
+
+-- Show all loaded modules with both name and use status
+Flink SQL> SHOW FULL MODULES;
+-- +-------------+------+
+-- | module name | used |
+-- +-------------+------+
+-- |        core | true |
+-- |        hive | true |
+-- +-------------+------+
+
+-- Change resolution order
+Flink SQL> USE MODULES hive, core ;
+Flink SQL> SHOW MODULES;
+-- +-------------+
+-- | module name |
+-- +-------------+
+-- |        hive |
+-- |        core |
+-- +-------------+
+Flink SQL> SHOW FULL MODULES;
+-- +-------------+------+
+-- | module name | used |
+-- +-------------+------+
+-- |        hive | true |
+-- |        core | true |
+-- +-------------+------+
+
+-- Unload hive module
+Flink SQL> UNLOAD MODULE hive;
+Flink SQL> SHOW MODULES;
+-- +-------------+
+-- | module name |
+-- +-------------+
+Flink SQL> SHOW FULL MODULES;
+-- +-------------+-------+
+-- | module name |  used |
+-- +-------------+-------+
+-- |        hive | false |
+-- +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
@@ -84,7 +417,7 @@ The following types are supported out of the box.
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-center" style="width: 25%">Catalog</th>
+      <th class="text-center" style="width: 25%">Module</th>
       <th class="text-center">Type Value</th>
     </tr>
   </thead>
@@ -104,23 +437,283 @@ The following types are supported out of the box.
 modules:
    - name: core
      type: core
-   - name: myhive
+   - name: hive
      type: hive
 ```
 {{< /tab >}}
 {{< /tabs >}}
+{{< hint warning >}}
+When using SQL, module name is used to perform the module discovery. It is parsed as a simple identifier and case-sensitive.
+{{< /hint >}}
 
-### List Available Modules
+### Using Java, Scala or Python
 
-{{< tabs "7b5a086d-0db1-4914-98eb-a20e86e55160" >}}
-{{< tab "Java/Scala" >}}
+Users can use Java, Scala or Python to load/unload/use/list modules programmatically.
+
+{{< tabs "API snippets" >}}
+{{< tab "Java" >}}
 ```java
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
+TableEnvironment tableEnv = TableEnvironment.create(setting);
+
+// Show initially loaded and enabled modules
 tableEnv.listModules();
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+tableEnv.listFullModules();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// +-------------+------+
+
+// Load a hive module
+tableEnv.loadModule("hive", new HiveModule());
+
+// Show all enabled modules
+tableEnv.listModules();
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// |        hive |
+// +-------------+
+
+// Show all loaded modules with both name and use status
+tableEnv.listFullModules();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// |        hive | true |
+// +-------------+------+
+
+// Change resolution order
+tableEnv.useModules("hive", "core");
+tableEnv.listModules();
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// |        core |
+// +-------------+
+tableEnv.listFullModules();
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        hive | true |
+// |        core | true |
+// +-------------+------+
+
+// Disable core module
+tableEnv.useModules("hive");
+tableEnv.listModules();
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// +-------------+
+tableEnv.listFullModules();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
+
+// Unload hive module
+tableEnv.unloadModule("hive");
+tableEnv.listModules();
+// +-------------+
+// | module name |
+// +-------------+
+tableEnv.listFullModules();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive | false |
+// +-------------+-------+
 ```
 {{< /tab >}}
-{{< tab "SQL" >}}
-```sql
-Flink SQL> SHOW MODULES;
+{{< tab "Scala" >}}
+```scala
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val tableEnv = TableEnvironment.create(setting)
+
+// Show initially loaded and enabled modules
+tableEnv.listModules()
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+tableEnv.listFullModules()
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// +-------------+------+
+
+// Load a hive module
+tableEnv.loadModule("hive", new HiveModule())
+
+// Show all enabled modules
+tableEnv.listModules()
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// |        hive |
+// +-------------+
+
+// Show all loaded modules with both name and use status
+tableEnv.listFullModules()
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        core | true |
+// |        hive | true |
+// +-------------+------+
+
+// Change resolution order
+tableEnv.useModules("hive", "core")
+tableEnv.listModules()
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// |        core |
+// +-------------+
+tableEnv.listFullModules()
+// +-------------+------+
+// | module name | used |
+// +-------------+------+
+// |        hive | true |
+// |        core | true |
+// +-------------+------+
+
+// Disable core module
+tableEnv.useModules("hive")
+tableEnv.listModules()
+// +-------------+
+// | module name |
+// +-------------+
+// |        hive |
+// +-------------+
+tableEnv.listFullModules()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
+
+// Unload hive module
+tableEnv.unloadModule("hive")
+tableEnv.listModules()
+// +-------------+
+// | module name |
+// +-------------+
+tableEnv.listFullModules()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive | false |
+// +-------------+-------+
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table import *
+
+# environment configuration
+settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+t_env = TableEnvironment.create(settings)
+
+# Show initially loaded and enabled modules
+t_env.list_modules()
+# +-------------+
+# | module name |
+# +-------------+
+# |        core |
+# +-------------+
+t_env.list_full_modules()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        core | true |
+# +-------------+------+
+
+# Load a hive module
+t_env.load_module("hive", HiveModule())
+
+# Show all enabled modules
+t_env.list_modules()
+# +-------------+
+# | module name |
+# +-------------+
+# |        core |
+# |        hive |
+# +-------------+
+
+# Show all loaded modules with both name and use status
+t_env.list_full_modules()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        core | true |
+# |        hive | true |
+# +-------------+------+
+
+# Change resolution order
+t_env.use_modules("hive", "core")
+t_env.list_modules()
+# +-------------+
+# | module name |
+# +-------------+
+# |        hive |
+# |        core |
+# +-------------+
+t_env.list_full_modules()
+# +-------------+------+
+# | module name | used |
+# +-------------+------+
+# |        hive | true |
+# |        core | true |
+# +-------------+------+
+
+# Disable core module
+t_env.use_modules("hive")
+t_env.list_modules()
+# +-------------+
+# | module name |
+# +-------------+
+# |        hive |
+# +-------------+
+t_env.list_full_modules()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive |  true |
+# |        core | false |
+# +-------------+-------+
+
+# Unload hive module
+t_env.unload_module("hive")
+t_env.list_modules()
+# +-------------+
+# | module name |
+# +-------------+
+t_env.list_full_modules()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive | false |
+# +-------------+-------+
 ```
 {{< /tab >}}
 {{< /tabs >}}
+{{< top >}}
