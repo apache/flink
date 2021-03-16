@@ -158,7 +158,8 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
                 try {
                     acknowledgeMessages(nextCheckpoint.f1);
                 } catch (IOException e) {
-                    throw new RuntimeException("Messages could not be acknowledged during checkpoint complete.", e);
+                    throw new RuntimeException(
+                            "Messages could not be acknowledged during checkpoint complete.", e);
                 }
                 checkpointIterator.remove();
             }

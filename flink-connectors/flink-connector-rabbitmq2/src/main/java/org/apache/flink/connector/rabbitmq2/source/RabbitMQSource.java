@@ -44,8 +44,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The source implementation of RabbitMQ. Please use a {@link RabbitMQSourceBuilder} to construct
- * the source. The following example shows how to create a RabbitMQSource emitting records of <code>
+ * RabbitMQ source (consumer) that consumes messages from a RabbitMQ queue. It provides
+ * at-most-once, at-least-once and exactly-once processing semantics. For at-least-once and
+ * exactly-once, checkpointing needs to be enabled. The source operates as a StreamingSource and
+ * thus works in a streaming fashion. Please use a {@link RabbitMQSourceBuilder} to construct the
+ * source. The following example shows how to create a RabbitMQSource emitting records of <code>
  * String</code> type.
  *
  * <pre>{@code
@@ -58,7 +61,31 @@ import org.slf4j.LoggerFactory;
  *     .build();
  * }</pre>
  *
- * <p>See {@link RabbitMQSourceBuilder} for more details.
+ * <p>When creating the source a {@code connectionConfig} must be specified via {@link
+ * RabbitMQConnectionConfig}. It contains required information for the RabbitMQ java client to
+ * connect to the RabbitMQ server. A minimum configuration contains a (virtual) host, a username, a
+ * password and a port. Besides that, the {@code queueName} to consume from and a {@link
+ * DeserializationSchema}
+ *
+ * <p>When using at-most-once consistency, messages are automatically acknowledged when received
+ * from RabbitMQ and later consumed by the output. In case of a failure, messages might be lost.
+ * More details in {@link RabbitMQSourceReaderAtMostOnce}.
+ *
+ * <p>In case of at-least-once consistency, message are buffered and later consumed by the output.
+ * Once a checkpoint is finished, the messages that were consumed by the output are acknowledged to
+ * RabbitMQ. This way, we ensure that the messages are successfully received by the output. In case
+ * of a system failure, the message that were acknowledged to RabbitMQ will be resend by RabbitMQ.
+ * More details in {@link RabbitMQSourceReaderAtLeastOnce}.
+ *
+ * <p>To ensure exactly-once consistency, messages are deduplicated through {@code correlationIds}.
+ * Similar to at-least-once consistency, we store the {@code deliveryTags} of the messages that are
+ * consumed by the output to acknowledge them later. A transactional RabbitMQ channel is used to
+ * ensure that all messages are successfully acknowledged to RabbitMQ. More details in {@link
+ * RabbitMQSourceReaderExactlyOnce}.
+ *
+ * <p>Keep in mind that the transactional channels are heavyweight and performance will drop. Under
+ * heavy load, checkpoints can be delayed if a transaction takes longer than the specified
+ * checkpointing interval.
  *
  * @param <T> the output type of the source.
  */
@@ -184,5 +211,96 @@ public class RabbitMQSource<T>
     @Override
     public TypeInformation<T> getProducedType() {
         return deserializationSchema.getProducedType();
+    }
+
+    /**
+     * A @builder class to simplify the creation of a {@link RabbitMQSource}.
+     *
+     * <p>The following example shows the minimum setup to create a RabbitMQSource that reads String
+     * messages from a Queue.
+     *
+     * <pre>{@code
+     * RabbitMQSource<String> source = RabbitMQSource
+     *     .<String>builder()
+     *     .setConnectionConfig(MY_RMQ_CONNECTION_CONFIG)
+     *     .setQueueName("myQueue")
+     *     .setDeliveryDeserializer(new SimpleStringSchema())
+     *     .setConsistencyMode(MY_CONSISTENCY_MODE)
+     *     .build();
+     * }</pre>
+     *
+     * <p>For details about the connection config refer to {@link RabbitMQConnectionConfig}. For
+     * details about the available consistency modes refer to {@link ConsistencyMode}.
+     *
+     * @param <T> the output type of the source.
+     */
+    public static class RabbitMQSourceBuilder<T> {
+        // The configuration for the RabbitMQ connection.
+        private RabbitMQConnectionConfig connectionConfig;
+        // Name of the queue to consume from.
+        private String queueName;
+        // The deserializer for the messages of RabbitMQ.
+        private DeserializationSchema<T> deserializationSchema;
+        // The consistency mode for the source.
+        private ConsistencyMode consistencyMode;
+
+        /**
+         * Build the {@link RabbitMQSource}.
+         *
+         * @return a RabbitMQSource with the configuration set for this builder.
+         */
+        public RabbitMQSource<T> build() {
+            return new RabbitMQSource<>(
+                    connectionConfig, queueName, deserializationSchema, consistencyMode);
+        }
+
+        /**
+         * Set the connection config for RabbitMQ.
+         *
+         * @param connectionConfig the connection configuration for RabbitMQ.
+         * @return this RabbitMQSourceBuilder
+         * @see RabbitMQConnectionConfig
+         */
+        public RabbitMQSourceBuilder<T> setConnectionConfig(
+                RabbitMQConnectionConfig connectionConfig) {
+            this.connectionConfig = connectionConfig;
+            return this;
+        }
+
+        /**
+         * Set the name of the queue to consume from.
+         *
+         * @param queueName the name of the queue to consume from.
+         * @return this RabbitMQSourceBuilder
+         */
+        public RabbitMQSourceBuilder<T> setQueueName(String queueName) {
+            this.queueName = queueName;
+            return this;
+        }
+
+        /**
+         * Set the deserializer for the message deliveries from RabbitMQ.
+         *
+         * @param deserializationSchema a deserializer for the message deliveries from RabbitMQ.
+         * @return this RabbitMQSourceBuilder
+         * @see DeserializationSchema
+         */
+        public RabbitMQSourceBuilder<T> setDeserializationSchema(
+                DeserializationSchema<T> deserializationSchema) {
+            this.deserializationSchema = deserializationSchema;
+            return this;
+        }
+
+        /**
+         * Set the consistency mode for the source.
+         *
+         * @param consistencyMode the consistency mode for the source.
+         * @return this RabbitMQSourceBuilder
+         * @see ConsistencyMode
+         */
+        public RabbitMQSourceBuilder<T> setConsistencyMode(ConsistencyMode consistencyMode) {
+            this.consistencyMode = consistencyMode;
+            return this;
+        }
     }
 }

@@ -4,7 +4,7 @@ Flink's RabbitMQ connector provides a streaming-only source which enables you to
 from a RabbitMQqueue in three different consistency modes: at-most-once, at-least-once, 
 and exactly-once.
 
-## Consistency Behaviour
+## Consistency Modes
 With __at-most-once__, the source will receive each message and automatically acknowledges it to
 RabbitMQ. The message content is then polled by the output. If the system crashes in the meantime,
 the messages that the source buffers are lost.
