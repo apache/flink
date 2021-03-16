@@ -212,6 +212,24 @@ public final class Expressions {
     }
 
     /**
+     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>The supported precision is 0 or 3:
+     *
+     * <ul>
+     *   <li>0 means the numericEpochTime is in second.
+     *   <li>3 means the numericEpochTime is in millisecond.
+     * </ul>
+     *
+     * @param numericEpochTime The epoch time with numeric type.
+     * @param precision The precision to indicate the epoch time is in second or millisecond.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(Object numericEpochTime, Object precision) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime, precision);
+    }
+
+    /**
      * Determines whether two anchored time intervals overlap. Time point and temporal are
      * transformed into a range defined by two time points (start, end). The function evaluates
      * <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.
