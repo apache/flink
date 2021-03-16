@@ -592,7 +592,7 @@ public class CliClient implements AutoCloseable {
 
     private void callUseCatalog(SqlCommandCall cmdCall) {
         try {
-            executor.executeSql(sessionId, "USE CATALOG " + cmdCall.operands[0]);
+            executor.executeSql(sessionId, "USE CATALOG `" + cmdCall.operands[0] + "`");
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
@@ -602,7 +602,7 @@ public class CliClient implements AutoCloseable {
 
     private void callUseDatabase(SqlCommandCall cmdCall) {
         try {
-            executor.executeSql(sessionId, "USE " + cmdCall.operands[0]);
+            executor.executeSql(sessionId, "USE `" + cmdCall.operands[0] + "`");
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
