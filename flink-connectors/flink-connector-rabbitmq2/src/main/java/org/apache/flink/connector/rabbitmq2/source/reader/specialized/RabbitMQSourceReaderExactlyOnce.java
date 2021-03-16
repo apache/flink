@@ -77,6 +77,8 @@ public class RabbitMQSourceReaderExactlyOnce<T> extends RabbitMQSourceReaderBase
             polledAndUnacknowledgedMessagesPerCheckpoint;
 
     // Set of correlation ids that have been seen and are not acknowledged yet.
+    // The message publisher (who pushes the messages to RabbitMQ) is obligated to set the
+    // correlation id per message and ensure their uniqueness.
     private final ConcurrentHashMap.KeySetView<String, Boolean> correlationIds;
 
     public RabbitMQSourceReaderExactlyOnce(

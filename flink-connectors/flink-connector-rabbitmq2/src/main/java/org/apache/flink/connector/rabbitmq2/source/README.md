@@ -17,20 +17,20 @@ it is assured that the messages are correctly processed by the system. If the sy
 meantime, the unacknowledged messages will be resend by RabbitMQ to assure at-least-once behavior.
 
 The __exactly-once-mode__ mode uses _correlation ids_ to deduplicate messages. Correlation ids are
-properties of the messages and need to be set by the user in order for the mode to function. 
-The user has the obligation to ensure that the set correlation id for a message is unique, 
-otherwise no exactly-once can be guaranteed here since RabbitMQ itself has no support for automatic 
-exactly-once ids or the required behavior. In addition, it requires _checkpointing enabled_
-and only _parallelism 1_ is allowed. Similar to at-least-once, the messages are received from RabbitMQ,
-buffered, and passed to the output when polled. A set of seen correlation ids is maintained to apply
-the deduplication. During a checkpoint, the seen correlation ids are stored so that in case of
-failure they can be recovered and used for deduplication. When the notification for a completed
-checkpoint is received, all polled messages are acknowledged as one transaction to ensure the
-reception by RabbitMQ. Afterwards, the set of correlation ids is updated as RabbitMQ will not send
-the acknowledged messages again. This behavior assures exactly-once processing but also has a
-performance drawback. Committing many messages will take time and will thus increase the overall
-time it takes to do a checkpoint. This can result in checkpoint delays and in peaks where
-checkpoint have either many or just a few messages.
+properties of the messages and need to be set by the message publisher (who publishes the messages 
+to RabbitMQ) in order for the mode to function. The user has the obligation to ensure that the set 
+correlation id for a message is unique, otherwise no exactly-once can be guaranteed here since 
+RabbitMQ itself has no support for automatic exactly-once ids or the required behavior. In addition,
+it requires _checkpointing enabled_and only _parallelism 1_ is allowed. Similar to at-least-once, 
+the messages are received from RabbitMQ,buffered, and passed to the output when polled. A set of 
+seen correlation ids is maintained to apply the deduplication. During a checkpoint, the seen 
+correlation ids are stored so that in case of failure they can be recovered and used for 
+deduplication. When the notification for a completed checkpoint is received, all polled messages are
+acknowledged as one transaction to ensure the reception by RabbitMQ. Afterwards, the set of 
+correlation ids is updated as RabbitMQ will not send the acknowledged messages again. This behavior 
+assures exactly-once processing but also has a performance drawback. Committing many messages will 
+take time and will thus increase the overall time it takes to do a checkpoint. This can result in 
+checkpoint delays and in peaks where checkpoint have either many or just a few messages.
 
 ## How to use it
 ```java
