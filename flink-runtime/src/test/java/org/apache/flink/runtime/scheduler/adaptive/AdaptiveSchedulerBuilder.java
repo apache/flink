@@ -37,6 +37,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -182,6 +184,19 @@ public class AdaptiveSchedulerBuilder {
     }
 
     public AdaptiveScheduler build() throws Exception {
+        final ExecutionGraphFactory executionGraphFactory =
+                new DefaultExecutionGraphFactory(
+                        jobMasterConfiguration,
+                        userCodeLoader,
+                        new DefaultExecutionDeploymentTracker(),
+                        futureExecutor,
+                        ioExecutor,
+                        rpcTimeout,
+                        jobManagerJobMetricGroup,
+                        blobWriter,
+                        shuffleMaster,
+                        partitionTracker);
+
         return new AdaptiveScheduler(
                 jobGraph,
                 jobMasterConfiguration,
@@ -190,20 +205,15 @@ public class AdaptiveSchedulerBuilder {
                         ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
                                 declarativeSlotPool)
                         : slotAllocator,
-                futureExecutor,
                 ioExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
-                rpcTimeout,
-                blobWriter,
                 jobManagerJobMetricGroup,
-                shuffleMaster,
-                partitionTracker,
                 restartBackoffTimeStrategy,
-                new DefaultExecutionDeploymentTracker(),
                 initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
-                jobStatusListener);
+                jobStatusListener,
+                executionGraphFactory);
     }
 }
