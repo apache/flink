@@ -60,8 +60,7 @@ public class SortLimitJsonPlanTest extends TableTestBase {
                         + "  'sink-insert-only' = 'false',\n"
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
-        String sql =
-                "insert into MySink SELECT a, a from MyTable order by b limit 10";
+        String sql = "insert into MySink SELECT a, a from MyTable order by b limit 10";
         util.verifyJsonPlan(sql);
     }
 }

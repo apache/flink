@@ -30,9 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Test for sort limit JsonPlan ser/de.
- */
+/** Test for sort limit JsonPlan ser/de. */
 public class SortLimitJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testSortLimit() throws ExecutionException, InterruptedException, IOException {
@@ -41,21 +39,12 @@ public class SortLimitJsonPlanITCase extends JsonPlanTestBase {
                 JavaScalaConversionUtil.toJava(TestData.data1()),
                 "a int",
                 "b varchar",
-                "c int"
-                );
-        createTestNonInsertOnlyValuesSinkTable(
-                "`result`",
-                "a int",
-                "b varchar",
-                "c bigint");
+                "c int");
+        createTestNonInsertOnlyValuesSinkTable("`result`", "a int", "b varchar", "c bigint");
         String sql = "insert into `result` select * from MyTable order by a limit 3";
         executeSqlWithJsonPlanVerified(sql).await();
 
-        List<String> expected =
-                Arrays.asList(
-                        "+I[1, a, 5]",
-                        "+I[2, a, 6]",
-                        "+I[3, b, 7]");
+        List<String> expected = Arrays.asList("+I[1, a, 5]", "+I[2, a, 6]", "+I[3, b, 7]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));
     }
 }
