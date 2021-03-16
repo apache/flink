@@ -144,7 +144,7 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 ```java
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell);
 ```
 
 Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
@@ -168,13 +168,13 @@ For example, rather than creating a new `EnrichedRide` class with a `startCell` 
 as a key via 
 
 ```java
-keyBy(enrichedRide -> enrichedRide.startCell)
+keyBy(enrichedRide -> enrichedRide.startCell);
 ```
 
 we could do this, instead:
 
 ```java
-keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat))
+keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat));
 ```
 
 ### Aggregations on Keyed Streams
@@ -375,7 +375,7 @@ in an unbounded way, it's necessary to clear the state for keys that are no long
 done by calling `clear()` on the state object, as in:
 
 ```java
-keyHasBeenSeen.clear()
+keyHasBeenSeen.clear();
 ```
 
 You might want to do this, for example, after a period of inactivity for a given key. You'll see how
