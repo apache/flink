@@ -93,7 +93,8 @@ public class RabbitMQSourceEnumerator
 
         // Every Source Reader will only receive one split, thus we will never get back more.
         if (list.size() != 1) {
-            throw new RuntimeException("There should only be one split added back at a time. per reader");
+            throw new RuntimeException(
+                    "There should only be one split added back at a time. per reader");
         }
 
         LOG.info("Split returned from reader " + i);

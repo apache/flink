@@ -56,8 +56,7 @@ public abstract class RabbitMQBaseTest {
     protected RabbitMQContainerClient client;
     protected String queueName;
 
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds(10);
+    @Rule public Timeout globalTimeout = Timeout.seconds(10);
 
     @Rule
     public MiniClusterWithClientResource flinkCluster =
@@ -170,7 +169,8 @@ public abstract class RabbitMQBaseTest {
         return messages;
     }
 
-    public void addCollectorSink(DataStream<String> stream, CountDownLatch latch, int failAtNthMessage) {
+    public void addCollectorSink(
+            DataStream<String> stream, CountDownLatch latch, int failAtNthMessage) {
         stream.addSink(new CollectSink(latch, failAtNthMessage));
     }
 

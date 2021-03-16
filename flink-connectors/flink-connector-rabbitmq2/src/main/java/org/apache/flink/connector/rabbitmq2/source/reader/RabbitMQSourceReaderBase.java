@@ -23,7 +23,6 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.rabbitmq2.source.common.RabbitMQMessageWrapper;
 import org.apache.flink.connector.rabbitmq2.source.enumerator.RabbitMQSourceEnumerator;
 import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplit;
@@ -168,9 +167,10 @@ public abstract class RabbitMQSourceReaderBase<T> implements SourceReader<T, Rab
 
     @Override
     public CompletableFuture<Void> isAvailable() {
-        return CompletableFuture.runAsync(() -> {
-            while (!collector.hasUnpolledMessages());
-        });
+        return CompletableFuture.runAsync(
+                () -> {
+                    while (!collector.hasUnpolledMessages()) ;
+                });
     }
 
     /**

@@ -53,7 +53,8 @@ public class RabbitMQSourceSplitSerializer
         return baos.toByteArray();
     }
 
-    public void serializeV1(DataOutputStream out, RabbitMQSourceSplit rabbitMQSourceSplit) throws IOException {
+    public void serializeV1(DataOutputStream out, RabbitMQSourceSplit rabbitMQSourceSplit)
+            throws IOException {
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(out);
         objectOutputStream.writeObject(rabbitMQSourceSplit.getConnectionConfig());
         out.writeUTF(rabbitMQSourceSplit.getQueueName());
@@ -73,8 +74,8 @@ public class RabbitMQSourceSplitSerializer
 
     public RabbitMQSourceSplit deserializeV1(byte[] bytes) throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-             DataInputStream in = new DataInputStream(bais);
-             ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
+                DataInputStream in = new DataInputStream(bais);
+                ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
             RabbitMQConnectionConfig config =
                     (RabbitMQConnectionConfig) objectInputStream.readObject();
             // Queue names may be up to 255 bytes of UTF-8 characters.
