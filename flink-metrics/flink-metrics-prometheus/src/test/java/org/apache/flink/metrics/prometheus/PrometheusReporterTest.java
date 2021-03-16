@@ -375,8 +375,8 @@ public class PrometheusReporterTest extends TestLogger {
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(ARG_PORT, portString);
 
-        PrometheusReporter metricReporter = prometheusReporterFactory
-                .createMetricReporter(metricConfig);
+        PrometheusReporter metricReporter =
+                prometheusReporterFactory.createMetricReporter(metricConfig);
 
         return ReporterSetup.forReporter(reporterName, metricConfig, metricReporter);
     }

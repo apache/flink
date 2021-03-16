@@ -57,9 +57,11 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                 metricConfig.getBoolean(
                         RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
         boolean deleteOnShutdown =
-                metricConfig.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+                metricConfig.getBoolean(
+                        DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
         Map<String, String> groupingKey =
-                parseGroupingKey(metricConfig.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+                parseGroupingKey(
+                        metricConfig.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
 
         if (host == null || host.isEmpty() || port < 1) {
             throw new IllegalArgumentException(
@@ -80,7 +82,8 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                 deleteOnShutdown,
                 groupingKey);
 
-        return new PrometheusPushGatewayReporter(host, port, jobName, groupingKey, deleteOnShutdown);
+        return new PrometheusPushGatewayReporter(
+                host, port, jobName, groupingKey, deleteOnShutdown);
     }
 
     @VisibleForTesting
