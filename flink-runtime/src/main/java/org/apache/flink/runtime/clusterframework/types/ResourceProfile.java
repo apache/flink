@@ -31,10 +31,12 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -554,7 +556,7 @@ public class ResourceProfile implements Serializable {
                 .setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
                 .setManagedMemory(resourceSpec.getManagedMemory())
                 .setNetworkMemory(networkMemory)
-                .addExtendedResources(resourceSpec.getExtendedResources())
+                .setExtendedResources(resourceSpec.getExtendedResources().values())
                 .build();
     }
 
@@ -575,7 +577,7 @@ public class ResourceProfile implements Serializable {
                 .setTaskOffHeapMemory(resourceProfile.taskOffHeapMemory)
                 .setManagedMemory(resourceProfile.managedMemory)
                 .setNetworkMemory(resourceProfile.networkMemory)
-                .addExtendedResources(resourceProfile.extendedResources);
+                .setExtendedResources(resourceProfile.extendedResources.values());
     }
 
     /** Builder for the {@link ResourceProfile}. */
@@ -640,15 +642,23 @@ public class ResourceProfile implements Serializable {
             return this;
         }
 
-        public Builder addExtendedResource(String name, Resource extendedResource) {
-            this.extendedResources.put(name, extendedResource);
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(Resource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
             return this;
         }
 
-        public Builder addExtendedResources(Map<String, Resource> extendedResources) {
-            if (extendedResources != null) {
-                this.extendedResources.putAll(extendedResources);
-            }
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<Resource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(Collectors.toMap(Resource::getName, Function.identity()));
             return this;
         }
 
