@@ -55,6 +55,9 @@ public class ReduceApplyAllWindowFunction<W extends Window, T, R>
                 curr = reduceFunction.reduce(curr, val);
             }
         }
-        wrappedFunction.apply(window, Collections.singletonList(curr), out);
+
+        Iterable<T> inputIterable =
+                curr == null ? Collections.emptyList() : Collections.singletonList(curr);
+        wrappedFunction.apply(window, inputIterable, out);
     }
 }
