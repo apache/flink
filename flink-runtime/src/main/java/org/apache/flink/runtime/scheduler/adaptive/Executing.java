@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph implements ResourceConsumer {
@@ -55,6 +56,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         this.userCodeClassLoader = userCodeClassLoader;
 
         deploy();
+
+        // check if new resources have come available in the meantime
+        context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
     }
 
     @Override
@@ -206,6 +210,17 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Throwable failureCause);
+
+        /**
+         * Runs the given action after a delay if the state at this time equals the expected state.
+         *
+         * @param expectedState expectedState describes the required state at the time of running
+         *     the action
+         * @param action action to run if the expected state equals the actual state
+         * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
+         */
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     /**

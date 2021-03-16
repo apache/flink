@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -65,6 +66,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -289,6 +291,20 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testExecutingChecksForNewResourcesWhenBeingCreated() throws Exception {
+        try (MockExecutingContext context = new MockExecutingContext()) {
+            context.setCanScaleUp(() -> true);
+            context.setExpectRestarting(
+                    restartingArguments -> {
+                        // expect immediate restart on scale up
+                        assertThat(restartingArguments.getBackoffTime(), is(Duration.ZERO));
+                    });
+
+            final Executing executing = new ExecutingStateBuilder().build(context);
+        }
+    }
+
     private final class ExecutingStateBuilder {
         private ExecutionGraph executionGraph =
                 TestingDefaultExecutionGraphBuilder.newBuilder().build();
@@ -344,7 +360,7 @@ public class ExecutingTest extends TestLogger {
                 new StateValidator<>("cancelling");
 
         private Function<Throwable, Executing.FailureResult> howToHandleFailure;
-        private Supplier<Boolean> canScaleUp;
+        private Supplier<Boolean> canScaleUp = () -> false;
 
         public void setExpectFailing(Consumer<FailingArguments> asserter) {
             failingStateValidator.expectInput(asserter);
@@ -417,6 +433,15 @@ public class ExecutingTest extends TestLogger {
                             operatorCoordinatorHandler,
                             failureCause));
             hadStateTransition = true;
+        }
+
+        @Override
+        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
+            if (!hadStateTransition) {
+                action.run();
+            }
+
+            return CompletedScheduledFuture.create(null);
         }
 
         @Override

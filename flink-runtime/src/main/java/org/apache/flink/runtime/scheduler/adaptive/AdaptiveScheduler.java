@@ -577,30 +577,16 @@ public class AdaptiveScheduler
         return outstandingResources.isEmpty();
     }
 
-    private ParallelismAndResourceAssignments determineParallelismAndAssignResources(
-            SlotAllocator slotAllocator) throws JobExecutionException {
+    private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
+            throws JobExecutionException {
 
-        final VertexParallelism vertexParallelism =
-                slotAllocator
-                        .determineParallelism(
-                                jobInformation, declarativeSlotPool.getFreeSlotsInformation())
-                        .orElseThrow(
-                                () ->
-                                        new JobExecutionException(
-                                                jobInformation.getJobID(),
-                                                "Not enough resources available for scheduling."));
-
-        final ReservedSlots reservedSlots =
-                slotAllocator
-                        .tryReserveResources(vertexParallelism)
-                        .orElseThrow(
-                                () ->
-                                        new JobExecutionException(
-                                                jobInformation.getJobID(),
-                                                "Could not reserve all required slots."));
-
-        return new ParallelismAndResourceAssignments(
-                reservedSlots, vertexParallelism.getMaxParallelismForVertices());
+        return slotAllocator
+                .determineParallelism(jobInformation, declarativeSlotPool.getFreeSlotsInformation())
+                .orElseThrow(
+                        () ->
+                                new JobExecutionException(
+                                        jobInformation.getJobID(),
+                                        "Not enough resources available for scheduling."));
     }
 
     @Override
@@ -713,29 +699,44 @@ public class AdaptiveScheduler
 
     @Override
     public void goToCreatingExecutionGraph() {
-        CompletableFuture<ExecutionGraph> executionGraphFuture;
+        final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                executionGraphWithAvailableResourcesFuture =
+                        createExecutionGraphWithAvailableResourcesAsync();
 
-        try {
-            final ExecutionGraph executionGraph = createExecutionGraphWithAvailableResources();
-            executionGraphFuture = CompletableFuture.completedFuture(executionGraph);
-        } catch (Exception exception) {
-            executionGraphFuture = FutureUtils.completedExceptionally(exception);
-        }
-
-        transitionToState(new CreatingExecutionGraph.Factory(this, executionGraphFuture, LOG));
+        transitionToState(
+                new CreatingExecutionGraph.Factory(
+                        this, executionGraphWithAvailableResourcesFuture, LOG));
     }
 
-    ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception {
-        final ParallelismAndResourceAssignments parallelismAndResourceAssignments =
-                determineParallelismAndAssignResources(slotAllocator);
+    private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+            createExecutionGraphWithAvailableResourcesAsync() {
+        final JobGraph adjustedJobGraph;
+        final VertexParallelism vertexParallelism;
 
-        JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
-        for (JobVertex vertex : adjustedJobGraph.getVertices()) {
-            vertex.setParallelism(parallelismAndResourceAssignments.getParallelism(vertex.getID()));
+        try {
+            vertexParallelism = determineParallelism(slotAllocator);
+
+            adjustedJobGraph = jobInformation.copyJobGraph();
+            for (JobVertex vertex : adjustedJobGraph.getVertices()) {
+                vertex.setParallelism(vertexParallelism.getParallelism(vertex.getID()));
+            }
+        } catch (Exception exception) {
+            return FutureUtils.completedExceptionally(exception);
         }
 
+        return createExecutionGraphAndRestoreStateAsync(adjustedJobGraph)
+                .thenApply(
+                        executionGraph ->
+                                CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
+                                        executionGraph, vertexParallelism));
+    }
+
+    @Override
+    public CreatingExecutionGraph.AssignmentResult tryToAssignSlots(
+            CreatingExecutionGraph.ExecutionGraphWithVertexParallelism
+                    executionGraphWithVertexParallelism) {
         final ExecutionGraph executionGraph =
-                createExecutionGraphAndRestoreStateAsync(adjustedJobGraph).join();
+                executionGraphWithVertexParallelism.getExecutionGraph();
 
         executionGraph.start(componentMainThreadExecutor);
         executionGraph.transitionToRunning();
@@ -743,28 +744,51 @@ public class AdaptiveScheduler
         executionGraph.setInternalTaskFailuresListener(
                 new UpdateSchedulerNgOnInternalFailuresListener(this));
 
+        final VertexParallelism vertexParallelism =
+                executionGraphWithVertexParallelism.getVertexParallelism();
+        return slotAllocator
+                .tryReserveResources(vertexParallelism)
+                .map(
+                        reservedSlots ->
+                                CreatingExecutionGraph.AssignmentResult.success(
+                                        assignSlotsToExecutionGraph(executionGraph, reservedSlots)))
+                .orElseGet(CreatingExecutionGraph.AssignmentResult::notPossible);
+    }
+
+    @Nonnull
+    private ExecutionGraph assignSlotsToExecutionGraph(
+            ExecutionGraph executionGraph, ReservedSlots reservedSlots) {
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
-            final LogicalSlot assignedSlot =
-                    parallelismAndResourceAssignments.getAssignedSlot(executionVertex.getID());
+            final LogicalSlot assignedSlot = reservedSlots.getSlotFor(executionVertex.getID());
             executionVertex
                     .getCurrentExecutionAttempt()
                     .registerProducedPartitions(assignedSlot.getTaskManagerLocation(), false);
             executionVertex.tryAssignResource(assignedSlot);
         }
+
         return executionGraph;
     }
 
     private CompletableFuture<ExecutionGraph> createExecutionGraphAndRestoreStateAsync(
             JobGraph adjustedJobGraph) {
         return CompletableFuture.supplyAsync(
-                () -> {
-                    try {
-                        return createExecutionGraphAndRestoreState(adjustedJobGraph);
-                    } catch (Exception exception) {
-                        throw new CompletionException(exception);
-                    }
-                },
-                ioExecutor);
+                        () -> {
+                            try {
+                                return createExecutionGraphAndRestoreState(adjustedJobGraph);
+                            } catch (Exception exception) {
+                                throw new CompletionException(exception);
+                            }
+                        },
+                        ioExecutor)
+                .handleAsync(
+                        (executionGraph, throwable) -> {
+                            if (throwable != null) {
+                                throw new CompletionException(throwable);
+                            } else {
+                                return executionGraph;
+                            }
+                        },
+                        getMainThreadExecutor());
     }
 
     @Nonnull
@@ -967,11 +991,6 @@ public class AdaptiveScheduler
     public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
         return componentMainThreadExecutor.schedule(
                 () -> runIfState(expectedState, action), delay.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public CreatingExecutionGraph.AssignmentResult tryToAssignSlots(ExecutionGraph executionGraph) {
-        return CreatingExecutionGraph.AssignmentResult.success(executionGraph);
     }
 
     // ----------------------------------------------------------------

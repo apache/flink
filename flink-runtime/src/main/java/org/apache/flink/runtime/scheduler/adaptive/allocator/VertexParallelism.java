@@ -31,4 +31,6 @@ import java.util.Map;
  */
 public interface VertexParallelism {
     Map<JobVertexID, Integer> getMaxParallelismForVertices();
+
+    int getParallelism(JobVertexID jobVertexId);
 }

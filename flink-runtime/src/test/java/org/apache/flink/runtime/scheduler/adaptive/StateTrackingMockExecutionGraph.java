@@ -226,12 +226,14 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
         return new StringifiedAccumulatorResult[0];
     }
 
-    // -- remaining interface implementations: all unsupported
+    @Override
+    public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {}
 
     @Override
-    public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
-        throw new UnsupportedOperationException();
-    }
+    public void setInternalTaskFailuresListener(
+            InternalFailuresListener internalTaskFailuresListener) {}
+
+    // -- remaining interface implementations: all unsupported
 
     @Override
     public SchedulingTopology getSchedulingTopology() {
@@ -299,12 +301,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public Map<String, OptionalFailure<Accumulator<?, ?>>> aggregateUserAccumulators() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setInternalTaskFailuresListener(
-            InternalFailuresListener internalTaskFailuresListener) {
         throw new UnsupportedOperationException();
     }
 

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -31,6 +33,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
@@ -88,52 +91,61 @@ public class CreatingExecutionGraphTest extends TestLogger {
     @Test
     public void testFailedExecutionGraphCreationTransitionsToFinished() throws Exception {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
-            final CompletableFuture<ExecutionGraph> executionGraphFuture =
-                    new CompletableFuture<>();
+            final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                    executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
             final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(context, executionGraphFuture, log);
+                    new CreatingExecutionGraph(
+                            context, executionGraphWithVertexParallelismFuture, log);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
 
-            executionGraphFuture.completeExceptionally(new FlinkException("Test exception"));
+            executionGraphWithVertexParallelismFuture.completeExceptionally(
+                    new FlinkException("Test exception"));
         }
     }
 
     @Test
     public void testNotPossibleSlotAssignmentTransitionsToWaitingForResources() throws Exception {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
-            final CompletableFuture<ExecutionGraph> executionGraphFuture =
-                    new CompletableFuture<>();
+            final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                    executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
             final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(context, executionGraphFuture, log);
+                    new CreatingExecutionGraph(
+                            context, executionGraphWithVertexParallelismFuture, log);
 
             context.setTryToAssignSlotsFunction(
                     ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
             context.setExpectWaitingForResources();
 
-            executionGraphFuture.complete(new StateTrackingMockExecutionGraph());
+            executionGraphWithVertexParallelismFuture.complete(
+                    CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
+                            new StateTrackingMockExecutionGraph(), new TestingVertexParallelism()));
         }
     }
 
     @Test
     public void testSuccessfulSlotAssignmentTransitionsToExecuting() throws Exception {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
-            final CompletableFuture<ExecutionGraph> executionGraphFuture =
-                    new CompletableFuture<>();
+            final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                    executionGraphWithvertexParallelismFuture = new CompletableFuture<>();
             final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(context, executionGraphFuture, log);
+                    new CreatingExecutionGraph(
+                            context, executionGraphWithvertexParallelismFuture, log);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
 
-            context.setTryToAssignSlotsFunction(CreatingExecutionGraph.AssignmentResult::success);
+            context.setTryToAssignSlotsFunction(
+                    e -> CreatingExecutionGraph.AssignmentResult.success(e.getExecutionGraph()));
             context.setExpectedExecuting(
                     actualExecutionGraph ->
                             assertThat(actualExecutionGraph, sameInstance(executionGraph)));
 
-            executionGraphFuture.complete(executionGraph);
+            executionGraphWithvertexParallelismFuture.complete(
+                    CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
+                            executionGraph, new TestingVertexParallelism()));
         }
     }
 
@@ -146,8 +158,11 @@ public class CreatingExecutionGraphTest extends TestLogger {
         private final StateValidator<ExecutionGraph> executingStateValidator =
                 new StateValidator<>("Executing");
 
-        private Function<ExecutionGraph, CreatingExecutionGraph.AssignmentResult>
-                tryToAssignSlotsFunction = CreatingExecutionGraph.AssignmentResult::success;
+        private Function<
+                        CreatingExecutionGraph.ExecutionGraphWithVertexParallelism,
+                        CreatingExecutionGraph.AssignmentResult>
+                tryToAssignSlotsFunction =
+                        e -> CreatingExecutionGraph.AssignmentResult.success(e.getExecutionGraph());
 
         private boolean hadStateTransitionHappened = false;
 
@@ -164,7 +179,9 @@ public class CreatingExecutionGraphTest extends TestLogger {
         }
 
         public void setTryToAssignSlotsFunction(
-                Function<ExecutionGraph, CreatingExecutionGraph.AssignmentResult>
+                Function<
+                                CreatingExecutionGraph.ExecutionGraphWithVertexParallelism,
+                                CreatingExecutionGraph.AssignmentResult>
                         tryToAssignSlotsFunction) {
             this.tryToAssignSlotsFunction = tryToAssignSlotsFunction;
         }
@@ -199,8 +216,9 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
         @Override
         public CreatingExecutionGraph.AssignmentResult tryToAssignSlots(
-                ExecutionGraph executionGraph) {
-            return tryToAssignSlotsFunction.apply(executionGraph);
+                CreatingExecutionGraph.ExecutionGraphWithVertexParallelism
+                        executionGraphWithVertexParallelism) {
+            return tryToAssignSlotsFunction.apply(executionGraphWithVertexParallelism);
         }
 
         @Override
@@ -214,6 +232,19 @@ public class CreatingExecutionGraphTest extends TestLogger {
             finishedStateValidator.close();
             waitingForResourcesStateValidator.close();
             executingStateValidator.close();
+        }
+    }
+
+    static final class TestingVertexParallelism implements VertexParallelism {
+
+        @Override
+        public Map<JobVertexID, Integer> getMaxParallelismForVertices() {
+            throw new UnsupportedOperationException("Is not supported");
+        }
+
+        @Override
+        public int getParallelism(JobVertexID jobVertexId) {
+            throw new UnsupportedOperationException("Is not supported");
         }
     }
 }

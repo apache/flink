@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -47,23 +48,29 @@ public class CreatingExecutionGraph implements State {
     private final Logger log;
 
     public CreatingExecutionGraph(
-            Context context, CompletableFuture<ExecutionGraph> executionGraphFuture, Logger log) {
+            Context context,
+            CompletableFuture<ExecutionGraphWithVertexParallelism>
+                    executionGraphWithParallelismFuture,
+            Logger log) {
         this.context = context;
         this.log = log;
 
         FutureUtils.assertNoException(
-                executionGraphFuture.handle(
-                        (executionGraph, throwable) -> {
+                executionGraphWithParallelismFuture.handle(
+                        (executionGraphWithVertexParallelism, throwable) -> {
                             context.runIfState(
                                     this,
-                                    () -> handleExecutionGraphCreation(executionGraph, throwable),
+                                    () ->
+                                            handleExecutionGraphCreation(
+                                                    executionGraphWithVertexParallelism, throwable),
                                     Duration.ZERO);
                             return null;
                         }));
     }
 
     private void handleExecutionGraphCreation(
-            @Nullable ExecutionGraph executionGraph, @Nullable Throwable throwable) {
+            @Nullable ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism,
+            @Nullable Throwable throwable) {
         if (throwable != null) {
             log.info(
                     "Failed to go from {} to {} because the ExecutionGraph creation failed.",
@@ -72,11 +79,16 @@ public class CreatingExecutionGraph implements State {
                     throwable);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
         } else {
-            final AssignmentResult result = context.tryToAssignSlots(executionGraph);
+            final AssignmentResult result =
+                    context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
             if (result.isSuccess()) {
+                log.debug(
+                        "Successfully reserved and assigned the required slots for the ExecutionGraph.");
                 context.goToExecuting(result.getExecutionGraph());
             } else {
+                log.debug(
+                        "Failed to reserve and assign the required slots. Waiting for new resources.");
                 context.goToWaitingForResources();
             }
         }
@@ -159,10 +171,12 @@ public class CreatingExecutionGraph implements State {
          * method returns a successful {@link AssignmentResult} which contains the assigned {@link
          * ExecutionGraph}. If not, then the assignment result is a failure.
          *
-         * @param executionGraph executionGraph to assign slots to
+         * @param executionGraphWithVertexParallelism executionGraphWithVertexParallelism to assign
+         *     slots to resources
          * @return {@link AssignmentResult} representing the result of the assignment
          */
-        AssignmentResult tryToAssignSlots(ExecutionGraph executionGraph);
+        AssignmentResult tryToAssignSlots(
+                ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism);
     }
 
     /**
@@ -207,16 +221,18 @@ public class CreatingExecutionGraph implements State {
 
         private final Context context;
 
-        private final CompletableFuture<ExecutionGraph> executionGraphFuture;
+        private final CompletableFuture<ExecutionGraphWithVertexParallelism>
+                executionGraphWithParallelismFuture;
 
         private final Logger log;
 
         Factory(
                 Context context,
-                CompletableFuture<ExecutionGraph> executionGraphFuture,
+                CompletableFuture<ExecutionGraphWithVertexParallelism>
+                        executionGraphWithParallelismFuture,
                 Logger log) {
             this.context = context;
-            this.executionGraphFuture = executionGraphFuture;
+            this.executionGraphWithParallelismFuture = executionGraphWithParallelismFuture;
             this.log = log;
         }
 
@@ -227,7 +243,32 @@ public class CreatingExecutionGraph implements State {
 
         @Override
         public CreatingExecutionGraph getState() {
-            return new CreatingExecutionGraph(context, executionGraphFuture, log);
+            return new CreatingExecutionGraph(context, executionGraphWithParallelismFuture, log);
+        }
+    }
+
+    static class ExecutionGraphWithVertexParallelism {
+        private final ExecutionGraph executionGraph;
+
+        private final VertexParallelism vertexParallelism;
+
+        private ExecutionGraphWithVertexParallelism(
+                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+            this.executionGraph = executionGraph;
+            this.vertexParallelism = vertexParallelism;
+        }
+
+        public static ExecutionGraphWithVertexParallelism create(
+                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+            return new ExecutionGraphWithVertexParallelism(executionGraph, vertexParallelism);
+        }
+
+        public ExecutionGraph getExecutionGraph() {
+            return executionGraph;
+        }
+
+        public VertexParallelism getVertexParallelism() {
+            return vertexParallelism;
         }
     }
 }
