@@ -42,7 +42,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
     // --------------- at most once ---------------
     @Test
     public void AtMostOnceTest() throws Exception {
-        List<String> messages = getRandomMessages(5);
+        List<String> messages = getRandomMessages(100);
         CountDownLatch latch = new CountDownLatch(messages.size());
 
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.AT_MOST_ONCE);
@@ -60,7 +60,7 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
     // --------------- at least once ---------------
     @Test
     public void AtLeastOnceTest() throws Exception {
-        List<String> messages = getRandomMessages(5);
+        List<String> messages = getRandomMessages(100);
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.AT_LEAST_ONCE);
         CountDownLatch latch = new CountDownLatch(messages.size());
         addCollectorSink(stream, latch);
@@ -80,9 +80,10 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
         // is assured that the source receives the messages again.
         DataStream<String> stream = addSourceOn(env, ConsistencyMode.AT_LEAST_ONCE);
 
-        List<String> messages = getSequentialMessages(5);
-        CountDownLatch latch = new CountDownLatch(messages.size());
-        addCollectorSink(stream, latch, 3);
+        List<String> messages = getSequentialMessages(100);
+        int failAtNthMessage = 30;
+        CountDownLatch latch = new CountDownLatch(messages.size() + failAtNthMessage - 1);
+        addCollectorSink(stream, latch, failAtNthMessage);
 
         env.executeAsync();
 
@@ -90,13 +91,14 @@ public class RabbitMQSourceTest extends RabbitMQBaseTest {
         latch.await();
 
         List<String> collectedMessages = getCollectedSinkMessages();
+        System.out.println(collectedMessages);
         assertTrue(collectedMessages.containsAll(messages));
     }
 
     // --------------- exactly once ---------------
     @Test
     public void FilterCorrelationIdsTest() throws Exception {
-        List<String> messages = getSequentialMessages(5);
+        List<String> messages = getRandomMessages(5);
         CountDownLatch latch = new CountDownLatch(3);
 
         env.enableCheckpointing(5000);
