@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
@@ -27,6 +26,8 @@ import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
+
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.create;
 import static org.apache.flink.table.client.config.entries.ConfigurationEntry.merge;
