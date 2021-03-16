@@ -43,8 +43,7 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecLimit extends StreamExecRank {
 
-    @JsonIgnore
-    private final long limitEnd;
+    @JsonIgnore private final long limitEnd;
 
     public StreamExecLimit(
             long limitStart,
