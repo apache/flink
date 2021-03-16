@@ -30,9 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Test for Rank JsonPlan ser/de.
- */
+/** Test for Rank JsonPlan ser/de. */
 public class RankJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testRank() throws ExecutionException, InterruptedException, IOException {
@@ -41,23 +39,15 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
                 JavaScalaConversionUtil.toJava(TestData.data1()),
                 "a int",
                 "b varchar",
-                "c int"
-                );
-        createTestNonInsertOnlyValuesSinkTable(
-                "`result`",
-                "a int",
-                "b varchar",
-                "c bigint");
-        String sql = "insert into `result` select * from "
-                + "(select a, b, row_number() over(partition by b order by c) as c from MyTable)"
-                + " where c = 1";
+                "c int");
+        createTestNonInsertOnlyValuesSinkTable("`result`", "a int", "b varchar", "c bigint");
+        String sql =
+                "insert into `result` select * from "
+                        + "(select a, b, row_number() over(partition by b order by c) as c from MyTable)"
+                        + " where c = 1";
         executeSqlWithJsonPlanVerified(sql).await();
 
-        List<String> expected =
-                Arrays.asList(
-                        "+I[1, a, 1]",
-                        "+I[3, b, 1]",
-                        "+I[5, c, 1]");
+        List<String> expected = Arrays.asList("+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));
     }
 }
