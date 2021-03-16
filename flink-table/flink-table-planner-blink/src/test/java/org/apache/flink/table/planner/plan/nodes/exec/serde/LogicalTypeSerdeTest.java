@@ -105,7 +105,7 @@ public class LogicalTypeSerdeTest {
         }
         String json = writer.toString();
         LogicalType actual = mapper.readValue(json, LogicalType.class);
-        assertEquals(logicalType, actual);
+        assertEquals(logicalType.asSerializableString(), actual.asSerializableString());
     }
 
     @Parameterized.Parameters(name = "{0}")
