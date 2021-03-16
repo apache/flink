@@ -53,10 +53,6 @@ The Apache Flink project supports the following file systems:
   - **MapR FS** file system adapter is already supported in the main Flink distribution under the *maprfs://* URI scheme.
   You must provide the MapR libraries in the classpath (for example in `lib` directory).
 
-  - **OpenStack Swift FS** is supported by `flink-swift-fs-hadoop` and registered under the *swift://* URI scheme.
-  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
-  To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{< version >}}`).
-  
   - **[Aliyun Object Storage Service]({{< ref "docs/deployment/filesystems/oss" >}})** is supported by `flink-oss-fs-hadoop` and registered under the *oss://* URI scheme.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
