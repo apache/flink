@@ -97,7 +97,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                                 .flatMap(gate -> gate.getChannelInfos().stream())
                                 .count(),
                 new UnalignedController(checkpointCoordinator, inputs),
-                null /* TODO */);
+                (callable, duration) -> {
+                    throw new IllegalStateException(
+                            "Strictly unaligned checkpoints should never register any callbacks");
+                });
     }
 
     SingleCheckpointBarrierHandler(
