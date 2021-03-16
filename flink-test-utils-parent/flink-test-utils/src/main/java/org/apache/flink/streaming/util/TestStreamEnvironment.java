@@ -100,10 +100,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     conf,
                     ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
                     Duration.ofSeconds(0),
-                    Duration.ofSeconds(1),
-                    Duration.ofSeconds(5),
-                    Duration.ofSeconds(30),
-                    Duration.ofMillis(100));
+                    Duration.ofMillis(100),
+                    Duration.ofSeconds(2));
         }
     }
 
