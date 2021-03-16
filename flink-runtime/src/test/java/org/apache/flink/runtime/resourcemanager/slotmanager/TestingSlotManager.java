@@ -26,9 +26,12 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -90,6 +93,11 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
         return ResourceProfile.ZERO;
+    }
+
+    @Override
+    public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
+        return Collections.emptyList();
     }
 
     @Override
