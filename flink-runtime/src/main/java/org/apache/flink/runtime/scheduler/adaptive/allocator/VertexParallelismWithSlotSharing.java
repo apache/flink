@@ -44,4 +44,9 @@ public class VertexParallelismWithSlotSharing implements VertexParallelism {
     public Map<JobVertexID, Integer> getMaxParallelismForVertices() {
         return vertexParallelism;
     }
+
+    @Override
+    public int getParallelism(JobVertexID jobVertexId) {
+        return vertexParallelism.get(jobVertexId);
+    }
 }
