@@ -183,6 +183,9 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
         }
         if (activeController == unalignedController) {
             barrier = barrier.asUnaligned();
+        } else if (activeController == alignedController
+                && barrier.getCheckpointOptions().isUnalignedCheckpoint()) {
+            checkState(!switchToUnaligned(barrier).isPresent());
         }
         return activeController.preProcessFirstBarrier(channelInfo, barrier);
     }
