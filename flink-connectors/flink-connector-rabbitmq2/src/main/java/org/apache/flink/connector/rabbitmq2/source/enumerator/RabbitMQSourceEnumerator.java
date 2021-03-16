@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.connector.rabbitmq2.ConsistencyMode;
 import org.apache.flink.connector.rabbitmq2.RabbitMQConnectionConfig;
 import org.apache.flink.connector.rabbitmq2.source.split.RabbitMQSourceSplit;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +37,7 @@ import java.util.List;
  * same split as it only contains information about the connection and in case of exactly-once, the
  * seen correlation ids. But in this case, the enumerator makes sure that at maximum one source
  * reader receives the split. During exactly-once if multiple reader should be assigned a split a
- * {@link FlinkRuntimeException} is thrown.
+ * {@link RuntimeException} is thrown.
  */
 public class RabbitMQSourceEnumerator
         implements SplitEnumerator<RabbitMQSourceSplit, RabbitMQSourceEnumState> {
@@ -116,7 +115,7 @@ public class RabbitMQSourceEnumerator
 
     private void assignSplitToReader(int readerId, RabbitMQSourceSplit split) {
         if (consistencyMode == ConsistencyMode.EXACTLY_ONCE && context.currentParallelism() > 1) {
-            throw new FlinkRuntimeException(
+            throw new RuntimeException(
                     "The consistency mode is exactly-once and more than one source reader was created. "
                             + "For exactly once a parallelism higher than one is forbidden.");
         }
