@@ -243,7 +243,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                 null);
     }
 
-    private void printOutput(String processName, String logContents) {
+    private static void printOutput(String processName, String logContents) {
         if (logContents == null || logContents.length() == 0) {
             return;
         }
@@ -251,7 +251,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         System.out.println("-----------------------------------------");
         System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
         System.out.println("-----------------------------------------");
-        System.out.println(log);
+        System.out.println(logContents);
         System.out.println("-----------------------------------------");
         System.out.println("		END SPAWNED PROCESS LOG");
         System.out.println("-----------------------------------------");
