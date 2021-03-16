@@ -35,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -53,6 +54,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -262,6 +264,12 @@ public class SlotManagerImpl implements SlotManager {
                                         .getDefaultSlotResourceProfile()
                                         .multiply(taskManagerRegistration.getNumberFreeSlots()))
                 .orElse(ResourceProfile.ZERO);
+    }
+
+    @Override
+    public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
+        // This information is currently not supported for this slot manager.
+        return Collections.emptyList();
     }
 
     @VisibleForTesting

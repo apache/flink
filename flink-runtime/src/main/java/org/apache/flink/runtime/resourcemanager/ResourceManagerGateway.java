@@ -192,13 +192,13 @@ public interface ResourceManagerGateway
     CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(@RpcTimeout Time timeout);
 
     /**
-     * Requests information about the given {@link TaskExecutor}.
+     * Requests detail information about the given {@link TaskExecutor}.
      *
      * @param taskManagerId identifying the TaskExecutor for which to return information
      * @param timeout of the request
-     * @return Future TaskManager information
+     * @return Future TaskManager information and its allocated slots
      */
-    CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 
     /**

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -716,6 +717,12 @@ public class DeclarativeSlotManager implements SlotManager {
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
         return taskExecutorManager.getTotalFreeResourcesOf(instanceID);
+    }
+
+    @Override
+    public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
+        // This information is currently not supported for this slot manager.
+        return Collections.emptyList();
     }
 
     @Override

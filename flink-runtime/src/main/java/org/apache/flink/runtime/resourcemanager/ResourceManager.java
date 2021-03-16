@@ -671,7 +671,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID resourceId, Time timeout) {
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
@@ -680,21 +680,23 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(resourceId));
         } else {
             final InstanceID instanceId = taskExecutor.getInstanceID();
-            final TaskManagerInfo taskManagerInfo =
-                    new TaskManagerInfo(
-                            resourceId,
-                            taskExecutor.getTaskExecutorGateway().getAddress(),
-                            taskExecutor.getDataPort(),
-                            taskExecutor.getJmxPort(),
-                            taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
-                            slotManager.getNumberRegisteredSlotsOf(instanceId),
-                            slotManager.getNumberFreeSlotsOf(instanceId),
-                            slotManager.getRegisteredResourceOf(instanceId),
-                            slotManager.getFreeResourceOf(instanceId),
-                            taskExecutor.getHardwareDescription(),
-                            taskExecutor.getMemoryConfiguration());
+            final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                    new TaskManagerInfoWithSlots(
+                            new TaskManagerInfo(
+                                    resourceId,
+                                    taskExecutor.getTaskExecutorGateway().getAddress(),
+                                    taskExecutor.getDataPort(),
+                                    taskExecutor.getJmxPort(),
+                                    taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
+                                    slotManager.getNumberRegisteredSlotsOf(instanceId),
+                                    slotManager.getNumberFreeSlotsOf(instanceId),
+                                    slotManager.getRegisteredResourceOf(instanceId),
+                                    slotManager.getFreeResourceOf(instanceId),
+                                    taskExecutor.getHardwareDescription(),
+                                    taskExecutor.getMemoryConfiguration()),
+                            slotManager.getAllocatedSlotsOf(instanceId));
 
-            return CompletableFuture.completedFuture(taskManagerInfo);
+            return CompletableFuture.completedFuture(taskManagerInfoWithSlots);
         }
     }
 

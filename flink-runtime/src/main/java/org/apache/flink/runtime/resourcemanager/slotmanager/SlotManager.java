@@ -27,9 +27,11 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -69,6 +71,8 @@ public interface SlotManager extends AutoCloseable {
     ResourceProfile getFreeResource();
 
     ResourceProfile getFreeResourceOf(InstanceID instanceID);
+
+    Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID);
 
     int getNumberPendingSlotRequests();
 
