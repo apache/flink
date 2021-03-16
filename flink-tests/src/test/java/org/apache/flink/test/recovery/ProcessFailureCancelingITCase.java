@@ -79,7 +79,7 @@ import static org.junit.Assert.assertTrue;
 public class ProcessFailureCancelingITCase extends TestLogger {
 
     private static final String TASK_DEPLOYED_MARKER = "deployed";
-    private static final Duration TIMEOUT = Duration.ofMinutes(1);
+    private static final Duration TIMEOUT = Duration.ofMinutes(2);
 
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
