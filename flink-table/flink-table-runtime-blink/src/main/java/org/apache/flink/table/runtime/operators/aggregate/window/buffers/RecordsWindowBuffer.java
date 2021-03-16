@@ -22,14 +22,12 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap.LookupInfo;
 import org.apache.flink.table.runtime.util.collections.binary.WindowBytesMultiMap;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
 
 import java.io.EOFException;
 import java.util.Iterator;
@@ -43,7 +41,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     private final WindowCombineFunction combineFunction;
     private final WindowBytesMultiMap recordsBuffer;
     private final WindowKey reuseWindowKey;
-    private final RowDataSerializer recordSerializer;
+    private final AbstractRowDataSerializer<RowData> recordSerializer;
 
     private long minTriggerTime = Long.MAX_VALUE;
 
@@ -52,18 +50,14 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             MemoryManager memoryManager,
             long memorySize,
             WindowCombineFunction combineFunction,
-            LogicalType[] keyTypes,
-            RowType inputType) {
+            AbstractRowDataSerializer<RowData> keySer,
+            AbstractRowDataSerializer<RowData> inputSer) {
         this.combineFunction = combineFunction;
-        LogicalType[] inputFieldTypes =
-                inputType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .toArray(LogicalType[]::new);
         this.recordsBuffer =
                 new WindowBytesMultiMap(
-                        operatorOwner, memoryManager, memorySize, keyTypes, inputFieldTypes);
-        this.recordSerializer = new RowDataSerializer(inputFieldTypes);
-        this.reuseWindowKey = new WindowKeySerializer(keyTypes.length).createInstance();
+                        operatorOwner, memoryManager, memorySize, keySer, inputSer.getArity());
+        this.recordSerializer = inputSer;
+        this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
     }
 
     @Override
@@ -121,12 +115,14 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
         private static final long serialVersionUID = 1L;
 
-        private final LogicalType[] keyTypes;
-        private final RowType inputType;
+        private final AbstractRowDataSerializer<RowData> keySer;
+        private final AbstractRowDataSerializer<RowData> inputSer;
 
-        public Factory(LogicalType[] keyTypes, RowType inputType) {
-            this.keyTypes = keyTypes;
-            this.inputType = inputType;
+        public Factory(
+                AbstractRowDataSerializer<RowData> keySer,
+                AbstractRowDataSerializer<RowData> inputSer) {
+            this.keySer = keySer;
+            this.inputSer = inputSer;
         }
 
         @Override
@@ -136,7 +132,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                 long memorySize,
                 WindowCombineFunction combineFunction) {
             return new RecordsWindowBuffer(
-                    operatorOwner, memoryManager, memorySize, combineFunction, keyTypes, inputType);
+                    operatorOwner, memoryManager, memorySize, combineFunction, keySer, inputSer);
         }
     }
 }

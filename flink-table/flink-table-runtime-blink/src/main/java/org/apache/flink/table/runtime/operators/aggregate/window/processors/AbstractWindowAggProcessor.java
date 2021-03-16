@@ -36,8 +36,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -47,7 +46,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected final WindowBuffer.Factory windowBufferFactory;
     protected final WindowCombineFunction.Factory combineFactory;
     protected final SliceAssigner sliceAssigner;
-    protected final LogicalType[] accumulatorTypes;
+    protected final AbstractRowDataSerializer<RowData> accSerializer;
     protected final boolean isEventTime;
 
     // ----------------------------------------------------------------------------------------
@@ -74,12 +73,12 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             WindowBuffer.Factory bufferFactory,
             WindowCombineFunction.Factory combinerFactory,
             SliceAssigner sliceAssigner,
-            LogicalType[] accumulatorTypes) {
+            AbstractRowDataSerializer<RowData> accSerializer) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
         this.combineFactory = combinerFactory;
         this.sliceAssigner = sliceAssigner;
-        this.accumulatorTypes = accumulatorTypes;
+        this.accSerializer = accSerializer;
         this.isEventTime = sliceAssigner.isEventTime();
     }
 
@@ -91,8 +90,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(
                                 namespaceSerializer,
-                                new ValueStateDescriptor<>(
-                                        "window-aggs", new RowDataSerializer(accumulatorTypes)));
+                                new ValueStateDescriptor<>("window-aggs", accSerializer));
         this.windowState =
                 new WindowValueState<>((InternalValueState<RowData, Long, RowData>) state);
         this.clockService = ClockService.of(ctx.getTimerService());

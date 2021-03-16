@@ -23,7 +23,7 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 
 /**
  * An window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
@@ -37,8 +37,8 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             WindowBuffer.Factory windowBufferFactory,
             WindowCombineFunction.Factory combineFactory,
             SliceUnsharedAssigner sliceAssigner,
-            LogicalType[] accumulatorTypes) {
-        super(genAggsHandler, windowBufferFactory, combineFactory, sliceAssigner, accumulatorTypes);
+            AbstractRowDataSerializer<RowData> accSerializer) {
+        super(genAggsHandler, windowBufferFactory, combineFactory, sliceAssigner, accSerializer);
     }
 
     @Override

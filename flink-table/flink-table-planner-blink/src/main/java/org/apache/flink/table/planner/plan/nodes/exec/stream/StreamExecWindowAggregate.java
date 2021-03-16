@@ -55,6 +55,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -174,19 +175,17 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
                         planner.getRelBuilder(),
                         inputRowType.getChildren());
 
-        final LogicalType[] keyTypes =
-                Arrays.stream(grouping)
-                        .mapToObj(inputRowType::getTypeAt)
-                        .toArray(LogicalType[]::new);
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
         final LogicalType[] accTypes = convertToLogicalTypes(aggInfoList.getAccTypes());
 
         final OneInputStreamOperator<RowData, RowData> windowOperator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(inputRowType)
-                        .keyTypes(keyTypes)
+                        .inputSerializer(new RowDataSerializer(inputRowType))
+                        .keySerializer(selector.getKeySerializer())
                         .assigner(sliceAssigner)
                         .countStarIndex(aggInfoList.getIndexOfCountStar())
-                        .aggregate(generatedAggsHandler, accTypes)
+                        .aggregate(generatedAggsHandler, new RowDataSerializer(accTypes))
                         .build();
 
         final OneInputTransformation<RowData, RowData> transform =
@@ -199,8 +198,6 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
                         WINDOW_AGG_MEMORY_RATIO);
 
         // set KeyType and Selector for state
-        final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
         return transform;

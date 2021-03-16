@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.WindowKey;
 
@@ -38,13 +39,9 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     private static final long serialVersionUID = 1L;
     public static final int WINDOW_IN_BYTES = 8;
 
-    private final BinaryRowDataSerializer keySerializer;
+    private final PagedTypeSerializer<RowData> keySerializer;
 
-    public WindowKeySerializer(int numKeyFields) {
-        this(new BinaryRowDataSerializer(numKeyFields));
-    }
-
-    public WindowKeySerializer(BinaryRowDataSerializer keySerializer) {
+    public WindowKeySerializer(PagedTypeSerializer<RowData> keySerializer) {
         this.keySerializer = keySerializer;
     }
 
@@ -55,7 +52,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
 
     @Override
     public TypeSerializer<WindowKey> duplicate() {
-        return new WindowKeySerializer(keySerializer.getArity());
+        return new WindowKeySerializer((PagedTypeSerializer<RowData>) keySerializer.duplicate());
     }
 
     @Override
@@ -71,7 +68,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public WindowKey copy(WindowKey from, WindowKey reuse) {
         long window = from.getWindow();
-        BinaryRowData key = keySerializer.copy(from.getKey(), reuse.getKey());
+        RowData key = keySerializer.copy(from.getKey(), reuse.getKey());
         return reuse.replace(window, key);
     }
 
@@ -89,14 +86,14 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public WindowKey deserialize(DataInputView source) throws IOException {
         long window = source.readLong();
-        BinaryRowData key = keySerializer.deserialize(source);
+        RowData key = keySerializer.deserialize(source);
         return new WindowKey(window, key);
     }
 
     @Override
     public WindowKey deserialize(WindowKey reuse, DataInputView source) throws IOException {
         long window = source.readLong();
-        BinaryRowData key = keySerializer.deserialize(reuse.getKey(), source);
+        RowData key = keySerializer.deserialize(reuse.getKey(), source);
         return reuse.replace(window, key);
     }
 
@@ -109,10 +106,9 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public int serializeToPages(WindowKey record, AbstractPagedOutputView target)
             throws IOException {
-        int windowSkip = checkSkipWriteForWindowPart(target);
         target.writeLong(record.getWindow());
-        int keySkip = keySerializer.serializeToPages(record.getKey(), target);
-        return windowSkip + keySkip;
+        keySerializer.serializeToPages(record.getKey(), target);
+        return 0;
     }
 
     @Override
@@ -123,57 +119,23 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public WindowKey deserializeFromPages(WindowKey reuse, AbstractPagedInputView source)
             throws IOException {
-        checkSkipReadForFixLengthPart(source);
         long window = source.readLong();
-        BinaryRowData key = keySerializer.deserializeFromPages(reuse.getKey(), source);
+        RowData key = keySerializer.deserializeFromPages(reuse.getKey(), source);
         return reuse.replace(window, key);
     }
 
     @Override
     public WindowKey mapFromPages(WindowKey reuse, AbstractPagedInputView source)
             throws IOException {
-        checkSkipReadForFixLengthPart(source);
         long window = source.readLong();
-        BinaryRowData key = keySerializer.mapFromPages(reuse.getKey(), source);
+        RowData key = keySerializer.mapFromPages(reuse.getKey(), source);
         return reuse.replace(window, key);
     }
 
     @Override
     public void skipRecordFromPages(AbstractPagedInputView source) throws IOException {
-        checkSkipReadForFixLengthPart(source);
         source.skipBytes(WINDOW_IN_BYTES);
         keySerializer.skipRecordFromPages(source);
-    }
-
-    /**
-     * We need skip bytes to write when the remain bytes of current segment is not enough to write
-     * window part.
-     */
-    private int checkSkipWriteForWindowPart(AbstractPagedOutputView out) throws IOException {
-        // skip if there is no enough size.
-        int available = out.getSegmentSize() - out.getCurrentPositionInSegment();
-        if (available < getSerializedFixedPartLength()) {
-            out.advance();
-            return available;
-        }
-        return 0;
-    }
-
-    /**
-     * We need skip bytes to read when the remain bytes of current segment is not enough to read
-     * window part.
-     */
-    private void checkSkipReadForFixLengthPart(AbstractPagedInputView source) throws IOException {
-        // skip if there is no enough size.
-        // Note: Use currentSegmentLimit instead of segmentSize.
-        int available = source.getCurrentSegmentLimit() - source.getCurrentPositionInSegment();
-        if (available < getSerializedFixedPartLength()) {
-            source.advance();
-        }
-    }
-
-    private int getSerializedFixedPartLength() {
-        return WINDOW_IN_BYTES + keySerializer.getSerializedRowFixedPartLength();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -222,7 +184,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
         @Override
         protected WindowKeySerializer createOuterSerializerWithNestedSerializers(
                 TypeSerializer<?>[] nestedSerializers) {
-            return new WindowKeySerializer((BinaryRowDataSerializer) nestedSerializers[0]);
+            return new WindowKeySerializer((PagedTypeSerializer<RowData>) nestedSerializers[0]);
         }
     }
 }

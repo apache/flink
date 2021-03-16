@@ -23,15 +23,13 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
-import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Iterator;
 
@@ -59,8 +57,11 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     /** Whether to copy key and input record, because key and record are reused. */
     private final boolean requiresCopy;
 
+    /** Serializer to copy key if required. */
+    private AbstractRowDataSerializer<RowData> keySerializer;
+
     /** Serializer to copy record if required. */
-    private final RowDataSerializer recordSerializer;
+    private final AbstractRowDataSerializer<RowData> recordSerializer;
 
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
@@ -71,24 +72,26 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> aggregator,
             boolean requiresCopy,
-            RowType recordType,
+            AbstractRowDataSerializer<RowData> keySerializer,
+            AbstractRowDataSerializer<RowData> recordSerializer,
             boolean isEventTime) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
         this.aggregator = aggregator;
         this.requiresCopy = requiresCopy;
-        this.recordSerializer = new RowDataSerializer(recordType);
+        this.keySerializer = keySerializer;
+        this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
     }
 
     @Override
     public void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception {
         // step 0: set current key for states and timers
-        final BinaryRowData key;
+        final RowData key;
         if (requiresCopy) {
             // the incoming key is reused, we should copy it if state backend doesn't copy it
-            key = windowKey.getKey().copy();
+            key = keySerializer.copy(windowKey.getKey());
         } else {
             key = windowKey.getKey();
         }
@@ -145,12 +148,16 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
         private static final long serialVersionUID = 1L;
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
-        private final RowType recordType;
+        private final AbstractRowDataSerializer<RowData> keySerializer;
+        private final AbstractRowDataSerializer<RowData> recordSerializer;
 
         public Factory(
-                GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler, RowType recordType) {
+                GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
+                AbstractRowDataSerializer<RowData> keySerializer,
+                AbstractRowDataSerializer<RowData> recordSerializer) {
             this.genAggsHandler = genAggsHandler;
-            this.recordType = recordType;
+            this.keySerializer = keySerializer;
+            this.recordSerializer = recordSerializer;
         }
 
         @Override
@@ -173,7 +180,8 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
                     windowState,
                     aggregator,
                     requiresCopy,
-                    recordType,
+                    keySerializer,
+                    recordSerializer,
                     isEventTime);
         }
     }
