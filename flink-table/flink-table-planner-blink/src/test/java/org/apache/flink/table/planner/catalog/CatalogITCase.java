@@ -74,7 +74,7 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testCreateCatalogFromUserClassLoader() throws Exception {
+    public void testCreateLegacyCatalogFromUserClassLoader() throws Exception {
         final String className = "UserCatalogFactory";
         URLClassLoader classLoader =
                 ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
@@ -110,6 +110,55 @@ public class CatalogITCase {
                                         + "\t\t\treturn Collections.emptyList();\n"
                                         + "\t\t}\n"
                                         + "\t}")
+                        .build();
+
+        try (TemporaryClassLoaderContext context = TemporaryClassLoaderContext.of(classLoader)) {
+            TableEnvironment tableEnvironment = getTableEnvironment();
+            tableEnvironment.executeSql("CREATE CATALOG cat WITH ('type'='userCatalog')");
+
+            assertTrue(tableEnvironment.getCatalog("cat").isPresent());
+        }
+    }
+
+    @Test
+    public void testCreateCatalogFromUserClassLoader() throws Exception {
+        final String className = "UserCatalogFactory";
+        URLClassLoader classLoader =
+                ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
+                        .addResource(
+                                "META-INF/services/org.apache.flink.table.factories.Factory",
+                                "UserCatalogFactory")
+                        .addClass(
+                                className,
+                                "import org.apache.flink.configuration.ConfigOption;\n"
+                                        + "import org.apache.flink.table.catalog.Catalog;\n"
+                                        + "import org.apache.flink.table.catalog.GenericInMemoryCatalog;\n"
+                                        + "import org.apache.flink.table.factories.CatalogFactory;\n"
+                                        + "\n"
+                                        + "import java.util.Collections;\n"
+                                        + "import java.util.Set;\n"
+                                        + "\n"
+                                        + "public class UserCatalogFactory implements CatalogFactory {\n"
+                                        + "    @Override\n"
+                                        + "    public Catalog createCatalog(Context context) {\n"
+                                        + "        return new GenericInMemoryCatalog(context.getName());\n"
+                                        + "    }\n"
+                                        + "\n"
+                                        + "    @Override\n"
+                                        + "    public String factoryIdentifier() {\n"
+                                        + "        return \"userCatalog\";\n"
+                                        + "    }\n"
+                                        + "\n"
+                                        + "    @Override\n"
+                                        + "    public Set<ConfigOption<?>> requiredOptions() {\n"
+                                        + "        return Collections.emptySet();\n"
+                                        + "    }\n"
+                                        + "\n"
+                                        + "    @Override\n"
+                                        + "    public Set<ConfigOption<?>> optionalOptions() {\n"
+                                        + "        return Collections.emptySet();\n"
+                                        + "    }\n"
+                                        + "}")
                         .build();
 
         try (TemporaryClassLoaderContext context = TemporaryClassLoaderContext.of(classLoader)) {
