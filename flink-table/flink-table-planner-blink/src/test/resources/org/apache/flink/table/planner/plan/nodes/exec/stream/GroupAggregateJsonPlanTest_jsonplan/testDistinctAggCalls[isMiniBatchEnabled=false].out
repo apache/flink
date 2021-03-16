@@ -23,11 +23,31 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 2 ], [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`c` VARCHAR(2147483647), `a` BIGINT, `b` INT NOT NULL> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "c" : "VARCHAR(2147483647)"
+          }, {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT NOT NULL"
+          } ]
+        }
       } ]
     },
-    "id" : 1,
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `a` BIGINT, `b` INT NOT NULL>",
+    "id" : 43,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "inputProperties" : [ ]
   }, {
@@ -82,7 +102,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
+    "id" : 44,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -90,11 +110,23 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `a` BIGINT, `$f2` BOOLEAN NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "$f2" : "BOOLEAN NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Calc(select=[c, a, (b > 10) AS $f2, b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 3,
+    "id" : 45,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -103,7 +135,19 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `a` BIGINT, `$f2` BOOLEAN NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "$f2" : "BOOLEAN NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[c]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -192,7 +236,7 @@
     "aggCallNeedRetractions" : [ false, false, false, false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 4,
+    "id" : 46,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -200,7 +244,23 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `cnt_a1` BIGINT NOT NULL, `cnt_a2` BIGINT NOT NULL, `sum_a` BIGINT, `sum_b` INT NOT NULL, `avg_b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "cnt_a1" : "BIGINT NOT NULL"
+      }, {
+        "cnt_a2" : "BIGINT NOT NULL"
+      }, {
+        "sum_a" : "BIGINT"
+      }, {
+        "sum_b" : "INT NOT NULL"
+      }, {
+        "avg_b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "GroupAggregate(groupBy=[c], select=[c, COUNT(DISTINCT a) FILTER $f2 AS cnt_a1, COUNT(DISTINCT a) AS cnt_a2, SUM(DISTINCT a) AS sum_a, SUM(DISTINCT b) AS sum_b, AVG(b) AS avg_b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -305,7 +365,23 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `cnt_a1` BIGINT, `cnt_a2` BIGINT, `sum_a` BIGINT, `sum_b` INT, `avg_b` DOUBLE>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "cnt_a1" : "BIGINT"
+      }, {
+        "cnt_a2" : "BIGINT"
+      }, {
+        "sum_a" : "BIGINT"
+      }, {
+        "sum_b" : "INT"
+      }, {
+        "avg_b" : "DOUBLE"
+      } ]
+    },
     "description" : "Calc(select=[c, CAST(cnt_a1) AS cnt_a1, CAST(cnt_a2) AS cnt_a2, sum_a, CAST(sum_b) AS sum_b, CAST(avg_b) AS avg_b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -334,7 +410,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 6,
+    "id" : 48,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -342,40 +418,56 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`c` VARCHAR(2147483647), `cnt_a1` BIGINT, `cnt_a2` BIGINT, `sum_a` BIGINT, `sum_b` INT, `avg_b` DOUBLE>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "cnt_a1" : "BIGINT"
+      }, {
+        "cnt_a2" : "BIGINT"
+      }, {
+        "sum_a" : "BIGINT"
+      }, {
+        "sum_b" : "INT"
+      }, {
+        "avg_b" : "DOUBLE"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, cnt_a1, cnt_a2, sum_a, sum_b, avg_b])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 43,
+    "target" : 44,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 44,
+    "target" : 45,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 45,
+    "target" : 46,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 46,
+    "target" : 47,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 47,
+    "target" : 48,
     "shuffle" : {
       "type" : "FORWARD"
     },

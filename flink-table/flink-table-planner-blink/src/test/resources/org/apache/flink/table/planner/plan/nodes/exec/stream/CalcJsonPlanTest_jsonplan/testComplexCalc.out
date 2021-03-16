@@ -25,8 +25,25 @@
         "predicates" : [ ]
       } ]
     },
-    "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3)>",
+    "id" : 6,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "d" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
@@ -354,7 +371,7 @@
         "nullable" : true
       }
     },
-    "id" : 2,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -362,7 +379,30 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "a1" : "VARCHAR(2147483647)"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "b1" : "VARCHAR(2147483647)"
+      }, {
+        "c1" : "VARCHAR(2147483647)"
+      }, {
+        "c2" : "VARCHAR(2147483647)"
+      }, {
+        "d1" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "Calc(select=[a, CAST(a) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$JavaFunc0$ea91f94853664692cdbdcd38ac065769(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -392,7 +432,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
+    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -400,19 +440,42 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "a1" : "VARCHAR(2147483647)"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "b1" : "VARCHAR(2147483647)"
+      }, {
+        "c1" : "VARCHAR(2147483647)"
+      }, {
+        "c2" : "VARCHAR(2147483647)"
+      }, {
+        "d1" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, a1, b, b1, c1, c2, d1])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
