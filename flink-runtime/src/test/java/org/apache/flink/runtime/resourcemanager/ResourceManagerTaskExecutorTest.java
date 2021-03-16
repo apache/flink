@@ -35,7 +35,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
-import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -219,9 +218,11 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
         RegistrationResponse response =
                 successfulFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         assertTrue(response instanceof TaskExecutorRegistrationSuccess);
-        final TaskManagerInfo taskManagerInfo =
-                rmGateway.requestTaskManagerInfo(taskExecutorResourceID, TIMEOUT).get();
-        assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
+        final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+        assertThat(
+                taskManagerInfoWithSlots.getTaskManagerInfo().getResourceId(),
+                equalTo(taskExecutorResourceID));
 
         // test response successful with instanceID not equal to previous when receive duplicate
         // registration from taskExecutor
@@ -316,10 +317,12 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
             // verify that the latest registration is valid not being unregistered by the delayed
             // one
-            final TaskManagerInfo taskManagerInfo =
-                    rmGateway.requestTaskManagerInfo(taskExecutorResourceID, TIMEOUT).get();
-            assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
-            assertThat(taskManagerInfo.getNumberSlots(), equalTo(1));
+            final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                    rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+            assertThat(
+                    taskManagerInfoWithSlots.getTaskManagerInfo().getResourceId(),
+                    equalTo(taskExecutorResourceID));
+            assertThat(taskManagerInfoWithSlots.getTaskManagerInfo().getNumberSlots(), equalTo(1));
         } finally {
             rpcService.resetRpcGatewayFutureFunction();
         }

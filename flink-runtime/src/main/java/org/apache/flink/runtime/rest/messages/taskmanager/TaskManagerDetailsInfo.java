@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
@@ -32,6 +33,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import java.util.Collection;
 import java.util.Objects;
 
 /** Message containing base information about a {@link TaskExecutor} and more detailed metrics. */
@@ -39,8 +41,13 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
     public static final String FIELD_NAME_METRICS = "metrics";
 
+    public static final String FIELD_NAME_ALLOCATED_SLOTS = "allocatedSlots";
+
     @JsonProperty(FIELD_NAME_METRICS)
     private final TaskManagerMetricsInfo taskManagerMetrics;
+
+    @JsonProperty(FIELD_NAME_ALLOCATED_SLOTS)
+    private final Collection<SlotInfo> allocatedSlots;
 
     @JsonCreator
     public TaskManagerDetailsInfo(
@@ -57,6 +64,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
             @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
             @JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
             @JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
+            @JsonProperty(FIELD_NAME_ALLOCATED_SLOTS) Collection<SlotInfo> allocatedSlots,
             @JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
         super(
                 resourceId,
@@ -72,22 +80,25 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
                 memoryConfiguration);
 
         this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
+        this.allocatedSlots = Preconditions.checkNotNull(allocatedSlots);
     }
 
     public TaskManagerDetailsInfo(
-            TaskManagerInfo taskManagerInfo, TaskManagerMetricsInfo taskManagerMetrics) {
+            TaskManagerInfoWithSlots taskManagerInfoWithSlots,
+            TaskManagerMetricsInfo taskManagerMetrics) {
         this(
-                taskManagerInfo.getResourceId(),
-                taskManagerInfo.getAddress(),
-                taskManagerInfo.getDataPort(),
-                taskManagerInfo.getJmxPort(),
-                taskManagerInfo.getLastHeartbeat(),
-                taskManagerInfo.getNumberSlots(),
-                taskManagerInfo.getNumberAvailableSlots(),
-                taskManagerInfo.getTotalResource(),
-                taskManagerInfo.getFreeResource(),
-                taskManagerInfo.getHardwareDescription(),
-                taskManagerInfo.getMemoryConfiguration(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getResourceId(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getAddress(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getDataPort(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getJmxPort(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getLastHeartbeat(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getNumberSlots(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getNumberAvailableSlots(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getTotalResource(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getFreeResource(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getHardwareDescription(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getMemoryConfiguration(),
+                taskManagerInfoWithSlots.getAllocatedSlots(),
                 taskManagerMetrics);
     }
 
@@ -95,6 +106,11 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
     @VisibleForTesting
     public final TaskManagerMetricsInfo getTaskManagerMetricsInfo() {
         return this.taskManagerMetrics;
+    }
+
+    @JsonIgnore
+    public Collection<SlotInfo> getAllocatedSlots() {
+        return allocatedSlots;
     }
 
     @Override

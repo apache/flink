@@ -57,6 +57,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -151,11 +152,12 @@ public class ResourceManagerTest extends TestLogger {
         registerTaskExecutor(
                 resourceManagerGateway, taskManagerId, taskExecutorGateway.getAddress());
 
-        CompletableFuture<TaskManagerInfo> taskManagerInfoFuture =
-                resourceManagerGateway.requestTaskManagerInfo(
+        CompletableFuture<TaskManagerInfoWithSlots> taskManagerInfoFuture =
+                resourceManagerGateway.requestTaskManagerDetailsInfo(
                         taskManagerId, TestingUtils.TIMEOUT());
 
-        TaskManagerInfo taskManagerInfo = taskManagerInfoFuture.get();
+        TaskManagerInfoWithSlots taskManagerInfoWithSlots = taskManagerInfoFuture.get();
+        TaskManagerInfo taskManagerInfo = taskManagerInfoWithSlots.getTaskManagerInfo();
 
         assertEquals(taskManagerId, taskManagerInfo.getResourceId());
         assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
@@ -164,6 +166,7 @@ public class ResourceManagerTest extends TestLogger {
         assertEquals(jmxPort, taskManagerInfo.getJmxPort());
         assertEquals(0, taskManagerInfo.getNumberSlots());
         assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
+        assertThat(taskManagerInfoWithSlots.getAllocatedSlots(), is(empty()));
     }
 
     private void registerTaskExecutor(

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
@@ -112,8 +113,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>>
             requestTaskManagerLogListFunction;
 
-    private volatile Function<ResourceID, CompletableFuture<TaskManagerInfo>>
-            requestTaskManagerInfoFunction;
+    private volatile Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
+            requestTaskManagerDetailsInfoFunction;
 
     private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>>
             requestThreadDumpFunction;
@@ -203,10 +204,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
     }
 
-    public void setRequestTaskManagerInfoFunction(
-            Function<ResourceID, CompletableFuture<TaskManagerInfo>>
-                    requestTaskManagerInfoFunction) {
-        this.requestTaskManagerInfoFunction = requestTaskManagerInfoFunction;
+    public void setRequestTaskManagerDetailsInfoFunction(
+            Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
+                    requestTaskManagerDetailsInfoFunction) {
+        this.requestTaskManagerDetailsInfoFunction = requestTaskManagerDetailsInfoFunction;
     }
 
     public void setDisconnectTaskExecutorConsumer(
@@ -397,10 +398,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID resourceId, Time timeout) {
-        final Function<ResourceID, CompletableFuture<TaskManagerInfo>> function =
-                requestTaskManagerInfoFunction;
+        final Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>> function =
+                requestTaskManagerDetailsInfoFunction;
 
         if (function != null) {
             return function.apply(resourceId);
