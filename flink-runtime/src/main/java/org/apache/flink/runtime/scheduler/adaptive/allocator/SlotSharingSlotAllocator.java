@@ -50,13 +50,21 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final FreeSlotFunction freeSlotFunction;
     private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
-    public SlotSharingSlotAllocator(
+    private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
+    }
+
+    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+            ReserveSlotFunction reserveSlot,
+            FreeSlotFunction freeSlotFunction,
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
+        return new SlotSharingSlotAllocator(
+                reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction);
     }
 
     @Override

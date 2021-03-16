@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
@@ -88,10 +89,14 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getName(),
                 jobGraph.getJobID());
 
+        final SlotSharingSlotAllocator slotAllocator =
+                createSlotSharingSlotAllocator(declarativeSlotPool);
+
         return new AdaptiveScheduler(
                 jobGraph,
                 jobMasterConfiguration,
                 declarativeSlotPool,
+                slotAllocator,
                 futureExecutor,
                 ioExecutor,
                 userCodeLoader,
@@ -112,5 +117,13 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     @Override
     public JobManagerOptions.SchedulerType getSchedulerType() {
         return JobManagerOptions.SchedulerType.Adaptive;
+    }
+
+    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+            DeclarativeSlotPool declarativeSlotPool) {
+        return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                declarativeSlotPool::reserveFreeSlot,
+                declarativeSlotPool::freeReservedSlot,
+                declarativeSlotPool::containsFreeSlot);
     }
 }

@@ -37,10 +37,13 @@ import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -74,6 +77,8 @@ public class AdaptiveSchedulerBuilder {
                             Thread.currentThread(), error);
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
     private long initializationTimestamp = System.currentTimeMillis();
+
+    @Nullable private SlotAllocator slotAllocator;
 
     public AdaptiveSchedulerBuilder(
             final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -171,11 +176,20 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setSlotAllocator(SlotAllocator slotAllocator) {
+        this.slotAllocator = slotAllocator;
+        return this;
+    }
+
     public AdaptiveScheduler build() throws Exception {
         return new AdaptiveScheduler(
                 jobGraph,
                 jobMasterConfiguration,
                 declarativeSlotPool,
+                slotAllocator == null
+                        ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
+                                declarativeSlotPool)
+                        : slotAllocator,
                 futureExecutor,
                 ioExecutor,
                 userCodeLoader,
