@@ -353,7 +353,8 @@ public class MemoryManagerTest {
         }
     }
 
-    private UnsafeMemoryBudget allocateLeakingPages() throws MemoryAllocationException {
+    private UnsafeMemoryBudget allocateLeakingPagesAndGetBudget() throws MemoryAllocationException {
+        // We create a new memory manager here since we want it and all its segments to be leaking.
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(MEMORY_SIZE)
@@ -366,7 +367,7 @@ public class MemoryManagerTest {
 
     @Test
     public void testGcCleanup() throws Exception {
-        UnsafeMemoryBudget memoryBudget = allocateLeakingPages();
+        UnsafeMemoryBudget memoryBudget = allocateLeakingPagesAndGetBudget();
         for (int i = 0;
                 i < 20 && memoryBudget.getAvailableMemorySize() < memoryBudget.getTotalMemorySize();
                 i++) {

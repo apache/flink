@@ -241,7 +241,7 @@ public class MemoryManager {
                     String.format("Could not allocate %d pages", numberOfPages), e);
         }
 
-        Runnable gcCleanup = memoryBudget.cleanupMemory(getPageSize());
+        Runnable gcCleanup = memoryBudget.getReleaseMemoryAction(getPageSize());
         allocatedSegments.compute(
                 owner,
                 (o, currentSegmentsForOwner) -> {
