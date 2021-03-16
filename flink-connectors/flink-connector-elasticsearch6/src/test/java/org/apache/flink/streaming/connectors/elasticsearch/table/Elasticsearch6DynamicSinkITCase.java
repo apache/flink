@@ -66,7 +66,7 @@ public class Elasticsearch6DynamicSinkITCase {
     public static ElasticsearchContainer elasticsearchContainer =
             new ElasticsearchContainer(
                     DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
-                            .withTag("6.3.1"));
+                            .withTag("6.8.12"));
 
     @SuppressWarnings("deprecation")
     protected final Client getClient() {
