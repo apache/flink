@@ -28,7 +28,17 @@
       }
     },
     "id" : 1,
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -98,7 +108,31 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `proctime` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "proctime" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
@@ -142,7 +176,31 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `proctime` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "proctime" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -185,7 +243,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `a` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "Calc(select=[b, a, c, rowtime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
@@ -198,7 +273,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `a` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate",
@@ -278,7 +370,12 @@
         "type" : "TumblingWindow",
         "size" : "PT5S"
       },
-      "timeAttributeType" : "TIMESTAMP(3)",
+      "timeAttributeType" : {
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME",
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+      },
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
@@ -288,7 +385,12 @@
         "kind" : "WindowStart",
         "reference" : {
           "name" : "w$",
-          "type" : "TIMESTAMP(3)"
+          "type" : {
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME",
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          }
         }
       }
     }, {
@@ -297,7 +399,12 @@
         "kind" : "WindowEnd",
         "reference" : {
           "name" : "w$",
-          "type" : "TIMESTAMP(3)"
+          "type" : {
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME",
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          }
         }
       }
     } ],
@@ -309,7 +416,35 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647), `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      }, {
+        "window_start" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "window_end" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      } ]
+    },
     "description" : "WindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS EXPR$3, SUM(a) AS EXPR$4, COUNT(DISTINCT c) AS EXPR$5, concat_distinct_agg(c) AS EXPR$6, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -375,7 +510,35 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "window_start" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "window_end" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -412,7 +575,35 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `EXPR$3` BIGINT NOT NULL, `EXPR$4` INT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "window_start" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "window_end" : {
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR",
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        }
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {

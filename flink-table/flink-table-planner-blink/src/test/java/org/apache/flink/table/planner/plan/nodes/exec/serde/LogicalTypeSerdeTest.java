@@ -105,7 +105,13 @@ public class LogicalTypeSerdeTest {
         }
         String json = writer.toString();
         LogicalType actual = mapper.readValue(json, LogicalType.class);
-        assertEquals(logicalType.asSerializableString(), actual.asSerializableString());
+        assertEquals(logicalType, actual);
+
+        if (logicalType instanceof TimestampType
+                || logicalType instanceof ZonedTimestampType
+                || logicalType instanceof LocalZonedTimestampType) {
+            assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
+        }
     }
 
     @Parameterized.Parameters(name = "{0}")

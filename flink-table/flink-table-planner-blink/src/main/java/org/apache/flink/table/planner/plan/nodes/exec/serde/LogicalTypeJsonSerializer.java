@@ -131,10 +131,6 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         } else if (logicalType instanceof LocalZonedTimestampType) {
             // LocalZonedTimestampType does not consider `TimestampKind`
             serialize((LocalZonedTimestampType) logicalType, jsonGenerator);
-        } else if (logicalType instanceof UnresolvedUserDefinedType) {
-            throw new TableException(
-                    "Can not serialize an UnresolvedUserDefinedType instance. \n"
-                            + "It needs to be resolved into a proper user-defined type.\"");
         } else if (logicalType instanceof RowType) {
             serializeRowType((RowType) logicalType, jsonGenerator, serializerProvider);
         } else if (logicalType instanceof MapType) {
@@ -143,6 +139,10 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             serializeArrayType((ArrayType) logicalType, jsonGenerator, serializerProvider);
         } else if (logicalType instanceof MultisetType) {
             serializeMultisetType((MultisetType) logicalType, jsonGenerator, serializerProvider);
+        } else if (logicalType instanceof UnresolvedUserDefinedType) {
+            throw new TableException(
+                    "Can not serialize an UnresolvedUserDefinedType instance. \n"
+                            + "It needs to be resolved into a proper user-defined type.\"");
         } else {
             jsonGenerator.writeObject(logicalType.asSerializableString());
         }
