@@ -41,8 +41,17 @@ public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSn
     /** The offset to the contiguous key groups. */
     private final int keyGroupOffset;
 
+    public int getKeyGroupOffset() {
+        return keyGroupOffset;
+    }
+
     /** Snapshots of state partitioned by key-group. */
     @Nonnull private final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
+
+    @Nonnull
+    public List<CopyOnWriteStateMapSnapshot<K, N, S>> getStateMapSnapshots() {
+        return stateMapSnapshots;
+    }
 
     /**
      * Creates a new {@link CopyOnWriteStateTableSnapshot}.

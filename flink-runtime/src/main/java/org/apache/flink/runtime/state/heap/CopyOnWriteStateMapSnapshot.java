@@ -66,7 +66,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * this snapshot. This depends for each entry on whether or not it was subject to copy-on-write
      * operations by the {@link CopyOnWriteStateMap}.
      */
-    @Nonnull private final StateMapEntry<K, N, S>[] snapshotData;
+    @Nonnull protected final StateMapEntry<K, N, S>[] snapshotData;
 
     /** The number of (non-null) entries in snapshotData. */
     @Nonnegative private final int numberOfEntriesInSnapshotData;
@@ -80,7 +80,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * @param owningStateMap the {@link CopyOnWriteStateMap} for which this object represents a
      *     snapshot.
      */
-    CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
+    protected CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
         super(owningStateMap);
 
         this.snapshotData = owningStateMap.snapshotMapArrays();
@@ -106,7 +106,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * created. This value must be used to tell the {@link CopyOnWriteStateMap} when to release this
      * snapshot.
      */
-    int getSnapshotVersion() {
+    public int getSnapshotVersion() {
         return snapshotVersion;
     }
 
