@@ -61,7 +61,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecPythonCorrelate",
                     "StreamExecPythonCalc",
                     "StreamExecLimit",
-                    "StreamExecSortLimit",
                     "StreamExecTemporalSort",
                     "StreamExecSort",
                     "StreamExecExpand",
