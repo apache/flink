@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -32,6 +31,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -53,6 +53,7 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
@@ -62,6 +63,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.junit.Assert.assertFalse;
@@ -75,6 +78,9 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class ProcessFailureCancelingITCase extends TestLogger {
 
+    private static final String TASK_DEPLOYED_MARKER = "deployed";
+    private static final Duration TIMEOUT = Duration.ofMinutes(1);
+
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
     @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
@@ -82,7 +88,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
-    public void testCancelingOnProcessFailure() throws Exception {
+    public void testCancelingOnProcessFailure() throws Throwable {
         Assume.assumeTrue(
                 "---- Skipping Process Failure test : Could not find java executable ----",
                 getJavaCommandPath() != null);
@@ -124,6 +130,8 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         ioExecutor,
                         HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
+        final AtomicReference<Throwable> programException = new AtomicReference<>();
+
         try {
             dispatcherResourceManagerComponent =
                     resourceManagerComponentFactory.create(
@@ -144,8 +152,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             taskManagerProcess = taskManagerProcessBuilder.start();
 
-            final Throwable[] errorRef = new Throwable[1];
-
             // start the test program, which infinitely blocks
             Runnable programRunner =
                     new Runnable() {
@@ -165,17 +171,18 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                                                     @Override
                                                     public Long map(Long value) throws Exception {
                                                         synchronized (this) {
-                                                            System.out.println("waiting");
+                                                            System.out.println(
+                                                                    TASK_DEPLOYED_MARKER);
                                                             wait();
                                                         }
                                                         return 0L;
                                                     }
                                                 })
-                                        .output(new DiscardingOutputFormat<Long>());
+                                        .output(new DiscardingOutputFormat<>());
 
                                 env.execute();
                             } catch (Throwable t) {
-                                errorRef[0] = t;
+                                programException.set(t);
                             }
                         }
                     };
@@ -183,32 +190,30 @@ public class ProcessFailureCancelingITCase extends TestLogger {
             Thread programThread = new Thread(programRunner);
             programThread.start();
 
-            assertTrue(
-                    "tasks have not been deployed in time or the task executor has shut down.",
-                    waitUntilAtLeastOneTaskHasBeenDeployed(taskManagerProcess));
+            waitUntilAtLeastOneTaskHasBeenDeployed(taskManagerProcess);
 
             // kill the TaskManager after the job started to run
             taskManagerProcess.destroy();
             taskManagerProcess = null;
 
-            // we should see a failure within reasonable time (10s is the ask timeout).
-            // since the CI environment is often slow, we conservatively give it up to 2 minutes,
-            // to fail, which is much lower than the failure time given by the heartbeats ( > 2000s)
+            // the job should fail within a few seconds due to heartbeat timeouts
+            // since the CI environment is often slow, we conservatively give it up to 2 minutes
 
-            programThread.join(120000);
+            programThread.join(TIMEOUT.toMillis());
 
-            assertFalse("The program did not cancel in time (2 minutes)", programThread.isAlive());
+            assertFalse("The program did not cancel in time", programThread.isAlive());
 
-            Throwable error = errorRef[0];
+            Throwable error = programException.get();
             assertNotNull("The program did not fail properly", error);
 
             assertTrue(error instanceof ProgramInvocationException);
             // all seems well :-)
         } catch (Exception | Error e) {
             if (taskManagerProcess != null) {
-                printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
+                printOutput("TaskManager OUT", taskManagerProcess.getProcessOutput().toString());
+                printOutput("TaskManager ERR", taskManagerProcess.getErrorOutput().toString());
             }
-            throw e;
+            throw ExceptionUtils.firstOrSuppressed(e, programException.get());
         } finally {
             if (taskManagerProcess != null) {
                 taskManagerProcess.destroy();
@@ -226,20 +231,20 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         }
     }
 
-    private static boolean waitUntilAtLeastOneTaskHasBeenDeployed(TestProcess taskManagerProcess)
-            throws InterruptedException {
-        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
-        while (taskManagerProcess.getProcess().isAlive() && deadline.hasTimeLeft()) {
-            if (taskManagerProcess.getProcessOutput().toString().contains("waiting")) {
-                return true;
-            }
-            Thread.sleep(50);
-        }
-        return false;
+    private static void waitUntilAtLeastOneTaskHasBeenDeployed(TestProcess taskManagerProcess)
+            throws InterruptedException, TimeoutException {
+        CommonTestUtils.waitUtil(
+                () ->
+                        taskManagerProcess
+                                .getProcessOutput()
+                                .toString()
+                                .contains(TASK_DEPLOYED_MARKER),
+                Duration.ofMinutes(2),
+                null);
     }
 
-    private void printProcessLog(String processName, String log) {
-        if (log == null || log.length() == 0) {
+    private void printOutput(String processName, String logContents) {
+        if (logContents == null || logContents.length() == 0) {
             return;
         }
 
