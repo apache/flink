@@ -216,6 +216,21 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
+def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
+    """
+    Converts a numeric type epoch time to TIMESTAMP_LTZ.
+
+    The supported precision is 0 or 3:
+    0 means the numericEpochTime is in second.
+    3 means the numericEpochTime is in millisecond.
+
+    :param numeric_epoch_time: The epoch time with numeric type
+    :param precision: The precision to indicate the epoch time is in second or millisecond
+    :return: The timestamp value with TIMESTAMP_LTZ type.
+    """
+    return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
+
+
 def temporal_overlaps(left_time_point,
                       left_temporal,
                       right_time_point,
