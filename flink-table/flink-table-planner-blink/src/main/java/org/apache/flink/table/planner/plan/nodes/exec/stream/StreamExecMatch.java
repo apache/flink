@@ -63,6 +63,10 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.MathUtils;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -78,10 +82,17 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Stream {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecMatch extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
+    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
+
+    @JsonProperty(FIELD_NAME_MATCH_SPEC)
     private final MatchSpec matchSpec;
 
     public StreamExecMatch(
@@ -89,8 +100,24 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.matchSpec = matchSpec;
+        this(
+                matchSpec,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecMatch(
+            @JsonProperty(FIELD_NAME_MATCH_SPEC) MatchSpec matchSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.matchSpec = checkNotNull(matchSpec);
     }
 
     @SuppressWarnings("unchecked")
