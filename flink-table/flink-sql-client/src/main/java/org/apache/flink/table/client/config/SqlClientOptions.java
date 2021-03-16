@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
@@ -25,6 +26,7 @@ import org.apache.flink.configuration.ConfigOptions;
 public class SqlClientOptions {
     private SqlClientOptions() {}
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> EXECUTION_MAX_TABLE_RESULT_ROWS =
             ConfigOptions.key("sql-client.execution.max-table-result.rows")
                     .intType()
@@ -33,10 +35,14 @@ public class SqlClientOptions {
                             "The number of rows to cache when in the table mode. If the number of rows exceeds the "
                                     + "specified value, it retries the row in the FIFO style.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<ResultMode> EXECUTION_RESULT_MODE =
             ConfigOptions.key("sql-client.execution.result-mode")
                     .enumType(ResultMode.class)
                     .defaultValue(ResultMode.TABLE)
                     .withDescription(
-                            "Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog'].");
+                            "Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog']. "
+                                    + "The 'table' mode materializes results in memory and visualizes them in a regular, paginated table representation. "
+                                    + "The 'changelog' mode does not materialize results and visualizes the result stream that is produced by a continuous query. "
+                                    + "The 'tableau' mode is more like a traditional way which will display the results in the screen directly with a tableau format. ");
 }

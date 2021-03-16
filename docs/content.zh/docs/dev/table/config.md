@@ -103,3 +103,8 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 以下配置可以用于调整 planner 的行为。
 
 {% include generated/table_config_configuration.html %}
+
+### SQL Client 配置
+
+以下配置可以用于调整 sql client 的行为。
+{% include generated/sql_client_configuration.html %}

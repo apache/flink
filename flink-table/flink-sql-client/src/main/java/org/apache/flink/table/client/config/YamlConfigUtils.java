@@ -66,69 +66,69 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RE
  * <p>When YAML is removed from the project, it should also remove this helper class.
  */
 @Deprecated
-public class ConfigurationUtils {
+public class YamlConfigUtils {
 
-    static Map<String, String> entryToConfigOptions = new HashMap<>();
-    static Map<String, String> configOptionToEntries = new HashMap<>();
-    static Set<String> deprecatedEntries = new HashSet<>();
+    static final Map<String, String> ENTRY_TO_OPTION = new HashMap<>();
+    static final Map<String, String> OPTION_TO_ENTRY = new HashMap<>();
+    static final Set<String> REMOVED_ENTRY = new HashSet<>();
 
     static {
         // EnvironmentSettings
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_TYPE),
                 RUNTIME_MODE.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PLANNER),
                 TABLE_PLANNER.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s",
                         EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PERIODIC_WATERMARKS_INTERVAL),
                 AUTO_WATERMARK_INTERVAL.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MIN_STATE_RETENTION),
                 IDLE_STATE_RETENTION.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PARALLELISM),
                 DEFAULT_PARALLELISM.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MAX_PARALLELISM),
                 MAX_PARALLELISM.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESULT_MODE),
                 EXECUTION_RESULT_MODE.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MAX_TABLE_RESULT_ROWS),
                 EXECUTION_MAX_TABLE_RESULT_ROWS.key());
         // restart strategy
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_TYPE),
                 RESTART_STRATEGY.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_DELAY),
                 RESTART_STRATEGY_FIXED_DELAY_DELAY.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s",
                         EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_ATTEMPTS),
                 RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s",
                         EXECUTION_ENTRY,
                         ExecutionEntry.EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL),
                 RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s",
                         EXECUTION_ENTRY,
                         ExecutionEntry.EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL),
                 RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL.key());
-        entryToConfigOptions.put(
+        ENTRY_TO_OPTION.put(
                 String.format(
                         "%s.%s",
                         EXECUTION_ENTRY,
@@ -137,108 +137,53 @@ public class ConfigurationUtils {
     }
 
     static {
-        configOptionToEntries.put(
-                RUNTIME_MODE.key(),
-                String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_TYPE));
-        configOptionToEntries.put(
-                TABLE_PLANNER.key(),
-                String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PLANNER));
-        configOptionToEntries.put(
-                AUTO_WATERMARK_INTERVAL.key(),
-                String.format(
-                        "%s.%s",
-                        EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PERIODIC_WATERMARKS_INTERVAL));
-        configOptionToEntries.put(
-                IDLE_STATE_RETENTION.key(),
-                String.format(
-                        "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MIN_STATE_RETENTION));
-        configOptionToEntries.put(
-                DEFAULT_PARALLELISM.key(),
-                String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_PARALLELISM));
-        configOptionToEntries.put(
-                MAX_PARALLELISM.key(),
-                String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MAX_PARALLELISM));
-        configOptionToEntries.put(
-                EXECUTION_RESULT_MODE.key(),
-                String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESULT_MODE));
-        configOptionToEntries.put(
-                EXECUTION_MAX_TABLE_RESULT_ROWS.key(),
-                String.format(
-                        "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MAX_TABLE_RESULT_ROWS));
-        // restart strategy
-        configOptionToEntries.put(
-                RESTART_STRATEGY.key(),
-                String.format(
-                        "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_TYPE));
-        configOptionToEntries.put(
-                RESTART_STRATEGY_FIXED_DELAY_DELAY.key(),
-                String.format(
-                        "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_DELAY));
-        configOptionToEntries.put(
-                RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS.key(),
-                String.format(
-                        "%s.%s",
-                        EXECUTION_ENTRY, ExecutionEntry.EXECUTION_RESTART_STRATEGY_ATTEMPTS));
-        configOptionToEntries.put(
-                RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL.key(),
-                String.format(
-                        "%s.%s",
-                        EXECUTION_ENTRY,
-                        ExecutionEntry.EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL));
-        configOptionToEntries.put(
-                RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL.key(),
-                String.format(
-                        "%s.%s",
-                        EXECUTION_ENTRY,
-                        ExecutionEntry.EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL));
-        configOptionToEntries.put(
-                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY.key(),
-                String.format(
-                        "%s.%s",
-                        EXECUTION_ENTRY,
-                        ExecutionEntry.EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL));
+        for (String key : ENTRY_TO_OPTION.keySet()) {
+            OPTION_TO_ENTRY.put(ENTRY_TO_OPTION.get(key), key);
+        }
     }
 
     static {
-        deprecatedEntries.add(
+        REMOVED_ENTRY.add(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_TIME_CHARACTERISTIC));
-        deprecatedEntries.add(
+        REMOVED_ENTRY.add(
                 String.format(
                         "%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_MAX_STATE_RETENTION));
-        deprecatedEntries.add(
+        REMOVED_ENTRY.add(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_CURRENT_CATALOG));
-        deprecatedEntries.add(
+        REMOVED_ENTRY.add(
                 String.format("%s.%s", EXECUTION_ENTRY, ExecutionEntry.EXECUTION_CURRENT_DATABASE));
     }
 
     // --------------------------------------------------------------------------------------------
 
-    public static boolean isDeprecatedKey(String key) {
-        return deprecatedEntries.contains(key);
+    public static boolean isRemovedKey(String key) {
+        return REMOVED_ENTRY.contains(key);
     }
 
-    public static boolean isYamlKey(String key) {
-        return deprecatedEntries.contains(key) || entryToConfigOptions.containsKey(key);
+    public static boolean isDeprecatedKey(String key) {
+        return ENTRY_TO_OPTION.containsKey(key);
+    }
+
+    public static String getOptionNameWithDeprecatedKey(String key) {
+        return ENTRY_TO_OPTION.get(key);
     }
 
     // --------------------------------------------------------------------------------------------
 
     public static void setKeyToConfiguration(
             Configuration configuration, String key, String value) {
-        // ignore deprecated key
-        if (isDeprecatedKey(key)) {
+        if (isRemovedKey(key)) {
             return;
         }
-        if (entryToConfigOptions.containsKey(key)) {
-            configuration.setString(key, value);
-            configuration.setString(entryToConfigOptions.get(key), value);
-        } else {
-            if (configOptionToEntries.containsKey(key)
-                    && configuration.containsKey(configOptionToEntries.get(key))) {
-                configuration.setString(configOptionToEntries.get(key), value);
-            }
-            configuration.setString(key, value);
+        configuration.setString(key, value);
+        if (ENTRY_TO_OPTION.containsKey(key)) {
+            // old key => set new key
+            configuration.setString(ENTRY_TO_OPTION.get(key), value);
+        } else if (OPTION_TO_ENTRY.containsKey(key)
+                && configuration.containsKey(OPTION_TO_ENTRY.get(key))) {
+            // new key && old key exist => set old key
+            configuration.setString(OPTION_TO_ENTRY.get(key), value);
         }
     }
 
@@ -247,37 +192,35 @@ public class ConfigurationUtils {
         Map<String, String> executionEntry = execution.asMap();
         for (Map.Entry<String, String> entry : executionEntry.entrySet()) {
             String key = String.format("%s.%s", EXECUTION_ENTRY, entry.getKey());
-            if (isDeprecatedKey(key)) {
+            if (isRemovedKey(key)) {
                 continue;
             }
             configuration.setString(key, entry.getValue());
-            configuration.setString(entryToConfigOptions.get(key), entry.getValue());
+            configuration.setString(ENTRY_TO_OPTION.get(key), entry.getValue());
         }
         setRestartStrategy(execution, configuration);
         return configuration;
     }
 
     public static List<String> getPropertiesInPretty(Map<String, String> properties) {
-        // first extract YAML key
-        List<String> prettyEntries = new ArrayList<>();
-        for (String key : properties.keySet()) {
-            if (isYamlKey(key)) {
-                prettyEntries.add(String.format("[DEPRECATED]%s=%s", key, properties.get(key)));
-            }
-        }
-        prettyEntries.sort(String::compareTo);
-
-        // add the configuration key
         List<String> prettyConfigOptions = new ArrayList<>();
         for (String key : properties.keySet()) {
-            if (!isYamlKey(key)) {
+            if (!isRemovedKey(key) && !isDeprecatedKey(key)) {
                 prettyConfigOptions.add(String.format("%s=%s", key, properties.get(key)));
             }
         }
         prettyConfigOptions.sort(String::compareTo);
 
-        prettyEntries.addAll(prettyConfigOptions);
-        return prettyEntries;
+        List<String> prettyEntries = new ArrayList<>();
+        for (String key : properties.keySet()) {
+            if (isDeprecatedKey(key)) {
+                prettyEntries.add(String.format("[DEPRECATED] %s=%s", key, properties.get(key)));
+            }
+        }
+        prettyEntries.sort(String::compareTo);
+
+        prettyConfigOptions.addAll(prettyEntries);
+        return prettyConfigOptions;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -287,8 +230,7 @@ public class ConfigurationUtils {
                 execution.getRestartStrategy();
         if (restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration) {
             configuration.setString(
-                    configOptionToEntries.get(RestartStrategyOptions.RESTART_STRATEGY.key()),
-                    "none");
+                    OPTION_TO_ENTRY.get(RestartStrategyOptions.RESTART_STRATEGY.key()), "none");
             configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         } else if (restartStrategy
                 instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration) {
@@ -304,7 +246,7 @@ public class ConfigurationUtils {
                             fixedDelay.getDelayBetweenAttemptsInterval().toMilliseconds()));
 
             configuration.setString(
-                    configOptionToEntries.get(RestartStrategyOptions.RESTART_STRATEGY.key()),
+                    OPTION_TO_ENTRY.get(RestartStrategyOptions.RESTART_STRATEGY.key()),
                     "fixed-delay");
 
         } else if (restartStrategy
@@ -324,7 +266,7 @@ public class ConfigurationUtils {
                             failureRate.getDelayBetweenAttemptsInterval().toMilliseconds()));
 
             configuration.setString(
-                    configOptionToEntries.get(RestartStrategyOptions.RESTART_STRATEGY.key()),
+                    OPTION_TO_ENTRY.get(RestartStrategyOptions.RESTART_STRATEGY.key()),
                     "failure-rate");
 
         } else if (restartStrategy

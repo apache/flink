@@ -18,19 +18,15 @@
 
 package org.apache.flink.table.client.gateway.context;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.PlannerType;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Executor;
@@ -108,9 +104,7 @@ public class ExecutionContext {
         EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
         TableConfig config = new TableConfig();
         config.addConfiguration(flinkConfig);
-        if (flinkConfig.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)
-                && flinkConfig.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
-
+        if (!settings.isStreamingMode() && !settings.isBlinkPlanner()) {
             ExecutionEnvironment execEnv = createExecutionEnvironment();
             return new BatchTableEnvironmentImpl(
                     execEnv, config, sessionState.catalogManager, sessionState.moduleManager);

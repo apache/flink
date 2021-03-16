@@ -20,7 +20,6 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -141,7 +140,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
-        return ((Configuration) getSessionContext(sessionId).getReadableConfig()).toMap();
+        return getSessionContext(sessionId).getConfigMap();
     }
 
     @Override

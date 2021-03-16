@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.ResultMode.CHANGELOG;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 
@@ -50,6 +51,13 @@ public class ResultStore {
      * closed.
      */
     public DynamicResult createResult(ReadableConfig config, TableResult tableResult) {
+        // validate
+        if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
+                && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {
+            throw new SqlExecutionException(
+                    "Batch mode doesn't support `changelog` as result mode. Please use `tableau` mode instead.");
+        }
+
         switch (config.get(EXECUTION_RESULT_MODE)) {
             case CHANGELOG:
             case TABLEAU:

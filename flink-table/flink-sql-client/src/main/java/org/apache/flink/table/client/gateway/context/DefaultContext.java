@@ -26,8 +26,8 @@ import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.table.client.config.ConfigurationUtils;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -83,7 +83,7 @@ public class DefaultContext {
         // reset to flinkConfig because we have stored all the options into the flinkConfig
         defaultEnv.getConfiguration().asMap().forEach(flinkConfig::setString);
         flinkConfig.addAll(
-                ConfigurationUtils.convertExecutionEntryToConfiguration(defaultEnv.getExecution()));
+                YamlConfigUtils.convertExecutionEntryToConfiguration(defaultEnv.getExecution()));
         try {
             CommandLine deploymentCommandLine =
                     createCommandLine(defaultEnv.getDeployment(), commandLineOptions);

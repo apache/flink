@@ -20,8 +20,6 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -157,29 +155,6 @@ public class ExecutionEntry extends ConfigEntry {
         properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
     }
 
-    public EnvironmentSettings getEnvironmentSettings() {
-        final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
-
-        if (inStreamingMode()) {
-            builder.inStreamingMode();
-        } else if (inBatchMode()) {
-            builder.inBatchMode();
-        }
-
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-
-        if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            builder.useOldPlanner();
-        } else if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            builder.useBlinkPlanner();
-        }
-
-        return builder.build();
-    }
-
     public boolean inStreamingMode() {
         return properties
                 .getOptionalString(EXECUTION_TYPE)
@@ -212,24 +187,6 @@ public class ExecutionEntry extends ConfigEntry {
         return false;
     }
 
-    public boolean isBatchPlanner() {
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-
-        // Blink planner is not a batch planner
-        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            return false;
-        }
-        // Old planner can be a streaming or batch planner
-        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return inBatchMode();
-        }
-
-        return false;
-    }
-
     public boolean isBlinkPlanner() {
         final String planner =
                 properties
@@ -241,46 +198,6 @@ public class ExecutionEntry extends ConfigEntry {
         return true;
     }
 
-    public TimeCharacteristic getTimeCharacteristic() {
-        return properties
-                .getOptionalString(EXECUTION_TIME_CHARACTERISTIC)
-                .flatMap(
-                        (v) -> {
-                            switch (v) {
-                                case EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME:
-                                    return Optional.of(TimeCharacteristic.EventTime);
-                                case EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME:
-                                    return Optional.of(TimeCharacteristic.ProcessingTime);
-                                default:
-                                    return Optional.empty();
-                            }
-                        })
-                .orElseGet(
-                        () ->
-                                useDefaultValue(
-                                        EXECUTION_TIME_CHARACTERISTIC,
-                                        TimeCharacteristic.EventTime,
-                                        EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME));
-    }
-
-    public long getPeriodicWatermarksInterval() {
-        return properties
-                .getOptionalLong(EXECUTION_PERIODIC_WATERMARKS_INTERVAL)
-                .orElseGet(() -> useDefaultValue(EXECUTION_PERIODIC_WATERMARKS_INTERVAL, 200L));
-    }
-
-    public long getMinStateRetention() {
-        return properties
-                .getOptionalLong(EXECUTION_MIN_STATE_RETENTION)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MIN_STATE_RETENTION, 0L));
-    }
-
-    public long getMaxStateRetention() {
-        return properties
-                .getOptionalLong(EXECUTION_MAX_STATE_RETENTION)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MAX_STATE_RETENTION, 0L));
-    }
-
     public Optional<Integer> getParallelism() {
         return properties.getOptionalInt(EXECUTION_PARALLELISM);
     }
@@ -289,12 +206,6 @@ public class ExecutionEntry extends ConfigEntry {
         return properties
                 .getOptionalInt(EXECUTION_MAX_PARALLELISM)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MAX_PARALLELISM, 128));
-    }
-
-    public int getMaxTableResultRows() {
-        return properties
-                .getOptionalInt(EXECUTION_MAX_TABLE_RESULT_ROWS)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MAX_TABLE_RESULT_ROWS, 1_000_000));
     }
 
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
@@ -378,27 +289,6 @@ public class ExecutionEntry extends ConfigEntry {
 
     public Optional<String> getCurrentDatabase() {
         return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
-    }
-
-    public boolean isChangelogMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_CHANGELOG))
-                .orElse(false);
-    }
-
-    public boolean isTableMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
-                .orElse(false);
-    }
-
-    public boolean isTableauMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
-                .orElse(false);
     }
 
     public Map<String, String> asTopLevelMap() {

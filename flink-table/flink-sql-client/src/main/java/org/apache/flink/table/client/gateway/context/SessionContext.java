@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.client.config.ConfigurationUtils;
+import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URLClassLoader;
 import java.util.Collections;
+import java.util.Map;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -91,6 +92,10 @@ public class SessionContext {
         return sessionConfiguration;
     }
 
+    public Map<String, String> getConfigMap() {
+        return sessionConfiguration.toMap();
+    }
+
     // --------------------------------------------------------------------------------------------
     // Method to execute commands
     // --------------------------------------------------------------------------------------------
@@ -105,7 +110,7 @@ public class SessionContext {
         // SessionState is built from the sessionConfiguration.
         // If rebuild a new Configuration, it loses control of the SessionState if users wants to
         // modify the configuration
-        resetSessionConfigurationToValue(defaultContext.getFlinkConfig());
+        resetSessionConfigurationToDefault(defaultContext.getFlinkConfig());
         this.executionContext = new ExecutionContext(executionContext);
     }
 
@@ -113,7 +118,7 @@ public class SessionContext {
     public void set(String key, String value) {
         Configuration originConfiguration = sessionConfiguration.clone();
 
-        ConfigurationUtils.setKeyToConfiguration(sessionConfiguration, key, value);
+        YamlConfigUtils.setKeyToConfiguration(sessionConfiguration, key, value);
         try {
             // Renew the ExecutionContext.
             // Book keep all the session states of current ExecutionContext then
@@ -123,7 +128,7 @@ public class SessionContext {
             this.executionContext = newContext;
         } catch (Exception e) {
             // get error and reset the key with old value
-            resetSessionConfigurationToValue(originConfiguration);
+            resetSessionConfigurationToDefault(originConfiguration);
             throw new SqlExecutionException(
                     String.format("Failed to set key %s with value %s.", key, value), e);
         }
@@ -238,6 +243,6 @@ public class SessionContext {
             ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
             sessionConfiguration.removeConfig(keyToDelete);
         }
-        sessionConfiguration.addAll(newValue);
+        sessionConfiguration.addAll(defaultConf);
     }
 }

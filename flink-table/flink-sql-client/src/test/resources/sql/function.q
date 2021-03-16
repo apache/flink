@@ -30,7 +30,7 @@ show user functions;
 !ok
 
 SET execution.result-mode=tableau;
-[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
+[WARNING] The specified key 'execution.result-mode' is deprecated. Please use 'sql-client.execution.result-mode' instead. Set the corresponding config option and the specified key together.
 [INFO] Session property has been set.
 !info
 

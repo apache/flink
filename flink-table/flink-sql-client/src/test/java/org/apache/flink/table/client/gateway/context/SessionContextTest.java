@@ -120,7 +120,13 @@ public class SessionContextTest {
                         .getConfig()
                         .getConfiguration()
                         .getString(TABLE_SQL_DIALECT));
-        Assert.assertNull(sessionContext.getReadableConfig().get(NAME));
+        Assert.assertNull(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .get(NAME));
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
         Assert.assertEquals(
                 16,

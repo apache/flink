@@ -22,7 +22,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -34,50 +33,64 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
+import static org.junit.Assert.assertEquals;
 
-/** Test {@link ConfigurationUtils}. */
-public class ConfigurationUtilsTest {
+/** Test {@link YamlConfigUtils}. */
+public class YamlConfigUtilsTest {
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 
     @Test
-    public void testSetYamlKey() {
+    public void testSetDeprecatedKey() {
         Configuration configuration = new Configuration();
-        ConfigurationUtils.setKeyToConfiguration(configuration, "execution.type", "batch");
-        Assert.assertEquals("batch", configuration.getString("execution.type", null));
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
+        YamlConfigUtils.setKeyToConfiguration(configuration, "execution.type", "batch");
+
+        Map<String, String> expected = new HashMap<>();
+        expected.put("execution.type", "batch");
+        expected.put(RUNTIME_MODE.key(), "batch");
+
+        assertEquals(expected, configuration.toMap());
     }
 
     @Test
     public void testSetConfigOption() {
         Configuration configuration = new Configuration();
-        ConfigurationUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
-        Assert.assertNull(configuration.getString("execution.type", null));
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
+        YamlConfigUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
+
+        Map<String, String> expected = new HashMap<>();
+        expected.put(RUNTIME_MODE.key(), "batch");
+
+        assertEquals(expected, configuration.toMap());
     }
 
     @Test
-    public void testModifyYamlKeyWhenSetConfigOptionOnly() {
+    public void testModifyDeprecatedKeyWhenSetConfigOptionOnly() {
         Configuration configuration = new Configuration();
         // set config option
-        ConfigurationUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
-        // modify yaml key
-        ConfigurationUtils.setKeyToConfiguration(configuration, "execution.type", "streaming");
+        YamlConfigUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
+        // modify deprecated key
+        YamlConfigUtils.setKeyToConfiguration(configuration, "execution.type", "streaming");
 
-        Assert.assertEquals(RuntimeExecutionMode.STREAMING, configuration.get(RUNTIME_MODE));
-        Assert.assertEquals("streaming", configuration.getString("execution.type", null));
+        Map<String, String> expected = new HashMap<>();
+        expected.put(RUNTIME_MODE.key(), "streaming");
+        expected.put("execution.type", "streaming");
+
+        assertEquals(expected, configuration.toMap());
     }
 
     @Test
-    public void testModifyConfigOptionWhenSetYamlKey() {
+    public void testModifyConfigOptionWhenSetDeprecatedKey() {
         Configuration configuration = new Configuration();
-        // set yaml key
-        ConfigurationUtils.setKeyToConfiguration(configuration, "execution.type", "streaming");
+        // set deprecated key
+        YamlConfigUtils.setKeyToConfiguration(configuration, "execution.type", "streaming");
         // modify config option
-        ConfigurationUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
+        YamlConfigUtils.setKeyToConfiguration(configuration, RUNTIME_MODE.key(), "batch");
 
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
-        Assert.assertEquals("batch", configuration.getString("execution.type", null));
+        Map<String, String> expected = new HashMap<>();
+        expected.put(RUNTIME_MODE.key(), "batch");
+        expected.put("execution.type", "batch");
+
+        assertEquals(expected, configuration.toMap());
     }
 
     @Test
@@ -85,28 +98,16 @@ public class ConfigurationUtilsTest {
         final Environment env = getEnvironment();
 
         Configuration configuration =
-                ConfigurationUtils.convertExecutionEntryToConfiguration(env.getExecution());
+                YamlConfigUtils.convertExecutionEntryToConfiguration(env.getExecution());
 
-        Assert.assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
-        Assert.assertEquals(ResultMode.TABLE, configuration.get(EXECUTION_RESULT_MODE));
-        Assert.assertEquals(100, configuration.getInteger(EXECUTION_MAX_TABLE_RESULT_ROWS));
-        Assert.assertEquals("failure-rate", configuration.getString(RESTART_STRATEGY));
+        assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
+        assertEquals(ResultMode.TABLE, configuration.get(EXECUTION_RESULT_MODE));
+        assertEquals(100, configuration.getInteger(EXECUTION_MAX_TABLE_RESULT_ROWS));
+        assertEquals("failure-rate", configuration.getString(RESTART_STRATEGY));
 
-        List<String> items = ConfigurationUtils.getPropertiesInPretty(configuration.toMap());
+        List<String> items = YamlConfigUtils.getPropertiesInPretty(configuration.toMap());
         List<String> expectedItems =
                 Arrays.asList(
-                        "[DEPRECATED]execution.max-parallelism=16",
-                        "[DEPRECATED]execution.max-table-result-rows=100",
-                        "[DEPRECATED]execution.min-idle-state-retention=1000",
-                        "[DEPRECATED]execution.parallelism=1",
-                        "[DEPRECATED]execution.periodic-watermarks-interval=99",
-                        "[DEPRECATED]execution.planner=old",
-                        "[DEPRECATED]execution.restart-strategy.delay=1000",
-                        "[DEPRECATED]execution.restart-strategy.failure-rate-interval=99000",
-                        "[DEPRECATED]execution.restart-strategy.max-failures-per-interval=10",
-                        "[DEPRECATED]execution.restart-strategy.type=failure-rate",
-                        "[DEPRECATED]execution.result-mode=table",
-                        "[DEPRECATED]execution.type=batch",
                         "execution.runtime-mode=batch",
                         "parallelism.default=1",
                         "pipeline.auto-watermark-interval=99",
@@ -119,8 +120,20 @@ public class ConfigurationUtilsTest {
                         "sql-client.execution.max-table-result.rows=100",
                         "sql-client.execution.result-mode=table",
                         "table.exec.state.ttl=1000",
-                        "table.planner=old");
-        Assert.assertEquals(expectedItems, items);
+                        "table.planner=old",
+                        "[DEPRECATED] execution.max-parallelism=16",
+                        "[DEPRECATED] execution.max-table-result-rows=100",
+                        "[DEPRECATED] execution.min-idle-state-retention=1000",
+                        "[DEPRECATED] execution.parallelism=1",
+                        "[DEPRECATED] execution.periodic-watermarks-interval=99",
+                        "[DEPRECATED] execution.planner=old",
+                        "[DEPRECATED] execution.restart-strategy.delay=1000",
+                        "[DEPRECATED] execution.restart-strategy.failure-rate-interval=99000",
+                        "[DEPRECATED] execution.restart-strategy.max-failures-per-interval=10",
+                        "[DEPRECATED] execution.restart-strategy.type=failure-rate",
+                        "[DEPRECATED] execution.result-mode=table",
+                        "[DEPRECATED] execution.type=batch");
+        assertEquals(expectedItems, items);
     }
 
     private Environment getEnvironment() throws Exception {

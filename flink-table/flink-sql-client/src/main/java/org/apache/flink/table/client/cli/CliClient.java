@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
-import org.apache.flink.table.client.config.ConfigurationUtils;
+import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -55,7 +55,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_DEPRECATED_KEY;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_ENVIRONMENT_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_REMOVED_KEY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -436,7 +436,7 @@ public class CliClient implements AutoCloseable {
                 terminal.writer()
                         .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
             } else {
-                List<String> prettyEntries = ConfigurationUtils.getPropertiesInPretty(properties);
+                List<String> prettyEntries = YamlConfigUtils.getPropertiesInPretty(properties);
                 prettyEntries.forEach(entry -> terminal.writer().println(entry));
             }
         }
@@ -450,11 +450,18 @@ public class CliClient implements AutoCloseable {
                 printExecutionException(e);
                 return;
             }
-            if (ConfigurationUtils.isDeprecatedKey(key)) {
-                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_DEPRECATED_KEY));
+            if (YamlConfigUtils.isRemovedKey(key)) {
+                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_REMOVED_KEY));
                 return;
-            } else if (ConfigurationUtils.isYamlKey(key)) {
-                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_ENVIRONMENT_KEY));
+            } else if (YamlConfigUtils.isDeprecatedKey(key)) {
+                terminal.writer()
+                        .println(
+                                CliStrings.messageWarning(
+                                        String.format(
+                                                MESSAGE_SET_DEPRECATED_KEY,
+                                                key,
+                                                YamlConfigUtils.getOptionNameWithDeprecatedKey(
+                                                        key))));
             }
             terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
         }

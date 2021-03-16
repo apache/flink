@@ -18,12 +18,12 @@
 # set default streaming mode and tableau result mode
 
 SET execution.type = streaming;
-[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
+[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead. Set the corresponding config option and the specified key together.
 [INFO] Session property has been set.
 !info
 
 SET execution.result-mode = tableau;
-[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
+[WARNING] The specified key 'execution.result-mode' is deprecated. Please use 'sql-client.execution.result-mode' instead. Set the corresponding config option and the specified key together.
 [INFO] Session property has been set.
 !info
 
@@ -71,7 +71,7 @@ Received a total of 4 rows
 # ==========================================================================
 
 SET execution.type = batch;
-[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
+[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead. Set the corresponding config option and the specified key together.
 [INFO] Session property has been set.
 !info
 
