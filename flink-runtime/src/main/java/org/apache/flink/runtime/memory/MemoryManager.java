@@ -30,7 +30,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -280,8 +280,7 @@ public class MemoryManager {
             allocatedSegments.computeIfPresent(
                     segment.getOwner(),
                     (o, segsForOwner) -> {
-                        segment.free();
-                        segsForOwner.remove(segment);
+                        freeSegment(segment, segsForOwner);
                         return segsForOwner.isEmpty() ? null : segsForOwner;
                     });
         } catch (Throwable t) {
@@ -341,7 +340,7 @@ public class MemoryManager {
             MemorySegment firstSeg, Iterator<MemorySegment> segmentsIterator) {
         AtomicReference<MemorySegment> nextOwnerMemorySegment = new AtomicReference<>();
         Object owner = firstSeg.getOwner();
-        allocatedSegments.compute(
+        allocatedSegments.computeIfPresent(
                 owner,
                 (o, segsForOwner) -> {
                     freeSegment(firstSeg, segsForOwner);
@@ -363,16 +362,15 @@ public class MemoryManager {
                                     t);
                         }
                     }
-                    return segsForOwner == null || segsForOwner.isEmpty() ? null : segsForOwner;
+                    return segsForOwner.isEmpty() ? null : segsForOwner;
                 });
         return nextOwnerMemorySegment.get();
     }
 
     private static void freeSegment(
-            MemorySegment segment, @Nullable Collection<MemorySegment> segments) {
-        segment.free();
-        if (segments != null) {
-            segments.remove(segment);
+            MemorySegment segment, @Nonnull Collection<MemorySegment> segments) {
+        if (segments.remove(segment)) {
+            segment.free();
         }
     }
 
