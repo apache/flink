@@ -25,7 +25,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
 
 import java.io.Serializable;
 
@@ -43,7 +42,7 @@ public interface SlicingWindowProcessor<W> extends Serializable {
      * @param key the key associated with the element
      * @param element The element to process.
      */
-    boolean processElement(BinaryRowData key, RowData element) throws Exception;
+    boolean processElement(RowData key, RowData element) throws Exception;
 
     /**
      * Advances the progress time, the progress time is watermark if working in event-time mode, or

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
@@ -119,7 +118,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     }
 
     @Override
-    public boolean processElement(BinaryRowData key, RowData element) throws Exception {
+    public boolean processElement(RowData key, RowData element) throws Exception {
         long sliceEnd = sliceAssigner.assignSliceEnd(element, clockService);
         if (!isEventTime) {
             // always register processing time for every element when processing time mode
