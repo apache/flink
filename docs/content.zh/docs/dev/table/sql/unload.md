@@ -69,9 +69,7 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 // unload a core module
 tEnv.executeSql("UNLOAD MODULE core");
 tEnv.executeSql("SHOW MODULES").print();
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -82,9 +80,7 @@ val tEnv = StreamTableEnvironment.create(env)
 // unload a core module
 tEnv.executeSql("UNLOAD MODULE core")
 tEnv.executeSql("SHOW MODULES").print()
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -95,9 +91,7 @@ table_env = StreamTableEnvironment.create(env, settings)
 # unload a core module
 table_env.execute_sql("UNLOAD MODULE core")
 table_env.execute_sql("SHOW MODULES").print()
-# +-------------+
-# | module name |
-# +-------------+
+# Empty set
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -106,9 +100,7 @@ Flink SQL> UNLOAD MODULE core;
 [INFO] Unload module succeeded!
 
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
+-- Empty set
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -527,9 +527,7 @@ tableEnv.listFullModules();
 // Unload hive module
 tableEnv.unloadModule("hive");
 tableEnv.listModules();
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 tableEnv.listFullModules();
 // +-------------+-------+
 // | module name |  used |
@@ -614,9 +612,7 @@ tableEnv.listFullModules()
 // Unload hive module
 tableEnv.unloadModule("hive")
 tableEnv.listModules()
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 tableEnv.listFullModules()
 // +-------------+-------+
 // | module name |  used |
@@ -704,9 +700,7 @@ t_env.list_full_modules()
 # Unload hive module
 t_env.unload_module("hive")
 t_env.list_modules()
-# +-------------+
-# | module name |
-# +-------------+
+# Empty set
 t_env.list_full_modules()
 # +-------------+-------+
 # | module name |  used |
