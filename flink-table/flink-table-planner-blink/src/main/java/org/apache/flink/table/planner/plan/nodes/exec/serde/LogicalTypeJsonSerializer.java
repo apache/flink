@@ -81,12 +81,10 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     // RowType
     public static final String FIELD_NAME_FIELDS = "fields";
     // MapType
-    public static final String FIELD_NAME_KEY_TYPE = "mapKeyType";
-    public static final String FIELD_NAME_VALUE_TYPE = "mapValueType";
-    // ArrayType
-    public static final String FIELD_NAME_ARRAY_TYPE = "arrayElementType";
-    // MultiSetType
-    public static final String FIELD_NAME_MULTI_SET_TYPE = "multiSetElementType";
+    public static final String FIELD_NAME_KEY_TYPE = "keyType";
+    public static final String FIELD_NAME_VALUE_TYPE = "valueType";
+    // ArrayType/MultiSetType
+    public static final String FIELD_NAME_ELEMENT_TYPE = "elementType";
 
     public LogicalTypeJsonSerializer() {
         super(LogicalType.class);
@@ -189,7 +187,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, arrayType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, arrayType.isNullable());
-        jsonGenerator.writeFieldName(FIELD_NAME_ARRAY_TYPE);
+        jsonGenerator.writeFieldName(FIELD_NAME_ELEMENT_TYPE);
         serialize(arrayType.getElementType(), jsonGenerator, serializerProvider);
         jsonGenerator.writeEndObject();
     }
@@ -202,7 +200,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, multisetType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, multisetType.isNullable());
-        jsonGenerator.writeFieldName(FIELD_NAME_MULTI_SET_TYPE);
+        jsonGenerator.writeFieldName(FIELD_NAME_ELEMENT_TYPE);
         serialize(multisetType.getElementType(), jsonGenerator, serializerProvider);
         jsonGenerator.writeEndObject();
     }

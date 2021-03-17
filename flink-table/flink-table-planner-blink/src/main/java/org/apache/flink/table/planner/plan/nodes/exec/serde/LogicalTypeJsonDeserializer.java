@@ -53,10 +53,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ARRAY_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_COMPARISION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ELEMENT_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FINAL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IDENTIFIER;
@@ -65,7 +65,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJs
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LOGICAL_TYPE;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_MULTI_SET_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_NULLABLE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_PRECISION;
@@ -173,14 +172,15 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
 
     private ArrayType deserializeArrayType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
         boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
-        LogicalType elementType = deserialize(logicalTypeNode.get(FIELD_NAME_ARRAY_TYPE), serdeCtx);
+        LogicalType elementType =
+                deserialize(logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE), serdeCtx);
         return new ArrayType(nullable, elementType);
     }
 
     private MultisetType deserializeMultisetType(JsonNode logicalTypeNode, SerdeContext serdeCtx) {
         boolean nullable = logicalTypeNode.get(FIELD_NAME_NULLABLE).asBoolean();
         LogicalType elementType =
-                deserialize(logicalTypeNode.get(FIELD_NAME_MULTI_SET_TYPE), serdeCtx);
+                deserialize(logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE), serdeCtx);
         return new MultisetType(nullable, elementType);
     }
 

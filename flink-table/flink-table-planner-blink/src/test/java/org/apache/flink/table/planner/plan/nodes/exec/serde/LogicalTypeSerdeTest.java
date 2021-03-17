@@ -106,12 +106,55 @@ public class LogicalTypeSerdeTest {
         String json = writer.toString();
         LogicalType actual = mapper.readValue(json, LogicalType.class);
         assertEquals(logicalType, actual);
-
-        if (logicalType instanceof TimestampType
-                || logicalType instanceof ZonedTimestampType
-                || logicalType instanceof LocalZonedTimestampType) {
-            assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
+        if (canSerializableString(logicalType)) {
+            assertEquals(logicalType.asSerializableString(), actual.asSerializableString());
         }
+    }
+
+    private boolean canSerializableString(LogicalType logicalType) {
+        if (logicalType instanceof RawType
+                || logicalType instanceof SymbolType
+                || logicalType instanceof TypeInformationRawType) {
+            return false;
+        }
+        if (CharType.ofEmptyLiteral().copy(true).equals(logicalType)
+                || CharType.ofEmptyLiteral().copy(false).equals(logicalType)) {
+            return false;
+        }
+        if (VarCharType.ofEmptyLiteral().copy(true).equals(logicalType)
+                || VarCharType.ofEmptyLiteral().copy(false).equals(logicalType)) {
+            return false;
+        }
+        if (BinaryType.ofEmptyLiteral().copy(true).equals(logicalType)
+                || BinaryType.ofEmptyLiteral().copy(false).equals(logicalType)) {
+            return false;
+        }
+        if (VarBinaryType.ofEmptyLiteral().copy(true).equals(logicalType)
+                || VarBinaryType.ofEmptyLiteral().copy(false).equals(logicalType)) {
+            return false;
+        }
+        if (logicalType instanceof ArrayType) {
+            return canSerializableString(((ArrayType) logicalType).getElementType());
+        }
+        if (logicalType instanceof MultisetType) {
+            return canSerializableString(((MultisetType) logicalType).getElementType());
+        }
+        if (logicalType instanceof MapType) {
+            return canSerializableString(((MapType) logicalType).getKeyType())
+                    && canSerializableString(((MapType) logicalType).getValueType());
+        }
+        if (logicalType instanceof RowType) {
+            RowType rowType = (RowType) logicalType;
+            List<RowType.RowField> fields = rowType.getFields();
+            boolean canSerializableString = true;
+            for (RowType.RowField field : fields) {
+                canSerializableString = canSerializableString(field.getType());
+                if (!canSerializableString) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @Parameterized.Parameters(name = "{0}")
@@ -146,6 +189,14 @@ public class LogicalTypeSerdeTest {
                         new TimestampType(3),
                         new TimestampType(false, TimestampKind.PROCTIME, 3),
                         new TimestampType(false, TimestampKind.ROWTIME, 3),
+                        new ZonedTimestampType(),
+                        new ZonedTimestampType(3),
+                        new ZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                        new ZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                        new LocalZonedTimestampType(),
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                        new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3),
                         new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR),
                         new DayTimeIntervalType(
                                 false, DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR, 3, 6),
@@ -162,14 +213,50 @@ public class LogicalTypeSerdeTest {
                         new TypeInformationRawType<>(Types.STRING),
                         new LegacyTypeInformationType<>(LogicalTypeRoot.RAW, Types.STRING),
                         new ArrayType(new IntType(false)),
+                        new ArrayType(new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new ArrayType(new ZonedTimestampType(false, TimestampKind.PROCTIME, 3)),
+                        new ArrayType(new TimestampType()),
+                        new ArrayType(CharType.ofEmptyLiteral()),
+                        new ArrayType(VarCharType.ofEmptyLiteral()),
+                        new ArrayType(BinaryType.ofEmptyLiteral()),
+                        new ArrayType(VarBinaryType.ofEmptyLiteral()),
                         new MapType(new BigIntType(), new IntType(false)),
+                        new MapType(
+                                new TimestampType(false, TimestampKind.ROWTIME, 3),
+                                new ZonedTimestampType()),
+                        new MapType(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
+                        new MapType(VarCharType.ofEmptyLiteral(), VarCharType.ofEmptyLiteral()),
+                        new MapType(BinaryType.ofEmptyLiteral(), BinaryType.ofEmptyLiteral()),
+                        new MapType(VarBinaryType.ofEmptyLiteral(), VarBinaryType.ofEmptyLiteral()),
                         new MultisetType(new IntType(false)),
+                        new MultisetType(new TimestampType()),
+                        new MultisetType(new TimestampType(true, TimestampKind.ROWTIME, 3)),
+                        new MultisetType(new TimestampType(true, TimestampKind.PROCTIME, 3)),
+                        new MultisetType(CharType.ofEmptyLiteral()),
+                        new MultisetType(VarCharType.ofEmptyLiteral()),
+                        new MultisetType(BinaryType.ofEmptyLiteral()),
+                        new MultisetType(VarBinaryType.ofEmptyLiteral()),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {
                                     new BigIntType(), new IntType(false), new VarCharType(200)
                                 },
                                 new String[] {"f1", "f2", "f3"}),
+                        RowType.of(
+                                new TimestampType(false, TimestampKind.ROWTIME, 3),
+                                new TimestampType(false, TimestampKind.PROCTIME, 3),
+                                new TimestampType(false, TimestampKind.REGULAR, 3),
+                                new ZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                                new ZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                                new ZonedTimestampType(false, TimestampKind.REGULAR, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.REGULAR, 3)),
+                        RowType.of(
+                                CharType.ofEmptyLiteral(),
+                                VarCharType.ofEmptyLiteral(),
+                                BinaryType.ofEmptyLiteral(),
+                                VarBinaryType.ofEmptyLiteral()),
                         StructuredType.newBuilder(
                                         ObjectIdentifier.of("cat", "db", "structuredType"),
                                         PojoClass.class)
