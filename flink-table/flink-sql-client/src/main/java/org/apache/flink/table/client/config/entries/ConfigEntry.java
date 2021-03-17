@@ -30,8 +30,8 @@ import java.util.Objects;
  * entries are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL
  * Client's environment files only.
  *
- * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
- *     sql-client.yaml} configuration file.
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
 @Deprecated
 abstract class ConfigEntry {

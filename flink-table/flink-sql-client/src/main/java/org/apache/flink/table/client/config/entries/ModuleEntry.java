@@ -29,8 +29,8 @@ import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODUL
 /**
  * Describes a module configuration entry.
  *
- * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
- *     sql-client.yaml} configuration file.
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
 @Deprecated
 public class ModuleEntry extends ConfigEntry {

@@ -55,7 +55,7 @@ public class ResultStore {
         if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
                 && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {
             throw new SqlExecutionException(
-                    "Batch mode doesn't support `changelog` as result mode. Please use `tableau` mode instead.");
+                    "Results of batch queries can only be served in table or tableau mode.");
         }
 
         switch (config.get(EXECUTION_RESULT_MODE)) {
