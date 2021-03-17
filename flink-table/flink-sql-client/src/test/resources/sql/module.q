@@ -183,10 +183,7 @@ UNLOAD MODULE core;
 !info
 
 SHOW MODULES;
-+-------------+
-| module name |
-+-------------+
-0 row in set
+Empty set
 !ok
 
 SHOW FULL MODULES;

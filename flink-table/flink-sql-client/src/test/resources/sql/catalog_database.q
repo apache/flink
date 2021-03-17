@@ -52,12 +52,22 @@ create catalog c1 with ('type'='generic_in_memory');
 !info
 
 show catalogs;
-c1
-default_catalog
++-----------------+
+|    catalog name |
++-----------------+
+|              c1 |
+| default_catalog |
++-----------------+
+2 rows in set
 !ok
 
 show current catalog;
-default_catalog
++----------------------+
+| current catalog name |
++----------------------+
+|      default_catalog |
++----------------------+
+1 row in set
 !ok
 
 use catalog c1;
@@ -65,7 +75,12 @@ use catalog c1;
 !info
 
 show current catalog;
-c1
++----------------------+
+| current catalog name |
++----------------------+
+|                   c1 |
++----------------------+
+1 row in set
 !ok
 
 drop catalog default_catalog;
@@ -81,12 +96,22 @@ create database db1;
 !info
 
 show databases;
-default
-db1
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
++---------------+
+2 rows in set
 !ok
 
 show current database;
-default
++-----------------------+
+| current database name |
++-----------------------+
+|               default |
++-----------------------+
+1 row in set
 !ok
 
 use db1;
@@ -94,7 +119,12 @@ use db1;
 !info
 
 show current database;
-db1
++-----------------------+
+| current database name |
++-----------------------+
+|                   db1 |
++-----------------------+
+1 row in set
 !ok
 
 create database db2 comment 'db2_comment' with ('k1' = 'v1');
@@ -108,9 +138,14 @@ alter database db2 set ('k1' = 'a', 'k2' = 'b');
 # TODO: show database properties when we support DESCRIBE DATABSE
 
 show databases;
-default
-db1
-db2
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
+|           db2 |
++---------------+
+3 rows in set
 !ok
 
 drop database if exists db2;
@@ -118,8 +153,13 @@ drop database if exists db2;
 !info
 
 show databases;
-default
-db1
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
++---------------+
+2 rows in set
 !ok
 
 # ==========================================================================
@@ -163,16 +203,31 @@ use catalog hivecatalog;
 !info
 
 show current catalog;
-hivecatalog
++----------------------+
+| current catalog name |
++----------------------+
+|          hivecatalog |
++----------------------+
+1 row in set
 !ok
 
 show databases;
-additional_test_database
-default
++--------------------------+
+|            database name |
++--------------------------+
+| additional_test_database |
+|                  default |
++--------------------------+
+2 rows in set
 !ok
 
 show tables;
-param_types_table
++-------------------+
+|        table name |
++-------------------+
+| param_types_table |
++-------------------+
+1 row in set
 !ok
 
 use additional_test_database;
@@ -180,11 +235,21 @@ use additional_test_database;
 !info
 
 show tables;
-test_table
++------------+
+| table name |
++------------+
+| test_table |
++------------+
+1 row in set
 !ok
 
 show current database;
-additional_test_database
++--------------------------+
+|    current database name |
++--------------------------+
+| additional_test_database |
++--------------------------+
+1 row in set
 !ok
 
 # ==========================================================================
@@ -236,9 +301,14 @@ create table MyTable2 (a int, b string);
 
 # hive catalog is case-insensitive
 show tables;
-mytable1
-mytable2
-test_table
++------------+
+| table name |
++------------+
+|   mytable1 |
+|   mytable2 |
+| test_table |
++------------+
+3 rows in set
 !ok
 
 # test create with full qualified name
@@ -259,8 +329,13 @@ use db1;
 !info
 
 show tables;
-MyTable3
-MyTable4
++------------+
+| table name |
++------------+
+|   MyTable3 |
+|   MyTable4 |
++------------+
+2 rows in set
 !ok
 
 # test create with database name
@@ -277,8 +352,13 @@ use `default`;
 !info
 
 show tables;
-MyTable5
-MyTable6
++------------+
+| table name |
++------------+
+|   MyTable5 |
+|   MyTable6 |
++------------+
+2 rows in set
 !ok
 
 drop table db1.MyTable3;
@@ -290,7 +370,12 @@ use db1;
 !info
 
 show tables;
-MyTable4
++------------+
+| table name |
++------------+
+|   MyTable4 |
++------------+
+1 row in set
 !ok
 
 drop table c1.`default`.MyTable6;
@@ -302,7 +387,12 @@ use `default`;
 !info
 
 show tables;
-MyTable5
++------------+
+| table name |
++------------+
+|   MyTable5 |
++------------+
+1 row in set
 !ok
 
 # ==========================================================================
@@ -318,8 +408,13 @@ create table MyTable7 (a int, b string);
 !info
 
 show tables;
-MyTable5
-MyTable7
++------------+
+| table name |
++------------+
+|   MyTable5 |
+|   MyTable7 |
++------------+
+2 rows in set
 !ok
 
 reset;
@@ -331,5 +426,10 @@ drop table MyTable5;
 !info
 
 show tables;
-MyTable7
++------------+
+| table name |
++------------+
+|   MyTable7 |
++------------+
+1 row in set
 !ok
