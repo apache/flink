@@ -158,7 +158,7 @@ Received a total of 3 rows
 
 ### Multiple Tags
 
-In some cases, the terminal get different kinds of the message from the executor. Please use the
+In some cases, the terminal gets different kinds of the message from the executor. Please use the
 highest order of fatality to identify the output.
 
 Example:

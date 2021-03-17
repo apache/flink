@@ -260,17 +260,9 @@ public class CliClientITCase extends AbstractTestBase {
         List<Tag> tags = new ArrayList<>();
 
         for (Tag tag : Tag.values()) {
-            // if no tags matches then add OK into the list
-            if (tag.equals(Tag.OK)) {
-                continue;
-            }
             if (tag.onMatch(contentLines)) {
                 tags.add(tag);
             }
-        }
-
-        if (tags.isEmpty()) {
-            tags.add(Tag.OK);
         }
 
         String content = stripTagsAndConcatLines(contentLines, tags);
