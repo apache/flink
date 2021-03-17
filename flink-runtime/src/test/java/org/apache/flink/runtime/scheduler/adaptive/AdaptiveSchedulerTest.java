@@ -568,7 +568,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void testGoToFinishedShutsDownCheckpointingComponents() throws Exception {
+    public void testCloseShutsDownCheckpointingComponents() throws Exception {
         final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
                 new CompletableFuture<>();
         final CompletedCheckpointStore completedCheckpointStore =
@@ -586,16 +586,19 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         CheckpointCoordinatorConfiguration.builder().build(), null));
 
         final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
                         .setCheckpointRecoveryFactory(
                                 new TestingCheckpointRecoveryFactory(
                                         completedCheckpointStore, checkpointIdCounter))
                         .build();
 
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                new ArchivedExecutionGraphBuilder().setState(JobStatus.FAILED).build();
-
-        scheduler.goToFinished(archivedExecutionGraph);
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    // transition into the FAILED state
+                    scheduler.handleGlobalFailure(new FlinkException("Test exception"));
+                    scheduler.closeAsync();
+                });
 
         assertThat(completedCheckpointStoreShutdownFuture.get(), is(JobStatus.FAILED));
         assertThat(checkpointIdCounterShutdownFuture.get(), is(JobStatus.FAILED));

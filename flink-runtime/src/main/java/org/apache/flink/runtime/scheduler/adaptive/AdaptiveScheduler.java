@@ -111,7 +111,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -185,6 +184,8 @@ public class AdaptiveScheduler
 
     private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
             new DefaultVertexAttemptNumberStore();
+
+    private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -283,9 +284,42 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<Void> closeAsync() {
+        LOG.debug("Closing the AdaptiveScheduler. Trying to suspend the current job execution.");
+
         state.suspend(new FlinkException("AdaptiveScheduler is being stopped."));
 
-        return FutureUtils.completedVoidFuture();
+        Preconditions.checkState(
+                state instanceof Finished,
+                "Scheduler state should be finished after calling state.suspend.");
+
+        backgroundTask.abort();
+        // wait for the background task to finish and then close services
+        return FutureUtils.runAfterwardsAsync(
+                backgroundTask.getTerminationFuture(),
+                () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
+                getMainThreadExecutor());
+    }
+
+    private void stopCheckpointServicesSafely(JobStatus terminalState) {
+        LOG.debug("Stopping the checkpoint services with state {}.", terminalState);
+
+        Exception exception = null;
+
+        try {
+            completedCheckpointStore.shutdown(terminalState, checkpointsCleaner);
+        } catch (Exception e) {
+            exception = e;
+        }
+
+        try {
+            checkpointIdCounter.shutdown(terminalState);
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        if (exception != null) {
+            LOG.warn("Failed to stop checkpoint services.", exception);
+        }
     }
 
     @Override
@@ -746,24 +780,14 @@ public class AdaptiveScheduler
 
     private CompletableFuture<ExecutionGraph> createExecutionGraphAndRestoreStateAsync(
             JobGraph adjustedJobGraph) {
-        return CompletableFuture.supplyAsync(
-                        () -> {
-                            try {
-                                return createExecutionGraphAndRestoreState(adjustedJobGraph);
-                            } catch (Exception exception) {
-                                throw new CompletionException(exception);
-                            }
-                        },
-                        ioExecutor)
-                .handleAsync(
-                        (executionGraph, throwable) -> {
-                            if (throwable != null) {
-                                throw new CompletionException(throwable);
-                            } else {
-                                return executionGraph;
-                            }
-                        },
-                        getMainThreadExecutor());
+        backgroundTask.abort();
+
+        backgroundTask =
+                backgroundTask.runAfter(
+                        () -> createExecutionGraphAndRestoreState(adjustedJobGraph), ioExecutor);
+
+        return FutureUtils.switchExecutor(
+                backgroundTask.getResultFuture(), getMainThreadExecutor());
     }
 
     @Nonnull
@@ -819,8 +843,6 @@ public class AdaptiveScheduler
 
     @Override
     public void onFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-        stopCheckpointServicesSafely(archivedExecutionGraph.getState());
-
         if (jobStatusListener != null) {
             jobStatusListener.jobStatusChanges(
                     jobInformation.getJobID(),
@@ -832,26 +854,6 @@ public class AdaptiveScheduler
         }
 
         jobTerminationFuture.complete(archivedExecutionGraph.getState());
-    }
-
-    private void stopCheckpointServicesSafely(JobStatus terminalState) {
-        Exception exception = null;
-
-        try {
-            completedCheckpointStore.shutdown(terminalState, checkpointsCleaner);
-        } catch (Exception e) {
-            exception = e;
-        }
-
-        try {
-            checkpointIdCounter.shutdown(terminalState);
-        } catch (Exception e) {
-            exception = ExceptionUtils.firstOrSuppressed(e, exception);
-        }
-
-        if (exception != null) {
-            LOG.warn("Failed to stop checkpoint services.", exception);
-        }
     }
 
     @Override
