@@ -202,14 +202,14 @@ public class SchemaResolutionTest {
                 SCHEMA.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>], \n"
-                                + "  `topic` METADATA VIRTUAL, \n"
-                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE], \n"
-                                + "  `orig_ts` METADATA FROM 'timestamp', \n"
-                                + "  `proctime` AS [PROCTIME()], \n"
-                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND], \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>],\n"
+                                + "  `topic` METADATA VIRTUAL,\n"
+                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE],\n"
+                                + "  `orig_ts` METADATA FROM 'timestamp',\n"
+                                + "  `proctime` AS [PROCTIME()],\n"
+                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }
@@ -221,14 +221,14 @@ public class SchemaResolutionTest {
                 resolvedSchema.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>, \n"
-                                + "  `topic` STRING METADATA VIRTUAL, \n"
-                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE, \n"
-                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp', \n"
-                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(), \n"
-                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND, \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>,\n"
+                                + "  `topic` STRING METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE,\n"
+                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',\n"
+                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
+                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }

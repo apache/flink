@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.TableConfigOptions
-import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.catalog.{Column, GenericInMemoryCatalog, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId, _}
@@ -223,8 +223,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult = testUtil.tableEnv.executeSql("SHOW CATALOGS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("catalog name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("catalog name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
       tableResult.collect())
@@ -239,8 +239,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = testUtil.tableEnv.executeSql("SHOW DATABASES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("database name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
       tableResult2.collect())
@@ -266,8 +266,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = testUtil.tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("table name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
@@ -279,8 +279,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult = util.tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
@@ -343,8 +343,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult4 = util.tableEnv.executeSql("SHOW VIEWS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
     assertEquals(
-      TableSchema.builder().field("view name", DataTypes.STRING()).build(),
-      tableResult4.getTableSchema)
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult4.getResolvedSchema)
     checkData(
       util.tableEnv.listViews().map(Row.of(_)).toList.asJava.iterator(),
       tableResult4.collect())

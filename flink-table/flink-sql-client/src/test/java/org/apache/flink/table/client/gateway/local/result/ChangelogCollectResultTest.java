@@ -20,7 +20,8 @@ package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -47,7 +48,7 @@ public class ChangelogCollectResultTest {
                 new ChangelogCollectResult(
                         new TestTableResult(
                                 ResultKind.SUCCESS_WITH_CONTENT,
-                                TableSchema.builder().field("id", DataTypes.INT()).build(),
+                                ResolvedSchema.of(Column.physical("id", DataTypes.INT())),
                                 data));
 
         int count = 0;

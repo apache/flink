@@ -517,7 +517,7 @@ public class CliClient implements AutoCloseable {
             return;
         }
         PrintUtils.printAsTableauForm(
-                result.getTableSchema(),
+                result.getResolvedSchema(),
                 result.collect(),
                 terminal.writer(),
                 Integer.MAX_VALUE,

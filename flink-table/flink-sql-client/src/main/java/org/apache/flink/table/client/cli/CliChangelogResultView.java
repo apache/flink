@@ -277,7 +277,9 @@ public class CliChangelogResultView
         schemaHeader.append("op");
         schemaHeader.style(AttributedStyle.DEFAULT);
 
-        Arrays.stream(resultDescriptor.getResultSchema().getFieldNames())
+        resultDescriptor
+                .getResultSchema()
+                .getColumnNames()
                 .forEach(
                         s -> {
                             schemaHeader.append(' ');
