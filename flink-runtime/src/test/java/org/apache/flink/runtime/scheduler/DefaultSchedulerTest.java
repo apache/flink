@@ -1155,7 +1155,7 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
-        scheduler.getTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        scheduler.getJobTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     private static JobGraph singleNonParallelJobVertexJobGraph() {

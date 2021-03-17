@@ -83,7 +83,6 @@ import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 
@@ -407,7 +406,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected void failJob(Throwable cause) {
         incrementVersionsOfAllVertices();
         executionGraph.failJob(cause);
-        getTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
+        getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
 
     protected final SchedulingTopology getSchedulingTopology() {
@@ -523,8 +522,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
+    public CompletableFuture<JobStatus> getJobTerminationFuture() {
+        return executionGraph.getTerminationFuture();
     }
 
     protected final void archiveGlobalFailure(@Nullable Throwable failure) {
