@@ -105,6 +105,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
@@ -394,18 +395,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
         // make sure there is a graceful exit
-        try {
-            stopJobExecution(
-                    new FlinkException(
-                            String.format(
-                                    "Stopping JobMaster for job %s(%s).",
-                                    jobGraph.getName(), jobGraph.getJobID())));
-        } catch (Exception e) {
-            return FutureUtils.completedExceptionally(
-                    new JobMasterException("Could not properly stop the JobMaster.", e));
-        }
-
-        return CompletableFuture.completedFuture(null);
+        return stopJobExecution(
+                        new FlinkException(
+                                String.format(
+                                        "Stopping JobMaster for job %s(%s).",
+                                        jobGraph.getName(), jobGraph.getJobID())))
+                .exceptionally(
+                        exception -> {
+                            throw new CompletionException(
+                                    new JobMasterException(
+                                            "Could not properly stop the JobMaster.", exception));
+                        });
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -920,22 +920,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         ExceptionUtils.tryRethrowException(resultingException);
     }
 
-    private void stopJobExecution(final Exception cause) throws Exception {
+    private CompletableFuture<Void> stopJobExecution(final Exception cause) {
         validateRunsInMainThread();
 
-        stopScheduling(cause);
+        final CompletableFuture<Void> terminationFuture = stopScheduling();
 
-        disconnectTaskManagerResourceManagerConnections(cause);
-
-        Exception resultingException = null;
-
-        try {
-            stopJobMasterServices();
-        } catch (Exception e) {
-            resultingException = e;
-        }
-
-        ExceptionUtils.tryRethrowException(resultingException);
+        return FutureUtils.runAfterwards(
+                terminationFuture,
+                () -> {
+                    disconnectTaskManagerResourceManagerConnections(cause);
+                    stopJobMasterServices();
+                });
     }
 
     private void disconnectTaskManagerResourceManagerConnections(Exception cause) {
@@ -960,10 +955,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         schedulerNG.startScheduling();
     }
 
-    private void stopScheduling(Exception cause) {
-        schedulerNG.suspend(cause);
+    private CompletableFuture<Void> stopScheduling() {
         jobManagerJobMetricGroup.close();
         jobStatusListener.stop();
+
+        return schedulerNG.closeAsync();
     }
 
     // ----------------------------------------------------------------------------------------------
