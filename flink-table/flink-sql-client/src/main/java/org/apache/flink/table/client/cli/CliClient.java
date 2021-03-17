@@ -50,13 +50,13 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_DEPRECATED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_REMOVED_KEY;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */

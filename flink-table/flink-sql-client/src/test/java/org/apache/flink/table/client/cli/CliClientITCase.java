@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
 import static org.apache.flink.table.client.cli.utils.SqlScriptReader.parseSqlScript;
 import static org.junit.Assert.assertEquals;
@@ -108,6 +109,9 @@ public class CliClientITCase extends AbstractTestBase {
         replaceVars.put(
                 "$VAR_REST_PORT",
                 miniClusterResource.getClientConfiguration().get(PORT).toString());
+        replaceVars.put(
+                "$VAR_JOBMANAGER_RPC_ADDRESS",
+                miniClusterResource.getClientConfiguration().get(ADDRESS));
     }
 
     @Test
@@ -184,7 +188,7 @@ public class CliClientITCase extends AbstractTestBase {
             return containsTag(lines, begin) && containsTag(lines, end);
         }
 
-        public List<String> onMatch(List<String> lines) {
+        public List<String> convert(List<String> lines) {
             List<String> newLines = new ArrayList<>();
             for (String line : lines) {
                 String newLine =
@@ -272,7 +276,7 @@ public class CliClientITCase extends AbstractTestBase {
     private static String stripTagsAndConcatLines(List<String> lines, List<Tag> tags) {
         List<String> newLines = lines;
         for (Tag tag : tags) {
-            newLines = tag.onMatch(newLines);
+            newLines = tag.convert(newLines);
         }
         return String.join("\n", newLines);
     }
