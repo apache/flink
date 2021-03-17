@@ -98,6 +98,13 @@ import java.util.function.Function;
 @Internal
 public abstract class MemorySegment {
 
+    /** System property for activating multiple free segment check, for testing purpose. */
+    public static final String CHECK_MULTIPLE_FREE_PROPERTY =
+            "flink.tests.check-segment-multiple-free";
+
+    private static final boolean checkMultipleFree =
+            System.getenv().containsKey(CHECK_MULTIPLE_FREE_PROPERTY);
+
     /** The unsafe handle for transparent memory copied (heap / off-heap). */
     @SuppressWarnings("restriction")
     protected static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
@@ -221,6 +228,9 @@ public abstract class MemorySegment {
      * memory segment object has become garbage collected.
      */
     public void free() {
+        if (checkMultipleFree && isFreed()) {
+            throw new IllegalStateException("HybridMemorySegment can be freed only once!");
+        }
         // this ensures we can place no more data and trigger
         // the checks for the freed segment
         address = addressLimit + 1;
