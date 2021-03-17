@@ -223,6 +223,10 @@ public class PlannerContext {
                 CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
     }
 
+    public RelOptCluster getCluster() {
+        return cluster;
+    }
+
     private SchemaPlus getRootSchema(SchemaPlus schema) {
         if (schema.getParentSchema() == null) {
             return schema;
