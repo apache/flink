@@ -95,6 +95,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
         final JobVertex vertex = new JobVertex("testVertex");
         vertex.setInvokableClass(NoOpBlockingInvokable.class);
+        vertex.setParallelism(1);
 
         final JobCheckpointingSettings jobCheckpointingSettings =
                 new JobCheckpointingSettings(

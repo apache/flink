@@ -1026,6 +1026,9 @@ public class DispatcherTest extends TestLogger {
     private Tuple2<JobGraph, BlockingJobVertex> getBlockingJobGraphAndVertex() {
         final BlockingJobVertex blockingJobVertex = new BlockingJobVertex("testVertex");
         blockingJobVertex.setInvokableClass(NoOpInvokable.class);
+        // AdaptiveScheduler expects the parallelism to be set for each vertex
+        blockingJobVertex.setParallelism(1);
+
         return Tuple2.of(
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .setJobId(jobId)
