@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
+import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -35,7 +37,8 @@ public class PushFilterIntoTableSourceScanRuleTest
 
     @Override
     public void setup() {
-        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        util_$eq(batchTestUtil(new TableConfig()));
+        ((BatchTableTestUtil) util()).buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
                 TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
         calciteConfig
@@ -52,6 +55,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                                                 PushFilterIntoTableSourceScanRule.INSTANCE,
                                                 CoreRules.FILTER_PROJECT_TRANSPOSE))
                                 .build());
+
         // name: STRING, id: LONG, amount: INT, price: DOUBLE
         String ddl1 =
                 "CREATE TABLE MyTable (\n"

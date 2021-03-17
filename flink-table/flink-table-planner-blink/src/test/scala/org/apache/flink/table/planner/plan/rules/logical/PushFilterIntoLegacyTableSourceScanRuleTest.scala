@@ -17,27 +17,27 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.CoreRules
+import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestLegacyFilterableTableSource}
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TableTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.types.Row
-
-import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.CoreRules
-import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PushFilterIntoLegacyTableSourceScanRule]].
-  */
+ * Test for [[PushFilterIntoLegacyTableSourceScanRule]].
+ */
 class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
-  protected val util = batchTestUtil()
+  var util: TableTestUtil = _
 
   @Before
   def setup(): Unit = {
-    util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
+    util = batchTestUtil()
+    util.asInstanceOf[BatchTableTestUtil].buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
     val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
     calciteConfig.getBatchProgram.get.addLast(
       "rules",
@@ -56,17 +56,17 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       "MyTable",
       isBounded = true)
     val ddl =
-      s"""
-         |CREATE TABLE VirtualTable (
-         |  name STRING,
-         |  id bigint,
-         |  amount int,
-         |  virtualField as amount + 1,
-         |  price double
-         |) with (
-         |  'connector.type' = 'TestFilterableSource',
-         |  'is-bounded' = 'true'
-         |)
+      """
+        |CREATE TABLE VirtualTable (
+        |  name STRING,
+        |  id bigint,
+        |  amount int,
+        |  virtualField as amount + 1,
+        |  price double
+        |) with (
+        |  'connector.type' = 'TestFilterableSource',
+        |  'is-bounded' = 'true'
+        |)
        """.stripMargin
     util.tableEnv.executeSql(ddl)
   }

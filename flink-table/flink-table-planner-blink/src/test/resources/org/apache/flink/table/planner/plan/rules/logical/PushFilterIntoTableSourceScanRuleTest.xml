@@ -253,6 +253,27 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPartialPushDownWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalFilter(condition=[AND(>($2, 2), >($4, 10))])
+   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalFilter(condition=[>($3, 10)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, filter=[greaterThan(amount, 2)]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnconvertedExpression">
     <Resource name="sql">
       <![CDATA[
@@ -312,27 +333,6 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalFilter(condition=[<(org$apache$flink$table$planner$expressions$utils$Func1$$879c8537562dbe74f3349fa0e6502755($2), 32)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, filter=[greaterThan(amount, 2)]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPartialPushDownWithVirtualColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalFilter(condition=[AND(>($2, 2), >($4, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-   +- LogicalFilter(condition=[>($3, 10)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, filter=[greaterThan(amount, 2)]]])
 ]]>
     </Resource>
   </TestCase>
