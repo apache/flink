@@ -1344,4 +1344,26 @@ public class FutureUtils {
             }
         };
     }
+
+    /**
+     * Switches the execution context of the given source future. This works for normally and
+     * exceptionally completed futures.
+     *
+     * @param source source to switch the execution context for
+     * @param executor executor representing the new execution context
+     * @param <T> type of the source
+     * @return future which is executed by the given executor
+     */
+    public static <T> CompletableFuture<T> switchExecutor(
+            CompletableFuture<? extends T> source, Executor executor) {
+        return source.handleAsync(
+                (t, throwable) -> {
+                    if (throwable != null) {
+                        throw new CompletionException(throwable);
+                    } else {
+                        return t;
+                    }
+                },
+                executor);
+    }
 }
