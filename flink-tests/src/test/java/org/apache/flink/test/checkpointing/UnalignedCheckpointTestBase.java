@@ -49,6 +49,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -60,17 +61,20 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
 
@@ -114,6 +118,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
     @Rule public ErrorCollector collector = new ErrorCollector();
+
+    @ClassRule
+    public static final LogLevelRule NETWORK_LOGGER =
+            new LogLevelRule().set(NetworkActionsLogger.class, Level.TRACE);
 
     @Nullable
     protected File execute(UnalignedSettings settings) throws Exception {
