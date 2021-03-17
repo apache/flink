@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
@@ -173,16 +174,17 @@ public class ModuleManager {
      * @return an optional of {@link FunctionDefinition}
      */
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-        Optional<String> module =
-                usedModules.stream()
-                        .filter(
-                                n ->
-                                        loadedModules.get(n).listFunctions().stream()
-                                                .anyMatch(e -> e.equalsIgnoreCase(name)))
-                        .findFirst();
-        if (module.isPresent()) {
-            LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, module.get());
-            return loadedModules.get(module.get()).getFunctionDefinition(name);
+        AtomicReference<String> moduleName = new AtomicReference<>();
+        usedModules.forEach(n -> {
+            if (loadedModules.get(n).listFunctions().stream().anyMatch(name::equalsIgnoreCase)) {
+                moduleName.set(n);
+                return;
+            }
+        });
+
+        if (moduleName.get() != null) {
+            LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, moduleName.get());
+            return loadedModules.get(moduleName.get()).getFunctionDefinition(name);
         }
         LOG.debug("Cannot find FunctionDefinition '{}' from any loaded modules.", name);
 

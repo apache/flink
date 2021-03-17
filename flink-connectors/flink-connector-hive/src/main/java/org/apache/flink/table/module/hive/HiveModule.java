@@ -74,6 +74,7 @@ public class HiveModule implements Module {
     private final HiveFunctionDefinitionFactory factory;
     private final String hiveVersion;
     private final HiveShim hiveShim;
+    private Set<String> builtInFuncs;
 
     public HiveModule() {
         this(HiveShimLoader.getHiveVersion());
@@ -86,12 +87,15 @@ public class HiveModule implements Module {
         this.hiveVersion = hiveVersion;
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.factory = new HiveFunctionDefinitionFactory(hiveShim);
+        this.builtInFuncs = new HashSet<>();
     }
 
     @Override
     public Set<String> listFunctions() {
-        Set<String> builtInFuncs = hiveShim.listBuiltInFunctions();
-        builtInFuncs.removeAll(BUILT_IN_FUNC_BLACKLIST);
+        if (builtInFuncs.isEmpty()) {
+            builtInFuncs = hiveShim.listBuiltInFunctions();
+            builtInFuncs.removeAll(BUILT_IN_FUNC_BLACKLIST);
+        }
         return builtInFuncs;
     }
 
