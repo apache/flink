@@ -48,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.Si
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
 import java.io.IOException;
@@ -124,6 +125,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         // RexNode is used in many exec nodes, so we register its deserializer directly here
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
+        module.addDeserializer(RexLiteral.class, new RexLiteralJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
         module.addDeserializer(Duration.class, new DurationJsonDeserializer());
     }
