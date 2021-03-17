@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd
 import org.apache.flink.table.types.logical.TimestampType
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.hint.RelHint
@@ -37,9 +36,9 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.FINAL
+import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution
 
 import java.util.{Collections => JCollections}
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -199,6 +198,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         sink.sinkName,
         sink.catalogTable,
         sink.staticPartitions)
+
+    case distribution: LogicalDistribution =>
+      val newInput = distribution.getInput.accept(this)
+      distribution.copy(distribution.getTraitSet, JCollections.singletonList(newInput))
 
     case _ =>
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
