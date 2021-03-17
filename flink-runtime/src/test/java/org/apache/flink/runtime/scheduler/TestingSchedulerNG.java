@@ -51,19 +51,19 @@ import java.util.function.Consumer;
 
 /** Testing implementation of the {@link SchedulerNG}. */
 public class TestingSchedulerNG implements SchedulerNG {
-    private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<JobStatus> jobTerminationFuture;
     private final Runnable startSchedulingRunnable;
     private final Consumer<Throwable> suspendConsumer;
     private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
     private final Consumer<Throwable> handleGlobalFailureConsumer;
 
     private TestingSchedulerNG(
-            CompletableFuture<Void> terminationFuture,
+            CompletableFuture<JobStatus> jobTerminationFuture,
             Runnable startSchedulingRunnable,
             Consumer<Throwable> suspendConsumer,
             BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
             Consumer<Throwable> handleGlobalFailureConsumer) {
-        this.terminationFuture = terminationFuture;
+        this.jobTerminationFuture = jobTerminationFuture;
         this.startSchedulingRunnable = startSchedulingRunnable;
         this.suspendConsumer = suspendConsumer;
         this.triggerSavepointFunction = triggerSavepointFunction;
@@ -88,8 +88,8 @@ public class TestingSchedulerNG implements SchedulerNG {
     public void cancel() {}
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
+    public CompletableFuture<JobStatus> getJobTerminationFuture() {
+        return jobTerminationFuture;
     }
 
     @Override
@@ -224,15 +224,15 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     /** Builder for the TestingSchedulerNG. */
     public static final class Builder {
-        private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
         private Runnable startSchedulingRunnable = () -> {};
         private Consumer<Throwable> suspendConsumer = ignored -> {};
         private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
                 (ignoredA, ignoredB) -> new CompletableFuture<>();
         private Consumer<Throwable> handleGlobalFailureConsumer = (ignored) -> {};
 
-        public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
-            this.terminationFuture = terminationFuture;
+        public Builder setJobTerminationFuture(CompletableFuture<JobStatus> jobTerminationFuture) {
+            this.jobTerminationFuture = jobTerminationFuture;
             return this;
         }
 
@@ -260,7 +260,7 @@ public class TestingSchedulerNG implements SchedulerNG {
 
         public TestingSchedulerNG build() {
             return new TestingSchedulerNG(
-                    terminationFuture,
+                    jobTerminationFuture,
                     startSchedulingRunnable,
                     suspendConsumer,
                     triggerSavepointFunction,
