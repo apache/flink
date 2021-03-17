@@ -82,21 +82,21 @@ public class Kafka extends ConnectorDescriptor {
         this.topic = topic;
         return this;
     }
-
-	/**
-	 * Sets the configuration properties for the Kafka consumer. Resets previously set properties.
-	 *
-	 * @param properties The configuration properties for the Kafka consumer.
-	 */
-	public Kafka properties(Properties properties) {
-		Preconditions.checkNotNull(properties);
-		if (this.kafkaProperties == null) {
-			this.kafkaProperties = new HashMap<>();
-		}
-		this.kafkaProperties.clear();
-		properties.forEach((k, v) -> this.kafkaProperties.put(String.valueOf(k), String.valueOf(v)));
-		return this;
-	}
+    
+    /**
+     * Sets the configuration properties for the Kafka consumer. Resets previously set properties.
+     *
+     * @param properties The configuration properties for the Kafka consumer.
+     */
+    public Kafka properties(Properties properties) {
+        Preconditions.checkNotNull(properties);
+        if (this.kafkaProperties == null) {
+            this.kafkaProperties = new HashMap<>();
+        }
+        this.kafkaProperties.clear();
+        properties.forEach((k, v) -> this.kafkaProperties.put(String.valueOf(k), String.valueOf(v)));
+        return this;
+    }
   
     /**
      * Adds a configuration properties for the Kafka consumer.
