@@ -116,6 +116,11 @@ public class PrintUtils {
             String nullColumn,
             boolean deriveColumnWidthByType,
             boolean printRowKind) {
+        if (!it.hasNext()) {
+            printWriter.println("Empty set");
+            printWriter.flush();
+            return;
+        }
         final List<TableColumn> columns = tableSchema.getTableColumns();
         String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
         if (printRowKind) {
@@ -152,7 +157,6 @@ public class PrintUtils {
         PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
         // print border line
         printWriter.println(borderline);
-        printWriter.flush();
 
         long numRows = 0;
         while (it.hasNext()) {
@@ -163,17 +167,9 @@ public class PrintUtils {
             numRows++;
         }
 
-        if (numRows > 0) {
-            // print border line
-            printWriter.println(borderline);
-        }
-
-        final String rowTerm;
-        if (numRows > 1) {
-            rowTerm = "rows";
-        } else {
-            rowTerm = "row";
-        }
+        // print border line
+        printWriter.println(borderline);
+        final String rowTerm = numRows > 1 ? "rows" : "row";
         printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
     }

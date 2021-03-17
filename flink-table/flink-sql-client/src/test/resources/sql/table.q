@@ -60,7 +60,12 @@ CREATE TABLE IF NOT EXISTS orders (
 
 # test SHOW TABLES
 show tables;
-orders
++------------+
+| table name |
++------------+
+|     orders |
++------------+
+1 row in set
 !ok
 
 # ==========================================================================
@@ -103,8 +108,8 @@ drop table orders2;
 
 # verify table is dropped
 show tables;
-[INFO] Result was empty.
-!info
+Empty set
+!ok
 
 # ==========================================================================
 # test temporary table
@@ -133,7 +138,12 @@ create temporary table if not exists tbl1 (
 
 # list permanent and temporary tables together
 show tables;
-tbl1
++------------+
+| table name |
++------------+
+|       tbl1 |
++------------+
+1 row in set
 !ok
 
 drop temporary table tbl1;
@@ -173,5 +183,5 @@ drop table `mod`;
 !info
 
 show tables;
-[INFO] Result was empty.
-!info
+Empty set
+!ok

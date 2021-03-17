@@ -52,14 +52,24 @@ create temporary view if not exists v2 as select * from v1;
 !info
 
 show tables;
-orders
-v1
-v2
++------------+
+| table name |
++------------+
+|     orders |
+|         v1 |
+|         v2 |
++------------+
+3 rows in set
 !ok
 
 show views;
-v1
-v2
++-----------+
+| view name |
++-----------+
+|        v1 |
+|        v2 |
++-----------+
+2 rows in set
 !ok
 
 # ==== test permanent view =====
@@ -77,8 +87,13 @@ org.apache.flink.table.catalog.exceptions.TableAlreadyExistException: Table (or 
 
 # we didn't distinguish the temporary v1 and permanent v1 for now
 show views;
-v1
-v2
++-----------+
+| view name |
++-----------+
+|        v1 |
+|        v2 |
++-----------+
+2 rows in set
 !ok
 
 # test describe view
@@ -154,6 +169,11 @@ drop view `mod`;
 !info
 
 show tables;
-orders
-v2
++------------+
+| table name |
++------------+
+|     orders |
+|         v2 |
++------------+
+2 rows in set
 !ok

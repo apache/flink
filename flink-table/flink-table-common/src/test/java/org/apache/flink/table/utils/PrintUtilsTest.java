@@ -82,16 +82,7 @@ public class PrintUtilsTest {
         PrintUtils.printAsTableauForm(
                 getSchema(), Collections.<Row>emptyList().iterator(), new PrintWriter(outContent));
 
-        assertEquals(
-                "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |"
-                        + System.lineSeparator()
-                        + "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
@@ -105,16 +96,7 @@ public class PrintUtilsTest {
                 true, // derive column width by type
                 true);
 
-        assertEquals(
-                "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
-                        + System.lineSeparator()
-                        + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
@@ -128,16 +110,7 @@ public class PrintUtilsTest {
                 false, // derive column width by content
                 false);
 
-        assertEquals(
-                "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |"
-                        + System.lineSeparator()
-                        + "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test

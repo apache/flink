@@ -624,12 +624,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String[] listUserDefinedFunctions() {
-        return functionCatalog.getUserDefinedFunctions();
+        String[] functions = functionCatalog.getUserDefinedFunctions();
+        Arrays.sort(functions);
+        return functions;
     }
 
     @Override
     public String[] listFunctions() {
-        return functionCatalog.getFunctions();
+        String[] functions = functionCatalog.getFunctions();
+        Arrays.sort(functions);
+        return functions;
     }
 
     @Override
