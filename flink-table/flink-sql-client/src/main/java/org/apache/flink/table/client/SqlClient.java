@@ -125,15 +125,21 @@ public class SqlClient {
     // --------------------------------------------------------------------------------------------
 
     public static void main(String[] args) {
-        if (args.length < 1) {
-            CliOptionsParser.printHelpClient();
-            return;
+        final String model;
+        final String[] modeArgs;
+        if (args.length < 1 || args[0].startsWith("-")) {
+            // mode is not specified, use the default `embedded` mode
+            model = MODE_EMBEDDED;
+            modeArgs = args;
+        } else {
+            // mode is specified, extract the mode value and reaming args
+            model = args[0];
+            // remove mode
+            modeArgs = Arrays.copyOfRange(args, 1, args.length);
         }
 
-        switch (args[0]) {
+        switch (model) {
             case MODE_EMBEDDED:
-                // remove mode
-                final String[] modeArgs = Arrays.copyOfRange(args, 1, args.length);
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
                 if (options.isPrintHelp()) {
                     CliOptionsParser.printHelpEmbeddedModeClient();
