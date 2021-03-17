@@ -18,19 +18,50 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
+import org.apache.flink.types.Row;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** Test for join json plan. */
 public class JoinJsonPlanITCase extends JsonPlanTestBase {
+    private static final List<Row> small5FieldsRowData =
+            Arrays.asList(
+                    Row.of(1, 1L, 0, "Hallo", 1L),
+                    Row.of(2, 2L, 1, "Hallo Welt", 2L),
+                    Row.of(2, 3L, 2, "Hallo Welt wie", 1L),
+                    Row.of(3, 4L, 3, "Hallo Welt wie gehts?", 2L),
+                    Row.of(3, 5L, 4, "ABC", 2L),
+                    Row.of(3, 6L, 5, "BCD", 3L));
+    private static final List<Row> small3FieldsRowData =
+            Arrays.asList(
+                    Row.of(1, 1L, "Hi"), Row.of(2, 2L, "Hello"), Row.of(3, 2L, "Hello world"));
 
+    @Override
+    @Before
+    public void setup() throws Exception {
+        super.setup();
+        createTestValuesSourceTable("A", small3FieldsRowData, "a1 int", "a2 bigint", "a3 varchar");
+        createTestValuesSourceTable(
+                "B",
+                small5FieldsRowData,
+                "b1 int",
+                "b2 bigint",
+                "b3 int",
+                "b4 varchar",
+                "b5 bigint");
+    }
+
+    /** test non-window inner join * */
     @Test
-    public void testSimpleJoin() throws Exception {
+    public void testNonWindowInnerJoin() throws Exception {
         List<String> dataT1 =
                 Arrays.asList(
                         "1,1,Hi1", "1,2,Hi2", "1,2,Hi2", "1,5,Hi3", "2,7,Hi5", "1,9,Hi6", "1,8,Hi8",
@@ -61,5 +92,113 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                         "1,HiHi,Hi8",
                         "2,HeHe,Hi5");
         assertResult(expected, sinkPath);
+    }
+
+    @Test
+    public void testIsNullInnerJoinWithNullCond() throws Exception {
+        List<String> dataT1 =
+                Arrays.asList(
+                        "1,1,Hi1", "1,2,Hi2", "1,2,Hi2", "1,5,Hi3", "2,7,Hi5", "1,9,Hi6", "1,8,Hi8",
+                        "3,8,Hi9");
+        List<String> dataT2 = Arrays.asList("1,1,HiHi", "2,2,HeHe", "3,2,HeHe");
+        createTestCsvSourceTable("T1", dataT1, "a int", "b bigint", "c varchar");
+        createTestCsvSourceTable("T2", dataT2, "a int", "b bigint", "c varchar");
+        createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
+
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink "
+                                + "SELECT t2.a, t2.c, t1.c\n"
+                                + "FROM (\n"
+                                + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T1\n"
+                                + ") as t1\n"
+                                + "JOIN (\n"
+                                + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T2\n"
+                                + ") as t2\n"
+                                + "ON \n"
+                                + "  ((t1.a is null AND t2.a is null) OR\n"
+                                + "  (t1.a = t2.a))\n"
+                                + "  AND t1.b > t2.b");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+        List<String> expected =
+                Arrays.asList(
+                        "+I[1, HiHi, Hi2]",
+                        "+I[1, HiHi, Hi2]",
+                        "+I[1, HiHi, Hi3]",
+                        "+I[1, HiHi, Hi6]",
+                        "+I[1, HiHi, Hi8]",
+                        "+I[2, HeHe, Hi5]",
+                        "+I[null, HeHe, Hi9]");
+        assertResult(
+                expected.stream().sorted().collect(Collectors.toList()),
+                TestValuesTableFactory.getResults("MySink").stream()
+                        .sorted()
+                        .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void testJoin() throws Exception {
+        createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink \n" + "SELECT a3, b4 FROM A, B WHERE a2 = b2");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+        List<String> expected =
+                Arrays.asList(
+                        "+I[Hello world, Hallo Welt]", "+I[Hello, Hallo Welt]", "+I[Hi, Hallo]");
+        assertResult(
+                expected.stream().sorted().collect(Collectors.toList()),
+                TestValuesTableFactory.getResults("MySink").stream()
+                        .sorted()
+                        .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void testInnerJoin() throws Exception {
+        createTestValuesSinkTable("MySink", "a1 int", "b1 int");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+        List<String> expected =
+                Arrays.asList(
+                        "+I[1, 1]", "+I[2, 2]", "+I[2, 2]", "+I[3, 3]", "+I[3, 3]", "+I[3, 3]");
+        assertResult(
+                expected.stream().sorted().collect(Collectors.toList()),
+                TestValuesTableFactory.getResults("MySink").stream()
+                        .sorted()
+                        .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void testJoinWithFilter() throws Exception {
+        createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink \n"
+                                + "SELECT a3, b4 FROM A, B where a2 = b2 and a2 < 2");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+        List<String> expected = Arrays.asList("+I[Hi, Hallo]");
+        assertResult(
+                expected.stream().sorted().collect(Collectors.toList()),
+                TestValuesTableFactory.getResults("MySink").stream()
+                        .sorted()
+                        .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void testInnerJoinWithDuplicateKey() throws Exception {
+        createTestValuesSinkTable("MySink", "a1 int", "b1 int", "b3 int");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink \n"
+                                + "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+        List<String> expected = Arrays.asList("+I[2, 2, 2]", "+I[3, 3, 3]");
+        assertResult(
+                expected.stream().sorted().collect(Collectors.toList()),
+                TestValuesTableFactory.getResults("MySink").stream()
+                        .sorted()
+                        .collect(Collectors.toList()));
     }
 }
