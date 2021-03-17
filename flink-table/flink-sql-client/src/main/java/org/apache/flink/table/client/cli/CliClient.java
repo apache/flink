@@ -451,19 +451,23 @@ public class CliClient implements AutoCloseable {
                 return;
             }
             if (YamlConfigUtils.isRemovedKey(key)) {
-                terminal.writer().println(CliStrings.messageWarning(MESSAGE_SET_REMOVED_KEY));
-                return;
-            } else if (YamlConfigUtils.isDeprecatedKey(key)) {
                 terminal.writer()
-                        .println(
-                                CliStrings.messageWarning(
-                                        String.format(
-                                                MESSAGE_SET_DEPRECATED_KEY,
-                                                key,
-                                                YamlConfigUtils.getOptionNameWithDeprecatedKey(
-                                                        key))));
+                        .println(CliStrings.messageWarning(MESSAGE_SET_REMOVED_KEY).toAnsi());
+            } else {
+                if (YamlConfigUtils.isDeprecatedKey(key)) {
+                    terminal.writer()
+                            .println(
+                                    CliStrings.messageWarning(
+                                                    String.format(
+                                                            MESSAGE_SET_DEPRECATED_KEY,
+                                                            key,
+                                                            YamlConfigUtils
+                                                                    .getOptionNameWithDeprecatedKey(
+                                                                            key)))
+                                            .toAnsi());
+                }
+                terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
             }
-            terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
         }
         terminal.flush();
     }

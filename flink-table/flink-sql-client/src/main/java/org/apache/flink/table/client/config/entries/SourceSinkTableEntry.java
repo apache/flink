@@ -23,7 +23,8 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 /**
  * Configuration of a table source and sink.
  *
- * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
  */
 @Deprecated
 public class SourceSinkTableEntry extends TableEntry {

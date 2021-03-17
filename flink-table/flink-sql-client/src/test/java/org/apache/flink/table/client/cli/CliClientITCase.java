@@ -60,6 +60,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestOptions.PORT;
 import static org.apache.flink.table.client.cli.utils.SqlScriptReader.parseSqlScript;
 import static org.junit.Assert.assertEquals;
 
@@ -101,8 +102,7 @@ public class CliClientITCase extends AbstractTestBase {
 
     @Test
     public void testSqlStatements() throws IOException {
-        URL url = CliClientITCase.class.getResource("/" + sqlPath);
-        String in = IOUtils.toString(url, StandardCharsets.UTF_8);
+        String in = getInputFromPath(sqlPath);
         List<TestSqlStatement> testSqlStatements = parseSqlScript(in);
         List<String> sqlStatements =
                 testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
@@ -154,6 +154,19 @@ public class CliClientITCase extends AbstractTestBase {
     private static final String INFO_END = "\u001B[0m";
     private static final String ERROR_BEGIN = "\u001B[31;1m";
     private static final String ERROR_END = "\u001B[0m";
+
+    private static String getInputFromPath(String sqlPath) throws IOException {
+        URL url = CliClientITCase.class.getResource("/" + sqlPath);
+        String in = IOUtils.toString(url, StandardCharsets.UTF_8);
+        // replace the placeholder with specified value if exists
+        return StringUtils.replaceEach(
+                in,
+                new String[] {"$VAR_PIPELINE_JARS", "$VAR_REST_PORT"},
+                new String[] {
+                    udfDependency.toString(),
+                    miniClusterResource.getClientConfiguration().get(PORT).toString()
+                });
+    }
 
     private static List<Result> normalizeOutput(String output) {
         List<Result> results = new ArrayList<>();
@@ -237,6 +250,7 @@ public class CliClientITCase extends AbstractTestBase {
                 out.append(result.content).append(result.flag).append("\n");
             }
         }
+
         return out.toString();
     }
 

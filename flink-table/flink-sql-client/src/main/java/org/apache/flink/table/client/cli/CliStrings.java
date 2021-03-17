@@ -184,8 +184,7 @@ public final class CliStrings {
             "The specified key is not supported anymore.";
 
     public static final String MESSAGE_SET_DEPRECATED_KEY =
-            "The specified key '%s' is deprecated. Please use '%s' instead. "
-                    + "Set the corresponding config option and the specified key together.";
+            "The specified key '%s' is deprecated. Please use '%s' instead.";
 
     public static final String MESSAGE_EMPTY = "Result was empty.";
 

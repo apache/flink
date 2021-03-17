@@ -43,7 +43,8 @@ import static org.apache.flink.table.client.config.Environment.DEPLOYMENT_ENTRY;
  *
  * <p>All properties of this entry are optional and evaluated lazily.
  *
- * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml} configuration file.
+ * @deprecated This is will be removed in Flink 1.14 with dropping support of {@code
+ *     sql-client.yaml} configuration file.
  */
 @Deprecated
 public class DeploymentEntry extends ConfigEntry {

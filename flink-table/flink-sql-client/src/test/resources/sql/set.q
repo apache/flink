@@ -42,10 +42,34 @@ CREATE TABLE hive_table (
 [INFO] Table has been created.
 !info
 
+# list the configured configuration
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=localhost
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+table.sql-dialect=hive
+!ok
+
 # reset the configuration
 reset;
 [INFO] All session properties have been set to their default values.
 !info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=localhost
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok
 
 # should fail because default dialect doesn't support hive dialect
 CREATE TABLE hive_table2 (

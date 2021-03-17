@@ -29,8 +29,7 @@ show user functions;
 1 row in set
 !ok
 
-SET execution.result-mode=tableau;
-[WARNING] The specified key 'execution.result-mode' is deprecated. Please use 'sql-client.execution.result-mode' instead. Set the corresponding config option and the specified key together.
+SET sql-client.execution.result-mode=tableau;
 [INFO] Session property has been set.
 !info
 

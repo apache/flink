@@ -17,13 +17,11 @@
 
 # set default streaming mode and tableau result mode
 
-SET execution.type = streaming;
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead. Set the corresponding config option and the specified key together.
+SET execution.runtime-mode = streaming;
 [INFO] Session property has been set.
 !info
 
-SET execution.result-mode = tableau;
-[WARNING] The specified key 'execution.result-mode' is deprecated. Please use 'sql-client.execution.result-mode' instead. Set the corresponding config option and the specified key together.
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 
@@ -70,8 +68,7 @@ Received a total of 4 rows
 # test batch query
 # ==========================================================================
 
-SET execution.type = batch;
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead. Set the corresponding config option and the specified key together.
+SET execution.runtime-mode = batch;
 [INFO] Session property has been set.
 !info
 
