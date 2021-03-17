@@ -116,60 +116,61 @@ public class PrintUtils {
             String nullColumn,
             boolean deriveColumnWidthByType,
             boolean printRowKind) {
-        if (it.hasNext()) {
-            final List<TableColumn> columns = tableSchema.getTableColumns();
-            String[] columnNames =
-                    columns.stream().map(TableColumn::getName).toArray(String[]::new);
-            if (printRowKind) {
-                columnNames =
-                        Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames))
-                                .toArray(String[]::new);
-            }
-
-            final int[] colWidths;
-            if (deriveColumnWidthByType) {
-                colWidths =
-                        columnWidthsByType(
-                                columns,
-                                maxColumnWidth,
-                                nullColumn,
-                                printRowKind ? ROW_KIND_COLUMN : null);
-            } else {
-                final List<Row> rows = new ArrayList<>();
-                final List<String[]> content = new ArrayList<>();
-                content.add(columnNames);
-                while (it.hasNext()) {
-                    Row row = it.next();
-                    rows.add(row);
-                    content.add(rowToString(row, nullColumn, printRowKind));
-                }
-                colWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
-                it = rows.iterator();
-            }
-
-            final String borderline = PrintUtils.genBorderLine(colWidths);
-            // print border line
-            printWriter.println(borderline);
-            // print field names
-            PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
-            // print border line
-            printWriter.println(borderline);
-
-            long numRows = 0;
-            while (it.hasNext()) {
-                String[] cols = rowToString(it.next(), nullColumn, printRowKind);
-                // print content
-                printSingleRow(colWidths, cols, printWriter);
-                numRows++;
-            }
-
-            // print border line
-            printWriter.println(borderline);
-            final String rowTerm = numRows > 1 ? "rows" : "row";
-            printWriter.println(numRows + " " + rowTerm + " in set");
-        } else {
+        if (!it.hasNext()) {
             printWriter.println("Empty set");
+            printWriter.flush();
+            return;
         }
+        final List<TableColumn> columns = tableSchema.getTableColumns();
+        String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
+        if (printRowKind) {
+            columnNames =
+                    Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames))
+                            .toArray(String[]::new);
+        }
+
+        final int[] colWidths;
+        if (deriveColumnWidthByType) {
+            colWidths =
+                    columnWidthsByType(
+                            columns,
+                            maxColumnWidth,
+                            nullColumn,
+                            printRowKind ? ROW_KIND_COLUMN : null);
+        } else {
+            final List<Row> rows = new ArrayList<>();
+            final List<String[]> content = new ArrayList<>();
+            content.add(columnNames);
+            while (it.hasNext()) {
+                Row row = it.next();
+                rows.add(row);
+                content.add(rowToString(row, nullColumn, printRowKind));
+            }
+            colWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
+            it = rows.iterator();
+        }
+
+        final String borderline = PrintUtils.genBorderLine(colWidths);
+        // print border line
+        printWriter.println(borderline);
+        // print field names
+        PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
+        // print border line
+        printWriter.println(borderline);
+
+        long numRows = 0;
+        while (it.hasNext()) {
+            String[] cols = rowToString(it.next(), nullColumn, printRowKind);
+
+            // print content
+            printSingleRow(colWidths, cols, printWriter);
+            numRows++;
+        }
+
+        // print border line
+        printWriter.println(borderline);
+        final String rowTerm = numRows > 1 ? "rows" : "row";
+        printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
     }
 
