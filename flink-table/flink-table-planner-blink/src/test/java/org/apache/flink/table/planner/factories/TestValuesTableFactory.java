@@ -1102,6 +1102,27 @@ public final class TestValuesTableFactory
                 return TableFunctionProvider.of(new TestValuesLookupFunction(mapping));
             }
         }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesScanLookupTableSource(
+                    producedDataType,
+                    changelogMode,
+                    bounded,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    isAsync,
+                    lookupFunctionClass,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields);
+        }
     }
 
     /** A mocked {@link LookupTableSource} for validation test. */

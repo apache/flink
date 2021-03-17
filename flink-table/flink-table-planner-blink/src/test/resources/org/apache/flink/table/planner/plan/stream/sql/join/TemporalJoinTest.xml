@@ -462,7 +462,7 @@ Calc(select=[currency, currency0, rate1])
    :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
-         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark]], fields=[currency, rate, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, filter=[]]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>

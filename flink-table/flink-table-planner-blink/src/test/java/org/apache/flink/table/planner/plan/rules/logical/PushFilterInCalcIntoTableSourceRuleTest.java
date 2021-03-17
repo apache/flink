@@ -19,46 +19,55 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.planner.calcite.CalciteConfig;
-import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
-import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
+import org.apache.flink.table.planner.plan.optimize.program.FlinkVolcanoProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
-import org.apache.flink.table.planner.utils.BatchTableTestUtil;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.planner.plan.optimize.program.StreamOptimizeContext;
+import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 
+import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Test for {@link PushFilterIntoTableSourceScanRule}. */
-public class PushFilterIntoTableSourceScanRuleTest
+/** Test for {@link PushFilterInCalcIntoTableSourceRuleTest}. */
+public class PushFilterInCalcIntoTableSourceRuleTest
         extends PushFilterIntoTableSourceScanRuleTestBase {
 
     @Before
     public void setup() {
-        util = batchTestUtil(TableConfig.getDefault());
-        ((BatchTableTestUtil) util).buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
-        CalciteConfig calciteConfig =
-                TableConfigUtils.getCalciteConfig(util.tableEnv().getConfig());
-        calciteConfig
-                .getBatchProgram()
-                .get()
-                .addLast(
-                        "rules",
-                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
-                                .setHepRulesExecutionType(
-                                        HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
-                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-                                .add(
-                                        RuleSets.ofList(
-                                                PushFilterIntoTableSourceScanRule.INSTANCE,
-                                                CoreRules.FILTER_PROJECT_TRANSPOSE))
-                                .build());
+        util = streamTestUtil(TableConfig.getDefault());
 
-        // name: STRING, id: LONG, amount: INT, price: DOUBLE
+        FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
+        program.addLast(
+                "Converters",
+                FlinkVolcanoProgramBuilder.<StreamOptimizeContext>newBuilder()
+                        .add(
+                                RuleSets.ofList(
+                                        CoreRules.PROJECT_TO_CALC,
+                                        CoreRules.FILTER_TO_CALC,
+                                        FlinkCalcMergeRule$.MODULE$.INSTANCE(),
+                                        FlinkLogicalCalc.CONVERTER(),
+                                        FlinkLogicalTableSourceScan.CONVERTER(),
+                                        FlinkLogicalWatermarkAssigner.CONVERTER()))
+                        .setRequiredOutputTraits(new Convention[] {FlinkConventions.LOGICAL()})
+                        .build());
+        program.addLast(
+                "Filter push in calc down",
+                FlinkHepRuleSetProgramBuilder.<StreamOptimizeContext>newBuilder()
+                        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                        .add(RuleSets.ofList(PushFilterInCalcIntoTableSourceScanRule.INSTANCE))
+                        .build());
+        ((StreamTableTestUtil) util).replaceStreamProgram(program);
+
         String ddl1 =
                 "CREATE TABLE MyTable (\n"
                         + "  name STRING,\n"
@@ -86,6 +95,25 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ")";
 
         util.tableEnv().executeSql(ddl2);
+
+        String ddl3 =
+                "CREATE TABLE WithWatermark ("
+                        + "  name STRING,\n"
+                        + "  event_time TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR event_time as event_time - INTERVAL '5' SECOND"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'filterable-fields' = 'name',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+
+        util.tableEnv().executeSql(ddl3);
+    }
+
+    @Test
+    public void testFailureToPushFilterIntoSourceWithoutWatermarkPushdown() {
+        util.verifyRelPlan("SELECT * FROM WithWatermark WHERE LOWER(name) = 'foo'");
     }
 
     @Test
@@ -111,10 +139,11 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "b TIMESTAMP(3)\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true',\n"
+                        + " 'bounded' = 'false',\n"
                         + " 'filterable-fields' = 'a;b',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
+
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
     }
