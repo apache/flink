@@ -21,6 +21,17 @@ set execution.parallelism = 10a;
 java.lang.NumberFormatException: For input string: "10a"
 !error
 
+# test set the removed key
+SET execution.max-idle-state-retention=1000;
+[WARNING] The specified key is not supported anymore.
+!warning
+
+# test set the deprecated key
+SET execution.planner=blink;
+[WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
+[INFO] Session property has been set.
+!warning
+
 # test set a configuration
 SET table.sql-dialect=hive;
 [INFO] Session property has been set.
@@ -52,7 +63,9 @@ jobmanager.rpc.address=localhost
 pipeline.classpaths=
 pipeline.jars=$VAR_PIPELINE_JARS
 rest.port=$VAR_REST_PORT
+table.planner=blink
 table.sql-dialect=hive
+[DEPRECATED] execution.planner=blink
 !ok
 
 # reset the configuration
