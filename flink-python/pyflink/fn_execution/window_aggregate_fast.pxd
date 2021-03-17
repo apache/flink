@@ -23,7 +23,7 @@ cdef class NamespaceAggsHandleFunctionBase:
     cdef void open(self, object state_data_view_store)
     cdef void accumulate(self, list input_data)
     cdef void retract(self, list input_data)
-    cdef void merge(self, object namespace, list accumulators)
+    cpdef void merge(self, object namespace, list accumulators)
     cpdef void set_accumulators(self, object namespace, list accumulators)
     cdef list get_accumulators(self)
     cpdef list create_accumulators(self)

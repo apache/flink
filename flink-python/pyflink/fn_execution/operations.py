@@ -36,7 +36,8 @@ from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
-from pyflink.fn_execution.window_assigner import TumblingWindowAssigner, CountTumblingWindowAssigner
+from pyflink.fn_execution.window_assigner import TumblingWindowAssigner, \
+    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner
 from pyflink.fn_execution.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
     CountTrigger
 
@@ -442,8 +443,13 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             else:
                 window_assigner = CountTumblingWindowAssigner(self._window.window_size)
         elif self._window.window_type == flink_fn_execution_pb2.GroupWindow.SLIDING_GROUP_WINDOW:
-            raise Exception("General Python UDAF in Sliding window will be implemented in "
-                            "FLINK-21629")
+            if self._is_time_window:
+                window_assigner = SlidingWindowAssigner(
+                    self._window.window_size, self._window.window_slide, 0,
+                    self._window.is_row_time)
+            else:
+                window_assigner = CountSlidingWindowAssigner(
+                    self._window.window_size, self._window.window_slide)
         else:
             raise Exception("General Python UDAF in Sessiong window will be implemented in "
                             "FLINK-21630")

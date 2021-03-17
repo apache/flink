@@ -20,7 +20,7 @@ from abc import abstractmethod, ABC
 from typing import Generic, List
 
 from pyflink.common import Row
-from pyflink.fn_execution.window_assigner import WindowAssigner
+from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner
 from pyflink.fn_execution.window_context import Context, K, W
 
 MAX_LONG_VALUE = sys.maxsize
@@ -152,3 +152,56 @@ class GeneralWindowProcessFunction(InternalWindowProcessFunction[K, W]):
             self._ctx.clear_window_state(window)
             self._window_aggregator.cleanup(window)
             self._ctx.clear_trigger(window)
+
+
+class PanedWindowProcessFunction(InternalWindowProcessFunction[K, W]):
+    """
+    The implementation of InternalWindowProcessFunction for PanedWindowAssigner.
+    """
+
+    def __init__(self,
+                 allowed_lateness: int,
+                 window_assigner: PanedWindowAssigner[W],
+                 window_aggregator):
+        super(PanedWindowProcessFunction, self).__init__(
+            allowed_lateness, window_assigner, window_aggregator)
+        self._window_assigner = window_assigner
+
+    def assign_state_namespace(self, input_row: List, timestamp: int) -> List[W]:
+        pane = self._window_assigner.assign_pane(input_row, timestamp)
+        if not self._is_pane_late(pane):
+            return [pane]
+        else:
+            return []
+
+    def assign_actual_windows(self, input_row: List, timestamp: int) -> List[W]:
+        element_windows = self._window_assigner.assign_windows(input_row, timestamp)
+        actual_windows = []
+        for window in element_windows:
+            if not self.is_window_late(window):
+                actual_windows.append(window)
+        return actual_windows
+
+    def prepare_aggregate_accumulator_for_emit(self, window: W):
+        panes = self._window_assigner.split_into_panes(window)
+        acc = self._window_aggregator.create_accumulators()
+        # null namespace means use heap data views
+        self._window_aggregator.set_accumulators(None, acc)
+        for pane in panes:
+            pane_acc = self._ctx.get_window_accumulators(pane)
+            if pane_acc:
+                self._window_aggregator.merge(pane, pane_acc)
+
+    def clean_window_if_needed(self, window: W, current_time: int):
+        if self.is_cleanup_time(window, current_time):
+            panes = self._window_assigner.split_into_panes(window)
+            for pane in panes:
+                last_window = self._window_assigner.get_last_window(pane)
+                if window == last_window:
+                    self._ctx.clear_window_state(pane)
+            self._ctx.clear_trigger(window)
+
+    def _is_pane_late(self, pane: W):
+        # whether the pane is late depends on the last window which the pane is belongs to is late
+        return self._window_assigner.is_event_time() and \
+            self.is_window_late(self._window_assigner.get_last_window(pane))

@@ -33,10 +33,10 @@ from pyflink.datastream.timerservice import InternalTimerServiceImpl
 from pyflink.fn_execution.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-from pyflink.fn_execution.window_assigner import WindowAssigner
+from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner
 from pyflink.fn_execution.window_context import WindowContext, TriggerContext, K, W
 from pyflink.fn_execution.window_process_function import GeneralWindowProcessFunction, \
-    InternalWindowProcessFunction
+    InternalWindowProcessFunction, PanedWindowProcessFunction
 from pyflink.fn_execution.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction
 
@@ -69,7 +69,7 @@ cdef class NamespaceAggsHandleFunctionBase:
         :param input_data: Input values bundled in a List.
         """
 
-    cdef void merge(self, object namespace, list accumulators):
+    cpdef void merge(self, object namespace, list accumulators):
         """
         Merges the other accumulators into current accumulators.
         """
@@ -258,7 +258,7 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                 continue
             self._udfs[i].retract(self._accumulators[i], *args)
 
-    cdef void merge(self, object namespace, list accumulators):
+    cpdef void merge(self, object namespace, list accumulators):
         cdef size_t i
         if self._udf_data_views:
             for i in range(len(self._udf_data_views)):
@@ -341,8 +341,12 @@ cdef class GroupWindowAggFunctionBase:
         self._window_aggregator.open(
             PerWindowStateDataViewStore(function_context, self._state_backend))
 
-        self._window_function = GeneralWindowProcessFunction(
-            self._allowed_lateness, self._window_assigner, self._window_aggregator)
+        if isinstance(self._window_assigner, PanedWindowAssigner):
+            self._window_function = PanedWindowProcessFunction(
+                self._allowed_lateness, self._window_assigner, self._window_aggregator)
+        else:
+            self._window_function = GeneralWindowProcessFunction(
+                self._allowed_lateness, self._window_assigner, self._window_aggregator)
         self._trigger_context = TriggerContext(
             self._trigger, self._internal_timer_service, self._state_backend)
         self._trigger_context.open()

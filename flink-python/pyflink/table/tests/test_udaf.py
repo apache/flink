@@ -28,7 +28,7 @@ from pyflink.table import DataTypes
 from pyflink.table.data_view import ListView, MapView
 from pyflink.table.expressions import col
 from pyflink.table.udf import AggregateFunction, udaf
-from pyflink.table.window import Tumble
+from pyflink.table.window import Tumble, Slide
 from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
 
@@ -618,6 +618,126 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 5]", "+I[2, 4]", "+I[3, 5]"])
+        os.remove(source_path)
+
+    def test_sliding_group_window_over_time(self):
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:30:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+        ]
+        source_path = tmp_dir + '/test_sliding_group_window_over_time.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        self.t_env.create_temporary_system_function("my_sum", SumAggregateFunction())
+
+        source_table = """
+            create table source_table(
+                a TINYINT,
+                b SMALLINT,
+                c INT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+
+        from pyflink.testing import source_sink_utils
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c', 'd'],
+            [
+                DataTypes.TINYINT(),
+                DataTypes.TIMESTAMP(3),
+                DataTypes.TIMESTAMP(3),
+                DataTypes.BIGINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, w.start, w.end, my_sum(c) as c") \
+            .execute_insert("Results") \
+            .wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual,
+                           ["+I[1, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2]",
+                            "+I[2, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 1]",
+                            "+I[3, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2]",
+                            "+I[1, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 5]",
+                            "+I[3, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2]",
+                            "+I[2, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2]",
+                            "+I[2, 2018-03-11 03:30:00.0, 2018-03-11 04:30:00.0, 1]",
+                            "+I[1, 2018-03-11 03:30:00.0, 2018-03-11 04:30:00.0, 11]",
+                            "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 8]"])
+        os.remove(source_path)
+
+    def test_sliding_group_window_over_count(self):
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00',
+            '3,3,3,2018-03-11 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_sliding_group_window_over_count.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        self.t_env.register_function("my_sum", SumAggregateFunction())
+
+        source_table = """
+            create table source_table(
+                a TINYINT,
+                b SMALLINT,
+                c SMALLINT,
+                protime as PROCTIME()
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+
+        from pyflink.testing import source_sink_utils
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'd'],
+            [
+                DataTypes.TINYINT(),
+                DataTypes.BIGINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, my_sum(c) as b") \
+            .execute_insert("Results") \
+            .wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual, ["+I[1, 5]", "+I[1, 11]", "+I[2, 4]", "+I[3, 5]"])
         os.remove(source_path)
 
 
