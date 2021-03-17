@@ -19,29 +19,32 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
 
 import scala.Tuple2;
 
 /**
- * Planner rule that tries to push a filter into a {@link LogicalTableScan}, which table is a {@link
- * TableSourceTable}. And the table source in the table is a {@link SupportsFilterPushDown}.
+ * Pushes a filter condition from the {@link FlinkLogicalCalc} and into a {@link
+ * FlinkLogicalTableSourceScan}.
  */
-public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanRuleBase {
-    public static final PushFilterIntoTableSourceScanRule INSTANCE =
-            new PushFilterIntoTableSourceScanRule();
+public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourceScanRuleBase {
+    public static final PushFilterInCalcIntoTableSourceScanRule INSTANCE =
+            new PushFilterInCalcIntoTableSourceScanRule();
 
-    public PushFilterIntoTableSourceScanRule() {
+    public PushFilterInCalcIntoTableSourceScanRule() {
         super(
-                operand(Filter.class, operand(LogicalTableScan.class, none())),
-                "PushFilterIntoTableSourceScanRule");
+                operand(FlinkLogicalCalc.class, operand(FlinkLogicalTableSourceScan.class, none())),
+                "PushFilterInCalcIntoTableSourceScanRule");
     }
 
     @Override
@@ -50,36 +53,40 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             return false;
         }
 
-        Filter filter = call.rel(0);
-        if (filter.getCondition() == null) {
+        FlinkLogicalCalc calc = call.rel(0);
+        RexProgram originProgram = calc.getProgram();
+
+        if (originProgram.getCondition() == null) {
             return false;
         }
 
-        LogicalTableScan scan = call.rel(1);
+        FlinkLogicalTableSourceScan scan = call.rel(1);
         TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-
+        // we can not push filter twice
         return canPushdownFilter(tableSourceTable);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        Filter filter = call.rel(0);
-        LogicalTableScan scan = call.rel(1);
+        FlinkLogicalCalc calc = call.rel(0);
+        FlinkLogicalTableSourceScan scan = call.rel(1);
         TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
-        pushFilterIntoScan(call, filter, scan, table);
+        pushFilterIntoScan(call, calc, scan, table);
     }
 
     private void pushFilterIntoScan(
             RelOptRuleCall call,
-            Filter filter,
-            LogicalTableScan scan,
+            Calc calc,
+            FlinkLogicalTableSourceScan scan,
             FlinkPreparingTableBase relOptTable) {
+
+        RexProgram originProgram = calc.getProgram();
 
         RelBuilder relBuilder = call.builder();
         Tuple2<RexNode[], RexNode[]> extractedPredicates =
                 extractPredicates(
-                        filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
-                        filter.getCondition(),
+                        originProgram.getInputRowType().getFieldNames().toArray(new String[0]),
+                        originProgram.expandLocalRef(originProgram.getCondition()),
                         scan,
                         relBuilder.getRexBuilder());
 
@@ -90,26 +97,37 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             return;
         }
 
-        Tuple2<SupportsFilterPushDown.Result, TableSourceTable> scanAfterPushdownWithResult =
+        Tuple2<SupportsFilterPushDown.Result, TableSourceTable> pushdownResultWithScan =
                 resolveFiltersAndCreateTableSourceTable(
                         convertiblePredicates,
                         relOptTable.unwrap(TableSourceTable.class),
                         scan,
                         relBuilder);
 
-        SupportsFilterPushDown.Result result = scanAfterPushdownWithResult._1;
-        TableSourceTable tableSourceTable = scanAfterPushdownWithResult._2;
+        SupportsFilterPushDown.Result result = pushdownResultWithScan._1;
+        TableSourceTable tableSourceTable = pushdownResultWithScan._2;
 
-        LogicalTableScan newScan =
-                LogicalTableScan.create(scan.getCluster(), tableSourceTable, scan.getHints());
-        if (result.getRemainingFilters().isEmpty() && unconvertedPredicates.length == 0) {
-            call.transformTo(newScan);
-        } else {
+        FlinkLogicalTableSourceScan newScan =
+                FlinkLogicalTableSourceScan.create(scan.getCluster(), tableSourceTable);
+
+        // build new calc program
+        RexProgramBuilder programBuilder =
+                RexProgramBuilder.forProgram(originProgram, call.builder().getRexBuilder(), true);
+        programBuilder.clearCondition();
+
+        if (!result.getRemainingFilters().isEmpty() || unconvertedPredicates.length != 0) {
             RexNode remainingCondition =
                     createRemainingCondition(
                             relBuilder, result.getRemainingFilters(), unconvertedPredicates);
-            Filter newFilter = filter.copy(filter.getTraitSet(), newScan, remainingCondition);
-            call.transformTo(newFilter);
+            programBuilder.addCondition(remainingCondition);
+        }
+
+        RexProgram program = programBuilder.getProgram();
+        if (program.isTrivial()) {
+            call.transformTo(newScan);
+        } else {
+            FlinkLogicalCalc newCalc = FlinkLogicalCalc.create(newScan, program);
+            call.transformTo(newCalc);
         }
     }
 }
