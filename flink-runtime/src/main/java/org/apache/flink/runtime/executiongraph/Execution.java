@@ -86,6 +86,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.DEPLOYING;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.runtime.execution.ExecutionState.RECOVERING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -622,7 +623,7 @@ public class Execution
             }
 
             // these two are the common cases where we need to send a cancel call
-            else if (current == RUNNING || current == DEPLOYING) {
+            else if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
                 // try to transition to canceling, if successful, send the cancel call
                 if (startCancelling(NUM_CANCEL_CALL_TRIES)) {
                     return;
@@ -662,6 +663,7 @@ public class Execution
     public CompletableFuture<?> suspend() {
         switch (state) {
             case RUNNING:
+            case RECOVERING:
             case DEPLOYING:
             case CREATED:
             case SCHEDULED:
@@ -719,7 +721,9 @@ public class Execution
             // Consumer is deploying => cache the partition info which would be
             // sent after switching to running
             // ----------------------------------------------------------------
-            if (consumerState == DEPLOYING || consumerState == RUNNING) {
+            if (consumerState == DEPLOYING
+                    || consumerState == RUNNING
+                    || consumerState == RECOVERING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
@@ -903,7 +907,7 @@ public class Execution
         while (true) {
             ExecutionState current = this.state;
 
-            if (current == RUNNING || current == DEPLOYING) {
+            if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
 
                 if (transitionState(current, FINISHED)) {
                     try {
@@ -993,7 +997,10 @@ public class Execution
 
             if (current == CANCELED) {
                 return;
-            } else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+            } else if (current == CANCELING
+                    || current == RUNNING
+                    || current == RECOVERING
+                    || current == DEPLOYING) {
 
                 updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
@@ -1129,7 +1136,10 @@ public class Execution
 
         handlePartitionCleanup(releasePartitions, releasePartitions);
 
-        if (cancelTask && (stateBeforeFailed == RUNNING || stateBeforeFailed == DEPLOYING)) {
+        if (cancelTask
+                && (stateBeforeFailed == RUNNING
+                        || stateBeforeFailed == RECOVERING
+                        || stateBeforeFailed == DEPLOYING)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
             }
@@ -1148,10 +1158,22 @@ public class Execution
         }
     }
 
-    boolean switchToRunning() {
-
-        if (transitionState(DEPLOYING, RUNNING)) {
+    boolean switchToRecovering() {
+        if (switchTo(DEPLOYING, RECOVERING)) {
             sendPartitionInfos();
+            return true;
+        }
+
+        return false;
+    }
+
+    boolean switchToRunning() {
+        return switchTo(RECOVERING, RUNNING);
+    }
+
+    private boolean switchTo(ExecutionState from, ExecutionState to) {
+
+        if (transitionState(from, to)) {
             return true;
         } else {
             // something happened while the call was in progress.

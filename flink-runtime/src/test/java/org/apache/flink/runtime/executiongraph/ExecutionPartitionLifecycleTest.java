@@ -293,6 +293,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
         execution = executionVertex.getCurrentExecutionAttempt();
 
         scheduler.startScheduling();
+        execution.switchToRecovering();
         execution.switchToRunning();
 
         final IntermediateResultPartitionID expectedIntermediateResultPartitionId =

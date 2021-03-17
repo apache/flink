@@ -1213,6 +1213,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         Map<String, Accumulator<?, ?>> accumulators;
 
         switch (state.getExecutionState()) {
+            case RECOVERING:
+                return attempt.switchToRecovering();
+
             case RUNNING:
                 return attempt.switchToRunning();
 

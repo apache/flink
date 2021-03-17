@@ -505,6 +505,7 @@ public class Task
     public boolean isBackPressured() {
         if (invokable == null
                 || consumableNotifyingPartitionWriters.length == 0
+                || executionState != ExecutionState.RECOVERING
                 || executionState != ExecutionState.RUNNING) {
             return false;
         }
@@ -737,18 +738,33 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            // switch to the RUNNING state, if that fails, we have been canceled/failed in the
+            // switch to the RECOVERING state, if that fails, we have been canceled/failed in the
             // meantime
-            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
+            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RECOVERING)) {
+                throw new CancelTaskException();
+            }
+
+            taskManagerActions.updateTaskExecutionState(
+                    new TaskExecutionState(executionId, ExecutionState.RECOVERING));
+
+            // make sure the user code classloader is accessible thread-locally
+            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
+
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // Restore invokable data to the last valid state
+                invokable.restore();
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
+
+            if (!transitionState(ExecutionState.RECOVERING, ExecutionState.RUNNING)) {
                 throw new CancelTaskException();
             }
 
             // notify everyone that we switched to running
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.RUNNING));
-
-            // make sure the user code classloader is accessible thread-locally
-            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
             // Monitor user codes from exiting JVM covering user function invocation. This can be
             // done in a finer-grained way like enclosing user callback functions individually,
@@ -825,7 +841,9 @@ public class Task
                 while (true) {
                     ExecutionState current = this.executionState;
 
-                    if (current == ExecutionState.RUNNING || current == ExecutionState.DEPLOYING) {
+                    if (current == ExecutionState.RUNNING
+                            || current == ExecutionState.RECOVERING
+                            || current == ExecutionState.DEPLOYING) {
                         if (t instanceof CancelTaskException) {
                             if (transitionState(current, ExecutionState.CANCELED)) {
                                 cancelInvokable(invokable);
@@ -1120,8 +1138,8 @@ public class Task
                     this.failureCause = cause;
                     return;
                 }
-            } else if (current == ExecutionState.RUNNING) {
-                if (transitionState(ExecutionState.RUNNING, targetState, cause)) {
+            } else if (current == ExecutionState.RECOVERING || current == ExecutionState.RUNNING) {
+                if (transitionState(current, targetState, cause)) {
                     // we are canceling / failing out of the running state
                     // we need to cancel the invokable
 

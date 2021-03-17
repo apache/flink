@@ -225,15 +225,20 @@ public class SchedulerTestingUtils {
             DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
+                new TaskExecutionState(attemptID, ExecutionState.RECOVERING));
+        scheduler.updateTaskExecutionState(
                 new TaskExecutionState(attemptID, ExecutionState.RUNNING));
     }
 
     public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
         getAllCurrentExecutionAttempts(scheduler)
                 .forEach(
-                        (attemptId) ->
-                                scheduler.updateTaskExecutionState(
-                                        new TaskExecutionState(attemptId, ExecutionState.RUNNING)));
+                        (attemptId) -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.RECOVERING));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+                        });
     }
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
