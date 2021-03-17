@@ -40,99 +40,103 @@ import org.apache.flink.util.CloseableIterator;
 
 import java.util.UUID;
 
-/**
- * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
- */
+/** A {@link RetractStreamTableSink} for streaming select job to collect the result to local. */
 public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 
-	private final TableSchema tableSchema;
+    private final TableSchema tableSchema;
 
-	private CollectResultIterator<Tuple2<Boolean, Row>> iterator;
+    private CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 
-	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
-	}
+    public StreamSelectTableSink(TableSchema tableSchema) {
+        this.tableSchema =
+                SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
+    }
 
-	@Override
-	public TypeInformation<Row> getRecordType() {
-		return tableSchema.toRowType();
-	}
+    @Override
+    public TypeInformation<Row> getRecordType() {
+        return tableSchema.toRowType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TableSink<Tuple2<Boolean, Row>> configure(
+            String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+        StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
 
-		TypeInformation<Tuple2<Boolean, Row>> tupleTypeInfo =
-			new TupleTypeInfo<>(Types.BOOLEAN, this.tableSchema.toRowType());
-		TypeSerializer<Tuple2<Boolean, Row>> typeSerializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
+        TypeInformation<Tuple2<Boolean, Row>> tupleTypeInfo =
+                new TupleTypeInfo<>(Types.BOOLEAN, this.tableSchema.toRowType());
+        TypeSerializer<Tuple2<Boolean, Row>> typeSerializer =
+                tupleTypeInfo.createSerializer(new ExecutionConfig());
 
-		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
-		CollectSinkOperatorFactory<Tuple2<Boolean, Row>> factory =
-			new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
-		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
-		this.iterator = new CollectResultIterator<>(
-			operator.getOperatorIdFuture(),
-			typeSerializer,
-			accumulatorName,
-			env.getCheckpointConfig());
+        String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+        CollectSinkOperatorFactory<Tuple2<Boolean, Row>> factory =
+                new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
+        CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+        this.iterator =
+                new CollectResultIterator<>(
+                        operator.getOperatorIdFuture(),
+                        typeSerializer,
+                        accumulatorName,
+                        env.getCheckpointConfig());
 
-		CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
-		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
-		return sink.name("Streaming select table sink");
-	}
+        CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
+        dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
+        return sink.name("Streaming select table sink");
+    }
 
-	public SelectResultProvider getSelectResultProvider() {
-		return new SelectResultProvider() {
+    public SelectResultProvider getSelectResultProvider() {
+        return new SelectResultProvider() {
 
-			@Override
-			public void setJobClient(JobClient jobClient) {
-				iterator.setJobClient(jobClient);
-			}
+            @Override
+            public void setJobClient(JobClient jobClient) {
+                iterator.setJobClient(jobClient);
+            }
 
-			@Override
-			public CloseableIterator<Row> getResultIterator() {
-				return new RowIteratorWrapper(iterator);
-			}
-		};
-	}
+            @Override
+            public CloseableIterator<Row> getResultIterator() {
+                return new RowIteratorWrapper(iterator);
+            }
+        };
+    }
 
-	/**
-	 * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to Iterator&lt;Row&gt;.
-	 */
-	private static class RowIteratorWrapper implements CloseableIterator<Row> {
-		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
-		public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
-			this.iterator = iterator;
-		}
+    /**
+     * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to
+     * Iterator&lt;Row&gt;.
+     */
+    private static class RowIteratorWrapper implements CloseableIterator<Row> {
+        private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
+        public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
+            this.iterator = iterator;
+        }
 
-		@Override
-		public Row next() {
-			// convert Tuple2<Boolean, Row> to Row
-			Tuple2<Boolean, Row> tuple2 = iterator.next();
-			RowKind rowKind = tuple2.f0 ? RowKind.INSERT : RowKind.DELETE;
-			Row row = tuple2.f1;
-			row.setKind(rowKind);
-			return row;
-		}
+        @Override
+        public boolean hasNext() {
+            return iterator.hasNext();
+        }
 
-		@Override
-		public void close() throws Exception {
-			iterator.close();
-		}
-	}
+        @Override
+        public Row next() {
+            // convert Tuple2<Boolean, Row> to Row
+            Tuple2<Boolean, Row> tuple2 = iterator.next();
+            RowKind rowKind = tuple2.f0 ? RowKind.INSERT : RowKind.DELETE;
+            Row row = tuple2.f1;
+            row.setKind(rowKind);
+            return row;
+        }
+
+        @Override
+        public void close() throws Exception {
+            iterator.close();
+        }
+    }
 }

@@ -34,60 +34,58 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link TransformationTranslator} for the {@link LegacySourceTransformation}.
  *
- * @param <OUT> The type of the elements that the {@link LegacySourceTransformation} we
- *             are translating is producing.
+ * @param <OUT> The type of the elements that the {@link LegacySourceTransformation} we are
+ *     translating is producing.
  */
 @Internal
 public class LegacySourceTransformationTranslator<OUT>
-		extends SimpleTransformationTranslator<OUT, LegacySourceTransformation<OUT>> {
+        extends SimpleTransformationTranslator<OUT, LegacySourceTransformation<OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final LegacySourceTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final LegacySourceTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final LegacySourceTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final LegacySourceTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	private Collection<Integer> translateInternal(
-			final LegacySourceTransformation<OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    private Collection<Integer> translateInternal(
+            final LegacySourceTransformation<OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final String slotSharingGroup = context.getSlotSharingGroup();
-		final int transformationId = transformation.getId();
-		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final String slotSharingGroup = context.getSlotSharingGroup();
+        final int transformationId = transformation.getId();
+        final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-		streamGraph.addLegacySource(
-				transformationId,
-				slotSharingGroup,
-				transformation.getCoLocationGroupKey(),
-				transformation.getOperatorFactory(),
-				null,
-				transformation.getOutputType(),
-				"Source: " + transformation.getName());
+        streamGraph.addLegacySource(
+                transformationId,
+                slotSharingGroup,
+                transformation.getCoLocationGroupKey(),
+                transformation.getOperatorFactory(),
+                null,
+                transformation.getOutputType(),
+                "Source: " + transformation.getName());
 
-		if (transformation.getOperatorFactory() instanceof InputFormatOperatorFactory) {
-			streamGraph.setInputFormat(
-					transformationId,
-					((InputFormatOperatorFactory<OUT>) transformation.getOperatorFactory())
-							.getInputFormat());
-		}
+        if (transformation.getOperatorFactory() instanceof InputFormatOperatorFactory) {
+            streamGraph.setInputFormat(
+                    transformationId,
+                    ((InputFormatOperatorFactory<OUT>) transformation.getOperatorFactory())
+                            .getInputFormat());
+        }
 
-		final int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-				? transformation.getParallelism()
-				: executionConfig.getParallelism();
-		streamGraph.setParallelism(transformationId, parallelism);
-		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+        final int parallelism =
+                transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
+                        ? transformation.getParallelism()
+                        : executionConfig.getParallelism();
+        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		return Collections.singleton(transformationId);
-	}
+        return Collections.singleton(transformationId);
+    }
 }

@@ -1,0 +1,154 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+# INSTRUCTIONS:
+#
+# In order to add a new connector/format add a new entry to this file.
+# You need specify a name that will be used in e.g. the description of the connector/format and
+# a category (either "format" or "connector"). The category determines which table will the entry
+# end up in on the Download page. The "maven" parameter describes the name of the maven module. The
+# three parameters are required.
+#
+# If you specify "builtin=true" the corresponding table on the connector/format will not contain
+# a link, but just a "Built-in" entry. If the built-in is set to true you do not need to provide the
+# sql_url.
+#
+# If a connector comes with different versions for the external system, you can put those under a
+# "versions" property. Each entry in the "versions" section should have a "version", which
+# determines name for the version and "maven" and "sql_url" entries for that particular version.
+# If you use the "versions" property, "maven" and "sql_url" should not be present in the top level
+# section of the connector. (Multiple versions are supported only for the connector for now. If you
+# need multiple versions support for formats, please update downloads.md)
+#
+# NOTE: You can use the variables $scala_version and $version in "sql_url" and "maven" properties.
+
+avro:
+    name: Avro
+    maven: flink-sql-avro
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro/$version/flink-sql-avro-$version.jar
+
+avro-confluent:
+    name: Avro Schema Registry
+    maven: flink-avro-confluent-registry
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/$version/flink-sql-avro-confluent-registry-$version.jar
+
+orc:
+    name: ORC
+    maven: flink-orc$scala_version
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc$scala_version/$version/flink-sql-orc$scala_version-$version.jar
+
+parquet:
+    name: Parquet
+    maven: flink-parquet$scala_version
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet$scala_version/$version/flink-sql-parquet$scala_version-$version.jar
+
+debezium-avro-confluent:
+    name: Debezium
+    maven: flink-avro-confluent-registry
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/$version/flink-sql-avro-confluent-registry-$version.jar
+
+debezium-json:
+    name: Debezium
+    maven: flink-json
+    category: format
+    builtin: true
+
+canal:
+    name: Canal
+    maven: flink-json
+    category: format
+    builtin: true
+
+maxwell:
+    name: Maxwell
+    maven: flink-json
+    category: format
+    builtin: true
+
+csv:
+    name: CSV
+    maven: flink-csv
+    category: format
+    builtin: true
+
+json:
+    name: Json
+    maven: flink-json
+    category: format
+    builtin: true
+
+raw:
+    name: RAW
+    maven: flink-raw
+    category: format
+    builtin: true
+
+elastic:
+    name: Elasticsearch
+    category: connector
+    versions:
+        - version: 6.x
+          maven: flink-connector-elasticsearch6$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6$scala_version/$version/flink-sql-connector-elasticsearch6$scala_version-$version.jar
+        - version: 7.x and later versions
+          maven: flink-connector-elasticsearch7$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7$scala_version/$version/flink-sql-connector-elasticsearch7$scala_version-$version.jar
+
+hbase:
+    name: HBase
+    category: connector
+    versions:
+        - version: 1.4.x
+          maven: flink-connector-hbase-1.4$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-1.4$scala_version/$version/flink-sql-connector-hbase-1.4$scala_version-$version.jar
+        - version: 2.2.x
+          maven: flink-connector-hbase-2.2$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-2.2$scala_version/$version/flink-sql-connector-hbase-2.2$scala_version-$version.jar
+
+jdbc:
+    name: JDBC
+    category: connector
+    maven: flink-connector-jdbc$scala_version
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc$scala_version/$version/flink-connector-jdbc$scala_version-$version.jar
+
+kafka:
+    name: Kafka
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-kafka$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka$scala_version/$version/flink-sql-connector-kafka$scala_version-$version.jar
+
+upsert-kafka:
+    name: Upsert Kafka
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-kafka$scala_version
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka$scala_version/$version/flink-sql-connector-kafka$scala_version-$version.jar
+
+kinesis:
+    name: Kinesis
+    category: connector
+    maven: flink-connector-kinesis{{ site.scala_version_suffix }}
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis$scala_version/$version/flink-sql-connector-kinesis$scala_version-$version.jar
+

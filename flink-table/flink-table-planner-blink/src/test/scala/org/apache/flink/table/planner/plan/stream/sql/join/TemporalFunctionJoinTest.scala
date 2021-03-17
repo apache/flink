@@ -58,7 +58,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
       "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
       "WHERE currency = o_currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -69,7 +69,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
       "LATERAL TABLE (ProctimeRates(o.o_proctime)) AS r " +
       "WHERE currency = o_currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -83,7 +83,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
       "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
       "WHERE currency = o_currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   /**
@@ -112,11 +112,11 @@ class TemporalFunctionJoinTest extends TableTestBase {
         "secondary_key as secondary_key " +
         "FROM Orders AS o, " +
         "LATERAL TABLE (Rates(o_rowtime)) AS r " +
-        "WHERE currency = o_currency OR secondary_key = o_secondary_key), " +
+        "WHERE currency = o_currency AND (rate > 120 OR secondary_key = o_secondary_key)), " +
         "Table3 " +
         "WHERE t3_secondary_key = secondary_key"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test

@@ -23,31 +23,23 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 
 /**
- * @deprecated The code analysis code has been removed and this enum has no effect.
- * <b>NOTE</b> It can not be removed from the codebase for now, because it had been serialized as part
- * of the {@link ExecutionConfig} which in turn had been serialized as part of the {@link PojoSerializer}.
- *
- * <p>This class can be removed when we drop support for pre 1.8 serializer snapshots that contained java
- * serialized serializers ({@link TypeSerializerConfigSnapshot}).
+ * @deprecated The code analysis code has been removed and this enum has no effect. <b>NOTE</b> It
+ *     can not be removed from the codebase for now, because it had been serialized as part of the
+ *     {@link ExecutionConfig} which in turn had been serialized as part of the {@link
+ *     PojoSerializer}.
+ *     <p>This class can be removed when we drop support for pre 1.8 serializer snapshots that
+ *     contained java serialized serializers ({@link TypeSerializerConfigSnapshot}).
  */
 @PublicEvolving
 @Deprecated
 public enum CodeAnalysisMode {
 
-	/**
-	 * Code analysis does not take place.
-	 */
-	DISABLE,
+    /** Code analysis does not take place. */
+    DISABLE,
 
-	/**
-	 * Hints for improvement of the program are printed to the log.
-	 */
-	HINT,
+    /** Hints for improvement of the program are printed to the log. */
+    HINT,
 
-	/**
-	 * The program will be automatically optimized with knowledge from code
-	 * analysis.
-	 */
-	OPTIMIZE;
-
+    /** The program will be automatically optimized with knowledge from code analysis. */
+    OPTIMIZE;
 }

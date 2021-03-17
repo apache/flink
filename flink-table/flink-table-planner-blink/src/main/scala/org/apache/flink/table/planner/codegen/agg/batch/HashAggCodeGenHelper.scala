@@ -36,9 +36,11 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, SortUtil}
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
-import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
+import org.apache.flink.table.runtime.util.KeyValueIterator
+import org.apache.flink.table.runtime.util.collections.binary.{BytesHashMap, BytesMap}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import scala.collection.JavaConversions._
@@ -83,29 +85,19 @@ object HashAggCodeGenHelper {
       ctx: CodeGeneratorContext,
       outputTerm: String,
       outputType: RowType,
-      aggMapKeyType: RowType,
-      aggBufferType: RowType,
-      outputClass: Class[_ <: RowData]): (String, String, String) = {
+      outputClass: Class[_ <: RowData]): (String, String) = {
     // prepare iteration var terms
     val reuseAggMapKeyTerm = CodeGenUtils.newName("reuseAggMapKey")
     val reuseAggBufferTerm = CodeGenUtils.newName("reuseAggBuffer")
-    val reuseAggMapEntryTerm = CodeGenUtils.newName("reuseAggMapEntry")
     // gen code to prepare agg output using agg buffer and key from the aggregate map
-    val binaryRow = classOf[BinaryRowData].getName
-    val mapEntryTypeTerm = classOf[BytesHashMap.Entry].getCanonicalName
+    val rowData = classOf[RowData].getName
 
     ctx.addReusableOutputRecord(outputType, outputClass, outputTerm)
     ctx.addReusableMember(
-      s"private transient $binaryRow $reuseAggMapKeyTerm = " +
-          s"new $binaryRow(${aggMapKeyType.getFieldCount});")
+      s"private transient $rowData $reuseAggMapKeyTerm;")
     ctx.addReusableMember(
-      s"private transient $binaryRow $reuseAggBufferTerm = " +
-          s"new $binaryRow(${aggBufferType.getFieldCount});")
-    ctx.addReusableMember(
-      s"private transient $mapEntryTypeTerm $reuseAggMapEntryTerm = " +
-          s"new $mapEntryTypeTerm($reuseAggMapKeyTerm, $reuseAggBufferTerm);"
-    )
-    (reuseAggMapEntryTerm, reuseAggMapKeyTerm, reuseAggBufferTerm)
+      s"private transient $rowData $reuseAggBufferTerm;")
+    (reuseAggMapKeyTerm, reuseAggBufferTerm)
   }
 
   private[flink] def genHashAggCodes(
@@ -528,7 +520,7 @@ object HashAggCodeGenHelper {
       ctx: CodeGeneratorContext,
       isFinal: Boolean,
       aggregateMapTerm: String,
-      reuseAggMapEntryTerm: String,
+      reuseGroupKeyTerm: String,
       reuseAggBufferTerm: String,
       outputExpr: GeneratedExpression): String = {
     // gen code to iterating the aggregate map and output to downstream
@@ -536,12 +528,15 @@ object HashAggCodeGenHelper {
       if (isFinal) s"${ctx.reuseInputUnboxingCode(reuseAggBufferTerm)}" else ""
 
     val iteratorTerm = CodeGenUtils.newName("iterator")
-    val mapEntryTypeTerm = classOf[BytesHashMap.Entry].getCanonicalName
+    val iteratorType = classOf[KeyValueIterator[_, _]].getCanonicalName
+    val rowDataType = classOf[RowData].getCanonicalName
     s"""
-       |org.apache.flink.util.MutableObjectIterator<$mapEntryTypeTerm> $iteratorTerm =
+       |$iteratorType<$rowDataType, $rowDataType> $iteratorTerm =
        |  $aggregateMapTerm.getEntryIterator();
-       |while ($iteratorTerm.next($reuseAggMapEntryTerm) != null) {
+       |while ($iteratorTerm.advanceNext()) {
        |   // set result and output
+       |   $reuseGroupKeyTerm = ($rowDataType)$iteratorTerm.getKey();
+       |   $reuseAggBufferTerm = ($rowDataType)$iteratorTerm.getValue();
        |   $inputUnboxingCode
        |   ${outputExpr.code}
        |   ${OperatorCodeGenerator.generateCollect(outputExpr.resultTerm)}
@@ -555,10 +550,11 @@ object HashAggCodeGenHelper {
       initedAggBuffer: GeneratedExpression,
       lookupInfo: String,
       currentAggBufferTerm: String): String = {
+    val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
     s"""
        | // reset aggregate map retry append
        |$aggregateMapTerm.reset();
-       |$lookupInfo = $aggregateMapTerm.lookup($currentKeyTerm);
+       |$lookupInfo = ($lookupInfoTypeTerm) $aggregateMapTerm.lookup($currentKeyTerm);
        |try {
        |  $currentAggBufferTerm =
        |    $aggregateMapTerm.append($lookupInfo, ${initedAggBuffer.resultTerm});
@@ -595,7 +591,7 @@ object HashAggCodeGenHelper {
 
       // gen fallback to sort agg
       val (groupKeyTypesTerm, aggBufferTypesTerm) = aggMapKVTypesTerm
-      val (groupKeyRowType, aggBufferRowType) =  aggMapKVRowType
+      val (groupKeyRowType, aggBufferRowType) = aggMapKVRowType
       prepareFallbackSorter(ctx, sorterTerm)
       val createSorter = genCreateFallbackSorter(
         ctx, groupKeyRowType, groupKeyTypesTerm, aggBufferTypesTerm, sorterTerm)
@@ -819,13 +815,10 @@ object HashAggCodeGenHelper {
       keyComputerTerm: String,
       recordComparatorTerm: String,
       aggMapKeyType: RowType) : String = {
-    val keyFieldTypes = aggMapKeyType.getChildren.toArray(Array[LogicalType]())
-    val keys = keyFieldTypes.indices.toArray
-    val orders = keys.map(_ => true)
-    val nullsIsLast = SortUtil.getNullDefaultOrders(orders)
-
     val sortCodeGenerator = new SortCodeGenerator(
-      ctx.tableConfig, keys, keyFieldTypes, orders, nullsIsLast)
+        ctx.tableConfig,
+        aggMapKeyType,
+        SortUtil.getAscendingSortSpec(Array.range(0, aggMapKeyType.getFieldCount)))
     val computer = sortCodeGenerator.generateNormalizedKeyComputer("AggMapKeyComputer")
     val comparator = sortCodeGenerator.generateRecordComparator("AggMapValueComparator")
 

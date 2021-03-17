@@ -24,7 +24,7 @@ FROM   t1
 WHERE  t1a = 'test'
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(min_t1d=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
@@ -36,7 +36,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(min_t1d=[$10])
 +- LogicalJoin(condition=[=($3, $9)], joinType=[left])
@@ -63,7 +63,7 @@ FROM   t1
     WHERE  t1a = 'test'
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(min_t3d=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
@@ -80,7 +80,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(min_t3d=[$9], max_t2h=[$11])
 +- LogicalJoin(condition=[=($0, $10)], joinType=[left])

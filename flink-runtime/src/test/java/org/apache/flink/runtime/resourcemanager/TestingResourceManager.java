@@ -35,64 +35,64 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.ForkJoinPool;
 
-/**
- * Simple {@link ResourceManager} implementation for testing purposes.
- */
+/** Simple {@link ResourceManager} implementation for testing purposes. */
 public class TestingResourceManager extends ResourceManager<ResourceID> {
 
-	public TestingResourceManager(
-			RpcService rpcService,
-			ResourceID resourceId,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			SlotManager slotManager,
-			ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
-			JobLeaderIdService jobLeaderIdService,
-			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
-		super(
-			rpcService,
-			resourceId,
-			highAvailabilityServices,
-			heartbeatServices,
-			slotManager,
-			clusterPartitionTrackerFactory,
-			jobLeaderIdService,
-			new ClusterInformation("localhost", 1234),
-			fatalErrorHandler,
-			resourceManagerMetricGroup,
-			RpcUtils.INF_TIMEOUT,
-			ForkJoinPool.commonPool());
-	}
+    public TestingResourceManager(
+            RpcService rpcService,
+            ResourceID resourceId,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            SlotManager slotManager,
+            ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+            JobLeaderIdService jobLeaderIdService,
+            FatalErrorHandler fatalErrorHandler,
+            ResourceManagerMetricGroup resourceManagerMetricGroup) {
+        super(
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                slotManager,
+                clusterPartitionTrackerFactory,
+                jobLeaderIdService,
+                new ClusterInformation("localhost", 1234),
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                RpcUtils.INF_TIMEOUT,
+                ForkJoinPool.commonPool());
+    }
 
-	@Override
-	protected void initialize() throws ResourceManagerException {
-		// noop
-	}
+    @Override
+    protected void initialize() throws ResourceManagerException {
+        // noop
+    }
 
-	@Override
-	protected void terminate() {
-		// noop
-	}
+    @Override
+    protected void terminate() {
+        // noop
+    }
 
-	@Override
-	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) throws ResourceManagerException {
-		// noop
-	}
+    @Override
+    protected void internalDeregisterApplication(
+            ApplicationStatus finalStatus, @Nullable String diagnostics)
+            throws ResourceManagerException {
+        // noop
+    }
 
-	@Override
-	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
-		return false;
-	}
+    @Override
+    public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
+        return false;
+    }
 
-	@Override
-	protected ResourceID workerStarted(ResourceID resourceID) {
-		return resourceID;
-	}
+    @Override
+    protected ResourceID workerStarted(ResourceID resourceID) {
+        return resourceID;
+    }
 
-	@Override
-	public boolean stopWorker(ResourceID worker) {
-		// cannot stop workers
-		return false;
-	}
+    @Override
+    public boolean stopWorker(ResourceID worker) {
+        // cannot stop workers
+        return false;
+    }
 }

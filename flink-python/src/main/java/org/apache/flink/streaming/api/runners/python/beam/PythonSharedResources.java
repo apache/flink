@@ -28,66 +28,59 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The set of resources that can be shared by all the Python operators in a slot.
- */
+/** The set of resources that can be shared by all the Python operators in a slot. */
 @Internal
 public final class PythonSharedResources implements AutoCloseable {
 
-	/**
-	 * The bundle factory which has all job-scoped information and can be used to create a {@link StageBundleFactory}.
-	 */
-	private final JobBundleFactory jobBundleFactory;
+    /**
+     * The bundle factory which has all job-scoped information and can be used to create a {@link
+     * StageBundleFactory}.
+     */
+    private final JobBundleFactory jobBundleFactory;
 
-	/**
-	 * An environment for executing Python UDFs.
-	 */
-	private final Environment environment;
+    /** An environment for executing Python UDFs. */
+    private final Environment environment;
 
-	/**
-	 * Keep track of the PythonEnvironmentManagers of the Python operators in one slot.
-	 */
-	private final List<PythonEnvironmentManager> environmentManagers;
+    /** Keep track of the PythonEnvironmentManagers of the Python operators in one slot. */
+    private final List<PythonEnvironmentManager> environmentManagers;
 
-	/**
-	 * Keep track of the number of Python operators sharing this Python resource.
-	 */
-	private int refCnt;
+    /** Keep track of the number of Python operators sharing this Python resource. */
+    private int refCnt;
 
-	PythonSharedResources(JobBundleFactory jobBundleFactory, Environment environment) {
-		this.jobBundleFactory = jobBundleFactory;
-		this.environment = environment;
-		this.environmentManagers = new ArrayList<>();
-		this.refCnt = 0;
-	}
+    PythonSharedResources(JobBundleFactory jobBundleFactory, Environment environment) {
+        this.jobBundleFactory = jobBundleFactory;
+        this.environment = environment;
+        this.environmentManagers = new ArrayList<>();
+        this.refCnt = 0;
+    }
 
-	JobBundleFactory getJobBundleFactory() {
-		return jobBundleFactory;
-	}
+    JobBundleFactory getJobBundleFactory() {
+        return jobBundleFactory;
+    }
 
-	Environment getEnvironment() {
-		return environment;
-	}
+    Environment getEnvironment() {
+        return environment;
+    }
 
-	void addPythonEnvironmentManager(PythonEnvironmentManager environmentManager) {
-		environmentManagers.add(environmentManager);
-		refCnt++;
-	}
+    void addPythonEnvironmentManager(PythonEnvironmentManager environmentManager) {
+        environmentManagers.add(environmentManager);
+        refCnt++;
+    }
 
-	/**
-	 * Release a Python operator which shares this Python resource. Returns true if there
-	 * are no more Python operators sharing this Python resource.
-	 */
-	boolean release() {
-		refCnt--;
-		return refCnt == 0;
-	}
+    /**
+     * Release a Python operator which shares this Python resource. Returns true if there are no
+     * more Python operators sharing this Python resource.
+     */
+    boolean release() {
+        refCnt--;
+        return refCnt == 0;
+    }
 
-	@Override
-	public void close() throws Exception {
-		jobBundleFactory.close();
-		for (PythonEnvironmentManager environmentManager : environmentManagers) {
-			environmentManager.close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        jobBundleFactory.close();
+        for (PythonEnvironmentManager environmentManager : environmentManagers) {
+            environmentManager.close();
+        }
+    }
 }

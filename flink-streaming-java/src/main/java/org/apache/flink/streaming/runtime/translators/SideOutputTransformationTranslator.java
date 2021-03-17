@@ -35,45 +35,44 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A {@link TransformationTranslator} for the {@link SideOutputTransformation}.
  *
- * @param <OUT> The type of the elements that result from the {@code SideOutputTransformation} being translated.
+ * @param <OUT> The type of the elements that result from the {@code SideOutputTransformation} being
+ *     translated.
  */
 @Internal
 public class SideOutputTransformationTranslator<OUT>
-		extends SimpleTransformationTranslator<OUT, SideOutputTransformation<OUT>> {
+        extends SimpleTransformationTranslator<OUT, SideOutputTransformation<OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final SideOutputTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final SideOutputTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final SideOutputTransformation<OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final SideOutputTransformation<OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	private Collection<Integer> translateInternal(
-			final SideOutputTransformation<OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    private Collection<Integer> translateInternal(
+            final SideOutputTransformation<OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final List<Transformation<?>> parentTransformations = transformation.getInputs();
-		checkState(
-				parentTransformations.size() == 1,
-				"Expected exactly one input transformation but found " + parentTransformations.size());
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final List<Transformation<?>> parentTransformations = transformation.getInputs();
+        checkState(
+                parentTransformations.size() == 1,
+                "Expected exactly one input transformation but found "
+                        + parentTransformations.size());
 
-		final List<Integer> virtualResultIds = new ArrayList<>();
-		final Transformation<?> parentTransformation = parentTransformations.get(0);
-		for (int inputId : context.getStreamNodeIds(parentTransformation)) {
-			final int virtualId = Transformation.getNewNodeId();
-			streamGraph.addVirtualSideOutputNode(inputId, virtualId, transformation.getOutputTag());
-			virtualResultIds.add(virtualId);
-		}
-		return virtualResultIds;
-	}
+        final List<Integer> virtualResultIds = new ArrayList<>();
+        final Transformation<?> parentTransformation = parentTransformations.get(0);
+        for (int inputId : context.getStreamNodeIds(parentTransformation)) {
+            final int virtualId = Transformation.getNewNodeId();
+            streamGraph.addVirtualSideOutputNode(inputId, virtualId, transformation.getOutputTag());
+            virtualResultIds.add(virtualId);
+        }
+        return virtualResultIds;
+    }
 }

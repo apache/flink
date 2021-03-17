@@ -29,47 +29,43 @@ import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Configuration for the {@link StandaloneApplicationClusterEntryPoint}.
- */
+/** Configuration for the {@link StandaloneApplicationClusterEntryPoint}. */
 final class StandaloneApplicationClusterConfiguration extends EntrypointClusterConfiguration {
 
-	@Nonnull
-	private final SavepointRestoreSettings savepointRestoreSettings;
+    @Nonnull private final SavepointRestoreSettings savepointRestoreSettings;
 
-	@Nullable
-	private final JobID jobId;
+    @Nullable private final JobID jobId;
 
-	@Nullable
-	private final String jobClassName;
+    @Nullable private final String jobClassName;
 
-	StandaloneApplicationClusterConfiguration(
-			@Nonnull String configDir,
-			@Nonnull Properties dynamicProperties,
-			@Nonnull String[] args,
-			@Nullable String hostname,
-			int restPort,
-			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
-			@Nullable JobID jobId,
-			@Nullable String jobClassName) {
-		super(configDir, dynamicProperties, args, hostname, restPort);
-		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
-		this.jobId = jobId;
-		this.jobClassName = jobClassName;
-	}
+    StandaloneApplicationClusterConfiguration(
+            @Nonnull String configDir,
+            @Nonnull Properties dynamicProperties,
+            @Nonnull String[] args,
+            @Nullable String hostname,
+            int restPort,
+            @Nonnull SavepointRestoreSettings savepointRestoreSettings,
+            @Nullable JobID jobId,
+            @Nullable String jobClassName) {
+        super(configDir, dynamicProperties, args, hostname, restPort);
+        this.savepointRestoreSettings =
+                requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
+        this.jobId = jobId;
+        this.jobClassName = jobClassName;
+    }
 
-	@Nonnull
-	SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointRestoreSettings;
-	}
+    @Nonnull
+    SavepointRestoreSettings getSavepointRestoreSettings() {
+        return savepointRestoreSettings;
+    }
 
-	@Nullable
-	JobID getJobId() {
-		return jobId;
-	}
+    @Nullable
+    JobID getJobId() {
+        return jobId;
+    }
 
-	@Nullable
-	String getJobClassName() {
-		return jobClassName;
-	}
+    @Nullable
+    String getJobClassName() {
+        return jobClassName;
+    }
 }

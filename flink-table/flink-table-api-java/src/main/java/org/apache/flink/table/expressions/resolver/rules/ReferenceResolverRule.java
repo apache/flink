@@ -33,61 +33,74 @@ import static java.lang.String.format;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
- * Resolves {@link UnresolvedReferenceExpression} to either
- * {@link org.apache.flink.table.expressions.FieldReferenceExpression},
- * {@link org.apache.flink.table.expressions.TableReferenceExpression}, or
- * {@link LocalReferenceExpression} in this order.
+ * Resolves {@link UnresolvedReferenceExpression} to either {@link
+ * org.apache.flink.table.expressions.FieldReferenceExpression}, {@link
+ * org.apache.flink.table.expressions.TableReferenceExpression}, or {@link LocalReferenceExpression}
+ * in this order.
  */
 @Internal
 final class ReferenceResolverRule implements ResolverRule {
 
-	@Override
-	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		return expression.stream()
-			.map(expr -> expr.accept(new ExpressionResolverVisitor(context)))
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        return expression.stream()
+                .map(expr -> expr.accept(new ExpressionResolverVisitor(context)))
+                .collect(Collectors.toList());
+    }
 
-	private static class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
+    private static class ExpressionResolverVisitor extends RuleExpressionVisitor<Expression> {
 
-		ExpressionResolverVisitor(ResolutionContext resolutionContext) {
-			super(resolutionContext);
-		}
+        ExpressionResolverVisitor(ResolutionContext resolutionContext) {
+            super(resolutionContext);
+        }
 
-		@Override
-		public Expression visit(UnresolvedCallExpression unresolvedCall) {
-			final List<Expression> resolvedArgs = unresolvedCall.getChildren()
-				.stream()
-				.map(expr -> expr.accept(this))
-				.collect(Collectors.toList());
+        @Override
+        public Expression visit(UnresolvedCallExpression unresolvedCall) {
+            final List<Expression> resolvedArgs =
+                    unresolvedCall.getChildren().stream()
+                            .map(expr -> expr.accept(this))
+                            .collect(Collectors.toList());
 
-			return unresolvedCall.replaceArgs(resolvedArgs);
-		}
+            return unresolvedCall.replaceArgs(resolvedArgs);
+        }
 
-		@Override
-		public Expression visit(UnresolvedReferenceExpression unresolvedReference) {
-			return resolutionContext.referenceLookup().lookupField(unresolvedReference.getName())
-				.map(expr -> (Expression) expr)
-				.orElseGet(() ->
-					resolutionContext.tableLookup().lookupTable(unresolvedReference.getName())
-						.map(expr -> (Expression) expr)
-						.orElseGet(() -> resolutionContext.getLocalReference(unresolvedReference.getName())
-							.orElseThrow(() -> failForField(unresolvedReference)
-							)));
-		}
+        @Override
+        public Expression visit(UnresolvedReferenceExpression unresolvedReference) {
+            return resolutionContext
+                    .referenceLookup()
+                    .lookupField(unresolvedReference.getName())
+                    .map(expr -> (Expression) expr)
+                    .orElseGet(
+                            () ->
+                                    resolutionContext
+                                            .tableLookup()
+                                            .lookupTable(unresolvedReference.getName())
+                                            .map(expr -> (Expression) expr)
+                                            .orElseGet(
+                                                    () ->
+                                                            resolutionContext
+                                                                    .getLocalReference(
+                                                                            unresolvedReference
+                                                                                    .getName())
+                                                                    .orElseThrow(
+                                                                            () ->
+                                                                                    failForField(
+                                                                                            unresolvedReference))));
+        }
 
-		private ValidationException failForField(UnresolvedReferenceExpression fieldReference) {
-			return new ValidationException(format("Cannot resolve field [%s], input field list:[%s].",
-				fieldReference.getName(),
-				resolutionContext.referenceLookup().getAllInputFields()
-					.stream().map(FieldReferenceExpression::getName)
-					.collect(Collectors.joining(", ")))
-			);
-		}
+        private ValidationException failForField(UnresolvedReferenceExpression fieldReference) {
+            return new ValidationException(
+                    format(
+                            "Cannot resolve field [%s], input field list:[%s].",
+                            fieldReference.getName(),
+                            resolutionContext.referenceLookup().getAllInputFields().stream()
+                                    .map(FieldReferenceExpression::getName)
+                                    .collect(Collectors.joining(", "))));
+        }
 
-		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
-		}
-	}
+        @Override
+        protected Expression defaultMethod(Expression expression) {
+            return expression;
+        }
+    }
 }

@@ -35,32 +35,39 @@ import java.io.IOException;
 import java.time.Duration;
 
 class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
-	private final int retries;
-	private final Duration timeout;
-	private final int maxMessagesPerPull;
-	private final String projectSubscriptionName;
+    private final int retries;
+    private final Duration timeout;
+    private final int maxMessagesPerPull;
+    private final String projectSubscriptionName;
 
-	DefaultPubSubSubscriberFactory(String projectSubscriptionName, int retries, Duration pullTimeout, int maxMessagesPerPull) {
-		this.retries = retries;
-		this.timeout = pullTimeout;
-		this.maxMessagesPerPull = maxMessagesPerPull;
-		this.projectSubscriptionName = projectSubscriptionName;
-	}
+    DefaultPubSubSubscriberFactory(
+            String projectSubscriptionName,
+            int retries,
+            Duration pullTimeout,
+            int maxMessagesPerPull) {
+        this.retries = retries;
+        this.timeout = pullTimeout;
+        this.maxMessagesPerPull = maxMessagesPerPull;
+        this.projectSubscriptionName = projectSubscriptionName;
+    }
 
-	@Override
-	public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
-		ManagedChannel channel = NettyChannelBuilder.forTarget(SubscriberStubSettings.getDefaultEndpoint())
-													.negotiationType(NegotiationType.TLS)
-													.sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-													.build();
+    @Override
+    public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
+        ManagedChannel channel =
+                NettyChannelBuilder.forTarget(SubscriberStubSettings.getDefaultEndpoint())
+                        .negotiationType(NegotiationType.TLS)
+                        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+                        .build();
 
-		PullRequest pullRequest = PullRequest.newBuilder()
-								.setMaxMessages(maxMessagesPerPull)
-								.setSubscription(projectSubscriptionName)
-								.build();
-		SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(channel)
-							.withCallCredentials(MoreCallCredentials.from(credentials));
-		return new BlockingGrpcPubSubSubscriber(projectSubscriptionName, channel, stub, pullRequest, retries, timeout);
-	}
-
+        PullRequest pullRequest =
+                PullRequest.newBuilder()
+                        .setMaxMessages(maxMessagesPerPull)
+                        .setSubscription(projectSubscriptionName)
+                        .build();
+        SubscriberGrpc.SubscriberBlockingStub stub =
+                SubscriberGrpc.newBlockingStub(channel)
+                        .withCallCredentials(MoreCallCredentials.from(credentials));
+        return new BlockingGrpcPubSubSubscriber(
+                projectSubscriptionName, channel, stub, pullRequest, retries, timeout);
+    }
 }

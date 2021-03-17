@@ -20,25 +20,30 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.CheckpointListener;
 
+import javax.annotation.Nonnull;
+
 import java.io.Closeable;
 
 /**
  * Interface that combines both, the {@link KeyedStateBackend} interface, which encapsulates methods
- * responsible for keyed state management and the {@link SnapshotStrategy} which tells the system
- * how to snapshot the underlying state.
+ * responsible for keyed state management and the {@link Snapshotable} which tells the system how to
+ * snapshot the underlying state.
  *
- * <p><b>NOTE:</b> State backends that need to be notified of completed checkpoints can additionally implement
- * the {@link CheckpointListener} interface.
+ * <p><b>NOTE:</b> State backends that need to be notified of completed checkpoints can additionally
+ * implement the {@link CheckpointListener} interface.
  *
  * @param <K> Type of the key by which state is keyed.
  */
-public interface CheckpointableKeyedStateBackend<K> extends
-		KeyedStateBackend<K>,
-		SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
-		Closeable {
+public interface CheckpointableKeyedStateBackend<K>
+        extends KeyedStateBackend<K>, Snapshotable<SnapshotResult<KeyedStateHandle>>, Closeable {
 
-	/**
-	 * Returns the key groups which this state backend is responsible for.
-	 */
-	KeyGroupRange getKeyGroupRange();
+    /** Returns the key groups which this state backend is responsible for. */
+    KeyGroupRange getKeyGroupRange();
+
+    /**
+     * Returns a {@link SavepointResources} that can be used by {@link SavepointSnapshotStrategy} to
+     * write out a savepoint in the common/unified format.
+     */
+    @Nonnull
+    SavepointResources<K> savepoint() throws Exception;
 }

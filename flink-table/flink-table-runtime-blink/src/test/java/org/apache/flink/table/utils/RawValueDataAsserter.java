@@ -28,57 +28,53 @@ import org.hamcrest.TypeSafeMatcher;
 
 import java.util.Arrays;
 
-/**
- * A {@link org.hamcrest.Matcher} that allows equality check on {@link RawValueData}s.
- */
+/** A {@link org.hamcrest.Matcher} that allows equality check on {@link RawValueData}s. */
 public class RawValueDataAsserter extends TypeSafeMatcher<RawValueData> {
-	private final BinaryRawValueData expected;
-	private final RawValueDataSerializer serializer;
+    private final BinaryRawValueData expected;
+    private final RawValueDataSerializer serializer;
 
-	private RawValueDataAsserter(
-			BinaryRawValueData expected,
-			RawValueDataSerializer serializer) {
-		this.expected = expected;
-		this.serializer = serializer;
-	}
+    private RawValueDataAsserter(BinaryRawValueData expected, RawValueDataSerializer serializer) {
+        this.expected = expected;
+        this.serializer = serializer;
+    }
 
-	/**
-	 * Checks that the {@link RawValueData} is equivalent to the expected one. The serializer will be used
-	 * to ensure both objects are materialized into the binary form.
-	 *
-	 * @param expected the expected object
-	 * @param serializer serializer used to materialize the underlying java object
-	 * @return binary equality matcher
-	 */
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static RawValueDataAsserter equivalent(RawValueData<?> expected, RawValueDataSerializer<?> serializer) {
-		BinaryRawValueData binaryExpected = ((BinaryRawValueData) expected);
-		binaryExpected.ensureMaterialized(serializer.getInnerSerializer());
-		return new RawValueDataAsserter(binaryExpected, serializer);
-	}
+    /**
+     * Checks that the {@link RawValueData} is equivalent to the expected one. The serializer will
+     * be used to ensure both objects are materialized into the binary form.
+     *
+     * @param expected the expected object
+     * @param serializer serializer used to materialize the underlying java object
+     * @return binary equality matcher
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static RawValueDataAsserter equivalent(
+            RawValueData<?> expected, RawValueDataSerializer<?> serializer) {
+        BinaryRawValueData binaryExpected = ((BinaryRawValueData) expected);
+        binaryExpected.ensureMaterialized(serializer.getInnerSerializer());
+        return new RawValueDataAsserter(binaryExpected, serializer);
+    }
 
-	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	protected boolean matchesSafely(RawValueData item) {
-		BinaryRawValueData binaryItem = (BinaryRawValueData) item;
-		binaryItem.ensureMaterialized(serializer.getInnerSerializer());
-		expected.ensureMaterialized(serializer.getInnerSerializer());
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected boolean matchesSafely(RawValueData item) {
+        BinaryRawValueData binaryItem = (BinaryRawValueData) item;
+        binaryItem.ensureMaterialized(serializer.getInnerSerializer());
+        expected.ensureMaterialized(serializer.getInnerSerializer());
 
-		return binaryItem.getSizeInBytes() == expected.getSizeInBytes() &&
-			BinarySegmentUtils.equals(
-				binaryItem.getSegments(),
-				binaryItem.getOffset(),
-				expected.getSegments(),
-				expected.getOffset(),
-				binaryItem.getSizeInBytes());
-	}
+        return binaryItem.getSizeInBytes() == expected.getSizeInBytes()
+                && BinarySegmentUtils.equals(
+                        binaryItem.getSegments(),
+                        binaryItem.getOffset(),
+                        expected.getSegments(),
+                        expected.getOffset(),
+                        binaryItem.getSizeInBytes());
+    }
 
-	@Override
-	public void describeTo(Description description) {
-		byte[] bytes = BinarySegmentUtils.getBytes(
-			expected.getSegments(),
-			expected.getOffset(),
-			expected.getSizeInBytes());
-		description.appendText(Arrays.toString(bytes));
-	}
+    @Override
+    public void describeTo(Description description) {
+        byte[] bytes =
+                BinarySegmentUtils.getBytes(
+                        expected.getSegments(), expected.getOffset(), expected.getSizeInBytes());
+        description.appendText(Arrays.toString(bytes));
+    }
 }

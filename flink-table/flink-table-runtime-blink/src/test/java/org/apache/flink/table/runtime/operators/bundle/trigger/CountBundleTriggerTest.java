@@ -22,27 +22,25 @@ import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;
 
-/**
- * Tests for {@link CountBundleTrigger}.
- */
+/** Tests for {@link CountBundleTrigger}. */
 public class CountBundleTriggerTest {
 
-	@Test
-	public void testTrigger() throws Exception {
-		CountBundleTrigger<Object> trigger = new CountBundleTrigger<>(2);
-		TestTriggerCallback callback = new TestTriggerCallback();
-		trigger.registerCallback(callback);
+    @Test
+    public void testTrigger() throws Exception {
+        CountBundleTrigger<Object> trigger = new CountBundleTrigger<>(2);
+        TestTriggerCallback callback = new TestTriggerCallback();
+        trigger.registerCallback(callback);
 
-		trigger.onElement(null);
-		assertEquals(0, callback.getTriggerCount());
+        trigger.onElement(null);
+        assertEquals(0, callback.getTriggerCount());
 
-		trigger.onElement(null);
-		assertEquals(1, callback.getTriggerCount());
+        trigger.onElement(null);
+        assertEquals(1, callback.getTriggerCount());
 
-		trigger.onElement(null);
-		assertEquals(1, callback.getTriggerCount());
+        trigger.onElement(null);
+        assertEquals(1, callback.getTriggerCount());
 
-		trigger.onElement(null);
-		assertEquals(2, callback.getTriggerCount());
-	}
+        trigger.onElement(null);
+        assertEquals(2, callback.getTriggerCount());
+    }
 }

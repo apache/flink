@@ -28,38 +28,37 @@ import java.io.File;
  */
 final class SavepointLocalRecoveryProvider implements LocalRecoveryDirectoryProvider {
 
-	private static final long serialVersionUID = 9205635927790634162L;
+    private static final long serialVersionUID = 9205635927790634162L;
 
-	private static final String MSG = "This method should never be called";
+    private static final String MSG = "This method should never be called";
 
-	@Override
-	public File allocationBaseDirectory(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public File allocationBaseDirectory(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public File subtaskBaseDirectory(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public File subtaskBaseDirectory(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public File subtaskSpecificCheckpointDirectory(long checkpointId) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public File selectAllocationBaseDirectory(int idx) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public File selectAllocationBaseDirectory(int idx) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public File selectSubtaskBaseDirectory(int idx) {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public File selectSubtaskBaseDirectory(int idx) {
+        throw new UnsupportedOperationException(MSG);
+    }
 
-	@Override
-	public int allocationBaseDirsCount() {
-		throw new UnsupportedOperationException(MSG);
-	}
+    @Override
+    public int allocationBaseDirsCount() {
+        throw new UnsupportedOperationException(MSG);
+    }
 }
-

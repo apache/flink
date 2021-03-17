@@ -37,51 +37,56 @@ import static org.junit.Assert.assertTrue;
 /** Unit tests for {@link NullableSerializer}. */
 @RunWith(Parameterized.class)
 public class NullableSerializerTest extends SerializerTestBase<Integer> {
-	private static final TypeSerializer<Integer> originalSerializer = IntSerializer.INSTANCE;
+    private static final TypeSerializer<Integer> originalSerializer = IntSerializer.INSTANCE;
 
-	@Parameterized.Parameters(name = "{0}")
-	public static List<Boolean> whetherToPadNullValue() {
-		return Arrays.asList(true, false);
-	}
+    @Parameterized.Parameters(name = "{0}")
+    public static List<Boolean> whetherToPadNullValue() {
+        return Arrays.asList(true, false);
+    }
 
-	@Parameterized.Parameter
-	public boolean padNullValue;
+    @Parameterized.Parameter public boolean padNullValue;
 
-	private TypeSerializer<Integer> nullableSerializer;
+    private TypeSerializer<Integer> nullableSerializer;
 
-	@Before
-	public void init() {
-		nullableSerializer = NullableSerializer.wrapIfNullIsNotSupported(originalSerializer, padNullValue);
-	}
+    @Before
+    public void init() {
+        nullableSerializer =
+                NullableSerializer.wrapIfNullIsNotSupported(originalSerializer, padNullValue);
+    }
 
-	@Override
-	protected TypeSerializer<Integer> createSerializer() {
-		return NullableSerializer.wrapIfNullIsNotSupported(originalSerializer, padNullValue);
-	}
+    @Override
+    protected TypeSerializer<Integer> createSerializer() {
+        return NullableSerializer.wrapIfNullIsNotSupported(originalSerializer, padNullValue);
+    }
 
-	@Override
-	protected int getLength() {
-		return padNullValue ? 5 : -1;
-	}
+    @Override
+    protected int getLength() {
+        return padNullValue ? 5 : -1;
+    }
 
-	@Override
-	protected Class<Integer> getTypeClass() {
-		return Integer.class;
-	}
+    @Override
+    protected Class<Integer> getTypeClass() {
+        return Integer.class;
+    }
 
-	@Override
-	protected Integer[] getTestData() {
-		return new Integer[] { 5, -1, null, 5 };
-	}
+    @Override
+    protected Integer[] getTestData() {
+        return new Integer[] {5, -1, null, 5};
+    }
 
-	@Test
-	public void testWrappingNotNeeded() {
-		assertEquals(NullableSerializer.wrapIfNullIsNotSupported(StringSerializer.INSTANCE, padNullValue), StringSerializer.INSTANCE);
-	}
+    @Test
+    public void testWrappingNotNeeded() {
+        assertEquals(
+                NullableSerializer.wrapIfNullIsNotSupported(
+                        StringSerializer.INSTANCE, padNullValue),
+                StringSerializer.INSTANCE);
+    }
 
-	@Test
-	public void testWrappingNeeded() {
-		assertTrue(nullableSerializer instanceof NullableSerializer);
-		assertEquals(NullableSerializer.wrapIfNullIsNotSupported(nullableSerializer, padNullValue), nullableSerializer);
-	}
+    @Test
+    public void testWrappingNeeded() {
+        assertTrue(nullableSerializer instanceof NullableSerializer);
+        assertEquals(
+                NullableSerializer.wrapIfNullIsNotSupported(nullableSerializer, padNullValue),
+                nullableSerializer);
+    }
 }

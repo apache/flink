@@ -29,73 +29,69 @@ import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * ZooKeeper test utilities.
- */
+/** ZooKeeper test utilities. */
 public class ZooKeeperTestUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
 
-	/**
-	 * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 *
-	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
-	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
-	 *                          recovery)
-	 * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 */
-	public static Configuration createZooKeeperHAConfig(
-			String zooKeeperQuorum, String fsStateHandlePath) {
+    /**
+     * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     *
+     * @param zooKeeperQuorum ZooKeeper quorum to connect to
+     * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
+     *     recovery)
+     * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     */
+    public static Configuration createZooKeeperHAConfig(
+            String zooKeeperQuorum, String fsStateHandlePath) {
 
-		return configureZooKeeperHA(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
-	}
+        return configureZooKeeperHA(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
+    }
 
-	/**
-	 * Sets all necessary configuration keys to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 *
-	 * @param config            Configuration to use
-	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
-	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
-	 *                          recovery)
-	 * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
-	 */
-	public static Configuration configureZooKeeperHA(
-			Configuration config,
-			String zooKeeperQuorum,
-			String fsStateHandlePath) {
+    /**
+     * Sets all necessary configuration keys to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     *
+     * @param config Configuration to use
+     * @param zooKeeperQuorum ZooKeeper quorum to connect to
+     * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
+     *     recovery)
+     * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
+     */
+    public static Configuration configureZooKeeperHA(
+            Configuration config, String zooKeeperQuorum, String fsStateHandlePath) {
 
-		checkNotNull(config, "Configuration");
-		checkNotNull(zooKeeperQuorum, "ZooKeeper quorum");
-		checkNotNull(fsStateHandlePath, "File state handle backend path");
+        checkNotNull(config, "Configuration");
+        checkNotNull(zooKeeperQuorum, "ZooKeeper quorum");
+        checkNotNull(fsStateHandlePath, "File state handle backend path");
 
-		// ZooKeeper recovery mode
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
+        // ZooKeeper recovery mode
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
 
-		int connTimeout = 5000;
-		if (runsOnCIInfrastructure()) {
-			// The regular timeout is to aggressive for Travis and connections are often lost.
-			LOG.info("Detected CI environment: Configuring connection and session timeout of 30 seconds");
-			connTimeout = 30000;
-		}
+        int connTimeout = 5000;
+        if (runsOnCIInfrastructure()) {
+            // The regular timeout is to aggressive for Travis and connections are often lost.
+            LOG.info(
+                    "Detected CI environment: Configuring connection and session timeout of 30 seconds");
+            connTimeout = 30000;
+        }
 
-		config.setInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
-		config.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
+        config.setInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
+        config.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
 
-		// File system state backend
-		config.setString(CheckpointingOptions.STATE_BACKEND, "FILESYSTEM");
-		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
+        // File system state backend
+        config.setString(CheckpointingOptions.STATE_BACKEND, "FILESYSTEM");
+        config.setString(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
+        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
-		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
 
-		return config;
-	}
+        return config;
+    }
 
-	/**
-	 * @return true, if a CI environment is detected.
-	 */
-	public static boolean runsOnCIInfrastructure() {
-		return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
-	}
+    /** @return true, if a CI environment is detected. */
+    public static boolean runsOnCIInfrastructure() {
+        return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
+    }
 }

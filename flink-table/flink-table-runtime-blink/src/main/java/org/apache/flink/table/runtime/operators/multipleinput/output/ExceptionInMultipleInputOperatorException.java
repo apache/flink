@@ -25,18 +25,19 @@ import org.apache.flink.util.WrappingRuntimeException;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A special exception that signifies that the cause exception came from a {@link MultipleInputStreamOperatorBase}.
+ * A special exception that signifies that the cause exception came from a {@link
+ * MultipleInputStreamOperatorBase}.
  */
 @Internal
 public class ExceptionInMultipleInputOperatorException extends WrappingRuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public ExceptionInMultipleInputOperatorException(Throwable cause) {
-		this("Could not forward element to next operator", cause);
-	}
+    public ExceptionInMultipleInputOperatorException(Throwable cause) {
+        this("Could not forward element to next operator", cause);
+    }
 
-	public ExceptionInMultipleInputOperatorException(String message, Throwable cause) {
-		super(message, requireNonNull(cause));
-	}
+    public ExceptionInMultipleInputOperatorException(String message, Throwable cause) {
+        super(message, requireNonNull(cause));
+    }
 }

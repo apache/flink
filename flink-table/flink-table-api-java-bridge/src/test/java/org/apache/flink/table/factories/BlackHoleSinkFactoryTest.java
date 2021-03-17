@@ -34,51 +34,51 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link BlackHoleTableSinkFactory}.
- */
+/** Tests for {@link BlackHoleTableSinkFactory}. */
 public class BlackHoleSinkFactoryTest {
 
-	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
-		.field("f0", DataTypes.STRING())
-		.field("f1", DataTypes.BIGINT())
-		.field("f2", DataTypes.BIGINT())
-		.build();
+    private static final TableSchema TEST_SCHEMA =
+            TableSchema.builder()
+                    .field("f0", DataTypes.STRING())
+                    .field("f1", DataTypes.BIGINT())
+                    .field("f2", DataTypes.BIGINT())
+                    .build();
 
-	@Test
-	public void testBlackHole() {
-		Map<String, String> properties = new HashMap<>();
-		properties.put("connector", "blackhole");
+    @Test
+    public void testBlackHole() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("connector", "blackhole");
 
-		DynamicTableSink sink = createSink(properties);
+        DynamicTableSink sink = createSink(properties);
 
-		assertEquals("BlackHole", sink.asSummaryString());
-	}
+        assertEquals("BlackHole", sink.asSummaryString());
+    }
 
-	private DynamicTableSink createSink(Map<String, String> properties) {
-		return FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("", "", ""),
-				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
-				new Configuration(),
-				Thread.currentThread().getContextClassLoader(),
-				false);
-	}
+    private DynamicTableSink createSink(Map<String, String> properties) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("", "", ""),
+                new CatalogTableImpl(TEST_SCHEMA, properties, ""),
+                new Configuration(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
+    }
 
-	@Test
-	public void testWrongKey() {
-		try {
-			Map<String, String> properties = new HashMap<>();
-			properties.put("connector", "blackhole");
-			properties.put("unknown-key", "1");
-			createSink(properties);
-		} catch (ValidationException e) {
-			Throwable cause = e.getCause();
-			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
-					"Unsupported options:\n\nunknown-key"));
-			return;
-		}
-		Assert.fail("Should fail by ValidationException.");
-	}
+    @Test
+    public void testWrongKey() {
+        try {
+            Map<String, String> properties = new HashMap<>();
+            properties.put("connector", "blackhole");
+            properties.put("unknown-key", "1");
+            createSink(properties);
+        } catch (ValidationException e) {
+            Throwable cause = e.getCause();
+            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assert.assertTrue(
+                    cause.getMessage(),
+                    cause.getMessage().contains("Unsupported options:\n\nunknown-key"));
+            return;
+        }
+        Assert.fail("Should fail by ValidationException.");
+    }
 }

@@ -21,13 +21,9 @@ package org.apache.flink.connector.jdbc.statement;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-/**
- * A factory to create {@link FieldNamedPreparedStatement} with the given {@link Connection}.
- */
+/** A factory to create {@link FieldNamedPreparedStatement} with the given {@link Connection}. */
 public interface StatementFactory {
 
-	/**
-	 * Creates {@link FieldNamedPreparedStatement} with the given {@link Connection}.
-	 */
-	FieldNamedPreparedStatement createStatement(Connection connection) throws SQLException;
+    /** Creates {@link FieldNamedPreparedStatement} with the given {@link Connection}. */
+    FieldNamedPreparedStatement createStatement(Connection connection) throws SQLException;
 }

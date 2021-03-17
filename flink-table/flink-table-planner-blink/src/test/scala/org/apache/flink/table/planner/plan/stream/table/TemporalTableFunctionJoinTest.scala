@@ -60,7 +60,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -69,7 +69,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(call("Rates", $"o_rowtime"), $"currency" === $"o_currency")
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(resultJava)
+    util.verifyExecPlan(resultJava)
   }
 
   @Test
@@ -78,7 +78,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
       .select($"o_amount" * $"rate").as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   /**
@@ -91,11 +91,11 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     val util = streamTestUtil()
     val thirdTable = util.addDataStream[(String, Int)]("ThirdTable", 't3_comment, 't3_secondary_key)
     val orders = util.addDataStream[(Timestamp, String, Long, String, Int)](
-      "Orders", 'rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
+      "Orders", 'rowtime.rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
       .as("o_rowtime", "o_comment", "o_amount", "o_currency", "o_secondary_key")
 
     val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
-      "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
+      "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
     val rates = ratesHistory
       .filter('rate > 110L)
       .createTemporalTableFunction('rowtime, 'currency)
@@ -103,11 +103,11 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
 
     val result = orders
       .joinLateral(rates('o_rowtime))
-      .filter('currency === 'o_currency || 'secondary_key === 'o_secondary_key)
+      .filter('currency === 'o_currency && ('rate > 120L || 'secondary_key === 'o_secondary_key))
       .select('o_amount * 'rate, 'secondary_key).as("rate", "secondary_key")
       .join(thirdTable, 't3_secondary_key === 'secondary_key)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -125,7 +125,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .select($"o_amount" * $"rate")
       .as("rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -139,7 +139,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
         'o_currency === 'currency)
       .select($"o_amount" * $"rate")
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test

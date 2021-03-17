@@ -18,7 +18,7 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandl
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -34,296 +35,404 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link KubernetesResourceManagerDriver}.
- */
-public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTestBase<KubernetesWorkerNode> {
+/** Tests for {@link KubernetesResourceManagerDriver}. */
+public class KubernetesResourceManagerDriverTest
+        extends ResourceManagerDriverTestBase<KubernetesWorkerNode> {
 
-	private static final String CLUSTER_ID = "testing-flink-cluster";
-	private static final Time POD_CREATION_INTERVAL = Time.milliseconds(50L);
-	private static final KubernetesResourceManagerDriverConfiguration KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
-			new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID, POD_CREATION_INTERVAL);
+    private static final String CLUSTER_ID = "testing-flink-cluster";
+    private static final KubernetesResourceManagerDriverConfiguration
+            KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
+                    new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID);
 
-	@Test
-	public void testOnPodAdded() throws Exception {
-		new Context() {{
-			final CompletableFuture<KubernetesPod> createPodFuture = new CompletableFuture<>();
-			final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = new CompletableFuture<>();
+    @Test
+    public void testOnPodAdded() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<KubernetesPod> createPodFuture = new CompletableFuture<>();
+                final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
+                        new CompletableFuture<>();
 
-			flinkKubeClientBuilder.setCreateTaskManagerPodFunction((pod) -> {
-				createPodFuture.complete(pod);
-				return FutureUtils.completedVoidFuture();
-			});
+                flinkKubeClientBuilder.setCreateTaskManagerPodFunction(
+                        (pod) -> {
+                            createPodFuture.complete(pod);
+                            return FutureUtils.completedVoidFuture();
+                        });
 
-			runTest(() -> {
-				// request new pod
-				runInMainThread(() -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC).thenAccept(requestResourceFuture::complete));
-				final KubernetesPod pod = createPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                runTest(
+                        () -> {
+                            // request new pod
+                            runInMainThread(
+                                    () ->
+                                            getDriver()
+                                                    .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
+                                                    .thenAccept(requestResourceFuture::complete));
+                            final KubernetesPod pod =
+                                    new TestingKubernetesPod(
+                                            createPodFuture
+                                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                                    .getName(),
+                                            true,
+                                            false);
 
-				// prepare validation:
-				// - complete requestResourceFuture in main thread with correct KubernetesWorkerNode
-				final CompletableFuture<Void> validationFuture = requestResourceFuture.thenAccept((workerNode) -> {
-					validateInMainThread();
-					assertThat(workerNode.getResourceID().toString(), is(pod.getName()));
-				});
+                            // prepare validation:
+                            // - complete requestResourceFuture in main thread with correct
+                            // KubernetesWorkerNode
+                            final CompletableFuture<Void> validationFuture =
+                                    requestResourceFuture.thenAccept(
+                                            (workerNode) -> {
+                                                validateInMainThread();
+                                                assertThat(
+                                                        workerNode.getResourceID().toString(),
+                                                        is(pod.getName()));
+                                            });
 
-				// send onAdded event
-				getPodCallbackHandler().onAdded(Collections.singletonList(pod));
+                            // send onAdded event
+                            getPodCallbackHandler().onAdded(Collections.singletonList(pod));
 
-				// make sure finishing validation
-				validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			});
-		}};
-	}
+                            // make sure finishing validation
+                            validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testOnPodModified() throws Exception {
-		new Context() {{
-			testOnPodTerminated((pod) -> getPodCallbackHandler().onModified(pod));
-		}};
-	}
+    @Test
+    public void testOnPodModified() throws Exception {
+        new Context() {
+            {
+                testOnPodTerminated((pod) -> getPodCallbackHandler().onModified(pod));
+            }
+        };
+    }
 
-	@Test
-	public void testOnPodDeleted() throws Exception {
-		new Context() {{
-			testOnPodTerminated((pod) -> getPodCallbackHandler().onDeleted(pod));
-		}};
-	}
+    @Test
+    public void testOnPodDeleted() throws Exception {
+        new Context() {
+            {
+                testOnPodTerminated((pod) -> getPodCallbackHandler().onDeleted(pod));
+            }
+        };
+    }
 
-	@Test
-	public void testOnError() throws Exception {
-		new Context() {{
-			testOnPodTerminated((pod) -> getPodCallbackHandler().onError(pod));
-		}};
-	}
+    @Test
+    public void testOnError() throws Exception {
+        new Context() {
+            {
+                testOnPodTerminated((pod) -> getPodCallbackHandler().onError(pod));
+            }
+        };
+    }
 
-	@Test
-	public void testFatalHandleError() throws Exception {
-		new Context() {{
-			final CompletableFuture<Throwable> onErrorFuture = new CompletableFuture<>();
-			resourceEventHandlerBuilder.setOnErrorConsumer(onErrorFuture::complete);
+    @Test
+    public void testFatalHandleError() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<Throwable> onErrorFuture = new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnErrorConsumer(onErrorFuture::complete);
 
-			runTest(() -> {
-				final Throwable testingError = new Throwable("testing error");
-				getPodCallbackHandler().handleFatalError(testingError);
-				assertThat(onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(testingError));
-			});
-		}};
-	}
+                runTest(
+                        () -> {
+                            final Throwable testingError = new Throwable("testing error");
+                            getPodCallbackHandler().handleError(testingError);
+                            assertThat(
+                                    onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(testingError));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testPodCreationInterval() throws Exception {
-		new Context() {{
-			final AtomicInteger createPodCount = new AtomicInteger(0);
-			final List<CompletableFuture<Long>> createPodTimeFutures = new ArrayList<>();
-			createPodTimeFutures.add(new CompletableFuture<>());
-			createPodTimeFutures.add(new CompletableFuture<>());
+    @Test
+    public void testRecoverPreviousAttemptWorkersPodTerminated() throws Exception {
+        new Context() {
+            {
+                final KubernetesPod previousAttemptPod =
+                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true, true);
+                final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
+                final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture =
+                        new CompletableFuture<>();
 
-			flinkKubeClientBuilder.setCreateTaskManagerPodFunction((ignore) -> {
-				int idx = createPodCount.getAndIncrement();
-				if (idx < createPodTimeFutures.size()) {
-					createPodTimeFutures.get(idx).complete(System.currentTimeMillis());
-				}
-				return FutureUtils.completedExceptionally(new Throwable("testing error"));
-			});
+                flinkKubeClientBuilder
+                        .setGetPodsWithLabelsFunction(
+                                (ignore) -> Collections.singletonList(previousAttemptPod))
+                        .setStopPodFunction(
+                                (podName) -> {
+                                    stopPodFuture.complete(podName);
+                                    return FutureUtils.completedVoidFuture();
+                                });
 
-			runTest(() -> {
-				// re-request resource on pod creation failed
-				runInMainThread(() -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC)
-						.whenComplete((ignore1, ignore2) -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC)));
+                resourceEventHandlerBuilder.setOnPreviousAttemptWorkersRecoveredConsumer(
+                        recoveredWorkersFuture::complete);
 
-				// validate trying creating pod twice, with proper interval
-				long t1 = createPodTimeFutures.get(0).get(TIMEOUT_SEC, TimeUnit.SECONDS);
-				long t2 = createPodTimeFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
-				assertThat((t2 - t1), greaterThanOrEqualTo(POD_CREATION_INTERVAL.toMilliseconds()));
-			});
-		}};
-	}
+                runTest(
+                        () -> {
+                            // validate the terminated pod from previous attempt is not recovered
+                            // and is removed
+                            assertThat(
+                                    recoveredWorkersFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    empty());
+                            assertThat(
+                                    stopPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(previousAttemptPod.getName()));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testRecoverPreviousAttemptWorkersPodTerminated() throws Exception {
-		new Context() {{
-			final KubernetesPod previousAttemptPod = new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true);
-			final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
-			final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture = new CompletableFuture<>();
+    @Test
+    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
+            throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            getPodCallbackHandler()
+                                    .handleError(
+                                            new KubernetesTooOldResourceVersionException(
+                                                    new Exception("too old resource version")));
+                            // Verify the old watch is closed and a new one is created
+                            CommonTestUtils.waitUntilCondition(
+                                    () -> getPodsWatches().size() == 2,
+                                    Deadline.fromNow(Duration.ofSeconds(TIMEOUT_SEC)),
+                                    String.format(
+                                            "New watch is not created in %s seconds.",
+                                            TIMEOUT_SEC));
+                            assertThat(getPodsWatches().get(0).isClosed(), is(true));
+                            assertThat(getPodsWatches().get(1).isClosed(), is(false));
+                        });
+            }
+        };
+    }
 
-			flinkKubeClientBuilder
-				.setGetPodsWithLabelsFunction((ignore) -> Collections.singletonList(previousAttemptPod))
-				.setStopPodFunction((podName) -> {
-					stopPodFuture.complete(podName);
-					return FutureUtils.completedVoidFuture();
-				});
+    @Override
+    protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
+        return new Context();
+    }
 
-			resourceEventHandlerBuilder.setOnPreviousAttemptWorkersRecoveredConsumer(recoveredWorkersFuture::complete);
+    private class Context extends ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context {
+        private final KubernetesPod previousAttemptPod =
+                new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1");
 
-			runTest(() -> {
-				// validate the terminated pod from previous attempt is not recovered and is removed
-				assertThat(recoveredWorkersFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), empty());
-				assertThat(stopPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(previousAttemptPod.getName()));
-			});
-		}};
-	}
+        private final CompletableFuture<WatchCallbackHandler<KubernetesPod>>
+                setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
+        private final CompletableFuture<Void> closeKubernetesWatchFuture =
+                new CompletableFuture<>();
 
-	@Override
-	protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
-		return new Context();
-	}
+        private final List<TestingFlinkKubeClient.MockKubernetesWatch> podsWatches =
+                new ArrayList<>();
+        private final CompletableFuture<String> stopAndCleanupClusterFuture =
+                new CompletableFuture<>();
+        private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture =
+                new CompletableFuture<>();
+        private final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
 
-	private class Context extends ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context {
-		private final KubernetesPod previousAttemptPod = new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1");
+        final TestingFlinkKubeClient.Builder flinkKubeClientBuilder =
+                TestingFlinkKubeClient.builder()
+                        .setWatchPodsAndDoCallbackFunction(
+                                (ignore, handler) -> {
+                                    setWatchPodsAndDoCallbackFuture.complete(handler);
+                                    final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                            new TestingFlinkKubeClient.MockKubernetesWatch() {
+                                                @Override
+                                                public void close() {
+                                                    super.close();
+                                                    closeKubernetesWatchFuture.complete(null);
+                                                }
+                                            };
+                                    podsWatches.add(watch);
+                                    return watch;
+                                })
+                        .setStopAndCleanupClusterConsumer(stopAndCleanupClusterFuture::complete)
+                        .setCreateTaskManagerPodFunction(
+                                (pod) -> {
+                                    createTaskManagerPodFuture.complete(pod);
+                                    getPodCallbackHandler()
+                                            .onAdded(
+                                                    Collections.singletonList(
+                                                            new TestingKubernetesPod(
+                                                                    pod.getName(), true, false)));
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setStopPodFunction(
+                                (podName) -> {
+                                    stopPodFuture.complete(podName);
+                                    return FutureUtils.completedVoidFuture();
+                                });
 
-		private final CompletableFuture<WatchCallbackHandler<KubernetesPod>> setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
-		private final CompletableFuture<Void> closeKubernetesWatchFuture = new CompletableFuture<>();
-		private final CompletableFuture<String> stopAndCleanupClusterFuture =  new CompletableFuture<>();
-		private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture = new CompletableFuture<>();
-		private final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
+        private TestingKubeClientFactory kubeClientFactory;
 
-		final TestingFlinkKubeClient.Builder flinkKubeClientBuilder = TestingFlinkKubeClient.builder()
-				.setWatchPodsAndDoCallbackFunction((ignore, handler) -> {
-					setWatchPodsAndDoCallbackFuture.complete(handler);
-					return new TestingFlinkKubeClient.MockKubernetesWatch() {
-						@Override
-						public void close() {
-							closeKubernetesWatchFuture.complete(null);
-						}
-					};
-				})
-				.setStopAndCleanupClusterConsumer(stopAndCleanupClusterFuture::complete)
-				.setCreateTaskManagerPodFunction((pod) -> {
-					createTaskManagerPodFuture.complete(pod);
-					getPodCallbackHandler().onAdded(Collections.singletonList(pod));
-					return FutureUtils.completedVoidFuture();
-				})
-				.setStopPodFunction((podName) -> {
-					stopPodFuture.complete(podName);
-					return FutureUtils.completedVoidFuture();
-				});
+        FlinkKubeClient.WatchCallbackHandler<KubernetesPod> getPodCallbackHandler() {
+            try {
+                return setWatchPodsAndDoCallbackFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                fail("Cannot get WatchCallbackHandler, cause: " + e.getMessage());
+            }
+            return null;
+        }
 
-		private TestingKubeClientFactory kubeClientFactory;
+        List<TestingFlinkKubeClient.MockKubernetesWatch> getPodsWatches() {
+            return podsWatches;
+        }
 
-		FlinkKubeClient.WatchCallbackHandler<KubernetesPod> getPodCallbackHandler() {
-			try {
-				return setWatchPodsAndDoCallbackFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			} catch (Exception e) {
-				fail("Cannot get WatchCallbackHandler, cause: " + e.getMessage());
-			}
-			return null;
-		}
+        @Override
+        protected void prepareRunTest() {
+            flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+            flinkConfig.setString(
+                    TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
-		@Override
-		protected void prepareRunTest() {
-			flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-			flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
+            kubeClientFactory = new TestingKubeClientFactory(flinkKubeClientBuilder);
+        }
 
-			kubeClientFactory = new TestingKubeClientFactory(flinkKubeClientBuilder);
-		}
+        @Override
+        protected void preparePreviousAttemptWorkers() {
+            flinkKubeClientBuilder.setGetPodsWithLabelsFunction(
+                    (ignore) -> Collections.singletonList(previousAttemptPod));
+        }
 
-		@Override
-		protected void preparePreviousAttemptWorkers() {
-			flinkKubeClientBuilder.setGetPodsWithLabelsFunction((ignore) -> Collections.singletonList(previousAttemptPod));
-		}
+        @Override
+        protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver() {
+            return new KubernetesResourceManagerDriver(
+                    flinkConfig, kubeClientFactory, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
+        }
 
-		@Override
-		protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver() {
-			return new KubernetesResourceManagerDriver(flinkConfig, kubeClientFactory, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
-		}
+        @Override
+        protected void validateInitialization() throws Exception {
+            assertNotNull(getPodCallbackHandler());
+        }
 
-		@Override
-		protected void validateInitialization() throws Exception {
-			assertNotNull(getPodCallbackHandler());
-		}
+        @Override
+        protected void validateWorkersRecoveredFromPreviousAttempt(
+                Collection<KubernetesWorkerNode> workers) {
+            assertThat(workers.size(), is(1));
 
-		@Override
-		protected void validateWorkersRecoveredFromPreviousAttempt(Collection<KubernetesWorkerNode> workers) {
-			assertThat(workers.size(), is(1));
+            final ResourceID resourceId = workers.iterator().next().getResourceID();
+            assertThat(resourceId.toString(), is(previousAttemptPod.getName()));
+        }
 
-			final ResourceID resourceId = workers.iterator().next().getResourceID();
-			assertThat(resourceId.toString(), is(previousAttemptPod.getName()));
-		}
+        @Override
+        protected void validateTermination() throws Exception {
+            closeKubernetesWatchFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+        }
 
-		@Override
-		protected void validateTermination() throws Exception {
-			closeKubernetesWatchFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-		}
+        @Override
+        protected void validateDeregisterApplication() throws Exception {
+            assertThat(
+                    stopAndCleanupClusterFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(CLUSTER_ID));
+        }
 
-		@Override
-		protected void validateDeregisterApplication() throws Exception {
-			assertThat(stopAndCleanupClusterFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(CLUSTER_ID));
-		}
+        @Override
+        protected void validateRequestedResources(
+                Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
+            assertThat(taskExecutorProcessSpecs.size(), is(1));
 
-		@Override
-		protected void validateRequestedResources(Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
-			assertThat(taskExecutorProcessSpecs.size(), is(1));
+            final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                    taskExecutorProcessSpecs.iterator().next();
+            final KubernetesPod pod = createTaskManagerPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+            final ResourceRequirements resourceRequirements =
+                    pod.getInternalResource().getSpec().getContainers().get(0).getResources();
 
-			final TaskExecutorProcessSpec taskExecutorProcessSpec = taskExecutorProcessSpecs.iterator().next();
-			final KubernetesPod pod = createTaskManagerPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			final ResourceRequirements resourceRequirements = pod.getInternalResource().getSpec().getContainers().get(0).getResources();
+            assertThat(
+                    resourceRequirements
+                            .getRequests()
+                            .get(Constants.RESOURCE_NAME_MEMORY)
+                            .getAmount(),
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getTotalProcessMemorySize()
+                                            .getMebiBytes())));
+            assertThat(
+                    resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
+                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
 
-			assertThat(resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_MEMORY).getAmount(),
-					is(String.valueOf(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes())));
-			assertThat(resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-					is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+            assertThat(
+                    resourceRequirements
+                            .getLimits()
+                            .get(Constants.RESOURCE_NAME_MEMORY)
+                            .getAmount(),
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getTotalProcessMemorySize()
+                                            .getMebiBytes())));
+            assertThat(
+                    resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_CPU).getAmount(),
+                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+        }
 
-			assertThat(resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount(),
-					is(String.valueOf(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes())));
-			assertThat(resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-					is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
-		}
+        @Override
+        protected void validateReleaseResources(Collection<KubernetesWorkerNode> workerNodes)
+                throws Exception {
+            assertThat(workerNodes.size(), is(1));
 
-		@Override
-		protected void validateReleaseResources(Collection<KubernetesWorkerNode> workerNodes) throws Exception {
-			assertThat(workerNodes.size(), is(1));
+            final ResourceID resourceId = workerNodes.iterator().next().getResourceID();
+            assertThat(stopPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(resourceId.toString()));
+        }
 
-			final ResourceID resourceId = workerNodes.iterator().next().getResourceID();
-			assertThat(stopPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(resourceId.toString()));
-		}
+        void testOnPodTerminated(Consumer<List<KubernetesPod>> sendPodTerminatedEvent)
+                throws Exception {
+            final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
+                    new CompletableFuture<>();
+            final CompletableFuture<ResourceID> onWorkerTerminatedConsumer =
+                    new CompletableFuture<>();
 
-		void testOnPodTerminated(Consumer<List<KubernetesPod>> sendPodTerminatedEvent) throws Exception {
-			final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = new CompletableFuture<>();
-			final CompletableFuture<ResourceID> onWorkerTerminatedConsumer = new CompletableFuture<>();
+            resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(
+                    (resourceId, ignore) -> onWorkerTerminatedConsumer.complete(resourceId));
 
-			resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer((resourceId, ignore) -> onWorkerTerminatedConsumer.complete(resourceId));
+            runTest(
+                    () -> {
+                        // request new pod and send onAdded event
+                        runInMainThread(
+                                () ->
+                                        getDriver()
+                                                .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
+                                                .thenAccept(requestResourceFuture::complete));
+                        final KubernetesPod pod =
+                                createTaskManagerPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-			runTest(() -> {
-				// request new pod and send onAdded event
-				runInMainThread(() -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC).thenAccept(requestResourceFuture::complete));
-				final KubernetesPod pod = createTaskManagerPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                        // prepare validation
+                        // - pod removed
+                        // - onTerminated is called in main thread with correct resource id
+                        final CompletableFuture<Void> validationFuture =
+                                CompletableFuture.allOf(
+                                        stopPodFuture.thenAccept(
+                                                (podname) ->
+                                                        assertThat(podname, is(pod.getName()))),
+                                        onWorkerTerminatedConsumer.thenAccept(
+                                                (resourceId) -> {
+                                                    validateInMainThread();
+                                                    assertThat(
+                                                            resourceId.toString(),
+                                                            is(pod.getName()));
+                                                }));
 
-				// prepare validation
-				// - pod removed
-				// - onTerminated is called in main thread with correct resource id
-				final CompletableFuture<Void> validationFuture = CompletableFuture.allOf(
-						stopPodFuture.thenAccept((podname) -> assertThat(podname, is(pod.getName()))),
-						onWorkerTerminatedConsumer.thenAccept((resourceId) -> {
-							validateInMainThread();
-							assertThat(resourceId.toString(), is(pod.getName()));
-						}));
+                        sendPodTerminatedEvent.accept(
+                                Collections.singletonList(
+                                        new TestingKubernetesPod(pod.getName(), true, true)));
 
-				sendPodTerminatedEvent.accept(Collections.singletonList(new TestingKubernetesPod(pod.getName(), true)));
-
-				// make sure finishing validation
-				validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			});
-		}
-	}
+                        // make sure finishing validation
+                        validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                    });
+        }
+    }
 }

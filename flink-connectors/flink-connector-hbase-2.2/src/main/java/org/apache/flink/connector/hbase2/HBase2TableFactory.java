@@ -50,8 +50,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
+import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_VERSION_VALUE_223;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
@@ -60,6 +62,7 @@ import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_ZK_QUOR
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -70,136 +73,154 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_DATA_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
-/**
- * Factory for creating configured instances of {@link HBaseTableSource} or sink.
- */
+/** Factory for creating configured instances of {@link HBaseTableSource} or sink. */
 @Internal
-public class HBase2TableFactory implements StreamTableSourceFactory<Row>, StreamTableSinkFactory<Tuple2<Boolean, Row>> {
+public class HBase2TableFactory
+        implements StreamTableSourceFactory<Row>, StreamTableSinkFactory<Tuple2<Boolean, Row>> {
 
-	@Override
-	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-		Configuration hbaseClientConf = getHConf(descriptorProperties);
+    @Override
+    public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
-		String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
-		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(
-			descriptorProperties.getTableSchema(SCHEMA));
-		HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
-		return new HBaseTableSource(hbaseClientConf, hTableName, hbaseSchema, null);
-	}
+        String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
+        TableSchema tableSchema =
+                TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
+        HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
+        return new HBaseTableSource(hbaseClientConf, hTableName, hbaseSchema, null);
+    }
 
-	@Override
-	public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    @Override
+    public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(
+            Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(
-			descriptorProperties.getTableSchema(SCHEMA));
-		HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
+        TableSchema tableSchema =
+                TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
+        HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
 
-		HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
-		descriptorProperties
-			.getOptionalInt(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS)
-			.ifPresent(writeBuilder::setBufferFlushMaxRows);
-		descriptorProperties
-			.getOptionalMemorySize(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE)
-			.ifPresent(v -> writeBuilder.setBufferFlushMaxSizeInBytes(v.getBytes()));
-		descriptorProperties
-			.getOptionalDuration(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL)
-			.ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
-		return new HBaseUpsertTableSink(
-			descriptorProperties.getString(CONNECTOR_TABLE_NAME),
-			hbaseSchema,
-			getHConf(descriptorProperties),
-			writeBuilder.build()
-		);
-	}
+        HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
+        descriptorProperties
+                .getOptionalInt(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS)
+                .ifPresent(writeBuilder::setBufferFlushMaxRows);
+        descriptorProperties
+                .getOptionalMemorySize(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE)
+                .ifPresent(v -> writeBuilder.setBufferFlushMaxSizeInBytes(v.getBytes()));
+        descriptorProperties
+                .getOptionalDuration(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL)
+                .ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
 
-	private HBaseTableSchema validateTableSchema(TableSchema schema) {
-		HBaseTableSchema hbaseSchema = new HBaseTableSchema();
-		String[] fieldNames = schema.getFieldNames();
-		TypeInformation[] fieldTypes = schema.getFieldTypes();
-		for (int i = 0; i < fieldNames.length; i++) {
-			String name = fieldNames[i];
-			TypeInformation<?> type = fieldTypes[i];
-			if (type instanceof RowTypeInfo) {
-				RowTypeInfo familyType = (RowTypeInfo) type;
-				String[] qualifierNames = familyType.getFieldNames();
-				TypeInformation[] qualifierTypes = familyType.getFieldTypes();
-				for (int j = 0; j < familyType.getArity(); j++) {
-					// HBase connector doesn't support LocalDateTime
-					// use Timestamp as conversion class for now.
-					Class clazz = qualifierTypes[j].getTypeClass();
-					if (LocalDateTime.class.equals(clazz)) {
-						clazz = Timestamp.class;
-					} else if (LocalDate.class.equals(clazz)) {
-						clazz = Date.class;
-					} else if (LocalTime.class.equals(clazz)) {
-						clazz = Time.class;
-					}
-					hbaseSchema.addColumn(name, qualifierNames[j], clazz);
-				}
-			} else {
-				hbaseSchema.setRowKey(name, type.getTypeClass());
-			}
-		}
-		return hbaseSchema;
-	}
+        return new HBaseUpsertTableSink(
+                descriptorProperties.getString(CONNECTOR_TABLE_NAME),
+                hbaseSchema,
+                hbaseClientConf,
+                writeBuilder.build());
+    }
 
-	private DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-		new HBaseValidator().validate(descriptorProperties);
-		return descriptorProperties;
-	}
+    private HBaseTableSchema validateTableSchema(TableSchema schema) {
+        HBaseTableSchema hbaseSchema = new HBaseTableSchema();
+        String[] fieldNames = schema.getFieldNames();
+        TypeInformation[] fieldTypes = schema.getFieldTypes();
+        for (int i = 0; i < fieldNames.length; i++) {
+            String name = fieldNames[i];
+            TypeInformation<?> type = fieldTypes[i];
+            if (type instanceof RowTypeInfo) {
+                RowTypeInfo familyType = (RowTypeInfo) type;
+                String[] qualifierNames = familyType.getFieldNames();
+                TypeInformation[] qualifierTypes = familyType.getFieldTypes();
+                for (int j = 0; j < familyType.getArity(); j++) {
+                    // HBase connector doesn't support LocalDateTime
+                    // use Timestamp as conversion class for now.
+                    Class clazz = qualifierTypes[j].getTypeClass();
+                    if (LocalDateTime.class.equals(clazz)) {
+                        clazz = Timestamp.class;
+                    } else if (LocalDate.class.equals(clazz)) {
+                        clazz = Date.class;
+                    } else if (LocalTime.class.equals(clazz)) {
+                        clazz = Time.class;
+                    }
+                    hbaseSchema.addColumn(name, qualifierNames[j], clazz);
+                }
+            } else {
+                hbaseSchema.setRowKey(name, type.getTypeClass());
+            }
+        }
+        return hbaseSchema;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_HBASE); // hbase
-		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
-		return context;
-	}
+    private DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+        descriptorProperties.putProperties(properties);
+        new HBaseValidator().validate(descriptorProperties);
+        return descriptorProperties;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_HBASE); // hbase
+        context.put(CONNECTOR_VERSION, hbaseVersion()); // version
+        context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
+        return context;
+    }
 
-		properties.add(CONNECTOR_VERSION);
-		properties.add(CONNECTOR_TABLE_NAME);
-		properties.add(CONNECTOR_ZK_QUORUM);
-		properties.add(CONNECTOR_ZK_NODE_PARENT);
-		properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE);
-		properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS);
-		properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL);
+    @Override
+    public List<String> supportedProperties() {
+        List<String> properties = new ArrayList<>();
 
-		// schema
-		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
-		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
-		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
-		// computed column
-		properties.add(SCHEMA + ".#." + EXPR);
+        properties.add(CONNECTOR_VERSION);
+        properties.add(CONNECTOR_TABLE_NAME);
+        properties.add(CONNECTOR_ZK_QUORUM);
+        properties.add(CONNECTOR_ZK_NODE_PARENT);
+        properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE);
+        properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS);
+        properties.add(CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL);
 
-		// watermark
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+        // schema
+        properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
+        properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+        properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+        // computed column
+        properties.add(SCHEMA + ".#." + EXPR);
 
-		// table constraint
-		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
-		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        // watermark
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
 
-		return properties;
-	}
+        // table constraint
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
-	private Configuration getHConf(DescriptorProperties descriptorProperties)  {
-		Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
-		descriptorProperties.getOptionalString(CONNECTOR_ZK_QUORUM)
-			.ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
+        // comment
+        properties.add(COMMENT);
 
-		descriptorProperties
-			.getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-			.ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-		return hbaseClientConf;
-	}
+        // HBase properties
+        properties.add(CONNECTOR_PROPERTIES + ".*");
+
+        return properties;
+    }
+
+    private String hbaseVersion() {
+        return CONNECTOR_VERSION_VALUE_223;
+    }
+
+    private static Configuration getHBaseConf(DescriptorProperties descriptorProperties) {
+        Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_QUORUM)
+                .ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
+
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
+                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+
+        // add HBase properties
+        descriptorProperties
+                .getPropertiesWithPrefix(CONNECTOR_PROPERTIES)
+                .forEach(hbaseClientConf::set);
+        return hbaseClientConf;
+    }
 }

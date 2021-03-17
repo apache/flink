@@ -25,8 +25,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Logical type of a date consisting of {@code year-month-day} with values ranging from {@code 0000-01-01}
- * to {@code 9999-12-31}. Compared to the SQL standard, the range starts at year {@code 0000}.
+ * Logical type of a date consisting of {@code year-month-day} with values ranging from {@code
+ * 0000-01-01} to {@code 9999-12-31}. Compared to the SQL standard, the range starts at year {@code
+ * 0000}.
  *
  * <p>The serialized string representation is {@code DATE}.
  *
@@ -35,64 +36,66 @@ import java.util.Set;
 @PublicEvolving
 public final class DateType extends LogicalType {
 
-	private static final String FORMAT = "DATE";
+    private static final String FORMAT = "DATE";
 
-	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		java.sql.Date.class.getName(),
-		java.time.LocalDate.class.getName(),
-		Integer.class.getName());
+    private static final Set<String> NULL_OUTPUT_CONVERSION =
+            conversionSet(
+                    java.sql.Date.class.getName(),
+                    java.time.LocalDate.class.getName(),
+                    Integer.class.getName());
 
-	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
-		java.sql.Date.class.getName(),
-		java.time.LocalDate.class.getName(),
-		Integer.class.getName(),
-		int.class.getName());
+    private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION =
+            conversionSet(
+                    java.sql.Date.class.getName(),
+                    java.time.LocalDate.class.getName(),
+                    Integer.class.getName(),
+                    int.class.getName());
 
-	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDate.class;
+    private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDate.class;
 
-	public DateType(boolean isNullable) {
-		super(isNullable, LogicalTypeRoot.DATE);
-	}
+    public DateType(boolean isNullable) {
+        super(isNullable, LogicalTypeRoot.DATE);
+    }
 
-	public DateType() {
-		this(true);
-	}
+    public DateType() {
+        this(true);
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new DateType(isNullable);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new DateType(isNullable);
+    }
 
-	@Override
-	public String asSerializableString() {
-		return withNullability(FORMAT);
-	}
+    @Override
+    public String asSerializableString() {
+        return withNullability(FORMAT);
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		if (isNullable()) {
-			return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
-		}
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        if (isNullable()) {
+            return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
+        }
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return DEFAULT_CONVERSION;
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return DEFAULT_CONVERSION;
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

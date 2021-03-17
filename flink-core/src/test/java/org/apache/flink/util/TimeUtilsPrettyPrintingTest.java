@@ -27,53 +27,29 @@ import java.time.Duration;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link TimeUtils#formatWithHighestUnit(Duration)}.
- */
+/** Tests for {@link TimeUtils#formatWithHighestUnit(Duration)}. */
 @RunWith(Parameterized.class)
 public class TimeUtilsPrettyPrintingTest extends TestLogger {
-	@Parameterized.Parameters
-	public static Object[][] parameters() {
-		return new Object[][]{
-			new Object[]{
-				Duration.ofMinutes(3).plusSeconds(30),
-				"210 s"
-			},
-			new Object[]{
-				Duration.ofNanos(100),
-				"100 ns"
-			},
-			new Object[]{
-				Duration.ofSeconds(120),
-				"2 min"
-			},
-			new Object[]{
-				Duration.ofMillis(200),
-				"200 ms"
-			},
-			new Object[]{
-				Duration.ofHours(1).plusSeconds(3),
-				"3603 s"
-			},
-			new Object[]{
-				Duration.ofSeconds(0),
-				"0 ms"
-			},
-			new Object[]{
-				Duration.ofMillis(60000),
-				"1 min"
-			}
-		};
-	}
+    @Parameterized.Parameters
+    public static Object[][] parameters() {
+        return new Object[][] {
+            new Object[] {Duration.ofMinutes(3).plusSeconds(30), "210 s"},
+            new Object[] {Duration.ofNanos(100), "100 ns"},
+            new Object[] {Duration.ofSeconds(120), "2 min"},
+            new Object[] {Duration.ofMillis(200), "200 ms"},
+            new Object[] {Duration.ofHours(1).plusSeconds(3), "3603 s"},
+            new Object[] {Duration.ofSeconds(0), "0 ms"},
+            new Object[] {Duration.ofMillis(60000), "1 min"}
+        };
+    }
 
-	@Parameterized.Parameter
-	public Duration duration;
+    @Parameterized.Parameter public Duration duration;
 
-	@Parameterized.Parameter(1)
-	public String expectedString;
+    @Parameterized.Parameter(1)
+    public String expectedString;
 
-	@Test
-	public void testFormatting() {
-		assertThat(TimeUtils.formatWithHighestUnit(duration), is(expectedString));
-	}
+    @Test
+    public void testFormatting() {
+        assertThat(TimeUtils.formatWithHighestUnit(duration), is(expectedString));
+    }
 }

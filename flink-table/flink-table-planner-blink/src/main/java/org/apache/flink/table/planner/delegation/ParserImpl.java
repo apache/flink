@@ -43,55 +43,65 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/**
- * Implementation of {@link Parser} that uses Calcite.
- */
+/** Implementation of {@link Parser} that uses Calcite. */
 public class ParserImpl implements Parser {
 
-	private final CatalogManager catalogManager;
+    private final CatalogManager catalogManager;
 
-	// we use supplier pattern here in order to use the most up to
-	// date configuration. Users might change the parser configuration in a TableConfig in between
-	// multiple statements parsing
-	private final Supplier<FlinkPlannerImpl> validatorSupplier;
-	private final Supplier<CalciteParser> calciteParserSupplier;
-	private final Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator;
+    // we use supplier pattern here in order to use the most up to
+    // date configuration. Users might change the parser configuration in a TableConfig in between
+    // multiple statements parsing
+    private final Supplier<FlinkPlannerImpl> validatorSupplier;
+    private final Supplier<CalciteParser> calciteParserSupplier;
+    private final Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator;
 
-	public ParserImpl(
-			CatalogManager catalogManager,
-			Supplier<FlinkPlannerImpl> validatorSupplier,
-			Supplier<CalciteParser> calciteParserSupplier,
-			Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator) {
-		this.catalogManager = catalogManager;
-		this.validatorSupplier = validatorSupplier;
-		this.calciteParserSupplier = calciteParserSupplier;
-		this.sqlExprToRexConverterCreator = sqlExprToRexConverterCreator;
-	}
+    public ParserImpl(
+            CatalogManager catalogManager,
+            Supplier<FlinkPlannerImpl> validatorSupplier,
+            Supplier<CalciteParser> calciteParserSupplier,
+            Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator) {
+        this.catalogManager = catalogManager;
+        this.validatorSupplier = validatorSupplier;
+        this.calciteParserSupplier = calciteParserSupplier;
+        this.sqlExprToRexConverterCreator = sqlExprToRexConverterCreator;
+    }
 
-	@Override
-	public List<Operation> parse(String statement) {
-		CalciteParser parser = calciteParserSupplier.get();
-		FlinkPlannerImpl planner = validatorSupplier.get();
-		// parse the sql query
-		SqlNode parsed = parser.parse(statement);
+    @Override
+    public List<Operation> parse(String statement) {
+        CalciteParser parser = calciteParserSupplier.get();
+        FlinkPlannerImpl planner = validatorSupplier.get();
+        // parse the sql query
+        SqlNode parsed = parser.parse(statement);
 
-		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, parsed)
-			.orElseThrow(() -> new TableException("Unsupported query: " + statement));
-		return Collections.singletonList(operation);
-	}
+        Operation operation =
+                SqlToOperationConverter.convert(planner, catalogManager, parsed)
+                        .orElseThrow(() -> new TableException("Unsupported query: " + statement));
+        return Collections.singletonList(operation);
+    }
 
-	@Override
-	public UnresolvedIdentifier parseIdentifier(String identifier) {
-		CalciteParser parser = calciteParserSupplier.get();
-		SqlIdentifier sqlIdentifier = parser.parseIdentifier(identifier);
-		return UnresolvedIdentifier.of(sqlIdentifier.names);
-	}
+    @Override
+    public UnresolvedIdentifier parseIdentifier(String identifier) {
+        CalciteParser parser = calciteParserSupplier.get();
+        SqlIdentifier sqlIdentifier = parser.parseIdentifier(identifier);
+        return UnresolvedIdentifier.of(sqlIdentifier.names);
+    }
 
-	@Override
-	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-		SqlExprToRexConverter sqlExprToRexConverter = sqlExprToRexConverterCreator.apply(inputSchema);
-		RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
-		LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
-		return new RexNodeExpression(rexNode, TypeConversions.fromLogicalToDataType(logicalType));
-	}
+    @Override
+    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+        final SqlExprToRexConverter sqlExprToRexConverter =
+                sqlExprToRexConverterCreator.apply(inputSchema);
+        final RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
+        final LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
+        // expand expression for serializable expression strings similar to views
+        final String sqlExpressionExpanded = sqlExprToRexConverter.expand(sqlExpression);
+        return new RexNodeExpression(
+                rexNode,
+                TypeConversions.fromLogicalToDataType(logicalType),
+                sqlExpression,
+                sqlExpressionExpanded);
+    }
+
+    public CatalogManager getCatalogManager() {
+        return catalogManager;
+    }
 }

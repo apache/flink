@@ -27,51 +27,49 @@ import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link TableConfig}.
- */
+/** Tests for {@link TableConfig}. */
 public class TableConfigTest {
-	private static TableConfig configByMethod = new TableConfig();
-	private static TableConfig configByConfiguration = new TableConfig();
-	private static Configuration configuration = new Configuration();
+    private static TableConfig configByMethod = new TableConfig();
+    private static TableConfig configByConfiguration = new TableConfig();
+    private static Configuration configuration = new Configuration();
 
-	@Test
-	public void testSetAndGetSqlDialect() {
-		configuration.setString("table.sql-dialect", "HIVE");
-		configByConfiguration.addConfiguration(configuration);
-		configByMethod.setSqlDialect(SqlDialect.HIVE);
+    @Test
+    public void testSetAndGetSqlDialect() {
+        configuration.setString("table.sql-dialect", "HIVE");
+        configByConfiguration.addConfiguration(configuration);
+        configByMethod.setSqlDialect(SqlDialect.HIVE);
 
-		assertEquals(SqlDialect.HIVE, configByMethod.getSqlDialect());
-		assertEquals(SqlDialect.HIVE, configByConfiguration.getSqlDialect());
-	}
+        assertEquals(SqlDialect.HIVE, configByMethod.getSqlDialect());
+        assertEquals(SqlDialect.HIVE, configByConfiguration.getSqlDialect());
+    }
 
-	@Test
-	public void testSetAndGetMaxGeneratedCodeLength() {
-		configuration.setString("table.generated-code.max-length", "5000");
-		configByConfiguration.addConfiguration(configuration);
-		configByMethod.setMaxGeneratedCodeLength(5000);
+    @Test
+    public void testSetAndGetMaxGeneratedCodeLength() {
+        configuration.setString("table.generated-code.max-length", "5000");
+        configByConfiguration.addConfiguration(configuration);
+        configByMethod.setMaxGeneratedCodeLength(5000);
 
-		assertEquals(Integer.valueOf(5000), configByMethod.getMaxGeneratedCodeLength());
-		assertEquals(Integer.valueOf(5000), configByConfiguration.getMaxGeneratedCodeLength());
-	}
+        assertEquals(Integer.valueOf(5000), configByMethod.getMaxGeneratedCodeLength());
+        assertEquals(Integer.valueOf(5000), configByConfiguration.getMaxGeneratedCodeLength());
+    }
 
-	@Test
-	public void testSetAndGetLocalTimeZone() {
-		configuration.setString("table.local-time-zone", "Asia/Shanghai");
-		configByConfiguration.addConfiguration(configuration);
-		configByMethod.setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+    @Test
+    public void testSetAndGetLocalTimeZone() {
+        configuration.setString("table.local-time-zone", "Asia/Shanghai");
+        configByConfiguration.addConfiguration(configuration);
+        configByMethod.setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
 
-		assertEquals(ZoneId.of("Asia/Shanghai"), configByMethod.getLocalTimeZone());
-		assertEquals(ZoneId.of("Asia/Shanghai"), configByConfiguration.getLocalTimeZone());
-	}
+        assertEquals(ZoneId.of("Asia/Shanghai"), configByMethod.getLocalTimeZone());
+        assertEquals(ZoneId.of("Asia/Shanghai"), configByConfiguration.getLocalTimeZone());
+    }
 
-	@Test
-	public void testSetAndGetIdleStateRetention() {
-		configuration.setString("table.exec.state.ttl", "1 h");
-		configByConfiguration.addConfiguration(configuration);
-		configByMethod.setIdleStateRetention(Duration.ofHours(1));
+    @Test
+    public void testSetAndGetIdleStateRetention() {
+        configuration.setString("table.exec.state.ttl", "1 h");
+        configByConfiguration.addConfiguration(configuration);
+        configByMethod.setIdleStateRetention(Duration.ofHours(1));
 
-		assertEquals(Duration.ofHours(1), configByMethod.getIdleStateRetention());
-		assertEquals(Duration.ofHours(1), configByConfiguration.getIdleStateRetention());
-	}
+        assertEquals(Duration.ofHours(1), configByMethod.getIdleStateRetention());
+        assertEquals(Duration.ofHours(1), configByConfiguration.getIdleStateRetention());
+    }
 }

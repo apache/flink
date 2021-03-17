@@ -24,81 +24,83 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link FSDataOutputStream} that is used to
- * implement a safety net against unclosed streams.
+ * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link FSDataOutputStream} that
+ * is used to implement a safety net against unclosed streams.
  *
  * <p>See {@link SafetyNetCloseableRegistry} for more details on how this is utilized.
  */
 @Internal
-public class ClosingFSDataOutputStream
-		extends FSDataOutputStreamWrapper
-		implements WrappingProxyCloseable<FSDataOutputStream> {
+public class ClosingFSDataOutputStream extends FSDataOutputStreamWrapper
+        implements WrappingProxyCloseable<FSDataOutputStream> {
 
-	private final SafetyNetCloseableRegistry registry;
-	private final String debugString;
+    private final SafetyNetCloseableRegistry registry;
+    private final String debugString;
 
-	private volatile boolean closed;
+    private volatile boolean closed;
 
-	public ClosingFSDataOutputStream(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
-		this(delegate, registry, "");
-	}
+    public ClosingFSDataOutputStream(
+            FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
+        this(delegate, registry, "");
+    }
 
-	private ClosingFSDataOutputStream(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugString) throws IOException {
-		super(delegate);
-		this.registry = Preconditions.checkNotNull(registry);
-		this.debugString = Preconditions.checkNotNull(debugString);
-		this.closed = false;
-	}
+    private ClosingFSDataOutputStream(
+            FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugString)
+            throws IOException {
+        super(delegate);
+        this.registry = Preconditions.checkNotNull(registry);
+        this.debugString = Preconditions.checkNotNull(debugString);
+        this.closed = false;
+    }
 
-	public boolean isClosed() {
-		return closed;
-	}
+    public boolean isClosed() {
+        return closed;
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (!closed) {
-			closed = true;
-			registry.unregisterCloseable(this);
-			outputStream.close();
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (!closed) {
+            closed = true;
+            registry.unregisterCloseable(this);
+            outputStream.close();
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return outputStream.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return outputStream.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
 
-		if (this == obj) {
-			return true;
-		}
+        if (this == obj) {
+            return true;
+        }
 
-		if (obj instanceof ClosingFSDataOutputStream) {
-			return outputStream.equals(((ClosingFSDataOutputStream) obj).outputStream);
-		}
+        if (obj instanceof ClosingFSDataOutputStream) {
+            return outputStream.equals(((ClosingFSDataOutputStream) obj).outputStream);
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	@Override
-	public String toString() {
-		return "ClosingFSDataOutputStream(" + outputStream.toString() + ") : " + debugString;
-	}
+    @Override
+    public String toString() {
+        return "ClosingFSDataOutputStream(" + outputStream.toString() + ") : " + debugString;
+    }
 
-	public static ClosingFSDataOutputStream wrapSafe(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
-		return wrapSafe(delegate, registry, "");
-	}
+    public static ClosingFSDataOutputStream wrapSafe(
+            FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
+        return wrapSafe(delegate, registry, "");
+    }
 
-	public static ClosingFSDataOutputStream wrapSafe(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException {
+    public static ClosingFSDataOutputStream wrapSafe(
+            FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo)
+            throws IOException {
 
-		ClosingFSDataOutputStream inputStream = new ClosingFSDataOutputStream(delegate, registry, debugInfo);
-		registry.registerCloseable(inputStream);
-		return inputStream;
-	}
+        ClosingFSDataOutputStream inputStream =
+                new ClosingFSDataOutputStream(delegate, registry, debugInfo);
+        registry.registerCloseable(inputStream);
+        return inputStream;
+    }
 }

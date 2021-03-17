@@ -26,74 +26,76 @@ import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * Testing implementation of {@link ResourceEventHandler}.
- */
-public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievable> implements ResourceEventHandler<WorkerType> {
+/** Testing implementation of {@link ResourceEventHandler}. */
+public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievable>
+        implements ResourceEventHandler<WorkerType> {
 
-	private final Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer;
-	private final BiConsumer<ResourceID, String> onWorkerTerminatedConsumer;
-	private final Consumer<Throwable> onErrorConsumer;
+    private final Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer;
+    private final BiConsumer<ResourceID, String> onWorkerTerminatedConsumer;
+    private final Consumer<Throwable> onErrorConsumer;
 
-	private TestingResourceEventHandler(
-			Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer,
-			BiConsumer<ResourceID, String> onWorkerTerminatedConsumer,
-			Consumer<Throwable> onErrorConsumer) {
-		this.onPreviousAttemptWorkersRecoveredConsumer = onPreviousAttemptWorkersRecoveredConsumer;
-		this.onWorkerTerminatedConsumer = onWorkerTerminatedConsumer;
-		this.onErrorConsumer = onErrorConsumer;
-	}
+    private TestingResourceEventHandler(
+            Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer,
+            BiConsumer<ResourceID, String> onWorkerTerminatedConsumer,
+            Consumer<Throwable> onErrorConsumer) {
+        this.onPreviousAttemptWorkersRecoveredConsumer = onPreviousAttemptWorkersRecoveredConsumer;
+        this.onWorkerTerminatedConsumer = onWorkerTerminatedConsumer;
+        this.onErrorConsumer = onErrorConsumer;
+    }
 
-	@Override
-	public void onPreviousAttemptWorkersRecovered(Collection<WorkerType> recoveredWorkers) {
-		onPreviousAttemptWorkersRecoveredConsumer.accept(recoveredWorkers);
-	}
+    @Override
+    public void onPreviousAttemptWorkersRecovered(Collection<WorkerType> recoveredWorkers) {
+        onPreviousAttemptWorkersRecoveredConsumer.accept(recoveredWorkers);
+    }
 
-	@Override
-	public void onWorkerTerminated(ResourceID resourceId, String diagnostics) {
-		onWorkerTerminatedConsumer.accept(resourceId, diagnostics);
-	}
+    @Override
+    public void onWorkerTerminated(ResourceID resourceId, String diagnostics) {
+        onWorkerTerminatedConsumer.accept(resourceId, diagnostics);
+    }
 
-	@Override
-	public void onError(Throwable exception) {
-		onErrorConsumer.accept(exception);
-	}
+    @Override
+    public void onError(Throwable exception) {
+        onErrorConsumer.accept(exception);
+    }
 
-	public static <WorkerType extends ResourceIDRetrievable> Builder<WorkerType> builder() {
-		return new Builder<>();
-	}
+    public static <WorkerType extends ResourceIDRetrievable> Builder<WorkerType> builder() {
+        return new Builder<>();
+    }
 
-	/**
-	 * Builder class for {@link TestingResourceEventHandler}.
-	 */
-	public static class Builder<WorkerType extends ResourceIDRetrievable> {
-		private Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer = (ignore) -> {};
-		private BiConsumer<ResourceID, String> onWorkerTerminatedConsumer = (ignore1, ignore2) -> {};
-		private Consumer<Throwable> onErrorConsumer = (ignore) -> {};
+    /** Builder class for {@link TestingResourceEventHandler}. */
+    public static class Builder<WorkerType extends ResourceIDRetrievable> {
+        private Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer =
+                (ignore) -> {};
+        private BiConsumer<ResourceID, String> onWorkerTerminatedConsumer =
+                (ignore1, ignore2) -> {};
+        private Consumer<Throwable> onErrorConsumer = (ignore) -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder<WorkerType> setOnPreviousAttemptWorkersRecoveredConsumer(
-				Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer) {
-			this.onPreviousAttemptWorkersRecoveredConsumer = Preconditions.checkNotNull(onPreviousAttemptWorkersRecoveredConsumer);
-			return this;
-		}
+        public Builder<WorkerType> setOnPreviousAttemptWorkersRecoveredConsumer(
+                Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer) {
+            this.onPreviousAttemptWorkersRecoveredConsumer =
+                    Preconditions.checkNotNull(onPreviousAttemptWorkersRecoveredConsumer);
+            return this;
+        }
 
-		public Builder<WorkerType> setOnWorkerTerminatedConsumer(BiConsumer<ResourceID, String> onWorkerTerminatedConsumer) {
-			this.onWorkerTerminatedConsumer = Preconditions.checkNotNull(onWorkerTerminatedConsumer);
-			return this;
-		}
+        public Builder<WorkerType> setOnWorkerTerminatedConsumer(
+                BiConsumer<ResourceID, String> onWorkerTerminatedConsumer) {
+            this.onWorkerTerminatedConsumer =
+                    Preconditions.checkNotNull(onWorkerTerminatedConsumer);
+            return this;
+        }
 
-		public Builder<WorkerType> setOnErrorConsumer(Consumer<Throwable> onErrorConsumer) {
-			this.onErrorConsumer = Preconditions.checkNotNull(onErrorConsumer);
-			return this;
-		}
+        public Builder<WorkerType> setOnErrorConsumer(Consumer<Throwable> onErrorConsumer) {
+            this.onErrorConsumer = Preconditions.checkNotNull(onErrorConsumer);
+            return this;
+        }
 
-		public TestingResourceEventHandler<WorkerType> build() {
-			return new TestingResourceEventHandler<>(
-					onPreviousAttemptWorkersRecoveredConsumer,
-					onWorkerTerminatedConsumer,
-					onErrorConsumer);
-		}
-	}
+        public TestingResourceEventHandler<WorkerType> build() {
+            return new TestingResourceEventHandler<>(
+                    onPreviousAttemptWorkersRecoveredConsumer,
+                    onWorkerTerminatedConsumer,
+                    onErrorConsumer);
+        }
+    }
 }

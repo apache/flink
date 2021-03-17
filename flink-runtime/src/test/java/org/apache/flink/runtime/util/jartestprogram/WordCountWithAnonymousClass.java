@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,37 +26,40 @@ import org.apache.flink.util.Collector;
 
 public class WordCountWithAnonymousClass {
 
-	public static void main(String[] args) throws Exception {
-		// set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        // set up the execution environment
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// get input data
-		DataSet<String> text = StaticData.getDefaultTextLineDataSet(env);
+        // get input data
+        DataSet<String> text = StaticData.getDefaultTextLineDataSet(env);
 
-		DataSet<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			text.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
-				@Override
-				public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
-					// normalize and split the line
-					String[] tokens = value.toLowerCase().split("\\W+");
+        DataSet<Tuple2<String, Integer>> counts =
+                // split up the lines in pairs (2-tuples) containing: (word,1)
+                text.flatMap(
+                                new FlatMapFunction<String, Tuple2<String, Integer>>() {
+                                    @Override
+                                    public void flatMap(
+                                            String value, Collector<Tuple2<String, Integer>> out)
+                                            throws Exception {
+                                        // normalize and split the line
+                                        String[] tokens = value.toLowerCase().split("\\W+");
 
-					// emit the pairs
-					for (String token : tokens) {
-						if (token.length() > 0) {
-							out.collect(new Tuple2<String, Integer>(token, 1));
-						}
-					}
-				}
-			})
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
+                                        // emit the pairs
+                                        for (String token : tokens) {
+                                            if (token.length() > 0) {
+                                                out.collect(new Tuple2<String, Integer>(token, 1));
+                                            }
+                                        }
+                                    }
+                                })
+                        // group by the tuple field "0" and sum up tuple field "1"
+                        .groupBy(0)
+                        .sum(1);
 
-		// emit result
-		counts.print();
+        // emit result
+        counts.print();
 
-		// execute program
-		env.execute("WordCount Example");
-	}
+        // execute program
+        env.execute("WordCount Example");
+    }
 }

@@ -35,91 +35,92 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A mapping between Flink's catalog and Calcite's schema. This enables to look up and access objects(tables, views,
- * functions, types) in SQL queries without registering them in advance. Databases are registered as sub-schemas
- * in the schema.
+ * A mapping between Flink's catalog and Calcite's schema. This enables to look up and access
+ * objects(tables, views, functions, types) in SQL queries without registering them in advance.
+ * Databases are registered as sub-schemas in the schema.
  */
 @Internal
 public class CatalogCalciteSchema implements Schema {
 
-	private final boolean isStreamingMode;
-	private final String catalogName;
-	private final CatalogManager catalogManager;
-	private final TableConfig tableConfig;
+    private final boolean isStreamingMode;
+    private final String catalogName;
+    private final CatalogManager catalogManager;
+    private final TableConfig tableConfig;
 
-	public CatalogCalciteSchema(
-			boolean isStreamingMode,
-			String catalogName,
-			CatalogManager catalogManager,
-			TableConfig tableConfig) {
-		this.isStreamingMode = isStreamingMode;
-		this.catalogName = catalogName;
-		this.catalogManager = catalogManager;
-		this.tableConfig = tableConfig;
-	}
+    public CatalogCalciteSchema(
+            boolean isStreamingMode,
+            String catalogName,
+            CatalogManager catalogManager,
+            TableConfig tableConfig) {
+        this.isStreamingMode = isStreamingMode;
+        this.catalogName = catalogName;
+        this.catalogManager = catalogManager;
+        this.tableConfig = tableConfig;
+    }
 
-	/**
-	 * Look up a sub-schema (database) by the given sub-schema name.
-	 *
-	 * @param schemaName name of sub-schema to look up
-	 * @return the sub-schema with a given database name, or null
-	 */
-	@Override
-	public Schema getSubSchema(String schemaName) {
-		if (catalogManager.schemaExists(catalogName, schemaName)) {
-			return new DatabaseCalciteSchema(isStreamingMode, schemaName, catalogName, catalogManager, tableConfig);
-		} else {
-			return null;
-		}
-	}
+    /**
+     * Look up a sub-schema (database) by the given sub-schema name.
+     *
+     * @param schemaName name of sub-schema to look up
+     * @return the sub-schema with a given database name, or null
+     */
+    @Override
+    public Schema getSubSchema(String schemaName) {
+        if (catalogManager.schemaExists(catalogName, schemaName)) {
+            return new DatabaseCalciteSchema(
+                    isStreamingMode, schemaName, catalogName, catalogManager, tableConfig);
+        } else {
+            return null;
+        }
+    }
 
-	@Override
-	public Set<String> getSubSchemaNames() {
-		return catalogManager.listSchemas(catalogName);
-	}
+    @Override
+    public Set<String> getSubSchemaNames() {
+        return catalogManager.listSchemas(catalogName);
+    }
 
-	@Override
-	public Table getTable(String name) {
-		return null;
-	}
+    @Override
+    public Table getTable(String name) {
+        return null;
+    }
 
-	@Override
-	public Set<String> getTableNames() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<String> getTableNames() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public RelProtoDataType getType(String name) {
-		return null;
-	}
+    @Override
+    public RelProtoDataType getType(String name) {
+        return null;
+    }
 
-	@Override
-	public Set<String> getTypeNames() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<String> getTypeNames() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Collection<Function> getFunctions(String s) {
-		return new HashSet<>();
-	}
+    @Override
+    public Collection<Function> getFunctions(String s) {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<String> getFunctionNames() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<String> getFunctionNames() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Expression getExpression(SchemaPlus parentSchema, String name) {
-		return  Schemas.subSchemaExpression(parentSchema, name, getClass());
-	}
+    @Override
+    public Expression getExpression(SchemaPlus parentSchema, String name) {
+        return Schemas.subSchemaExpression(parentSchema, name, getClass());
+    }
 
-	@Override
-	public boolean isMutable() {
-		return true;
-	}
+    @Override
+    public boolean isMutable() {
+        return true;
+    }
 
-	@Override
-	public Schema snapshot(SchemaVersion schemaVersion) {
-		return this;
-	}
+    @Override
+    public Schema snapshot(SchemaVersion schemaVersion) {
+        return this;
+    }
 }

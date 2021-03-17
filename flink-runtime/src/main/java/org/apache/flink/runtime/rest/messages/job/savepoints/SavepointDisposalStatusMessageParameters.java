@@ -28,19 +28,20 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@link MessageParameters} for the {@link SavepointDisposalHandlers.SavepointDisposalStatusHandler}.
+ * {@link MessageParameters} for the {@link
+ * SavepointDisposalHandlers.SavepointDisposalStatusHandler}.
  */
 public class SavepointDisposalStatusMessageParameters extends MessageParameters {
 
-	public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+    public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(triggerIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(triggerIdPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

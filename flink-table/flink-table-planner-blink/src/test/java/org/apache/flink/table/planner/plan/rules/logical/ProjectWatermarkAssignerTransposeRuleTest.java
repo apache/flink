@@ -32,134 +32,131 @@ import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Test for {@link ProjectWatermarkAssignerTransposeRule}.
- */
+/** Test for {@link ProjectWatermarkAssignerTransposeRule}. */
 public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
-	private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
-	@Before
-	public void setup() {
-		FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
+    @Before
+    public void setup() {
+        FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
 
-		program.addLast(
-				"ProjectWatermarkAssignerTransposeRule",
-				FlinkHepRuleSetProgramBuilder.<StreamOptimizeContext>newBuilder()
-						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-						.add(RuleSets.ofList(ProjectWatermarkAssignerTransposeRule.INSTANCE))
-						.build()
-		);
-		util.replaceStreamProgram(program);
+        program.addLast(
+                "ProjectWatermarkAssignerTransposeRule",
+                FlinkHepRuleSetProgramBuilder.<StreamOptimizeContext>newBuilder()
+                        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                        .add(RuleSets.ofList(ProjectWatermarkAssignerTransposeRule.INSTANCE))
+                        .build());
+        util.replaceStreamProgram(program);
 
-		String ddl1 =
-				"CREATE TABLE SimpleTable(\n" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c TIMESTAMP(3)," +
-						"  d ROW<d1 INT, d2 INT, d3 INT>,\n" +
-						"WATERMARK FOR c AS c" +
-						") WITH (" +
-						"  'connector' = 'values',\n" +
-						"  'bounded' = 'false'\n" +
-						")";
-		util.tableEnv().executeSql(ddl1);
+        String ddl1 =
+                "CREATE TABLE SimpleTable(\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),"
+                        + "  d ROW<d1 INT, d2 INT, d3 INT>,\n"
+                        + "WATERMARK FOR c AS c"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl1);
 
-		String ddl2 =
-				"CREATE TABLE VirtualTable(" +
-						"  a int,\n" +
-						"  b BIGINT,\n" +
-						"  c ROW<c1 TIMESTAMP(3)>,\n" +
-						"  d AS c.c1 + INTERVAL '5' SECOND,\n" +
-						"WATERMARK FOR d as d - INTERVAL '5' second" +
-						") WITH (" +
-						"  'connector' = 'values',\n" +
-						"  'bounded' = 'false'\n" +
-						")";
-		util.tableEnv().executeSql(ddl2);
+        String ddl2 =
+                "CREATE TABLE VirtualTable("
+                        + "  a int,\n"
+                        + "  b BIGINT,\n"
+                        + "  c ROW<c1 TIMESTAMP(3)>,\n"
+                        + "  d AS c.c1 + INTERVAL '5' SECOND,\n"
+                        + "WATERMARK FOR d as d - INTERVAL '5' second"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl2);
 
-		JavaFunc5.openCalled = false;
-		JavaFunc5.closeCalled = false;
-		util.addFunction("myFunc", new JavaFunc5());
-		String ddl3 =
-				"CREATE TABLE UdfTable(" +
-						"  a INT,\n" +
-						"  b TIMESTAMP(3),\n" +
-						"  c INT,\n" +
-						"  d STRING,\n" +
-						"  WATERMARK FOR b AS myFunc(b, c)" +
-						") WITH (" +
-						"  'connector' = 'values',\n" +
-						"  'bounded' = 'false'\n" +
-						")";
-		util.tableEnv().executeSql(ddl3);
+        JavaFunc5.openCalled = false;
+        JavaFunc5.closeCalled = false;
+        util.addTemporarySystemFunction("myFunc", new JavaFunc5());
+        String ddl3 =
+                "CREATE TABLE UdfTable("
+                        + "  a INT,\n"
+                        + "  b TIMESTAMP(3),\n"
+                        + "  c INT,\n"
+                        + "  d STRING,\n"
+                        + "  WATERMARK FOR b AS myFunc(b, c)"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl3);
 
-		String ddl4 =
-				"CREATE TABLE NestedTable(\n" +
-						"  a int,\n" +
-						"  b BIGINT,\n" +
-						"  c ROW<c1 TIMESTAMP(3), c2 INT>,\n" +
-						"  d AS c.c1 + INTERVAL '5' SECOND,\n" +
-						"WATERMARK FOR d as myFunc(d, c.c2)\n" +
-						") WITH (" +
-						"  'connector' = 'values',\n" +
-						"  'bounded' = 'false'\n" +
-						")";
-		util.tableEnv().executeSql(ddl4);
-	}
+        String ddl4 =
+                "CREATE TABLE NestedTable(\n"
+                        + "  a int,\n"
+                        + "  b BIGINT,\n"
+                        + "  c ROW<c1 TIMESTAMP(3), c2 INT>,\n"
+                        + "  d AS c.c1 + INTERVAL '5' SECOND,\n"
+                        + "WATERMARK FOR d as myFunc(d, c.c2)\n"
+                        + ") WITH ("
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'false'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl4);
+    }
 
-	@Test
-	public void simpleTranspose() {
-		util.verifyPlan("SELECT a, c FROM SimpleTable");
-	}
+    @Test
+    public void simpleTranspose() {
+        util.verifyRelPlan("SELECT a, c FROM SimpleTable");
+    }
 
-	@Test
-	public void transposeWithReorder() {
-		util.verifyPlan("SELECT b, a FROM SimpleTable");
-	}
+    @Test
+    public void transposeWithReorder() {
+        util.verifyRelPlan("SELECT b, a FROM SimpleTable");
+    }
 
-	@Test
-	public void transposeWithNestedField() {
-		util.verifyPlan("SELECT b, d.d1, d.d2 FROM SimpleTable");
-	}
+    @Test
+    public void transposeWithNestedField() {
+        util.verifyRelPlan("SELECT b, d.d1, d.d2 FROM SimpleTable");
+    }
 
-	@Test
-	public void complicatedTranspose() {
-		util.verifyPlan("SELECT d.d1, d.d2 + b FROM SimpleTable");
-	}
+    @Test
+    public void complicatedTranspose() {
+        util.verifyRelPlan("SELECT d.d1, d.d2 + b FROM SimpleTable");
+    }
 
-	@Test
-	public void transposeExcludeRowTime() {
-		util.verifyPlan("SELECT SECOND(c) FROM SimpleTable");
-	}
+    @Test
+    public void transposeExcludeRowTime() {
+        util.verifyRelPlan("SELECT SECOND(c) FROM SimpleTable");
+    }
 
-	@Test
-	public void transposeWithIncludeComputedRowTime() {
-		util.verifyPlan("SELECT a, b, d FROM VirtualTable");
-	}
+    @Test
+    public void transposeWithIncludeComputedRowTime() {
+        util.verifyRelPlan("SELECT a, b, d FROM VirtualTable");
+    }
 
-	@Test
-	public void transposeWithExcludeComputedRowTime() {
-		util.verifyPlan("SELECT a, b FROM VirtualTable");
-	}
+    @Test
+    public void transposeWithExcludeComputedRowTime() {
+        util.verifyRelPlan("SELECT a, b FROM VirtualTable");
+    }
 
-	@Test
-	public void transposeWithExcludeComputedRowTime2() {
-		util.verifyPlan("SELECT a, b, SECOND(d) FROM VirtualTable");
-	}
+    @Test
+    public void transposeWithExcludeComputedRowTime2() {
+        util.verifyRelPlan("SELECT a, b, SECOND(d) FROM VirtualTable");
+    }
 
-	@Test
-	public void transposeWithExcludeComputedRowTime3() {
-		util.verifyPlan("SELECT a, SECOND(d) FROM NestedTable");
-	}
+    @Test
+    public void transposeWithExcludeComputedRowTime3() {
+        util.verifyRelPlan("SELECT a, SECOND(d) FROM NestedTable");
+    }
 
-	@Test
-	public void transposeWithDuplicateColumns() {
-		util.verifyPlan("SELECT a, b, b as e FROM VirtualTable");
-	}
+    @Test
+    public void transposeWithDuplicateColumns() {
+        util.verifyRelPlan("SELECT a, b, b as e FROM VirtualTable");
+    }
 
-	@Test
-	public void transposeWithWatermarkWithMultipleInput() {
-		util.verifyPlan("SELECT a FROM UdfTable");
-	}
+    @Test
+    public void transposeWithWatermarkWithMultipleInput() {
+        util.verifyRelPlan("SELECT a FROM UdfTable");
+    }
 }

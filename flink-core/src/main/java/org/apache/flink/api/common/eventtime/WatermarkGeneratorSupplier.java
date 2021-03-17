@@ -34,27 +34,25 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface WatermarkGeneratorSupplier<T> extends Serializable {
 
-	/**
-	 * Instantiates a {@link WatermarkGenerator}.
-	 */
-	WatermarkGenerator<T> createWatermarkGenerator(Context context);
+    /** Instantiates a {@link WatermarkGenerator}. */
+    WatermarkGenerator<T> createWatermarkGenerator(Context context);
 
-	/**
-	 * Additional information available to {@link #createWatermarkGenerator(Context)}. This can be
-	 * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
-	 */
-	interface Context {
+    /**
+     * Additional information available to {@link #createWatermarkGenerator(Context)}. This can be
+     * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
+     */
+    interface Context {
 
-		/**
-		 * Returns the metric group for the context in which the created {@link WatermarkGenerator}
-		 * is used.
-		 *
-		 * <p>Instances of this class can be used to register new metrics with Flink and to create
-		 * a nested hierarchy based on the group names. See {@link MetricGroup} for more information
-		 * for the metrics system.
-		 *
-		 * @see MetricGroup
-		 */
-		MetricGroup getMetricGroup();
-	}
+        /**
+         * Returns the metric group for the context in which the created {@link WatermarkGenerator}
+         * is used.
+         *
+         * <p>Instances of this class can be used to register new metrics with Flink and to create a
+         * nested hierarchy based on the group names. See {@link MetricGroup} for more information
+         * for the metrics system.
+         *
+         * @see MetricGroup
+         */
+        MetricGroup getMetricGroup();
+    }
 }

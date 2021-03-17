@@ -39,91 +39,90 @@ import java.io.IOException;
 @Internal
 public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
+    private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
 
-	/**
-	 * The current number of elements to be included in an arrow batch.
-	 */
-	private transient int currentBatchCount;
+    /** The current number of elements to be included in an arrow batch. */
+    private transient int currentBatchCount;
 
-	/**
-	 * Max number of elements to include in an arrow batch.
-	 */
-	private final int maxArrowBatchSize;
+    /** Max number of elements to include in an arrow batch. */
+    private final int maxArrowBatchSize;
 
-	private transient ArrowSerializer<Row> arrowSerializer;
+    private transient ArrowSerializer<Row> arrowSerializer;
 
-	public ArrowPythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-		maxArrowBatchSize = getPythonConfig().getMaxArrowBatchSize();
-	}
+    public ArrowPythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        maxArrowBatchSize = getPythonConfig().getMaxArrowBatchSize();
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		arrowSerializer = new RowArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
-		arrowSerializer.open(bais, baos);
-		currentBatchCount = 0;
-	}
+        arrowSerializer =
+                new RowArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
+        arrowSerializer.open(bais, baos);
+        currentBatchCount = 0;
+    }
 
-	@Override
-	public void close() throws Exception {
-		invokeCurrentBatch();
-		try {
-			super.close();
-		} finally {
-			arrowSerializer.close();
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        invokeCurrentBatch();
+        try {
+            super.close();
+        } finally {
+            arrowSerializer.close();
+        }
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
-		byte[] udfResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(udfResult, 0, length);
-		int rowCount = arrowSerializer.load();
-		for (int i = 0; i < rowCount; i++) {
-			resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.read(i)));
-		}
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
+        byte[] udfResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(udfResult, 0, length);
+        int rowCount = arrowSerializer.load();
+        for (int i = 0; i < rowCount; i++) {
+            resultCollector.collect(Row.join(forwardedInputQueue.poll(), arrowSerializer.read(i)));
+        }
+        arrowSerializer.resetReader();
+    }
 
-	@Override
-	public String getInputOutputCoderUrn() {
-		return SCHEMA_ARROW_CODER_URN;
-	}
+    @Override
+    public String getInputOutputCoderUrn() {
+        return SCHEMA_ARROW_CODER_URN;
+    }
 
-	@Override
-	public void processElementInternal(Row value) throws Exception {
-		arrowSerializer.write(getFunctionInput(value));
-		currentBatchCount++;
-		if (currentBatchCount >= maxArrowBatchSize) {
-			invokeCurrentBatch();
-		}
-	}
+    @Override
+    public void processElementInternal(Row value) throws Exception {
+        arrowSerializer.write(getFunctionInput(value));
+        currentBatchCount++;
+        if (currentBatchCount >= maxArrowBatchSize) {
+            invokeCurrentBatch();
+        }
+    }
 
-	@Override
-	protected void invokeFinishBundle() throws Exception {
-		invokeCurrentBatch();
-		super.invokeFinishBundle();
-	}
+    @Override
+    protected void invokeFinishBundle() throws Exception {
+        invokeCurrentBatch();
+        super.invokeFinishBundle();
+    }
 
-	private void invokeCurrentBatch() throws Exception {
-		if (currentBatchCount > 0) {
-			arrowSerializer.finishCurrentBatch();
-			currentBatchCount = 0;
-			pythonFunctionRunner.process(baos.toByteArray());
-			checkInvokeFinishBundleByCount();
-			baos.reset();
-		}
-	}
+    private void invokeCurrentBatch() throws Exception {
+        if (currentBatchCount > 0) {
+            arrowSerializer.finishCurrentBatch();
+            currentBatchCount = 0;
+            pythonFunctionRunner.process(baos.toByteArray());
+            checkInvokeFinishBundleByCount();
+            baos.reset();
+            arrowSerializer.resetWriter();
+        }
+    }
 }

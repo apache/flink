@@ -29,159 +29,164 @@ import java.io.Serializable;
 import java.time.LocalDate;
 
 /**
- * This class can not extend {@link BasicTypeComparator}, because LocalDate is a
- * Comparable of ChronoLocalDate instead of Comparable of LocalDate.
+ * This class can not extend {@link BasicTypeComparator}, because LocalDate is a Comparable of
+ * ChronoLocalDate instead of Comparable of LocalDate.
  */
 @Internal
 public final class LocalDateComparator extends TypeComparator<LocalDate> implements Serializable {
 
-	private transient LocalDate reference;
+    private transient LocalDate reference;
 
-	protected final boolean ascendingComparison;
+    protected final boolean ascendingComparison;
 
-	// For use by getComparators
-	@SuppressWarnings("rawtypes")
-	private final LocalDateComparator[] comparators = new LocalDateComparator[] {this};
+    // For use by getComparators
+    @SuppressWarnings("rawtypes")
+    private final LocalDateComparator[] comparators = new LocalDateComparator[] {this};
 
-	public LocalDateComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
-	}
+    public LocalDateComparator(boolean ascending) {
+        this.ascendingComparison = ascending;
+    }
 
-	@Override
-	public int hash(LocalDate value) {
-		return value.hashCode();
-	}
+    @Override
+    public int hash(LocalDate value) {
+        return value.hashCode();
+    }
 
-	@Override
-	public void setReference(LocalDate toCompare) {
-		this.reference = toCompare;
-	}
+    @Override
+    public void setReference(LocalDate toCompare) {
+        this.reference = toCompare;
+    }
 
-	@Override
-	public boolean equalToReference(LocalDate candidate) {
-		return candidate.equals(reference);
-	}
+    @Override
+    public boolean equalToReference(LocalDate candidate) {
+        return candidate.equals(reference);
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<LocalDate> referencedComparator) {
-		int comp = ((LocalDateComparator) referencedComparator).reference.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compareToReference(TypeComparator<LocalDate> referencedComparator) {
+        int comp = ((LocalDateComparator) referencedComparator).reference.compareTo(reference);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public int compare(LocalDate first, LocalDate second) {
-		int cmp = first.compareTo(second);
-		return ascendingComparison ? cmp : -cmp;
-	}
+    @Override
+    public int compare(LocalDate first, LocalDate second) {
+        int cmp = first.compareTo(second);
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return !ascendingComparison;
+    }
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(LocalDate record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(LocalDate record, DataOutputView target)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
 
-	@SuppressWarnings("rawtypes")
-	@Override
-	public TypeComparator[] getFlatComparators() {
-		return comparators;
-	}
+    @SuppressWarnings("rawtypes")
+    @Override
+    public TypeComparator[] getFlatComparators() {
+        return comparators;
+    }
 
-	@Override
-	public LocalDate readWithKeyDenormalization(LocalDate reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public LocalDate readWithKeyDenormalization(LocalDate reuse, DataInputView source)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		return compareSerializedLocalDate(firstSource, secondSource, ascendingComparison);
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        return compareSerializedLocalDate(firstSource, secondSource, ascendingComparison);
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 6;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 6;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(LocalDate record, MemorySegment target, int offset, int numBytes) {
-		putNormalizedKeyLocalDate(record, target, offset, numBytes);
-	}
+    @Override
+    public void putNormalizedKey(LocalDate record, MemorySegment target, int offset, int numBytes) {
+        putNormalizedKeyLocalDate(record, target, offset, numBytes);
+    }
 
-	@Override
-	public LocalDateComparator duplicate() {
-		return new LocalDateComparator(ascendingComparison);
-	}
+    @Override
+    public LocalDateComparator duplicate() {
+        return new LocalDateComparator(ascendingComparison);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//                           Static Helpers for Date Comparison
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //                           Static Helpers for Date Comparison
+    // --------------------------------------------------------------------------------------------
 
-	public static int compareSerializedLocalDate(DataInputView firstSource, DataInputView secondSource,
-			boolean ascendingComparison) throws IOException {
-		int cmp = firstSource.readInt() - secondSource.readInt();
-		if (cmp == 0) {
-			cmp = firstSource.readByte() - secondSource.readByte();
-			if (cmp == 0) {
-				cmp = firstSource.readByte() - secondSource.readByte();
-			}
-		}
-		return ascendingComparison ? cmp : -cmp;
-	}
+    public static int compareSerializedLocalDate(
+            DataInputView firstSource, DataInputView secondSource, boolean ascendingComparison)
+            throws IOException {
+        int cmp = firstSource.readInt() - secondSource.readInt();
+        if (cmp == 0) {
+            cmp = firstSource.readByte() - secondSource.readByte();
+            if (cmp == 0) {
+                cmp = firstSource.readByte() - secondSource.readByte();
+            }
+        }
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	public static void putNormalizedKeyLocalDate(LocalDate record, MemorySegment target, int offset, int numBytes) {
-		int year = record.getYear();
-		int unsignedYear = year - Integer.MIN_VALUE;
-		if (numBytes >= 4) {
-			target.putIntBigEndian(offset, unsignedYear);
-			numBytes -= 4;
-			offset += 4;
-		} else if (numBytes > 0) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (unsignedYear >>> ((3 - i) << 3)));
-			}
-			return;
-		}
+    public static void putNormalizedKeyLocalDate(
+            LocalDate record, MemorySegment target, int offset, int numBytes) {
+        int year = record.getYear();
+        int unsignedYear = year - Integer.MIN_VALUE;
+        if (numBytes >= 4) {
+            target.putIntBigEndian(offset, unsignedYear);
+            numBytes -= 4;
+            offset += 4;
+        } else if (numBytes > 0) {
+            for (int i = 0; numBytes > 0; numBytes--, i++) {
+                target.put(offset + i, (byte) (unsignedYear >>> ((3 - i) << 3)));
+            }
+            return;
+        }
 
-		int month = record.getMonthValue();
-		if (numBytes > 0) {
-			target.put(offset, (byte) (month & 0xff - Byte.MIN_VALUE));
-			numBytes -= 1;
-			offset += 1;
-		}
+        int month = record.getMonthValue();
+        if (numBytes > 0) {
+            target.put(offset, (byte) (month & 0xff - Byte.MIN_VALUE));
+            numBytes -= 1;
+            offset += 1;
+        }
 
-		int day = record.getDayOfMonth();
-		if (numBytes > 0) {
-			target.put(offset, (byte) (day & 0xff - Byte.MIN_VALUE));
-			numBytes -= 1;
-			offset += 1;
-		}
+        int day = record.getDayOfMonth();
+        if (numBytes > 0) {
+            target.put(offset, (byte) (day & 0xff - Byte.MIN_VALUE));
+            numBytes -= 1;
+            offset += 1;
+        }
 
-		for (int i = 0; i < numBytes; i++) {
-			target.put(offset + i, (byte) 0);
-		}
-	}
+        for (int i = 0; i < numBytes; i++) {
+            target.put(offset + i, (byte) 0);
+        }
+    }
 }

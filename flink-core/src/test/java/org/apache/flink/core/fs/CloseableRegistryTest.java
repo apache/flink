@@ -24,34 +24,32 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Tests for the {@link CloseableRegistry}.
- */
+/** Tests for the {@link CloseableRegistry}. */
 public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeable, Object> {
 
-	@Override
-	protected void registerCloseable(final Closeable closeable) throws IOException {
-		closeableRegistry.registerCloseable(closeable);
-	}
+    @Override
+    protected void registerCloseable(final Closeable closeable) throws IOException {
+        closeableRegistry.registerCloseable(closeable);
+    }
 
-	@Override
-	protected AbstractCloseableRegistry<Closeable, Object> createRegistry() {
+    @Override
+    protected AbstractCloseableRegistry<Closeable, Object> createRegistry() {
 
-		return new CloseableRegistry();
-	}
+        return new CloseableRegistry();
+    }
 
-	@Override
-	protected ProducerThread<Closeable, Object> createProducerThread(
-		AbstractCloseableRegistry<Closeable, Object> registry,
-		AtomicInteger unclosedCounter,
-		int maxStreams) {
+    @Override
+    protected ProducerThread<Closeable, Object> createProducerThread(
+            AbstractCloseableRegistry<Closeable, Object> registry,
+            AtomicInteger unclosedCounter,
+            int maxStreams) {
 
-		return new ProducerThread<Closeable, Object>(registry, unclosedCounter, maxStreams) {
-			@Override
-			protected void createAndRegisterStream() throws IOException {
-				TestStream testStream = new TestStream(unclosedCounter);
-				registry.registerCloseable(testStream);
-			}
-		};
-	}
+        return new ProducerThread<Closeable, Object>(registry, unclosedCounter, maxStreams) {
+            @Override
+            protected void createAndRegisterStream() throws IOException {
+                TestStream testStream = new TestStream(unclosedCounter);
+                registry.registerCloseable(testStream);
+            }
+        };
+    }
 }

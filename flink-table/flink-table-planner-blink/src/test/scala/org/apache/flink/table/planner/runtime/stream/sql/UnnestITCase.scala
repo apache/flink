@@ -26,15 +26,19 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
 class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {

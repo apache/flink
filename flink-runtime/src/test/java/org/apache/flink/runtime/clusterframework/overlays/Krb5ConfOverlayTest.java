@@ -34,51 +34,52 @@ import static org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay
 import static org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay.TARGET_PATH;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Krb5ConfOverlay}.
- */
+/** Tests for {@link Krb5ConfOverlay}. */
 public class Krb5ConfOverlayTest extends ContainerOverlayTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigure() throws Exception {
+    @Test
+    public void testConfigure() throws Exception {
 
-		File krb5conf = tempFolder.newFile();
+        File krb5conf = tempFolder.newFile();
 
-		Krb5ConfOverlay overlay = new Krb5ConfOverlay(krb5conf);
+        Krb5ConfOverlay overlay = new Krb5ConfOverlay(krb5conf);
 
-		ContainerSpecification spec = new ContainerSpecification();
-		overlay.configure(spec);
+        ContainerSpecification spec = new ContainerSpecification();
+        overlay.configure(spec);
 
-		assertEquals(TARGET_PATH.getPath(), spec.getSystemProperties().getString(JAVA_SECURITY_KRB5_CONF, null));
-		checkArtifact(spec, TARGET_PATH);
-	}
+        assertEquals(
+                TARGET_PATH.getPath(),
+                spec.getSystemProperties().getString(JAVA_SECURITY_KRB5_CONF, null));
+        checkArtifact(spec, TARGET_PATH);
+    }
 
-	@Test
-	public void testNoConf() throws Exception {
-		Krb5ConfOverlay overlay = new Krb5ConfOverlay((Path) null);
+    @Test
+    public void testNoConf() throws Exception {
+        Krb5ConfOverlay overlay = new Krb5ConfOverlay((Path) null);
 
-		ContainerSpecification containerSpecification = new ContainerSpecification();
-		overlay.configure(containerSpecification);
-	}
+        ContainerSpecification containerSpecification = new ContainerSpecification();
+        overlay.configure(containerSpecification);
+    }
 
-	@Test
-	public void testBuildOverlayFromConf() throws IOException {
-		final File krb5conf = tempFolder.newFile();
-		final Configuration configuration = new Configuration();
-		configuration.set(SecurityOptions.KERBEROS_KRB5_PATH, krb5conf.getPath());
-		final Krb5ConfOverlay overlay = Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build();
-		assertEquals(overlay.krb5Conf.getPath(), krb5conf.getPath());
-	}
+    @Test
+    public void testBuildOverlayFromConf() throws IOException {
+        final File krb5conf = tempFolder.newFile();
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.KERBEROS_KRB5_PATH, krb5conf.getPath());
+        final Krb5ConfOverlay overlay =
+                Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build();
+        assertEquals(overlay.krb5Conf.getPath(), krb5conf.getPath());
+    }
 
-	@Test
-	public void testBuildOverlayFromEnv() throws IOException {
-		final File krb5conf = tempFolder.newFile();
-		final Configuration configuration = new Configuration();
-		System.setProperty(JAVA_SECURITY_KRB5_CONF, krb5conf.getPath());
-		final Krb5ConfOverlay overlay = Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build();
-		assertEquals(overlay.krb5Conf.getPath(), krb5conf.getPath());
-	}
+    @Test
+    public void testBuildOverlayFromEnv() throws IOException {
+        final File krb5conf = tempFolder.newFile();
+        final Configuration configuration = new Configuration();
+        System.setProperty(JAVA_SECURITY_KRB5_CONF, krb5conf.getPath());
+        final Krb5ConfOverlay overlay =
+                Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build();
+        assertEquals(overlay.krb5Conf.getPath(), krb5conf.getPath());
+    }
 }

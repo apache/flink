@@ -27,24 +27,25 @@ import java.net.URL;
 /**
  * A generic Mesos artifact server, designed specifically for use by the Mesos Fetcher.
  *
- * <p>More information:
- * http://mesos.apache.org/documentation/latest/fetcher/
+ * <p>More information: http://mesos.apache.org/documentation/latest/fetcher/
  * http://mesos.apache.org/documentation/latest/fetcher-cache-internals/
  */
 public interface MesosArtifactServer extends MesosArtifactResolver {
 
-	/**
-	 * Adds a path to the artifact server.
-	 * @param path the qualified FS path to serve (local, hdfs, etc).
-	 * @param remoteFile the remote path with which to locate the file.
-	 * @return the fully-qualified remote path to the file.
-	 * @throws MalformedURLException if the remote path is invalid.
-	 */
-	URL addPath(Path path, Path remoteFile) throws IOException;
+    /**
+     * Adds a path to the artifact server.
+     *
+     * @param path the qualified FS path to serve (local, hdfs, etc).
+     * @param remoteFile the remote path with which to locate the file.
+     * @return the fully-qualified remote path to the file.
+     * @throws MalformedURLException if the remote path is invalid.
+     */
+    URL addPath(Path path, Path remoteFile) throws IOException;
 
-	/**
-	 * Stops the artifact server.
-	 * @throws Exception
-	 */
-	void stop() throws Exception;
+    /**
+     * Stops the artifact server.
+     *
+     * @throws Exception
+     */
+    void stop() throws Exception;
 }

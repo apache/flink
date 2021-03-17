@@ -20,23 +20,21 @@ package org.apache.flink.yarn;
 
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 
-/**
- * Default implementation of {@link YarnNodeManagerClientFactory}.
- */
+/** Default implementation of {@link YarnNodeManagerClientFactory}. */
 public class DefaultYarnNodeManagerClientFactory implements YarnNodeManagerClientFactory {
 
-	private static final YarnNodeManagerClientFactory INSTANCE = new DefaultYarnNodeManagerClientFactory();
+    private static final YarnNodeManagerClientFactory INSTANCE =
+            new DefaultYarnNodeManagerClientFactory();
 
-	private DefaultYarnNodeManagerClientFactory() {
-	}
+    private DefaultYarnNodeManagerClientFactory() {}
 
-	public static YarnNodeManagerClientFactory getInstance() {
-		return INSTANCE;
-	}
+    public static YarnNodeManagerClientFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler) {
-		// create the client to communicate with the node managers
-		return NMClientAsync.createNMClientAsync(callbackHandler);
-	}
+    @Override
+    public NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler) {
+        // create the client to communicate with the node managers
+        return NMClientAsync.createNMClientAsync(callbackHandler);
+    }
 }

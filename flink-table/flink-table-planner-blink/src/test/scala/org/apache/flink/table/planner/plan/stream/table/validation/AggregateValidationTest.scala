@@ -82,7 +82,7 @@ class AggregateValidationTest extends TableTestBase {
       // must fail. Cannot use TableFunction in select after aggregate
       .select("func('abc')")
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test(expected = classOf[ValidationException])

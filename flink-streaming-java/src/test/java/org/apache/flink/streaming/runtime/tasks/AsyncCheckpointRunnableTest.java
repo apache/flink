@@ -38,75 +38,150 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for {@link AsyncCheckpointRunnable}.
- */
+import static org.junit.Assert.assertEquals;
+
+/** Tests for {@link AsyncCheckpointRunnable}. */
 public class AsyncCheckpointRunnableTest {
 
-	@Test
-	public void testAsyncCheckpointException() {
-		final Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
-		snapshotsInProgress.put(
-				new OperatorID(),
-				new OperatorSnapshotFutures(
-						ExceptionallyDoneFuture.of(new RuntimeException("Async Checkpoint Exception")),
-						DoneFuture.of(SnapshotResult.empty()),
-						DoneFuture.of(SnapshotResult.empty()),
-						DoneFuture.of(SnapshotResult.empty()),
-						DoneFuture.of(SnapshotResult.empty()),
-						DoneFuture.of(SnapshotResult.empty())));
+    @Test
+    public void testReportIncompleteStats() {
+        long checkpointId = 1000L;
+        TestEnvironment env = new TestEnvironment();
+        new AsyncCheckpointRunnable(
+                        new HashMap<>(),
+                        new CheckpointMetaData(checkpointId, 1),
+                        new CheckpointMetricsBuilder(),
+                        0,
+                        "Task Name",
+                        r -> {},
+                        r -> {},
+                        env,
+                        (msg, ex) -> {},
+                        () -> true)
+                .close();
+        assertEquals(
+                checkpointId,
+                ((TestTaskStateManager) env.getTaskStateManager()).getReportedCheckpointId());
+    }
 
-		final TestEnvironment environment = new TestEnvironment();
-		final AsyncCheckpointRunnable runnable = new AsyncCheckpointRunnable(
-				snapshotsInProgress,
-				new CheckpointMetaData(1, 1L),
-				new CheckpointMetricsBuilder(),
-				1L,
-				"Task Name",
-				r -> {},
-				r -> {},
-				environment,
-				(msg, ex) -> {});
-		runnable.run();
+    @Test
+    public void testDeclineWithAsyncCheckpointExceptionWhenRunning() {
+        testAsyncCheckpointException(true);
+    }
 
-		Assert.assertTrue(environment.getCause() instanceof CheckpointException);
-		Assert.assertSame(((CheckpointException) environment.getCause())
-				.getCheckpointFailureReason(), CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
-	}
+    @Test
+    public void testDeclineWithAsyncCheckpointExceptionWhenNotRunning() {
+        testAsyncCheckpointException(false);
+    }
 
-	private static class TestEnvironment extends StreamMockEnvironment {
+    private void testAsyncCheckpointException(boolean isTaskRunning) {
+        final Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
+        snapshotsInProgress.put(
+                new OperatorID(),
+                new OperatorSnapshotFutures(
+                        ExceptionallyDoneFuture.of(
+                                new RuntimeException("Async Checkpoint Exception")),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty())));
 
-		Throwable cause = null;
+        final TestEnvironment environment = new TestEnvironment();
+        final AsyncCheckpointRunnable runnable =
+                createAsyncRunnable(snapshotsInProgress, environment, isTaskRunning);
+        runnable.run();
 
-		TestEnvironment() {
-			this(
-					new Configuration(),
-					new Configuration(),
-					new ExecutionConfig(),
-					1L,
-					new MockInputSplitProvider(),
-					1,
-					new TestTaskStateManager());
-		}
+        if (isTaskRunning) {
+            Assert.assertSame(
+                    environment.getCause().getCheckpointFailureReason(),
+                    CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+        } else {
+            Assert.assertNull(environment.getCause());
+        }
+    }
 
-		TestEnvironment(
-				Configuration jobConfig,
-				Configuration taskConfig,
-				ExecutionConfig executionConfig,
-				long memorySize,
-				MockInputSplitProvider inputSplitProvider,
-				int bufferSize,
-				TaskStateManager taskStateManager) {
-			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize, taskStateManager);
-		}
+    @Test
+    public void testDeclineAsyncCheckpoint() {
+        CheckpointFailureReason originalReason =
+                CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
 
-		@Override
-		public void declineCheckpoint(long checkpointId, Throwable cause) {
-			this.cause = cause;
-		}
+        final Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
+        snapshotsInProgress.put(
+                new OperatorID(),
+                new OperatorSnapshotFutures(
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
+                        ExceptionallyDoneFuture.of(new CheckpointException(originalReason)),
+                        DoneFuture.of(SnapshotResult.empty())));
 
-		Throwable getCause() {
-			return cause;
-		}
-	}
+        final TestEnvironment environment = new TestEnvironment();
+        final AsyncCheckpointRunnable runnable =
+                createAsyncRunnable(snapshotsInProgress, environment, true);
+        runnable.run();
+
+        Assert.assertSame(environment.getCause().getCheckpointFailureReason(), originalReason);
+    }
+
+    private AsyncCheckpointRunnable createAsyncRunnable(
+            Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress,
+            TestEnvironment environment,
+            boolean isTaskRunning) {
+        return new AsyncCheckpointRunnable(
+                snapshotsInProgress,
+                new CheckpointMetaData(1, 1L),
+                new CheckpointMetricsBuilder(),
+                1L,
+                "Task Name",
+                r -> {},
+                r -> {},
+                environment,
+                (msg, ex) -> {},
+                () -> isTaskRunning);
+    }
+
+    private static class TestEnvironment extends StreamMockEnvironment {
+
+        CheckpointException cause = null;
+
+        TestEnvironment() {
+            this(
+                    new Configuration(),
+                    new Configuration(),
+                    new ExecutionConfig(),
+                    1L,
+                    new MockInputSplitProvider(),
+                    1,
+                    new TestTaskStateManager());
+        }
+
+        TestEnvironment(
+                Configuration jobConfig,
+                Configuration taskConfig,
+                ExecutionConfig executionConfig,
+                long memorySize,
+                MockInputSplitProvider inputSplitProvider,
+                int bufferSize,
+                TaskStateManager taskStateManager) {
+            super(
+                    jobConfig,
+                    taskConfig,
+                    executionConfig,
+                    memorySize,
+                    inputSplitProvider,
+                    bufferSize,
+                    taskStateManager);
+        }
+
+        @Override
+        public void declineCheckpoint(long checkpointId, CheckpointException checkpointException) {
+            this.cause = checkpointException;
+        }
+
+        CheckpointException getCause() {
+            return cause;
+        }
+    }
 }

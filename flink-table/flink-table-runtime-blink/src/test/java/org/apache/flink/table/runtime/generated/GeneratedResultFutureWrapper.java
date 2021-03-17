@@ -24,28 +24,30 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
  * A wrapper for {@link GeneratedResultFuture} which wraps a class instead of generated code in it.
  * It is only used for easy testing.
  */
-public class GeneratedResultFutureWrapper<T extends ResultFuture<?>> extends GeneratedResultFuture<T> {
+public class GeneratedResultFutureWrapper<T extends ResultFuture<?>>
+        extends GeneratedResultFuture<T> {
 
-	private static final long serialVersionUID = 3964204655565783705L;
-	private final Class<T> clazz;
+    private static final long serialVersionUID = 3964204655565783705L;
+    private final Class<T> clazz;
 
-	public GeneratedResultFutureWrapper(T resultFuture) {
-		super(resultFuture.getClass().getSimpleName(), "N/A", new Object[0]);
-		//noinspection unchecked
-		this.clazz = (Class<T>) resultFuture.getClass();
-	}
+    public GeneratedResultFutureWrapper(T resultFuture) {
+        super(resultFuture.getClass().getSimpleName(), "N/A", new Object[0]);
+        //noinspection unchecked
+        this.clazz = (Class<T>) resultFuture.getClass();
+    }
 
-	@Override
-	public T newInstance(ClassLoader classLoader) {
-		try {
-			return clazz.newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException("Could not instantiate class " + clazz.getCanonicalName(), e);
-		}
-	}
+    @Override
+    public T newInstance(ClassLoader classLoader) {
+        try {
+            return clazz.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not instantiate class " + clazz.getCanonicalName(), e);
+        }
+    }
 
-	@Override
-	public Class<T> compile(ClassLoader classLoader) {
-		return clazz;
-	}
+    @Override
+    public Class<T> compile(ClassLoader classLoader) {
+        return clazz;
+    }
 }

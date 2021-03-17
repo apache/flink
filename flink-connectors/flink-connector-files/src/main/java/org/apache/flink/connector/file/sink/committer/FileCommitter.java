@@ -33,37 +33,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Committer implementation for {@link FileSink}.
  *
- * <p>This committer is responsible for taking staged part-files, i.e. part-files in "pending" state,
- * created by the {@link org.apache.flink.connector.file.sink.writer.FileWriter FileWriter} and commit
- * them, or put them in "finished" state and ready to be consumed by downstream applications or systems.
+ * <p>This committer is responsible for taking staged part-files, i.e. part-files in "pending"
+ * state, created by the {@link org.apache.flink.connector.file.sink.writer.FileWriter FileWriter}
+ * and commit them, or put them in "finished" state and ready to be consumed by downstream
+ * applications or systems.
  */
 @Internal
 public class FileCommitter implements Committer<FileSinkCommittable> {
 
-	private final BucketWriter<?, ?> bucketWriter;
+    private final BucketWriter<?, ?> bucketWriter;
 
-	public FileCommitter(BucketWriter<?, ?> bucketWriter) {
-		this.bucketWriter = checkNotNull(bucketWriter);
-	}
+    public FileCommitter(BucketWriter<?, ?> bucketWriter) {
+        this.bucketWriter = checkNotNull(bucketWriter);
+    }
 
-	@Override
-	public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables) throws IOException  {
-		for (FileSinkCommittable committable : committables) {
-			if (committable.hasPendingFile()) {
-				// We should always use commitAfterRecovery which contains additional checks.
-				bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
-			}
+    @Override
+    public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables)
+            throws IOException {
+        for (FileSinkCommittable committable : committables) {
+            if (committable.hasPendingFile()) {
+                // We should always use commitAfterRecovery which contains additional checks.
+                bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
+            }
 
-			if (committable.hasInProgressFileToCleanup()) {
-				bucketWriter.cleanupInProgressFileRecoverable(committable.getInProgressFileToCleanup());
-			}
-		}
+            if (committable.hasInProgressFileToCleanup()) {
+                bucketWriter.cleanupInProgressFileRecoverable(
+                        committable.getInProgressFileToCleanup());
+            }
+        }
 
-		return Collections.emptyList();
-	}
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void close() throws Exception {
-		// Do nothing.
-	}
+    @Override
+    public void close() throws Exception {
+        // Do nothing.
+    }
 }

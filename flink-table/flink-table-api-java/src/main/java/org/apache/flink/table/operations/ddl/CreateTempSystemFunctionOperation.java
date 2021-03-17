@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
+import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -26,54 +30,53 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a CREATE FUNCTION statement for temporary system function.
- */
+/** Operation to describe a CREATE FUNCTION statement for temporary system function. */
 public class CreateTempSystemFunctionOperation implements CreateOperation {
-	private final String functionName;
-	private String functionClass;
-	private boolean ignoreIfExists;
-	private FunctionLanguage functionLanguage;
+    private final String functionName;
+    private final boolean ignoreIfExists;
+    private final CatalogFunction catalogFunction;
 
-	public CreateTempSystemFunctionOperation(
-		String functionName,
-		String functionClass,
-		boolean ignoreIfExists,
-		FunctionLanguage functionLanguage) {
-		this.functionName = functionName;
-		this.functionClass = functionClass;
-		this.ignoreIfExists = ignoreIfExists;
-		this.functionLanguage = functionLanguage;
-	}
+    public CreateTempSystemFunctionOperation(
+            String functionName,
+            String functionClass,
+            boolean ignoreIfExists,
+            FunctionLanguage functionLanguage) {
+        this.functionName = functionName;
+        this.ignoreIfExists = ignoreIfExists;
+        this.catalogFunction = new CatalogFunctionImpl(functionClass, functionLanguage);
+    }
 
-	public String getFunctionName() {
-		return this.functionName;
-	}
+    public CreateTempSystemFunctionOperation(
+            String functionName, boolean ignoreIfExists, FunctionDefinition functionDefinition) {
+        this.functionName = functionName;
+        this.ignoreIfExists = ignoreIfExists;
+        this.catalogFunction = new FunctionCatalog.InlineCatalogFunction(functionDefinition);
+    }
 
-	public String getFunctionClass() {
-		return this.functionClass;
-	}
+    public String getFunctionName() {
+        return this.functionName;
+    }
 
-	public boolean isIgnoreIfExists() {
-		return this.ignoreIfExists;
-	}
+    public boolean isIgnoreIfExists() {
+        return this.ignoreIfExists;
+    }
 
-	public FunctionLanguage getFunctionLanguage() {
-		return this.functionLanguage;
-	}
+    public CatalogFunction getCatalogFunction() {
+        return catalogFunction;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("functionName", functionName);
-		params.put("functionClass", functionClass);
-		params.put("ignoreIfExists", ignoreIfExists);
-		params.put("functionLanguage", functionLanguage);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("functionName", functionName);
+        params.put("catalogFunction", getCatalogFunction());
+        params.put("ignoreIfExists", ignoreIfExists);
+        params.put("functionLanguage", getCatalogFunction().getFunctionLanguage());
 
-		return OperationUtils.formatWithChildren(
-			"CREATE TEMPORARY SYSTEM FUNCTION",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "CREATE TEMPORARY SYSTEM FUNCTION",
+                params,
+                Collections.emptyList(),
+                Operation::asSummaryString);
+    }
 }

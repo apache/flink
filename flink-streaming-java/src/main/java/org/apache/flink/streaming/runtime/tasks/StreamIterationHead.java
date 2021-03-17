@@ -41,87 +41,91 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
-	private RecordWriterOutput<OUT>[] streamOutputs;
+    private RecordWriterOutput<OUT>[] streamOutputs;
 
-	private final BlockingQueue<StreamRecord<OUT>> dataChannel;
-	private final String brokerID;
-	private final long iterationWaitTime;
-	private final boolean shouldWait;
+    private final BlockingQueue<StreamRecord<OUT>> dataChannel;
+    private final String brokerID;
+    private final long iterationWaitTime;
+    private final boolean shouldWait;
 
-	public StreamIterationHead(Environment env) throws Exception {
-		super(env);
-		final String iterationId = getConfiguration().getIterationId();
-		if (iterationId == null || iterationId.length() == 0) {
-			throw new FlinkRuntimeException("Missing iteration ID in the task configuration");
-		}
+    public StreamIterationHead(Environment env) throws Exception {
+        super(env);
+        final String iterationId = getConfiguration().getIterationId();
+        if (iterationId == null || iterationId.length() == 0) {
+            throw new FlinkRuntimeException("Missing iteration ID in the task configuration");
+        }
 
-		this.dataChannel = new ArrayBlockingQueue<>(1);
-		this.brokerID = createBrokerIdString(getEnvironment().getJobID(), iterationId,
-			getEnvironment().getTaskInfo().getIndexOfThisSubtask());
-		this.iterationWaitTime = getConfiguration().getIterationWaitTime();
-		this.shouldWait = iterationWaitTime > 0;
-	}
+        this.dataChannel = new ArrayBlockingQueue<>(1);
+        this.brokerID =
+                createBrokerIdString(
+                        getEnvironment().getJobID(),
+                        iterationId,
+                        getEnvironment().getTaskInfo().getIndexOfThisSubtask());
+        this.iterationWaitTime = getConfiguration().getIterationWaitTime();
+        this.shouldWait = iterationWaitTime > 0;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-		StreamRecord<OUT> nextRecord = shouldWait ?
-			dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
-			dataChannel.take();
+    @Override
+    protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+        StreamRecord<OUT> nextRecord =
+                shouldWait
+                        ? dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS)
+                        : dataChannel.take();
 
-		if (nextRecord != null) {
-			for (RecordWriterOutput<OUT> output : streamOutputs) {
-				output.collect(nextRecord);
-			}
-		} else {
-			controller.allActionsCompleted();
-		}
-	}
+        if (nextRecord != null) {
+            for (RecordWriterOutput<OUT> output : streamOutputs) {
+                output.collect(nextRecord);
+            }
+        } else {
+            controller.allActionsCompleted();
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void init() {
-		// offer the queue for the tail
-		BlockingQueueBroker.INSTANCE.handIn(brokerID, dataChannel);
-		LOG.info("Iteration head {} added feedback queue under {}", getName(), brokerID);
+    @SuppressWarnings("unchecked")
+    @Override
+    public void init() {
+        // offer the queue for the tail
+        BlockingQueueBroker.INSTANCE.handIn(brokerID, dataChannel);
+        LOG.info("Iteration head {} added feedback queue under {}", getName(), brokerID);
 
-		this.streamOutputs = (RecordWriterOutput<OUT>[]) getStreamOutputs();
+        this.streamOutputs = (RecordWriterOutput<OUT>[]) getStreamOutputs();
 
-		// If timestamps are enabled we make sure to remove cyclic watermark dependencies
-		if (isSerializingTimestamps()) {
-			for (RecordWriterOutput<OUT> output : streamOutputs) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
-		}
-	}
+        // If timestamps are enabled we make sure to remove cyclic watermark dependencies
+        if (isSerializingTimestamps()) {
+            for (RecordWriterOutput<OUT> output : streamOutputs) {
+                output.emitWatermark(new Watermark(Long.MAX_VALUE));
+            }
+        }
+    }
 
-	@Override
-	protected void cleanup() {
-		// make sure that we remove the queue from the broker, to prevent a resource leak
-		BlockingQueueBroker.INSTANCE.remove(brokerID);
-		LOG.info("Iteration head {} removed feedback queue under {}", getName(), brokerID);
-	}
+    @Override
+    protected void cleanup() {
+        // make sure that we remove the queue from the broker, to prevent a resource leak
+        BlockingQueueBroker.INSTANCE.remove(brokerID);
+        LOG.info("Iteration head {} removed feedback queue under {}", getName(), brokerID);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates the identification string with which head and tail task find the shared blocking
-	 * queue for the back channel. The identification string is unique per parallel head/tail pair
-	 * per iteration per job.
-	 *
-	 * @param jid The job ID.
-	 * @param iterationID The id of the iteration in the job.
-	 * @param subtaskIndex The parallel subtask number
-	 * @return The identification string.
-	 */
-	public static String createBrokerIdString(JobID jid, String iterationID, int subtaskIndex) {
-		return jid + "-" + iterationID + "-" + subtaskIndex;
-	}
+    /**
+     * Creates the identification string with which head and tail task find the shared blocking
+     * queue for the back channel. The identification string is unique per parallel head/tail pair
+     * per iteration per job.
+     *
+     * @param jid The job ID.
+     * @param iterationID The id of the iteration in the job.
+     * @param subtaskIndex The parallel subtask number
+     * @return The identification string.
+     */
+    public static String createBrokerIdString(JobID jid, String iterationID, int subtaskIndex) {
+        return jid + "-" + iterationID + "-" + subtaskIndex;
+    }
 }

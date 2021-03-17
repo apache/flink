@@ -30,71 +30,60 @@ import java.util.Map;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- *  Tests concerning type extraction of Parametrized Pojo and its superclasses.
- */
+/** Tests concerning type extraction of Parametrized Pojo and its superclasses. */
 public class PojoParametrizedTypeExtractionTest {
-	@Test
-	public void testDirectlyCreateTypeInfo() {
-		final TypeInformation<ParameterizedParentImpl> directTypeInfo =
-			TypeExtractor.createTypeInfo(ParameterizedParentImpl.class);
+    @Test
+    public void testDirectlyCreateTypeInfo() {
+        final TypeInformation<ParameterizedParentImpl> directTypeInfo =
+                TypeExtractor.createTypeInfo(ParameterizedParentImpl.class);
 
-		assertThat(directTypeInfo, equalTo(getParameterizedParentTypeInformation()));
-	}
+        assertThat(directTypeInfo, equalTo(getParameterizedParentTypeInformation()));
+    }
 
-	@Test
-	public void testMapReturnTypeInfo(){
-		TypeInformation<ParameterizedParentImpl> expectedTypeInfo = getParameterizedParentTypeInformation();
+    @Test
+    public void testMapReturnTypeInfo() {
+        TypeInformation<ParameterizedParentImpl> expectedTypeInfo =
+                getParameterizedParentTypeInformation();
 
-		TypeInformation<ParameterizedParentImpl> mapReturnTypeInfo = TypeExtractor
-			.getMapReturnTypes(new ConcreteMapFunction(), Types.INT);
+        TypeInformation<ParameterizedParentImpl> mapReturnTypeInfo =
+                TypeExtractor.getMapReturnTypes(new ConcreteMapFunction(), Types.INT);
 
-		assertThat(mapReturnTypeInfo, equalTo(expectedTypeInfo));
-	}
+        assertThat(mapReturnTypeInfo, equalTo(expectedTypeInfo));
+    }
 
-	private TypeInformation<ParameterizedParentImpl> getParameterizedParentTypeInformation() {
-		Map<String, TypeInformation<?>> nestedFields = new HashMap<>();
-		nestedFields.put("digits", Types.INT);
-		nestedFields.put("letters", Types.STRING);
+    private TypeInformation<ParameterizedParentImpl> getParameterizedParentTypeInformation() {
+        Map<String, TypeInformation<?>> nestedFields = new HashMap<>();
+        nestedFields.put("digits", Types.INT);
+        nestedFields.put("letters", Types.STRING);
 
-		Map<String, TypeInformation<?>> fields = new HashMap<>();
-		fields.put("precise", Types.DOUBLE);
-		fields.put("pojoField", Types.POJO(Pojo.class, nestedFields));
+        Map<String, TypeInformation<?>> fields = new HashMap<>();
+        fields.put("precise", Types.DOUBLE);
+        fields.put("pojoField", Types.POJO(Pojo.class, nestedFields));
 
-		return Types.POJO(
-			ParameterizedParentImpl.class,
-			fields
-		);
-	}
+        return Types.POJO(ParameterizedParentImpl.class, fields);
+    }
 
-	/**
-	 * Representation of Pojo class with 2 fields.
-	 */
-	public static class Pojo {
-		public int digits;
-		public String letters;
-	}
+    /** Representation of Pojo class with 2 fields. */
+    public static class Pojo {
+        public int digits;
+        public String letters;
+    }
 
-	/**
-	 * Representation of class which is parametrized by some pojo.
-	 */
-	public static class ParameterizedParent<T> {
-		public T pojoField;
-	}
+    /** Representation of class which is parametrized by some pojo. */
+    public static class ParameterizedParent<T> {
+        public T pojoField;
+    }
 
-	/**
-	 * Implementation of ParametrizedParent parametrized by Pojo.
-	 */
-	public static class ParameterizedParentImpl extends ParameterizedParent<Pojo> {
-		public double precise;
-	}
-	/**
-	 * Representation of map function for type extraction.
-	 */
-	public static class ConcreteMapFunction implements MapFunction<Integer, ParameterizedParentImpl> {
-		@Override
-		public ParameterizedParentImpl map(Integer value) throws Exception {
-			return null;
-		}
-	}
+    /** Implementation of ParametrizedParent parametrized by Pojo. */
+    public static class ParameterizedParentImpl extends ParameterizedParent<Pojo> {
+        public double precise;
+    }
+    /** Representation of map function for type extraction. */
+    public static class ConcreteMapFunction
+            implements MapFunction<Integer, ParameterizedParentImpl> {
+        @Override
+        public ParameterizedParentImpl map(Integer value) throws Exception {
+            return null;
+        }
+    }
 }

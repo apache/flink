@@ -33,33 +33,34 @@ import static org.apache.flink.connector.kafka.source.enumerator.subscriber.Kafk
 import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.maybeLog;
 import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.updatePartitionChanges;
 
-/**
- * A subscriber to a topic pattern.
- */
+/** A subscriber to a topic pattern. */
 class TopicPatternSubscriber implements KafkaSubscriber {
-	private static final long serialVersionUID = -7471048577725467797L;
-	private static final Logger LOG = LoggerFactory.getLogger(TopicPatternSubscriber.class);
-	private final Pattern topicPattern;
+    private static final long serialVersionUID = -7471048577725467797L;
+    private static final Logger LOG = LoggerFactory.getLogger(TopicPatternSubscriber.class);
+    private final Pattern topicPattern;
 
-	TopicPatternSubscriber(Pattern topicPattern) {
-		this.topicPattern = topicPattern;
-	}
+    TopicPatternSubscriber(Pattern topicPattern) {
+        this.topicPattern = topicPattern;
+    }
 
-	@Override
-	public PartitionChange getPartitionChanges(
-			AdminClient adminClient,
-			Set<TopicPartition> currentAssignment) {
-		Set<TopicPartition> newPartitions = new HashSet<>();
-		Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
+    @Override
+    public PartitionChange getPartitionChanges(
+            AdminClient adminClient, Set<TopicPartition> currentAssignment) {
+        Set<TopicPartition> newPartitions = new HashSet<>();
+        Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
 
-		Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient);
-		for (Map.Entry<String, TopicDescription> topicEntry : topicMetadata.entrySet()) {
-			String topic = topicEntry.getKey();
-			if (topicPattern.matcher(topic).matches()) {
-				updatePartitionChanges(topic, newPartitions, removedPartitions, topicEntry.getValue().partitions());
-			}
-		}
-		maybeLog(newPartitions, removedPartitions, LOG);
-		return new PartitionChange(newPartitions, removedPartitions);
-	}
+        Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient);
+        for (Map.Entry<String, TopicDescription> topicEntry : topicMetadata.entrySet()) {
+            String topic = topicEntry.getKey();
+            if (topicPattern.matcher(topic).matches()) {
+                updatePartitionChanges(
+                        topic,
+                        newPartitions,
+                        removedPartitions,
+                        topicEntry.getValue().partitions());
+            }
+        }
+        maybeLog(newPartitions, removedPartitions, LOG);
+        return new PartitionChange(newPartitions, removedPartitions);
+    }
 }

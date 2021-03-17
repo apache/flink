@@ -20,23 +20,22 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-/**
- * Factory for creating {@link LeaderRetrievalDriver} with different implementation.
- */
+/** Factory for creating {@link LeaderRetrievalDriver} with different implementation. */
 public interface LeaderRetrievalDriverFactory {
 
-	/**
-	 * Create a specific {@link LeaderRetrievalDriver} and start the necessary services. For example, NodeCache
-	 * in Zookeeper, ConfigMap watcher in Kubernetes. They could get the leader information change events and need to
-	 * notify the leader listener by {@link LeaderRetrievalEventHandler}.
-	 *
-	 * @param leaderEventHandler handler for the leader retrieval driver to notify leader change events.
-	 * @param fatalErrorHandler fatal error handler
-	 *
-	 * @throws Exception when create a specific {@link LeaderRetrievalDriver} implementation and start the necessary
-	 * services.
-	 */
-	LeaderRetrievalDriver createLeaderRetrievalDriver(
-		LeaderRetrievalEventHandler leaderEventHandler,
-		FatalErrorHandler fatalErrorHandler) throws Exception;
+    /**
+     * Create a specific {@link LeaderRetrievalDriver} and start the necessary services. For
+     * example, NodeCache in Zookeeper, ConfigMap watcher in Kubernetes. They could get the leader
+     * information change events and need to notify the leader listener by {@link
+     * LeaderRetrievalEventHandler}.
+     *
+     * @param leaderEventHandler handler for the leader retrieval driver to notify leader change
+     *     events.
+     * @param fatalErrorHandler fatal error handler
+     * @throws Exception when create a specific {@link LeaderRetrievalDriver} implementation and
+     *     start the necessary services.
+     */
+    LeaderRetrievalDriver createLeaderRetrievalDriver(
+            LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
+            throws Exception;
 }

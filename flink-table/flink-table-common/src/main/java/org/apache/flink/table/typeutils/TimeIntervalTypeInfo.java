@@ -38,116 +38,112 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Type information for SQL INTERVAL types.
  *
- * @deprecated This class will be removed in future versions as it is used for the old type system. It
- *             is recommended to use {@link DataTypes} instead. Please make sure to use either the old
- *             or the new type system consistently to avoid unintended behavior. See the website documentation
- *             for more information.
+ * @deprecated This class will be removed in future versions as it is used for the old type system.
+ *     It is recommended to use {@link DataTypes} instead. Please make sure to use either the old or
+ *     the new type system consistently to avoid unintended behavior. See the website documentation
+ *     for more information.
  */
 @Internal
 @Deprecated
 public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
-	private static final long serialVersionUID = -1816179424364825258L;
+    private static final long serialVersionUID = -1816179424364825258L;
 
-	public static final TimeIntervalTypeInfo<Integer> INTERVAL_MONTHS = new TimeIntervalTypeInfo<>(
-		Integer.class,
-		IntSerializer.INSTANCE,
-		IntComparator.class);
+    public static final TimeIntervalTypeInfo<Integer> INTERVAL_MONTHS =
+            new TimeIntervalTypeInfo<>(Integer.class, IntSerializer.INSTANCE, IntComparator.class);
 
-	public static final TimeIntervalTypeInfo<Long> INTERVAL_MILLIS = new TimeIntervalTypeInfo<>(
-		Long.class,
-		LongSerializer.INSTANCE,
-		LongComparator.class);
+    public static final TimeIntervalTypeInfo<Long> INTERVAL_MILLIS =
+            new TimeIntervalTypeInfo<>(Long.class, LongSerializer.INSTANCE, LongComparator.class);
 
-	private final Class<T> clazz;
-	private final TypeSerializer<T> serializer;
-	private final Class<? extends TypeComparator<T>> comparatorClass;
+    private final Class<T> clazz;
+    private final TypeSerializer<T> serializer;
+    private final Class<? extends TypeComparator<T>> comparatorClass;
 
-	private TimeIntervalTypeInfo(
-		Class<T> clazz,
-		TypeSerializer<T> serializer,
-		Class<? extends TypeComparator<T>> comparatorClass) {
-		this.clazz = checkNotNull(clazz);
-		this.serializer = checkNotNull(serializer);
-		this.comparatorClass = checkNotNull(comparatorClass);
-	}
+    private TimeIntervalTypeInfo(
+            Class<T> clazz,
+            TypeSerializer<T> serializer,
+            Class<? extends TypeComparator<T>> comparatorClass) {
+        this.clazz = checkNotNull(clazz);
+        this.serializer = checkNotNull(serializer);
+        this.comparatorClass = checkNotNull(comparatorClass);
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<T> getTypeClass() {
-		return clazz;
-	}
+    @Override
+    public Class<T> getTypeClass() {
+        return clazz;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+    @Override
+    public boolean isKeyType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		return serializer;
-	}
+    @Override
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        return serializer;
+    }
 
-	@Override
-	public TypeComparator<T> createComparator(
-		boolean sortOrderAscending,
-		ExecutionConfig executionConfig) {
-		try {
-			Constructor<? extends TypeComparator<T>> constructor = comparatorClass.getConstructor(Boolean.TYPE);
-			return constructor.newInstance(sortOrderAscending);
-		} catch (Exception e) {
-			throw new RuntimeException(
-				"Could not initialize comparator " + comparatorClass.getName(), e);
-		}
-	}
+    @Override
+    public TypeComparator<T> createComparator(
+            boolean sortOrderAscending, ExecutionConfig executionConfig) {
+        try {
+            Constructor<? extends TypeComparator<T>> constructor =
+                    comparatorClass.getConstructor(Boolean.TYPE);
+            return constructor.newInstance(sortOrderAscending);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not initialize comparator " + comparatorClass.getName(), e);
+        }
+    }
 
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(clazz, serializer, comparatorClass);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(clazz, serializer, comparatorClass);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof TimeIntervalTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof TimeIntervalTypeInfo;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
 
-		if (obj instanceof TimeIntervalTypeInfo) {
-			TimeIntervalTypeInfo other = (TimeIntervalTypeInfo) obj;
-			return other.canEqual(this) &&
-				this.clazz.equals(other.clazz) &&
-					serializer == other.serializer &&
-					this.comparatorClass.equals(other.comparatorClass);
-		} else {
-			return false;
-		}
-	}
+        if (obj instanceof TimeIntervalTypeInfo) {
+            TimeIntervalTypeInfo other = (TimeIntervalTypeInfo) obj;
+            return other.canEqual(this)
+                    && this.clazz.equals(other.clazz)
+                    && serializer == other.serializer
+                    && this.comparatorClass.equals(other.comparatorClass);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return TimeIntervalTypeInfo.class.getSimpleName() + "(" + clazz.getSimpleName() + ")";
-	}
+    @Override
+    public String toString() {
+        return TimeIntervalTypeInfo.class.getSimpleName() + "(" + clazz.getSimpleName() + ")";
+    }
 }

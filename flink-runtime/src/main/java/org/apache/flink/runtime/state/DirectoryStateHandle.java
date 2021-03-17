@@ -27,72 +27,71 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * This state handle represents a directory. This class is, for example, used to represent the directory of RocksDB's
- * native checkpoint directories for local recovery.
+ * This state handle represents a directory. This class is, for example, used to represent the
+ * directory of RocksDB's native checkpoint directories for local recovery.
  */
 public class DirectoryStateHandle implements StateObject {
 
-	/** Serial version. */
-	private static final long serialVersionUID = 1L;
+    /** Serial version. */
+    private static final long serialVersionUID = 1L;
 
-	/** The path that describes the directory, as a string, to be serializable. */
-	private final String directoryString;
+    /** The path that describes the directory, as a string, to be serializable. */
+    private final String directoryString;
 
-	/** Transient path cache, to avoid re-parsing the string. */
-	private transient Path directory;
+    /** Transient path cache, to avoid re-parsing the string. */
+    private transient Path directory;
 
-	public DirectoryStateHandle(@Nonnull Path directory) {
-		this.directory = directory;
-		this.directoryString = directory.toString();
-	}
+    public DirectoryStateHandle(@Nonnull Path directory) {
+        this.directory = directory;
+        this.directoryString = directory.toString();
+    }
 
-	@Override
-	public void discardState() throws IOException {
-		ensurePath();
-		FileUtils.deleteDirectory(directory.toFile());
-	}
+    @Override
+    public void discardState() throws IOException {
+        ensurePath();
+        FileUtils.deleteDirectory(directory.toFile());
+    }
 
-	@Override
-	public long getStateSize() {
-		// For now, we will not report any size, but in the future this could (if needed) return the total dir size.
-		return 0L; // unknown
-	}
+    @Override
+    public long getStateSize() {
+        // For now, we will not report any size, but in the future this could (if needed) return the
+        // total dir size.
+        return 0L; // unknown
+    }
 
-	@Nonnull
-	public Path getDirectory() {
-		ensurePath();
-		return directory;
-	}
+    @Nonnull
+    public Path getDirectory() {
+        ensurePath();
+        return directory;
+    }
 
-	private void ensurePath() {
-		if (directory == null) {
-			directory = Paths.get(directoryString);
-		}
-	}
+    private void ensurePath() {
+        if (directory == null) {
+            directory = Paths.get(directoryString);
+        }
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		DirectoryStateHandle that = (DirectoryStateHandle) o;
+        DirectoryStateHandle that = (DirectoryStateHandle) o;
 
-		return directoryString.equals(that.directoryString);
-	}
+        return directoryString.equals(that.directoryString);
+    }
 
-	@Override
-	public int hashCode() {
-		return directoryString.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return directoryString.hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return "DirectoryStateHandle{" +
-			"directory=" + directoryString +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "DirectoryStateHandle{" + "directory=" + directoryString + '}';
+    }
 }

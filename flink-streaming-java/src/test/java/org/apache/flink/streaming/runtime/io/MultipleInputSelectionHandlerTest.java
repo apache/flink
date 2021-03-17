@@ -24,29 +24,28 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link MultipleInputSelectionHandler}.
- */
+/** Tests for {@link MultipleInputSelectionHandler}. */
 public class MultipleInputSelectionHandlerTest {
-	@Test
-	public void testShouldSetAvailableForAnotherInput() {
-		InputSelection secondAndThird = new InputSelection.Builder().select(2).select(3).build();
+    @Test
+    public void testShouldSetAvailableForAnotherInput() {
+        InputSelection secondAndThird = new InputSelection.Builder().select(2).select(3).build();
 
-		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(() -> secondAndThird, 3);
-		selectionHandler.nextSelection();
+        MultipleInputSelectionHandler selectionHandler =
+                new MultipleInputSelectionHandler(() -> secondAndThird, 3);
+        selectionHandler.nextSelection();
 
-		assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
+        assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
 
-		selectionHandler.setUnavailableInput(0);
-		assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
+        selectionHandler.setUnavailableInput(0);
+        assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
 
-		selectionHandler.setUnavailableInput(2);
-		assertTrue(selectionHandler.shouldSetAvailableForAnotherInput());
+        selectionHandler.setUnavailableInput(2);
+        assertTrue(selectionHandler.shouldSetAvailableForAnotherInput());
 
-		selectionHandler.setAvailableInput(0);
-		assertTrue(selectionHandler.shouldSetAvailableForAnotherInput());
+        selectionHandler.setAvailableInput(0);
+        assertTrue(selectionHandler.shouldSetAvailableForAnotherInput());
 
-		selectionHandler.setAvailableInput(2);
-		assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
-	}
+        selectionHandler.setAvailableInput(2);
+        assertFalse(selectionHandler.shouldSetAvailableForAnotherInput());
+    }
 }

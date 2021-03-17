@@ -33,76 +33,63 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 /**
- * Integration tests for {@link org.apache.flink.api.scala.GroupedDataSet#min} and
- * {@link org.apache.flink.api.scala.GroupedDataSet#max}.
+ * Integration tests for {@link org.apache.flink.api.scala.GroupedDataSet#min} and {@link
+ * org.apache.flink.api.scala.GroupedDataSet#max}.
  */
 @RunWith(Parameterized.class)
 public class SumMinMaxITCase extends MultipleProgramsTestBase {
 
-	public SumMinMaxITCase(TestExecutionMode mode){
-		super(mode);
-	}
+    public SumMinMaxITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testSumMaxAndProject() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSumMaxAndProject() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<Integer, Long>> sumDs = ds
-				.sum(0)
-				.andMax(1)
-				.project(0, 1);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<Integer, Long>> sumDs = ds.sum(0).andMax(1).project(0, 1);
 
-		List<Tuple2<Integer, Long>> result = sumDs.collect();
+        List<Tuple2<Integer, Long>> result = sumDs.collect();
 
-		String expected = "231,6\n";
+        String expected = "231,6\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testGroupedAggregate() throws Exception {
-		/*
-		 * Grouped Aggregate
-		 */
+    @Test
+    public void testGroupedAggregate() throws Exception {
+        /*
+         * Grouped Aggregate
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
-				.sum(0)
-				.project(1, 0);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1).sum(0).project(1, 0);
 
-		List<Tuple2<Long, Integer>> result = aggregateDs.collect();
+        List<Tuple2<Long, Integer>> result = aggregateDs.collect();
 
-		String expected = "1,1\n" +
-				"2,5\n" +
-				"3,15\n" +
-				"4,34\n" +
-				"5,65\n" +
-				"6,111\n";
+        String expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testNestedAggregate() throws Exception {
-		/*
-		 * Nested Aggregate
-		 */
+    @Test
+    public void testNestedAggregate() throws Exception {
+        /*
+         * Nested Aggregate
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
-				.min(0)
-				.min(0)
-				.project(0);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1).min(0).min(0).project(0);
 
-		List<Tuple1<Integer>> result = aggregateDs.collect();
+        List<Tuple1<Integer>> result = aggregateDs.collect();
 
-		String expected = "1\n";
+        String expected = "1\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 }

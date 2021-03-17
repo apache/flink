@@ -20,15 +20,12 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
-/**
- * IT Case for reading window state with the memory state backend.
- */
-public class MemoryStateBackendWindowITCase extends SavepointWindowReaderITCase<MemoryStateBackend> {
+/** IT Case for reading window state with the memory state backend. */
+public class MemoryStateBackendWindowITCase
+        extends SavepointWindowReaderITCase<MemoryStateBackend> {
 
-	@Override
-	protected MemoryStateBackend getStateBackend() {
-		return new MemoryStateBackend();
-	}
+    @Override
+    protected MemoryStateBackend getStateBackend() {
+        return new MemoryStateBackend();
+    }
 }
-
-

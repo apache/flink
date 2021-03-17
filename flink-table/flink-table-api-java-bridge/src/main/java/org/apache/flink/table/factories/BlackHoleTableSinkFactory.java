@@ -32,63 +32,62 @@ import java.util.Set;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
 /**
- * Black hole table sink factory swallowing all input records. It is designed for:
- * - high performance testing.
- * - UDF to output, not substantive sink.
- * Just like /dev/null device on Unix-like operating systems.
+ * Black hole table sink factory swallowing all input records. It is designed for: - high
+ * performance testing. - UDF to output, not substantive sink. Just like /dev/null device on
+ * Unix-like operating systems.
  */
 @PublicEvolving
 public class BlackHoleTableSinkFactory implements DynamicTableSinkFactory {
 
-	public static final String IDENTIFIER = "blackhole";
+    public static final String IDENTIFIER = "blackhole";
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		createTableFactoryHelper(this, context).validate();
-		return new BlackHoleSink();
-	}
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        createTableFactoryHelper(this, context).validate();
+        return new BlackHoleSink();
+    }
 
-	private static class BlackHoleSink implements DynamicTableSink {
+    private static class BlackHoleSink implements DynamicTableSink {
 
-		@Override
-		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-			ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-			for (RowKind kind : requestedMode.getContainedKinds()) {
-				if (kind != RowKind.UPDATE_BEFORE) {
-					builder.addContainedKind(kind);
-				}
-			}
-			return builder.build();
-		}
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+            ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+            for (RowKind kind : requestedMode.getContainedKinds()) {
+                if (kind != RowKind.UPDATE_BEFORE) {
+                    builder.addContainedKind(kind);
+                }
+            }
+            return builder.build();
+        }
 
-		@Override
-		public SinkRuntimeProvider getSinkRuntimeProvider(DynamicTableSink.Context context) {
-			return SinkFunctionProvider.of(new DiscardingSink<>());
-		}
+        @Override
+        public SinkRuntimeProvider getSinkRuntimeProvider(DynamicTableSink.Context context) {
+            return SinkFunctionProvider.of(new DiscardingSink<>());
+        }
 
-		@Override
-		public DynamicTableSink copy() {
-			return new BlackHoleSink();
-		}
+        @Override
+        public DynamicTableSink copy() {
+            return new BlackHoleSink();
+        }
 
-		@Override
-		public String asSummaryString() {
-			return "BlackHole";
-		}
-	}
+        @Override
+        public String asSummaryString() {
+            return "BlackHole";
+        }
+    }
 }

@@ -22,24 +22,22 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowDataUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
-/**
- * A utility class which key is always empty no matter what the input row is.
- */
+/** A utility class which key is always empty no matter what the input row is. */
 public class EmptyRowDataKeySelector implements RowDataKeySelector {
 
-	public static final EmptyRowDataKeySelector INSTANCE = new EmptyRowDataKeySelector();
+    public static final EmptyRowDataKeySelector INSTANCE = new EmptyRowDataKeySelector();
 
-	private static final long serialVersionUID = -2079386198687082032L;
+    private static final long serialVersionUID = -2079386198687082032L;
 
-	private final InternalTypeInfo<RowData> returnType = InternalTypeInfo.ofFields();
+    private final InternalTypeInfo<RowData> returnType = InternalTypeInfo.ofFields();
 
-	@Override
-	public RowData getKey(RowData value) throws Exception {
-		return BinaryRowDataUtil.EMPTY_ROW;
-	}
+    @Override
+    public RowData getKey(RowData value) throws Exception {
+        return BinaryRowDataUtil.EMPTY_ROW;
+    }
 
-	@Override
-	public InternalTypeInfo<RowData> getProducedType() {
-		return returnType;
-	}
+    @Override
+    public InternalTypeInfo<RowData> getProducedType() {
+        return returnType;
+    }
 }

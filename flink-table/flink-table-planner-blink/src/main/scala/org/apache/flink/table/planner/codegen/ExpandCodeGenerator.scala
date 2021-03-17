@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.RowType
@@ -34,7 +33,6 @@ object ExpandCodeGenerator {
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outputType: RowType,
-      config: TableConfig,
       projects: java.util.List[java.util.List[RexNode]],
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[RowData] = {

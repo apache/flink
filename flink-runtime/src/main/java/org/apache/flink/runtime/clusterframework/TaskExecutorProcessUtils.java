@@ -44,136 +44,188 @@ import static org.apache.flink.configuration.ConfigurationUtils.assembleDynamicC
 /**
  * Utility class for TaskExecutor memory configurations.
  *
- * <p>See {@link TaskExecutorProcessSpec} for details about memory components of TaskExecutor and their relationships.
+ * <p>See {@link TaskExecutorProcessSpec} for details about memory components of TaskExecutor and
+ * their relationships.
  */
 public class TaskExecutorProcessUtils {
 
-	static final ProcessMemoryOptions TM_PROCESS_MEMORY_OPTIONS = new ProcessMemoryOptions(
-		Arrays.asList(TaskManagerOptions.TASK_HEAP_MEMORY, TaskManagerOptions.MANAGED_MEMORY_SIZE),
-		TaskManagerOptions.TOTAL_FLINK_MEMORY,
-		TaskManagerOptions.TOTAL_PROCESS_MEMORY,
-		new JvmMetaspaceAndOverheadOptions(
-			TaskManagerOptions.JVM_METASPACE,
-			TaskManagerOptions.JVM_OVERHEAD_MIN,
-			TaskManagerOptions.JVM_OVERHEAD_MAX,
-			TaskManagerOptions.JVM_OVERHEAD_FRACTION));
+    static final ProcessMemoryOptions TM_PROCESS_MEMORY_OPTIONS =
+            new ProcessMemoryOptions(
+                    Arrays.asList(
+                            TaskManagerOptions.TASK_HEAP_MEMORY,
+                            TaskManagerOptions.MANAGED_MEMORY_SIZE),
+                    TaskManagerOptions.TOTAL_FLINK_MEMORY,
+                    TaskManagerOptions.TOTAL_PROCESS_MEMORY,
+                    new JvmMetaspaceAndOverheadOptions(
+                            TaskManagerOptions.JVM_METASPACE,
+                            TaskManagerOptions.JVM_OVERHEAD_MIN,
+                            TaskManagerOptions.JVM_OVERHEAD_MAX,
+                            TaskManagerOptions.JVM_OVERHEAD_FRACTION));
 
-	@SuppressWarnings("deprecation")
-	static final LegacyMemoryOptions TM_LEGACY_HEAP_OPTIONS =
-		new LegacyMemoryOptions(
-			"FLINK_TM_HEAP",
-			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
-			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
+    @SuppressWarnings("deprecation")
+    static final LegacyMemoryOptions TM_LEGACY_HEAP_OPTIONS =
+            new LegacyMemoryOptions(
+                    "FLINK_TM_HEAP",
+                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
+                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
 
-	private static final ProcessMemoryUtils<TaskExecutorFlinkMemory> PROCESS_MEMORY_UTILS = new ProcessMemoryUtils<>(
-		TM_PROCESS_MEMORY_OPTIONS,
-		new TaskExecutorFlinkMemoryUtils());
+    private static final ProcessMemoryUtils<TaskExecutorFlinkMemory> PROCESS_MEMORY_UTILS =
+            new ProcessMemoryUtils<>(TM_PROCESS_MEMORY_OPTIONS, new TaskExecutorFlinkMemoryUtils());
 
-	private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS = new MemoryBackwardsCompatibilityUtils(TM_LEGACY_HEAP_OPTIONS);
+    private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS =
+            new MemoryBackwardsCompatibilityUtils(TM_LEGACY_HEAP_OPTIONS);
 
-	private TaskExecutorProcessUtils() {}
+    private TaskExecutorProcessUtils() {}
 
-	// ------------------------------------------------------------------------
-	//  Generating Dynamic Config Options
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Generating Dynamic Config Options
+    // ------------------------------------------------------------------------
 
-	public static String generateDynamicConfigsStr(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		final Map<String, String> configs = new HashMap<>();
-		configs.put(TaskManagerOptions.CPU_CORES.key(),
-			String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue().doubleValue()));
-		configs.put(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), taskExecutorProcessSpec.getTaskOffHeapSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MIN.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
-		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
-		return assembleDynamicConfigsStr(configs);
-	}
+    public static String generateDynamicConfigsStr(
+            final TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        final Map<String, String> configs = new HashMap<>();
+        configs.put(
+                TaskManagerOptions.CPU_CORES.key(),
+                String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue().doubleValue()));
+        configs.put(
+                TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key(),
+                taskExecutorProcessSpec.getFrameworkHeapSize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key(),
+                taskExecutorProcessSpec.getFrameworkOffHeapMemorySize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.TASK_HEAP_MEMORY.key(),
+                taskExecutorProcessSpec.getTaskHeapSize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
+                taskExecutorProcessSpec.getTaskOffHeapSize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.NETWORK_MEMORY_MIN.key(),
+                taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.NETWORK_MEMORY_MAX.key(),
+                taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+                taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
+        configs.put(
+                TaskManagerOptions.JVM_METASPACE.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getMetaspace().getBytes()
+                        + "b");
+        configs.put(
+                TaskManagerOptions.JVM_OVERHEAD_MIN.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
+                        + "b");
+        configs.put(
+                TaskManagerOptions.JVM_OVERHEAD_MAX.key(),
+                taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
+                        + "b");
+        configs.put(
+                TaskManagerOptions.NUM_TASK_SLOTS.key(),
+                String.valueOf(taskExecutorProcessSpec.getNumSlots()));
+        return assembleDynamicConfigsStr(configs);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Memory Configuration Calculations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Memory Configuration Calculations
+    // ------------------------------------------------------------------------
 
-	public static TaskExecutorProcessSpecBuilder newProcessSpecBuilder(final Configuration config) {
-		return TaskExecutorProcessSpecBuilder.newBuilder(config);
-	}
+    public static TaskExecutorProcessSpecBuilder newProcessSpecBuilder(final Configuration config) {
+        return TaskExecutorProcessSpecBuilder.newBuilder(config);
+    }
 
-	public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
-		try {
-			return createMemoryProcessSpec(config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
-		} catch (IllegalConfigurationException e) {
-			throw new IllegalConfigurationException("TaskManager memory configuration failed: " + e.getMessage(), e);
-		}
-	}
+    public static TaskExecutorProcessSpec processSpecFromConfig(final Configuration config) {
+        try {
+            return createMemoryProcessSpec(
+                    config, PROCESS_MEMORY_UTILS.memoryProcessSpecFromConfig(config));
+        } catch (IllegalConfigurationException e) {
+            throw new IllegalConfigurationException(
+                    "TaskManager memory configuration failed: " + e.getMessage(), e);
+        }
+    }
 
-	public static TaskExecutorProcessSpec processSpecFromWorkerResourceSpec(
-		final Configuration config, final WorkerResourceSpec workerResourceSpec) {
+    public static TaskExecutorProcessSpec processSpecFromWorkerResourceSpec(
+            final Configuration config, final WorkerResourceSpec workerResourceSpec) {
 
-		final MemorySize frameworkHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkHeapMemorySize(config);
-		final MemorySize frameworkOffHeapMemorySize = TaskExecutorFlinkMemoryUtils.getFrameworkOffHeapMemorySize(config);
+        final MemorySize frameworkHeapMemorySize =
+                TaskExecutorFlinkMemoryUtils.getFrameworkHeapMemorySize(config);
+        final MemorySize frameworkOffHeapMemorySize =
+                TaskExecutorFlinkMemoryUtils.getFrameworkOffHeapMemorySize(config);
 
-		final TaskExecutorFlinkMemory flinkMemory = new TaskExecutorFlinkMemory(
-			frameworkHeapMemorySize,
-			frameworkOffHeapMemorySize,
-			workerResourceSpec.getTaskHeapSize(),
-			workerResourceSpec.getTaskOffHeapSize(),
-			workerResourceSpec.getNetworkMemSize(),
-			workerResourceSpec.getManagedMemSize());
+        final TaskExecutorFlinkMemory flinkMemory =
+                new TaskExecutorFlinkMemory(
+                        frameworkHeapMemorySize,
+                        frameworkOffHeapMemorySize,
+                        workerResourceSpec.getTaskHeapSize(),
+                        workerResourceSpec.getTaskOffHeapSize(),
+                        workerResourceSpec.getNetworkMemSize(),
+                        workerResourceSpec.getManagedMemSize());
 
-		final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
-			PROCESS_MEMORY_UTILS.deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
-				config, flinkMemory.getTotalFlinkMemorySize());
+        final JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
+                PROCESS_MEMORY_UTILS.deriveJvmMetaspaceAndOverheadFromTotalFlinkMemory(
+                        config, flinkMemory.getTotalFlinkMemorySize());
 
-		return new TaskExecutorProcessSpec(workerResourceSpec.getCpuCores(), flinkMemory, jvmMetaspaceAndOverhead);
-	}
+        return new TaskExecutorProcessSpec(
+                workerResourceSpec.getCpuCores(),
+                flinkMemory,
+                jvmMetaspaceAndOverhead,
+                workerResourceSpec.getNumSlots());
+    }
 
-	private static TaskExecutorProcessSpec createMemoryProcessSpec(
-			final Configuration config,
-			final CommonProcessMemorySpec<TaskExecutorFlinkMemory> processMemory) {
-		TaskExecutorFlinkMemory flinkMemory = processMemory.getFlinkMemory();
-		JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead = processMemory.getJvmMetaspaceAndOverhead();
-		return new TaskExecutorProcessSpec(getCpuCores(config), flinkMemory, jvmMetaspaceAndOverhead);
-	}
+    private static TaskExecutorProcessSpec createMemoryProcessSpec(
+            final Configuration config,
+            final CommonProcessMemorySpec<TaskExecutorFlinkMemory> processMemory) {
+        TaskExecutorFlinkMemory flinkMemory = processMemory.getFlinkMemory();
+        JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
+                processMemory.getJvmMetaspaceAndOverhead();
+        return new TaskExecutorProcessSpec(
+                getCpuCores(config), flinkMemory, jvmMetaspaceAndOverhead, getNumSlots(config));
+    }
 
-	private static CPUResource getCpuCores(final Configuration config) {
-		return getCpuCoresWithFallback(config, -1.0);
-	}
+    private static CPUResource getCpuCores(final Configuration config) {
+        return getCpuCoresWithFallback(config, -1.0);
+    }
 
-	public static double getCpuCoresWithFallbackConfigOption(final Configuration config, ConfigOption<Double> fallbackOption) {
-		double fallbackValue = config.getDouble(fallbackOption);
-		return getCpuCoresWithFallback(config, fallbackValue).getValue().doubleValue();
-	}
+    private static int getNumSlots(final Configuration config) {
+        return config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+    }
 
-	public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
-		final double cpuCores;
-		if (config.contains(TaskManagerOptions.CPU_CORES)) {
-			cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
-		} else if (fallback > 0.0) {
-			cpuCores = fallback;
-		} else {
-			cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
-		}
+    public static double getCpuCoresWithFallbackConfigOption(
+            final Configuration config, ConfigOption<Double> fallbackOption) {
+        double fallbackValue = config.getDouble(fallbackOption);
+        return getCpuCoresWithFallback(config, fallbackValue).getValue().doubleValue();
+    }
 
-		if (cpuCores <= 0) {
-			throw new IllegalConfigurationException(
-				String.format(
-					"TaskExecutors need to be started with a positive number of CPU cores. Please configure %s accordingly.",
-					TaskManagerOptions.CPU_CORES.key()));
-		}
+    public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
+        final double cpuCores;
+        if (config.contains(TaskManagerOptions.CPU_CORES)) {
+            cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
+        } else if (fallback > 0.0) {
+            cpuCores = fallback;
+        } else {
+            cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+        }
 
-		return new CPUResource(cpuCores);
-	}
+        if (cpuCores <= 0) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "TaskExecutors need to be started with a positive number of CPU cores. Please configure %s accordingly.",
+                            TaskManagerOptions.CPU_CORES.key()));
+        }
 
-	public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			final Configuration configuration,
-			final ConfigOption<MemorySize> configOption) {
-		try {
-			return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(configuration, configOption);
-		} catch (IllegalConfigurationException e) {
-			throw new IllegalConfigurationException(
-				"TaskManager failed to map legacy JVM heap option to the new one: " + e.getMessage(),
-				e);
-		}
-	}
+        return new CPUResource(cpuCores);
+    }
+
+    public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+            final Configuration configuration, final ConfigOption<MemorySize> configOption) {
+        try {
+            return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(
+                    configuration, configOption);
+        } catch (IllegalConfigurationException e) {
+            throw new IllegalConfigurationException(
+                    "TaskManager failed to map legacy JVM heap option to the new one: "
+                            + e.getMessage(),
+                    e);
+        }
+    }
 }

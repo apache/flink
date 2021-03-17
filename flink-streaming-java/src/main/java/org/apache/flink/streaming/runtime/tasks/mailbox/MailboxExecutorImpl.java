@@ -30,72 +30,77 @@ import javax.annotation.Nonnull;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 
-/**
- * Implementation of an executor service build around a mailbox-based execution model.
- */
+/** Implementation of an executor service build around a mailbox-based execution model. */
 @Internal
 public final class MailboxExecutorImpl implements MailboxExecutor {
 
-	/** The mailbox that manages the submitted runnable objects. */
-	@Nonnull
-	private final TaskMailbox mailbox;
+    /** The mailbox that manages the submitted runnable objects. */
+    @Nonnull private final TaskMailbox mailbox;
 
-	private final int priority;
+    private final int priority;
 
-	private final StreamTaskActionExecutor actionExecutor;
+    private final StreamTaskActionExecutor actionExecutor;
 
-	private final MailboxProcessor mailboxProcessor;
+    private final MailboxProcessor mailboxProcessor;
 
-	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor) {
-		this(mailbox, priority, actionExecutor, null);
-	}
+    public MailboxExecutorImpl(
+            @Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor) {
+        this(mailbox, priority, actionExecutor, null);
+    }
 
-	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor, MailboxProcessor mailboxProcessor) {
-		this.mailbox = mailbox;
-		this.priority = priority;
-		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-		this.mailboxProcessor = mailboxProcessor;
-	}
+    public MailboxExecutorImpl(
+            @Nonnull TaskMailbox mailbox,
+            int priority,
+            StreamTaskActionExecutor actionExecutor,
+            MailboxProcessor mailboxProcessor) {
+        this.mailbox = mailbox;
+        this.priority = priority;
+        this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+        this.mailboxProcessor = mailboxProcessor;
+    }
 
-	public boolean isIdle() {
-		return mailboxProcessor.isDefaultActionUnavailable() && !mailbox.hasMail() && mailbox.getState().isAcceptingMails();
-	}
+    public boolean isIdle() {
+        return mailboxProcessor.isDefaultActionUnavailable()
+                && !mailbox.hasMail()
+                && mailbox.getState().isAcceptingMails();
+    }
 
-	@Override
-	public void execute(
-			final ThrowingRunnable<? extends Exception> command,
-			final String descriptionFormat,
-			final Object... descriptionArgs) {
-		try {
-			mailbox.put(new Mail(command, priority, actionExecutor, descriptionFormat, descriptionArgs));
-		} catch (MailboxClosedException mbex) {
-			throw new RejectedExecutionException(mbex);
-		}
-	}
+    @Override
+    public void execute(
+            final ThrowingRunnable<? extends Exception> command,
+            final String descriptionFormat,
+            final Object... descriptionArgs) {
+        try {
+            mailbox.put(
+                    new Mail(
+                            command, priority, actionExecutor, descriptionFormat, descriptionArgs));
+        } catch (MailboxClosedException mbex) {
+            throw new RejectedExecutionException(mbex);
+        }
+    }
 
-	@Override
-	public void yield() throws InterruptedException {
-		Mail mail = mailbox.take(priority);
-		try {
-			mail.run();
-		} catch (Exception ex) {
-			throw WrappingRuntimeException.wrapIfNecessary(ex);
-		}
-	}
+    @Override
+    public void yield() throws InterruptedException {
+        Mail mail = mailbox.take(priority);
+        try {
+            mail.run();
+        } catch (Exception ex) {
+            throw WrappingRuntimeException.wrapIfNecessary(ex);
+        }
+    }
 
-	@Override
-	public boolean tryYield() {
-		Optional<Mail> optionalMail = mailbox.tryTake(priority);
-		if (optionalMail.isPresent()) {
-			try {
-				optionalMail.get().run();
-			} catch (Exception ex) {
-				throw WrappingRuntimeException.wrapIfNecessary(ex);
-			}
-			return true;
-		} else {
-			return false;
-		}
-	}
-
+    @Override
+    public boolean tryYield() {
+        Optional<Mail> optionalMail = mailbox.tryTake(priority);
+        if (optionalMail.isPresent()) {
+            try {
+                optionalMail.get().run();
+            } catch (Exception ex) {
+                throw WrappingRuntimeException.wrapIfNecessary(ex);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 }

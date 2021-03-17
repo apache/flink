@@ -30,7 +30,7 @@ import java.sql.Timestamp
 /**
   * Test for UNNEST queries.
   */
-abstract class UnnestTestBase extends TableTestBase {
+abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
 
   protected val util: TableTestUtil = getTableTestUtil
 
@@ -39,19 +39,19 @@ abstract class UnnestTestBase extends TableTestBase {
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
     util.addTableSource[(Int, Array[Int], Array[Array[Int]])]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT a, b, s FROM MyTable, UNNEST(MyTable.b) AS A (s)")
+    verifyPlan("SELECT a, b, s FROM MyTable, UNNEST(MyTable.b) AS A (s)")
   }
 
   @Test
   def testUnnestArrayOfArrayFromTable(): Unit = {
     util.addTableSource[(Int, Array[Int], Array[Array[Int]])]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT a, s FROM MyTable, UNNEST(MyTable.c) AS A (s)")
+    verifyPlan("SELECT a, s FROM MyTable, UNNEST(MyTable.c) AS A (s)")
   }
 
   @Test
   def testUnnestObjectArrayFromTableWithFilter(): Unit = {
     util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
-    util.verifyPlan("SELECT a, b, s, t FROM MyTable, UNNEST(MyTable.b) AS A (s, t) WHERE s > 13")
+    verifyPlan("SELECT a, b, s, t FROM MyTable, UNNEST(MyTable.b) AS A (s, t) WHERE s > 13")
   }
 
   @Test
@@ -62,7 +62,7 @@ abstract class UnnestTestBase extends TableTestBase {
         |WITH T AS (SELECT b, COLLECT(c) as `set` FROM MyTable GROUP BY b)
         |SELECT b, id, point FROM T, UNNEST(T.`set`) AS A(id, point) WHERE b < 3
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    verifyPlan(sqlQuery)
   }
 
   @Test
@@ -73,7 +73,7 @@ abstract class UnnestTestBase extends TableTestBase {
         |WITH T AS (SELECT a, COLLECT(b) as `set` FROM MyTable GROUP BY a)
         |SELECT a, s FROM T LEFT JOIN UNNEST(T.`set`) AS A(s) ON TRUE WHERE a < 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    verifyPlan(sqlQuery)
   }
 
   @Test
@@ -87,13 +87,13 @@ abstract class UnnestTestBase extends TableTestBase {
         |)
         |SELECT b, s FROM T, UNNEST(T.`set`) AS A(s) where b < 3
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    verifyPlan(sqlQuery)
   }
 
   @Test
   def testCrossWithUnnest(): Unit = {
     util.addTableSource[(Int, Long, Array[String])]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT a, s FROM MyTable, UNNEST(MyTable.c) as A (s)")
+    verifyPlan("SELECT a, s FROM MyTable, UNNEST(MyTable.c) as A (s)")
   }
 
   @Test
@@ -103,7 +103,7 @@ abstract class UnnestTestBase extends TableTestBase {
         Types.LONG,
         Types.MAP(Types.STRING, Types.STRING)),
       Array("a", "b", "c"))
-    util.verifyPlan("SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)")
+    verifyPlan("SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)")
   }
 
   @Test
@@ -116,13 +116,20 @@ abstract class UnnestTestBase extends TableTestBase {
         |    UNNEST(tf.b) as A (x, y)
         |WHERE x > a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    verifyPlan(sqlQuery)
   }
 
   @Test
   def testUnnestObjectArrayWithoutAlias(): Unit = {
     util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
-    util.verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
+    verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
   }
 
+  private def verifyPlan(sql: String): Unit = {
+    if (withExecPlan) {
+      util.verifyExecPlan(sql)
+    } else {
+      util.verifyRelPlan(sql)
+    }
+  }
 }

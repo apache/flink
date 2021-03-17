@@ -23,63 +23,60 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/**
- * A concurrent data structure that allows the hand-over of an object between a pair of threads.
- */
+/** A concurrent data structure that allows the hand-over of an object between a pair of threads. */
 public class Broker<V> {
 
-	private final ConcurrentMap<String, BlockingQueue<V>> mediations = new ConcurrentHashMap<String, BlockingQueue<V>>();
+    private final ConcurrentMap<String, BlockingQueue<V>> mediations =
+            new ConcurrentHashMap<String, BlockingQueue<V>>();
 
-	/**
-	 * Hand in the object to share.
-	 */
-	public void handIn(String key, V obj) {
-		if (!retrieveSharedQueue(key).offer(obj)) {
-			throw new RuntimeException("Could not register the given element, broker slot is already occupied.");
-		}
-	}
+    /** Hand in the object to share. */
+    public void handIn(String key, V obj) {
+        if (!retrieveSharedQueue(key).offer(obj)) {
+            throw new RuntimeException(
+                    "Could not register the given element, broker slot is already occupied.");
+        }
+    }
 
-	/** Blocking retrieval and removal of the object to share. */
-	public V getAndRemove(String key) {
-		try {
-			V objToShare = retrieveSharedQueue(key).take();
-			mediations.remove(key);
-			return objToShare;
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    /** Blocking retrieval and removal of the object to share. */
+    public V getAndRemove(String key) {
+        try {
+            V objToShare = retrieveSharedQueue(key).take();
+            mediations.remove(key);
+            return objToShare;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	/** Blocking retrieval and removal of the object to share. */
-	public void remove(String key) {
-		mediations.remove(key);
-	}
+    /** Blocking retrieval and removal of the object to share. */
+    public void remove(String key) {
+        mediations.remove(key);
+    }
 
-	/** Blocking retrieval and removal of the object to share. */
-	public V get(String key) {
-		try {
-			BlockingQueue<V> queue = retrieveSharedQueue(key);
-			V objToShare = queue.take();
-			if (!queue.offer(objToShare)) {
-				throw new RuntimeException("Error: Concurrent modification of the broker slot for key '" + key + "'.");
-			}
-			return objToShare;
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    /** Blocking retrieval and removal of the object to share. */
+    public V get(String key) {
+        try {
+            BlockingQueue<V> queue = retrieveSharedQueue(key);
+            V objToShare = queue.take();
+            if (!queue.offer(objToShare)) {
+                throw new RuntimeException(
+                        "Error: Concurrent modification of the broker slot for key '" + key + "'.");
+            }
+            return objToShare;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	/**
-	 * Thread-safe call to get a shared {@link BlockingQueue}.
-	 */
-	private BlockingQueue<V> retrieveSharedQueue(String key) {
-		BlockingQueue<V> queue = mediations.get(key);
-		if (queue == null) {
-			queue = new ArrayBlockingQueue<V>(1);
-			BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
-			return commonQueue != null ? commonQueue : queue;
-		} else {
-			return queue;
-		}
-	}
+    /** Thread-safe call to get a shared {@link BlockingQueue}. */
+    private BlockingQueue<V> retrieveSharedQueue(String key) {
+        BlockingQueue<V> queue = mediations.get(key);
+        if (queue == null) {
+            queue = new ArrayBlockingQueue<V>(1);
+            BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
+            return commonQueue != null ? commonQueue : queue;
+        } else {
+            return queue;
+        }
+    }
 }

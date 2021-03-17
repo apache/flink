@@ -19,19 +19,17 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
-/**
- * No-op implementation of {@link ExecutionDeploymentListener}.
- */
+/** No-op implementation of {@link ExecutionDeploymentListener}. */
 public enum NoOpExecutionDeploymentListener implements ExecutionDeploymentListener {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {}
+    @Override
+    public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {}
 
-	@Override
-	public void onCompletedDeployment(ExecutionAttemptID execution) {}
+    @Override
+    public void onCompletedDeployment(ExecutionAttemptID execution) {}
 
-	public static ExecutionDeploymentListener get() {
-		return INSTANCE;
-	}
+    public static ExecutionDeploymentListener get() {
+        return INSTANCE;
+    }
 }

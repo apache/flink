@@ -28,9 +28,32 @@ from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, c
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.common import Row, RowKind
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 ROW_KIND_BIT_SIZE = 2
+
+
+class TimeWindowCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value: TimeWindow, stream, nested):
+        stream.write_bigendian_int64(value.start)
+        stream.write_bigendian_int64(value.end)
+
+    def decode_from_stream(self, stream, nested):
+        start = stream.read_bigendian_int64()
+        end = stream.read_bigendian_int64()
+        return TimeWindow(start, end)
+
+
+class CountWindowCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value: CountWindow, stream, nested):
+        stream.write_bigendian_int64(value.id)
+
+    def decode_from_stream(self, stream, nested):
+        id = stream.read_bigendian_int64()
+        return CountWindow(id)
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
@@ -74,14 +97,24 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         out_stream.write(data_out_stream.get())
         data_out_stream._clear()
 
+    def encode_nested(self, value: List):
+        data_out_stream = self.data_out_stream
+        self._encode_one_row_to_stream(value, data_out_stream, True)
+        result = data_out_stream.get()
+        data_out_stream._clear()
+        return result
+
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size() > 0:
             in_stream.read_var_int64()
             yield self._decode_one_row_from_stream(in_stream, nested)[1]
 
-    def _encode_one_row_to_stream(self, value: Row, out_stream, nested):
+    def _encode_one_row_to_stream(self, value, out_stream, nested):
         field_coders = self._field_coders
-        self._write_mask(value, out_stream, value.get_row_kind().value)
+        if isinstance(value, Row):
+            self._write_mask(value, out_stream, value.get_row_kind().value)
+        else:
+            self._write_mask(value, out_stream)
         for i in range(self._field_count):
             item = value[i]
             if item is not None:
@@ -144,8 +177,9 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
 class RowCoderImpl(FlattenRowCoderImpl):
 
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, field_names):
         super(RowCoderImpl, self).__init__(field_coders)
+        self.field_names = field_names
 
     def encode_to_stream(self, value: Row, out_stream, nested):
         self._encode_one_row_to_stream(value, out_stream, nested)
@@ -153,6 +187,7 @@ class RowCoderImpl(FlattenRowCoderImpl):
     def decode_from_stream(self, in_stream, nested):
         row_kind_value, fields = self._decode_one_row_from_stream(in_stream, nested)
         row = Row(*fields)
+        row.set_field_names(self.field_names)
         row.set_row_kind(RowKind(row_kind_value))
         return row
 
@@ -208,7 +243,7 @@ class AggregateFunctionRowCoderImpl(StreamCoderImpl):
             data_out_stream._clear()
 
     def decode_from_stream(self, in_stream, nested):
-        return self._flatten_row_coder.decode_from_stream(in_stream, nested)
+        return [[item for item in self._flatten_row_coder.decode_from_stream(in_stream, nested)]]
 
     def __repr__(self):
         return 'AggregateFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
@@ -608,13 +643,13 @@ class ArrowCoderImpl(StreamCoderImpl):
         self._timezone = timezone
         self._resettable_io = ResettableIO()
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
-        self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         self.data_out_stream = create_OutputStream()
         self._resettable_io.set_output_stream(self.data_out_stream)
 
     def encode_to_stream(self, cols, out_stream, nested):
         data_out_stream = self.data_out_stream
-        self._batch_writer.write_batch(
+        batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
+        batch_writer.write_batch(
             pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
         out_stream.write_var_int64(data_out_stream.size())
         out_stream.write(data_out_stream.get())
@@ -626,9 +661,9 @@ class ArrowCoderImpl(StreamCoderImpl):
 
     @staticmethod
     def _load_from_stream(stream):
-        reader = pa.ipc.open_stream(stream)
-        for batch in reader:
-            yield batch
+        while stream.readable():
+            reader = pa.ipc.open_stream(stream)
+            yield reader.read_next_batch()
 
     def _decode_one_batch_from_stream(self, in_stream: create_InputStream, size: int) -> List:
         self._resettable_io.set_input_bytes(in_stream.read(size))

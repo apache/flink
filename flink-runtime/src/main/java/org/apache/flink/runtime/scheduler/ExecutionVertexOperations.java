@@ -24,14 +24,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Operations on the {@link ExecutionVertex}.
- */
+/** Operations on the {@link ExecutionVertex}. */
 interface ExecutionVertexOperations {
 
-	void deploy(ExecutionVertex executionVertex) throws JobException;
+    void deploy(ExecutionVertex executionVertex) throws JobException;
 
-	CompletableFuture<?> cancel(ExecutionVertex executionVertex);
+    CompletableFuture<?> cancel(ExecutionVertex executionVertex);
 
-	void markFailed(ExecutionVertex executionVertex, Throwable cause);
+    void markFailed(ExecutionVertex executionVertex, Throwable cause);
 }

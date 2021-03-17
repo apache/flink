@@ -21,11 +21,7 @@ package org.apache.flink.contrib.streaming.state.restore;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.StateSerializerProvider;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -33,53 +29,48 @@ import org.rocksdb.DBOptions;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * Encapsulates the process of initiating a RocksDB instance without restore.
- */
-public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperation<K> {
-	public RocksDBNoneRestoreOperation(
-		KeyGroupRange keyGroupRange,
-		int keyGroupPrefixBytes,
-		int numberOfTransferringThreads,
-		CloseableRegistry cancelStreamRegistry,
-		ClassLoader userCodeClassLoader,
-		Map<String, RocksDbKvStateInfo> kvStateInformation,
-		StateSerializerProvider<K> keySerializerProvider,
-		File instanceBasePath,
-		File instanceRocksDBPath,
-		DBOptions dbOptions,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		RocksDBNativeMetricOptions nativeMetricOptions,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		Long writeBufferManagerCapacity) {
-		super(keyGroupRange,
-			keyGroupPrefixBytes,
-			numberOfTransferringThreads,
-			cancelStreamRegistry,
-			userCodeClassLoader,
-			kvStateInformation,
-			keySerializerProvider,
-			instanceBasePath,
-			instanceRocksDBPath,
-			dbOptions,
-			columnFamilyOptionsFactory,
-			nativeMetricOptions,
-			metricGroup,
-			restoreStateHandles,
-			ttlCompactFiltersManager,
-			writeBufferManagerCapacity);
-	}
+/** Encapsulates the process of initiating a RocksDB instance without restore. */
+public class RocksDBNoneRestoreOperation<K> implements RocksDBRestoreOperation {
+    private final RocksDBHandle rocksHandle;
 
-	@Override
-	public RocksDBRestoreResult restore() throws Exception {
-		openDB();
-		return new RocksDBRestoreResult(this.db, defaultColumnFamilyHandle, nativeMetricMonitor,
-			-1, null, null);
-	}
+    public RocksDBNoneRestoreOperation(
+            Map<String, RocksDbKvStateInfo> kvStateInformation,
+            File instanceRocksDBPath,
+            DBOptions dbOptions,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            RocksDBNativeMetricOptions nativeMetricOptions,
+            MetricGroup metricGroup,
+            @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+            Long writeBufferManagerCapacity) {
+        this.rocksHandle =
+                new RocksDBHandle(
+                        kvStateInformation,
+                        instanceRocksDBPath,
+                        dbOptions,
+                        columnFamilyOptionsFactory,
+                        nativeMetricOptions,
+                        metricGroup,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
+    }
+
+    @Override
+    public RocksDBRestoreResult restore() throws Exception {
+        this.rocksHandle.openDB();
+        return new RocksDBRestoreResult(
+                this.rocksHandle.getDb(),
+                this.rocksHandle.getDefaultColumnFamilyHandle(),
+                this.rocksHandle.getNativeMetricMonitor(),
+                -1,
+                null,
+                null);
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.rocksHandle.close();
+    }
 }

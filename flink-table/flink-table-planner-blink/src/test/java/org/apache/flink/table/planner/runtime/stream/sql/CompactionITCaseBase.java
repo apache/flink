@@ -45,98 +45,110 @@ import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.C
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Streaming sink File Compaction ITCase base, test checkpoint.
- */
+/** Streaming sink File Compaction ITCase base, test checkpoint. */
 public abstract class CompactionITCaseBase extends StreamingTestBase {
 
-	@Rule
-	public Timeout timeoutPerTest = Timeout.seconds(90);
+    @Rule public Timeout timeoutPerTest = Timeout.seconds(90);
 
-	private String resultPath;
+    private String resultPath;
 
-	private List<Row> expectedRows;
+    private List<Row> expectedRows;
 
-	@Before
-	public void init() throws IOException {
-		resultPath = tempFolder().newFolder().toURI().toString();
+    @Before
+    public void init() throws IOException {
+        resultPath = tempFolder().newFolder().toURI().toString();
 
-		env().setParallelism(3);
-		env().enableCheckpointing(100);
+        env().setParallelism(3);
+        env().enableCheckpointing(100);
 
-		List<Row> rows = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			rows.add(Row.of(i, String.valueOf(i % 10), String.valueOf(i % 10)));
-		}
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            rows.add(Row.of(i, String.valueOf(i % 10), String.valueOf(i % 10)));
+        }
 
-		this.expectedRows = new ArrayList<>();
-		this.expectedRows.addAll(rows);
-		this.expectedRows.addAll(rows);
-		this.expectedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
+        this.expectedRows = new ArrayList<>();
+        this.expectedRows.addAll(rows);
+        this.expectedRows.addAll(rows);
+        this.expectedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
 
-		DataStream<Row> stream = new DataStream<>(env().getJavaEnv().addSource(
-				new ParallelFiniteTestSource<>(rows),
-				new RowTypeInfo(
-						new TypeInformation[] {Types.INT, Types.STRING, Types.STRING},
-						new String[] {"a", "b", "c"})));
+        DataStream<Row> stream =
+                new DataStream<>(
+                        env().getJavaEnv()
+                                .addSource(
+                                        new ParallelFiniteTestSource<>(rows),
+                                        new RowTypeInfo(
+                                                new TypeInformation[] {
+                                                    Types.INT, Types.STRING, Types.STRING
+                                                },
+                                                new String[] {"a", "b", "c"})));
 
-		tEnv().createTemporaryView("my_table",  stream);
-	}
+        tEnv().createTemporaryView("my_table", stream);
+    }
 
-	protected abstract String partitionField();
+    protected abstract String partitionField();
 
-	protected abstract void createTable(String path);
+    protected abstract void createTable(String path);
 
-	protected abstract void createPartitionTable(String path);
+    protected abstract void createPartitionTable(String path);
 
-	@Test
-	public void testNonPartition() throws Exception {
-		createTable(resultPath);
-		tEnv().executeSql("insert into sink_table select * from my_table").await();
+    @Test
+    public void testSingleParallelism() throws Exception {
+        innerTestNonPartition(1);
+    }
 
-		assertIterator(tEnv().executeSql("select * from sink_table").collect());
+    @Test
+    public void testNonPartition() throws Exception {
+        innerTestNonPartition(3);
+    }
 
-		assertFiles(new File(URI.create(resultPath)).listFiles(), false);
-	}
+    public void innerTestNonPartition(int parallelism) throws Exception {
+        env().setParallelism(parallelism);
+        createTable(resultPath);
+        tEnv().executeSql("insert into sink_table select * from my_table").await();
 
-	@Test
-	public void testPartition() throws Exception {
-		createPartitionTable(resultPath);
-		tEnv().executeSql("insert into sink_table select * from my_table").await();
+        assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
-		assertIterator(tEnv().executeSql("select * from sink_table").collect());
+        assertFiles(new File(URI.create(resultPath)).listFiles(), false);
+    }
 
-		File path = new File(URI.create(resultPath));
-		assertEquals(10, path.listFiles().length);
+    @Test
+    public void testPartition() throws Exception {
+        createPartitionTable(resultPath);
+        tEnv().executeSql("insert into sink_table select * from my_table").await();
 
-		for (int i = 0; i < 10; i++) {
-			File partition = new File(path, partitionField() + "=" + i);
-			assertFiles(partition.listFiles(), true);
-		}
-	}
+        assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
-	private void assertIterator(CloseableIterator<Row> iterator) throws Exception {
-		List<Row> result = CollectionUtil.iteratorToList(iterator);
-		iterator.close();
-		result.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
-		assertEquals(expectedRows, result);
-	}
+        File path = new File(URI.create(resultPath));
+        assertEquals(10, path.listFiles().length);
 
-	private void assertFiles(File[] files, boolean containSuccess) {
-		File successFile = null;
-		for (File file : files) {
-			// exclude crc files
-			if (file.isHidden()) {
-				continue;
-			}
-			if (containSuccess && file.getName().equals("_SUCCESS")) {
-				successFile = file;
-			} else {
-				assertTrue(file.getName(), file.getName().startsWith(COMPACTED_PREFIX));
-			}
-		}
-		if (containSuccess) {
-			Assert.assertNotNull("Should contains success file", successFile);
-		}
-	}
+        for (int i = 0; i < 10; i++) {
+            File partition = new File(path, partitionField() + "=" + i);
+            assertFiles(partition.listFiles(), true);
+        }
+    }
+
+    private void assertIterator(CloseableIterator<Row> iterator) throws Exception {
+        List<Row> result = CollectionUtil.iteratorToList(iterator);
+        iterator.close();
+        result.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
+        assertEquals(expectedRows, result);
+    }
+
+    private void assertFiles(File[] files, boolean containSuccess) {
+        File successFile = null;
+        for (File file : files) {
+            // exclude crc files
+            if (file.isHidden()) {
+                continue;
+            }
+            if (containSuccess && file.getName().equals("_SUCCESS")) {
+                successFile = file;
+            } else {
+                assertTrue(file.getName(), file.getName().startsWith(COMPACTED_PREFIX));
+            }
+        }
+        if (containSuccess) {
+            Assert.assertNotNull("Should contains success file", successFile);
+        }
+    }
 }

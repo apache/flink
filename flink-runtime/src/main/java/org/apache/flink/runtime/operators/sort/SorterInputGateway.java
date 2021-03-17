@@ -29,108 +29,107 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A gateway for writing records into the sort/merge process.
- */
+/** A gateway for writing records into the sort/merge process. */
 final class SorterInputGateway<E> {
-	/** Logging. */
-	private static final Logger LOG = LoggerFactory.getLogger(SorterInputGateway.class);
-	private final LargeRecordHandler<E> largeRecords;
-	/** The object into which the thread reads the data from the input. */
-	private final StageRunner.StageMessageDispatcher<E> dispatcher;
-	private long bytesUntilSpilling;
-	private CircularElement<E> currentBuffer;
+    /** Logging. */
+    private static final Logger LOG = LoggerFactory.getLogger(SorterInputGateway.class);
 
-	/**
-	 * Creates a new gateway for pushing records into the sorter.
-	 *
-	 * @param dispatcher The queues used to pass buffers between the threads.
-	 */
-	SorterInputGateway(
-			StageRunner.StageMessageDispatcher<E> dispatcher,
-			@Nullable LargeRecordHandler<E> largeRecordsHandler,
-			long startSpillingBytes) {
+    private final LargeRecordHandler<E> largeRecords;
+    /** The object into which the thread reads the data from the input. */
+    private final StageRunner.StageMessageDispatcher<E> dispatcher;
 
-		// members
-		this.bytesUntilSpilling = startSpillingBytes;
-		this.largeRecords = largeRecordsHandler;
-		this.dispatcher = checkNotNull(dispatcher);
+    private long bytesUntilSpilling;
+    private CircularElement<E> currentBuffer;
 
-		if (bytesUntilSpilling < 1) {
-			this.dispatcher.send(SortStage.SORT, CircularElement.spillingMarker());
-		}
-	}
+    /**
+     * Creates a new gateway for pushing records into the sorter.
+     *
+     * @param dispatcher The queues used to pass buffers between the threads.
+     */
+    SorterInputGateway(
+            StageRunner.StageMessageDispatcher<E> dispatcher,
+            @Nullable LargeRecordHandler<E> largeRecordsHandler,
+            long startSpillingBytes) {
 
-	/**
-	 * Writes the given record for sorting.
-	 */
-	public void writeRecord(E record) throws IOException, InterruptedException {
+        // members
+        this.bytesUntilSpilling = startSpillingBytes;
+        this.largeRecords = largeRecordsHandler;
+        this.dispatcher = checkNotNull(dispatcher);
 
-		if (currentBuffer == null) {
-			this.currentBuffer = this.dispatcher.take(SortStage.READ);
-			if (!currentBuffer.getBuffer().isEmpty()) {
-				throw new IOException("New buffer is not empty.");
-			}
-		}
+        if (bytesUntilSpilling < 1) {
+            this.dispatcher.send(SortStage.SORT, CircularElement.spillingMarker());
+        }
+    }
 
-		InMemorySorter<E> sorter = currentBuffer.getBuffer();
+    /** Writes the given record for sorting. */
+    public void writeRecord(E record) throws IOException, InterruptedException {
 
-		long occupancyPreWrite = sorter.getOccupancy();
-		if (!sorter.write(record)) {
-			long recordSize = sorter.getCapacity() - occupancyPreWrite;
-			signalSpillingIfNecessary(recordSize);
-			boolean isLarge = occupancyPreWrite == 0;
-			if (isLarge) {
-				// did not fit in a fresh buffer, must be large...
-				writeLarge(record, sorter);
-				this.currentBuffer.getBuffer().reset();
-			} else {
-				this.dispatcher.send(SortStage.SORT, currentBuffer);
-				this.currentBuffer = null;
-				writeRecord(record);
-			}
-		} else {
-			long recordSize = sorter.getOccupancy() - occupancyPreWrite;
-			signalSpillingIfNecessary(recordSize);
-		}
-	}
+        if (currentBuffer == null) {
+            this.currentBuffer = this.dispatcher.take(SortStage.READ);
+            if (!currentBuffer.getBuffer().isEmpty()) {
+                throw new IOException("New buffer is not empty.");
+            }
+        }
 
-	/**
-	 * Signals the end of input. Will flush all buffers and notify later stages.
-	 */
-	public void finishReading() {
+        InMemorySorter<E> sorter = currentBuffer.getBuffer();
 
-		if (currentBuffer != null && !currentBuffer.getBuffer().isEmpty()) {
-			this.dispatcher.send(SortStage.SORT, currentBuffer);
-		}
+        long occupancyPreWrite = sorter.getOccupancy();
+        if (!sorter.write(record)) {
+            long recordSize = sorter.getCapacity() - occupancyPreWrite;
+            signalSpillingIfNecessary(recordSize);
+            boolean isLarge = occupancyPreWrite == 0;
+            if (isLarge) {
+                // did not fit in a fresh buffer, must be large...
+                writeLarge(record, sorter);
+                this.currentBuffer.getBuffer().reset();
+            } else {
+                this.dispatcher.send(SortStage.SORT, currentBuffer);
+                this.currentBuffer = null;
+                writeRecord(record);
+            }
+        } else {
+            long recordSize = sorter.getOccupancy() - occupancyPreWrite;
+            signalSpillingIfNecessary(recordSize);
+        }
+    }
 
-		// add the sentinel to notify the receivers that the work is done
-		// send the EOF marker
-		final CircularElement<E> EOF_MARKER = CircularElement.endMarker();
-		this.dispatcher.send(SortStage.SORT, EOF_MARKER);
-		LOG.debug("Reading thread done.");
-	}
+    /** Signals the end of input. Will flush all buffers and notify later stages. */
+    public void finishReading() {
 
-	private void writeLarge(E record, InMemorySorter<E> sorter) throws IOException {
-		if (this.largeRecords != null) {
-			LOG.debug("Large record did not fit into a fresh sort buffer. Putting into large record store.");
-			this.largeRecords.addRecord(record);
-		} else {
-			throw new IOException("The record exceeds the maximum size of a sort buffer (current maximum: "
-				+ sorter.getCapacity() + " bytes).");
-		}
-	}
+        if (currentBuffer != null && !currentBuffer.getBuffer().isEmpty()) {
+            this.dispatcher.send(SortStage.SORT, currentBuffer);
+        }
 
-	private void signalSpillingIfNecessary(long writtenSize) {
-		if (bytesUntilSpilling <= 0) {
-			return;
-		}
+        // add the sentinel to notify the receivers that the work is done
+        // send the EOF marker
+        final CircularElement<E> EOF_MARKER = CircularElement.endMarker();
+        this.dispatcher.send(SortStage.SORT, EOF_MARKER);
+        LOG.debug("Reading thread done.");
+    }
 
-		bytesUntilSpilling -= writtenSize;
-		if (bytesUntilSpilling < 1) {
-			// add the spilling marker
-			this.dispatcher.send(SortStage.SORT, CircularElement.spillingMarker());
-			bytesUntilSpilling = 0;
-		}
-	}
+    private void writeLarge(E record, InMemorySorter<E> sorter) throws IOException {
+        if (this.largeRecords != null) {
+            LOG.debug(
+                    "Large record did not fit into a fresh sort buffer. Putting into large record store.");
+            this.largeRecords.addRecord(record);
+        } else {
+            throw new IOException(
+                    "The record exceeds the maximum size of a sort buffer (current maximum: "
+                            + sorter.getCapacity()
+                            + " bytes).");
+        }
+    }
+
+    private void signalSpillingIfNecessary(long writtenSize) {
+        if (bytesUntilSpilling <= 0) {
+            return;
+        }
+
+        bytesUntilSpilling -= writtenSize;
+        if (bytesUntilSpilling < 1) {
+            // add the spilling marker
+            this.dispatcher.send(SortStage.SORT, CircularElement.spillingMarker());
+            bytesUntilSpilling = 0;
+        }
+    }
 }

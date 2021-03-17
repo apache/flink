@@ -31,35 +31,33 @@ import org.junit.rules.TemporaryFolder;
 
 import static org.hamcrest.CoreMatchers.containsString;
 
-/**
- * Tests for the {@link RestServerEndpointConfiguration}.
- */
+/** Tests for the {@link RestServerEndpointConfiguration}. */
 public class RestServerEndpointConfigurationTest extends TestLogger {
 
-	private static final String ADDRESS = "123.123.123.123";
-	private static final String BIND_ADDRESS = "023.023.023.023";
-	private static final String BIND_PORT = "7282";
-	private static final int CONTENT_LENGTH = 1234;
+    private static final String ADDRESS = "123.123.123.123";
+    private static final String BIND_ADDRESS = "023.023.023.023";
+    private static final String BIND_PORT = "7282";
+    private static final int CONTENT_LENGTH = 1234;
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testBasicMapping() throws ConfigurationException {
-		Configuration originalConfig = new Configuration();
-		originalConfig.setString(RestOptions.ADDRESS, ADDRESS);
-		originalConfig.setString(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
-		originalConfig.setString(RestOptions.BIND_PORT, BIND_PORT);
-		originalConfig.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
-		originalConfig.setString(WebOptions.TMP_DIR, temporaryFolder.getRoot().getAbsolutePath());
+    @Test
+    public void testBasicMapping() throws ConfigurationException {
+        Configuration originalConfig = new Configuration();
+        originalConfig.setString(RestOptions.ADDRESS, ADDRESS);
+        originalConfig.setString(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
+        originalConfig.setString(RestOptions.BIND_PORT, BIND_PORT);
+        originalConfig.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
+        originalConfig.setString(WebOptions.TMP_DIR, temporaryFolder.getRoot().getAbsolutePath());
 
-		final RestServerEndpointConfiguration result = RestServerEndpointConfiguration.fromConfiguration(originalConfig);
-		Assert.assertEquals(ADDRESS, result.getRestAddress());
-		Assert.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
-		Assert.assertEquals(BIND_PORT, result.getRestBindPortRange());
-		Assert.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
-		Assert.assertThat(
-			result.getUploadDir().toAbsolutePath().toString(),
-			containsString(temporaryFolder.getRoot().getAbsolutePath()));
-	}
+        final RestServerEndpointConfiguration result =
+                RestServerEndpointConfiguration.fromConfiguration(originalConfig);
+        Assert.assertEquals(ADDRESS, result.getRestAddress());
+        Assert.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
+        Assert.assertEquals(BIND_PORT, result.getRestBindPortRange());
+        Assert.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
+        Assert.assertThat(
+                result.getUploadDir().toAbsolutePath().toString(),
+                containsString(temporaryFolder.getRoot().getAbsolutePath()));
+    }
 }

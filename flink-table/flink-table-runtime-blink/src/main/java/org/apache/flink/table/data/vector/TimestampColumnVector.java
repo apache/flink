@@ -20,9 +20,7 @@ package org.apache.flink.table.data.vector;
 
 import org.apache.flink.table.data.TimestampData;
 
-/**
- * Timestamp column vector.
- */
+/** Timestamp column vector. */
 public interface TimestampColumnVector extends ColumnVector {
-	TimestampData getTimestamp(int i, int precision);
+    TimestampData getTimestamp(int i, int precision);
 }

@@ -28,50 +28,49 @@ import java.util.UUID;
  * purposes.
  */
 public class TestingContender extends TestingLeaderBase implements LeaderContender {
-	private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestingContender.class);
 
-	private final String address;
-	private final LeaderElectionService leaderElectionService;
+    private final String address;
+    private final LeaderElectionService leaderElectionService;
 
-	private UUID leaderSessionID = null;
+    private UUID leaderSessionID = null;
 
-	public TestingContender(
-			final String address,
-			final LeaderElectionService leaderElectionService) {
-		this.address = address;
-		this.leaderElectionService = leaderElectionService;
-	}
+    public TestingContender(
+            final String address, final LeaderElectionService leaderElectionService) {
+        this.address = address;
+        this.leaderElectionService = leaderElectionService;
+    }
 
-	@Override
-	public void grantLeadership(UUID leaderSessionID) {
-		LOG.debug("Was granted leadership with session ID {}.", leaderSessionID);
+    @Override
+    public void grantLeadership(UUID leaderSessionID) {
+        LOG.debug("Was granted leadership with session ID {}.", leaderSessionID);
 
-		this.leaderSessionID = leaderSessionID;
+        this.leaderSessionID = leaderSessionID;
 
-		leaderElectionService.confirmLeadership(leaderSessionID, address);
+        leaderElectionService.confirmLeadership(leaderSessionID, address);
 
-		leaderEventQueue.offer(LeaderInformation.known(leaderSessionID, address));
-	}
+        leaderEventQueue.offer(LeaderInformation.known(leaderSessionID, address));
+    }
 
-	@Override
-	public void revokeLeadership() {
-		LOG.debug("Was revoked leadership. Old session ID {}.", leaderSessionID);
+    @Override
+    public void revokeLeadership() {
+        LOG.debug("Was revoked leadership. Old session ID {}.", leaderSessionID);
 
-		leaderSessionID = null;
-		leaderEventQueue.offer(LeaderInformation.empty());
-	}
+        leaderSessionID = null;
+        leaderEventQueue.offer(LeaderInformation.empty());
+    }
 
-	@Override
-	public String getDescription() {
-		return address;
-	}
+    @Override
+    public String getDescription() {
+        return address;
+    }
 
-	@Override
-	public void handleError(Exception exception) {
-		super.handleError(exception);
-	}
+    @Override
+    public void handleError(Exception exception) {
+        super.handleError(exception);
+    }
 
-	public UUID getLeaderSessionID() {
-		return leaderSessionID;
-	}
+    public UUID getLeaderSessionID() {
+        return leaderSessionID;
+    }
 }

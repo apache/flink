@@ -21,25 +21,23 @@ package org.apache.flink.runtime.io.network.metrics;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 
-/**
- * Gauge metric measuring the number of queued output buffers for {@link ResultPartition}s.
- */
+/** Gauge metric measuring the number of queued output buffers for {@link ResultPartition}s. */
 public class OutputBuffersGauge implements Gauge<Integer> {
 
-	private final ResultPartition[] resultPartitions;
+    private final ResultPartition[] resultPartitions;
 
-	public OutputBuffersGauge(ResultPartition[] resultPartitions) {
-		this.resultPartitions = resultPartitions;
-	}
+    public OutputBuffersGauge(ResultPartition[] resultPartitions) {
+        this.resultPartitions = resultPartitions;
+    }
 
-	@Override
-	public Integer getValue() {
-		int totalBuffers = 0;
+    @Override
+    public Integer getValue() {
+        int totalBuffers = 0;
 
-		for (ResultPartition producedPartition : resultPartitions) {
-			totalBuffers += producedPartition.getNumberOfQueuedBuffers();
-		}
+        for (ResultPartition producedPartition : resultPartitions) {
+            totalBuffers += producedPartition.getNumberOfQueuedBuffers();
+        }
 
-		return totalBuffers;
-	}
+        return totalBuffers;
+    }
 }

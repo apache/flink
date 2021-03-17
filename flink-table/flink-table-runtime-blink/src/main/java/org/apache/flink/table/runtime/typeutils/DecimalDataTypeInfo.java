@@ -26,92 +26,90 @@ import org.apache.flink.table.data.DecimalData;
 
 import java.util.Arrays;
 
-/**
- * TypeInformation for {@link DecimalData}.
- */
+/** TypeInformation for {@link DecimalData}. */
 @Internal
 public class DecimalDataTypeInfo extends TypeInformation<DecimalData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static DecimalDataTypeInfo of(int precision, int scale) {
-		return new DecimalDataTypeInfo(precision, scale);
-	}
+    public static DecimalDataTypeInfo of(int precision, int scale) {
+        return new DecimalDataTypeInfo(precision, scale);
+    }
 
-	private final int precision;
+    private final int precision;
 
-	private final int scale;
+    private final int scale;
 
-	public DecimalDataTypeInfo(int precision, int scale) {
-		this.precision = precision;
-		this.scale = scale;
-	}
+    public DecimalDataTypeInfo(int precision, int scale) {
+        this.precision = precision;
+        this.scale = scale;
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return true;
-	}
+    @Override
+    public boolean isBasicType() {
+        return true;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<DecimalData> getTypeClass() {
-		return DecimalData.class;
-	}
+    @Override
+    public Class<DecimalData> getTypeClass() {
+        return DecimalData.class;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+    @Override
+    public boolean isKeyType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<DecimalData> createSerializer(ExecutionConfig config) {
-		return new DecimalDataSerializer(precision, scale);
-	}
+    @Override
+    public TypeSerializer<DecimalData> createSerializer(ExecutionConfig config) {
+        return new DecimalDataSerializer(precision, scale);
+    }
 
-	@Override
-	public String toString() {
-		return String.format("Decimal(%d,%d)", precision, scale);
-	}
+    @Override
+    public String toString() {
+        return String.format("Decimal(%d,%d)", precision, scale);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof DecimalDataTypeInfo)) {
-			return false;
-		}
-		DecimalDataTypeInfo that = (DecimalDataTypeInfo) obj;
-		return this.precision == that.precision && this.scale == that.scale;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof DecimalDataTypeInfo)) {
+            return false;
+        }
+        DecimalDataTypeInfo that = (DecimalDataTypeInfo) obj;
+        return this.precision == that.precision && this.scale == that.scale;
+    }
 
-	@Override
-	public int hashCode() {
-		int h0 = this.getClass().getCanonicalName().hashCode();
-		return Arrays.hashCode(new int[]{h0, precision, scale});
-	}
+    @Override
+    public int hashCode() {
+        int h0 = this.getClass().getCanonicalName().hashCode();
+        return Arrays.hashCode(new int[] {h0, precision, scale});
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof DecimalDataTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof DecimalDataTypeInfo;
+    }
 
-	public int precision() {
-		return precision;
-	}
+    public int precision() {
+        return precision;
+    }
 
-	public int scale() {
-		return scale;
-	}
+    public int scale() {
+        return scale;
+    }
 }

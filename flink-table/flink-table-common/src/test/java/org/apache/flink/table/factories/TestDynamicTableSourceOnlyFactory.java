@@ -25,29 +25,30 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
- * Test implementations for {@link DynamicTableSourceFactory} which only supports to be used as source.
+ * Test implementations for {@link DynamicTableSourceFactory} which only supports to be used as
+ * source.
  */
 public final class TestDynamicTableSourceOnlyFactory implements DynamicTableSourceFactory {
 
-	public static final String IDENTIFIER = "source-only";
+    public static final String IDENTIFIER = "source-only";
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		return null;
-	}
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        return null;
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
 }

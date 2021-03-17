@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 /**
  * Tests for watermark push down.
@@ -86,31 +86,8 @@ class SourceWatermarkTest extends TableTestBase {
          | )
          |""".stripMargin
     util.tableEnv.executeSql(ddl3)
-  }
 
-  @Test
-  def testWatermarkOnComputedColumnExcludedRowTime2(): Unit = {
-    util.verifyPlan("SELECT a, b, SECOND(d) FROM VirtualTable")
-  }
-
-  @Test
-  def testWatermarkOnComputedColumnExcluedRowTime1(): Unit = {
-    util.verifyPlan("SELECT a, b FROM VirtualTable WHERE b > 10")
-  }
-
-  @Test
-  def testWatermarkOnNestedRowWithNestedProjection(): Unit = {
-    util.verifyPlan("select c.e, c.d from NestedTable")
-  }
-
-  @Test
-  def testWatermarkWithUdf(): Unit = {
-    util.verifyPlan("SELECT a - b FROM UdfTable")
-  }
-
-  @Test
-  def testWatermarkWithMetadata(): Unit = {
-    val ddl =
+    val ddl4 =
       """
         | CREATE TABLE MyTable(
         |   a INT,
@@ -128,7 +105,59 @@ class SourceWatermarkTest extends TableTestBase {
         | )
         |""".stripMargin
 
-    util.tableEnv.executeSql(ddl)
-    util.verifyPlan("SELECT a, b FROM MyTable")
+    util.tableEnv.executeSql(ddl4)
+  }
+
+  @Test
+  def testSimpleWatermarkPushDown(): Unit = {
+    util.verifyExecPlan("SELECT a, b, c FROM VirtualTable")
+  }
+
+  @Test
+  def testWatermarkOnComputedColumnExcludedRowTime2(): Unit = {
+    util.verifyExecPlan("SELECT a, b, SECOND(d) FROM VirtualTable")
+  }
+
+  @Test
+  def testWatermarkOnComputedColumnExcluedRowTime1(): Unit = {
+    util.verifyExecPlan("SELECT a, b FROM VirtualTable WHERE b > 10")
+  }
+
+  @Test
+  def testWatermarkOnNestedRowWithNestedProjection(): Unit = {
+    util.verifyExecPlan("select c.e, c.d from NestedTable")
+  }
+
+  @Test
+  def testWatermarkWithUdf(): Unit = {
+    util.verifyExecPlan("SELECT a - b FROM UdfTable")
+  }
+
+  @Test
+  def testWatermarkWithMetadata(): Unit = {
+    util.verifyExecPlan("SELECT a, b FROM MyTable")
+  }
+
+  @Test
+  def testProjectTransposeWatermarkAssigner(): Unit = {
+    val sourceDDL =
+      s"""
+         |CREATE TEMPORARY TABLE `t1` (
+         |  `a`  VARCHAR,
+         |  `b`  VARCHAR,
+         |  `c`  VARCHAR,
+         |  `d`  INT,
+         |  `t`  TIMESTAMP(3),
+         |  `ts` AS `t`,
+         |  WATERMARK FOR `ts` AS `ts`  - INTERVAL '10' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'enable-watermark-push-down' = 'true',
+         |  'bounded' = 'false',
+         |  'disable-lookup' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(sourceDDL)
+    util.verifyExecPlan("SELECT a, b, ts FROM t1")
   }
 }

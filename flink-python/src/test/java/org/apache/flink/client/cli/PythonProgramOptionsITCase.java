@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
@@ -39,53 +38,56 @@ import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-/**
- * ITCases for {@link PythonProgramOptions}.
- */
+/** ITCases for {@link PythonProgramOptions}. */
 public class PythonProgramOptionsITCase {
 
-	/**
-	 * It requires setting a job jar to build a {@link PackagedProgram}, and the dummy job jar used
-	 * in this test case is available only after the packaging phase completed, so we make it as an
-	 * ITCase.
-	 **/
-	@Test
-	public void testConfigurePythonExecution() throws IllegalAccessException, NoSuchFieldException, CliArgsException, ProgramInvocationException, IOException {
-		final String[] args = {
-			"--python", "xxx.py",
-			"--pyModule", "xxx",
-			"--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
-			"--pyRequirements", "d.txt#e_dir",
-			"--pyExecutable", "/usr/bin/python",
-			"--pyArchives", "g.zip,h.zip#data,h.zip#data2",
-			"userarg1", "userarg2"
-		};
+    /**
+     * It requires setting a job jar to build a {@link PackagedProgram}, and the dummy job jar used
+     * in this test case is available only after the packaging phase completed, so we make it as an
+     * ITCase.
+     */
+    @Test
+    public void testConfigurePythonExecution() throws Exception {
+        final String[] args = {
+            "--python", "xxx.py",
+            "--pyModule", "xxx",
+            "--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
+            "--pyRequirements", "d.txt#e_dir",
+            "--pyExecutable", "/usr/bin/python",
+            "--pyArchives", "g.zip,h.zip#data,h.zip#data2",
+            "userarg1", "userarg2"
+        };
 
-		final File[] dummyJobJar = {null};
-		Files.walkFileTree(FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/dummy-job-jar"), new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				FileVisitResult result = super.visitFile(file, attrs);
-				if (file.getFileName().toString().startsWith("flink-python")) {
-					dummyJobJar[0] = file.toFile();
-				}
-				return result;
-			}
-		});
+        final File[] dummyJobJar = {null};
+        Files.walkFileTree(
+                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/artifacts"),
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                            throws IOException {
+                        FileVisitResult result = super.visitFile(file, attrs);
+                        if (file.getFileName().toString().startsWith("dummy")) {
+                            dummyJobJar[0] = file.toFile();
+                        }
+                        return result;
+                    }
+                });
 
-		PackagedProgram packagedProgram = PackagedProgram.newBuilder()
-			.setArguments(args).setJarFile(dummyJobJar[0])
-			.build();
+        PackagedProgram packagedProgram =
+                PackagedProgram.newBuilder().setArguments(args).setJarFile(dummyJobJar[0]).build();
 
-		Configuration configuration = new Configuration();
-		ProgramOptionsUtils.configurePythonExecution(configuration, packagedProgram);
+        Configuration configuration = new Configuration();
+        ProgramOptionsUtils.configurePythonExecution(configuration, packagedProgram);
 
-		assertEquals("/absolute/a.py,relative/b.py,relative/c.py", configuration.get(PythonOptions.PYTHON_FILES));
-		assertEquals("d.txt#e_dir", configuration.get(PYTHON_REQUIREMENTS));
-		assertEquals("g.zip,h.zip#data,h.zip#data2", configuration.get(PythonOptions.PYTHON_ARCHIVES));
-		assertEquals("/usr/bin/python", configuration.get(PYTHON_EXECUTABLE));
-		assertArrayEquals(
-			new String[] {"--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2"},
-			packagedProgram.getArguments());
-	}
+        assertEquals(
+                "/absolute/a.py,relative/b.py,relative/c.py",
+                configuration.get(PythonOptions.PYTHON_FILES));
+        assertEquals("d.txt#e_dir", configuration.get(PYTHON_REQUIREMENTS));
+        assertEquals(
+                "g.zip,h.zip#data,h.zip#data2", configuration.get(PythonOptions.PYTHON_ARCHIVES));
+        assertEquals("/usr/bin/python", configuration.get(PYTHON_EXECUTABLE));
+        assertArrayEquals(
+                new String[] {"--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2"},
+                packagedProgram.getArguments());
+    }
 }

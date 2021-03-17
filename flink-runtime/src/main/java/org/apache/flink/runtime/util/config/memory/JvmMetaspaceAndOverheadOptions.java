@@ -21,39 +21,37 @@ package org.apache.flink.runtime.util.config.memory;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 
-/**
- * Options to calculate JVM Metaspace and Overhead.
- */
+/** Options to calculate JVM Metaspace and Overhead. */
 public class JvmMetaspaceAndOverheadOptions {
-	private final ConfigOption<MemorySize> jvmMetaspaceOption;
-	private final ConfigOption<MemorySize> jvmOverheadMin;
-	private final ConfigOption<MemorySize> jvmOverheadMax;
-	private final ConfigOption<Float> jvmOverheadFraction;
+    private final ConfigOption<MemorySize> jvmMetaspaceOption;
+    private final ConfigOption<MemorySize> jvmOverheadMin;
+    private final ConfigOption<MemorySize> jvmOverheadMax;
+    private final ConfigOption<Float> jvmOverheadFraction;
 
-	public JvmMetaspaceAndOverheadOptions(
-			ConfigOption<MemorySize> jvmMetaspaceOption,
-			ConfigOption<MemorySize> jvmOverheadMin,
-			ConfigOption<MemorySize> jvmOverheadMax,
-			ConfigOption<Float> jvmOverheadFraction) {
-		this.jvmMetaspaceOption = jvmMetaspaceOption;
-		this.jvmOverheadMin = jvmOverheadMin;
-		this.jvmOverheadMax = jvmOverheadMax;
-		this.jvmOverheadFraction = jvmOverheadFraction;
-	}
+    public JvmMetaspaceAndOverheadOptions(
+            ConfigOption<MemorySize> jvmMetaspaceOption,
+            ConfigOption<MemorySize> jvmOverheadMin,
+            ConfigOption<MemorySize> jvmOverheadMax,
+            ConfigOption<Float> jvmOverheadFraction) {
+        this.jvmMetaspaceOption = jvmMetaspaceOption;
+        this.jvmOverheadMin = jvmOverheadMin;
+        this.jvmOverheadMax = jvmOverheadMax;
+        this.jvmOverheadFraction = jvmOverheadFraction;
+    }
 
-	ConfigOption<MemorySize> getJvmMetaspaceOption() {
-		return jvmMetaspaceOption;
-	}
+    ConfigOption<MemorySize> getJvmMetaspaceOption() {
+        return jvmMetaspaceOption;
+    }
 
-	ConfigOption<MemorySize> getJvmOverheadMin() {
-		return jvmOverheadMin;
-	}
+    ConfigOption<MemorySize> getJvmOverheadMin() {
+        return jvmOverheadMin;
+    }
 
-	ConfigOption<MemorySize> getJvmOverheadMax() {
-		return jvmOverheadMax;
-	}
+    ConfigOption<MemorySize> getJvmOverheadMax() {
+        return jvmOverheadMax;
+    }
 
-	ConfigOption<Float> getJvmOverheadFraction() {
-		return jvmOverheadFraction;
-	}
+    ConfigOption<Float> getJvmOverheadFraction() {
+        return jvmOverheadFraction;
+    }
 }

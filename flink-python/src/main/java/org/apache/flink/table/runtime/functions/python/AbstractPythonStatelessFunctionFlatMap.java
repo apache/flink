@@ -58,276 +58,254 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 /**
- * Base Python stateless {@link RichFlatMapFunction} used to invoke Python stateless functions for the
- * old planner.
+ * Base Python stateless {@link RichFlatMapFunction} used to invoke Python stateless functions for
+ * the old planner.
  */
 @Internal
-public abstract class AbstractPythonStatelessFunctionFlatMap
-	extends RichFlatMapFunction<Row, Row> implements ResultTypeQueryable<Row> {
+public abstract class AbstractPythonStatelessFunctionFlatMap extends RichFlatMapFunction<Row, Row>
+        implements ResultTypeQueryable<Row> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractPythonStatelessFunctionFlatMap.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractPythonStatelessFunctionFlatMap.class);
 
-	/**
-	 * The python config.
-	 */
-	private final PythonConfig config;
+    /** The python config. */
+    private final PythonConfig config;
 
-	/**
-	 * The offsets of user-defined function inputs.
-	 */
-	private final int[] userDefinedFunctionInputOffsets;
+    /** The offsets of user-defined function inputs. */
+    private final int[] userDefinedFunctionInputOffsets;
 
-	/**
-	 * The input logical type.
-	 */
-	protected final RowType inputType;
+    /** The input logical type. */
+    protected final RowType inputType;
 
-	/**
-	 * The output logical type.
-	 */
-	protected final RowType outputType;
+    /** The output logical type. */
+    protected final RowType outputType;
 
-	/**
-	 * The options used to configure the Python worker process.
-	 */
-	protected final Map<String, String> jobOptions;
+    /** The options used to configure the Python worker process. */
+    protected final Map<String, String> jobOptions;
 
-	/**
-	 * The user-defined function input logical type.
-	 */
-	protected transient RowType userDefinedFunctionInputType;
+    /** The user-defined function input logical type. */
+    protected transient RowType userDefinedFunctionInputType;
 
-	/**
-	 * The user-defined function output logical type.
-	 */
-	protected transient RowType userDefinedFunctionOutputType;
+    /** The user-defined function output logical type. */
+    protected transient RowType userDefinedFunctionOutputType;
 
-	/**
-	 * The queue holding the input elements for which the execution results have not been received.
-	 */
-	protected transient LinkedBlockingQueue<Row> forwardedInputQueue;
+    /**
+     * The queue holding the input elements for which the execution results have not been received.
+     */
+    protected transient LinkedBlockingQueue<Row> forwardedInputQueue;
 
-	/**
-	 * Max number of elements to include in a bundle.
-	 */
-	private transient int maxBundleSize;
+    /** Max number of elements to include in a bundle. */
+    private transient int maxBundleSize;
 
-	/**
-	 * Number of processed elements in the current bundle.
-	 */
-	private transient int elementCount;
+    /** Number of processed elements in the current bundle. */
+    private transient int elementCount;
 
-	/**
-	 * OutputStream Wrapper.
-	 */
-	transient DataOutputViewStreamWrapper baosWrapper;
+    /** OutputStream Wrapper. */
+    transient DataOutputViewStreamWrapper baosWrapper;
 
-	/**
-	 * The collector used to collect records.
-	 */
-	protected transient Collector<Row> resultCollector;
+    /** The collector used to collect records. */
+    protected transient Collector<Row> resultCollector;
 
-	/**
-	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
-	 */
-	protected transient PythonFunctionRunner pythonFunctionRunner;
+    /**
+     * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
+     * execution.
+     */
+    protected transient PythonFunctionRunner pythonFunctionRunner;
 
-	/**
-	 * Reusable InputStream used to holding the execution results to be deserialized.
-	 */
-	protected transient ByteArrayInputStreamWithPos bais;
+    /** Reusable InputStream used to holding the execution results to be deserialized. */
+    protected transient ByteArrayInputStreamWithPos bais;
 
-	/**
-	 * InputStream Wrapper.
-	 */
-	protected transient DataInputViewStreamWrapper baisWrapper;
+    /** InputStream Wrapper. */
+    protected transient DataInputViewStreamWrapper baisWrapper;
 
-	/**
-	 * The type serializer for the forwarded fields.
-	 */
-	protected transient TypeSerializer<Row> forwardedInputSerializer;
+    /** The type serializer for the forwarded fields. */
+    protected transient TypeSerializer<Row> forwardedInputSerializer;
 
-	/**
-	 * Reusable OutputStream used to holding the serialized input elements.
-	 */
-	protected transient ByteArrayOutputStreamWithPos baos;
+    /** Reusable OutputStream used to holding the serialized input elements. */
+    protected transient ByteArrayOutputStreamWithPos baos;
 
-	public AbstractPythonStatelessFunctionFlatMap(
-		Configuration config,
-		RowType inputType,
-		RowType outputType,
-		int[] userDefinedFunctionInputOffsets) {
-		this.inputType = Preconditions.checkNotNull(inputType);
-		this.outputType = Preconditions.checkNotNull(outputType);
-		this.userDefinedFunctionInputOffsets = Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
-		this.config = new PythonConfig(Preconditions.checkNotNull(config));
-		this.jobOptions = buildJobOptions(config);
-	}
+    public AbstractPythonStatelessFunctionFlatMap(
+            Configuration config,
+            RowType inputType,
+            RowType outputType,
+            int[] userDefinedFunctionInputOffsets) {
+        this.inputType = Preconditions.checkNotNull(inputType);
+        this.outputType = Preconditions.checkNotNull(outputType);
+        this.userDefinedFunctionInputOffsets =
+                Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
+        this.config = new PythonConfig(Preconditions.checkNotNull(config));
+        this.jobOptions = buildJobOptions(config);
+    }
 
-	protected PythonConfig getPythonConfig() {
-		return config;
-	}
+    protected PythonConfig getPythonConfig() {
+        return config;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		this.elementCount = 0;
-		this.maxBundleSize = config.getMaxBundleSize();
-		if (this.maxBundleSize <= 0) {
-			this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
-			LOG.error("Invalid value for the maximum bundle size. Using default value of " +
-				this.maxBundleSize + '.');
-		} else {
-			LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
-		}
+        this.elementCount = 0;
+        this.maxBundleSize = config.getMaxBundleSize();
+        if (this.maxBundleSize <= 0) {
+            this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
+            LOG.error(
+                    "Invalid value for the maximum bundle size. Using default value of "
+                            + this.maxBundleSize
+                            + '.');
+        } else {
+            LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
+        }
 
-		if (config.getMaxBundleTimeMills() != PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue()) {
-			LOG.info("Maximum bundle time takes no effect in old planner under batch mode. " +
-				"Config maximum bundle size instead! " +
-				"Under batch mode, bundle size should be enough to control both throughput and latency.");
-		}
-		forwardedInputQueue = new LinkedBlockingQueue<>();
-		userDefinedFunctionInputType = new RowType(
-			Arrays.stream(userDefinedFunctionInputOffsets)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.collect(Collectors.toList()));
+        if (config.getMaxBundleTimeMills() != PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue()) {
+            LOG.info(
+                    "Maximum bundle time takes no effect in old planner under batch mode. "
+                            + "Config maximum bundle size instead! "
+                            + "Under batch mode, bundle size should be enough to control both throughput and latency.");
+        }
+        forwardedInputQueue = new LinkedBlockingQueue<>();
+        userDefinedFunctionInputType =
+                new RowType(
+                        Arrays.stream(userDefinedFunctionInputOffsets)
+                                .mapToObj(i -> inputType.getFields().get(i))
+                                .collect(Collectors.toList()));
 
-		bais = new ByteArrayInputStreamWithPos();
-		baisWrapper = new DataInputViewStreamWrapper(bais);
+        bais = new ByteArrayInputStreamWithPos();
+        baisWrapper = new DataInputViewStreamWrapper(bais);
 
-		baos = new ByteArrayOutputStreamWithPos();
-		baosWrapper = new DataOutputViewStreamWrapper(baos);
+        baos = new ByteArrayOutputStreamWithPos();
+        baosWrapper = new DataOutputViewStreamWrapper(baos);
 
-		userDefinedFunctionOutputType = new RowType(outputType.getFields().subList(getForwardedFieldsCount(), outputType.getFieldCount()));
+        userDefinedFunctionOutputType =
+                new RowType(
+                        outputType
+                                .getFields()
+                                .subList(getForwardedFieldsCount(), outputType.getFieldCount()));
 
-		this.pythonFunctionRunner = createPythonFunctionRunner();
-		this.pythonFunctionRunner.open(config);
-	}
+        this.pythonFunctionRunner = createPythonFunctionRunner();
+        this.pythonFunctionRunner.open(config);
+    }
 
-	@Override
-	public void flatMap(Row value, Collector<Row> out) throws Exception {
-		this.resultCollector = out;
-		bufferInput(value);
-		processElementInternal(value);
-		checkInvokeFinishBundleByCount();
-		emitResults();
-	}
+    @Override
+    public void flatMap(Row value, Collector<Row> out) throws Exception {
+        this.resultCollector = out;
+        bufferInput(value);
+        processElementInternal(value);
+        checkInvokeFinishBundleByCount();
+        emitResults();
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeInformation<Row> getProducedType() {
-		return (TypeInformation<Row>) LegacyTypeInfoDataTypeConverter
-			.toLegacyTypeInfo(LogicalTypeDataTypeConverter.toDataType(outputType));
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypeInformation<Row> getProducedType() {
+        return (TypeInformation<Row>)
+                LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+                        LogicalTypeDataTypeConverter.toDataType(outputType));
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			invokeFinishBundle();
+    @Override
+    public void close() throws Exception {
+        try {
+            invokeFinishBundle();
 
-			if (pythonFunctionRunner != null) {
-				pythonFunctionRunner.close();
-				pythonFunctionRunner = null;
-			}
-		} finally {
-			super.close();
-		}
-	}
+            if (pythonFunctionRunner != null) {
+                pythonFunctionRunner.close();
+                pythonFunctionRunner = null;
+            }
+        } finally {
+            super.close();
+        }
+    }
 
-	/**
-	 * Returns the {@link PythonEnv} used to create PythonEnvironmentManager..
-	 */
-	public abstract PythonEnv getPythonEnv();
+    /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
+    public abstract PythonEnv getPythonEnv();
 
-	public abstract void bufferInput(Row input);
+    public abstract void bufferInput(Row input);
 
-	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
+    public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
-	public abstract int getForwardedFieldsCount();
+    public abstract int getForwardedFieldsCount();
 
-	/**
-	 * Gets the proto representation of the Python user-defined functions to be executed.
-	 */
-	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+    /** Gets the proto representation of the Python user-defined functions to be executed. */
+    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
-	public abstract String getInputOutputCoderUrn();
+    public abstract String getInputOutputCoderUrn();
 
-	public abstract String getFunctionUrn();
+    public abstract String getFunctionUrn();
 
-	public abstract void processElementInternal(Row value) throws Exception;
+    public abstract void processElementInternal(Row value) throws Exception;
 
-	/**
-	 * Checks whether to invoke finishBundle by elements count. Called in flatMap.
-	 */
-	protected void checkInvokeFinishBundleByCount() throws Exception {
-		elementCount++;
-		if (elementCount >= maxBundleSize) {
-			invokeFinishBundle();
-		}
-	}
+    /** Checks whether to invoke finishBundle by elements count. Called in flatMap. */
+    protected void checkInvokeFinishBundleByCount() throws Exception {
+        elementCount++;
+        if (elementCount >= maxBundleSize) {
+            invokeFinishBundle();
+        }
+    }
 
-	protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
-		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(
-			config, getRuntimeContext().getDistributedCache());
-		PythonEnv pythonEnv = getPythonEnv();
-		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-			return new ProcessPythonEnvironmentManager(
-				dependencyInfo,
-				ConfigurationUtils.splitPaths(System.getProperty("java.io.tmpdir")),
-				System.getenv());
-		} else {
-			throw new UnsupportedOperationException(String.format(
-				"Execution type '%s' is not supported.", pythonEnv.getExecType()));
-		}
-	}
+    protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(config, getRuntimeContext().getDistributedCache());
+        PythonEnv pythonEnv = getPythonEnv();
+        if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
+            return new ProcessPythonEnvironmentManager(
+                    dependencyInfo,
+                    ConfigurationUtils.splitPaths(System.getProperty("java.io.tmpdir")),
+                    System.getenv());
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Execution type '%s' is not supported.", pythonEnv.getExecType()));
+        }
+    }
 
-	protected FlinkMetricContainer getFlinkMetricContainer() {
-		return this.config.isMetricEnabled() ?
-			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
-	}
+    protected FlinkMetricContainer getFlinkMetricContainer() {
+        return this.config.isMetricEnabled()
+                ? new FlinkMetricContainer(getRuntimeContext().getMetricGroup())
+                : null;
+    }
 
-	protected Row getFunctionInput(Row element) {
-		return Row.project(element, userDefinedFunctionInputOffsets);
-	}
+    protected Row getFunctionInput(Row element) {
+        return Row.project(element, userDefinedFunctionInputOffsets);
+    }
 
-	private void emitResults() throws Exception {
-		Tuple2<byte[], Integer> resultTuple;
-		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
-			emitResult(resultTuple);
-		}
-	}
+    private void emitResults() throws Exception {
+        Tuple2<byte[], Integer> resultTuple;
+        while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
+            emitResult(resultTuple);
+        }
+    }
 
-	protected void invokeFinishBundle() throws Exception {
-		if (elementCount > 0) {
-			pythonFunctionRunner.flush();
-			elementCount = 0;
-			emitResults();
-		}
-	}
+    protected void invokeFinishBundle() throws Exception {
+        if (elementCount > 0) {
+            pythonFunctionRunner.flush();
+            elementCount = 0;
+            emitResults();
+        }
+    }
 
-	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-		return new BeamTableStatelessPythonFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			getFunctionUrn(),
-			getUserDefinedFunctionsProto(),
-			getInputOutputCoderUrn(),
-			jobOptions,
-			getFlinkMetricContainer(),
-			null,
-			0.0);
-	}
+    private PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+        return new BeamTableStatelessPythonFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                createPythonEnvironmentManager(),
+                userDefinedFunctionInputType,
+                userDefinedFunctionOutputType,
+                getFunctionUrn(),
+                getUserDefinedFunctionsProto(),
+                getInputOutputCoderUrn(),
+                jobOptions,
+                getFlinkMetricContainer(),
+                null,
+                0.0);
+    }
 
-	private Map<String, String> buildJobOptions(Configuration config) {
-		Map<String, String> jobOptions = new HashMap<>();
-		if (config.containsKey("table.exec.timezone")) {
-			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
-		}
-		return jobOptions;
-	}
+    private Map<String, String> buildJobOptions(Configuration config) {
+        Map<String, String> jobOptions = new HashMap<>();
+        if (config.containsKey("table.exec.timezone")) {
+            jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
+        }
+        return jobOptions;
+    }
 }

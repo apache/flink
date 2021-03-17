@@ -25,29 +25,27 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
-/**
- * {@link Input} for {@link OneInputStreamOperator}.
- */
+/** {@link Input} for {@link OneInputStreamOperator}. */
 public class OneInput extends InputBase {
 
-	private final OneInputStreamOperator<RowData, RowData> operator;
+    private final OneInputStreamOperator<RowData, RowData> operator;
 
-	public OneInput(OneInputStreamOperator<RowData, RowData> operator) {
-		this.operator = operator;
-	}
+    public OneInput(OneInputStreamOperator<RowData, RowData> operator) {
+        this.operator = operator;
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		operator.processElement(element);
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        operator.processElement(element);
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		operator.processWatermark(mark);
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        operator.processWatermark(mark);
+    }
 
-	@Override
-	public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-		operator.processLatencyMarker(latencyMarker);
-	}
+    @Override
+    public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+        operator.processLatencyMarker(latencyMarker);
+    }
 }

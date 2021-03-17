@@ -23,8 +23,6 @@ import org.apache.flink.util.WrappingProxy;
 
 import java.io.Closeable;
 
-/**
- * {@link WrappingProxy} for {@link Closeable} that is also closeable.
- */
+/** {@link WrappingProxy} for {@link Closeable} that is also closeable. */
 @Internal
 public interface WrappingProxyCloseable<T extends Closeable> extends Closeable, WrappingProxy<T> {}

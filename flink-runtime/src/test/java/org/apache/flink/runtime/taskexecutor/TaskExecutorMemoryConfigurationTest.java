@@ -42,64 +42,54 @@ import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_PROCESS_ME
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests the initialization of TaskExecutorMemoryConfiguration.
- */
+/** Tests the initialization of TaskExecutorMemoryConfiguration. */
 public class TaskExecutorMemoryConfigurationTest extends TestLogger {
 
-	@Test
-	public void testInitializationWithAllValuesBeingSet() {
-		Configuration config = new Configuration();
+    @Test
+    public void testInitializationWithAllValuesBeingSet() {
+        Configuration config = new Configuration();
 
-		config.set(FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
-		config.set(TASK_HEAP_MEMORY, new MemorySize(2));
-		config.set(FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
-		config.set(TASK_OFF_HEAP_MEMORY, new MemorySize(4));
-		config.set(NETWORK_MEMORY_MIN, new MemorySize(5));
-		config.set(NETWORK_MEMORY_MAX, new MemorySize(6));
-		config.set(NETWORK_MEMORY_FRACTION, 0.1f);
-		config.set(MANAGED_MEMORY_SIZE, new MemorySize(7));
-		config.set(MANAGED_MEMORY_FRACTION, 0.2f);
-		config.set(JVM_METASPACE, new MemorySize(8));
-		config.set(JVM_OVERHEAD_MIN, new MemorySize(9));
-		config.set(JVM_OVERHEAD_MAX, new MemorySize(10));
-		config.set(JVM_OVERHEAD_FRACTION, 0.3f);
-		config.set(TOTAL_FLINK_MEMORY, new MemorySize(11));
-		config.set(TOTAL_PROCESS_MEMORY, new MemorySize(12));
+        config.set(FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
+        config.set(TASK_HEAP_MEMORY, new MemorySize(2));
+        config.set(FRAMEWORK_OFF_HEAP_MEMORY, new MemorySize(3));
+        config.set(TASK_OFF_HEAP_MEMORY, new MemorySize(4));
+        config.set(NETWORK_MEMORY_MIN, new MemorySize(5));
+        config.set(NETWORK_MEMORY_MAX, new MemorySize(6));
+        config.set(NETWORK_MEMORY_FRACTION, 0.1f);
+        config.set(MANAGED_MEMORY_SIZE, new MemorySize(7));
+        config.set(MANAGED_MEMORY_FRACTION, 0.2f);
+        config.set(JVM_METASPACE, new MemorySize(8));
+        config.set(JVM_OVERHEAD_MIN, new MemorySize(9));
+        config.set(JVM_OVERHEAD_MAX, new MemorySize(10));
+        config.set(JVM_OVERHEAD_FRACTION, 0.3f);
+        config.set(TOTAL_FLINK_MEMORY, new MemorySize(11));
+        config.set(TOTAL_PROCESS_MEMORY, new MemorySize(12));
 
-		TaskExecutorMemoryConfiguration actual = TaskExecutorMemoryConfiguration.create(config);
-		TaskExecutorMemoryConfiguration expected = new TaskExecutorMemoryConfiguration(
-			1L,
-			2L,
-			3L,
-			4L,
-			6L,
-			7L,
-			8L,
-			10L,
-			11L,
-			12L);
+        TaskExecutorMemoryConfiguration actual = TaskExecutorMemoryConfiguration.create(config);
+        TaskExecutorMemoryConfiguration expected =
+                new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 6L, 7L, 8L, 10L, 11L, 12L);
 
-		assertThat(actual, is(expected));
-	}
+        assertThat(actual, is(expected));
+    }
 
-	@Test
-	public void testInitializationWithMissingValues() {
-		Configuration config = new Configuration();
+    @Test
+    public void testInitializationWithMissingValues() {
+        Configuration config = new Configuration();
 
-		TaskExecutorMemoryConfiguration actual = TaskExecutorMemoryConfiguration.create(config);
-		TaskExecutorMemoryConfiguration expected = new TaskExecutorMemoryConfiguration(
-			FRAMEWORK_HEAP_MEMORY.defaultValue().getBytes(),
-			null,
-			FRAMEWORK_OFF_HEAP_MEMORY.defaultValue().getBytes(),
-			TASK_OFF_HEAP_MEMORY.defaultValue().getBytes(),
-			NETWORK_MEMORY_MAX.defaultValue().getBytes(),
-			null,
-			JVM_METASPACE.defaultValue().getBytes(),
-			JVM_OVERHEAD_MAX.defaultValue().getBytes(),
-			null,
-			null);
+        TaskExecutorMemoryConfiguration actual = TaskExecutorMemoryConfiguration.create(config);
+        TaskExecutorMemoryConfiguration expected =
+                new TaskExecutorMemoryConfiguration(
+                        FRAMEWORK_HEAP_MEMORY.defaultValue().getBytes(),
+                        null,
+                        FRAMEWORK_OFF_HEAP_MEMORY.defaultValue().getBytes(),
+                        TASK_OFF_HEAP_MEMORY.defaultValue().getBytes(),
+                        NETWORK_MEMORY_MAX.defaultValue().getBytes(),
+                        null,
+                        JVM_METASPACE.defaultValue().getBytes(),
+                        JVM_OVERHEAD_MAX.defaultValue().getBytes(),
+                        null,
+                        null);
 
-		assertThat(actual, is(expected));
-	}
+        assertThat(actual, is(expected));
+    }
 }

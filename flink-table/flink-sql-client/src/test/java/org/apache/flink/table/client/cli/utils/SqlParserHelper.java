@@ -26,50 +26,49 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
 
-/**
- * An utility class that provides pre-prepared tables and sql parser.
- */
+/** An utility class that provides pre-prepared tables and sql parser. */
 public class SqlParserHelper {
-	// return the sql parser instance hold by this table evn.
-	private TableEnvironment tableEnv;
+    // return the sql parser instance hold by this table evn.
+    private TableEnvironment tableEnv;
 
-	public SqlParserHelper() {
-		tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-	}
+    public SqlParserHelper() {
+        tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+    }
 
-	public SqlParserHelper(SqlDialect sqlDialect) {
-		if (sqlDialect == null || SqlDialect.DEFAULT == sqlDialect) {
-			tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-		} else if (SqlDialect.HIVE == sqlDialect) {
-			HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog();
-			tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-			tableEnv.getConfig().setSqlDialect(sqlDialect);
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
-		}
-	}
+    public SqlParserHelper(SqlDialect sqlDialect) {
+        if (sqlDialect == null || SqlDialect.DEFAULT == sqlDialect) {
+            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+        } else if (SqlDialect.HIVE == sqlDialect) {
+            HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog();
+            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+            tableEnv.getConfig().setSqlDialect(sqlDialect);
+            tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+            tableEnv.useCatalog(hiveCatalog.getName());
+        }
+    }
 
-	/**
-	 * prepare some tables for testing.
-	 */
-	public void registerTables() {
-		registerTable("create table MyTable (a int, b bigint, c varchar(32)) " +
-				"with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
-		registerTable("create table MyOtherTable (a int, b bigint) " +
-				"with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
-		registerTable("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
-		registerTable("create view MyView as select * from MyTable");
-	}
+    /** prepare some tables for testing. */
+    public void registerTables() {
+        registerTable(
+                "create table MyTable (a int, b bigint, c varchar(32)) "
+                        + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
+        registerTable(
+                "create table MyOtherTable (a int, b bigint) "
+                        + "with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
+        registerTable(
+                "create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
+        registerTable("create view MyView as select * from MyTable");
+    }
 
-	public void registerTable(String createTableStmt) {
-		tableEnv.executeSql(createTableStmt);
-	}
+    public void registerTable(String createTableStmt) {
+        tableEnv.executeSql(createTableStmt);
+    }
 
-	public Parser getSqlParser() {
-		return ((TableEnvironmentInternal) tableEnv).getParser();
-	}
+    public Parser getSqlParser() {
+        return ((TableEnvironmentInternal) tableEnv).getParser();
+    }
 
-	public TableEnvironment getTableEnv() {
-		return tableEnv;
-	}
+    public TableEnvironment getTableEnv() {
+        return tableEnv;
+    }
 }

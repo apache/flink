@@ -45,48 +45,49 @@ import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
  */
 public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 
-	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+    @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
+    @BeforeClass
+    public static void init() {
+        CliFrontendTestUtils.pipeSystemOutToNull();
+    }
 
-	@AfterClass
-	public static void shutdown() {
-		CliFrontendTestUtils.restoreSystemOut();
-	}
+    @AfterClass
+    public static void shutdown() {
+        CliFrontendTestUtils.restoreSystemOut();
+    }
 
-	@Test
-	public void testRun() throws Exception {
-		String testJarPath = getTestJarPath("BatchWordCount.jar").getAbsolutePath();
+    @Test
+    public void testRun() throws Exception {
+        String testJarPath = getTestJarPath("BatchWordCount.jar").getAbsolutePath();
 
-		Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		configuration.setInteger(JobManagerOptions.PORT, 8081);
-		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
+        Configuration configuration = new Configuration();
+        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.setInteger(JobManagerOptions.PORT, 8081);
+        configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
-		final ClusterClientServiceLoader testServiceLoader = new DefaultClusterClientServiceLoader();
+        final ClusterClientServiceLoader testServiceLoader =
+                new DefaultClusterClientServiceLoader();
 
-		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
-			configuration,
-			testServiceLoader,
-			tmp.getRoot().getAbsolutePath(),
-			"y",
-			"yarn",
-			true);
+        final FlinkYarnSessionCli yarnCLI =
+                new FlinkYarnSessionCli(
+                        configuration,
+                        testServiceLoader,
+                        tmp.getRoot().getAbsolutePath(),
+                        "y",
+                        "yarn",
+                        true);
 
-		// test detached mode
-		{
-			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-d", testJarPath};
-			verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
-		}
+        // test detached mode
+        {
+            String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-d", testJarPath};
+            verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
+        }
 
-		// test detached mode
-		{
-			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
-			verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
-		}
-	}
+        // test detached mode
+        {
+            String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
+            verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
+        }
+    }
 }

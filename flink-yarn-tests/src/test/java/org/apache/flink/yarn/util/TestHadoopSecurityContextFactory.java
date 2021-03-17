@@ -26,23 +26,25 @@ import org.apache.flink.runtime.security.contexts.SecurityContextFactory;
 
 import org.apache.hadoop.security.UserGroupInformation;
 
-/**
- * Test hadoop context module factory associated with {@link TestHadoopModuleFactory}.
- */
+/** Test hadoop context module factory associated with {@link TestHadoopModuleFactory}. */
 public class TestHadoopSecurityContextFactory implements SecurityContextFactory {
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		return securityConfig.getSecurityModuleFactories().contains(TestHadoopModuleFactory.class.getCanonicalName());
-	}
+    @Override
+    public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+        return securityConfig
+                .getSecurityModuleFactories()
+                .contains(TestHadoopModuleFactory.class.getCanonicalName());
+    }
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
-		try {
-			UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
-			return new HadoopSecurityContext(loginUser);
-		} catch (Exception e) {
-			throw new SecurityContextInitializeException("Cannot instantiate test security context", e);
-		}
-	}
+    @Override
+    public SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException {
+        try {
+            UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+            return new HadoopSecurityContext(loginUser);
+        } catch (Exception e) {
+            throw new SecurityContextInitializeException(
+                    "Cannot instantiate test security context", e);
+        }
+    }
 }

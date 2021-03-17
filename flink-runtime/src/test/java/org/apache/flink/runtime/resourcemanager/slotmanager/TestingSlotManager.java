@@ -34,122 +34,118 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Implementation of {@link SlotManager} for testing purpose.
- */
+/** Implementation of {@link SlotManager} for testing purpose. */
 public class TestingSlotManager implements SlotManager {
 
-	private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
-	private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
+    private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
+    private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
 
-	TestingSlotManager(
-			Consumer<Boolean> setFailUnfulfillableRequestConsumer,
-			Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
-		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
-		this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
-	}
+    TestingSlotManager(
+            Consumer<Boolean> setFailUnfulfillableRequestConsumer,
+            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
+        this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
+        this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+    }
 
-	@Override
-	public int getNumberRegisteredSlots() {
-		return 0;
-	}
+    @Override
+    public int getNumberRegisteredSlots() {
+        return 0;
+    }
 
-	@Override
-	public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
-		return 0;
-	}
+    @Override
+    public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
+        return 0;
+    }
 
-	@Override
-	public int getNumberFreeSlots() {
-		return 0;
-	}
+    @Override
+    public int getNumberFreeSlots() {
+        return 0;
+    }
 
-	@Override
-	public int getNumberFreeSlotsOf(InstanceID instanceId) {
-		return 0;
-	}
+    @Override
+    public int getNumberFreeSlotsOf(InstanceID instanceId) {
+        return 0;
+    }
 
-	@Override
-	public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-		return getRequiredResourcesSupplier.get();
-	}
+    @Override
+    public Map<WorkerResourceSpec, Integer> getRequiredResources() {
+        return getRequiredResourcesSupplier.get();
+    }
 
-	@Override
-	public ResourceProfile getRegisteredResource() {
-		return ResourceProfile.ZERO;
-	}
+    @Override
+    public ResourceProfile getRegisteredResource() {
+        return ResourceProfile.ZERO;
+    }
 
-	@Override
-	public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
-		return ResourceProfile.ZERO;
-	}
+    @Override
+    public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
+        return ResourceProfile.ZERO;
+    }
 
-	@Override
-	public ResourceProfile getFreeResource() {
-		return ResourceProfile.ZERO;
-	}
+    @Override
+    public ResourceProfile getFreeResource() {
+        return ResourceProfile.ZERO;
+    }
 
-	@Override
-	public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-		return ResourceProfile.ZERO;
-	}
+    @Override
+    public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
+        return ResourceProfile.ZERO;
+    }
 
-	@Override
-	public int getNumberPendingSlotRequests() {
-		return 0;
-	}
+    @Override
+    public int getNumberPendingSlotRequests() {
+        return 0;
+    }
 
-	@Override
-	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceActions newResourceActions) {
+    @Override
+    public void start(
+            ResourceManagerId newResourceManagerId,
+            Executor newMainThreadExecutor,
+            ResourceActions newResourceActions) {}
 
-	}
+    @Override
+    public void suspend() {}
 
-	@Override
-	public void suspend() {
+    @Override
+    public void processResourceRequirements(ResourceRequirements resourceRequirements) {}
 
-	}
+    @Override
+    public boolean registerSlotRequest(SlotRequest slotRequest) {
+        return false;
+    }
 
-	@Override
-	public void processResourceRequirements(ResourceRequirements resourceRequirements) {
-	}
+    @Override
+    public boolean unregisterSlotRequest(AllocationID allocationId) {
+        return false;
+    }
 
-	@Override
-	public boolean registerSlotRequest(SlotRequest slotRequest) {
-		return false;
-	}
+    @Override
+    public boolean registerTaskManager(
+            TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
+        return true;
+    }
 
-	@Override
-	public boolean unregisterSlotRequest(AllocationID allocationId) {
-		return false;
-	}
+    @Override
+    public boolean unregisterTaskManager(InstanceID instanceId, Exception cause) {
+        return false;
+    }
 
-	@Override
-	public boolean registerTaskManager(TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
-		return true;
-	}
+    @Override
+    public boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport) {
+        return false;
+    }
 
-	@Override
-	public boolean unregisterTaskManager(InstanceID instanceId, Exception cause) {
-		return false;
-	}
+    @Override
+    public void freeSlot(SlotID slotId, AllocationID allocationId) {}
 
-	@Override
-	public boolean reportSlotStatus(InstanceID instanceId, SlotReport slotReport) {
-		return false;
-	}
+    @Override
+    public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
+        setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
+    }
 
-	@Override
-	public void freeSlot(SlotID slotId, AllocationID allocationId) {
-
-	}
-
-	@Override
-	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
-		setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
-	}
-
-	@Override
-	public void close() throws Exception {
-
-	}
+    @Override
+    public void close() throws Exception {}
 }

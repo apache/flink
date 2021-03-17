@@ -21,52 +21,50 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
 import java.util.Set;
 
-/**
- * Context for slot allocation.
- */
+/** Context for slot allocation. */
 interface ExecutionSlotAllocationContext extends InputsLocationsRetriever, StateLocationRetriever {
 
-	/**
-	 * Returns required resources for an execution vertex.
-	 *
-	 * @param executionVertexId id of the execution vertex
-	 * @return required resources for the given execution vertex
-	 */
-	ResourceProfile getResourceProfile(ExecutionVertexID executionVertexId);
+    /**
+     * Returns required resources for an execution vertex.
+     *
+     * @param executionVertexId id of the execution vertex
+     * @return required resources for the given execution vertex
+     */
+    ResourceProfile getResourceProfile(ExecutionVertexID executionVertexId);
 
-	/**
-	 * Returns prior allocation id for an execution vertex.
-	 *
-	 * @param executionVertexId id of the execution vertex
-	 * @return prior allocation id for the given execution vertex
-	 */
-	AllocationID getPriorAllocationId(ExecutionVertexID executionVertexId);
+    /**
+     * Returns prior allocation id for an execution vertex.
+     *
+     * @param executionVertexId id of the execution vertex
+     * @return prior allocation id for the given execution vertex
+     */
+    AllocationID getPriorAllocationId(ExecutionVertexID executionVertexId);
 
-	/**
-	 * Returns the scheduling topology containing all execution vertices and edges.
-	 *
-	 * @return scheduling topology
-	 */
-	SchedulingTopology getSchedulingTopology();
+    /**
+     * Returns the scheduling topology containing all execution vertices and edges.
+     *
+     * @return scheduling topology
+     */
+    SchedulingTopology getSchedulingTopology();
 
-	/**
-	 * Returns all slot sharing groups in the job.
-	 *
-	 * @return all slot sharing groups in the job
-	 */
-	Set<SlotSharingGroup> getLogicalSlotSharingGroups();
+    /**
+     * Returns all slot sharing groups in the job.
+     *
+     * @return all slot sharing groups in the job
+     */
+    Set<SlotSharingGroup> getLogicalSlotSharingGroups();
 
-	/**
-	 * Returns all co-location groups in the job.
-	 *
-	 * @return all co-location groups in the job
-	 */
-	Set<CoLocationGroupDesc> getCoLocationGroups();
+    /**
+     * Returns all co-location groups in the job.
+     *
+     * @return all co-location groups in the job
+     */
+    Set<CoLocationGroup> getCoLocationGroups();
 }

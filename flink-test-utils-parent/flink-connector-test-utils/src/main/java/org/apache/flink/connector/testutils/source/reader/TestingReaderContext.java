@@ -23,74 +23,79 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A testing implementation of the {@link SourceReaderContext}.
- */
+/** A testing implementation of the {@link SourceReaderContext}. */
 public class TestingReaderContext implements SourceReaderContext {
 
-	private final UnregisteredMetricsGroup metrics = new UnregisteredMetricsGroup();
+    private final UnregisteredMetricsGroup metrics = new UnregisteredMetricsGroup();
 
-	private final Configuration config;
+    private final Configuration config;
 
-	private final ArrayList<SourceEvent> sentEvents = new ArrayList<>();
+    private final ArrayList<SourceEvent> sentEvents = new ArrayList<>();
 
-	private int numSplitRequests;
+    private int numSplitRequests;
 
-	public TestingReaderContext() {
-		this(new Configuration());
-	}
+    public TestingReaderContext() {
+        this(new Configuration());
+    }
 
-	public TestingReaderContext(Configuration config) {
-		this.config = config;
-	}
+    public TestingReaderContext(Configuration config) {
+        this.config = config;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public MetricGroup metricGroup() {
-		return metrics;
-	}
+    @Override
+    public MetricGroup metricGroup() {
+        return metrics;
+    }
 
-	@Override
-	public Configuration getConfiguration() {
-		return config;
-	}
+    @Override
+    public Configuration getConfiguration() {
+        return config;
+    }
 
-	@Override
-	public String getLocalHostName() {
-		return "localhost";
-	}
+    @Override
+    public String getLocalHostName() {
+        return "localhost";
+    }
 
-	@Override
-	public int getIndexOfSubtask() {
-		return 0;
-	}
+    @Override
+    public int getIndexOfSubtask() {
+        return 0;
+    }
 
-	@Override
-	public void sendSplitRequest() {
-		numSplitRequests++;
-	}
+    @Override
+    public void sendSplitRequest() {
+        numSplitRequests++;
+    }
 
-	@Override
-	public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
-		sentEvents.add(sourceEvent);
-	}
+    @Override
+    public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
+        sentEvents.add(sourceEvent);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public UserCodeClassLoader getUserCodeClassLoader() {
+        return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
+    }
 
-	public int getNumSplitRequests() {
-		return numSplitRequests;
-	}
+    // ------------------------------------------------------------------------
 
-	public List<SourceEvent> getSentEvents() {
-		return new ArrayList<>(sentEvents);
-	}
+    public int getNumSplitRequests() {
+        return numSplitRequests;
+    }
 
-	public void clearSentEvents() {
-		sentEvents.clear();
-	}
+    public List<SourceEvent> getSentEvents() {
+        return new ArrayList<>(sentEvents);
+    }
+
+    public void clearSentEvents() {
+        sentEvents.clear();
+    }
 }

@@ -22,10 +22,10 @@ import org.apache.flink.api.java.functions.KeySelector;
 
 public class IdentityKeyExtractor<T> implements KeySelector<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T getKey(T value) {
-		return value;
-	}
+    @Override
+    public T getKey(T value) {
+        return value;
+    }
 }

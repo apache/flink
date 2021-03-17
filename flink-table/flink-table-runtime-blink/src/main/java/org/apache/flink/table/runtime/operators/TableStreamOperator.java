@@ -20,43 +20,130 @@ package org.apache.flink.table.runtime.operators;
 
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Table operator to invoke close always.
+ * Table operator to invoke close always. This is a base class for both batch and stream operators
+ * without key.
  */
-public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
+public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 
-	private volatile boolean closed = false;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    protected long currentWatermark = Long.MIN_VALUE;
 
-	public TableStreamOperator() {
-		setChainingStrategy(ChainingStrategy.ALWAYS);
-	}
+    private volatile boolean closed = false;
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		closed = true;
-	}
+    protected transient ContextImpl ctx;
 
-	@Override
-	public void dispose() throws Exception {
-		if (!closed) {
-			close();
-		}
-		super.dispose();
-	}
+    public TableStreamOperator() {
+        setChainingStrategy(ChainingStrategy.ALWAYS);
+    }
 
-	/**
-	 * Compute memory size from memory faction.
-	 */
-	public long computeMemorySize() {
-		final Environment environment = getContainingTask().getEnvironment();
-		return environment.getMemoryManager().computeMemorySize(
-				getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
-					ManagedMemoryUseCase.BATCH_OP,
-					environment.getTaskManagerInfo().getConfiguration(),
-					environment.getUserCodeClassLoader().asClassLoader()));
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        this.ctx = new ContextImpl(getProcessingTimeService());
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        closed = true;
+    }
+
+    @Override
+    public void dispose() throws Exception {
+        if (!closed) {
+            close();
+        }
+        super.dispose();
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        currentWatermark = mark.getTimestamp();
+    }
+
+    /** Compute memory size from memory faction. */
+    public long computeMemorySize() {
+        final Environment environment = getContainingTask().getEnvironment();
+        return environment
+                .getMemoryManager()
+                .computeMemorySize(
+                        getOperatorConfig()
+                                .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                        ManagedMemoryUseCase.OPERATOR,
+                                        environment.getTaskManagerInfo().getConfiguration(),
+                                        environment.getUserCodeClassLoader().asClassLoader()));
+    }
+
+    /** Information available in an invocation of processElement. */
+    protected class ContextImpl implements TimerService {
+
+        protected final ProcessingTimeService timerService;
+
+        public StreamRecord<?> element;
+
+        ContextImpl(ProcessingTimeService timerService) {
+            this.timerService = checkNotNull(timerService);
+        }
+
+        public Long timestamp() {
+            checkState(element != null);
+
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public long currentProcessingTime() {
+            return timerService.getCurrentProcessingTime();
+        }
+
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
+
+        @Override
+        public void registerProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Setting timers is only supported on a keyed streams.");
+        }
+
+        @Override
+        public void registerEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Setting timers is only supported on a keyed streams.");
+        }
+
+        @Override
+        public void deleteProcessingTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Delete timers is only supported on a keyed streams.");
+        }
+
+        @Override
+        public void deleteEventTimeTimer(long time) {
+            throw new UnsupportedOperationException(
+                    "Delete timers is only supported on a keyed streams.");
+        }
+
+        public TimerService timerService() {
+            return this;
+        }
+    }
 }

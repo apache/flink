@@ -48,115 +48,116 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit tests for {@link JobManagerCustomLogHandler}.
- */
+/** Unit tests for {@link JobManagerCustomLogHandler}. */
 public class JobManagerCustomLogHandlerTest extends TestLogger {
 
-	private static final String FORBIDDEN_FILENAME = "forbidden";
+    private static final String FORBIDDEN_FILENAME = "forbidden";
 
-	private static final String VALID_LOG_FILENAME = "valid.log";
-	private static final String VALID_LOG_CONTENT = "logged content";
+    private static final String VALID_LOG_FILENAME = "valid.log";
+    private static final String VALID_LOG_CONTENT = "logged content";
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private File logRoot;
+    private File logRoot;
 
-	private JobManagerCustomLogHandler testInstance;
+    private JobManagerCustomLogHandler testInstance;
 
-	@Before
-	public void setUp() throws IOException {
-		initializeFolderStructure();
+    @Before
+    public void setUp() throws IOException {
+        initializeFolderStructure();
 
-		final TestingDispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder().build();
-		testInstance = new JobManagerCustomLogHandler(
-			() -> CompletableFuture.completedFuture(dispatcherGateway),
-			TestingUtils.TIMEOUT(),
-			Collections.emptyMap(),
-			JobManagerCustomLogHeaders.getInstance(),
-			logRoot);
-	}
+        final TestingDispatcherGateway dispatcherGateway =
+                new TestingDispatcherGateway.Builder().build();
+        testInstance =
+                new JobManagerCustomLogHandler(
+                        () -> CompletableFuture.completedFuture(dispatcherGateway),
+                        TestingUtils.TIMEOUT(),
+                        Collections.emptyMap(),
+                        JobManagerCustomLogHeaders.getInstance(),
+                        logRoot);
+    }
 
-	private void initializeFolderStructure() throws IOException {
-		File root = temporaryFolder.getRoot();
-		logRoot = new File(root, "logs");
-		assertTrue(logRoot.mkdir());
+    private void initializeFolderStructure() throws IOException {
+        File root = temporaryFolder.getRoot();
+        logRoot = new File(root, "logs");
+        assertTrue(logRoot.mkdir());
 
-		createFile(new File(root, FORBIDDEN_FILENAME), "forbidden content");
-		createFile(new File(logRoot, VALID_LOG_FILENAME), VALID_LOG_CONTENT);
-	}
+        createFile(new File(root, FORBIDDEN_FILENAME), "forbidden content");
+        createFile(new File(logRoot, VALID_LOG_FILENAME), VALID_LOG_CONTENT);
+    }
 
-	private static void createFile(File file, String content) throws IOException {
-		FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
-	}
+    private static void createFile(File file, String content) throws IOException {
+        FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
+    }
 
-	private static HandlerRequest<EmptyRequestBody, FileMessageParameters> createHandlerRequest(String path) throws HandlerRequestException {
-		FileMessageParameters messageParameters = new FileMessageParameters();
-		Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(messageParameters.logFileNamePathParameter.getKey(), path);
+    private static HandlerRequest<EmptyRequestBody, FileMessageParameters> createHandlerRequest(
+            String path) throws HandlerRequestException {
+        FileMessageParameters messageParameters = new FileMessageParameters();
+        Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(messageParameters.logFileNamePathParameter.getKey(), path);
 
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			messageParameters,
-			pathParameters,
-			Collections.emptyMap());
-	}
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                messageParameters,
+                pathParameters,
+                Collections.emptyMap());
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsValidFilename() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(VALID_LOG_FILENAME));
-		assertThat(actualFile, is(notNullValue()));
+    @Test
+    public void testGetJobManagerCustomLogsValidFilename() throws Exception {
+        File actualFile = testInstance.getFile(createHandlerRequest(VALID_LOG_FILENAME));
+        assertThat(actualFile, is(notNullValue()));
 
-		String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
-		assertThat(actualContent, is(VALID_LOG_CONTENT));
-	}
+        String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
+        assertThat(actualContent, is(VALID_LOG_CONTENT));
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsValidFilenameWithPath() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(String.format("foobar/%s", VALID_LOG_FILENAME)));
-		assertThat(actualFile, is(notNullValue()));
+    @Test
+    public void testGetJobManagerCustomLogsValidFilenameWithPath() throws Exception {
+        File actualFile =
+                testInstance.getFile(
+                        createHandlerRequest(String.format("foobar/%s", VALID_LOG_FILENAME)));
+        assertThat(actualFile, is(notNullValue()));
 
-		String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
-		assertThat(actualContent, is(VALID_LOG_CONTENT));
-	}
+        String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
+        assertThat(actualContent, is(VALID_LOG_CONTENT));
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsValidFilenameWithInvalidPath() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(String.format("../%s", VALID_LOG_FILENAME)));
-		assertThat(actualFile, is(notNullValue()));
+    @Test
+    public void testGetJobManagerCustomLogsValidFilenameWithInvalidPath() throws Exception {
+        File actualFile =
+                testInstance.getFile(
+                        createHandlerRequest(String.format("../%s", VALID_LOG_FILENAME)));
+        assertThat(actualFile, is(notNullValue()));
 
-		String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
-		assertThat(actualContent, is(VALID_LOG_CONTENT));
-	}
+        String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
+        assertThat(actualContent, is(VALID_LOG_CONTENT));
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsNotExistingFile() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest("not-existing"));
-		assertThat(actualFile, is(notNullValue()));
-		assertFalse(actualFile.exists());
-	}
+    @Test
+    public void testGetJobManagerCustomLogsNotExistingFile() throws Exception {
+        File actualFile = testInstance.getFile(createHandlerRequest("not-existing"));
+        assertThat(actualFile, is(notNullValue()));
+        assertFalse(actualFile.exists());
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsExistingButForbiddenFile() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(String.format("../%s", FORBIDDEN_FILENAME)));
-		assertThat(actualFile, is(notNullValue()));
-		assertFalse(actualFile.exists());
-	}
+    @Test
+    public void testGetJobManagerCustomLogsExistingButForbiddenFile() throws Exception {
+        File actualFile =
+                testInstance.getFile(
+                        createHandlerRequest(String.format("../%s", FORBIDDEN_FILENAME)));
+        assertThat(actualFile, is(notNullValue()));
+        assertFalse(actualFile.exists());
+    }
 
-	@Test
-	public void testGetJobManagerCustomLogsExistingButForbiddenFileWithObfuscatedPath() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(String.format("..%%252%s", FORBIDDEN_FILENAME)));
-		assertThat(actualFile, is(notNullValue()));
-		assertFalse(actualFile.exists());
-	}
+    @Test
+    public void testGetJobManagerCustomLogsValidFilenameWithLongInvalidPath() throws Exception {
+        File actualFile =
+                testInstance.getFile(
+                        createHandlerRequest(String.format("foobar/../../%s", VALID_LOG_FILENAME)));
+        assertThat(actualFile, is(notNullValue()));
 
-	@Test
-	public void testGetJobManagerCustomLogsValidFilenameWithLongInvalidPath() throws Exception {
-		File actualFile = testInstance.getFile(createHandlerRequest(String.format("foobar/../../%s", VALID_LOG_FILENAME)));
-		assertThat(actualFile, is(notNullValue()));
-
-		String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
-		assertThat(actualContent, is(VALID_LOG_CONTENT));
-	}
+        String actualContent = String.join("", Files.readAllLines(actualFile.toPath()));
+        assertThat(actualContent, is(VALID_LOG_CONTENT));
+    }
 }

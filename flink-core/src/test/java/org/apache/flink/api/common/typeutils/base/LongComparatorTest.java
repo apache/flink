@@ -18,47 +18,46 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongComparator;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+
+import java.util.Random;
 
 public class LongComparatorTest extends ComparatorTestBase<Long> {
 
-	@Override
-	protected TypeComparator<Long> createComparator(boolean ascending) {
-		return new LongComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Long> createComparator(boolean ascending) {
+        return new LongComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Long> createSerializer() {
-		return new LongSerializer();
-	}
+    @Override
+    protected TypeSerializer<Long> createSerializer() {
+        return new LongSerializer();
+    }
 
-	@Override
-	protected Long[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		long rndLong = rnd.nextLong();
-		if (rndLong < 0) {
-			rndLong = -rndLong;
-		}
-		if (rndLong == Long.MAX_VALUE) {
-			rndLong -= 3;
-		}
-		if (rndLong <= 2) {
-			rndLong += 3;
-		}
-		return new Long[]{
-			Long.valueOf(Long.MIN_VALUE),
-			Long.valueOf(-rndLong),
-			Long.valueOf(-1L),
-			Long.valueOf(0L),
-			Long.valueOf(1L),
-			Long.valueOf(2L),
-			Long.valueOf(rndLong),
-			Long.valueOf(Long.MAX_VALUE)};
-	}
+    @Override
+    protected Long[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        long rndLong = rnd.nextLong();
+        if (rndLong < 0) {
+            rndLong = -rndLong;
+        }
+        if (rndLong == Long.MAX_VALUE) {
+            rndLong -= 3;
+        }
+        if (rndLong <= 2) {
+            rndLong += 3;
+        }
+        return new Long[] {
+            Long.valueOf(Long.MIN_VALUE),
+            Long.valueOf(-rndLong),
+            Long.valueOf(-1L),
+            Long.valueOf(0L),
+            Long.valueOf(1L),
+            Long.valueOf(2L),
+            Long.valueOf(rndLong),
+            Long.valueOf(Long.MAX_VALUE)
+        };
+    }
 }

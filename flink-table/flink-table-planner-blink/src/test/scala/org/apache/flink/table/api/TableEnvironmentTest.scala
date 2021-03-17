@@ -18,26 +18,28 @@
 
 package org.apache.flink.table.api
 
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -104,6 +106,65 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testStreamTableEnvironmentExecutionExplainWithEnvParallelism(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(4)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  @Test
+  def testStreamTableEnvironmentExecutionExplainWithConfParallelism(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+    val configuration = new Configuration()
+    configuration.setInteger("parallelism.default", 4)
+    tEnv.getConfig.addConfiguration(configuration)
+
+    verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  private def verifyTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExecutionExplain.out")
+    val actual = tEnv.explainSql("insert into MySink select first from MyTable",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
+  }
+
+  @Test
+  def testStatementSetExecutionExplain(): Unit = {
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
+    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testStatementSetExecutionExplain.out")
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("insert into MySink select last from MyTable")
+    val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """
@@ -126,7 +187,7 @@ class TableEnvironmentTest {
     assertEquals(
       Map("connector" -> "COLLECTION", "is-bounded" -> "false", "k1" -> "a", "k2" -> "b").asJava,
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")).getOptions)
 
     val tableResult3 = tableEnv.executeSql("DROP TABLE tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
@@ -443,6 +504,175 @@ class TableEnvironmentTest {
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
+
+    val funcName = classOf[TestUDF].getName
+    val tableResult1 = tableEnv.executeSql(s"CREATE FUNCTION default_database.f1 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    val tableResult2 = tableEnv.executeSql("SHOW USER FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
+      tableResult2.getTableSchema)
+    checkData(
+      util.Arrays.asList(Row.of("f1")).iterator(),
+      tableResult2.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithLoadModule(): Unit = {
+    val result = tableEnv.executeSql("LOAD MODULE dummy")
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+
+    val statement =
+      """
+        |LOAD MODULE dummy WITH (
+        |'type' = 'dummy'
+        |)
+      """.stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Property 'type' = 'dummy' is not supported since module name is used to find module")
+    tableEnv.executeSql(statement)
+  }
+
+  @Test
+  def testExecuteSqlWithLoadParameterizedModule(): Unit = {
+    val statement1 =
+      """
+        |LOAD MODULE dummy WITH (
+        |  'dummy-version' = '1'
+        |)
+      """.stripMargin
+    val result = tableEnv.executeSql(statement1)
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+
+    val statement2 =
+      """
+        |LOAD MODULE dummy WITH (
+        |'dummy-version' = '2'
+        |)
+      """.stripMargin
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute LOAD MODULE: (moduleName: [dummy], properties: [{dummy-version=2}])." +
+        " A module with name 'dummy' already exists")
+    tableEnv.executeSql(statement2)
+  }
+
+  @Test
+  def testExecuteSqlWithLoadCaseSensitiveModuleName(): Unit = {
+    val statement1 =
+      """
+        |LOAD MODULE Dummy WITH (
+        |  'dummy-version' = '1'
+        |)
+      """.stripMargin
+
+    try {
+      tableEnv.executeSql(statement1)
+      fail("Expected an exception")
+    } catch {
+      case t: Throwable =>
+        assertThat(t, containsMessage("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
+          "properties: [{dummy-version=1}]). Could not find a suitable table factory for " +
+          "'org.apache.flink.table.factories.ModuleFactory' in\nthe classpath."))
+    }
+
+    val statement2 =
+      """
+        |LOAD MODULE dummy WITH (
+        |'dummy-version' = '2'
+        |)
+      """.stripMargin
+    val result = tableEnv.executeSql(statement2)
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+  }
+
+  @Test
+  def testExecuteSqlWithUnloadModuleTwice(): Unit = {
+    tableEnv.executeSql("LOAD MODULE dummy")
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+
+    val result = tableEnv.executeSql("UNLOAD MODULE dummy")
+    assertEquals(ResultKind.SUCCESS, result.getResultKind)
+    checkListModules("core")
+    checkListFullModules(("core", true))
+
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute UNLOAD MODULE dummy." +
+        " No module with name 'dummy' exists")
+    tableEnv.executeSql("UNLOAD MODULE dummy")
+  }
+
+  @Test
+  def testExecuteSqlWithUseModules(): Unit = {
+    tableEnv.executeSql("LOAD MODULE dummy")
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+
+    val result1 = tableEnv.executeSql("USE MODULES dummy")
+    assertEquals(ResultKind.SUCCESS, result1.getResultKind)
+    checkListModules("dummy")
+    checkListFullModules(("dummy", true), ("core", false))
+
+    val result2 = tableEnv.executeSql("USE MODULES dummy, core")
+    assertEquals(ResultKind.SUCCESS, result2.getResultKind)
+    checkListModules("dummy", "core")
+    checkListFullModules(("dummy", true), ("core", true))
+
+    val result3 = tableEnv.executeSql("USE MODULES core, dummy")
+    assertEquals(ResultKind.SUCCESS, result3.getResultKind)
+    checkListModules("core", "dummy")
+    checkListFullModules(("core", true), ("dummy", true))
+
+    val result4 = tableEnv.executeSql("USE MODULES core")
+    assertEquals(ResultKind.SUCCESS, result4.getResultKind)
+    checkListModules("core")
+    checkListFullModules(("core", true), ("dummy", false))
+  }
+
+  @Test
+  def testExecuteSqlWithUseUnloadedModules(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute USE MODULES: [core, dummy]. " +
+        "No module with name 'dummy' exists")
+    tableEnv.executeSql("USE MODULES core, dummy")
+  }
+
+  @Test
+  def testExecuteSqlWithUseDuplicateModuleNames(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Could not execute USE MODULES: [core, core]. " +
+        "Module 'core' appears more than once")
+    tableEnv.executeSql("USE MODULES core, core")
+  }
+
+  @Test
+  def testExecuteSqlWithShowModules(): Unit = {
+    validateShowModules(("core", true))
+
+    // check result after loading module
+    val statement = "LOAD MODULE dummy"
+    tableEnv.executeSql(statement)
+    validateShowModules(("core", true), ("dummy", true))
+
+    // check result after using modules
+    tableEnv.executeSql("USE MODULES dummy")
+    validateShowModules(("dummy", true), ("core", false))
+
+    // check result after unloading module
+    tableEnv.executeSql("UNLOAD MODULE dummy")
+    validateShowModules(("core", false))
   }
 
   @Test
@@ -1114,8 +1344,8 @@ class TableEnvironmentTest {
         Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
         Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
         Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-        Row.of("f19", "TIMESTAMP(3) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
-        Row.of("f20", "TIMESTAMP(6) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
         Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
         Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
         Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
@@ -1161,4 +1391,43 @@ class TableEnvironmentTest {
     assertEquals(expected.hasNext, actual.hasNext)
   }
 
+  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
+    val showModules = tableEnv.executeSql("SHOW MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
+    assertEquals(TableSchema.builder().field("module name", DataTypes.STRING()).build(),
+      showModules.getTableSchema)
+
+    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
+    assertEquals(TableSchema.builder().fields(
+      Array[String]("module name", "used"),
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())).build(),
+      showFullModules.getTableSchema)
+
+    // show modules only list used modules
+    checkData(
+      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
+      showModules.collect()
+    )
+
+    checkData(
+      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
+      showFullModules.collect())
+  }
+
+  private def checkListModules(expected: String*): Unit = {
+    val actual = tableEnv.listModules()
+    for ((module, i) <- expected.zipWithIndex) {
+      assertEquals(module, actual.apply(i))
+    }
+  }
+
+  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
+    val actual = tableEnv.listFullModules()
+    for ((elem, i) <- expected.zipWithIndex) {
+      assertEquals(
+        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
+        actual.apply(i).asInstanceOf[Object])
+    }
+  }
 }

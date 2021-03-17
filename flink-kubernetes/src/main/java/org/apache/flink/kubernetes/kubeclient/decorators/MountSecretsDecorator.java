@@ -32,61 +32,58 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Support mounting Secrets on the JobManager or TaskManager pod..
- */
+/** Support mounting Secrets on the JobManager or TaskManager pod.. */
 public class MountSecretsDecorator extends AbstractKubernetesStepDecorator {
 
-	private final AbstractKubernetesParameters kubernetesComponentConf;
+    private final AbstractKubernetesParameters kubernetesComponentConf;
 
-	public MountSecretsDecorator(AbstractKubernetesParameters kubernetesComponentConf) {
-		this.kubernetesComponentConf = checkNotNull(kubernetesComponentConf);
-	}
+    public MountSecretsDecorator(AbstractKubernetesParameters kubernetesComponentConf) {
+        this.kubernetesComponentConf = checkNotNull(kubernetesComponentConf);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final Pod podWithMount = decoratePod(flinkPod.getPod());
-		final Container containerWithMount = decorateMainContainer(flinkPod.getMainContainer());
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        final Pod podWithMount = decoratePod(flinkPod.getPodWithoutMainContainer());
+        final Container containerWithMount = decorateMainContainer(flinkPod.getMainContainer());
 
-		return new FlinkPod.Builder(flinkPod)
-			.withPod(podWithMount)
-			.withMainContainer(containerWithMount)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod)
+                .withPod(podWithMount)
+                .withMainContainer(containerWithMount)
+                .build();
+    }
 
-	private Container decorateMainContainer(Container container) {
-		final VolumeMount[] volumeMounts = kubernetesComponentConf.getSecretNamesToMountPaths().entrySet().stream()
-			.map(secretNameToPath -> new VolumeMountBuilder()
-					.withName(secretVolumeName(secretNameToPath.getKey()))
-					.withMountPath(secretNameToPath.getValue())
-					.build()
-			)
-			.toArray(VolumeMount[]::new);
+    private Container decorateMainContainer(Container container) {
+        final VolumeMount[] volumeMounts =
+                kubernetesComponentConf.getSecretNamesToMountPaths().entrySet().stream()
+                        .map(
+                                secretNameToPath ->
+                                        new VolumeMountBuilder()
+                                                .withName(
+                                                        secretVolumeName(secretNameToPath.getKey()))
+                                                .withMountPath(secretNameToPath.getValue())
+                                                .build())
+                        .toArray(VolumeMount[]::new);
 
-		return new ContainerBuilder(container)
-			.addToVolumeMounts(volumeMounts)
-			.build();
-	}
+        return new ContainerBuilder(container).addToVolumeMounts(volumeMounts).build();
+    }
 
-	private Pod decoratePod(Pod pod) {
-		final Volume[] volumes = kubernetesComponentConf.getSecretNamesToMountPaths().keySet().stream()
-			.map(secretName -> new VolumeBuilder()
-					.withName(secretVolumeName(secretName))
-					.withNewSecret()
-					.withSecretName(secretName)
-					.endSecret()
-					.build()
-			)
-			.toArray(Volume[]::new);
+    private Pod decoratePod(Pod pod) {
+        final Volume[] volumes =
+                kubernetesComponentConf.getSecretNamesToMountPaths().keySet().stream()
+                        .map(
+                                secretName ->
+                                        new VolumeBuilder()
+                                                .withName(secretVolumeName(secretName))
+                                                .withNewSecret()
+                                                .withSecretName(secretName)
+                                                .endSecret()
+                                                .build())
+                        .toArray(Volume[]::new);
 
-		return new PodBuilder(pod)
-			.editOrNewSpec()
-				.addToVolumes(volumes)
-				.endSpec()
-			.build();
-	}
+        return new PodBuilder(pod).editOrNewSpec().addToVolumes(volumes).endSpec().build();
+    }
 
-	private String secretVolumeName(String secretName) {
-		return secretName + "-volume";
-	}
+    private String secretVolumeName(String secretName) {
+        return secretName + "-volume";
+    }
 }

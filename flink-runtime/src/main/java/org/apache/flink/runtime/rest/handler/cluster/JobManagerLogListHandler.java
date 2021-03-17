@@ -43,37 +43,42 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * Handler which serves detailed JobManager log list information.
- */
-public class JobManagerLogListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
+/** Handler which serves detailed JobManager log list information. */
+public class JobManagerLogListHandler
+        extends AbstractRestHandler<
+                RestfulGateway, EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
 
-	private final File logDir;
+    private final File logDir;
 
-	public JobManagerLogListHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> messageHeaders,
-			@Nullable File logDir) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    public JobManagerLogListHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> messageHeaders,
+            @Nullable File logDir) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.logDir = logDir;
-	}
+        this.logDir = logDir;
+    }
 
-	@Override
-	protected CompletableFuture<LogListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-		if (logDir == null) {
-			return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
-		}
-		final File[] logFiles = logDir.listFiles();
-		if (logFiles == null) {
-			return FutureUtils.completedExceptionally(new IOException("Could not list files in " + logDir));
-		}
-		final List<LogInfo> logsWithLength = Arrays.stream(logFiles)
-			.filter(File::isFile)
-			.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
-			.collect(Collectors.toList());
-		return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
-	}
+    @Override
+    protected CompletableFuture<LogListInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        if (logDir == null) {
+            return CompletableFuture.completedFuture(new LogListInfo(Collections.emptyList()));
+        }
+        final File[] logFiles = logDir.listFiles();
+        if (logFiles == null) {
+            return FutureUtils.completedExceptionally(
+                    new IOException("Could not list files in " + logDir));
+        }
+        final List<LogInfo> logsWithLength =
+                Arrays.stream(logFiles)
+                        .filter(File::isFile)
+                        .map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
+                        .collect(Collectors.toList());
+        return CompletableFuture.completedFuture(new LogListInfo(logsWithLength));
+    }
 }

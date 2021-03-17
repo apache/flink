@@ -24,42 +24,40 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-/**
- * Wrapping {@link Output} that updates metrics on the number of emitted elements.
- */
+/** Wrapping {@link Output} that updates metrics on the number of emitted elements. */
 public class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
-	private final Output<StreamRecord<OUT>> output;
-	private final Counter numRecordsOut;
+    private final Output<StreamRecord<OUT>> output;
+    private final Counter numRecordsOut;
 
-	public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
-		this.output = output;
-		this.numRecordsOut = counter;
-	}
+    public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+        this.output = output;
+        this.numRecordsOut = counter;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		output.emitWatermark(mark);
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        output.emitWatermark(mark);
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		output.emitLatencyMarker(latencyMarker);
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        output.emitLatencyMarker(latencyMarker);
+    }
 
-	@Override
-	public void collect(StreamRecord<OUT> record) {
-		numRecordsOut.inc();
-		output.collect(record);
-	}
+    @Override
+    public void collect(StreamRecord<OUT> record) {
+        numRecordsOut.inc();
+        output.collect(record);
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		numRecordsOut.inc();
-		output.collect(outputTag, record);
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        numRecordsOut.inc();
+        output.collect(outputTag, record);
+    }
 
-	@Override
-	public void close() {
-		output.close();
-	}
+    @Override
+    public void close() {
+        output.close();
+    }
 }

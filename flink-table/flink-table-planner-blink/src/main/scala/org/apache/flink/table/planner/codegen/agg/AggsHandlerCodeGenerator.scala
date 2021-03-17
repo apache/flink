@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.ImperativeAggregateFunction
+import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
@@ -34,6 +35,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, Lis
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated._
+import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
@@ -67,6 +69,7 @@ class AggsHandlerCodeGenerator(
   private var namespaceClassName: String = _
   private var windowProperties: Seq[PlannerWindowProperty] = Seq()
   private var hasNamespace: Boolean = false
+  private var sliceAssignerTerm: String = _
 
   /** Aggregates informations */
   private var accTypeInfo: RowType = _
@@ -565,6 +568,21 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
+   * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
+   * and window properties.
+   */
+  def generateNamespaceAggsHandler(
+      name: String,
+      aggInfoList: AggregateInfoList,
+      windowProperties: Seq[PlannerWindowProperty],
+      sliceAssigner: SliceAssigner): GeneratedNamespaceAggsHandleFunction[JLong] = {
+    this.sliceAssignerTerm = newName("sliceAssigner")
+    ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
+    // we use window end timestamp to indicate a window, see SliceAssigner
+    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, classOf[JLong])
+  }
+
+  /**
     * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
     * and window properties.
     */
@@ -1006,31 +1024,61 @@ class AggsHandlerCodeGenerator(
 
   private def getWindowExpressions(
       windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
-    windowProperties.map {
-      case w: PlannerWindowStart =>
-        // return a Timestamp(Internal is TimestampData)
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
-          "false",
-          "",
-          w.resultType)
-      case w: PlannerWindowEnd =>
-        // return a Timestamp(Internal is TimestampData)
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
-          "false",
-          "",
-          w.resultType)
-      case r: PlannerRowtimeAttribute =>
-        // return a rowtime, use TimestampData as internal type
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
-          "false",
-          "",
-          r.resultType)
-      case p: PlannerProctimeAttribute =>
-        // ignore this property, it will be null at the position later
-        GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.resultType)
+    if (namespaceClassName.equals(classOf[JLong].getCanonicalName)) {
+      // slicing optimization, we are using window end timestamp to indicate a window
+      windowProperties.map {
+        case w: PlannerWindowStart =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
+            "false",
+            "",
+            w.getResultType)
+        case w: PlannerWindowEnd =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM)",
+            "false",
+            "",
+            w.getResultType)
+        case r: PlannerRowtimeAttribute =>
+          // return a rowtime, use TimestampData as internal type
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM - 1)",
+            "false",
+            "",
+            r.getResultType)
+        case p: PlannerProctimeAttribute =>
+          // ignore this property, it will be null at the position later
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
+      }
+    } else {
+      windowProperties.map {
+        case w: PlannerWindowStart =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
+            "false",
+            "",
+            w.getResultType)
+        case w: PlannerWindowEnd =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
+            "false",
+            "",
+            w.getResultType)
+        case r: PlannerRowtimeAttribute =>
+          // return a rowtime, use TimestampData as internal type
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
+            "false",
+            "",
+            r.getResultType)
+        case p: PlannerProctimeAttribute =>
+          // ignore this property, it will be null at the position later
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
+      }
     }
   }
 
@@ -1084,7 +1132,7 @@ class AggsHandlerCodeGenerator(
       if (isWindow) {
         // no need to bind input
         val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        var valueExprs = getWindowExpressions(windowProperties)
+        val valueExprs = getWindowExpressions(windowProperties)
 
         val aggValueTerm = newName("windowProperties")
         valueType = RowType.of(valueExprs.map(_.resultType): _*)

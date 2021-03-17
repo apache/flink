@@ -31,140 +31,141 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * A {@link WindowAssigner} that windows elements into cumulative windows based on the timestamp of the
- * elements. Windows are overlap.
+ * A {@link WindowAssigner} that windows elements into cumulative windows based on the timestamp of
+ * the elements. Windows are overlap.
  */
-public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> implements InternalTimeWindowAssigner {
+public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow>
+        implements InternalTimeWindowAssigner {
 
-	private static final long serialVersionUID = 4895551155814656518L;
+    private static final long serialVersionUID = 4895551155814656518L;
 
-	private final long maxSize;
+    private final long maxSize;
 
-	private final long step;
+    private final long step;
 
-	private final long offset;
+    private final long offset;
 
-	private final boolean isEventTime;
+    private final boolean isEventTime;
 
-	protected CumulativeWindowAssigner(long maxSize, long step, long offset, boolean isEventTime) {
-		if (maxSize <= 0 || step <= 0) {
-			throw new IllegalArgumentException(
-				"CumulativeWindowAssigner parameters must satisfy step > 0 and size > 0");
-		}
-		if (maxSize % step != 0) {
-			throw new IllegalArgumentException(
-				"CumulativeWindowAssigner requires size must be an integral multiple of step.");
-		}
+    protected CumulativeWindowAssigner(long maxSize, long step, long offset, boolean isEventTime) {
+        if (maxSize <= 0 || step <= 0) {
+            throw new IllegalArgumentException(
+                    "CumulativeWindowAssigner parameters must satisfy step > 0 and size > 0");
+        }
+        if (maxSize % step != 0) {
+            throw new IllegalArgumentException(
+                    "CumulativeWindowAssigner requires size must be an integral multiple of step.");
+        }
 
-		this.maxSize = maxSize;
-		this.step = step;
-		this.offset = offset;
-		this.isEventTime = isEventTime;
-	}
+        this.maxSize = maxSize;
+        this.step = step;
+        this.offset = offset;
+        this.isEventTime = isEventTime;
+    }
 
-	@Override
-	public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
-		List<TimeWindow> windows = new ArrayList<>();
-		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, maxSize);
-		long lastEnd = start + maxSize;
-		long firstEnd = TimeWindow.getWindowStartWithOffset(timestamp, offset, step) + step;
-		for (long end = firstEnd; end <= lastEnd; end += step) {
-			windows.add(new TimeWindow(start, end));
-		}
-		return windows;
-	}
+    @Override
+    public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
+        List<TimeWindow> windows = new ArrayList<>();
+        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, maxSize);
+        long lastEnd = start + maxSize;
+        long firstEnd = TimeWindow.getWindowStartWithOffset(timestamp, offset, step) + step;
+        for (long end = firstEnd; end <= lastEnd; end += step) {
+            windows.add(new TimeWindow(start, end));
+        }
+        return windows;
+    }
 
-	@Override
-	public TimeWindow assignPane(Object element, long timestamp) {
-		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, step);
-		return new TimeWindow(start, start + step);
-	}
+    @Override
+    public TimeWindow assignPane(Object element, long timestamp) {
+        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, step);
+        return new TimeWindow(start, start + step);
+    }
 
-	@Override
-	public Iterable<TimeWindow> splitIntoPanes(TimeWindow window) {
-		return new PanesIterable(window.getStart(), window.getEnd(), step);
-	}
+    @Override
+    public Iterable<TimeWindow> splitIntoPanes(TimeWindow window) {
+        return new PanesIterable(window.getStart(), window.getEnd(), step);
+    }
 
-	@Override
-	public TimeWindow getLastWindow(TimeWindow pane) {
-		long windowStart = TimeWindow.getWindowStartWithOffset(pane.getStart(), offset, maxSize);
-		// the last window is the max size window
-		return new TimeWindow(windowStart, windowStart + maxSize);
-	}
+    @Override
+    public TimeWindow getLastWindow(TimeWindow pane) {
+        long windowStart = TimeWindow.getWindowStartWithOffset(pane.getStart(), offset, maxSize);
+        // the last window is the max size window
+        return new TimeWindow(windowStart, windowStart + maxSize);
+    }
 
-	@Override
-	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
-		return new TimeWindow.Serializer();
-	}
+    @Override
+    public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
+        return new TimeWindow.Serializer();
+    }
 
-	@Override
-	public boolean isEventTime() {
-		return isEventTime;
-	}
+    @Override
+    public boolean isEventTime() {
+        return isEventTime;
+    }
 
-	@Override
-	public String toString() {
-		return "CumulativeWindow(" + maxSize + ", " + step + ")";
-	}
+    @Override
+    public String toString() {
+        return "CumulativeWindow(" + maxSize + ", " + step + ")";
+    }
 
-	private static class PanesIterable implements IterableIterator<TimeWindow> {
+    private static class PanesIterable implements IterableIterator<TimeWindow> {
 
-		private final long paneSize;
-		private final long windowEnd;
-		private long paneStart;
-		private long paneEnd;
+        private final long paneSize;
+        private final long windowEnd;
+        private long paneStart;
+        private long paneEnd;
 
-		PanesIterable(long windowStart, long windowEnd, long paneSize) {
-			this.windowEnd = windowEnd;
-			this.paneSize = paneSize;
-			this.paneStart = windowStart;
-			this.paneEnd = windowStart + paneSize;
-		}
+        PanesIterable(long windowStart, long windowEnd, long paneSize) {
+            this.windowEnd = windowEnd;
+            this.paneSize = paneSize;
+            this.paneStart = windowStart;
+            this.paneEnd = windowStart + paneSize;
+        }
 
-		@Override
-		public boolean hasNext() {
-			return paneEnd <= windowEnd;
-		}
+        @Override
+        public boolean hasNext() {
+            return paneEnd <= windowEnd;
+        }
 
-		@Override
-		public TimeWindow next() {
-			TimeWindow window = new TimeWindow(paneStart, paneEnd);
-			paneStart += paneSize;
-			paneEnd += paneSize;
-			return window;
-		}
+        @Override
+        public TimeWindow next() {
+            TimeWindow window = new TimeWindow(paneStart, paneEnd);
+            paneStart += paneSize;
+            paneEnd += paneSize;
+            return window;
+        }
 
-		@Override
-		public Iterator<TimeWindow> iterator() {
-			return this;
-		}
-	}
+        @Override
+        public Iterator<TimeWindow> iterator() {
+            return this;
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates a new {@link CumulativeWindowAssigner} that assigns
-	 * elements to cumulative time windows based on the element timestamp.
-	 *
-	 * @param maxSize  The max size of the generated windows.
-	 * @param step The step interval for window size to increase of the generated windows.
-	 * @return The time policy.
-	 */
-	public static CumulativeWindowAssigner of(Duration maxSize, Duration step) {
-		return new CumulativeWindowAssigner(maxSize.toMillis(), step.toMillis(), 0, true);
-	}
+    /**
+     * Creates a new {@link CumulativeWindowAssigner} that assigns elements to cumulative time
+     * windows based on the element timestamp.
+     *
+     * @param maxSize The max size of the generated windows.
+     * @param step The step interval for window size to increase of the generated windows.
+     * @return The time policy.
+     */
+    public static CumulativeWindowAssigner of(Duration maxSize, Duration step) {
+        return new CumulativeWindowAssigner(maxSize.toMillis(), step.toMillis(), 0, true);
+    }
 
-	public CumulativeWindowAssigner withOffset(Duration offset) {
-		return new CumulativeWindowAssigner(maxSize, step, offset.toMillis(), isEventTime);
-	}
+    public CumulativeWindowAssigner withOffset(Duration offset) {
+        return new CumulativeWindowAssigner(maxSize, step, offset.toMillis(), isEventTime);
+    }
 
-	public CumulativeWindowAssigner withEventTime() {
-		return new CumulativeWindowAssigner(maxSize, step, offset, true);
-	}
+    public CumulativeWindowAssigner withEventTime() {
+        return new CumulativeWindowAssigner(maxSize, step, offset, true);
+    }
 
-	public CumulativeWindowAssigner withProcessingTime() {
-		return new CumulativeWindowAssigner(maxSize, step, offset, false);
-	}
+    public CumulativeWindowAssigner withProcessingTime() {
+        return new CumulativeWindowAssigner(maxSize, step, offset, false);
+    }
 }

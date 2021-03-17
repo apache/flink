@@ -37,139 +37,143 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of a checkpoint storage for the {@link MemoryStateBackend}.
- * Depending on whether this is created with a checkpoint location, the setup supports
- * durable checkpoints (durable metadata) or not.
+ * An implementation of a checkpoint storage for the {@link MemoryStateBackend}. Depending on
+ * whether this is created with a checkpoint location, the setup supports durable checkpoints
+ * (durable metadata) or not.
  */
 public class MemoryBackendCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
-	/** The target directory for checkpoints (here metadata files only). Null, if not configured. */
-	@Nullable
-	private final Path checkpointsDirectory;
+    /** The target directory for checkpoints (here metadata files only). Null, if not configured. */
+    @Nullable private final Path checkpointsDirectory;
 
-	/** The file system to persist the checkpoints to. Null if this does not durably persist checkpoints. */
-	@Nullable
-	private final FileSystem fileSystem;
+    /**
+     * The file system to persist the checkpoints to. Null if this does not durably persist
+     * checkpoints.
+     */
+    @Nullable private final FileSystem fileSystem;
 
-	/** The maximum size of state stored in a state handle. */
-	private final int maxStateSize;
+    /** The maximum size of state stored in a state handle. */
+    private final int maxStateSize;
 
-	/**
-	 * Creates a new MemoryBackendCheckpointStorage.
-	 *
-	 * @param jobId The ID of the job writing the checkpoints.
-	 * @param checkpointsBaseDirectory The directory to write checkpoints to. May be null,
-	 *                                 in which case this storage does not support durable persistence.
-	 * @param defaultSavepointLocation The default savepoint directory, or null, if none is set.
-	 * @param maxStateSize The maximum size of each individual piece of state.
-	 *
-	 * @throws IOException Thrown if a checkpoint base directory is given configured and the
-	 *                     checkpoint directory cannot be created within that directory.
-	 */
-	public MemoryBackendCheckpointStorageAccess(
-			JobID jobId,
-			@Nullable Path checkpointsBaseDirectory,
-			@Nullable Path defaultSavepointLocation,
-			int maxStateSize) throws IOException {
+    /**
+     * Creates a new MemoryBackendCheckpointStorage.
+     *
+     * @param jobId The ID of the job writing the checkpoints.
+     * @param checkpointsBaseDirectory The directory to write checkpoints to. May be null, in which
+     *     case this storage does not support durable persistence.
+     * @param defaultSavepointLocation The default savepoint directory, or null, if none is set.
+     * @param maxStateSize The maximum size of each individual piece of state.
+     * @throws IOException Thrown if a checkpoint base directory is given configured and the
+     *     checkpoint directory cannot be created within that directory.
+     */
+    public MemoryBackendCheckpointStorageAccess(
+            JobID jobId,
+            @Nullable Path checkpointsBaseDirectory,
+            @Nullable Path defaultSavepointLocation,
+            int maxStateSize)
+            throws IOException {
 
-		super(jobId, defaultSavepointLocation);
+        super(jobId, defaultSavepointLocation);
 
-		checkArgument(maxStateSize > 0);
-		this.maxStateSize = maxStateSize;
+        checkArgument(maxStateSize > 0);
+        this.maxStateSize = maxStateSize;
 
-		if (checkpointsBaseDirectory == null) {
-			checkpointsDirectory = null;
-			fileSystem = null;
-		}
-		else {
-			this.fileSystem = checkpointsBaseDirectory.getFileSystem();
-			this.checkpointsDirectory = getCheckpointDirectoryForJob(checkpointsBaseDirectory, jobId);
-		}
-	}
+        if (checkpointsBaseDirectory == null) {
+            checkpointsDirectory = null;
+            fileSystem = null;
+        } else {
+            this.fileSystem = checkpointsBaseDirectory.getFileSystem();
+            this.checkpointsDirectory =
+                    getCheckpointDirectoryForJob(checkpointsBaseDirectory, jobId);
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Properties
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Gets the size (in bytes) that a individual chunk of state may have at most.
-	 */
-	public int getMaxStateSize() {
-		return maxStateSize;
-	}
+    /** Gets the size (in bytes) that a individual chunk of state may have at most. */
+    public int getMaxStateSize() {
+        return maxStateSize;
+    }
 
-	@VisibleForTesting
-	Path getCheckpointsDirectory() {
-		return checkpointsDirectory;
-	}
+    @VisibleForTesting
+    Path getCheckpointsDirectory() {
+        return checkpointsDirectory;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Checkpoint Storage
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Checkpoint Storage
+    // ------------------------------------------------------------------------
 
-	@Override
-	public boolean supportsHighlyAvailableStorage() {
-		return checkpointsDirectory != null;
-	}
+    @Override
+    public boolean supportsHighlyAvailableStorage() {
+        return checkpointsDirectory != null;
+    }
 
-	@Override
-	public void initializeBaseLocations() {
-		// since 'checkpointDir' which under 'checkpointsDirectory' would be created when calling
-		// #initializeLocationForCheckpoint, we could also avoid to call mkdirs for the 'checkpointsDirectory' here.
-	}
+    @Override
+    public void initializeBaseLocations() {
+        // since 'checkpointDir' which under 'checkpointsDirectory' would be created when calling
+        // #initializeLocationForCheckpoint, we could also avoid to call mkdirs for the
+        // 'checkpointsDirectory' here.
+    }
 
-	@Override
-	public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException {
-		checkArgument(checkpointId >= 0);
+    @Override
+    public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
+            throws IOException {
+        checkArgument(checkpointId >= 0);
 
-		if (checkpointsDirectory != null) {
-			// configured for durable metadata
-			// prepare all the paths needed for the checkpoints
-			checkState(fileSystem != null);
+        if (checkpointsDirectory != null) {
+            // configured for durable metadata
+            // prepare all the paths needed for the checkpoints
+            checkState(fileSystem != null);
 
-			final Path checkpointDir = createCheckpointDirectory(checkpointsDirectory, checkpointId);
+            final Path checkpointDir =
+                    createCheckpointDirectory(checkpointsDirectory, checkpointId);
 
-			// create the checkpoint exclusive directory
-			fileSystem.mkdirs(checkpointDir);
+            // create the checkpoint exclusive directory
+            fileSystem.mkdirs(checkpointDir);
 
-			return new PersistentMetadataCheckpointStorageLocation(fileSystem, checkpointDir, maxStateSize);
-		}
-		else {
-			// no durable metadata - typical in IDE or test setup case
-			return new NonPersistentMetadataCheckpointStorageLocation(maxStateSize);
-		}
-	}
+            return new PersistentMetadataCheckpointStorageLocation(
+                    fileSystem, checkpointDir, maxStateSize);
+        } else {
+            // no durable metadata - typical in IDE or test setup case
+            return new NonPersistentMetadataCheckpointStorageLocation(maxStateSize);
+        }
+    }
 
-	@Override
-	public CheckpointStreamFactory resolveCheckpointStorageLocation(
-			long checkpointId,
-			CheckpointStorageLocationReference reference) {
+    @Override
+    public CheckpointStreamFactory resolveCheckpointStorageLocation(
+            long checkpointId, CheckpointStorageLocationReference reference) {
 
-		// no matter where the checkpoint goes, we always return the storage location that stores
-		// state inline with the state handles.
-		return new MemCheckpointStreamFactory(maxStateSize);
-	}
+        // no matter where the checkpoint goes, we always return the storage location that stores
+        // state inline with the state handles.
+        return new MemCheckpointStreamFactory(maxStateSize);
+    }
 
-	@Override
-	public CheckpointStateOutputStream createTaskOwnedStateStream() {
-		return new MemoryCheckpointOutputStream(maxStateSize);
-	}
+    @Override
+    public CheckpointStateOutputStream createTaskOwnedStateStream() {
+        return new MemoryCheckpointOutputStream(maxStateSize);
+    }
 
-	@Override
-	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
-		return new PersistentMetadataCheckpointStorageLocation(fs, location, maxStateSize);
-	}
+    @Override
+    protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
+        return new PersistentMetadataCheckpointStorageLocation(fs, location, maxStateSize);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "MemoryBackendCheckpointStorage {" +
-				"checkpointsDirectory=" + checkpointsDirectory +
-				", fileSystem=" + fileSystem +
-				", maxStateSize=" + maxStateSize +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "MemoryBackendCheckpointStorage {"
+                + "checkpointsDirectory="
+                + checkpointsDirectory
+                + ", fileSystem="
+                + fileSystem
+                + ", maxStateSize="
+                + maxStateSize
+                + '}';
+    }
 }

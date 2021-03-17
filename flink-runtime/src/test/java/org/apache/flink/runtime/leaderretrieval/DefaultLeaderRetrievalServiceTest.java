@@ -36,113 +36,137 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link DefaultLeaderElectionService}.
- */
+/** Tests for {@link DefaultLeaderElectionService}. */
 public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
-	private static final String TEST_URL = "akka//user/jobmanager";
-	private static final long timeout = 50L;
+    private static final String TEST_URL = "akka//user/jobmanager";
+    private static final long timeout = 50L;
 
-	@Test
-	public void testNotifyLeaderAddress() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final LeaderInformation newLeader = LeaderInformation.known(UUID.randomUUID(), TEST_URL);
-				testingLeaderRetrievalDriver.onUpdate(newLeader);
-				testingListener.waitForNewLeader(timeout);
-				assertThat(testingListener.getLeaderSessionID(), is(newLeader.getLeaderSessionID()));
-				assertThat(testingListener.getAddress(), is(newLeader.getLeaderAddress()));
-			});
-		}};
-	}
+    @Test
+    public void testNotifyLeaderAddress() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final LeaderInformation newLeader =
+                                    LeaderInformation.known(UUID.randomUUID(), TEST_URL);
+                            testingLeaderRetrievalDriver.onUpdate(newLeader);
+                            testingListener.waitForNewLeader(timeout);
+                            assertThat(
+                                    testingListener.getLeaderSessionID(),
+                                    is(newLeader.getLeaderSessionID()));
+                            assertThat(
+                                    testingListener.getAddress(), is(newLeader.getLeaderAddress()));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testNotifyLeaderAddressEmpty() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final LeaderInformation newLeader = LeaderInformation.known(UUID.randomUUID(), TEST_URL);
-				testingLeaderRetrievalDriver.onUpdate(newLeader);
-				testingListener.waitForNewLeader(timeout);
+    @Test
+    public void testNotifyLeaderAddressEmpty() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final LeaderInformation newLeader =
+                                    LeaderInformation.known(UUID.randomUUID(), TEST_URL);
+                            testingLeaderRetrievalDriver.onUpdate(newLeader);
+                            testingListener.waitForNewLeader(timeout);
 
-				testingLeaderRetrievalDriver.onUpdate(LeaderInformation.empty());
-				testingListener.waitForEmptyLeaderInformation(timeout);
-				assertThat(testingListener.getLeaderSessionID(), is(nullValue()));
-				assertThat(testingListener.getAddress(), is(nullValue()));
-			});
-		}};
-	}
+                            testingLeaderRetrievalDriver.onUpdate(LeaderInformation.empty());
+                            testingListener.waitForEmptyLeaderInformation(timeout);
+                            assertThat(testingListener.getLeaderSessionID(), is(nullValue()));
+                            assertThat(testingListener.getAddress(), is(nullValue()));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testErrorForwarding() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final Exception testException = new Exception("test exception");
+    @Test
+    public void testErrorForwarding() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final Exception testException = new Exception("test exception");
 
-				testingLeaderRetrievalDriver.onFatalError(testException);
+                            testingLeaderRetrievalDriver.onFatalError(testException);
 
-				testingListener.waitForError(timeout);
-				assertThat(testingListener.getError(), FlinkMatchers.containsCause(testException));
-			});
-		}};
-	}
+                            testingListener.waitForError(timeout);
+                            assertThat(
+                                    testingListener.getError(),
+                                    FlinkMatchers.containsCause(testException));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testErrorIsIgnoredAfterBeingStop() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final Exception testException = new Exception("test exception");
+    @Test
+    public void testErrorIsIgnoredAfterBeingStop() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final Exception testException = new Exception("test exception");
 
-				leaderRetrievalService.stop();
-				testingLeaderRetrievalDriver.onFatalError(testException);
+                            leaderRetrievalService.stop();
+                            testingLeaderRetrievalDriver.onFatalError(testException);
 
-				try {
-					testingListener.waitForError(timeout);
-					fail("We expect to have a timeout here because there's no error should be passed to listener.");
-				} catch (TimeoutException ex) {
-					// noop
-				}
-				assertThat(testingListener.getError(), is(nullValue()));
-			});
-		}};
-	}
+                            try {
+                                testingListener.waitForError(timeout);
+                                fail(
+                                        "We expect to have a timeout here because there's no error should be passed to listener.");
+                            } catch (TimeoutException ex) {
+                                // noop
+                            }
+                            assertThat(testingListener.getError(), is(nullValue()));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testNotifyLeaderAddressOnlyWhenLeaderTrulyChanged() throws Exception {
-		new Context() {{
-			runTest(() -> {
-				final LeaderInformation newLeader = LeaderInformation.known(UUID.randomUUID(), TEST_URL);
-				testingLeaderRetrievalDriver.onUpdate(newLeader);
-				assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+    @Test
+    public void testNotifyLeaderAddressOnlyWhenLeaderTrulyChanged() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final LeaderInformation newLeader =
+                                    LeaderInformation.known(UUID.randomUUID(), TEST_URL);
+                            testingLeaderRetrievalDriver.onUpdate(newLeader);
+                            assertThat(testingListener.getLeaderEventQueueSize(), is(1));
 
-				// Same leader information should not be notified twice.
-				testingLeaderRetrievalDriver.onUpdate(newLeader);
-				assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+                            // Same leader information should not be notified twice.
+                            testingLeaderRetrievalDriver.onUpdate(newLeader);
+                            assertThat(testingListener.getLeaderEventQueueSize(), is(1));
 
-				// Leader truly changed.
-				testingLeaderRetrievalDriver.onUpdate(LeaderInformation.known(UUID.randomUUID(), TEST_URL + 1));
-				assertThat(testingListener.getLeaderEventQueueSize(), is(2));
-			});
-		}};
-	}
+                            // Leader truly changed.
+                            testingLeaderRetrievalDriver.onUpdate(
+                                    LeaderInformation.known(UUID.randomUUID(), TEST_URL + 1));
+                            assertThat(testingListener.getLeaderEventQueueSize(), is(2));
+                        });
+            }
+        };
+    }
 
-	private class Context {
-		private final TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory leaderRetrievalDriverFactory =
-			new TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory();
-		final DefaultLeaderRetrievalService leaderRetrievalService = new DefaultLeaderRetrievalService(
-			leaderRetrievalDriverFactory);
-		final TestingListener testingListener = new TestingListener();
+    private class Context {
+        private final TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory
+                leaderRetrievalDriverFactory =
+                        new TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory();
+        final DefaultLeaderRetrievalService leaderRetrievalService =
+                new DefaultLeaderRetrievalService(leaderRetrievalDriverFactory);
+        final TestingListener testingListener = new TestingListener();
 
-		TestingLeaderRetrievalDriver testingLeaderRetrievalDriver;
+        TestingLeaderRetrievalDriver testingLeaderRetrievalDriver;
 
-		void runTest(RunnableWithException testMethod) throws Exception {
-			leaderRetrievalService.start(testingListener);
+        void runTest(RunnableWithException testMethod) throws Exception {
+            leaderRetrievalService.start(testingListener);
 
-			testingLeaderRetrievalDriver = leaderRetrievalDriverFactory.getCurrentRetrievalDriver();
-			assertThat(testingLeaderRetrievalDriver, is(notNullValue()));
-			testMethod.run();
+            testingLeaderRetrievalDriver = leaderRetrievalDriverFactory.getCurrentRetrievalDriver();
+            assertThat(testingLeaderRetrievalDriver, is(notNullValue()));
+            testMethod.run();
 
-			leaderRetrievalService.stop();
-		}
-	}
+            leaderRetrievalService.stop();
+        }
+    }
 }

@@ -38,180 +38,193 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertTrue;
 
-/**
- * Tests for {@link BufferCompressor} and {@link BufferDecompressor}.
- */
+/** Tests for {@link BufferCompressor} and {@link BufferDecompressor}. */
 @RunWith(Parameterized.class)
 public class BufferCompressionTest {
 
-	private static final int BUFFER_SIZE = 4 * 1024 * 1024;
+    private static final int BUFFER_SIZE = 4 * 1024 * 1024;
 
-	private static final int NUM_LONGS = BUFFER_SIZE / 8;
+    private static final int NUM_LONGS = BUFFER_SIZE / 8;
 
-	private final boolean compressToOriginalBuffer;
+    private final boolean compressToOriginalBuffer;
 
-	private final boolean decompressToOriginalBuffer;
+    private final boolean decompressToOriginalBuffer;
 
-	private final BufferCompressor compressor;
+    private final BufferCompressor compressor;
 
-	private final BufferDecompressor decompressor;
+    private final BufferDecompressor decompressor;
 
-	private final Buffer bufferToCompress;
+    private final Buffer bufferToCompress;
 
-	@Parameters(name = "isDirect = {0}, codec = {1}, compressToOriginal = {2}, decompressToOriginal = {3}")
-	public static Collection<Object[]> parameters() {
-		return Arrays.asList(new Object[][] {
-			{true, "LZ4", true, false},
-			{true, "LZ4", false, true},
-			{true, "LZ4", false, false},
-			{false, "LZ4", true, false},
-			{false, "LZ4", false, true},
-			{false, "LZ4", false, false},
-		});
-	}
+    @Parameters(
+            name =
+                    "isDirect = {0}, codec = {1}, compressToOriginal = {2}, decompressToOriginal = {3}")
+    public static Collection<Object[]> parameters() {
+        return Arrays.asList(
+                new Object[][] {
+                    {true, "LZ4", true, false},
+                    {true, "LZ4", false, true},
+                    {true, "LZ4", false, false},
+                    {false, "LZ4", true, false},
+                    {false, "LZ4", false, true},
+                    {false, "LZ4", false, false},
+                });
+    }
 
-	public BufferCompressionTest(
-			boolean isDirect,
-			String compressionCodec,
-			boolean compressToOriginalBuffer,
-			boolean decompressToOriginalBuffer) {
-		this.compressToOriginalBuffer = compressToOriginalBuffer;
-		this.decompressToOriginalBuffer = decompressToOriginalBuffer;
-		this.compressor = new BufferCompressor(BUFFER_SIZE, compressionCodec);
-		this.decompressor = new BufferDecompressor(BUFFER_SIZE, compressionCodec);
-		this.bufferToCompress = createBufferAndFillWithLongValues(isDirect);
-	}
+    public BufferCompressionTest(
+            boolean isDirect,
+            String compressionCodec,
+            boolean compressToOriginalBuffer,
+            boolean decompressToOriginalBuffer) {
+        this.compressToOriginalBuffer = compressToOriginalBuffer;
+        this.decompressToOriginalBuffer = decompressToOriginalBuffer;
+        this.compressor = new BufferCompressor(BUFFER_SIZE, compressionCodec);
+        this.decompressor = new BufferDecompressor(BUFFER_SIZE, compressionCodec);
+        this.bufferToCompress = createBufferAndFillWithLongValues(isDirect);
+    }
 
-	@Test
-	public void testCompressAndDecompressNetWorkBuffer() {
-		Buffer compressedBuffer = compress(compressor, bufferToCompress, compressToOriginalBuffer);
-		assertTrue(compressedBuffer.isCompressed());
+    @Test
+    public void testCompressAndDecompressNetWorkBuffer() {
+        Buffer compressedBuffer = compress(compressor, bufferToCompress, compressToOriginalBuffer);
+        assertTrue(compressedBuffer.isCompressed());
 
-		Buffer decompressedBuffer = decompress(decompressor, compressedBuffer, decompressToOriginalBuffer);
-		assertFalse(decompressedBuffer.isCompressed());
+        Buffer decompressedBuffer =
+                decompress(decompressor, compressedBuffer, decompressToOriginalBuffer);
+        assertFalse(decompressedBuffer.isCompressed());
 
-		verifyDecompressionResult(decompressedBuffer, 0, NUM_LONGS);
-	}
+        verifyDecompressionResult(decompressedBuffer, 0, NUM_LONGS);
+    }
 
-	@Test
-	public void testCompressAndDecompressReadOnlySlicedNetworkBuffer() {
-		int offset = NUM_LONGS / 4 * 8;
-		int length = NUM_LONGS / 2 * 8;
+    @Test
+    public void testCompressAndDecompressReadOnlySlicedNetworkBuffer() {
+        int offset = NUM_LONGS / 4 * 8;
+        int length = NUM_LONGS / 2 * 8;
 
-		Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(offset, length);
-		Buffer compressedBuffer = compress(compressor, readOnlySlicedBuffer, compressToOriginalBuffer);
-		assertTrue(compressedBuffer.isCompressed());
+        Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(offset, length);
+        Buffer compressedBuffer =
+                compress(compressor, readOnlySlicedBuffer, compressToOriginalBuffer);
+        assertTrue(compressedBuffer.isCompressed());
 
-		Buffer decompressedBuffer = decompress(decompressor, compressedBuffer, decompressToOriginalBuffer);
-		assertFalse(decompressedBuffer.isCompressed());
+        Buffer decompressedBuffer =
+                decompress(decompressor, compressedBuffer, decompressToOriginalBuffer);
+        assertFalse(decompressedBuffer.isCompressed());
 
-		verifyDecompressionResult(decompressedBuffer, NUM_LONGS / 4, NUM_LONGS / 2);
-	}
+        verifyDecompressionResult(decompressedBuffer, NUM_LONGS / 4, NUM_LONGS / 2);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testCompressEmptyBuffer() {
-		compress(compressor, bufferToCompress.readOnlySlice(0, 0), compressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompressEmptyBuffer() {
+        compress(compressor, bufferToCompress.readOnlySlice(0, 0), compressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDecompressEmptyBuffer() {
-		Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(0, 0);
-		readOnlySlicedBuffer.setCompressed(true);
+    @Test(expected = IllegalArgumentException.class)
+    public void testDecompressEmptyBuffer() {
+        Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(0, 0);
+        readOnlySlicedBuffer.setCompressed(true);
 
-		decompress(decompressor, readOnlySlicedBuffer, decompressToOriginalBuffer);
-	}
+        decompress(decompressor, readOnlySlicedBuffer, decompressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testCompressBufferWithNonZeroReadOffset() {
-		bufferToCompress.setReaderIndex(1);
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompressBufferWithNonZeroReadOffset() {
+        bufferToCompress.setReaderIndex(1);
 
-		compress(compressor, bufferToCompress, compressToOriginalBuffer);
-	}
+        compress(compressor, bufferToCompress, compressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDecompressBufferWithNonZeroReadOffset() {
-		bufferToCompress.setReaderIndex(1);
-		bufferToCompress.setCompressed(true);
+    @Test(expected = IllegalArgumentException.class)
+    public void testDecompressBufferWithNonZeroReadOffset() {
+        bufferToCompress.setReaderIndex(1);
+        bufferToCompress.setCompressed(true);
 
-		decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
-	}
+        decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testCompressNull() {
-		compress(compressor, null, compressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompressNull() {
+        compress(compressor, null, compressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDecompressNull() {
-		decompress(decompressor, null, decompressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testDecompressNull() {
+        decompress(decompressor, null, decompressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testCompressCompressedBuffer() {
-		bufferToCompress.setCompressed(true);
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompressCompressedBuffer() {
+        bufferToCompress.setCompressed(true);
 
-		compress(compressor, bufferToCompress, compressToOriginalBuffer);
-	}
+        compress(compressor, bufferToCompress, compressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDecompressUncompressedBuffer() {
-		decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testDecompressUncompressedBuffer() {
+        decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testCompressEvent() throws IOException {
-		compress(compressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), compressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testCompressEvent() throws IOException {
+        compress(
+                compressor,
+                EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                compressToOriginalBuffer);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testDecompressEvent() throws IOException {
-		decompress(decompressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), decompressToOriginalBuffer);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testDecompressEvent() throws IOException {
+        decompress(
+                decompressor,
+                EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                decompressToOriginalBuffer);
+    }
 
-	@Test
-	public void testDataSizeGrowsAfterCompression() {
-		int numBytes = 1;
-		Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(BUFFER_SIZE / 2, numBytes);
+    @Test
+    public void testDataSizeGrowsAfterCompression() {
+        int numBytes = 1;
+        Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(BUFFER_SIZE / 2, numBytes);
 
-		Buffer compressedBuffer = compress(compressor, readOnlySlicedBuffer, compressToOriginalBuffer);
-		assertFalse(compressedBuffer.isCompressed());
-		assertEquals(readOnlySlicedBuffer, compressedBuffer);
-		assertEquals(numBytes, compressedBuffer.readableBytes());
-	}
+        Buffer compressedBuffer =
+                compress(compressor, readOnlySlicedBuffer, compressToOriginalBuffer);
+        assertFalse(compressedBuffer.isCompressed());
+        assertEquals(readOnlySlicedBuffer, compressedBuffer);
+        assertEquals(numBytes, compressedBuffer.readableBytes());
+    }
 
-	private static Buffer createBufferAndFillWithLongValues(boolean isDirect) {
-		MemorySegment segment;
-		if (isDirect) {
-			segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
-		} else {
-			segment = MemorySegmentFactory.allocateUnpooledOffHeapMemory(BUFFER_SIZE);
-		}
-		for (int i = 0; i < NUM_LONGS; ++i) {
-			segment.putLongLittleEndian(8 * i, i);
-		}
-		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
-		buffer.setSize(8 * NUM_LONGS);
-		return buffer;
-	}
+    private static Buffer createBufferAndFillWithLongValues(boolean isDirect) {
+        MemorySegment segment;
+        if (isDirect) {
+            segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+        } else {
+            segment = MemorySegmentFactory.allocateUnpooledOffHeapMemory(BUFFER_SIZE);
+        }
+        for (int i = 0; i < NUM_LONGS; ++i) {
+            segment.putLongLittleEndian(8 * i, i);
+        }
+        NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+        buffer.setSize(8 * NUM_LONGS);
+        return buffer;
+    }
 
-	private static void verifyDecompressionResult(Buffer buffer, long start, int numLongs) {
-		ByteBuffer byteBuffer = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
-		for (int i = 0; i < numLongs; ++i) {
-			assertEquals(start + i, byteBuffer.getLong());
-		}
-	}
+    private static void verifyDecompressionResult(Buffer buffer, long start, int numLongs) {
+        ByteBuffer byteBuffer = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < numLongs; ++i) {
+            assertEquals(start + i, byteBuffer.getLong());
+        }
+    }
 
-	private static Buffer compress(BufferCompressor compressor, Buffer buffer, boolean compressToOriginalBuffer) {
-		if (compressToOriginalBuffer) {
-			return compressor.compressToOriginalBuffer(buffer);
-		}
-		return compressor.compressToIntermediateBuffer(buffer);
-	}
+    private static Buffer compress(
+            BufferCompressor compressor, Buffer buffer, boolean compressToOriginalBuffer) {
+        if (compressToOriginalBuffer) {
+            return compressor.compressToOriginalBuffer(buffer);
+        }
+        return compressor.compressToIntermediateBuffer(buffer);
+    }
 
-	private static Buffer decompress(BufferDecompressor decompressor, Buffer buffer, boolean decompressToOriginalBuffer) {
-		if (decompressToOriginalBuffer) {
-			return decompressor.decompressToOriginalBuffer(buffer);
-		}
-		return decompressor.decompressToIntermediateBuffer(buffer);
-	}
+    private static Buffer decompress(
+            BufferDecompressor decompressor, Buffer buffer, boolean decompressToOriginalBuffer) {
+        if (decompressToOriginalBuffer) {
+            return decompressor.decompressToOriginalBuffer(buffer);
+        }
+        return decompressor.decompressToIntermediateBuffer(buffer);
+    }
 }

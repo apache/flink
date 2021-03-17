@@ -35,93 +35,88 @@ import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionP
 import static org.apache.flink.table.utils.PartitionPathUtils.listStatusWithoutHidden;
 
 /**
- * Loader to temporary files to final output path and meta store. According to overwrite,
- * the loader will delete the previous data.
+ * Loader to temporary files to final output path and meta store. According to overwrite, the loader
+ * will delete the previous data.
  *
- * <p>This provide two interface to load:
- * 1.{@link #loadPartition}: load temporary partitioned files, if it is new partition,
- * will create partition to meta store.
- * 2.{@link #loadNonPartition}: just rename all files to final output path.
+ * <p>This provide two interface to load: 1.{@link #loadPartition}: load temporary partitioned
+ * files, if it is new partition, will create partition to meta store. 2.{@link #loadNonPartition}:
+ * just rename all files to final output path.
  *
  * <p>TODO: src and dest may be on different FS.
  */
 @Internal
 public class PartitionLoader implements Closeable {
 
-	private final boolean overwrite;
-	private final FileSystem fs;
-	private final TableMetaStore metaStore;
+    private final boolean overwrite;
+    private final FileSystem fs;
+    private final TableMetaStore metaStore;
 
-	public PartitionLoader(
-			boolean overwrite,
-			FileSystem fs,
-			TableMetaStoreFactory factory) throws Exception {
-		this.overwrite = overwrite;
-		this.fs = fs;
-		this.metaStore = factory.createTableMetaStore();
-	}
+    public PartitionLoader(boolean overwrite, FileSystem fs, TableMetaStoreFactory factory)
+            throws Exception {
+        this.overwrite = overwrite;
+        this.fs = fs;
+        this.metaStore = factory.createTableMetaStore();
+    }
 
-	/**
-	 * Load a single partition.
-	 */
-	public void loadPartition(
-			LinkedHashMap<String, String> partSpec, List<Path> srcDirs) throws Exception {
-		Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
-		Path path = pathFromMeta.orElseGet(() -> new Path(
-				metaStore.getLocationPath(), generatePartitionPath(partSpec)));
+    /** Load a single partition. */
+    public void loadPartition(LinkedHashMap<String, String> partSpec, List<Path> srcDirs)
+            throws Exception {
+        Optional<Path> pathFromMeta = metaStore.getPartition(partSpec);
+        Path path =
+                pathFromMeta.orElseGet(
+                        () ->
+                                new Path(
+                                        metaStore.getLocationPath(),
+                                        generatePartitionPath(partSpec)));
 
-		overwriteAndRenameFiles(srcDirs, path);
-		metaStore.createOrAlterPartition(partSpec, path);
-	}
+        overwriteAndRenameFiles(srcDirs, path);
+        metaStore.createOrAlterPartition(partSpec, path);
+    }
 
-	/**
-	 * Load a non-partition files to output path.
-	 */
-	public void loadNonPartition(List<Path> srcDirs) throws Exception {
-		Path tableLocation = metaStore.getLocationPath();
-		overwriteAndRenameFiles(srcDirs, tableLocation);
-	}
+    /** Load a non-partition files to output path. */
+    public void loadNonPartition(List<Path> srcDirs) throws Exception {
+        Path tableLocation = metaStore.getLocationPath();
+        overwriteAndRenameFiles(srcDirs, tableLocation);
+    }
 
-	private void overwriteAndRenameFiles(List<Path> srcDirs, Path destDir) throws Exception {
-		boolean dirSuccessExist = fs.exists(destDir) || fs.mkdirs(destDir);
-		Preconditions.checkState(dirSuccessExist, "Failed to create dest path " + destDir);
-		overwrite(destDir);
-		renameFiles(srcDirs, destDir);
-	}
+    private void overwriteAndRenameFiles(List<Path> srcDirs, Path destDir) throws Exception {
+        boolean dirSuccessExist = fs.exists(destDir) || fs.mkdirs(destDir);
+        Preconditions.checkState(dirSuccessExist, "Failed to create dest path " + destDir);
+        overwrite(destDir);
+        renameFiles(srcDirs, destDir);
+    }
 
-	private void overwrite(Path destDir) throws Exception {
-		if (overwrite) {
-			// delete existing files for overwrite
-			FileStatus[] existingFiles = listStatusWithoutHidden(fs, destDir);
-			if (existingFiles != null) {
-				for (FileStatus existingFile : existingFiles) {
-					// TODO: We need move to trash when auto-purge is false.
-					fs.delete(existingFile.getPath(), true);
-				}
-			}
-		}
-	}
+    private void overwrite(Path destDir) throws Exception {
+        if (overwrite) {
+            // delete existing files for overwrite
+            FileStatus[] existingFiles = listStatusWithoutHidden(fs, destDir);
+            if (existingFiles != null) {
+                for (FileStatus existingFile : existingFiles) {
+                    // TODO: We need move to trash when auto-purge is false.
+                    fs.delete(existingFile.getPath(), true);
+                }
+            }
+        }
+    }
 
-	/**
-	 * Moves files from srcDir to destDir.
-	 */
-	private void renameFiles(List<Path> srcDirs, Path destDir) throws Exception {
-		for (Path srcDir : srcDirs) {
-			if (!srcDir.equals(destDir)) {
-				FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
-				if (srcFiles != null) {
-					for (FileStatus srcFile : srcFiles) {
-						Path srcPath = srcFile.getPath();
-						Path destPath = new Path(destDir, srcPath.getName());
-						fs.rename(srcPath, destPath);
-					}
-				}
-			}
-		}
-	}
+    /** Moves files from srcDir to destDir. */
+    private void renameFiles(List<Path> srcDirs, Path destDir) throws Exception {
+        for (Path srcDir : srcDirs) {
+            if (!srcDir.equals(destDir)) {
+                FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
+                if (srcFiles != null) {
+                    for (FileStatus srcFile : srcFiles) {
+                        Path srcPath = srcFile.getPath();
+                        Path destPath = new Path(destDir, srcPath.getName());
+                        fs.rename(srcPath, destPath);
+                    }
+                }
+            }
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		metaStore.close();
-	}
+    @Override
+    public void close() throws IOException {
+        metaStore.close();
+    }
 }

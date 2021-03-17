@@ -14,4 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.table.planner.factories.TestValuesTableFactory
-org.apache.flink.table.planner.factories.TestFileSourceFactory
+org.apache.flink.table.planner.factories.TestFileFactory

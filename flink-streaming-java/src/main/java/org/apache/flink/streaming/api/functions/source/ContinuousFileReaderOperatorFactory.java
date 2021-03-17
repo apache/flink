@@ -28,55 +28,62 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 
-/**
- * {@link ContinuousFileReaderOperator} factory.
- */
+/** {@link ContinuousFileReaderOperator} factory. */
 public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInputSplit>
-	extends AbstractStreamOperatorFactory<OUT>
-	implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<T, OUT> {
+        extends AbstractStreamOperatorFactory<OUT>
+        implements YieldingOperatorFactory<OUT>, OneInputStreamOperatorFactory<T, OUT> {
 
-	private final InputFormat<OUT, ? super T> inputFormat;
-	private TypeInformation<OUT> type;
-	private ExecutionConfig executionConfig;
-	private transient MailboxExecutor mailboxExecutor;
+    private final InputFormat<OUT, ? super T> inputFormat;
+    private TypeInformation<OUT> type;
+    private ExecutionConfig executionConfig;
+    private transient MailboxExecutor mailboxExecutor;
 
-	public ContinuousFileReaderOperatorFactory(InputFormat<OUT, ? super T> inputFormat) {
-		this(inputFormat, null, null);
-	}
+    public ContinuousFileReaderOperatorFactory(InputFormat<OUT, ? super T> inputFormat) {
+        this(inputFormat, null, null);
+    }
 
-	public ContinuousFileReaderOperatorFactory(InputFormat<OUT, ? super T> inputFormat, TypeInformation<OUT> type, ExecutionConfig executionConfig) {
-		this.inputFormat = inputFormat;
-		this.type = type;
-		this.executionConfig = executionConfig;
-		this.chainingStrategy = ChainingStrategy.HEAD;
-	}
+    public ContinuousFileReaderOperatorFactory(
+            InputFormat<OUT, ? super T> inputFormat,
+            TypeInformation<OUT> type,
+            ExecutionConfig executionConfig) {
+        this.inputFormat = inputFormat;
+        this.type = type;
+        this.executionConfig = executionConfig;
+        this.chainingStrategy = ChainingStrategy.HEAD;
+    }
 
-	@Override
-	public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
-		this.mailboxExecutor = mailboxExecutor;
-	}
+    @Override
+    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = mailboxExecutor;
+    }
 
-	@Override
-	public <O extends StreamOperator<OUT>> O createStreamOperator(StreamOperatorParameters<OUT> parameters) {
-		ContinuousFileReaderOperator<OUT, T> operator = new ContinuousFileReaderOperator<>(inputFormat, processingTimeService, mailboxExecutor);
-		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		operator.setOutputType(type, executionConfig);
-		return (O) operator;
-	}
+    @Override
+    public <O extends StreamOperator<OUT>> O createStreamOperator(
+            StreamOperatorParameters<OUT> parameters) {
+        ContinuousFileReaderOperator<OUT, T> operator =
+                new ContinuousFileReaderOperator<>(
+                        inputFormat, processingTimeService, mailboxExecutor);
+        operator.setup(
+                parameters.getContainingTask(),
+                parameters.getStreamConfig(),
+                parameters.getOutput());
+        operator.setOutputType(type, executionConfig);
+        return (O) operator;
+    }
 
-	@Override
-	public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
-		this.type = type;
-		this.executionConfig = executionConfig;
-	}
+    @Override
+    public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
+        this.type = type;
+        this.executionConfig = executionConfig;
+    }
 
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return ContinuousFileReaderOperator.class;
-	}
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return ContinuousFileReaderOperator.class;
+    }
 
-	@Override
-	public boolean isOutputTypeConfigurable() {
-		return true;
-	}
+    @Override
+    public boolean isOutputTypeConfigurable() {
+        return true;
+    }
 }

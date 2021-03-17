@@ -23,21 +23,20 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 
 import java.time.Duration;
 
-/**
- * Converter for {@link DayTimeIntervalType} of {@link java.time.Duration} external type.
- */
+/** Converter for {@link DayTimeIntervalType} of {@link java.time.Duration} external type. */
 @Internal
-public class DayTimeIntervalDurationConverter implements DataStructureConverter<Long, java.time.Duration> {
+public class DayTimeIntervalDurationConverter
+        implements DataStructureConverter<Long, java.time.Duration> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Long toInternal(java.time.Duration external) {
-		return external.toMillis();
-	}
+    @Override
+    public Long toInternal(java.time.Duration external) {
+        return external.toMillis();
+    }
 
-	@Override
-	public java.time.Duration toExternal(Long internal) {
-		return Duration.ofMillis(internal);
-	}
+    @Override
+    public java.time.Duration toExternal(Long internal) {
+        return Duration.ofMillis(internal);
+    }
 }

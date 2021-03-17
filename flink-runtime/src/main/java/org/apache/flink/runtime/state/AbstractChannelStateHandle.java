@@ -31,127 +31,135 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Abstract channel state handle.
- * @param <Info> type of channel info (e.g. {@link org.apache.flink.runtime.checkpoint.channel.InputChannelInfo InputChannelInfo}).
+ *
+ * @param <Info> type of channel info (e.g. {@link
+ *     org.apache.flink.runtime.checkpoint.channel.InputChannelInfo InputChannelInfo}).
  */
 @Internal
 public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Info info;
-	private final StreamStateHandle delegate;
-	/**
-	 * Start offsets in a {@link org.apache.flink.core.fs.FSDataInputStream stream} {@link StreamStateHandle#openInputStream obtained} from {@link #delegate}.
-	 */
-	private final List<Long> offsets;
-	private final long size;
+    private final Info info;
+    private final StreamStateHandle delegate;
+    /**
+     * Start offsets in a {@link org.apache.flink.core.fs.FSDataInputStream stream} {@link
+     * StreamStateHandle#openInputStream obtained} from {@link #delegate}.
+     */
+    private final List<Long> offsets;
 
-	/**
-	 * The original subtask index before rescaling recovery.
-	 */
-	private final int subtaskIndex;
+    private final long size;
 
-	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, int subtaskIndex, Info info, long size) {
-		this.subtaskIndex = subtaskIndex;
-		this.info = checkNotNull(info);
-		this.delegate = checkNotNull(delegate);
-		this.offsets = checkNotNull(offsets);
-		this.size = size;
-	}
+    /** The original subtask index before rescaling recovery. */
+    private final int subtaskIndex;
 
-	public static Set<StreamStateHandle> collectUniqueDelegates(Collection<? extends AbstractChannelStateHandle<?>>... collections) {
-		Set<StreamStateHandle> result = new HashSet<>();
-		for (Collection<? extends AbstractChannelStateHandle<?>> collection : collections) {
-			for (AbstractChannelStateHandle<?> handle : collection) {
-				result.add(handle.getDelegate());
-			}
-		}
-		return result;
-	}
+    AbstractChannelStateHandle(
+            StreamStateHandle delegate,
+            List<Long> offsets,
+            int subtaskIndex,
+            Info info,
+            long size) {
+        this.subtaskIndex = subtaskIndex;
+        this.info = checkNotNull(info);
+        this.delegate = checkNotNull(delegate);
+        this.offsets = checkNotNull(offsets);
+        this.size = size;
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		delegate.discardState();
-	}
+    public static Set<StreamStateHandle> collectUniqueDelegates(
+            Collection<? extends AbstractChannelStateHandle<?>>... collections) {
+        Set<StreamStateHandle> result = new HashSet<>();
+        for (Collection<? extends AbstractChannelStateHandle<?>> collection : collections) {
+            for (AbstractChannelStateHandle<?> handle : collection) {
+                result.add(handle.getDelegate());
+            }
+        }
+        return result;
+    }
 
-	@Override
-	public long getStateSize() {
-		return size; // can not rely on delegate.getStateSize because it can be shared
-	}
+    @Override
+    public void discardState() throws Exception {
+        delegate.discardState();
+    }
 
-	public List<Long> getOffsets() {
-		return offsets;
-	}
+    @Override
+    public long getStateSize() {
+        return size; // can not rely on delegate.getStateSize because it can be shared
+    }
 
-	public StreamStateHandle getDelegate() {
-		return delegate;
-	}
+    public List<Long> getOffsets() {
+        return offsets;
+    }
 
-	public Info getInfo() {
-		return info;
-	}
+    public StreamStateHandle getDelegate() {
+        return delegate;
+    }
 
-	public int getSubtaskIndex() {
-		return subtaskIndex;
-	}
+    public Info getInfo() {
+        return info;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final AbstractChannelStateHandle<?> that = (AbstractChannelStateHandle<?>) o;
-		return subtaskIndex == that.subtaskIndex &&
-			info.equals(that.info) &&
-			delegate.equals(that.delegate) &&
-			offsets.equals(that.offsets);
-	}
+    public int getSubtaskIndex() {
+        return subtaskIndex;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(subtaskIndex, info, delegate, offsets);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final AbstractChannelStateHandle<?> that = (AbstractChannelStateHandle<?>) o;
+        return subtaskIndex == that.subtaskIndex
+                && info.equals(that.info)
+                && delegate.equals(that.delegate)
+                && offsets.equals(that.offsets);
+    }
 
-	@Override
-	public String toString() {
-		return "AbstractChannelStateHandle{" +
-			"info=" + info +
-			", delegate=" + delegate +
-			", offsets=" + offsets +
-			'}';
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(subtaskIndex, info, delegate, offsets);
+    }
 
-	/**
-	 * Describes the underlying content.
-	 */
-	public static class StateContentMetaInfo {
-		private final List<Long> offsets;
-		private long size = 0;
+    @Override
+    public String toString() {
+        return "AbstractChannelStateHandle{"
+                + "info="
+                + info
+                + ", delegate="
+                + delegate
+                + ", offsets="
+                + offsets
+                + '}';
+    }
 
-		public StateContentMetaInfo() {
-			this(new ArrayList<>(), 0);
-		}
+    /** Describes the underlying content. */
+    public static class StateContentMetaInfo {
+        private final List<Long> offsets;
+        private long size = 0;
 
-		public StateContentMetaInfo(List<Long> offsets, long size) {
-			this.offsets = offsets;
-			this.size = size;
-		}
+        public StateContentMetaInfo() {
+            this(new ArrayList<>(), 0);
+        }
 
-		public void withDataAdded(long offset, long size) {
-			this.offsets.add(offset);
-			this.size += size;
-		}
+        public StateContentMetaInfo(List<Long> offsets, long size) {
+            this.offsets = offsets;
+            this.size = size;
+        }
 
-		public List<Long> getOffsets() {
-			return Collections.unmodifiableList(offsets);
-		}
+        public void withDataAdded(long offset, long size) {
+            this.offsets.add(offset);
+            this.size += size;
+        }
 
-		public long getSize() {
-			return size;
-		}
-	}
+        public List<Long> getOffsets() {
+            return Collections.unmodifiableList(offsets);
+        }
 
+        public long getSize() {
+            return size;
+        }
+    }
 }

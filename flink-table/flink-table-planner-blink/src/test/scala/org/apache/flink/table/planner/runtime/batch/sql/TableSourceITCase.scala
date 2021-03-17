@@ -97,6 +97,18 @@ class TableSourceITCase extends BatchTestBase {
   }
 
   @Test
+  def testSimpleProjectWithProcTime(): Unit = {
+    checkResult(
+      "SELECT a, c, CHAR_LENGTH(DATE_FORMAT(PROCTIME(), 'yyyy-MM-dd HH:mm')) FROM MyTable",
+      Seq(
+        row(1, "Hi", 16),
+        row(2, "Hello", 16),
+        row(3, "Hello world", 16)
+      )
+    )
+  }
+
+  @Test
   def testProjectWithoutInputRef(): Unit = {
     checkResult(
       "SELECT COUNT(*) FROM MyTable",
@@ -267,7 +279,7 @@ class TableSourceITCase extends BatchTestBase {
          |CREATE TABLE MyFileSourceTable (
          |  `a` STRING
          |) WITH (
-         |  'connector' = 'filesource',
+         |  'connector' = 'test-file',
          |  'path' = '${file.toURI}'
          |)
          |""".stripMargin

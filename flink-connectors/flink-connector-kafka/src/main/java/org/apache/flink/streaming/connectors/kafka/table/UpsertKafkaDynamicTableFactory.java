@@ -57,282 +57,288 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PRO
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.autoCompleteSchemaRegistrySubject;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createKeyFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
 
-/**
- * Upsert-Kafka factory.
- */
-public class UpsertKafkaDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+/** Upsert-Kafka factory. */
+public class UpsertKafkaDynamicTableFactory
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	public static final String IDENTIFIER = "upsert-kafka";
+    public static final String IDENTIFIER = "upsert-kafka";
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(PROPS_BOOTSTRAP_SERVERS);
-		options.add(TOPIC);
-		options.add(KEY_FORMAT);
-		options.add(VALUE_FORMAT);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(PROPS_BOOTSTRAP_SERVERS);
+        options.add(TOPIC);
+        options.add(KEY_FORMAT);
+        options.add(VALUE_FORMAT);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(KEY_FIELDS_PREFIX);
-		options.add(VALUE_FIELDS_INCLUDE);
-		options.add(FactoryUtil.SINK_PARALLELISM);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(KEY_FIELDS_PREFIX);
+        options.add(VALUE_FIELDS_INCLUDE);
+        options.add(FactoryUtil.SINK_PARALLELISM);
+        return options;
+    }
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		ReadableConfig tableOptions = helper.getOptions();
-		DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat = helper.discoverDecodingFormat(
-				DeserializationFormatFactory.class,
-				KEY_FORMAT);
-		DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat = helper.discoverDecodingFormat(
-				DeserializationFormatFactory.class,
-				VALUE_FORMAT);
+        ReadableConfig tableOptions = helper.getOptions();
+        DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat =
+                helper.discoverDecodingFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+        DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                helper.discoverDecodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
 
-		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
-		TableSchema schema = context.getCatalogTable().getSchema();
-		validateTableOptions(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
+        // Validate the option data type.
+        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        TableSchema schema = context.getCatalogTable().getSchema();
+        validateTableOptions(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
 
-		Tuple2<int[], int[]> keyValueProjections = createKeyValueProjections(context.getCatalogTable());
-		String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
-		Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
-		// always use earliest to keep data integrity
-		StartupMode earliest = StartupMode.EARLIEST;
+        Tuple2<int[], int[]> keyValueProjections =
+                createKeyValueProjections(context.getCatalogTable());
+        String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
+        Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
+        // always use earliest to keep data integrity
+        StartupMode earliest = StartupMode.EARLIEST;
 
-		return new KafkaDynamicSource(
-				schema.toPhysicalRowDataType(),
-				keyDecodingFormat,
-				new DecodingFormatWrapper(valueDecodingFormat),
-				keyValueProjections.f0,
-				keyValueProjections.f1,
-				keyPrefix,
-				KafkaOptions.getSourceTopics(tableOptions),
-				KafkaOptions.getSourceTopicPattern(tableOptions),
-				properties,
-				earliest,
-				Collections.emptyMap(),
-				0,
-				true);
-	}
+        return new KafkaDynamicSource(
+                schema.toPhysicalRowDataType(),
+                keyDecodingFormat,
+                new DecodingFormatWrapper(valueDecodingFormat),
+                keyValueProjections.f0,
+                keyValueProjections.f1,
+                keyPrefix,
+                KafkaOptions.getSourceTopics(tableOptions),
+                KafkaOptions.getSourceTopicPattern(tableOptions),
+                properties,
+                earliest,
+                Collections.emptyMap(),
+                0,
+                true);
+    }
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        this, autoCompleteSchemaRegistrySubject(context));
 
-		ReadableConfig tableOptions = helper.getOptions();
+        final ReadableConfig tableOptions = helper.getOptions();
 
-		EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat = helper.discoverEncodingFormat(
-				SerializationFormatFactory.class,
-				KEY_FORMAT);
-		EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat = helper.discoverEncodingFormat(
-				SerializationFormatFactory.class,
-				VALUE_FORMAT);
+        EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
+                helper.discoverEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT);
+        EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
+                helper.discoverEncodingFormat(SerializationFormatFactory.class, VALUE_FORMAT);
 
-		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
-		TableSchema schema = context.getCatalogTable().getSchema();
-		validateTableOptions(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
+        // Validate the option data type.
+        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        TableSchema schema = context.getCatalogTable().getSchema();
+        validateTableOptions(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
 
-		Tuple2<int[], int[]> keyValueProjections = createKeyValueProjections(context.getCatalogTable());
-		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
-		final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
+        Tuple2<int[], int[]> keyValueProjections =
+                createKeyValueProjections(context.getCatalogTable());
+        final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
+        final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 
-		Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
+        Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
 
-		// use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
-		// it will use hash partition if key is set else in round-robin behaviour.
-		return new KafkaDynamicSink(
-				schema.toPhysicalRowDataType(),
-				keyEncodingFormat,
-				new EncodingFormatWrapper(valueEncodingFormat),
-				keyValueProjections.f0,
-				keyValueProjections.f1,
-				keyPrefix,
-				tableOptions.get(TOPIC).get(0),
-				properties,
-				null,
-				KafkaSinkSemantic.AT_LEAST_ONCE,
-				true,
-				parallelism
-		);
-	}
+        // use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
+        // it will use hash partition if key is set else in round-robin behaviour.
+        return new KafkaDynamicSink(
+                schema.toPhysicalRowDataType(),
+                keyEncodingFormat,
+                new EncodingFormatWrapper(valueEncodingFormat),
+                keyValueProjections.f0,
+                keyValueProjections.f1,
+                keyPrefix,
+                tableOptions.get(TOPIC).get(0),
+                properties,
+                null,
+                KafkaSinkSemantic.AT_LEAST_ONCE,
+                true,
+                parallelism);
+    }
 
-	private Tuple2<int[], int[]> createKeyValueProjections(CatalogTable catalogTable) {
-		TableSchema schema = catalogTable.getSchema();
-		// primary key should validated earlier
-		List<String> keyFields = schema.getPrimaryKey().get().getColumns();
-		DataType physicalDataType = schema.toPhysicalRowDataType();
+    private Tuple2<int[], int[]> createKeyValueProjections(CatalogTable catalogTable) {
+        TableSchema schema = catalogTable.getSchema();
+        // primary key should validated earlier
+        List<String> keyFields = schema.getPrimaryKey().get().getColumns();
+        DataType physicalDataType = schema.toPhysicalRowDataType();
 
-		Configuration tableOptions = Configuration.fromMap(catalogTable.getOptions());
-		// upsert-kafka will set key.fields to primary key fields by default
-		tableOptions.set(KEY_FIELDS, keyFields);
+        Configuration tableOptions = Configuration.fromMap(catalogTable.getOptions());
+        // upsert-kafka will set key.fields to primary key fields by default
+        tableOptions.set(KEY_FIELDS, keyFields);
 
-		int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
-		int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
+        int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
+        int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
-		return Tuple2.of(keyProjection, valueProjection);
-	}
+        return Tuple2.of(keyProjection, valueProjection);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Validation
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------------------------------------------
 
-	private static void validateTableOptions(
-			ReadableConfig tableOptions,
-			Format keyFormat,
-			Format valueFormat,
-			TableSchema schema) {
-		validateTopic(tableOptions);
-		validateFormat(keyFormat, valueFormat, tableOptions);
-		validatePKConstraints(schema);
-	}
+    private static void validateTableOptions(
+            ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
+        validateTopic(tableOptions);
+        validateFormat(keyFormat, valueFormat, tableOptions);
+        validatePKConstraints(schema);
+    }
 
-	private static void validateTopic(ReadableConfig tableOptions) {
-		List<String> topic = tableOptions.get(TOPIC);
-		if (topic.size() > 1) {
-			throw new ValidationException("The 'upsert-kafka' connector doesn't support topic list now. " +
-					"Please use single topic as the value of the parameter 'topic'.");
-		}
-	}
+    private static void validateTopic(ReadableConfig tableOptions) {
+        List<String> topic = tableOptions.get(TOPIC);
+        if (topic.size() > 1) {
+            throw new ValidationException(
+                    "The 'upsert-kafka' connector doesn't support topic list now. "
+                            + "Please use single topic as the value of the parameter 'topic'.");
+        }
+    }
 
-	private static void validateFormat(Format keyFormat, Format valueFormat, ReadableConfig tableOptions) {
-		if (!keyFormat.getChangelogMode().containsOnly(RowKind.INSERT)) {
-			String identifier = tableOptions.get(KEY_FORMAT);
-			throw new ValidationException(String.format(
-					"'upsert-kafka' connector doesn't support '%s' as key format, " +
-							"because '%s' is not in insert-only mode.",
-					identifier,
-					identifier));
-		}
-		if (!valueFormat.getChangelogMode().containsOnly(RowKind.INSERT)) {
-			String identifier = tableOptions.get(VALUE_FORMAT);
-			throw new ValidationException(String.format(
-					"'upsert-kafka' connector doesn't support '%s' as value format, " +
-							"because '%s' is not in insert-only mode.",
-					identifier,
-					identifier));
-		}
-	}
+    private static void validateFormat(
+            Format keyFormat, Format valueFormat, ReadableConfig tableOptions) {
+        if (!keyFormat.getChangelogMode().containsOnly(RowKind.INSERT)) {
+            String identifier = tableOptions.get(KEY_FORMAT);
+            throw new ValidationException(
+                    String.format(
+                            "'upsert-kafka' connector doesn't support '%s' as key format, "
+                                    + "because '%s' is not in insert-only mode.",
+                            identifier, identifier));
+        }
+        if (!valueFormat.getChangelogMode().containsOnly(RowKind.INSERT)) {
+            String identifier = tableOptions.get(VALUE_FORMAT);
+            throw new ValidationException(
+                    String.format(
+                            "'upsert-kafka' connector doesn't support '%s' as value format, "
+                                    + "because '%s' is not in insert-only mode.",
+                            identifier, identifier));
+        }
+    }
 
-	private static void validatePKConstraints(TableSchema schema) {
-		if (!schema.getPrimaryKey().isPresent()) {
-			throw new ValidationException(
-				"'upsert-kafka' tables require to define a PRIMARY KEY constraint. " +
-					"The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. " +
-					"The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.");
-		}
-	}
+    private static void validatePKConstraints(TableSchema schema) {
+        if (!schema.getPrimaryKey().isPresent()) {
+            throw new ValidationException(
+                    "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
+                            + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
+                            + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.");
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Format wrapper
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Format wrapper
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * It is used to wrap the decoding format and expose the desired changelog mode. It's only works
-	 * for insert-only format.
-	 */
-	protected static class DecodingFormatWrapper implements DecodingFormat<DeserializationSchema<RowData>> {
-		private final DecodingFormat<DeserializationSchema<RowData>> innerDecodingFormat;
+    /**
+     * It is used to wrap the decoding format and expose the desired changelog mode. It's only works
+     * for insert-only format.
+     */
+    protected static class DecodingFormatWrapper
+            implements DecodingFormat<DeserializationSchema<RowData>> {
+        private final DecodingFormat<DeserializationSchema<RowData>> innerDecodingFormat;
 
-		private static final ChangelogMode SOURCE_CHANGELOG_MODE = ChangelogMode.newBuilder()
-				.addContainedKind(RowKind.UPDATE_AFTER)
-				.addContainedKind(RowKind.DELETE)
-				.build();
+        private static final ChangelogMode SOURCE_CHANGELOG_MODE =
+                ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
 
-		public DecodingFormatWrapper(DecodingFormat<DeserializationSchema<RowData>> innerDecodingFormat) {
-			this.innerDecodingFormat = innerDecodingFormat;
-		}
+        public DecodingFormatWrapper(
+                DecodingFormat<DeserializationSchema<RowData>> innerDecodingFormat) {
+            this.innerDecodingFormat = innerDecodingFormat;
+        }
 
-		@Override
-		public DeserializationSchema<RowData> createRuntimeDecoder(DynamicTableSource.Context context, DataType producedDataType) {
-			return innerDecodingFormat.createRuntimeDecoder(context, producedDataType);
-		}
+        @Override
+        public DeserializationSchema<RowData> createRuntimeDecoder(
+                DynamicTableSource.Context context, DataType producedDataType) {
+            return innerDecodingFormat.createRuntimeDecoder(context, producedDataType);
+        }
 
-		@Override
-		public ChangelogMode getChangelogMode() {
-			return SOURCE_CHANGELOG_MODE;
-		}
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return SOURCE_CHANGELOG_MODE;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == this) {
-				return true;
-			}
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
 
-			if (obj == null || getClass() != obj.getClass()) {
-				return false;
-			}
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
 
-			DecodingFormatWrapper that = (DecodingFormatWrapper) obj;
-			return Objects.equals(innerDecodingFormat, that.innerDecodingFormat);
-		}
+            DecodingFormatWrapper that = (DecodingFormatWrapper) obj;
+            return Objects.equals(innerDecodingFormat, that.innerDecodingFormat);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(innerDecodingFormat);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(innerDecodingFormat);
+        }
+    }
 
-	/**
-	 * It is used to wrap the encoding format and expose the desired changelog mode. It's only works
-	 * for insert-only format.
-	 */
-	protected static class EncodingFormatWrapper implements EncodingFormat<SerializationSchema<RowData>> {
-		private final EncodingFormat<SerializationSchema<RowData>> innerEncodingFormat;
+    /**
+     * It is used to wrap the encoding format and expose the desired changelog mode. It's only works
+     * for insert-only format.
+     */
+    protected static class EncodingFormatWrapper
+            implements EncodingFormat<SerializationSchema<RowData>> {
+        private final EncodingFormat<SerializationSchema<RowData>> innerEncodingFormat;
 
-		public static final ChangelogMode SINK_CHANGELOG_MODE = ChangelogMode.newBuilder()
-				.addContainedKind(RowKind.INSERT)
-				.addContainedKind(RowKind.UPDATE_AFTER)
-				.addContainedKind(RowKind.DELETE)
-				.build();
+        public static final ChangelogMode SINK_CHANGELOG_MODE =
+                ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
 
-		public EncodingFormatWrapper(EncodingFormat<SerializationSchema<RowData>> innerEncodingFormat) {
-			this.innerEncodingFormat = innerEncodingFormat;
-		}
+        public EncodingFormatWrapper(
+                EncodingFormat<SerializationSchema<RowData>> innerEncodingFormat) {
+            this.innerEncodingFormat = innerEncodingFormat;
+        }
 
-		@Override
-		public SerializationSchema<RowData> createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType) {
-			return innerEncodingFormat.createRuntimeEncoder(context, consumedDataType);
-		}
+        @Override
+        public SerializationSchema<RowData> createRuntimeEncoder(
+                DynamicTableSink.Context context, DataType consumedDataType) {
+            return innerEncodingFormat.createRuntimeEncoder(context, consumedDataType);
+        }
 
-		@Override
-		public ChangelogMode getChangelogMode() {
-			return SINK_CHANGELOG_MODE;
-		}
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return SINK_CHANGELOG_MODE;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == this) {
-				return true;
-			}
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
 
-			if (obj == null || getClass() != obj.getClass()) {
-				return false;
-			}
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
 
-			EncodingFormatWrapper that = (EncodingFormatWrapper) obj;
-			return Objects.equals(innerEncodingFormat, that.innerEncodingFormat);
-		}
+            EncodingFormatWrapper that = (EncodingFormatWrapper) obj;
+            return Objects.equals(innerEncodingFormat, that.innerEncodingFormat);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(innerEncodingFormat);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(innerEncodingFormat);
+        }
+    }
 }

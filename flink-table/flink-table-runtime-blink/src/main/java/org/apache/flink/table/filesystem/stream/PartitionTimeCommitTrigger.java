@@ -48,106 +48,108 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
 /**
- * Partition commit trigger by partition time and watermark,
- * if 'watermark' > 'partition-time' + 'delay', will commit the partition.
+ * Partition commit trigger by partition time and watermark, if 'watermark' > 'partition-time' +
+ * 'delay', will commit the partition.
  *
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
  */
 public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
-	private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =
-			new ListStateDescriptor<>(
-					"pending-partitions",
-					new ListSerializer<>(StringSerializer.INSTANCE));
+    private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =
+            new ListStateDescriptor<>(
+                    "pending-partitions", new ListSerializer<>(StringSerializer.INSTANCE));
 
-	private static final ListStateDescriptor<Map<Long, Long>> WATERMARKS_STATE_DESC =
-			new ListStateDescriptor<>(
-					"checkpoint-id-to-watermark",
-					new MapSerializer<>(LongSerializer.INSTANCE, LongSerializer.INSTANCE));
+    private static final ListStateDescriptor<Map<Long, Long>> WATERMARKS_STATE_DESC =
+            new ListStateDescriptor<>(
+                    "checkpoint-id-to-watermark",
+                    new MapSerializer<>(LongSerializer.INSTANCE, LongSerializer.INSTANCE));
 
-	private final ListState<List<String>> pendingPartitionsState;
-	private final Set<String> pendingPartitions;
+    private final ListState<List<String>> pendingPartitionsState;
+    private final Set<String> pendingPartitions;
 
-	private final ListState<Map<Long, Long>> watermarksState;
-	private final TreeMap<Long, Long> watermarks;
-	private final PartitionTimeExtractor extractor;
-	private final long commitDelay;
-	private final List<String> partitionKeys;
+    private final ListState<Map<Long, Long>> watermarksState;
+    private final TreeMap<Long, Long> watermarks;
+    private final PartitionTimeExtractor extractor;
+    private final long commitDelay;
+    private final List<String> partitionKeys;
 
-	public PartitionTimeCommitTrigger(
-			boolean isRestored,
-			OperatorStateStore stateStore,
-			Configuration conf,
-			ClassLoader cl,
-			List<String> partitionKeys) throws Exception {
-		this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
-		this.pendingPartitions = new HashSet<>();
-		if (isRestored) {
-			pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
-		}
+    public PartitionTimeCommitTrigger(
+            boolean isRestored,
+            OperatorStateStore stateStore,
+            Configuration conf,
+            ClassLoader cl,
+            List<String> partitionKeys)
+            throws Exception {
+        this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
+        this.pendingPartitions = new HashSet<>();
+        if (isRestored) {
+            pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
+        }
 
-		this.partitionKeys = partitionKeys;
-		this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
-		this.extractor = PartitionTimeExtractor.create(
-				cl,
-				conf.get(PARTITION_TIME_EXTRACTOR_KIND),
-				conf.get(PARTITION_TIME_EXTRACTOR_CLASS),
-				conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN));
+        this.partitionKeys = partitionKeys;
+        this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
+        this.extractor =
+                PartitionTimeExtractor.create(
+                        cl,
+                        conf.get(PARTITION_TIME_EXTRACTOR_KIND),
+                        conf.get(PARTITION_TIME_EXTRACTOR_CLASS),
+                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN));
 
-		this.watermarksState = stateStore.getListState(WATERMARKS_STATE_DESC);
-		this.watermarks = new TreeMap<>();
-		if (isRestored) {
-			watermarks.putAll(watermarksState.get().iterator().next());
-		}
-	}
+        this.watermarksState = stateStore.getListState(WATERMARKS_STATE_DESC);
+        this.watermarks = new TreeMap<>();
+        if (isRestored) {
+            watermarks.putAll(watermarksState.get().iterator().next());
+        }
+    }
 
-	@Override
-	public void addPartition(String partition) {
-		if (!StringUtils.isNullOrWhitespaceOnly(partition)) {
-			this.pendingPartitions.add(partition);
-		}
-	}
+    @Override
+    public void addPartition(String partition) {
+        if (!StringUtils.isNullOrWhitespaceOnly(partition)) {
+            this.pendingPartitions.add(partition);
+        }
+    }
 
-	@Override
-	public List<String> committablePartitions(long checkpointId) {
-		if (!watermarks.containsKey(checkpointId)) {
-			throw new IllegalArgumentException(String.format(
-					"Checkpoint(%d) has not been snapshot. The watermark information is: %s.",
-					checkpointId, watermarks));
-		}
+    @Override
+    public List<String> committablePartitions(long checkpointId) {
+        if (!watermarks.containsKey(checkpointId)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Checkpoint(%d) has not been snapshot. The watermark information is: %s.",
+                            checkpointId, watermarks));
+        }
 
-		long watermark = watermarks.get(checkpointId);
-		watermarks.headMap(checkpointId, true).clear();
+        long watermark = watermarks.get(checkpointId);
+        watermarks.headMap(checkpointId, true).clear();
 
-		List<String> needCommit = new ArrayList<>();
-		Iterator<String> iter = pendingPartitions.iterator();
-		while (iter.hasNext()) {
-			String partition = iter.next();
-			LocalDateTime partTime = extractor.extract(
-					partitionKeys, extractPartitionValues(new Path(partition)));
-			if (watermark > toMills(partTime) + commitDelay) {
-				needCommit.add(partition);
-				iter.remove();
-			}
-		}
-		return needCommit;
-	}
+        List<String> needCommit = new ArrayList<>();
+        Iterator<String> iter = pendingPartitions.iterator();
+        while (iter.hasNext()) {
+            String partition = iter.next();
+            LocalDateTime partTime =
+                    extractor.extract(partitionKeys, extractPartitionValues(new Path(partition)));
+            if (watermark > toMills(partTime) + commitDelay) {
+                needCommit.add(partition);
+                iter.remove();
+            }
+        }
+        return needCommit;
+    }
 
-	@Override
-	public void snapshotState(long checkpointId, long watermark) throws Exception {
-		pendingPartitionsState.clear();
-		pendingPartitionsState.add(new ArrayList<>(pendingPartitions));
+    @Override
+    public void snapshotState(long checkpointId, long watermark) throws Exception {
+        pendingPartitionsState.clear();
+        pendingPartitionsState.add(new ArrayList<>(pendingPartitions));
 
-		watermarks.put(checkpointId, watermark);
-		watermarksState.clear();
-		watermarksState.add(new HashMap<>(watermarks));
-	}
+        watermarks.put(checkpointId, watermark);
+        watermarksState.clear();
+        watermarksState.add(new HashMap<>(watermarks));
+    }
 
-	@Override
-	public List<String> endInput() {
-		ArrayList<String> partitions = new ArrayList<>(pendingPartitions);
-		pendingPartitions.clear();
-		return partitions;
-	}
+    @Override
+    public List<String> endInput() {
+        ArrayList<String> partitions = new ArrayList<>(pendingPartitions);
+        pendingPartitions.clear();
+        return partitions;
+    }
 }

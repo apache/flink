@@ -59,361 +59,394 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  * Consequently, the respective {@link TaskExecutor} is responsible for closing them.
  */
 public class TaskManagerServices {
-	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
 
-	@VisibleForTesting
-	public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
+    @VisibleForTesting public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
 
-	/** TaskManager services. */
-	private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
-	private final long managedMemorySize;
-	private final IOManager ioManager;
-	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
-	private final KvStateService kvStateService;
-	private final BroadcastVariableManager broadcastVariableManager;
-	private final TaskSlotTable<Task> taskSlotTable;
-	private final JobTable jobTable;
-	private final JobLeaderService jobLeaderService;
-	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
-	private final TaskEventDispatcher taskEventDispatcher;
-	private final ExecutorService ioExecutor;
-	private final LibraryCacheManager libraryCacheManager;
+    /** TaskManager services. */
+    private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
-	TaskManagerServices(
-		UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
-		long managedMemorySize,
-		IOManager ioManager,
-		ShuffleEnvironment<?, ?> shuffleEnvironment,
-		KvStateService kvStateService,
-		BroadcastVariableManager broadcastVariableManager,
-		TaskSlotTable<Task> taskSlotTable,
-		JobTable jobTable,
-		JobLeaderService jobLeaderService,
-		TaskExecutorLocalStateStoresManager taskManagerStateStore,
-		TaskEventDispatcher taskEventDispatcher,
-		ExecutorService ioExecutor,
-		LibraryCacheManager libraryCacheManager) {
+    private final long managedMemorySize;
+    private final IOManager ioManager;
+    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private final KvStateService kvStateService;
+    private final BroadcastVariableManager broadcastVariableManager;
+    private final TaskSlotTable<Task> taskSlotTable;
+    private final JobTable jobTable;
+    private final JobLeaderService jobLeaderService;
+    private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
+    private final TaskEventDispatcher taskEventDispatcher;
+    private final ExecutorService ioExecutor;
+    private final LibraryCacheManager libraryCacheManager;
 
-		this.unresolvedTaskManagerLocation = Preconditions.checkNotNull(unresolvedTaskManagerLocation);
-		this.managedMemorySize = managedMemorySize;
-		this.ioManager = Preconditions.checkNotNull(ioManager);
-		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
-		this.kvStateService = Preconditions.checkNotNull(kvStateService);
-		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
-		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
-		this.jobTable = Preconditions.checkNotNull(jobTable);
-		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
-		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
-		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
-		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
-		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
-	}
+    TaskManagerServices(
+            UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
+            long managedMemorySize,
+            IOManager ioManager,
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            KvStateService kvStateService,
+            BroadcastVariableManager broadcastVariableManager,
+            TaskSlotTable<Task> taskSlotTable,
+            JobTable jobTable,
+            JobLeaderService jobLeaderService,
+            TaskExecutorLocalStateStoresManager taskManagerStateStore,
+            TaskEventDispatcher taskEventDispatcher,
+            ExecutorService ioExecutor,
+            LibraryCacheManager libraryCacheManager) {
 
-	// --------------------------------------------------------------------------------------------
-	//  Getter/Setter
-	// --------------------------------------------------------------------------------------------
+        this.unresolvedTaskManagerLocation =
+                Preconditions.checkNotNull(unresolvedTaskManagerLocation);
+        this.managedMemorySize = managedMemorySize;
+        this.ioManager = Preconditions.checkNotNull(ioManager);
+        this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
+        this.kvStateService = Preconditions.checkNotNull(kvStateService);
+        this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
+        this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
+        this.jobTable = Preconditions.checkNotNull(jobTable);
+        this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
+        this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
+        this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
+        this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+        this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
+    }
 
-	public long getManagedMemorySize() {
-		return managedMemorySize;
-	}
+    // --------------------------------------------------------------------------------------------
+    //  Getter/Setter
+    // --------------------------------------------------------------------------------------------
 
-	public IOManager getIOManager() {
-		return ioManager;
-	}
+    public long getManagedMemorySize() {
+        return managedMemorySize;
+    }
 
-	public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
-		return shuffleEnvironment;
-	}
+    public IOManager getIOManager() {
+        return ioManager;
+    }
 
-	public KvStateService getKvStateService() {
-		return kvStateService;
-	}
+    public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
+        return shuffleEnvironment;
+    }
 
-	public UnresolvedTaskManagerLocation getUnresolvedTaskManagerLocation() {
-		return unresolvedTaskManagerLocation;
-	}
+    public KvStateService getKvStateService() {
+        return kvStateService;
+    }
 
-	public BroadcastVariableManager getBroadcastVariableManager() {
-		return broadcastVariableManager;
-	}
+    public UnresolvedTaskManagerLocation getUnresolvedTaskManagerLocation() {
+        return unresolvedTaskManagerLocation;
+    }
 
-	public TaskSlotTable<Task> getTaskSlotTable() {
-		return taskSlotTable;
-	}
+    public BroadcastVariableManager getBroadcastVariableManager() {
+        return broadcastVariableManager;
+    }
 
-	public JobTable getJobTable() {
-		return jobTable;
-	}
+    public TaskSlotTable<Task> getTaskSlotTable() {
+        return taskSlotTable;
+    }
 
-	public JobLeaderService getJobLeaderService() {
-		return jobLeaderService;
-	}
+    public JobTable getJobTable() {
+        return jobTable;
+    }
 
-	public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
-		return taskManagerStateStore;
-	}
+    public JobLeaderService getJobLeaderService() {
+        return jobLeaderService;
+    }
 
-	public TaskEventDispatcher getTaskEventDispatcher() {
-		return taskEventDispatcher;
-	}
+    public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
+        return taskManagerStateStore;
+    }
 
-	public Executor getIOExecutor() {
-		return ioExecutor;
-	}
+    public TaskEventDispatcher getTaskEventDispatcher() {
+        return taskEventDispatcher;
+    }
 
-	public LibraryCacheManager getLibraryCacheManager() {
-		return libraryCacheManager;
-	}
+    public Executor getIOExecutor() {
+        return ioExecutor;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Shut down method
-	// --------------------------------------------------------------------------------------------
+    public LibraryCacheManager getLibraryCacheManager() {
+        return libraryCacheManager;
+    }
 
-	/**
-	 * Shuts the {@link TaskExecutor} services down.
-	 */
-	public void shutDown() throws FlinkException {
+    // --------------------------------------------------------------------------------------------
+    //  Shut down method
+    // --------------------------------------------------------------------------------------------
 
-		Exception exception = null;
+    /** Shuts the {@link TaskExecutor} services down. */
+    public void shutDown() throws FlinkException {
 
-		try {
-			taskManagerStateStore.shutdown();
-		} catch (Exception e) {
-			exception = e;
-		}
+        Exception exception = null;
 
-		try {
-			ioManager.close();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            taskManagerStateStore.shutdown();
+        } catch (Exception e) {
+            exception = e;
+        }
 
-		try {
-			shuffleEnvironment.close();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            ioManager.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			kvStateService.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            shuffleEnvironment.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			taskSlotTable.close();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            kvStateService.shutdown();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			jobLeaderService.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            taskSlotTable.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			ioExecutor.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            jobLeaderService.stop();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			jobTable.close();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            ioExecutor.shutdown();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		try {
-			libraryCacheManager.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
+        try {
+            jobTable.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		taskEventDispatcher.clearAll();
+        try {
+            libraryCacheManager.shutdown();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
 
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the TaskManager services.", exception);
-		}
-	}
+        taskEventDispatcher.clearAll();
 
-	// --------------------------------------------------------------------------------------------
-	//  Static factory methods for task manager services
-	// --------------------------------------------------------------------------------------------
+        if (exception != null) {
+            throw new FlinkException(
+                    "Could not properly shut down the TaskManager services.", exception);
+        }
+    }
 
-	/**
-	 * Creates and returns the task manager services.
-	 *
-	 * @param taskManagerServicesConfiguration task manager configuration
-	 * @param permanentBlobService permanentBlobService used by the services
-	 * @param taskManagerMetricGroup metric group of the task manager
-	 * @param ioExecutor executor for async IO operations
-	 * @param fatalErrorHandler to handle class loading OOMs
-	 * @return task manager components
-	 * @throws Exception
-	 */
-	public static TaskManagerServices fromConfiguration(
-			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
-			PermanentBlobService permanentBlobService,
-			MetricGroup taskManagerMetricGroup,
-			ExecutorService ioExecutor,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+    // --------------------------------------------------------------------------------------------
+    //  Static factory methods for task manager services
+    // --------------------------------------------------------------------------------------------
 
-		// pre-start checks
-		checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
+    /**
+     * Creates and returns the task manager services.
+     *
+     * @param taskManagerServicesConfiguration task manager configuration
+     * @param permanentBlobService permanentBlobService used by the services
+     * @param taskManagerMetricGroup metric group of the task manager
+     * @param ioExecutor executor for async IO operations
+     * @param fatalErrorHandler to handle class loading OOMs
+     * @return task manager components
+     * @throws Exception
+     */
+    public static TaskManagerServices fromConfiguration(
+            TaskManagerServicesConfiguration taskManagerServicesConfiguration,
+            PermanentBlobService permanentBlobService,
+            MetricGroup taskManagerMetricGroup,
+            ExecutorService ioExecutor,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
 
-		final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+        // pre-start checks
+        checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		// start the I/O manager, it will create some temp directories.
-		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
+        final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-		final ShuffleEnvironment<?, ?> shuffleEnvironment = createShuffleEnvironment(
-			taskManagerServicesConfiguration,
-			taskEventDispatcher,
-			taskManagerMetricGroup,
-			ioExecutor);
-		final int listeningDataPort = shuffleEnvironment.start();
+        // start the I/O manager, it will create some temp directories.
+        final IOManager ioManager =
+                new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
-		kvStateService.start();
+        final ShuffleEnvironment<?, ?> shuffleEnvironment =
+                createShuffleEnvironment(
+                        taskManagerServicesConfiguration,
+                        taskEventDispatcher,
+                        taskManagerMetricGroup,
+                        ioExecutor);
+        final int listeningDataPort = shuffleEnvironment.start();
 
-		final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation = new UnresolvedTaskManagerLocation(
-			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getExternalAddress(),
-			// we expose the task manager location with the listening port
-			// iff the external data port is not explicitly defined
-			taskManagerServicesConfiguration.getExternalDataPort() > 0 ?
-				taskManagerServicesConfiguration.getExternalDataPort() :
-				listeningDataPort);
+        final KvStateService kvStateService =
+                KvStateService.fromConfiguration(taskManagerServicesConfiguration);
+        kvStateService.start();
 
-		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
+        final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                new UnresolvedTaskManagerLocation(
+                        taskManagerServicesConfiguration.getResourceID(),
+                        taskManagerServicesConfiguration.getExternalAddress(),
+                        // we expose the task manager location with the listening port
+                        // iff the external data port is not explicitly defined
+                        taskManagerServicesConfiguration.getExternalDataPort() > 0
+                                ? taskManagerServicesConfiguration.getExternalDataPort()
+                                : listeningDataPort);
 
-		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable(
-			taskManagerServicesConfiguration.getNumberOfSlots(),
-			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
-			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
-			taskManagerServicesConfiguration.getPageSize(),
-			ioExecutor);
+        final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final JobTable jobTable = DefaultJobTable.create();
+        final TaskSlotTable<Task> taskSlotTable =
+                createTaskSlotTable(
+                        taskManagerServicesConfiguration.getNumberOfSlots(),
+                        taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
+                        taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
+                        taskManagerServicesConfiguration.getPageSize(),
+                        ioExecutor);
 
-		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
+        final JobTable jobTable = DefaultJobTable.create();
 
-		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
+        final JobLeaderService jobLeaderService =
+                new DefaultJobLeaderService(
+                        unresolvedTaskManagerLocation,
+                        taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
-		final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
+        final String[] stateRootDirectoryStrings =
+                taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
 
-		for (int i = 0; i < stateRootDirectoryStrings.length; ++i) {
-			stateRootDirectoryFiles[i] = new File(stateRootDirectoryStrings[i], LOCAL_STATE_SUB_DIRECTORY_ROOT);
-		}
+        final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
 
-		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager(
-			taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
-			stateRootDirectoryFiles,
-			ioExecutor);
+        for (int i = 0; i < stateRootDirectoryStrings.length; ++i) {
+            stateRootDirectoryFiles[i] =
+                    new File(stateRootDirectoryStrings[i], LOCAL_STATE_SUB_DIRECTORY_ROOT);
+        }
 
-		final boolean failOnJvmMetaspaceOomError =
-			taskManagerServicesConfiguration.getConfiguration().getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
-		final boolean checkClassLoaderLeak =
-			taskManagerServicesConfiguration.getConfiguration().getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
-		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			permanentBlobService,
-			BlobLibraryCacheManager.defaultClassLoaderFactory(
-				taskManagerServicesConfiguration.getClassLoaderResolveOrder(),
-				taskManagerServicesConfiguration.getAlwaysParentFirstLoaderPatterns(),
-				failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
-				checkClassLoaderLeak));
+        final TaskExecutorLocalStateStoresManager taskStateManager =
+                new TaskExecutorLocalStateStoresManager(
+                        taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
+                        stateRootDirectoryFiles,
+                        ioExecutor);
 
-		return new TaskManagerServices(
-			unresolvedTaskManagerLocation,
-			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
-			ioManager,
-			shuffleEnvironment,
-			kvStateService,
-			broadcastVariableManager,
-			taskSlotTable,
-			jobTable,
-			jobLeaderService,
-			taskStateManager,
-			taskEventDispatcher,
-			ioExecutor,
-			libraryCacheManager);
-	}
+        final boolean failOnJvmMetaspaceOomError =
+                taskManagerServicesConfiguration
+                        .getConfiguration()
+                        .getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
+        final boolean checkClassLoaderLeak =
+                taskManagerServicesConfiguration
+                        .getConfiguration()
+                        .getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+        final LibraryCacheManager libraryCacheManager =
+                new BlobLibraryCacheManager(
+                        permanentBlobService,
+                        BlobLibraryCacheManager.defaultClassLoaderFactory(
+                                taskManagerServicesConfiguration.getClassLoaderResolveOrder(),
+                                taskManagerServicesConfiguration
+                                        .getAlwaysParentFirstLoaderPatterns(),
+                                failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
+                                checkClassLoaderLeak));
 
-	private static TaskSlotTable<Task> createTaskSlotTable(
-			final int numberOfSlots,
-			final TaskExecutorResourceSpec taskExecutorResourceSpec,
-			final long timerServiceShutdownTimeout,
-			final int pageSize,
-			final Executor memoryVerificationExecutor) {
-		final TimerService<AllocationID> timerService = new TimerService<>(
-			new ScheduledThreadPoolExecutor(1),
-			timerServiceShutdownTimeout);
-		return new TaskSlotTableImpl<>(
-			numberOfSlots,
-			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
-			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
-			pageSize,
-			timerService,
-			memoryVerificationExecutor);
-	}
+        return new TaskManagerServices(
+                unresolvedTaskManagerLocation,
+                taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
+                ioManager,
+                shuffleEnvironment,
+                kvStateService,
+                broadcastVariableManager,
+                taskSlotTable,
+                jobTable,
+                jobLeaderService,
+                taskStateManager,
+                taskEventDispatcher,
+                ioExecutor,
+                libraryCacheManager);
+    }
 
-	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
-			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
-			TaskEventDispatcher taskEventDispatcher,
-			MetricGroup taskManagerMetricGroup,
-			Executor ioExecutor) throws FlinkException {
+    private static TaskSlotTable<Task> createTaskSlotTable(
+            final int numberOfSlots,
+            final TaskExecutorResourceSpec taskExecutorResourceSpec,
+            final long timerServiceShutdownTimeout,
+            final int pageSize,
+            final Executor memoryVerificationExecutor) {
+        final TimerService<AllocationID> timerService =
+                new TimerService<>(new ScheduledThreadPoolExecutor(1), timerServiceShutdownTimeout);
+        return new TaskSlotTableImpl<>(
+                numberOfSlots,
+                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                        taskExecutorResourceSpec),
+                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                        taskExecutorResourceSpec, numberOfSlots),
+                pageSize,
+                timerService,
+                memoryVerificationExecutor);
+    }
 
-		final ShuffleEnvironmentContext shuffleEnvironmentContext = new ShuffleEnvironmentContext(
-			taskManagerServicesConfiguration.getConfiguration(),
-			taskManagerServicesConfiguration.getResourceID(),
-			taskManagerServicesConfiguration.getNetworkMemorySize(),
-			taskManagerServicesConfiguration.isLocalCommunicationOnly(),
-			taskManagerServicesConfiguration.getBindAddress(),
-			taskEventDispatcher,
-			taskManagerMetricGroup,
-			ioExecutor);
+    private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
+            TaskManagerServicesConfiguration taskManagerServicesConfiguration,
+            TaskEventDispatcher taskEventDispatcher,
+            MetricGroup taskManagerMetricGroup,
+            Executor ioExecutor)
+            throws FlinkException {
 
-		return ShuffleServiceLoader
-			.loadShuffleServiceFactory(taskManagerServicesConfiguration.getConfiguration())
-			.createShuffleEnvironment(shuffleEnvironmentContext);
-	}
+        final ShuffleEnvironmentContext shuffleEnvironmentContext =
+                new ShuffleEnvironmentContext(
+                        taskManagerServicesConfiguration.getConfiguration(),
+                        taskManagerServicesConfiguration.getResourceID(),
+                        taskManagerServicesConfiguration.getNetworkMemorySize(),
+                        taskManagerServicesConfiguration.isLocalCommunicationOnly(),
+                        taskManagerServicesConfiguration.getBindAddress(),
+                        taskEventDispatcher,
+                        taskManagerMetricGroup,
+                        ioExecutor);
 
-	/**
-	 * Validates that all the directories denoted by the strings do actually exist or can be created, are proper
-	 * directories (not files), and are writable.
-	 *
-	 * @param tmpDirs The array of directory paths to check.
-	 * @throws IOException Thrown if any of the directories does not exist and cannot be created or is not writable
-	 *                     or is a file, rather than a directory.
-	 */
-	private static void checkTempDirs(String[] tmpDirs) throws IOException {
-		for (String dir : tmpDirs) {
-			if (dir != null && !dir.equals("")) {
-				File file = new File(dir);
-				if (!file.exists()) {
-					if (!file.mkdirs()) {
-						throw new IOException("Temporary file directory " + file.getAbsolutePath() + " does not exist and could not be created.");
-					}
-				}
-				if (!file.isDirectory()) {
-					throw new IOException("Temporary file directory " + file.getAbsolutePath() + " is not a directory.");
-				}
-				if (!file.canWrite()) {
-					throw new IOException("Temporary file directory " + file.getAbsolutePath() + " is not writable.");
-				}
+        return ShuffleServiceLoader.loadShuffleServiceFactory(
+                        taskManagerServicesConfiguration.getConfiguration())
+                .createShuffleEnvironment(shuffleEnvironmentContext);
+    }
 
-				if (LOG.isInfoEnabled()) {
-					long totalSpaceGb = file.getTotalSpace() >> 30;
-					long usableSpaceGb = file.getUsableSpace() >> 30;
-					double usablePercentage = (double) usableSpaceGb / totalSpaceGb * 100;
-					String path = file.getAbsolutePath();
-					LOG.info(String.format("Temporary file directory '%s': total %d GB, " + "usable %d GB (%.2f%% usable)",
-						path, totalSpaceGb, usableSpaceGb, usablePercentage));
-				}
-			} else {
-				throw new IllegalArgumentException("Temporary file directory #$id is null.");
-			}
-		}
-	}
+    /**
+     * Validates that all the directories denoted by the strings do actually exist or can be
+     * created, are proper directories (not files), and are writable.
+     *
+     * @param tmpDirs The array of directory paths to check.
+     * @throws IOException Thrown if any of the directories does not exist and cannot be created or
+     *     is not writable or is a file, rather than a directory.
+     */
+    private static void checkTempDirs(String[] tmpDirs) throws IOException {
+        for (String dir : tmpDirs) {
+            if (dir != null && !dir.equals("")) {
+                File file = new File(dir);
+                if (!file.exists()) {
+                    if (!file.mkdirs()) {
+                        throw new IOException(
+                                "Temporary file directory "
+                                        + file.getAbsolutePath()
+                                        + " does not exist and could not be created.");
+                    }
+                }
+                if (!file.isDirectory()) {
+                    throw new IOException(
+                            "Temporary file directory "
+                                    + file.getAbsolutePath()
+                                    + " is not a directory.");
+                }
+                if (!file.canWrite()) {
+                    throw new IOException(
+                            "Temporary file directory "
+                                    + file.getAbsolutePath()
+                                    + " is not writable.");
+                }
+
+                if (LOG.isInfoEnabled()) {
+                    long totalSpaceGb = file.getTotalSpace() >> 30;
+                    long usableSpaceGb = file.getUsableSpace() >> 30;
+                    double usablePercentage = (double) usableSpaceGb / totalSpaceGb * 100;
+                    String path = file.getAbsolutePath();
+                    LOG.info(
+                            String.format(
+                                    "Temporary file directory '%s': total %d GB, "
+                                            + "usable %d GB (%.2f%% usable)",
+                                    path, totalSpaceGb, usableSpaceGb, usablePercentage));
+                }
+            } else {
+                throw new IllegalArgumentException("Temporary file directory #$id is null.");
+            }
+        }
+    }
 }

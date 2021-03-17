@@ -25,20 +25,17 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Component to retrieve the preferred locations of an execution vertex.
- */
+/** Component to retrieve the preferred locations of an execution vertex. */
 @FunctionalInterface
 public interface PreferredLocationsRetriever {
 
-	/**
-	 * Returns preferred locations of an execution vertex.
-	 *
-	 * @param executionVertexId id of the execution vertex
-	 * @param producersToIgnore producer vertices to ignore when calculating input locations
-	 * @return future of preferred locations
-	 */
-	CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
-		ExecutionVertexID executionVertexId,
-		Set<ExecutionVertexID> producersToIgnore);
+    /**
+     * Returns preferred locations of an execution vertex.
+     *
+     * @param executionVertexId id of the execution vertex
+     * @param producersToIgnore producer vertices to ignore when calculating input locations
+     * @return future of preferred locations
+     */
+    CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
+            ExecutionVertexID executionVertexId, Set<ExecutionVertexID> producersToIgnore);
 }

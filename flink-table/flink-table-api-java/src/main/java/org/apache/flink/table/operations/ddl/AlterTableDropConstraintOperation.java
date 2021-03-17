@@ -20,24 +20,22 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/** Operation of "ALTER TABLE ADD [CONSTRAINT constraintName] ..." clause. **/
+/** Operation of "ALTER TABLE ADD [CONSTRAINT constraintName] ..." clause. * */
 public class AlterTableDropConstraintOperation extends AlterTableOperation {
-	private final String constraintName;
+    private final String constraintName;
 
-	public AlterTableDropConstraintOperation(
-			ObjectIdentifier tableIdentifier,
-			String constraintName) {
-		super(tableIdentifier);
-		this.constraintName = constraintName;
-	}
+    public AlterTableDropConstraintOperation(
+            ObjectIdentifier tableIdentifier, String constraintName) {
+        super(tableIdentifier);
+        this.constraintName = constraintName;
+    }
 
-	public String getConstraintName() {
-		return constraintName;
-	}
+    public String getConstraintName() {
+        return constraintName;
+    }
 
-	@Override
-	public String asSummaryString() {
-		return String.format("ALTER TABLE %s DROP CONSTRAINT %s",
-				tableIdentifier, constraintName);
-	}
+    @Override
+    public String asSummaryString() {
+        return String.format("ALTER TABLE %s DROP CONSTRAINT %s", tableIdentifier, constraintName);
+    }
 }

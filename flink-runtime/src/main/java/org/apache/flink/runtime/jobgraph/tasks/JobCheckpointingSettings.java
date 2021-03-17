@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -27,105 +27,72 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
- * The JobCheckpointingSettings are attached to a JobGraph and describe the settings
- * for the asynchronous checkpoints of the JobGraph, such as interval, and which vertices
- * need to participate.
+ * The JobCheckpointingSettings are attached to a JobGraph and describe the settings for the
+ * asynchronous checkpoints of the JobGraph, such as interval.
  */
 public class JobCheckpointingSettings implements Serializable {
 
-	private static final long serialVersionUID = -2593319571078198180L;
+    private static final long serialVersionUID = -2593319571078198180L;
 
-	private final List<JobVertexID> verticesToTrigger;
+    /** Contains configuration settings for the CheckpointCoordinator */
+    private final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
 
-	private final List<JobVertexID> verticesToAcknowledge;
+    /** The default state backend, if configured by the user in the job */
+    @Nullable private final SerializedValue<StateBackend> defaultStateBackend;
 
-	private final List<JobVertexID> verticesToConfirm;
+    /** The default checkpoint storage, if configured by the user in the job */
+    @Nullable private final SerializedValue<CheckpointStorage> defaultCheckpointStorage;
 
-	/** Contains configuration settings for the CheckpointCoordinator */
-	private final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration;
+    /** (Factories for) hooks that are executed on the checkpoint coordinator */
+    @Nullable private final SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks;
 
-	/** The default state backend, if configured by the user in the job */
-	@Nullable
-	private final SerializedValue<StateBackend> defaultStateBackend;
+    public JobCheckpointingSettings(
+            CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
+            @Nullable SerializedValue<StateBackend> defaultStateBackend) {
 
-	/** (Factories for) hooks that are executed on the checkpoint coordinator */
-	@Nullable
-	private final SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks;
+        this(checkpointCoordinatorConfiguration, defaultStateBackend, null, null);
+    }
 
-	public JobCheckpointingSettings(
-			List<JobVertexID> verticesToTrigger,
-			List<JobVertexID> verticesToAcknowledge,
-			List<JobVertexID> verticesToConfirm,
-			CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
-			@Nullable SerializedValue<StateBackend> defaultStateBackend) {
+    public JobCheckpointingSettings(
+            CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
+            @Nullable SerializedValue<StateBackend> defaultStateBackend,
+            @Nullable SerializedValue<CheckpointStorage> defaultCheckpointStorage,
+            @Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks) {
 
-		this(
-			verticesToTrigger,
-			verticesToAcknowledge,
-			verticesToConfirm,
-			checkpointCoordinatorConfiguration,
-			defaultStateBackend,
-			null);
-	}
+        this.checkpointCoordinatorConfiguration =
+                Preconditions.checkNotNull(checkpointCoordinatorConfiguration);
+        this.defaultStateBackend = defaultStateBackend;
+        this.defaultCheckpointStorage = defaultCheckpointStorage;
+        this.masterHooks = masterHooks;
+    }
 
-	public JobCheckpointingSettings(
-			List<JobVertexID> verticesToTrigger,
-			List<JobVertexID> verticesToAcknowledge,
-			List<JobVertexID> verticesToConfirm,
-			CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
-			@Nullable SerializedValue<StateBackend> defaultStateBackend,
-			@Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks) {
+    // --------------------------------------------------------------------------------------------
 
+    public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
+        return checkpointCoordinatorConfiguration;
+    }
 
-		this.verticesToTrigger = requireNonNull(verticesToTrigger);
-		this.verticesToAcknowledge = requireNonNull(verticesToAcknowledge);
-		this.verticesToConfirm = requireNonNull(verticesToConfirm);
-		this.checkpointCoordinatorConfiguration = Preconditions.checkNotNull(checkpointCoordinatorConfiguration);
-		this.defaultStateBackend = defaultStateBackend;
-		this.masterHooks = masterHooks;
-	}
+    @Nullable
+    public SerializedValue<StateBackend> getDefaultStateBackend() {
+        return defaultStateBackend;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Nullable
+    public SerializedValue<CheckpointStorage> getDefaultCheckpointStorage() {
+        return defaultCheckpointStorage;
+    }
 
-	public List<JobVertexID> getVerticesToTrigger() {
-		return verticesToTrigger;
-	}
+    @Nullable
+    public SerializedValue<MasterTriggerRestoreHook.Factory[]> getMasterHooks() {
+        return masterHooks;
+    }
 
-	public List<JobVertexID> getVerticesToAcknowledge() {
-		return verticesToAcknowledge;
-	}
+    // --------------------------------------------------------------------------------------------
 
-	public List<JobVertexID> getVerticesToConfirm() {
-		return verticesToConfirm;
-	}
-
-	public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
-		return checkpointCoordinatorConfiguration;
-	}
-
-	@Nullable
-	public SerializedValue<StateBackend> getDefaultStateBackend() {
-		return defaultStateBackend;
-	}
-
-	@Nullable
-	public SerializedValue<MasterTriggerRestoreHook.Factory[]> getMasterHooks() {
-		return masterHooks;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return String.format("SnapshotSettings: config=%s, trigger=%s, ack=%s, commit=%s",
-			checkpointCoordinatorConfiguration,
-			verticesToTrigger,
-			verticesToAcknowledge,
-			verticesToConfirm);
-	}
+    @Override
+    public String toString() {
+        return String.format("SnapshotSettings: config=%s", checkpointCoordinatorConfiguration);
+    }
 }

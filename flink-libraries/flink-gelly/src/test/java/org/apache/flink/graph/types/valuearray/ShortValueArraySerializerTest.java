@@ -24,70 +24,69 @@ import org.apache.flink.types.ShortValue;
 
 import java.util.Random;
 
-/**
- * A test for the {@link ShortValueArraySerializer}.
- */
+/** A test for the {@link ShortValueArraySerializer}. */
 public class ShortValueArraySerializerTest extends ValueArraySerializerTestBase<ShortValueArray> {
 
-	@Override
-	protected TypeSerializer<ShortValueArray> createSerializer() {
-		return new ShortValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<ShortValueArray> createSerializer() {
+        return new ShortValueArraySerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<ShortValueArray> getTypeClass() {
-		return ShortValueArray.class;
-	}
+    @Override
+    protected Class<ShortValueArray> getTypeClass() {
+        return ShortValueArray.class;
+    }
 
-	@Override
-	protected ShortValueArray[] getTestData() {
-		int defaultElements = ShortValueArray.DEFAULT_CAPACITY_IN_BYTES / ShortValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Override
+    protected ShortValueArray[] getTestData() {
+        int defaultElements =
+                ShortValueArray.DEFAULT_CAPACITY_IN_BYTES / ShortValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		Random rnd = new Random(874597969123412341L);
-		int rndLong = rnd.nextInt();
+        Random rnd = new Random(874597969123412341L);
+        int rndLong = rnd.nextInt();
 
-		ShortValueArray lva0 = new ShortValueArray();
+        ShortValueArray lva0 = new ShortValueArray();
 
-		ShortValueArray lva1 = new ShortValueArray();
-		lva1.addAll(lva0);
-		lva1.add(new ShortValue((short) 0));
+        ShortValueArray lva1 = new ShortValueArray();
+        lva1.addAll(lva0);
+        lva1.add(new ShortValue((short) 0));
 
-		ShortValueArray lva2 = new ShortValueArray();
-		lva2.addAll(lva1);
-		lva2.add(new ShortValue((short) 1));
+        ShortValueArray lva2 = new ShortValueArray();
+        lva2.addAll(lva1);
+        lva2.add(new ShortValue((short) 1));
 
-		ShortValueArray lva3 = new ShortValueArray();
-		lva3.addAll(lva2);
-		lva3.add(new ShortValue((short) -1));
+        ShortValueArray lva3 = new ShortValueArray();
+        lva3.addAll(lva2);
+        lva3.add(new ShortValue((short) -1));
 
-		ShortValueArray lva4 = new ShortValueArray();
-		lva4.addAll(lva3);
-		lva4.add(new ShortValue(Short.MAX_VALUE));
+        ShortValueArray lva4 = new ShortValueArray();
+        lva4.addAll(lva3);
+        lva4.add(new ShortValue(Short.MAX_VALUE));
 
-		ShortValueArray lva5 = new ShortValueArray();
-		lva5.addAll(lva4);
-		lva5.add(new ShortValue(Short.MIN_VALUE));
+        ShortValueArray lva5 = new ShortValueArray();
+        lva5.addAll(lva4);
+        lva5.add(new ShortValue(Short.MIN_VALUE));
 
-		ShortValueArray lva6 = new ShortValueArray();
-		lva6.addAll(lva5);
-		lva6.add(new ShortValue((short) rndLong));
+        ShortValueArray lva6 = new ShortValueArray();
+        lva6.addAll(lva5);
+        lva6.add(new ShortValue((short) rndLong));
 
-		ShortValueArray lva7 = new ShortValueArray();
-		lva7.addAll(lva6);
-		lva7.add(new ShortValue((short) -rndLong));
+        ShortValueArray lva7 = new ShortValueArray();
+        lva7.addAll(lva6);
+        lva7.add(new ShortValue((short) -rndLong));
 
-		ShortValueArray lva8 = new ShortValueArray();
-		lva8.addAll(lva7);
-		for (int i = 0; i < 1.5 * defaultElements; i++) {
-			lva8.add(new ShortValue((short) i));
-		}
-		lva8.addAll(lva8);
+        ShortValueArray lva8 = new ShortValueArray();
+        lva8.addAll(lva7);
+        for (int i = 0; i < 1.5 * defaultElements; i++) {
+            lva8.add(new ShortValue((short) i));
+        }
+        lva8.addAll(lva8);
 
-		return new ShortValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
-	}
+        return new ShortValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+    }
 }

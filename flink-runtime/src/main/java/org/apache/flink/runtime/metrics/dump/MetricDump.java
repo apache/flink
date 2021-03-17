@@ -20,130 +20,137 @@ package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.util.Preconditions;
 
-/**
- * A container for a dumped metric that contains the scope, name and value(s) of the metric.
- */
+/** A container for a dumped metric that contains the scope, name and value(s) of the metric. */
 public abstract class MetricDump {
-	/** Categories to be returned by {@link MetricDump#getCategory()} to avoid instanceof checks. */
-	public static final byte METRIC_CATEGORY_COUNTER = 0;
-	public static final byte METRIC_CATEGORY_GAUGE = 1;
-	public static final byte METRIC_CATEGORY_HISTOGRAM = 2;
-	public static final byte METRIC_CATEGORY_METER = 3;
+    /** Categories to be returned by {@link MetricDump#getCategory()} to avoid instanceof checks. */
+    public static final byte METRIC_CATEGORY_COUNTER = 0;
 
-	/** The scope information for the stored metric. */
-	public final QueryScopeInfo scopeInfo;
-	/** The name of the stored metric. */
-	public final String name;
+    public static final byte METRIC_CATEGORY_GAUGE = 1;
+    public static final byte METRIC_CATEGORY_HISTOGRAM = 2;
+    public static final byte METRIC_CATEGORY_METER = 3;
 
-	private MetricDump(QueryScopeInfo scopeInfo, String name) {
-		this.scopeInfo = Preconditions.checkNotNull(scopeInfo);
-		this.name = Preconditions.checkNotNull(name);
-	}
+    /** The scope information for the stored metric. */
+    public final QueryScopeInfo scopeInfo;
+    /** The name of the stored metric. */
+    public final String name;
 
-	/**
-	 * Returns the category for this MetricDump.
-	 *
-	 * @return category
-	 */
-	public abstract byte getCategory();
+    private MetricDump(QueryScopeInfo scopeInfo, String name) {
+        this.scopeInfo = Preconditions.checkNotNull(scopeInfo);
+        this.name = Preconditions.checkNotNull(name);
+    }
 
-	@Override
-	public String toString() {
-		return "MetricDump{" +
-			"scopeInfo=" + scopeInfo +
-			", name='" + name + '\'' +
-			", category='" + getCategory() + '\'' +
-			'}';
-	}
+    /**
+     * Returns the category for this MetricDump.
+     *
+     * @return category
+     */
+    public abstract byte getCategory();
 
-	/**
-	 * Container for the value of a {@link org.apache.flink.metrics.Counter}.
-	 */
-	public static class CounterDump extends MetricDump {
-		public final long count;
+    @Override
+    public String toString() {
+        return "MetricDump{"
+                + "scopeInfo="
+                + scopeInfo
+                + ", name='"
+                + name
+                + '\''
+                + ", category='"
+                + getCategory()
+                + '\''
+                + '}';
+    }
 
-		public CounterDump(QueryScopeInfo scopeInfo, String name, long count) {
-			super(scopeInfo, name);
-			this.count = count;
-		}
+    /** Container for the value of a {@link org.apache.flink.metrics.Counter}. */
+    public static class CounterDump extends MetricDump {
+        public final long count;
 
-		@Override
-		public byte getCategory() {
-			return METRIC_CATEGORY_COUNTER;
-		}
-	}
+        public CounterDump(QueryScopeInfo scopeInfo, String name, long count) {
+            super(scopeInfo, name);
+            this.count = count;
+        }
 
-	/**
-	 * Container for the value of a {@link org.apache.flink.metrics.Gauge} as a string.
-	 */
-	public static class GaugeDump extends MetricDump {
-		public final String value;
+        @Override
+        public byte getCategory() {
+            return METRIC_CATEGORY_COUNTER;
+        }
+    }
 
-		public GaugeDump(QueryScopeInfo scopeInfo, String name, String value) {
-			super(scopeInfo, name);
-			this.value = Preconditions.checkNotNull(value);
-		}
+    /** Container for the value of a {@link org.apache.flink.metrics.Gauge} as a string. */
+    public static class GaugeDump extends MetricDump {
+        public final String value;
 
-		@Override
-		public byte getCategory() {
-			return METRIC_CATEGORY_GAUGE;
-		}
-	}
+        public GaugeDump(QueryScopeInfo scopeInfo, String name, String value) {
+            super(scopeInfo, name);
+            this.value = Preconditions.checkNotNull(value);
+        }
 
-	/**
-	 * Container for the values of a {@link org.apache.flink.metrics.Histogram}.
-	 */
-	public static class HistogramDump extends MetricDump {
-		public final long min;
-		public final long max;
-		public final double mean;
-		public final double median;
-		public final double stddev;
-		public final double p75;
-		public final double p90;
-		public final double p95;
-		public final double p98;
-		public final double p99;
-		public final double p999;
+        @Override
+        public byte getCategory() {
+            return METRIC_CATEGORY_GAUGE;
+        }
+    }
 
-		public HistogramDump(QueryScopeInfo scopeInfo, String name,
-			long min, long max, double mean, double median, double stddev,
-			double p75, double p90, double p95, double p98, double p99, double p999) {
+    /** Container for the values of a {@link org.apache.flink.metrics.Histogram}. */
+    public static class HistogramDump extends MetricDump {
+        public final long min;
+        public final long max;
+        public final double mean;
+        public final double median;
+        public final double stddev;
+        public final double p75;
+        public final double p90;
+        public final double p95;
+        public final double p98;
+        public final double p99;
+        public final double p999;
 
-			super(scopeInfo, name);
-			this.min = min;
-			this.max = max;
-			this.mean = mean;
-			this.median = median;
-			this.stddev = stddev;
-			this.p75 = p75;
-			this.p90 = p90;
-			this.p95 = p95;
-			this.p98 = p98;
-			this.p99 = p99;
-			this.p999 = p999;
-		}
+        public HistogramDump(
+                QueryScopeInfo scopeInfo,
+                String name,
+                long min,
+                long max,
+                double mean,
+                double median,
+                double stddev,
+                double p75,
+                double p90,
+                double p95,
+                double p98,
+                double p99,
+                double p999) {
 
-		@Override
-		public byte getCategory() {
-			return METRIC_CATEGORY_HISTOGRAM;
-		}
-	}
+            super(scopeInfo, name);
+            this.min = min;
+            this.max = max;
+            this.mean = mean;
+            this.median = median;
+            this.stddev = stddev;
+            this.p75 = p75;
+            this.p90 = p90;
+            this.p95 = p95;
+            this.p98 = p98;
+            this.p99 = p99;
+            this.p999 = p999;
+        }
 
-	/**
-	 * Container for the rate of a {@link org.apache.flink.metrics.Meter}.
-	 */
-	public static class MeterDump extends MetricDump {
-		public final double rate;
+        @Override
+        public byte getCategory() {
+            return METRIC_CATEGORY_HISTOGRAM;
+        }
+    }
 
-		public MeterDump(QueryScopeInfo scopeInfo, String name, double rate) {
-			super(scopeInfo, name);
-			this.rate = rate;
-		}
+    /** Container for the rate of a {@link org.apache.flink.metrics.Meter}. */
+    public static class MeterDump extends MetricDump {
+        public final double rate;
 
-		@Override
-		public byte getCategory() {
-			return METRIC_CATEGORY_METER;
-		}
-	}
+        public MeterDump(QueryScopeInfo scopeInfo, String name, double rate) {
+            super(scopeInfo, name);
+            this.rate = rate;
+        }
+
+        @Override
+        public byte getCategory() {
+            return METRIC_CATEGORY_METER;
+        }
+    }
 }

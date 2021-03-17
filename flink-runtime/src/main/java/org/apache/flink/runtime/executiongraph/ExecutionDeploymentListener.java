@@ -19,11 +19,9 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
-/**
- * A listener that is called when the deployment of an execution has been started/completed.
- */
+/** A listener that is called when the deployment of an execution has been started/completed. */
 public interface ExecutionDeploymentListener {
-	void onStartedDeployment(ExecutionAttemptID execution, ResourceID host);
+    void onStartedDeployment(ExecutionAttemptID execution, ResourceID host);
 
-	void onCompletedDeployment(ExecutionAttemptID execution);
+    void onCompletedDeployment(ExecutionAttemptID execution);
 }

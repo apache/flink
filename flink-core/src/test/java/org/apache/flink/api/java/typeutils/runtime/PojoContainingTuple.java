@@ -19,26 +19,25 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-/**
- * This file belongs to the PojoComparatorTest test
- *
- */
+/** This file belongs to the PojoComparatorTest test */
 public class PojoContainingTuple {
-	public int someInt;
-	public String someString = "abc";
-	public Tuple2<Long, Long> theTuple;
-	public PojoContainingTuple() {}
-	public PojoContainingTuple(int i, long l1, long l2) {
-		someInt = i;
-		theTuple = new Tuple2<Long, Long>(l1, l2);
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof PojoContainingTuple) {
-			PojoContainingTuple other = (PojoContainingTuple) obj;
-			return someInt == other.someInt && theTuple.equals(other.theTuple);
-		}
-		return false;
-	}
+    public int someInt;
+    public String someString = "abc";
+    public Tuple2<Long, Long> theTuple;
+
+    public PojoContainingTuple() {}
+
+    public PojoContainingTuple(int i, long l1, long l2) {
+        someInt = i;
+        theTuple = new Tuple2<Long, Long>(l1, l2);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof PojoContainingTuple) {
+            PojoContainingTuple other = (PojoContainingTuple) obj;
+            return someInt == other.someInt && theTuple.equals(other.theTuple);
+        }
+        return false;
+    }
 }

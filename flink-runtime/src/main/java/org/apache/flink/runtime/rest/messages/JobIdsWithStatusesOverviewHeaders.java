@@ -23,53 +23,54 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobIdsWithStatusOverview}.
- */
-public class JobIdsWithStatusesOverviewHeaders implements MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
+/** Message headers for the {@link JobIdsWithStatusOverview}. */
+public class JobIdsWithStatusesOverviewHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
 
-	public static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";
+    public static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";
 
-	private static final JobIdsWithStatusesOverviewHeaders INSTANCE = new JobIdsWithStatusesOverviewHeaders();
+    private static final JobIdsWithStatusesOverviewHeaders INSTANCE =
+            new JobIdsWithStatusesOverviewHeaders();
 
-	private JobIdsWithStatusesOverviewHeaders() {}
+    private JobIdsWithStatusesOverviewHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return CURRENT_JOB_IDS_REST_PATH;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return CURRENT_JOB_IDS_REST_PATH;
+    }
 
-	@Override
-	public Class<JobIdsWithStatusOverview> getResponseClass() {
-		return JobIdsWithStatusOverview.class;
-	}
+    @Override
+    public Class<JobIdsWithStatusOverview> getResponseClass() {
+        return JobIdsWithStatusOverview.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	public static JobIdsWithStatusesOverviewHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobIdsWithStatusesOverviewHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns an overview over all jobs and their current state.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns an overview over all jobs and their current state.";
+    }
 }

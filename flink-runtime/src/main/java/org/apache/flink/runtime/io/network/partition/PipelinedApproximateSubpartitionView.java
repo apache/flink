@@ -18,23 +18,23 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-/**
- * View over a pipelined in-memory only subpartition allowing reconnecting.
- */
+/** View over a pipelined in-memory only subpartition allowing reconnecting. */
 public class PipelinedApproximateSubpartitionView extends PipelinedSubpartitionView {
 
-	PipelinedApproximateSubpartitionView(PipelinedApproximateSubpartition parent, BufferAvailabilityListener listener) {
-		super(parent, listener);
-	}
+    PipelinedApproximateSubpartitionView(
+            PipelinedApproximateSubpartition parent, BufferAvailabilityListener listener) {
+        super(parent, listener);
+    }
 
-	/**
-	 * Pipelined ResultPartition relies on its subpartition view's release to decide whether the partition
-	 * is ready to release. In contrast, Approximate Pipelined ResultPartition is put into the JobMaster's
-	 * Partition Tracker and relies on the tracker to release partitions after the job is finished.
-	 * Hence in the approximate pipelined case, no resource related to view is needed to be released.
-	 */
-	@Override
-	public void releaseAllResources() {
-		isReleased.compareAndSet(false, true);
-	}
+    /**
+     * Pipelined ResultPartition relies on its subpartition view's release to decide whether the
+     * partition is ready to release. In contrast, Approximate Pipelined ResultPartition is put into
+     * the JobMaster's Partition Tracker and relies on the tracker to release partitions after the
+     * job is finished. Hence in the approximate pipelined case, no resource related to view is
+     * needed to be released.
+     */
+    @Override
+    public void releaseAllResources() {
+        isReleased.compareAndSet(false, true);
+    }
 }

@@ -32,49 +32,51 @@ import java.net.InetSocketAddress;
 
 import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConfig;
 
-/**
- * The default CLI which is used for interaction with standalone clusters.
- */
+/** The default CLI which is used for interaction with standalone clusters. */
 public class DefaultCLI extends AbstractCustomCommandLine {
 
-	public static final String ID = "default";
+    public static final String ID = "default";
 
-	private static final Option addressOption = new Option("m", "jobmanager", true,
-		"Address of the JobManager to which to connect. " +
-			"Use this flag to connect to a different JobManager than the one specified in the configuration. " +
-			"Attention: This option is respected only if the high-availability configuration is NONE.");
+    private static final Option addressOption =
+            new Option(
+                    "m",
+                    "jobmanager",
+                    true,
+                    "Address of the JobManager to which to connect. "
+                            + "Use this flag to connect to a different JobManager than the one specified in the configuration. "
+                            + "Attention: This option is respected only if the high-availability configuration is NONE.");
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		// always active because we can try to read a JobManager address from the config
-		return true;
-	}
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        // always active because we can try to read a JobManager address from the config
+        return true;
+    }
 
-	@Override
-	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
+    @Override
+    public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
 
-		final Configuration resultingConfiguration = super.toConfiguration(commandLine);
-		if (commandLine.hasOption(addressOption.getOpt())) {
-			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
-			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
-			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
-		}
-		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        final Configuration resultingConfiguration = super.toConfiguration(commandLine);
+        if (commandLine.hasOption(addressOption.getOpt())) {
+            String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
+            InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
+            setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
+        }
+        resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
-		DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
+        DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
 
-		return resultingConfiguration;
-	}
+        return resultingConfiguration;
+    }
 
-	@Override
-	public String getId() {
-		return ID;
-	}
+    @Override
+    public String getId() {
+        return ID;
+    }
 
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		super.addGeneralOptions(baseOptions);
-		baseOptions.addOption(addressOption);
-		baseOptions.addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES);
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        super.addGeneralOptions(baseOptions);
+        baseOptions.addOption(addressOption);
+        baseOptions.addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES);
+    }
 }

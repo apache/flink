@@ -43,98 +43,104 @@ import java.util.Objects;
  */
 @Internal
 public final class RowDataKinesisDeserializationSchema
-	implements KinesisDeserializationSchema<RowData> {
+        implements KinesisDeserializationSchema<RowData> {
 
-	/** Internal type for enumerating available metadata. */
-	protected enum Metadata {
-		Timestamp("timestamp", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull()),
-		SequenceNumber("sequence-number", DataTypes.VARCHAR(128).notNull()),
-		ShardId("shard-id", DataTypes.VARCHAR(128).notNull());
+    /** Internal type for enumerating available metadata. */
+    protected enum Metadata {
+        Timestamp("timestamp", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull()),
+        SequenceNumber("sequence-number", DataTypes.VARCHAR(128).notNull()),
+        ShardId("shard-id", DataTypes.VARCHAR(128).notNull());
 
-		private final String fieldName;
-		private final DataType dataType;
+        private final String fieldName;
+        private final DataType dataType;
 
-		Metadata(String fieldName, DataType dataType) {
-			this.fieldName = fieldName;
-			this.dataType = dataType;
-		}
+        Metadata(String fieldName, DataType dataType) {
+            this.fieldName = fieldName;
+            this.dataType = dataType;
+        }
 
-		public String getFieldName() {
-			return this.fieldName;
-		}
+        public String getFieldName() {
+            return this.fieldName;
+        }
 
-		public DataType getDataType() {
-			return this.dataType;
-		}
+        public DataType getDataType() {
+            return this.dataType;
+        }
 
-		public static Metadata of(String fieldName) {
-			return Arrays.stream(Metadata.values())
-				.filter(m -> Objects.equals(m.fieldName, fieldName))
-				.findFirst().orElseThrow(() -> {
-					String msg = "Cannot find Metadata instance for field name '" + fieldName + "'";
-					return new IllegalArgumentException(msg);
-				});
-		}
-	}
+        public static Metadata of(String fieldName) {
+            return Arrays.stream(Metadata.values())
+                    .filter(m -> Objects.equals(m.fieldName, fieldName))
+                    .findFirst()
+                    .orElseThrow(
+                            () -> {
+                                String msg =
+                                        "Cannot find Metadata instance for field name '"
+                                                + fieldName
+                                                + "'";
+                                return new IllegalArgumentException(msg);
+                            });
+        }
+    }
 
-	private static final long serialVersionUID = 5551095193778230749L;
+    private static final long serialVersionUID = 5551095193778230749L;
 
-	/** A {@link DeserializationSchema} to deserialize the physical part of the row. */
-	private final DeserializationSchema<RowData> physicalDeserializer;
+    /** A {@link DeserializationSchema} to deserialize the physical part of the row. */
+    private final DeserializationSchema<RowData> physicalDeserializer;
 
-	/** The type of the produced {@link RowData} records (physical data with appended metadata]. */
-	private final TypeInformation<RowData> producedTypeInfo;
+    /** The type of the produced {@link RowData} records (physical data with appended metadata]. */
+    private final TypeInformation<RowData> producedTypeInfo;
 
-	/** Metadata fields to be appended to the physical {@link RowData} in the produced records. */
-	private final List<Metadata> requestedMetadataFields;
+    /** Metadata fields to be appended to the physical {@link RowData} in the produced records. */
+    private final List<Metadata> requestedMetadataFields;
 
-	public RowDataKinesisDeserializationSchema(
-		DeserializationSchema<RowData> physicalDeserializer,
-		TypeInformation<RowData> producedTypeInfo,
-		List<Metadata> requestedMetadataFields) {
-		this.physicalDeserializer = Preconditions.checkNotNull(physicalDeserializer);
-		this.producedTypeInfo = Preconditions.checkNotNull(producedTypeInfo);
-		this.requestedMetadataFields = Preconditions.checkNotNull(requestedMetadataFields);
-	}
+    public RowDataKinesisDeserializationSchema(
+            DeserializationSchema<RowData> physicalDeserializer,
+            TypeInformation<RowData> producedTypeInfo,
+            List<Metadata> requestedMetadataFields) {
+        this.physicalDeserializer = Preconditions.checkNotNull(physicalDeserializer);
+        this.producedTypeInfo = Preconditions.checkNotNull(producedTypeInfo);
+        this.requestedMetadataFields = Preconditions.checkNotNull(requestedMetadataFields);
+    }
 
-	@Override
-	public void open(DeserializationSchema.InitializationContext context) throws Exception {
-		physicalDeserializer.open(context);
-	}
+    @Override
+    public void open(DeserializationSchema.InitializationContext context) throws Exception {
+        physicalDeserializer.open(context);
+    }
 
-	@Override
-	public RowData deserialize(
-		byte[] recordValue,
-		String partitionKey,
-		String seqNum,
-		long approxArrivalTimestamp,
-		String stream,
-		String shardId) throws IOException {
+    @Override
+    public RowData deserialize(
+            byte[] recordValue,
+            String partitionKey,
+            String seqNum,
+            long approxArrivalTimestamp,
+            String stream,
+            String shardId)
+            throws IOException {
 
-		RowData physicalRow = physicalDeserializer.deserialize(recordValue);
-		GenericRowData metadataRow = new GenericRowData(requestedMetadataFields.size());
+        RowData physicalRow = physicalDeserializer.deserialize(recordValue);
+        GenericRowData metadataRow = new GenericRowData(requestedMetadataFields.size());
 
-		for (int i = 0; i < metadataRow.getArity(); i++) {
-			Metadata metadataField = requestedMetadataFields.get(i);
-			if (metadataField == Metadata.Timestamp) {
-				metadataRow.setField(i, TimestampData.fromEpochMillis(approxArrivalTimestamp));
-			} else if (metadataField == Metadata.SequenceNumber) {
-				metadataRow.setField(i, StringData.fromString(seqNum));
-			} else if (metadataField == Metadata.ShardId) {
-				metadataRow.setField(i, StringData.fromString(shardId));
-			} else {
-				String msg = String.format("Unsupported metadata key %s", metadataField);
-				throw new RuntimeException(msg); // should never happen
-			}
-		}
+        for (int i = 0; i < metadataRow.getArity(); i++) {
+            Metadata metadataField = requestedMetadataFields.get(i);
+            if (metadataField == Metadata.Timestamp) {
+                metadataRow.setField(i, TimestampData.fromEpochMillis(approxArrivalTimestamp));
+            } else if (metadataField == Metadata.SequenceNumber) {
+                metadataRow.setField(i, StringData.fromString(seqNum));
+            } else if (metadataField == Metadata.ShardId) {
+                metadataRow.setField(i, StringData.fromString(shardId));
+            } else {
+                String msg = String.format("Unsupported metadata key %s", metadataField);
+                throw new RuntimeException(msg); // should never happen
+            }
+        }
 
-		JoinedRowData joinedRowData = new JoinedRowData(physicalRow, metadataRow);
-		joinedRowData.setRowKind(physicalRow.getRowKind());
-		return joinedRowData;
-	}
+        JoinedRowData joinedRowData = new JoinedRowData(physicalRow, metadataRow);
+        joinedRowData.setRowKind(physicalRow.getRowKind());
+        return joinedRowData;
+    }
 
-	@Override
-	public TypeInformation<RowData> getProducedType() {
-		return producedTypeInfo;
-	}
+    @Override
+    public TypeInformation<RowData> getProducedType() {
+        return producedTypeInfo;
+    }
 }

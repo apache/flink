@@ -45,114 +45,159 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Mount the custom Kerberos Configuration and Credential to the JobManager(s)/TaskManagers.
- */
+/** Mount the custom Kerberos Configuration and Credential to the JobManager(s)/TaskManagers. */
 public class KerberosMountDecorator extends AbstractKubernetesStepDecorator {
-	private static final Logger LOG = LoggerFactory.getLogger(KerberosMountDecorator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KerberosMountDecorator.class);
 
-	private final AbstractKubernetesParameters kubernetesParameters;
-	private final SecurityConfiguration securityConfig;
+    private final AbstractKubernetesParameters kubernetesParameters;
+    private final SecurityConfiguration securityConfig;
 
-	public KerberosMountDecorator(AbstractKubernetesParameters kubernetesParameters) {
-		this.kubernetesParameters = checkNotNull(kubernetesParameters);
-		this.securityConfig = new SecurityConfiguration(kubernetesParameters.getFlinkConfiguration());
-	}
+    public KerberosMountDecorator(AbstractKubernetesParameters kubernetesParameters) {
+        this.kubernetesParameters = checkNotNull(kubernetesParameters);
+        this.securityConfig =
+                new SecurityConfiguration(kubernetesParameters.getFlinkConfiguration());
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		PodBuilder podBuilder = new PodBuilder(flinkPod.getPod());
-		ContainerBuilder containerBuilder = new ContainerBuilder(flinkPod.getMainContainer());
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        PodBuilder podBuilder = new PodBuilder(flinkPod.getPodWithoutMainContainer());
+        ContainerBuilder containerBuilder = new ContainerBuilder(flinkPod.getMainContainer());
 
-		if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab()) && !StringUtils.isNullOrWhitespaceOnly(securityConfig.getPrincipal())) {
-			podBuilder = podBuilder
-				.editOrNewSpec()
-					.addNewVolume()
-						.withName(Constants.KERBEROS_KEYTAB_VOLUME)
-						.withNewSecret()
-							.withSecretName(getKerberosKeytabSecretName(kubernetesParameters.getClusterId()))
-							.endSecret()
-					.endVolume()
-				.endSpec();
+        if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab())
+                && !StringUtils.isNullOrWhitespaceOnly(securityConfig.getPrincipal())) {
+            podBuilder =
+                    podBuilder
+                            .editOrNewSpec()
+                            .addNewVolume()
+                            .withName(Constants.KERBEROS_KEYTAB_VOLUME)
+                            .withNewSecret()
+                            .withSecretName(
+                                    getKerberosKeytabSecretName(
+                                            kubernetesParameters.getClusterId()))
+                            .endSecret()
+                            .endVolume()
+                            .endSpec();
 
-			containerBuilder = containerBuilder
-				.addNewVolumeMount()
-					.withName(Constants.KERBEROS_KEYTAB_VOLUME)
-					.withMountPath(Constants.KERBEROS_KEYTAB_MOUNT_POINT)
-				.endVolumeMount();
-		}
+            containerBuilder =
+                    containerBuilder
+                            .addNewVolumeMount()
+                            .withName(Constants.KERBEROS_KEYTAB_VOLUME)
+                            .withMountPath(Constants.KERBEROS_KEYTAB_MOUNT_POINT)
+                            .endVolumeMount();
+        }
 
-		if (!StringUtils.isNullOrWhitespaceOnly(kubernetesParameters.getFlinkConfiguration().get(SecurityOptions.KERBEROS_KRB5_PATH))) {
-			final File krb5Conf = new File(kubernetesParameters.getFlinkConfiguration().get(SecurityOptions.KERBEROS_KRB5_PATH));
-			podBuilder = podBuilder
-				.editOrNewSpec()
-				.addNewVolume()
-					.withName(Constants.KERBEROS_KRB5CONF_VOLUME)
-					.withNewConfigMap()
-						.withName(getKerberosKrb5confConfigMapName(kubernetesParameters.getClusterId()))
-						.withItems(new KeyToPathBuilder()
-							.withKey(krb5Conf.getName())
-							.withPath(krb5Conf.getName())
-							.build())
-					.endConfigMap()
-				.endVolume()
-				.endSpec();
+        if (!StringUtils.isNullOrWhitespaceOnly(
+                kubernetesParameters
+                        .getFlinkConfiguration()
+                        .get(SecurityOptions.KERBEROS_KRB5_PATH))) {
+            final File krb5Conf =
+                    new File(
+                            kubernetesParameters
+                                    .getFlinkConfiguration()
+                                    .get(SecurityOptions.KERBEROS_KRB5_PATH));
+            podBuilder =
+                    podBuilder
+                            .editOrNewSpec()
+                            .addNewVolume()
+                            .withName(Constants.KERBEROS_KRB5CONF_VOLUME)
+                            .withNewConfigMap()
+                            .withName(
+                                    getKerberosKrb5confConfigMapName(
+                                            kubernetesParameters.getClusterId()))
+                            .withItems(
+                                    new KeyToPathBuilder()
+                                            .withKey(krb5Conf.getName())
+                                            .withPath(krb5Conf.getName())
+                                            .build())
+                            .endConfigMap()
+                            .endVolume()
+                            .endSpec();
 
-			containerBuilder = containerBuilder
-				.addNewVolumeMount()
-					.withName(Constants.KERBEROS_KRB5CONF_VOLUME)
-					.withMountPath(Constants.KERBEROS_KRB5CONF_MOUNT_DIR + "/krb5.conf")
-					.withSubPath("krb5.conf")
-				.endVolumeMount();
-		}
+            containerBuilder =
+                    containerBuilder
+                            .addNewVolumeMount()
+                            .withName(Constants.KERBEROS_KRB5CONF_VOLUME)
+                            .withMountPath(Constants.KERBEROS_KRB5CONF_MOUNT_DIR + "/krb5.conf")
+                            .withSubPath("krb5.conf")
+                            .endVolumeMount();
+        }
 
-		return new FlinkPod(podBuilder.build(), containerBuilder.build());
-	}
+        return new FlinkPod(podBuilder.build(), containerBuilder.build());
+    }
 
-	@Override
-	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
+    @Override
+    public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
 
-		final List<HasMetadata> resources = new ArrayList<>();
+        final List<HasMetadata> resources = new ArrayList<>();
 
-		if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab()) && !StringUtils.isNullOrWhitespaceOnly(securityConfig.getPrincipal())) {
-			final File keytab = new File(securityConfig.getKeytab());
-			if (!keytab.exists()) {
-				LOG.warn("Could not found the kerberos keytab file in {}.", keytab.getAbsolutePath());
-			} else {
-				resources.add(new SecretBuilder()
-					.withNewMetadata()
-						.withName(getKerberosKeytabSecretName(kubernetesParameters.getClusterId()))
-					.endMetadata()
-					.addToData(keytab.getName(), Base64.getEncoder().encodeToString(Files.toByteArray(keytab)))
-					.build());
+        if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab())
+                && !StringUtils.isNullOrWhitespaceOnly(securityConfig.getPrincipal())) {
+            final File keytab = new File(securityConfig.getKeytab());
+            if (!keytab.exists()) {
+                LOG.warn(
+                        "Could not found the kerberos keytab file in {}.",
+                        keytab.getAbsolutePath());
+            } else {
+                resources.add(
+                        new SecretBuilder()
+                                .withNewMetadata()
+                                .withName(
+                                        getKerberosKeytabSecretName(
+                                                kubernetesParameters.getClusterId()))
+                                .endMetadata()
+                                .addToData(
+                                        keytab.getName(),
+                                        Base64.getEncoder()
+                                                .encodeToString(Files.toByteArray(keytab)))
+                                .build());
 
-				// Set keytab path in the container. One should make sure this decorator is triggered before FlinkConfMountDecorator.
-				kubernetesParameters.getFlinkConfiguration().set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, String.format("%s/%s", Constants.KERBEROS_KEYTAB_MOUNT_POINT, keytab.getName()));
-			}
-		}
+                // Set keytab path in the container. One should make sure this decorator is
+                // triggered before FlinkConfMountDecorator.
+                kubernetesParameters
+                        .getFlinkConfiguration()
+                        .set(
+                                SecurityOptions.KERBEROS_LOGIN_KEYTAB,
+                                String.format(
+                                        "%s/%s",
+                                        Constants.KERBEROS_KEYTAB_MOUNT_POINT, keytab.getName()));
+            }
+        }
 
-		if (!StringUtils.isNullOrWhitespaceOnly(kubernetesParameters.getFlinkConfiguration().get(SecurityOptions.KERBEROS_KRB5_PATH))) {
-			final File krb5Conf = new File(kubernetesParameters.getFlinkConfiguration().get(SecurityOptions.KERBEROS_KRB5_PATH));
-			if (!krb5Conf.exists()) {
-				LOG.warn("Could not found the kerberos config file in {}.", krb5Conf.getAbsolutePath());
-			} else {
-				resources.add(
-					new ConfigMapBuilder()
-						.withNewMetadata()
-							.withName(getKerberosKrb5confConfigMapName(kubernetesParameters.getClusterId()))
-						.endMetadata()
-						.addToData(krb5Conf.getName(), Files.toString(krb5Conf, StandardCharsets.UTF_8))
-						.build());
-			}
-		}
-		return resources;
-	}
+        if (!StringUtils.isNullOrWhitespaceOnly(
+                kubernetesParameters
+                        .getFlinkConfiguration()
+                        .get(SecurityOptions.KERBEROS_KRB5_PATH))) {
+            final File krb5Conf =
+                    new File(
+                            kubernetesParameters
+                                    .getFlinkConfiguration()
+                                    .get(SecurityOptions.KERBEROS_KRB5_PATH));
+            if (!krb5Conf.exists()) {
+                LOG.warn(
+                        "Could not found the kerberos config file in {}.",
+                        krb5Conf.getAbsolutePath());
+            } else {
+                resources.add(
+                        new ConfigMapBuilder()
+                                .withNewMetadata()
+                                .withName(
+                                        getKerberosKrb5confConfigMapName(
+                                                kubernetesParameters.getClusterId()))
+                                .endMetadata()
+                                .addToData(
+                                        krb5Conf.getName(),
+                                        Files.toString(krb5Conf, StandardCharsets.UTF_8))
+                                .build());
+            }
+        }
+        return resources;
+    }
 
-	public static String getKerberosKeytabSecretName(String clusterId) {
-		return Constants.KERBEROS_KEYTAB_SECRET_PREFIX + clusterId;
-	}
+    public static String getKerberosKeytabSecretName(String clusterId) {
+        return Constants.KERBEROS_KEYTAB_SECRET_PREFIX + clusterId;
+    }
 
-	public static String getKerberosKrb5confConfigMapName(String clusterID) {
-		return Constants.KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX + clusterID;
-	}
+    public static String getKerberosKrb5confConfigMapName(String clusterID) {
+        return Constants.KERBEROS_KRB5CONF_CONFIG_MAP_PREFIX + clusterID;
+    }
 }

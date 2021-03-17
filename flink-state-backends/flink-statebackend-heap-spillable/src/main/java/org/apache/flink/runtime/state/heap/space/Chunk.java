@@ -24,41 +24,39 @@ import java.nio.ByteBuffer;
 
 /**
  * Chunk is a logically contiguous space backed by one or multiple {@link ByteBuffer}.
- * <p/>
- * For example: a Chunk of 1G size may be backed by one {@link java.nio.MappedByteBuffer} from a memory-mapped 1G file,
- * or multiple {@link java.nio.HeapByteBuffer}/{@link java.nio.DirectByteBuffer}.
+ *
+ * <p>For example: a Chunk of 1G size may be backed by one {@link java.nio.MappedByteBuffer} from a
+ * memory-mapped 1G file, or multiple {@link java.nio.HeapByteBuffer}/{@link
+ * java.nio.DirectByteBuffer}.
  */
 public interface Chunk {
-	/**
-	 * Try to allocate size bytes from the chunk.
-	 *
-	 * @param len size of bytes to allocate.
-	 * @return the offset of the successful allocation, or -1 to indicate not-enough-space
-	 */
-	int allocate(int len);
+    /**
+     * Try to allocate size bytes from the chunk.
+     *
+     * @param len size of bytes to allocate.
+     * @return the offset of the successful allocation, or -1 to indicate not-enough-space
+     */
+    int allocate(int len);
 
-	/**
-	 * release the space addressed by interChunkOffset.
-	 *
-	 * @param interChunkOffset offset of the chunk
-	 */
-	void free(int interChunkOffset);
+    /**
+     * release the space addressed by interChunkOffset.
+     *
+     * @param interChunkOffset offset of the chunk
+     */
+    void free(int interChunkOffset);
 
-	/**
-	 * @return Id of this Chunk
-	 */
-	int getChunkId();
+    /** @return Id of this Chunk */
+    int getChunkId();
 
-	int getChunkCapacity();
+    int getChunkCapacity();
 
-	/**
-	 * @return This chunk's backing MemorySegment described by chunkOffset.
-	 */
-	MemorySegment getMemorySegment(int chunkOffset);
+    /** @return This chunk's backing MemorySegment described by chunkOffset. */
+    MemorySegment getMemorySegment(int chunkOffset);
 
-	/**
-	 * @param offsetInChunk virtual and global address in chunk
-	 * @return chunk maybe compose of multi {@link MemorySegment}s, return the offset in certain one.
-	 */
-	int getOffsetInSegment(int offsetInChunk);
+    /**
+     * @param offsetInChunk virtual and global address in chunk
+     * @return chunk maybe compose of multi {@link MemorySegment}s, return the offset in certain
+     *     one.
+     */
+    int getOffsetInSegment(int offsetInChunk);
 }

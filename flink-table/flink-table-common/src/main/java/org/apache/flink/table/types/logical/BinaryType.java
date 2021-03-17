@@ -39,128 +39,125 @@ import java.util.Objects;
 @PublicEvolving
 public final class BinaryType extends LogicalType {
 
-	public static final int EMPTY_LITERAL_LENGTH = 0;
+    public static final int EMPTY_LITERAL_LENGTH = 0;
 
-	public static final int MIN_LENGTH = 1;
+    public static final int MIN_LENGTH = 1;
 
-	public static final int MAX_LENGTH = Integer.MAX_VALUE;
+    public static final int MAX_LENGTH = Integer.MAX_VALUE;
 
-	public static final int DEFAULT_LENGTH = 1;
+    public static final int DEFAULT_LENGTH = 1;
 
-	private static final String FORMAT = "BINARY(%d)";
+    private static final String FORMAT = "BINARY(%d)";
 
-	private static final Class<?> INPUT_OUTPUT_CONVERSION = byte[].class;
+    private static final Class<?> INPUT_OUTPUT_CONVERSION = byte[].class;
 
-	private static final Class<?> DEFAULT_CONVERSION = byte[].class;
+    private static final Class<?> DEFAULT_CONVERSION = byte[].class;
 
-	private final int length;
+    private final int length;
 
-	public BinaryType(boolean isNullable, int length) {
-		super(isNullable, LogicalTypeRoot.BINARY);
-		if (length < MIN_LENGTH) {
-			throw new ValidationException(
-				String.format(
-					"Binary string length must be between %d and %d (both inclusive).",
-					MIN_LENGTH,
-					MAX_LENGTH));
-		}
-		this.length = length;
-	}
+    public BinaryType(boolean isNullable, int length) {
+        super(isNullable, LogicalTypeRoot.BINARY);
+        if (length < MIN_LENGTH) {
+            throw new ValidationException(
+                    String.format(
+                            "Binary string length must be between %d and %d (both inclusive).",
+                            MIN_LENGTH, MAX_LENGTH));
+        }
+        this.length = length;
+    }
 
-	public BinaryType(int length) {
-		this(true, length);
-	}
+    public BinaryType(int length) {
+        this(true, length);
+    }
 
-	public BinaryType() {
-		this(DEFAULT_LENGTH);
-	}
+    public BinaryType() {
+        this(DEFAULT_LENGTH);
+    }
 
-	/**
-	 * Helper constructor for {@link #ofEmptyLiteral()} and {@link #copy(boolean)}.
-	 */
-	private BinaryType(int length, boolean isNullable) {
-		super(isNullable, LogicalTypeRoot.BINARY);
-		this.length = length;
-	}
+    /** Helper constructor for {@link #ofEmptyLiteral()} and {@link #copy(boolean)}. */
+    private BinaryType(int length, boolean isNullable) {
+        super(isNullable, LogicalTypeRoot.BINARY);
+        this.length = length;
+    }
 
-	/**
-	 * The SQL standard defines that character string literals are allowed to be zero-length strings
-	 * (i.e., to contain no characters) even though it is not permitted to declare a type that is zero.
-	 * For consistent behavior, the same logic applies to binary strings.
-	 *
-	 * <p>This method enables this special kind of binary string.
-	 *
-	 * <p>Zero-length binary strings have no serializable string representation.
-	 */
-	public static BinaryType ofEmptyLiteral() {
-		return new BinaryType(EMPTY_LITERAL_LENGTH, false);
-	}
+    /**
+     * The SQL standard defines that character string literals are allowed to be zero-length strings
+     * (i.e., to contain no characters) even though it is not permitted to declare a type that is
+     * zero. For consistent behavior, the same logic applies to binary strings.
+     *
+     * <p>This method enables this special kind of binary string.
+     *
+     * <p>Zero-length binary strings have no serializable string representation.
+     */
+    public static BinaryType ofEmptyLiteral() {
+        return new BinaryType(EMPTY_LITERAL_LENGTH, false);
+    }
 
-	public int getLength() {
-		return length;
-	}
+    public int getLength() {
+        return length;
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new BinaryType(length, isNullable);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new BinaryType(length, isNullable);
+    }
 
-	@Override
-	public String asSerializableString() {
-		if (length == EMPTY_LITERAL_LENGTH) {
-			throw new TableException(
-				"Zero-length binary strings have no serializable string representation.");
-		}
-		return withNullability(FORMAT, length);
-	}
+    @Override
+    public String asSerializableString() {
+        if (length == EMPTY_LITERAL_LENGTH) {
+            throw new TableException(
+                    "Zero-length binary strings have no serializable string representation.");
+        }
+        return withNullability(FORMAT, length);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return withNullability(FORMAT, length);
-	}
+    @Override
+    public String asSummaryString() {
+        return withNullability(FORMAT, length);
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return INPUT_OUTPUT_CONVERSION == clazz;
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return INPUT_OUTPUT_CONVERSION == clazz;
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		return INPUT_OUTPUT_CONVERSION == clazz;
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        return INPUT_OUTPUT_CONVERSION == clazz;
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return DEFAULT_CONVERSION;
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return DEFAULT_CONVERSION;
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		BinaryType that = (BinaryType) o;
-		return length == that.length;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        BinaryType that = (BinaryType) o;
+        return length == that.length;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), length);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), length);
+    }
 }

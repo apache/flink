@@ -32,47 +32,44 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
 import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
 
-/**
- * Tests for the {@link JMXReporterFactory}.
- */
+/** Tests for the {@link JMXReporterFactory}. */
 public class JMXReporterFactoryTest extends TestLogger {
 
-	@After
-	public void shutdownService() throws IOException {
-		JMXService.stopInstance();
-	}
+    @After
+    public void shutdownService() throws IOException {
+        JMXService.stopInstance();
+    }
 
-	@Test
-	public void testPortRangeArgument() {
-		Properties properties = new Properties();
-		properties.setProperty(JMXReporterFactory.ARG_PORT, "9000-9010");
+    @Test
+    public void testPortRangeArgument() {
+        Properties properties = new Properties();
+        properties.setProperty(JMXReporterFactory.ARG_PORT, "9000-9010");
 
-		JMXReporter metricReporter = new JMXReporterFactory()
-			.createMetricReporter(properties);
-		try {
+        JMXReporter metricReporter = new JMXReporterFactory().createMetricReporter(properties);
+        try {
 
-			Assert.assertThat(
-				metricReporter.getPort().get(),
-				allOf(greaterThanOrEqualTo(9000), lessThanOrEqualTo(9010)));
-		} finally {
-			metricReporter.close();
-		}
-	}
+            Assert.assertThat(
+                    metricReporter.getPort().get(),
+                    allOf(greaterThanOrEqualTo(9000), lessThanOrEqualTo(9010)));
+        } finally {
+            metricReporter.close();
+        }
+    }
 
-	@Test
-	public void testWithoutArgument() {
-		JMXReporter metricReporter = new JMXReporterFactory()
-			.createMetricReporter(new Properties());
+    @Test
+    public void testWithoutArgument() {
+        JMXReporter metricReporter =
+                new JMXReporterFactory().createMetricReporter(new Properties());
 
-		try {
-			Assert.assertFalse(metricReporter.getPort().isPresent());
-		} finally {
-			metricReporter.close();
-		}
-	}
+        try {
+            Assert.assertFalse(metricReporter.getPort().isPresent());
+        } finally {
+            metricReporter.close();
+        }
+    }
 
-	@Test
-	public void testMetricReporterSetupViaSPI() {
-		MetricReporterTestUtils.testMetricReporterSetupViaSPI(JMXReporterFactory.class);
-	}
+    @Test
+    public void testMetricReporterSetupViaSPI() {
+        MetricReporterTestUtils.testMetricReporterSetupViaSPI(JMXReporterFactory.class);
+    }
 }

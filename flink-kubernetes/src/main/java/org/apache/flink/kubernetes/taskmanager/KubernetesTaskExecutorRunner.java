@@ -26,18 +26,16 @@ import org.apache.flink.runtime.util.SignalHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class is the executable entry point for running a TaskExecutor in a Kubernetes pod.
- */
+/** This class is the executable entry point for running a TaskExecutor in a Kubernetes pod. */
 public class KubernetesTaskExecutorRunner {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(KubernetesTaskExecutorRunner.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(KubernetesTaskExecutorRunner.class);
 
-	public static void main(String[] args) {
-		EnvironmentInformation.logEnvironmentInfo(LOG, "Kubernetes TaskExecutor runner", args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        EnvironmentInformation.logEnvironmentInfo(LOG, "Kubernetes TaskExecutor runner", args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		TaskManagerRunner.runTaskManagerSecurely(args);
-	}
+        TaskManagerRunner.runTaskManagerProcessSecurely(args);
+    }
 }

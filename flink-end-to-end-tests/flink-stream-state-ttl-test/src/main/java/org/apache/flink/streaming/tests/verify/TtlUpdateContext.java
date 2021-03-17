@@ -25,46 +25,46 @@ import java.io.Serializable;
 /** Contains context relevant for state update with TTL. */
 public class TtlUpdateContext<UV, GV> implements Serializable {
 
-	private final GV valueBeforeUpdate;
-	private final UV update;
-	private final GV valueAfterUpdate;
-	private final long timestamp;
+    private final GV valueBeforeUpdate;
+    private final UV update;
+    private final GV valueAfterUpdate;
+    private final long timestamp;
 
-	public TtlUpdateContext(
-			GV valueBeforeUpdate,
-			UV update,
-			GV updatedValue,
-			long timestamp) {
-		this.valueBeforeUpdate = valueBeforeUpdate;
-		this.update = update;
-		this.valueAfterUpdate = updatedValue;
-		this.timestamp = timestamp;
-	}
+    public TtlUpdateContext(GV valueBeforeUpdate, UV update, GV updatedValue, long timestamp) {
+        this.valueBeforeUpdate = valueBeforeUpdate;
+        this.update = update;
+        this.valueAfterUpdate = updatedValue;
+        this.timestamp = timestamp;
+    }
 
-	long getTimestamp() {
-		return timestamp;
-	}
+    long getTimestamp() {
+        return timestamp;
+    }
 
-	GV getValueBeforeUpdate() {
-		return valueBeforeUpdate;
-	}
+    GV getValueBeforeUpdate() {
+        return valueBeforeUpdate;
+    }
 
-	@Nonnull
-	public ValueWithTs<UV> getUpdateWithTs() {
-		return new ValueWithTs<>(update, timestamp);
-	}
+    @Nonnull
+    public ValueWithTs<UV> getUpdateWithTs() {
+        return new ValueWithTs<>(update, timestamp);
+    }
 
-	GV getValueAfterUpdate() {
-		return valueAfterUpdate;
-	}
+    GV getValueAfterUpdate() {
+        return valueAfterUpdate;
+    }
 
-	@Override
-	public String toString() {
-		return "TtlUpdateContext{" +
-			"valueBeforeUpdate=" + valueBeforeUpdate +
-			", update=" + update +
-			", valueAfterUpdate=" + valueAfterUpdate +
-			", timestamp=" + timestamp +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "TtlUpdateContext{"
+                + "valueBeforeUpdate="
+                + valueBeforeUpdate
+                + ", update="
+                + update
+                + ", valueAfterUpdate="
+                + valueAfterUpdate
+                + ", timestamp="
+                + timestamp
+                + '}';
+    }
 }

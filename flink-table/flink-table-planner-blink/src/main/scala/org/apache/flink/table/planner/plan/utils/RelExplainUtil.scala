@@ -17,8 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import java.util
-import java.util.{SortedSet => JSortedSet}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.CalcitePair
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 
 import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.`type`.RelDataType
@@ -28,13 +33,9 @@ import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+
+import java.util
+import java.util.{SortedSet => JSortedSet}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -45,11 +46,11 @@ import scala.collection.mutable
 object RelExplainUtil {
 
   /**
-    * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
-    * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
-    * The [[RelDescriptionWriterImpl]] is mainly used to generate
-    * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
-    */
+   * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
+   * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
+   * The [[RelDescriptionWriterImpl]] is mainly used to generate
+   * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
+   */
   def preferExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
     // infix format is more readable for displaying
     case _: RelDescriptionWriterImpl => ExpressionFormat.Infix
@@ -762,9 +763,9 @@ object RelExplainUtil {
     }
     val groupStrings = grouping.map(inFields(_))
 
-    val aggStrings = aggs.map(a => {
-      val distinct = if (a.isDistinct) {
-        if (a.getArgList.size() == 0) {
+    val aggStrings = aggs.map(call => {
+      val distinct = if (call.isDistinct) {
+        if (call.getArgList.size() == 0) {
           "DISTINCT"
         } else {
           "DISTINCT "
@@ -772,15 +773,22 @@ object RelExplainUtil {
       } else {
         ""
       }
-      val argList = if (a.getArgList.size() > 0) {
-        a.getArgList.map(inFields(_)).mkString(", ")
+      val argList = if (call.getArgList.size() > 0) {
+        call.getArgList.map(inFields(_)).mkString(", ")
       } else {
         "*"
       }
-      s"${a.getAggregation}($distinct$argList)"
+
+      val filter = if (call.filterArg >= 0 && call.filterArg < inFields.size) {
+        s" FILTER ${inFields(call.filterArg)}"
+      } else {
+        ""
+      }
+
+      s"${call.getAggregation}($distinct$argList)$filter"
     })
 
-    val propStrings = namedProperties.map(_.property.toString)
+    val propStrings = namedProperties.map(_.getProperty.toString)
     (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
       case (f, o) => if (f == o) {
         f

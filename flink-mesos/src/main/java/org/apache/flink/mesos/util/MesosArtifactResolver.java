@@ -24,9 +24,7 @@ import java.net.URL;
 
 import scala.Option;
 
-/**
- * An interface for resolving artifact URIs.
- */
+/** An interface for resolving artifact URIs. */
 public interface MesosArtifactResolver {
-	Option<URL> resolve(Path remoteFile);
+    Option<URL> resolve(Path remoteFile);
 }

@@ -23,34 +23,36 @@ import org.apache.flink.types.BooleanValue;
 
 import org.junit.Assert;
 
-/**
- * Tests for {@link ValueSummaryAggregator.BooleanValueSummaryAggregator}.
- */
+/** Tests for {@link ValueSummaryAggregator.BooleanValueSummaryAggregator}. */
 public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {
 
-	/**
-	 * Helper method for summarizing a list of values.
-	 *
-	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
-	 * a bunch of different ways.
-	 */
-	protected BooleanColumnSummary summarize(Boolean... values) {
+    /**
+     * Helper method for summarizing a list of values.
+     *
+     * <p>This method breaks the rule of "testing only one thing" by aggregating and combining a
+     * bunch of different ways.
+     */
+    protected BooleanColumnSummary summarize(Boolean... values) {
 
-		BooleanValue[] booleanValues = new BooleanValue[values.length];
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] != null) {
-				booleanValues[i] = new BooleanValue(values[i]);
-			}
-		}
+        BooleanValue[] booleanValues = new BooleanValue[values.length];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null) {
+                booleanValues[i] = new BooleanValue(values[i]);
+            }
+        }
 
-		return new AggregateCombineHarness<BooleanValue, BooleanColumnSummary, ValueSummaryAggregator.BooleanValueSummaryAggregator>() {
-			@Override
-			protected void compareResults(BooleanColumnSummary result1, BooleanColumnSummary result2) {
-				Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-				Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-				Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
-				Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
-			}
-		}.summarize(booleanValues);
-	}
+        return new AggregateCombineHarness<
+                BooleanValue,
+                BooleanColumnSummary,
+                ValueSummaryAggregator.BooleanValueSummaryAggregator>() {
+            @Override
+            protected void compareResults(
+                    BooleanColumnSummary result1, BooleanColumnSummary result2) {
+                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
+                Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
+                Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
+            }
+        }.summarize(booleanValues);
+    }
 }

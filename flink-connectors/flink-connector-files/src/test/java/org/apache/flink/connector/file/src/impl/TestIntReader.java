@@ -30,61 +30,63 @@ import java.io.EOFException;
 import java.io.IOException;
 
 /**
- * Simple reader for integers, that is both a {@link StreamFormat.Reader} and a {@link FileRecordFormat.Reader}.
+ * Simple reader for integers, that is both a {@link StreamFormat.Reader} and a {@link
+ * FileRecordFormat.Reader}.
  */
 class TestIntReader implements StreamFormat.Reader<Integer>, FileRecordFormat.Reader<Integer> {
 
-	private static final int SKIPS_PER_OFFSET = 7;
+    private static final int SKIPS_PER_OFFSET = 7;
 
-	private final FSDataInputStream in;
-	private final DataInputStream din;
+    private final FSDataInputStream in;
+    private final DataInputStream din;
 
-	private final long endOffset;
-	private long currentOffset;
-	private long currentSkipCount;
+    private final long endOffset;
+    private long currentOffset;
+    private long currentSkipCount;
 
-	private final boolean checkpointed;
+    private final boolean checkpointed;
 
-	TestIntReader(FSDataInputStream in, long endOffset, boolean checkpointsPosition) throws IOException {
-		this.in = in;
-		this.endOffset = endOffset;
-		this.currentOffset = in.getPos();
-		this.din = new DataInputStream(in);
-		this.checkpointed = checkpointsPosition;
-	}
+    TestIntReader(FSDataInputStream in, long endOffset, boolean checkpointsPosition)
+            throws IOException {
+        this.in = in;
+        this.endOffset = endOffset;
+        this.currentOffset = in.getPos();
+        this.din = new DataInputStream(in);
+        this.checkpointed = checkpointsPosition;
+    }
 
-	@Nullable
-	@Override
-	public Integer read() throws IOException {
-		if (in.getPos() >= endOffset) {
-			return null;
-		}
+    @Nullable
+    @Override
+    public Integer read() throws IOException {
+        if (in.getPos() >= endOffset) {
+            return null;
+        }
 
-		try {
-			final int next = din.readInt();
-			incrementPosition();
-			return next;
-		} catch (EOFException e) {
-			return null;
-		}
-	}
+        try {
+            final int next = din.readInt();
+            incrementPosition();
+            return next;
+        } catch (EOFException e) {
+            return null;
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		in.close();
-	}
+    @Override
+    public void close() throws IOException {
+        in.close();
+    }
 
-	@Nullable
-	@Override
-	public CheckpointedPosition getCheckpointedPosition() {
-		return checkpointed ? new CheckpointedPosition(currentOffset, currentSkipCount) : null;
-	}
+    @Nullable
+    @Override
+    public CheckpointedPosition getCheckpointedPosition() {
+        return checkpointed ? new CheckpointedPosition(currentOffset, currentSkipCount) : null;
+    }
 
-	private void incrementPosition() {
-		currentSkipCount++;
-		if (currentSkipCount >= SKIPS_PER_OFFSET) {
-			currentOffset += 4 * currentSkipCount;
-			currentSkipCount = 0;
-		}
-	}
+    private void incrementPosition() {
+        currentSkipCount++;
+        if (currentSkipCount >= SKIPS_PER_OFFSET) {
+            currentOffset += 4 * currentSkipCount;
+            currentSkipCount = 0;
+        }
+    }
 }

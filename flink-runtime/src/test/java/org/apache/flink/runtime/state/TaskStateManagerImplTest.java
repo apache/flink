@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,202 +47,231 @@ import java.util.concurrent.Executor;
 
 public class TaskStateManagerImplTest extends TestLogger {
 
-	/**
-	 * Test reporting and retrieving prioritized local and remote state.
-	 */
-	@Test
-	public void testStateReportingAndRetrieving() {
+    /** Test reporting and retrieving prioritized local and remote state. */
+    @Test
+    public void testStateReportingAndRetrieving() {
 
-		JobID jobID = new JobID();
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        JobID jobID = new JobID();
+        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 
-		TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
-		TestTaskLocalStateStore testTaskLocalStateStore = new TestTaskLocalStateStore();
+        TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
+        TestTaskLocalStateStore testTaskLocalStateStore = new TestTaskLocalStateStore();
 
-		TaskStateManager taskStateManager = taskStateManager(
-			jobID,
-			executionAttemptID,
-			testCheckpointResponder,
-			null,
-			testTaskLocalStateStore);
+        TaskStateManager taskStateManager =
+                taskStateManager(
+                        jobID,
+                        executionAttemptID,
+                        testCheckpointResponder,
+                        null,
+                        testTaskLocalStateStore);
 
-		//---------------------------------------- test reporting -----------------------------------------
+        // ---------------------------------------- test reporting
+        // -----------------------------------------
 
-		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(74L, 11L);
-		CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
-		TaskStateSnapshot jmTaskStateSnapshot = new TaskStateSnapshot();
+        CheckpointMetaData checkpointMetaData = new CheckpointMetaData(74L, 11L);
+        CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
+        TaskStateSnapshot jmTaskStateSnapshot = new TaskStateSnapshot();
 
-		OperatorID operatorID_1 = new OperatorID(1L, 1L);
-		OperatorID operatorID_2 = new OperatorID(2L, 2L);
-		OperatorID operatorID_3 = new OperatorID(3L, 3L);
+        OperatorID operatorID_1 = new OperatorID(1L, 1L);
+        OperatorID operatorID_2 = new OperatorID(2L, 2L);
+        OperatorID operatorID_3 = new OperatorID(3L, 3L);
 
-		Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_1).isRestored());
-		Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_2).isRestored());
-		Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_3).isRestored());
+        Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_1).isRestored());
+        Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_2).isRestored());
+        Assert.assertFalse(taskStateManager.prioritizedOperatorState(operatorID_3).isRestored());
 
-		KeyGroupRange keyGroupRange = new KeyGroupRange(0,1);
-		// Remote state of operator 1 has only managed keyed state.
-		OperatorSubtaskState jmOperatorSubtaskState_1 = OperatorSubtaskState.builder()
-			.setManagedKeyedState(StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
-			.build();
-		// Remote state of operator 1 has only raw keyed state.
-		OperatorSubtaskState jmOperatorSubtaskState_2 = OperatorSubtaskState.builder()
-			.setRawKeyedState(StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
-			.build();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
+        // Remote state of operator 1 has only managed keyed state.
+        OperatorSubtaskState jmOperatorSubtaskState_1 =
+                OperatorSubtaskState.builder()
+                        .setManagedKeyedState(
+                                StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
+                        .build();
+        // Remote state of operator 1 has only raw keyed state.
+        OperatorSubtaskState jmOperatorSubtaskState_2 =
+                OperatorSubtaskState.builder()
+                        .setRawKeyedState(
+                                StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
+                        .build();
 
-		jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, jmOperatorSubtaskState_1);
-		jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_2, jmOperatorSubtaskState_2);
+        jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, jmOperatorSubtaskState_1);
+        jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_2, jmOperatorSubtaskState_2);
 
-		TaskStateSnapshot tmTaskStateSnapshot = new TaskStateSnapshot();
+        TaskStateSnapshot tmTaskStateSnapshot = new TaskStateSnapshot();
 
-		// Only operator 1 has a local alternative for the managed keyed state.
-		OperatorSubtaskState tmOperatorSubtaskState_1 = OperatorSubtaskState.builder()
-			.setManagedKeyedState(StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
-			.build();
+        // Only operator 1 has a local alternative for the managed keyed state.
+        OperatorSubtaskState tmOperatorSubtaskState_1 =
+                OperatorSubtaskState.builder()
+                        .setManagedKeyedState(
+                                StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange))
+                        .build();
 
-		tmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, tmOperatorSubtaskState_1);
+        tmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, tmOperatorSubtaskState_1);
 
-		taskStateManager.reportTaskStateSnapshots(
-			checkpointMetaData,
-			checkpointMetrics,
-			jmTaskStateSnapshot,
-			tmTaskStateSnapshot);
+        taskStateManager.reportTaskStateSnapshots(
+                checkpointMetaData, checkpointMetrics, jmTaskStateSnapshot, tmTaskStateSnapshot);
 
-		TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
-			testCheckpointResponder.getAcknowledgeReports().get(0);
+        TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
+                testCheckpointResponder.getAcknowledgeReports().get(0);
 
-		// checks that the checkpoint responder and the local state store received state as expected.
-		Assert.assertEquals(checkpointMetaData.getCheckpointId(), acknowledgeReport.getCheckpointId());
-		Assert.assertEquals(checkpointMetrics, acknowledgeReport.getCheckpointMetrics());
-		Assert.assertEquals(executionAttemptID, acknowledgeReport.getExecutionAttemptID());
-		Assert.assertEquals(jobID, acknowledgeReport.getJobID());
-		Assert.assertEquals(jmTaskStateSnapshot, acknowledgeReport.getSubtaskState());
-		Assert.assertEquals(tmTaskStateSnapshot, testTaskLocalStateStore.retrieveLocalState(checkpointMetaData.getCheckpointId()));
+        // checks that the checkpoint responder and the local state store received state as
+        // expected.
+        Assert.assertEquals(
+                checkpointMetaData.getCheckpointId(), acknowledgeReport.getCheckpointId());
+        Assert.assertEquals(checkpointMetrics, acknowledgeReport.getCheckpointMetrics());
+        Assert.assertEquals(executionAttemptID, acknowledgeReport.getExecutionAttemptID());
+        Assert.assertEquals(jobID, acknowledgeReport.getJobID());
+        Assert.assertEquals(jmTaskStateSnapshot, acknowledgeReport.getSubtaskState());
+        Assert.assertEquals(
+                tmTaskStateSnapshot,
+                testTaskLocalStateStore.retrieveLocalState(checkpointMetaData.getCheckpointId()));
 
-		//-------------------------------------- test prio retrieving ---------------------------------------
+        // -------------------------------------- test prio retrieving
+        // ---------------------------------------
 
-		JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(
-			checkpointMetaData.getCheckpointId(),
-			acknowledgeReport.getSubtaskState());
+        JobManagerTaskRestore taskRestore =
+                new JobManagerTaskRestore(
+                        checkpointMetaData.getCheckpointId(), acknowledgeReport.getSubtaskState());
 
-		taskStateManager = taskStateManager(
-			jobID,
-			executionAttemptID,
-			testCheckpointResponder,
-			taskRestore,
-			testTaskLocalStateStore);
+        taskStateManager =
+                taskStateManager(
+                        jobID,
+                        executionAttemptID,
+                        testCheckpointResponder,
+                        taskRestore,
+                        testTaskLocalStateStore);
 
-		// this has remote AND local managed keyed state.
-		PrioritizedOperatorSubtaskState prioritized_1 = taskStateManager.prioritizedOperatorState(operatorID_1);
-		// this has only remote raw keyed state.
-		PrioritizedOperatorSubtaskState prioritized_2 = taskStateManager.prioritizedOperatorState(operatorID_2);
-		// not restored.
-		PrioritizedOperatorSubtaskState prioritized_3 = taskStateManager.prioritizedOperatorState(operatorID_3);
+        // this has remote AND local managed keyed state.
+        PrioritizedOperatorSubtaskState prioritized_1 =
+                taskStateManager.prioritizedOperatorState(operatorID_1);
+        // this has only remote raw keyed state.
+        PrioritizedOperatorSubtaskState prioritized_2 =
+                taskStateManager.prioritizedOperatorState(operatorID_2);
+        // not restored.
+        PrioritizedOperatorSubtaskState prioritized_3 =
+                taskStateManager.prioritizedOperatorState(operatorID_3);
 
-		Assert.assertTrue(prioritized_1.isRestored());
-		Assert.assertTrue(prioritized_2.isRestored());
-		Assert.assertFalse(prioritized_3.isRestored());
-		Assert.assertFalse(taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
+        Assert.assertTrue(prioritized_1.isRestored());
+        Assert.assertTrue(prioritized_2.isRestored());
+        Assert.assertFalse(prioritized_3.isRestored());
+        Assert.assertFalse(
+                taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
 
-		// checks for operator 1.
-		Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =
-			prioritized_1.getPrioritizedManagedKeyedState().iterator();
+        // checks for operator 1.
+        Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =
+                prioritized_1.getPrioritizedManagedKeyedState().iterator();
 
-		Assert.assertTrue(prioritizedManagedKeyedState_1.hasNext());
-		StateObjectCollection<KeyedStateHandle> current = prioritizedManagedKeyedState_1.next();
-		KeyedStateHandle keyedStateHandleExp = tmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
-		KeyedStateHandle keyedStateHandleAct = current.iterator().next();
-		Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
-		Assert.assertTrue(prioritizedManagedKeyedState_1.hasNext());
-		current = prioritizedManagedKeyedState_1.next();
-		keyedStateHandleExp = jmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
-		keyedStateHandleAct = current.iterator().next();
-		Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
-		Assert.assertFalse(prioritizedManagedKeyedState_1.hasNext());
+        Assert.assertTrue(prioritizedManagedKeyedState_1.hasNext());
+        StateObjectCollection<KeyedStateHandle> current = prioritizedManagedKeyedState_1.next();
+        KeyedStateHandle keyedStateHandleExp =
+                tmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
+        KeyedStateHandle keyedStateHandleAct = current.iterator().next();
+        Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
+        Assert.assertTrue(prioritizedManagedKeyedState_1.hasNext());
+        current = prioritizedManagedKeyedState_1.next();
+        keyedStateHandleExp = jmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
+        keyedStateHandleAct = current.iterator().next();
+        Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
+        Assert.assertFalse(prioritizedManagedKeyedState_1.hasNext());
 
-		// checks for operator 2.
-		Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState_2 =
-			prioritized_2.getPrioritizedRawKeyedState().iterator();
+        // checks for operator 2.
+        Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState_2 =
+                prioritized_2.getPrioritizedRawKeyedState().iterator();
 
-		Assert.assertTrue(prioritizedRawKeyedState_2.hasNext());
-		current = prioritizedRawKeyedState_2.next();
-		keyedStateHandleExp = jmOperatorSubtaskState_2.getRawKeyedState().iterator().next();
-		keyedStateHandleAct = current.iterator().next();
-		Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
-		Assert.assertFalse(prioritizedRawKeyedState_2.hasNext());
-	}
+        Assert.assertTrue(prioritizedRawKeyedState_2.hasNext());
+        current = prioritizedRawKeyedState_2.next();
+        keyedStateHandleExp = jmOperatorSubtaskState_2.getRawKeyedState().iterator().next();
+        keyedStateHandleAct = current.iterator().next();
+        Assert.assertTrue(keyedStateHandleExp == keyedStateHandleAct);
+        Assert.assertFalse(prioritizedRawKeyedState_2.hasNext());
+    }
 
-	/**
-	 * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir from the
-	 * corresponding {@link TaskLocalStateStoreImpl}.
-	 */
-	@Test
-	public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
-		JobID jobID = new JobID(42L, 43L);
-		AllocationID allocationID = new AllocationID(4711L, 23L);
-		JobVertexID jobVertexID = new JobVertexID(12L, 34L);
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
-		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
+    /**
+     * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir
+     * from the corresponding {@link TaskLocalStateStoreImpl}.
+     */
+    @Test
+    public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
+        JobID jobID = new JobID(42L, 43L);
+        AllocationID allocationID = new AllocationID(4711L, 23L);
+        JobVertexID jobVertexID = new JobVertexID(12L, 34L);
+        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
-		Executor directExecutor = Executors.directExecutor();
+        Executor directExecutor = Executors.directExecutor();
 
-		TemporaryFolder tmpFolder = new TemporaryFolder();
+        TemporaryFolder tmpFolder = new TemporaryFolder();
 
-		try {
-			tmpFolder.create();
+        try {
+            tmpFolder.create();
 
-			File[] allocBaseDirs = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+            File[] allocBaseDirs =
+                    new File[] {
+                        tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()
+                    };
 
-			LocalRecoveryDirectoryProviderImpl directoryProvider =
-				new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
+            LocalRecoveryDirectoryProviderImpl directoryProvider =
+                    new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
 
-			LocalRecoveryConfig localRecoveryConfig =
-				new LocalRecoveryConfig(true, directoryProvider);
+            LocalRecoveryConfig localRecoveryConfig =
+                    new LocalRecoveryConfig(true, directoryProvider);
 
-			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, 13, localRecoveryConfig, directExecutor);
+            TaskLocalStateStore taskLocalStateStore =
+                    new TaskLocalStateStoreImpl(
+                            jobID,
+                            allocationID,
+                            jobVertexID,
+                            13,
+                            localRecoveryConfig,
+                            directExecutor);
 
-			TaskStateManager taskStateManager = taskStateManager(
-				jobID,
-				executionAttemptID,
-				checkpointResponderMock,
-				null,
-				taskLocalStateStore);
+            TaskStateManager taskStateManager =
+                    taskStateManager(
+                            jobID,
+                            executionAttemptID,
+                            checkpointResponderMock,
+                            null,
+                            taskLocalStateStore);
 
-			LocalRecoveryConfig localRecoveryConfFromTaskLocalStateStore =
-				taskLocalStateStore.getLocalRecoveryConfig();
+            LocalRecoveryConfig localRecoveryConfFromTaskLocalStateStore =
+                    taskLocalStateStore.getLocalRecoveryConfig();
 
-			LocalRecoveryConfig localRecoveryConfFromTaskStateManager =
-				taskStateManager.createLocalRecoveryConfig();
+            LocalRecoveryConfig localRecoveryConfFromTaskStateManager =
+                    taskStateManager.createLocalRecoveryConfig();
 
+            for (int i = 0; i < 10; ++i) {
+                Assert.assertEquals(
+                        allocBaseDirs[i % allocBaseDirs.length],
+                        localRecoveryConfFromTaskLocalStateStore
+                                .getLocalStateDirectoryProvider()
+                                .allocationBaseDirectory(i));
+                Assert.assertEquals(
+                        allocBaseDirs[i % allocBaseDirs.length],
+                        localRecoveryConfFromTaskStateManager
+                                .getLocalStateDirectoryProvider()
+                                .allocationBaseDirectory(i));
+            }
 
-			for (int i = 0; i < 10; ++i) {
-				Assert.assertEquals(allocBaseDirs[i % allocBaseDirs.length],
-					localRecoveryConfFromTaskLocalStateStore.getLocalStateDirectoryProvider().allocationBaseDirectory(i));
-				Assert.assertEquals(allocBaseDirs[i % allocBaseDirs.length],
-					localRecoveryConfFromTaskStateManager.getLocalStateDirectoryProvider().allocationBaseDirectory(i));
-			}
+            Assert.assertEquals(
+                    localRecoveryConfFromTaskLocalStateStore.isLocalRecoveryEnabled(),
+                    localRecoveryConfFromTaskStateManager.isLocalRecoveryEnabled());
+        } finally {
+            tmpFolder.delete();
+        }
+    }
 
-			Assert.assertEquals(
-				localRecoveryConfFromTaskLocalStateStore.isLocalRecoveryEnabled(),
-				localRecoveryConfFromTaskStateManager.isLocalRecoveryEnabled());
-		} finally {
-			tmpFolder.delete();
-		}
-	}
+    public static TaskStateManager taskStateManager(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            CheckpointResponder checkpointResponderMock,
+            JobManagerTaskRestore jobManagerTaskRestore,
+            TaskLocalStateStore localStateStore) {
 
-	public static TaskStateManager taskStateManager(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		CheckpointResponder checkpointResponderMock,
-		JobManagerTaskRestore jobManagerTaskRestore,
-		TaskLocalStateStore localStateStore) {
-
-		return new TaskStateManagerImpl(
-			jobID,
-			executionAttemptID,
-			localStateStore,
-			jobManagerTaskRestore,
-			checkpointResponderMock);
-	}
+        return new TaskStateManagerImpl(
+                jobID,
+                executionAttemptID,
+                localStateStore,
+                jobManagerTaskRestore,
+                checkpointResponderMock);
+    }
 }

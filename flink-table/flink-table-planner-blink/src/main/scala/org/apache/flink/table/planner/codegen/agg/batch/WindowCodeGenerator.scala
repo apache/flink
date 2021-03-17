@@ -18,11 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.calcite.avatica.util.DateTimeUtils
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.RelBuilder
-import org.apache.commons.math3.util.ArithmeticUtils
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -31,7 +27,7 @@ import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, TIMESTAMP_DATA, boxedTypeTermForType, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
@@ -52,6 +48,11 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
+import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.tools.RelBuilder
+import org.apache.commons.math3.util.ArithmeticUtils
+
 import scala.collection.JavaConversions._
 
 abstract class WindowCodeGenerator(
@@ -61,14 +62,15 @@ abstract class WindowCodeGenerator(
     inputTimeIsDate: Boolean,
     namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
-    inputRowType: RelDataType,
+    inputRowType: RowType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean) {
 
-  protected lazy val builder: RelBuilder = relBuilder.values(inputRowType)
+  protected lazy val builder: RelBuilder = relBuilder.values(
+    FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType))
 
   protected lazy val aggInfos: Array[AggregateInfo] = aggInfoList.aggInfos
 
@@ -79,14 +81,12 @@ abstract class WindowCodeGenerator(
     AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
 
   protected lazy val aggBufferTypes: Array[Array[LogicalType]] = AggCodeGenHelper.getAggBufferTypes(
-    inputType,
+    inputRowType,
     auxGrouping,
     aggInfos)
 
-  protected lazy val groupKeyRowType: RowType = AggCodeGenHelper.projectRowType(inputType, grouping)
-
-  private lazy val inputType: RowType =
-    FlinkTypeFactory.toLogicalType(inputRowType).asInstanceOf[RowType]
+  protected lazy val groupKeyRowType: RowType =
+    AggCodeGenHelper.projectRowType(inputRowType, grouping)
 
   protected lazy val timestampInternalType: LogicalType =
     if (inputTimeIsDate) new IntType() else new BigIntType()
@@ -116,7 +116,7 @@ abstract class WindowCodeGenerator(
         (groupKeyTypes :+ timestampInternalType) ++ aggBuffTypes,
         ((groupKeyNames :+ "assignedTs$") ++ aggBuffNames).toArray)
     } else {
-      FlinkTypeFactory.toLogicalRowType(inputRowType)
+      inputRowType
     }
   }
 
@@ -680,7 +680,8 @@ abstract class WindowCodeGenerator(
         remainder)),
       literal(index * slideSize))
     exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
-      new ExpressionConverter(relBuilder.values(inputRowType))))
+      new ExpressionConverter(
+        relBuilder.values(FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType)))))
   }
 
   def getGrouping: Array[Int] = grouping
@@ -726,7 +727,7 @@ abstract class WindowCodeGenerator(
 
 object WindowCodeGenerator {
 
-  def getWindowDef(window: LogicalWindow): (Long, Long) = {
+  def getWindowDef(window: LogicalWindow): JTuple2[JLong, JLong] = {
     val (windowSize, slideSize): (Long, Long) = window match {
       case TumblingGroupWindow(_, _, size) if isTimeIntervalLiteral(size) =>
         (asLong(size), asLong(size))
@@ -736,7 +737,7 @@ object WindowCodeGenerator {
         // count tumbling/sliding window and session window not supported now
         throw new UnsupportedOperationException(s"Window $window is not supported right now.")
     }
-    (windowSize, slideSize)
+    new JTuple2[JLong, JLong](windowSize, slideSize)
   }
 
   def asLong(expr: Expression): Long = extractValue(expr, classOf[JLong]).get()

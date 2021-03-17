@@ -20,15 +20,12 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-/**
- * Testing {@link FatalErrorHandler} implementation which directly failed.
- */
+/** Testing {@link FatalErrorHandler} implementation which directly failed. */
 public enum DirectlyFailingFatalErrorHandler implements FatalErrorHandler {
+    INSTANCE;
 
-	INSTANCE;
-
-	@Override
-	public void onFatalError(Throwable exception) {
-		throw new FlinkRuntimeException("Could not handle the fatal error, failing", exception);
-	}
+    @Override
+    public void onFatalError(Throwable exception) {
+        throw new FlinkRuntimeException("Could not handle the fatal error, failing", exception);
+    }
 }

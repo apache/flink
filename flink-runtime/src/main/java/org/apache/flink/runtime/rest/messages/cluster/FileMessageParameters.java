@@ -27,20 +27,18 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Parameters for {@link JobManagerCustomLogHandler}.
- */
+/** Parameters for {@link JobManagerCustomLogHandler}. */
 public class FileMessageParameters extends MessageParameters {
 
-	public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
+    public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(logFileNamePathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(logFileNamePathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

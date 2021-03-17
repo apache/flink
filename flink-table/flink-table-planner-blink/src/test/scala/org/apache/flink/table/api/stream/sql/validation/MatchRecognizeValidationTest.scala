@@ -58,7 +58,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test
   def testSortProcessingTimeDesc(): Unit = {
     thrown.expectMessage("Primary sort order of a streaming table must be ascending on time.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""
@@ -81,7 +81,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   def testSortProcessingTimeSecondaryField(): Unit = {
     thrown.expectMessage("You must specify either rowtime or proctime for order by as " +
       "the first one.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""
@@ -103,7 +103,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test
   def testSortNoOrder(): Unit = {
     thrown.expectMessage("You must specify either rowtime or proctime for order by.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""

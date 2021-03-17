@@ -33,73 +33,75 @@ import java.util.Objects;
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implements ConfigurableStreamPartitioner {
-	private static final long serialVersionUID = 1L;
+public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T>
+        implements ConfigurableStreamPartitioner {
+    private static final long serialVersionUID = 1L;
 
-	private final KeySelector<T, K> keySelector;
+    private final KeySelector<T, K> keySelector;
 
-	private int maxParallelism;
+    private int maxParallelism;
 
-	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0, "Number of key-groups must be > 0!");
-		this.keySelector = Preconditions.checkNotNull(keySelector);
-		this.maxParallelism = maxParallelism;
-	}
+    public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, int maxParallelism) {
+        Preconditions.checkArgument(maxParallelism > 0, "Number of key-groups must be > 0!");
+        this.keySelector = Preconditions.checkNotNull(keySelector);
+        this.maxParallelism = maxParallelism;
+    }
 
-	public int getMaxParallelism() {
-		return maxParallelism;
-	}
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
-		K key;
-		try {
-			key = keySelector.getKey(record.getInstance().getValue());
-		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
-		}
-		return KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, numberOfChannels);
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        K key;
+        try {
+            key = keySelector.getKey(record.getInstance().getValue());
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not extract key from " + record.getInstance().getValue(), e);
+        }
+        return KeyGroupRangeAssignment.assignKeyToParallelOperator(
+                key, maxParallelism, numberOfChannels);
+    }
 
-	@Override
-	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-		return SubtaskStateMapper.RANGE;
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.RANGE;
+    }
 
-	@Override
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<T> copy() {
+        return this;
+    }
 
-	@Override
-	public String toString() {
-		return "HASH";
-	}
+    @Override
+    public String toString() {
+        return "HASH";
+    }
 
-	@Override
-	public void configure(int maxParallelism) {
-		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
-		this.maxParallelism = maxParallelism;
-	}
+    @Override
+    public void configure(int maxParallelism) {
+        KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
+        this.maxParallelism = maxParallelism;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		final KeyGroupStreamPartitioner<?, ?> that = (KeyGroupStreamPartitioner<?, ?>) o;
-		return maxParallelism == that.maxParallelism &&
-			keySelector.equals(that.keySelector);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        final KeyGroupStreamPartitioner<?, ?> that = (KeyGroupStreamPartitioner<?, ?>) o;
+        return maxParallelism == that.maxParallelism && keySelector.equals(that.keySelector);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), keySelector, maxParallelism);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), keySelector, maxParallelism);
+    }
 }

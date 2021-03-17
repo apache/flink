@@ -30,19 +30,20 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
  */
 public interface RecordEmitter<E, T, SplitStateT> {
 
-	/**
-	 * Process and emit the records to the {@link SourceOutput}. A few recommendations to the implementation
-	 * are following:
-	 *
-	 * <ul>
-	 * 	<li>The method maybe interrupted in the middle. In that case, the same set of records will be passed
-	 * 	to the record emitter again later. The implementation needs to make sure it reades
-	 * 	<li>
-	 * </ul>
-	 *
-	 * @param element The intermediate element read by the SplitReader.
-	 * @param output The output to which the final records are emit to.
-	 * @param splitState The state of the split.
-	 */
-	void emitRecord(E element, SourceOutput<T> output, SplitStateT splitState) throws Exception;
+    /**
+     * Process and emit the records to the {@link SourceOutput}. A few recommendations to the
+     * implementation are following:
+     *
+     * <ul>
+     *   <li>The method maybe interrupted in the middle. In that case, the same set of records will
+     *       be passed to the record emitter again later. The implementation needs to make sure it
+     *       reades
+     *   <li>
+     * </ul>
+     *
+     * @param element The intermediate element read by the SplitReader.
+     * @param output The output to which the final records are emit to.
+     * @param splitState The state of the split.
+     */
+    void emitRecord(E element, SourceOutput<T> output, SplitStateT splitState) throws Exception;
 }

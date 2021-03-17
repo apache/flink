@@ -25,9 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.sink.HBaseSinkFunction;
 import org.apache.flink.connector.hbase.sink.LegacyMutationConverter;
-import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
@@ -38,98 +36,105 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HConstants;
 
 import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * An upsert {@link UpsertStreamTableSink} for HBase.
- */
+/** An upsert {@link UpsertStreamTableSink} for HBase. */
 @Internal
 public class HBaseUpsertTableSink implements UpsertStreamTableSink<Row> {
 
-	private final HBaseTableSchema hbaseTableSchema;
-	private final TableSchema tableSchema;
-	private final HBaseOptions hbaseOptions;
-	private final HBaseWriteOptions writeOptions;
+    private final HBaseTableSchema hbaseTableSchema;
+    private final TableSchema tableSchema;
+    private final HBaseWriteOptions writeOptions;
+    private final Configuration hbaseConf;
+    private final String tableName;
 
-	public HBaseUpsertTableSink(
-			HBaseTableSchema hbaseTableSchema,
-			HBaseOptions hbaseOptions,
-			HBaseWriteOptions writeOptions) {
-		checkArgument(hbaseTableSchema.getRowKeyName().isPresent(), "HBaseUpsertTableSink requires rowkey is set.");
-		this.hbaseTableSchema = hbaseTableSchema;
-		this.tableSchema = hbaseTableSchema.convertsToTableSchema();
-		this.hbaseOptions = hbaseOptions;
-		this.writeOptions = writeOptions;
-	}
+    public HBaseUpsertTableSink(
+            String tableName,
+            HBaseTableSchema hbaseTableSchema,
+            Configuration hbaseConf,
+            HBaseWriteOptions writeOptions) {
+        checkArgument(
+                hbaseTableSchema.getRowKeyName().isPresent(),
+                "HBaseUpsertTableSink requires rowkey is set.");
+        this.hbaseTableSchema = hbaseTableSchema;
+        this.tableSchema = hbaseTableSchema.convertsToTableSchema();
+        this.hbaseConf = hbaseConf;
+        this.writeOptions = writeOptions;
+        this.tableName = tableName;
+    }
 
-	@Override
-	public void setKeyFields(String[] keys) {
-		// hbase always upsert on rowkey, ignore query keys.
-		// Actually, we should verify the query key is the same with rowkey.
-		// However, the query key extraction doesn't work well in some scenarios
-		// (e.g. concat key fields will lose key information). So we skip key validation currently.
-	}
+    @Override
+    public void setKeyFields(String[] keys) {
+        // hbase always upsert on rowkey, ignore query keys.
+        // Actually, we should verify the query key is the same with rowkey.
+        // However, the query key extraction doesn't work well in some scenarios
+        // (e.g. concat key fields will lose key information). So we skip key validation currently.
+    }
 
-	@Override
-	public void setIsAppendOnly(Boolean isAppendOnly) {
-		// hbase always upsert on rowkey, even works in append only mode.
-	}
+    @Override
+    public void setIsAppendOnly(Boolean isAppendOnly) {
+        // hbase always upsert on rowkey, even works in append only mode.
+    }
 
-	@Override
-	public TypeInformation<Row> getRecordType() {
-		return tableSchema.toRowType();
-	}
+    @Override
+    public TypeInformation<Row> getRecordType() {
+        return tableSchema.toRowType();
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-		Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
-		hbaseOptions.getZkNodeParent().ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-		HBaseSinkFunction sinkFunction = new HBaseSinkFunction(
-			hbaseOptions.getTableName(),
-			hbaseClientConf,
-			new LegacyMutationConverter(hbaseTableSchema),
-			writeOptions.getBufferFlushMaxSizeInBytes(),
-			writeOptions.getBufferFlushMaxRows(),
-			writeOptions.getBufferFlushIntervalMillis());
-		return dataStream
-			.addSink(sinkFunction)
-			.setParallelism(dataStream.getParallelism())
-			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), tableSchema.getFieldNames()));
-	}
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+        HBaseSinkFunction sinkFunction =
+                new HBaseSinkFunction(
+                        tableName,
+                        hbaseConf,
+                        new LegacyMutationConverter(hbaseTableSchema),
+                        writeOptions.getBufferFlushMaxSizeInBytes(),
+                        writeOptions.getBufferFlushMaxRows(),
+                        writeOptions.getBufferFlushIntervalMillis());
+        return dataStream
+                .addSink(sinkFunction)
+                .setParallelism(dataStream.getParallelism())
+                .name(
+                        TableConnectorUtils.generateRuntimeName(
+                                this.getClass(), tableSchema.getFieldNames()));
+    }
 
-	@Override
-	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
-			throw new ValidationException("Reconfiguration with different fields is not allowed. " +
-				"Expected: " + Arrays.toString(getFieldNames()) + " / " + Arrays.toString(getFieldTypes()) + ". " +
-				"But was: " + Arrays.toString(fieldNames) + " / " + Arrays.toString(fieldTypes));
-		}
+    @Override
+    public TableSink<Tuple2<Boolean, Row>> configure(
+            String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        if (!Arrays.equals(getFieldNames(), fieldNames)
+                || !Arrays.equals(getFieldTypes(), fieldTypes)) {
+            throw new ValidationException(
+                    "Reconfiguration with different fields is not allowed. "
+                            + "Expected: "
+                            + Arrays.toString(getFieldNames())
+                            + " / "
+                            + Arrays.toString(getFieldTypes())
+                            + ". "
+                            + "But was: "
+                            + Arrays.toString(fieldNames)
+                            + " / "
+                            + Arrays.toString(fieldTypes));
+        }
 
-		return new HBaseUpsertTableSink(hbaseTableSchema, hbaseOptions, writeOptions);
-	}
+        return new HBaseUpsertTableSink(tableName, hbaseTableSchema, hbaseConf, writeOptions);
+    }
 
-	@VisibleForTesting
-	public HBaseTableSchema getHBaseTableSchema() {
-		return hbaseTableSchema;
-	}
+    @VisibleForTesting
+    public HBaseTableSchema getHBaseTableSchema() {
+        return hbaseTableSchema;
+    }
 
-	@VisibleForTesting
-	public HBaseOptions getHBaseOptions() {
-		return hbaseOptions;
-	}
-
-	@VisibleForTesting
-	public HBaseWriteOptions getWriteOptions() {
-		return writeOptions;
-	}
+    @VisibleForTesting
+    public HBaseWriteOptions getWriteOptions() {
+        return writeOptions;
+    }
 }

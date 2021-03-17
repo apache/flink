@@ -27,87 +27,83 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Describe the info of {@link Input}.
- */
+/** Describe the info of {@link Input}. */
 public class InputSpec implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The input id (start from 1) used for identifying each {@link Input}
-	 * in {@link MultipleInputStreamOperatorBase#getInputs()}.
-	 */
-	private final int multipleInputId;
+    /**
+     * The input id (start from 1) used for identifying each {@link Input} in {@link
+     * MultipleInputStreamOperatorBase#getInputs()}.
+     */
+    private final int multipleInputId;
 
-	/**
-	 * The read order for current input in multiple operator.
-	 */
-	private final int readOrder;
+    /** The read order for current input in multiple operator. */
+    private final int readOrder;
 
-	/**
-	 * The output operator corresponding to the {@link Input}.
-	 */
-	private final TableOperatorWrapper<?> output;
+    /** The output operator corresponding to the {@link Input}. */
+    private final TableOperatorWrapper<?> output;
 
-	/**
-	 * The input id (start from 1) is used for identifying each input of the output operator.
-	 */
-	private final int outputOpInputId;
+    /** The input id (start from 1) is used for identifying each input of the output operator. */
+    private final int outputOpInputId;
 
-	public InputSpec(
-			int multipleInputId,
-			int readOrder,
-			TableOperatorWrapper<?> output,
-			int outputOpInputId) {
-		this.multipleInputId = multipleInputId;
-		this.readOrder = readOrder;
-		this.output = checkNotNull(output);
-		this.outputOpInputId = outputOpInputId;
-	}
+    public InputSpec(
+            int multipleInputId,
+            int readOrder,
+            TableOperatorWrapper<?> output,
+            int outputOpInputId) {
+        this.multipleInputId = multipleInputId;
+        this.readOrder = readOrder;
+        this.output = checkNotNull(output);
+        this.outputOpInputId = outputOpInputId;
+    }
 
-	public int getMultipleInputId() {
-		return multipleInputId;
-	}
+    public int getMultipleInputId() {
+        return multipleInputId;
+    }
 
-	public int getReadOrder() {
-		return readOrder;
-	}
+    public int getReadOrder() {
+        return readOrder;
+    }
 
-	public TableOperatorWrapper<?> getOutput() {
-		return output;
-	}
+    public TableOperatorWrapper<?> getOutput() {
+        return output;
+    }
 
-	public int getOutputOpInputId() {
-		return outputOpInputId;
-	}
+    public int getOutputOpInputId() {
+        return outputOpInputId;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		InputSpec inputSpec = (InputSpec) o;
-		return multipleInputId == inputSpec.multipleInputId &&
-				readOrder == inputSpec.readOrder &&
-				outputOpInputId == inputSpec.outputOpInputId &&
-				output.equals(inputSpec.output);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        InputSpec inputSpec = (InputSpec) o;
+        return multipleInputId == inputSpec.multipleInputId
+                && readOrder == inputSpec.readOrder
+                && outputOpInputId == inputSpec.outputOpInputId
+                && output.equals(inputSpec.output);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(multipleInputId, readOrder, output, outputOpInputId);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(multipleInputId, readOrder, output, outputOpInputId);
+    }
 
-	@Override
-	public String toString() {
-		return "InputSpec{" +
-				"multipleInputId=" + multipleInputId +
-				", readOrder=" + readOrder +
-				", output=" + output +
-				", outputOpInputId=" + outputOpInputId +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "InputSpec{"
+                + "multipleInputId="
+                + multipleInputId
+                + ", readOrder="
+                + readOrder
+                + ", output="
+                + output
+                + ", outputOpInputId="
+                + outputOpInputId
+                + '}';
+    }
 }

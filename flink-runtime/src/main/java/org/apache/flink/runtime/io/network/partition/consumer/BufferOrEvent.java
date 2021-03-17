@@ -31,102 +31,112 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class BufferOrEvent {
 
-	private final Buffer buffer;
+    private final Buffer buffer;
 
-	private final AbstractEvent event;
+    private final AbstractEvent event;
 
-	private final boolean hasPriority;
+    private final boolean hasPriority;
 
-	/**
-	 * Indicate availability of further instances for the union input gate.
-	 * This is not needed outside of the input gate unioning logic and cannot
-	 * be set outside of the consumer package.
-	 */
-	private boolean moreAvailable;
+    /**
+     * Indicate availability of further instances for the union input gate. This is not needed
+     * outside of the input gate unioning logic and cannot be set outside of the consumer package.
+     */
+    private boolean moreAvailable;
 
-	private final boolean morePriorityEvents;
+    private final boolean morePriorityEvents;
 
-	private InputChannelInfo channelInfo;
+    private InputChannelInfo channelInfo;
 
-	private final int size;
+    private final int size;
 
-	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable, boolean morePriorityEvents) {
-		this.buffer = checkNotNull(buffer);
-		this.hasPriority = false;
-		this.event = null;
-		this.channelInfo = channelInfo;
-		this.moreAvailable = moreAvailable;
-		this.size = buffer.getSize();
-		this.morePriorityEvents = morePriorityEvents;
-	}
+    public BufferOrEvent(
+            Buffer buffer,
+            InputChannelInfo channelInfo,
+            boolean moreAvailable,
+            boolean morePriorityEvents) {
+        this.buffer = checkNotNull(buffer);
+        this.hasPriority = false;
+        this.event = null;
+        this.channelInfo = channelInfo;
+        this.moreAvailable = moreAvailable;
+        this.size = buffer.getSize();
+        this.morePriorityEvents = morePriorityEvents;
+    }
 
-	public BufferOrEvent(AbstractEvent event, boolean hasPriority, InputChannelInfo channelInfo, boolean moreAvailable, int size, boolean morePriorityEvents) {
-		this.buffer = null;
-		this.hasPriority = hasPriority;
-		this.event = checkNotNull(event);
-		this.channelInfo = channelInfo;
-		this.moreAvailable = moreAvailable;
-		this.size = size;
-		this.morePriorityEvents = morePriorityEvents;
-	}
+    public BufferOrEvent(
+            AbstractEvent event,
+            boolean hasPriority,
+            InputChannelInfo channelInfo,
+            boolean moreAvailable,
+            int size,
+            boolean morePriorityEvents) {
+        this.buffer = null;
+        this.hasPriority = hasPriority;
+        this.event = checkNotNull(event);
+        this.channelInfo = channelInfo;
+        this.moreAvailable = moreAvailable;
+        this.size = size;
+        this.morePriorityEvents = morePriorityEvents;
+    }
 
-	@VisibleForTesting
-	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
-		this(buffer, channelInfo, true, false);
-	}
+    @VisibleForTesting
+    public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
+        this(buffer, channelInfo, true, false);
+    }
 
-	@VisibleForTesting
-	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
-		this(event, false, channelInfo, true, 0, false);
-	}
+    @VisibleForTesting
+    public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
+        this(event, false, channelInfo, true, 0, false);
+    }
 
-	public boolean isBuffer() {
-		return buffer != null;
-	}
+    public boolean isBuffer() {
+        return buffer != null;
+    }
 
-	public boolean isEvent() {
-		return event != null;
-	}
+    public boolean isEvent() {
+        return event != null;
+    }
 
-	public Buffer getBuffer() {
-		return buffer;
-	}
+    public Buffer getBuffer() {
+        return buffer;
+    }
 
-	public AbstractEvent getEvent() {
-		return event;
-	}
+    public AbstractEvent getEvent() {
+        return event;
+    }
 
-	public InputChannelInfo getChannelInfo() {
-		return channelInfo;
-	}
+    public InputChannelInfo getChannelInfo() {
+        return channelInfo;
+    }
 
-	public void setChannelInfo(InputChannelInfo channelInfo) {
-		this.channelInfo = channelInfo;
-	}
+    public void setChannelInfo(InputChannelInfo channelInfo) {
+        this.channelInfo = channelInfo;
+    }
 
-	public boolean moreAvailable() {
-		return moreAvailable;
-	}
+    public boolean moreAvailable() {
+        return moreAvailable;
+    }
 
-	public boolean morePriorityEvents() {
-		return morePriorityEvents;
-	}
+    public boolean morePriorityEvents() {
+        return morePriorityEvents;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("BufferOrEvent [%s, channelInfo = %s, size = %d]",
-			isBuffer() ? buffer : (event + " (prio=" + hasPriority + ")"), channelInfo, size);
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "BufferOrEvent [%s, channelInfo = %s, size = %d]",
+                isBuffer() ? buffer : (event + " (prio=" + hasPriority + ")"), channelInfo, size);
+    }
 
-	public void setMoreAvailable(boolean moreAvailable) {
-		this.moreAvailable = moreAvailable;
-	}
+    public void setMoreAvailable(boolean moreAvailable) {
+        this.moreAvailable = moreAvailable;
+    }
 
-	public int getSize() {
-		return size;
-	}
+    public int getSize() {
+        return size;
+    }
 
-	public boolean hasPriority() {
-		return hasPriority;
-	}
+    public boolean hasPriority() {
+        return hasPriority;
+    }
 }

@@ -28,44 +28,44 @@ import com.codahale.metrics.Snapshot;
  */
 class DropwizardHistogramStatistics extends HistogramStatistics {
 
-	private final com.codahale.metrics.Snapshot snapshot;
+    private final com.codahale.metrics.Snapshot snapshot;
 
-	DropwizardHistogramStatistics(com.codahale.metrics.Snapshot snapshot) {
-		this.snapshot = snapshot;
-	}
+    DropwizardHistogramStatistics(com.codahale.metrics.Snapshot snapshot) {
+        this.snapshot = snapshot;
+    }
 
-	@Override
-	public double getQuantile(double quantile) {
-		return snapshot.getValue(quantile);
-	}
+    @Override
+    public double getQuantile(double quantile) {
+        return snapshot.getValue(quantile);
+    }
 
-	@Override
-	public long[] getValues() {
-		return snapshot.getValues();
-	}
+    @Override
+    public long[] getValues() {
+        return snapshot.getValues();
+    }
 
-	@Override
-	public int size() {
-		return snapshot.size();
-	}
+    @Override
+    public int size() {
+        return snapshot.size();
+    }
 
-	@Override
-	public double getMean() {
-		return snapshot.getMean();
-	}
+    @Override
+    public double getMean() {
+        return snapshot.getMean();
+    }
 
-	@Override
-	public double getStdDev() {
-		return snapshot.getStdDev();
-	}
+    @Override
+    public double getStdDev() {
+        return snapshot.getStdDev();
+    }
 
-	@Override
-	public long getMax() {
-		return snapshot.getMax();
-	}
+    @Override
+    public long getMax() {
+        return snapshot.getMax();
+    }
 
-	@Override
-	public long getMin() {
-		return snapshot.getMin();
-	}
+    @Override
+    public long getMin() {
+        return snapshot.getMin();
+    }
 }

@@ -55,366 +55,368 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link AkkaRpcService}.
- */
+/** Tests for the {@link AkkaRpcService}. */
 public class AkkaRpcServiceTest extends TestLogger {
 
-	private static final Time TIMEOUT = Time.milliseconds(10000L);
-
-	// ------------------------------------------------------------------------
-	//  shared test members
-	// ------------------------------------------------------------------------
+    private static final Time TIMEOUT = Time.milliseconds(10000L);
+
+    // ------------------------------------------------------------------------
+    //  shared test members
+    // ------------------------------------------------------------------------
 
-	private static ActorSystem actorSystem;
+    private static ActorSystem actorSystem;
 
-	private static AkkaRpcService akkaRpcService;
+    private static AkkaRpcService akkaRpcService;
 
-	@BeforeClass
-	public static void setup() {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
-		akkaRpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
-	}
+    @BeforeClass
+    public static void setup() {
+        actorSystem = AkkaUtils.createDefaultActorSystem();
+        akkaRpcService =
+                new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    }
 
-	@AfterClass
-	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-		final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
-		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+    @AfterClass
+    public static void shutdown()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
+        final CompletableFuture<Terminated> actorSystemTerminationFuture =
+                FutureUtils.toJava(actorSystem.terminate());
 
-		FutureUtils
-			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-		actorSystem = null;
-		akkaRpcService = null;
-	}
+        actorSystem = null;
+        akkaRpcService = null;
+    }
 
-	// ------------------------------------------------------------------------
-	//  tests
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  tests
+    // ------------------------------------------------------------------------
+
+    @Test
+    public void testScheduleRunnable() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final long delay = 100L;
+        final long start = System.nanoTime();
 
-	@Test
-	public void testScheduleRunnable() throws Exception {
-		final OneShotLatch latch = new OneShotLatch();
-		final long delay = 100L;
-		final long start = System.nanoTime();
-
-		ScheduledFuture<?> scheduledFuture = akkaRpcService.scheduleRunnable(latch::trigger, delay, TimeUnit.MILLISECONDS);
+        ScheduledFuture<?> scheduledFuture =
+                akkaRpcService.scheduleRunnable(latch::trigger, delay, TimeUnit.MILLISECONDS);
 
-		scheduledFuture.get();
+        scheduledFuture.get();
 
-		assertTrue(latch.isTriggered());
-		final long stop = System.nanoTime();
-
-		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
-	}
+        assertTrue(latch.isTriggered());
+        final long stop = System.nanoTime();
 
-	/**
-	 * Tests that the {@link AkkaRpcService} can execute runnables.
-	 */
-	@Test
-	public void testExecuteRunnable() throws Exception {
-		final OneShotLatch latch = new OneShotLatch();
+        assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
+    }
 
-		akkaRpcService.execute(latch::trigger);
+    /** Tests that the {@link AkkaRpcService} can execute runnables. */
+    @Test
+    public void testExecuteRunnable() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
 
-		latch.await(30L, TimeUnit.SECONDS);
-	}
+        akkaRpcService.execute(latch::trigger);
 
-	/**
-	 * Tests that the {@link AkkaRpcService} can execute callables and returns their result as
-	 * a {@link CompletableFuture}.
-	 */
-	@Test
-	public void testExecuteCallable() throws Exception {
-		final OneShotLatch latch = new OneShotLatch();
-		final int expected = 42;
+        latch.await(30L, TimeUnit.SECONDS);
+    }
 
-		CompletableFuture<Integer> result = akkaRpcService.execute(() -> {
-			latch.trigger();
-			return expected;
-		});
+    /**
+     * Tests that the {@link AkkaRpcService} can execute callables and returns their result as a
+     * {@link CompletableFuture}.
+     */
+    @Test
+    public void testExecuteCallable() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final int expected = 42;
 
-		int actual = result.get(30L, TimeUnit.SECONDS);
+        CompletableFuture<Integer> result =
+                akkaRpcService.execute(
+                        () -> {
+                            latch.trigger();
+                            return expected;
+                        });
 
-		assertEquals(expected, actual);
-		assertTrue(latch.isTriggered());
-	}
+        int actual = result.get(30L, TimeUnit.SECONDS);
 
-	@Test
-	public void testGetAddress() {
-		assertEquals(AkkaUtils.getAddress(actorSystem).host().get(), akkaRpcService.getAddress());
-	}
+        assertEquals(expected, actual);
+        assertTrue(latch.isTriggered());
+    }
 
-	@Test
-	public void testGetPort() {
-		assertEquals(AkkaUtils.getAddress(actorSystem).port().get(), akkaRpcService.getPort());
-	}
+    @Test
+    public void testGetAddress() {
+        assertEquals(AkkaUtils.getAddress(actorSystem).host().get(), akkaRpcService.getAddress());
+    }
 
-	/**
-	 * Tests that we can wait for the termination of the rpc service.
-	 */
-	@Test(timeout = 60000)
-	public void testTerminationFuture() throws Exception {
-		final AkkaRpcService rpcService = startAkkaRpcService();
+    @Test
+    public void testGetPort() {
+        assertEquals(AkkaUtils.getAddress(actorSystem).port().get(), akkaRpcService.getPort());
+    }
 
-		CompletableFuture<Void> terminationFuture = rpcService.getTerminationFuture();
+    /** Tests that we can wait for the termination of the rpc service. */
+    @Test(timeout = 60000)
+    public void testTerminationFuture() throws Exception {
+        final AkkaRpcService rpcService = startAkkaRpcService();
 
-		assertFalse(terminationFuture.isDone());
+        CompletableFuture<Void> terminationFuture = rpcService.getTerminationFuture();
 
-		rpcService.stopService();
+        assertFalse(terminationFuture.isDone());
 
-		terminationFuture.get();
-	}
+        rpcService.stopService();
 
-	/**
-	 * Tests a simple scheduled runnable being executed by the RPC services scheduled executor
-	 * service.
-	 */
-	@Test(timeout = 60000)
-	public void testScheduledExecutorServiceSimpleSchedule() throws Exception {
-		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
+        terminationFuture.get();
+    }
 
-		final OneShotLatch latch = new OneShotLatch();
+    /**
+     * Tests a simple scheduled runnable being executed by the RPC services scheduled executor
+     * service.
+     */
+    @Test(timeout = 60000)
+    public void testScheduledExecutorServiceSimpleSchedule() throws Exception {
+        ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
-		ScheduledFuture<?> future = scheduledExecutor.schedule(
-			latch::trigger,
-			10L,
-			TimeUnit.MILLISECONDS);
+        final OneShotLatch latch = new OneShotLatch();
 
-		future.get();
+        ScheduledFuture<?> future =
+                scheduledExecutor.schedule(latch::trigger, 10L, TimeUnit.MILLISECONDS);
 
-		// once the future is completed, then the latch should have been triggered
-		assertTrue(latch.isTriggered());
-	}
-
-	/**
-	 * Tests that the RPC service's scheduled executor service can execute runnables at a fixed
-	 * rate.
-	 */
-	@Test(timeout = 60000)
-	public void testScheduledExecutorServicePeriodicSchedule() throws Exception {
-		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
+        future.get();
 
-		final int tries = 4;
-		final long delay = 10L;
-		final CountDownLatch countDownLatch = new CountDownLatch(tries);
+        // once the future is completed, then the latch should have been triggered
+        assertTrue(latch.isTriggered());
+    }
 
-		long currentTime = System.nanoTime();
-
-		ScheduledFuture<?> future = scheduledExecutor.scheduleAtFixedRate(
-			countDownLatch::countDown,
-			delay,
-			delay,
-			TimeUnit.MILLISECONDS);
-
-		assertTrue(!future.isDone());
-
-		countDownLatch.await();
-
-		// the future should not complete since we have a periodic task
-		assertTrue(!future.isDone());
-
-		long finalTime = System.nanoTime() - currentTime;
-
-		// the processing should have taken at least delay times the number of count downs.
-		assertTrue(finalTime >= tries * delay);
+    /**
+     * Tests that the RPC service's scheduled executor service can execute runnables at a fixed
+     * rate.
+     */
+    @Test(timeout = 60000)
+    public void testScheduledExecutorServicePeriodicSchedule() throws Exception {
+        ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
-		future.cancel(true);
-	}
-
-	/**
-	 * Tests that the RPC service's scheduled executor service can execute runnable with a fixed
-	 * delay.
-	 */
-	@Test(timeout = 60000)
-	public void testScheduledExecutorServiceWithFixedDelaySchedule() throws Exception {
-		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
-
-		final int tries = 4;
-		final long delay = 10L;
-		final CountDownLatch countDownLatch = new CountDownLatch(tries);
-
-		long currentTime = System.nanoTime();
-
-		ScheduledFuture<?> future = scheduledExecutor.scheduleWithFixedDelay(
-			countDownLatch::countDown,
-			delay,
-			delay,
-			TimeUnit.MILLISECONDS);
-
-		assertTrue(!future.isDone());
+        final int tries = 4;
+        final long delay = 10L;
+        final CountDownLatch countDownLatch = new CountDownLatch(tries);
 
-		countDownLatch.await();
+        long currentTime = System.nanoTime();
 
-		// the future should not complete since we have a periodic task
-		assertTrue(!future.isDone());
-
-		long finalTime = System.nanoTime() - currentTime;
+        ScheduledFuture<?> future =
+                scheduledExecutor.scheduleAtFixedRate(
+                        countDownLatch::countDown, delay, delay, TimeUnit.MILLISECONDS);
 
-		// the processing should have taken at least delay times the number of count downs.
-		assertTrue(finalTime >= tries * delay);
+        assertTrue(!future.isDone());
 
-		future.cancel(true);
-	}
+        countDownLatch.await();
 
-	/**
-	 * Tests that canceling the returned future will stop the execution of the scheduled runnable.
-	 */
-	@Test
-	public void testScheduledExecutorServiceCancelWithFixedDelay() throws InterruptedException {
-		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
+        // the future should not complete since we have a periodic task
+        assertTrue(!future.isDone());
 
-		long delay = 10L;
+        long finalTime = System.nanoTime() - currentTime;
 
-		final OneShotLatch futureTask = new OneShotLatch();
-		final OneShotLatch latch = new OneShotLatch();
-		final OneShotLatch shouldNotBeTriggeredLatch = new OneShotLatch();
+        // the processing should have taken at least delay times the number of count downs.
+        assertTrue(finalTime >= tries * delay);
 
-		ScheduledFuture<?> future = scheduledExecutor.scheduleWithFixedDelay(
-			() -> {
-				try {
-					if (futureTask.isTriggered()) {
-						shouldNotBeTriggeredLatch.trigger();
-					} else {
-						// first run
-						futureTask.trigger();
-						latch.await();
-					}
-				} catch (InterruptedException ignored) {
-					// ignore
-				}
-			},
-			delay,
-			delay,
-			TimeUnit.MILLISECONDS);
+        future.cancel(true);
+    }
 
-		// wait until we're in the runnable
-		futureTask.await();
+    /**
+     * Tests that the RPC service's scheduled executor service can execute runnable with a fixed
+     * delay.
+     */
+    @Test(timeout = 60000)
+    public void testScheduledExecutorServiceWithFixedDelaySchedule() throws Exception {
+        ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
-		// cancel the scheduled future
-		future.cancel(false);
+        final int tries = 4;
+        final long delay = 10L;
+        final CountDownLatch countDownLatch = new CountDownLatch(tries);
 
-		latch.trigger();
+        long currentTime = System.nanoTime();
 
-		try {
-			shouldNotBeTriggeredLatch.await(5 * delay, TimeUnit.MILLISECONDS);
-			fail("The shouldNotBeTriggeredLatch should never be triggered.");
-		} catch (TimeoutException e) {
-			// expected
-		}
-	}
+        ScheduledFuture<?> future =
+                scheduledExecutor.scheduleWithFixedDelay(
+                        countDownLatch::countDown, delay, delay, TimeUnit.MILLISECONDS);
 
-	/**
-	 * Tests that the {@link AkkaRpcService} terminates all its RpcEndpoints when shutting down.
-	 */
-	@Test
-	public void testAkkaRpcServiceShutDownWithRpcEndpoints() throws Exception {
-		final AkkaRpcService akkaRpcService = startAkkaRpcService();
+        assertTrue(!future.isDone());
 
-		try {
-			final int numberActors = 5;
+        countDownLatch.await();
 
-			CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
+        // the future should not complete since we have a periodic task
+        assertTrue(!future.isDone());
 
-			final Collection<CompletableFuture<Void>> onStopFutures = startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
+        long finalTime = System.nanoTime() - currentTime;
 
-			for (CompletableFuture<Void> onStopFuture : onStopFutures) {
-				onStopFuture.complete(null);
-			}
+        // the processing should have taken at least delay times the number of count downs.
+        assertTrue(finalTime >= tries * delay);
 
-			terminationFuture.get();
-			assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
-		} finally {
-			RpcUtils.terminateRpcService(akkaRpcService, TIMEOUT);
-		}
-	}
+        future.cancel(true);
+    }
 
-	/**
-	 * Tests that {@link AkkaRpcService} terminates all its RpcEndpoints and also stops
-	 * the underlying {@link ActorSystem} if one of the RpcEndpoints fails while stopping.
-	 */
-	@Test
-	public void testAkkaRpcServiceShutDownWithFailingRpcEndpoints() throws Exception {
-		final AkkaRpcService akkaRpcService = startAkkaRpcService();
+    /**
+     * Tests that canceling the returned future will stop the execution of the scheduled runnable.
+     */
+    @Test
+    public void testScheduledExecutorServiceCancelWithFixedDelay() throws InterruptedException {
+        ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
-		final int numberActors = 5;
+        long delay = 10L;
 
-		CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
+        final OneShotLatch futureTask = new OneShotLatch();
+        final OneShotLatch latch = new OneShotLatch();
+        final OneShotLatch shouldNotBeTriggeredLatch = new OneShotLatch();
 
-		final Collection<CompletableFuture<Void>> onStopFutures = startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
+        ScheduledFuture<?> future =
+                scheduledExecutor.scheduleWithFixedDelay(
+                        () -> {
+                            try {
+                                if (futureTask.isTriggered()) {
+                                    shouldNotBeTriggeredLatch.trigger();
+                                } else {
+                                    // first run
+                                    futureTask.trigger();
+                                    latch.await();
+                                }
+                            } catch (InterruptedException ignored) {
+                                // ignore
+                            }
+                        },
+                        delay,
+                        delay,
+                        TimeUnit.MILLISECONDS);
 
-		Iterator<CompletableFuture<Void>> iterator = onStopFutures.iterator();
+        // wait until we're in the runnable
+        futureTask.await();
 
-		for (int i = 0; i < numberActors - 1; i++) {
-			iterator.next().complete(null);
-		}
+        // cancel the scheduled future
+        future.cancel(false);
 
-		iterator.next().completeExceptionally(new OnStopException("onStop exception occurred."));
+        latch.trigger();
 
-		for (CompletableFuture<Void> onStopFuture : onStopFutures) {
-			onStopFuture.complete(null);
-		}
+        try {
+            shouldNotBeTriggeredLatch.await(5 * delay, TimeUnit.MILLISECONDS);
+            fail("The shouldNotBeTriggeredLatch should never be triggered.");
+        } catch (TimeoutException e) {
+            // expected
+        }
+    }
 
-		try {
-			terminationFuture.get();
-			fail("Expected the termination future to complete exceptionally.");
-		} catch (ExecutionException e) {
-			assertThat(ExceptionUtils.findThrowable(e, OnStopException.class).isPresent(), is(true));
-		}
+    /** Tests that the {@link AkkaRpcService} terminates all its RpcEndpoints when shutting down. */
+    @Test
+    public void testAkkaRpcServiceShutDownWithRpcEndpoints() throws Exception {
+        final AkkaRpcService akkaRpcService = startAkkaRpcService();
 
-		assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
-	}
+        try {
+            final int numberActors = 5;
 
-	private Collection<CompletableFuture<Void>> startStopNCountingAsynchronousOnStopEndpoints(AkkaRpcService akkaRpcService, int numberActors) throws Exception {
-		final Collection<CompletableFuture<Void>> onStopFutures = new ArrayList<>(numberActors);
+            CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
 
-		final CountDownLatch countDownLatch = new CountDownLatch(numberActors);
+            final Collection<CompletableFuture<Void>> onStopFutures =
+                    startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
-		for (int i = 0; i < numberActors; i++) {
-			CompletableFuture<Void> onStopFuture = new CompletableFuture<>();
-			final CountingAsynchronousOnStopEndpoint endpoint = new CountingAsynchronousOnStopEndpoint(akkaRpcService, onStopFuture, countDownLatch);
-			endpoint.start();
-			onStopFutures.add(onStopFuture);
-		}
+            for (CompletableFuture<Void> onStopFuture : onStopFutures) {
+                onStopFuture.complete(null);
+            }
 
-		CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
+            terminationFuture.get();
+            assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
+        } finally {
+            RpcUtils.terminateRpcService(akkaRpcService, TIMEOUT);
+        }
+    }
 
-		assertThat(terminationFuture.isDone(), is(false));
-		assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(false));
+    /**
+     * Tests that {@link AkkaRpcService} terminates all its RpcEndpoints and also stops the
+     * underlying {@link ActorSystem} if one of the RpcEndpoints fails while stopping.
+     */
+    @Test
+    public void testAkkaRpcServiceShutDownWithFailingRpcEndpoints() throws Exception {
+        final AkkaRpcService akkaRpcService = startAkkaRpcService();
 
-		countDownLatch.await();
+        final int numberActors = 5;
 
-		return onStopFutures;
-	}
+        CompletableFuture<Void> terminationFuture = akkaRpcService.getTerminationFuture();
 
-	@Nonnull
-	private AkkaRpcService startAkkaRpcService() {
-		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-		return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
-	}
+        final Collection<CompletableFuture<Void>> onStopFutures =
+                startStopNCountingAsynchronousOnStopEndpoints(akkaRpcService, numberActors);
 
-	private static class CountingAsynchronousOnStopEndpoint extends AkkaRpcActorTest.AsynchronousOnStopEndpoint {
+        Iterator<CompletableFuture<Void>> iterator = onStopFutures.iterator();
 
-		private final CountDownLatch countDownLatch;
+        for (int i = 0; i < numberActors - 1; i++) {
+            iterator.next().complete(null);
+        }
 
-		protected CountingAsynchronousOnStopEndpoint(RpcService rpcService, CompletableFuture<Void> onStopFuture, CountDownLatch countDownLatch) {
-			super(rpcService, onStopFuture);
-			this.countDownLatch = countDownLatch;
-		}
+        iterator.next().completeExceptionally(new OnStopException("onStop exception occurred."));
 
-		@Override
-		public CompletableFuture<Void> onStop() {
-			countDownLatch.countDown();
-			return super.onStop();
-		}
-	}
+        for (CompletableFuture<Void> onStopFuture : onStopFutures) {
+            onStopFuture.complete(null);
+        }
 
-	private static class OnStopException extends FlinkException {
-		private static final long serialVersionUID = 7136609202083168954L;
+        try {
+            terminationFuture.get();
+            fail("Expected the termination future to complete exceptionally.");
+        } catch (ExecutionException e) {
+            assertThat(
+                    ExceptionUtils.findThrowable(e, OnStopException.class).isPresent(), is(true));
+        }
 
-		public OnStopException(String message) {
-			super(message);
-		}
-	}
+        assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
+    }
+
+    private Collection<CompletableFuture<Void>> startStopNCountingAsynchronousOnStopEndpoints(
+            AkkaRpcService akkaRpcService, int numberActors) throws Exception {
+        final Collection<CompletableFuture<Void>> onStopFutures = new ArrayList<>(numberActors);
+
+        final CountDownLatch countDownLatch = new CountDownLatch(numberActors);
+
+        for (int i = 0; i < numberActors; i++) {
+            CompletableFuture<Void> onStopFuture = new CompletableFuture<>();
+            final CountingAsynchronousOnStopEndpoint endpoint =
+                    new CountingAsynchronousOnStopEndpoint(
+                            akkaRpcService, onStopFuture, countDownLatch);
+            endpoint.start();
+            onStopFutures.add(onStopFuture);
+        }
+
+        CompletableFuture<Void> terminationFuture = akkaRpcService.stopService();
+
+        assertThat(terminationFuture.isDone(), is(false));
+        assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(false));
+
+        countDownLatch.await();
+
+        return onStopFutures;
+    }
+
+    @Nonnull
+    private AkkaRpcService startAkkaRpcService() {
+        final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+        return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    }
+
+    private static class CountingAsynchronousOnStopEndpoint
+            extends AkkaRpcActorTest.AsynchronousOnStopEndpoint {
+
+        private final CountDownLatch countDownLatch;
+
+        protected CountingAsynchronousOnStopEndpoint(
+                RpcService rpcService,
+                CompletableFuture<Void> onStopFuture,
+                CountDownLatch countDownLatch) {
+            super(rpcService, onStopFuture);
+            this.countDownLatch = countDownLatch;
+        }
+
+        @Override
+        public CompletableFuture<Void> onStop() {
+            countDownLatch.countDown();
+            return super.onStop();
+        }
+    }
+
+    private static class OnStopException extends FlinkException {
+        private static final long serialVersionUID = 7136609202083168954L;
+
+        public OnStopException(String message) {
+            super(message);
+        }
+    }
 }

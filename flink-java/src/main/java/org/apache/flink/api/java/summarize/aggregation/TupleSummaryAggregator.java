@@ -22,51 +22,50 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Aggregate tuples using an array of aggregators, one for each "column" or position within the Tuple.
+ * Aggregate tuples using an array of aggregators, one for each "column" or position within the
+ * Tuple.
  */
 @Internal
 public class TupleSummaryAggregator<R extends Tuple> implements Aggregator<Tuple, R> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Aggregator[] columnAggregators;
+    private final Aggregator[] columnAggregators;
 
-	public TupleSummaryAggregator(Aggregator[] columnAggregators) {
-		this.columnAggregators = columnAggregators;
-	}
+    public TupleSummaryAggregator(Aggregator[] columnAggregators) {
+        this.columnAggregators = columnAggregators;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void aggregate(Tuple value) {
-		for (int i = 0; i < columnAggregators.length; i++) {
-			columnAggregators[i].aggregate(value.getField(i));
-		}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void aggregate(Tuple value) {
+        for (int i = 0; i < columnAggregators.length; i++) {
+            columnAggregators[i].aggregate(value.getField(i));
+        }
+    }
 
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void combine(Aggregator<Tuple, R> other) {
+        TupleSummaryAggregator tupleSummaryAggregator = (TupleSummaryAggregator) other;
+        for (int i = 0; i < columnAggregators.length; i++) {
+            columnAggregators[i].combine(tupleSummaryAggregator.columnAggregators[i]);
+        }
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void combine(Aggregator<Tuple, R> other) {
-		TupleSummaryAggregator tupleSummaryAggregator = (TupleSummaryAggregator) other;
-		for (int i = 0; i < columnAggregators.length; i++) {
-			columnAggregators[i].combine(tupleSummaryAggregator.columnAggregators[i]);
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public R result() {
-		try {
-			Class tupleClass = Tuple.getTupleClass(columnAggregators.length);
-			R tuple = (R) tupleClass.newInstance();
-			for (int i = 0; i < columnAggregators.length; i++) {
-				tuple.setField(columnAggregators[i].result(), i);
-			}
-			return tuple;
-		}
-		catch (InstantiationException | IllegalAccessException e) {
-			throw new RuntimeException("Unexpected error instantiating Tuple class for aggregation results", e);
-
-		}
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public R result() {
+        try {
+            Class tupleClass = Tuple.getTupleClass(columnAggregators.length);
+            R tuple = (R) tupleClass.newInstance();
+            for (int i = 0; i < columnAggregators.length; i++) {
+                tuple.setField(columnAggregators[i].result(), i);
+            }
+            return tuple;
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException(
+                    "Unexpected error instantiating Tuple class for aggregation results", e);
+        }
+    }
 }

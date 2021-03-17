@@ -32,35 +32,33 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link ScalaUtils} convenience methods.
- */
+/** Tests for {@link ScalaUtils} convenience methods. */
 public class ScalaUtilsTest extends TestLogger {
 
-	@Test
-	public void testOptionToOptional() {
-		final String value = "foobar";
-		final Option<String> option = Option.apply(value);
-		final Optional<String> optional = toJava(option);
+    @Test
+    public void testOptionToOptional() {
+        final String value = "foobar";
+        final Option<String> option = Option.apply(value);
+        final Optional<String> optional = toJava(option);
 
-		assertThat(optional.isPresent(), is(true));
-		assertThat(optional.get(), is(value));
+        assertThat(optional.isPresent(), is(true));
+        assertThat(optional.get(), is(value));
 
-		final Option<String> nullOption = Option.apply(null);
-		final Optional<String> nullOptional = toJava(nullOption);
+        final Option<String> nullOption = Option.apply(null);
+        final Optional<String> nullOptional = toJava(nullOption);
 
-		assertThat(nullOptional.isPresent(), is(false));
+        assertThat(nullOptional.isPresent(), is(false));
 
-		try {
-			nullOptional.get();
-			fail("Expected NoSuchElementException");
-		} catch (NoSuchElementException ignored) {
-			// ignored
-		}
+        try {
+            nullOptional.get();
+            fail("Expected NoSuchElementException");
+        } catch (NoSuchElementException ignored) {
+            // ignored
+        }
 
-		final Option<String> emptyOption = Option.empty();
-		final Optional<String> emptyOptional = toJava(emptyOption);
+        final Option<String> emptyOption = Option.empty();
+        final Optional<String> emptyOptional = toJava(emptyOption);
 
-		assertThat(emptyOptional.isPresent(), is(false));
-	}
+        assertThat(emptyOptional.isPresent(), is(false));
+    }
 }

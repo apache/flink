@@ -50,234 +50,262 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CsvFormatFactory}.
- */
+/** Tests for {@link CsvFormatFactory}. */
 public class CsvFormatFactoryTest extends TestLogger {
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	private static final TableSchema SCHEMA = TableSchema.builder()
-			.field("a", DataTypes.STRING())
-			.field("b", DataTypes.INT())
-			.field("c", DataTypes.BOOLEAN())
-			.build();
+    private static final TableSchema SCHEMA =
+            TableSchema.builder()
+                    .field("a", DataTypes.STRING())
+                    .field("b", DataTypes.INT())
+                    .field("c", DataTypes.BOOLEAN())
+                    .build();
 
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
-	@Test
-	public void testSeDeSchema() {
-		final CsvRowDataDeserializationSchema expectedDeser =
-				new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
-						.setFieldDelimiter(';')
-						.setQuoteCharacter('\'')
-						.setAllowComments(true)
-						.setIgnoreParseErrors(true)
-						.setArrayElementDelimiter("|")
-						.setEscapeCharacter('\\')
-						.setNullLiteral("n/a")
-						.build();
-		final Map<String, String> options = getAllOptions();
-		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-		assertEquals(expectedDeser, actualDeser);
+    @Test
+    public void testSeDeSchema() {
+        final CsvRowDataDeserializationSchema expectedDeser =
+                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                        .setFieldDelimiter(';')
+                        .setQuoteCharacter('\'')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
+        final Map<String, String> options = getAllOptions();
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+        assertEquals(expectedDeser, actualDeser);
 
-		final CsvRowDataSerializationSchema expectedSer = new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
-			.setFieldDelimiter(';')
-			.setQuoteCharacter('\'')
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.build();
-		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-		assertEquals(expectedSer, actualSer);
-	}
+        final CsvRowDataSerializationSchema expectedSer =
+                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                        .setFieldDelimiter(';')
+                        .setQuoteCharacter('\'')
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
+        SerializationSchema<RowData> actualSer = createSerializationSchema(options);
+        assertEquals(expectedSer, actualSer);
+    }
 
-	@Test
-	public void testDisableQuoteCharacter() {
-		final Map<String, String> options = getModifiedOptions(opts -> {
-			opts.put("csv.disable-quote-character", "true");
-			opts.remove("csv.quote-character");
-		});
+    @Test
+    public void testDisableQuoteCharacter() {
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> {
+                            opts.put("csv.disable-quote-character", "true");
+                            opts.remove("csv.quote-character");
+                        });
 
-		final CsvRowDataSerializationSchema expectedSer = new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
-			.setFieldDelimiter(';')
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.disableQuoteCharacter()
-			.build();
-		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
+        final CsvRowDataDeserializationSchema expectedDeser =
+                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                        .setFieldDelimiter(';')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
 
-		assertEquals(expectedSer, actualSer);
-	}
+        assertEquals(expectedDeser, actualDeser);
 
-	@Test
-	public void testDisableQuoteCharacterException() {
-		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException(
-			"Format cannot define a quote character and disabled quote character at the same time.")));
+        final CsvRowDataSerializationSchema expectedSer =
+                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                        .setFieldDelimiter(';')
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
+        SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 
-		final Map<String, String> options = getModifiedOptions(opts ->
-			opts.put("csv.disable-quote-character", "true")
-		);
+        assertEquals(expectedSer, actualSer);
+    }
 
-		createTableSink(options);
-	}
+    @Test
+    public void testDisableQuoteCharacterException() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new ValidationException(
+                                "Format cannot define a quote character and disabled quote character at the same time.")));
 
-	@Test
-	public void testInvalidCharacterOption() {
-		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException(
-			"Option 'csv.quote-character' must be a string with single character, but was: abc")));
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("csv.disable-quote-character", "true"));
 
-		final Map<String, String> options =
-				getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
+        createTableSink(options);
+    }
 
-		createTableSink(options);
-	}
+    @Test
+    public void testInvalidCharacterOption() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new ValidationException(
+                                "Option 'csv.quote-character' must be a string with single character, but was: abc")));
 
-	@Test
-	public void testEscapedFieldDelimiter() throws IOException {
-		final CsvRowDataSerializationSchema expectedSer = new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
-			.setFieldDelimiter('\t')
-			.setQuoteCharacter('\'')
-			.setArrayElementDelimiter("|")
-			.setEscapeCharacter('\\')
-			.setNullLiteral("n/a")
-			.build();
-		final CsvRowDataDeserializationSchema expectedDeser =
-			new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
-				.setFieldDelimiter('\t')
-				.setQuoteCharacter('\'')
-				.setAllowComments(true)
-				.setIgnoreParseErrors(true)
-				.setArrayElementDelimiter("|")
-				.setEscapeCharacter('\\')
-				.setNullLiteral("n/a")
-				.build();
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
 
-		// test schema
-		final Map<String, String> options1 =
-			getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
-		SerializationSchema<RowData> serializationSchema1 = createSerializationSchema(options1);
-		DeserializationSchema<RowData> deserializationSchema1 = createDeserializationSchema(options1);
-		assertEquals(expectedSer, serializationSchema1);
-		assertEquals(expectedDeser, deserializationSchema1);
+        createTableSink(options);
+    }
 
-		final Map<String, String> options2 =
-			getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\\t"));
-		SerializationSchema<RowData> serializationSchema2 = createSerializationSchema(options2);
-		DeserializationSchema<RowData> deserializationSchema2 = createDeserializationSchema(options2);
-		assertEquals(expectedSer, serializationSchema2);
-		assertEquals(expectedDeser, deserializationSchema2);
+    @Test
+    public void testEscapedFieldDelimiter() throws IOException {
+        final CsvRowDataSerializationSchema expectedSer =
+                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                        .setFieldDelimiter('\t')
+                        .setQuoteCharacter('\'')
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
+        final CsvRowDataDeserializationSchema expectedDeser =
+                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                        .setFieldDelimiter('\t')
+                        .setQuoteCharacter('\'')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .build();
 
-		// test (de)serialization
-		RowData rowData = GenericRowData.of(fromString("abc"), 123, false);
-		byte[] bytes = serializationSchema2.serialize(rowData);
-		assertEquals("abc\t123\tfalse", new String(bytes));
-		RowData actual = deserializationSchema2.deserialize("abc\t123\tfalse".getBytes());
-		assertEquals(rowData, actual);
-	}
+        // test schema
+        final Map<String, String> options1 =
+                getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
+        SerializationSchema<RowData> serializationSchema1 = createSerializationSchema(options1);
+        DeserializationSchema<RowData> deserializationSchema1 =
+                createDeserializationSchema(options1);
+        assertEquals(expectedSer, serializationSchema1);
+        assertEquals(expectedDeser, deserializationSchema1);
 
-	@Test
-	public void testDeserializeWithEscapedFieldDelimiter() throws IOException {
-		// test deserialization schema
-		final Map<String, String> options =
-			getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
+        final Map<String, String> options2 =
+                getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\\t"));
+        SerializationSchema<RowData> serializationSchema2 = createSerializationSchema(options2);
+        DeserializationSchema<RowData> deserializationSchema2 =
+                createDeserializationSchema(options2);
+        assertEquals(expectedSer, serializationSchema2);
+        assertEquals(expectedDeser, deserializationSchema2);
 
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
-			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+        // test (de)serialization
+        RowData rowData = GenericRowData.of(fromString("abc"), 123, false);
+        byte[] bytes = serializationSchema2.serialize(rowData);
+        assertEquals("abc\t123\tfalse", new String(bytes));
+        RowData actual = deserializationSchema2.deserialize("abc\t123\tfalse".getBytes());
+        assertEquals(rowData, actual);
+    }
 
-		DeserializationSchema<RowData> deserializationSchema =
-			sourceMock.valueFormat.createRuntimeDecoder(ScanRuntimeProviderContext.INSTANCE,
-				SCHEMA.toRowDataType());
-		RowData expected = GenericRowData.of(fromString("abc"), 123, false);
-		RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
-		assertEquals(expected, actual);
-	}
+    @Test
+    public void testDeserializeWithEscapedFieldDelimiter() throws IOException {
+        // test deserialization schema
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
 
-	@Test
-	public void testInvalidIgnoreParseError() {
-		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new IllegalArgumentException("Unrecognized option for boolean: abc. "
-						+ "Expected either true or false(case insensitive)")));
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		final Map<String, String> options =
-				getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
+        DeserializationSchema<RowData> deserializationSchema =
+                sourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+        RowData expected = GenericRowData.of(fromString("abc"), 123, false);
+        RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
+        assertEquals(expected, actual);
+    }
 
-		createTableSink(options);
-	}
+    @Test
+    public void testInvalidIgnoreParseError() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. "
+                                        + "Expected either true or false(case insensitive)")));
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
 
-	/**
-	 * Returns the full options modified by the given consumer {@code optionModifier}.
-	 *
-	 * @param optionModifier Consumer to modify the options
-	 */
-	private static Map<String, String> getModifiedOptions(Consumer<Map<String, String>> optionModifier) {
-		Map<String, String> options = getAllOptions();
-		optionModifier.accept(options);
-		return options;
-	}
+        createTableSink(options);
+    }
 
-	private static Map<String, String> getAllOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-		options.put("format", CsvFormatFactory.IDENTIFIER);
-		options.put("csv.field-delimiter", ";");
-		options.put("csv.quote-character", "'");
-		options.put("csv.allow-comments", "true");
-		options.put("csv.ignore-parse-errors", "true");
-		options.put("csv.array-element-delimiter", "|");
-		options.put("csv.escape-character", "\\");
-		options.put("csv.null-literal", "n/a");
-		return options;
-	}
+    /**
+     * Returns the full options modified by the given consumer {@code optionModifier}.
+     *
+     * @param optionModifier Consumer to modify the options
+     */
+    private static Map<String, String> getModifiedOptions(
+            Consumer<Map<String, String>> optionModifier) {
+        Map<String, String> options = getAllOptions();
+        optionModifier.accept(options);
+        return options;
+    }
 
-	private static DeserializationSchema<RowData> createDeserializationSchema(Map<String, String> options) {
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
-			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+    private static Map<String, String> getAllOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-		return sourceMock.valueFormat
-			.createRuntimeDecoder(ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
-	}
+        options.put("format", CsvFormatFactory.IDENTIFIER);
+        options.put("csv.field-delimiter", ";");
+        options.put("csv.quote-character", "'");
+        options.put("csv.allow-comments", "true");
+        options.put("csv.ignore-parse-errors", "true");
+        options.put("csv.array-element-delimiter", "|");
+        options.put("csv.escape-character", "\\");
+        options.put("csv.null-literal", "n/a");
+        return options;
+    }
 
-	private static SerializationSchema<RowData> createSerializationSchema(Map<String, String> options) {
-		final DynamicTableSink actualSink = createTableSink(options);
-		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+    private static DeserializationSchema<RowData> createDeserializationSchema(
+            Map<String, String> options) {
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		return sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
-	}
+        return sourceMock.valueFormat.createRuntimeDecoder(
+                ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+    }
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock source"),
-				new Configuration(),
-				CsvFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+    private static SerializationSchema<RowData> createSerializationSchema(
+            Map<String, String> options) {
+        final DynamicTableSink actualSink = createTableSink(options);
+        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock sink"),
-				new Configuration(),
-				CsvFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+        return sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
+    }
+
+    private static DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock source"),
+                new Configuration(),
+                CsvFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
+
+    private static DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock sink"),
+                new Configuration(),
+                CsvFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 }

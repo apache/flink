@@ -24,55 +24,50 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-/**
- * Testing implementation of {@link DispatcherRunner}.
- */
+/** Testing implementation of {@link DispatcherRunner}. */
 public class TestingDispatcherRunner implements DispatcherRunner {
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
-	private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
+    private final CompletableFuture<ApplicationStatus> shutDownFuture;
+    private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
 
-	private TestingDispatcherRunner(
-			CompletableFuture<ApplicationStatus> shutDownFuture,
-			Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
-		this.shutDownFuture = shutDownFuture;
-		this.closeAsyncSupplier = closeAsyncSupplier;
-	}
+    private TestingDispatcherRunner(
+            CompletableFuture<ApplicationStatus> shutDownFuture,
+            Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
+        this.shutDownFuture = shutDownFuture;
+        this.closeAsyncSupplier = closeAsyncSupplier;
+    }
 
-	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
+    @Override
+    public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+        return shutDownFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		return closeAsyncSupplier.get();
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        return closeAsyncSupplier.get();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for {@link TestingDispatcherRunner}.
-	 */
-	public static final class Builder {
-		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
-		private Supplier<CompletableFuture<Void>> closeAsyncSupplier = FutureUtils::completedVoidFuture;
+    /** Builder for {@link TestingDispatcherRunner}. */
+    public static final class Builder {
+        private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+        private Supplier<CompletableFuture<Void>> closeAsyncSupplier =
+                FutureUtils::completedVoidFuture;
 
-		public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
-			this.closeAsyncSupplier = closeAsyncSupplier;
-			return this;
-		}
+        public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
+            this.closeAsyncSupplier = closeAsyncSupplier;
+            return this;
+        }
 
-		public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
-			this.shutDownFuture = shutDownFuture;
-			return this;
-		}
+        public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
+            this.shutDownFuture = shutDownFuture;
+            return this;
+        }
 
-		public TestingDispatcherRunner build() {
-			return new TestingDispatcherRunner(
-					shutDownFuture,
-					closeAsyncSupplier);
-		}
-	}
+        public TestingDispatcherRunner build() {
+            return new TestingDispatcherRunner(shutDownFuture, closeAsyncSupplier);
+        }
+    }
 }

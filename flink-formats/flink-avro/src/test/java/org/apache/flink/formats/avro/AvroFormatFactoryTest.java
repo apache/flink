@@ -42,85 +42,81 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link AvroFormatFactory}.
- */
+/** Tests for the {@link AvroFormatFactory}. */
 public class AvroFormatFactoryTest extends TestLogger {
 
-	private static final TableSchema SCHEMA = TableSchema.builder()
-			.field("a", DataTypes.STRING())
-			.field("b", DataTypes.INT())
-			.field("c", DataTypes.BOOLEAN())
-			.build();
+    private static final TableSchema SCHEMA =
+            TableSchema.builder()
+                    .field("a", DataTypes.STRING())
+                    .field("b", DataTypes.INT())
+                    .field("c", DataTypes.BOOLEAN())
+                    .build();
 
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
-	@Test
-	public void testSeDeSchema() {
-		final AvroRowDataDeserializationSchema expectedDeser =
-				new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
+    @Test
+    public void testSeDeSchema() {
+        final AvroRowDataDeserializationSchema expectedDeser =
+                new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
 
-		final Map<String, String> options = getAllOptions();
+        final Map<String, String> options = getAllOptions();
 
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-				(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
-				.createRuntimeDecoder(
-						ScanRuntimeProviderContext.INSTANCE,
-						SCHEMA.toRowDataType());
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
 
-		assertEquals(expectedDeser, actualDeser);
+        assertEquals(expectedDeser, actualDeser);
 
-		final AvroRowDataSerializationSchema expectedSer =
-				new AvroRowDataSerializationSchema(ROW_TYPE);
+        final AvroRowDataSerializationSchema expectedSer =
+                new AvroRowDataSerializationSchema(ROW_TYPE);
 
-		final DynamicTableSink actualSink = createTableSink(options);
-		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-				(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+        final DynamicTableSink actualSink = createTableSink(options);
+        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
-				.createRuntimeEncoder(
-						null,
-						SCHEMA.toRowDataType());
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
 
-		assertEquals(expectedSer, actualSer);
-	}
+        assertEquals(expectedSer, actualSer);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	private Map<String, String> getAllOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
+    private Map<String, String> getAllOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-		options.put("format", AvroFormatFactory.IDENTIFIER);
-		return options;
-	}
+        options.put("format", AvroFormatFactory.IDENTIFIER);
+        return options;
+    }
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock source"),
-				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+    private static DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock source"),
+                new Configuration(),
+                AvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock sink"),
-				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+    private static DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock sink"),
+                new Configuration(),
+                AvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 }

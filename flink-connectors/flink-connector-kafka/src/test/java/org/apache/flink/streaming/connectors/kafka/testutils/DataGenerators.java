@@ -42,188 +42,203 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
-/**
- * Test data generators.
- */
+/** Test data generators. */
 @SuppressWarnings("serial")
 public class DataGenerators {
 
-	public static void generateRandomizedIntegerSequence(
-			StreamExecutionEnvironment env,
-			KafkaTestEnvironment testServer, String topic,
-			final int numPartitions,
-			final int numElements,
-			final boolean randomizeOrder) throws Exception {
-		env.setParallelism(numPartitions);
-				env.setRestartStrategy(RestartStrategies.noRestart());
+    public static void generateRandomizedIntegerSequence(
+            StreamExecutionEnvironment env,
+            KafkaTestEnvironment testServer,
+            String topic,
+            final int numPartitions,
+            final int numElements,
+            final boolean randomizeOrder)
+            throws Exception {
+        env.setParallelism(numPartitions);
+        env.setRestartStrategy(RestartStrategies.noRestart());
 
-		DataStream<Integer> stream = env.addSource(
-				new RichParallelSourceFunction<Integer>() {
+        DataStream<Integer> stream =
+                env.addSource(
+                        new RichParallelSourceFunction<Integer>() {
 
-					private volatile boolean running = true;
+                            private volatile boolean running = true;
 
-					@Override
-					public void run(SourceContext<Integer> ctx) {
-						// create a sequence
-						int[] elements = new int[numElements];
-						for (int i = 0, val = getRuntimeContext().getIndexOfThisSubtask();
-							i < numElements;
-							i++, val += getRuntimeContext().getNumberOfParallelSubtasks()) {
+                            @Override
+                            public void run(SourceContext<Integer> ctx) {
+                                // create a sequence
+                                int[] elements = new int[numElements];
+                                for (int i = 0, val = getRuntimeContext().getIndexOfThisSubtask();
+                                        i < numElements;
+                                        i++,
+                                                val +=
+                                                        getRuntimeContext()
+                                                                .getNumberOfParallelSubtasks()) {
 
-							elements[i] = val;
-						}
+                                    elements[i] = val;
+                                }
 
-						// scramble the sequence
-						if (randomizeOrder) {
-							Random rnd = new Random();
-							for (int i = 0; i < elements.length; i++) {
-								int otherPos = rnd.nextInt(elements.length);
+                                // scramble the sequence
+                                if (randomizeOrder) {
+                                    Random rnd = new Random();
+                                    for (int i = 0; i < elements.length; i++) {
+                                        int otherPos = rnd.nextInt(elements.length);
 
-								int tmp = elements[i];
-								elements[i] = elements[otherPos];
-								elements[otherPos] = tmp;
-							}
-						}
+                                        int tmp = elements[i];
+                                        elements[i] = elements[otherPos];
+                                        elements[otherPos] = tmp;
+                                    }
+                                }
 
-						// emit the sequence
-						int pos = 0;
-						while (running && pos < elements.length) {
-							ctx.collect(elements[pos++]);
-						}
-					}
+                                // emit the sequence
+                                int pos = 0;
+                                while (running && pos < elements.length) {
+                                    ctx.collect(elements[pos++]);
+                                }
+                            }
 
-					@Override
-					public void cancel() {
-						running = false;
-					}
-				});
+                            @Override
+                            public void cancel() {
+                                running = false;
+                            }
+                        });
 
-		Properties props = new Properties();
-		props.putAll(FlinkKafkaProducerBase.getPropertiesFromBrokerList(testServer.getBrokerConnectionString()));
-		Properties secureProps = testServer.getSecureProperties();
-		if (secureProps != null) {
-			props.putAll(testServer.getSecureProperties());
-		}
-		// Ensure the producer enables idempotence.
-		props.putAll(testServer.getIdempotentProducerConfig());
+        Properties props = new Properties();
+        props.putAll(
+                FlinkKafkaProducerBase.getPropertiesFromBrokerList(
+                        testServer.getBrokerConnectionString()));
+        Properties secureProps = testServer.getSecureProperties();
+        if (secureProps != null) {
+            props.putAll(testServer.getSecureProperties());
+        }
+        // Ensure the producer enables idempotence.
+        props.putAll(testServer.getIdempotentProducerConfig());
 
-		stream = stream.rebalance();
-		testServer.produceIntoKafka(stream, topic,
-				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig()),
-				props,
-				new FlinkKafkaPartitioner<Integer>() {
-					@Override
-					public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, String topic, int[] partitions) {
-						return next % partitions.length;
-					}
-				});
+        stream = stream.rebalance();
+        testServer.produceIntoKafka(
+                stream,
+                topic,
+                new TypeInformationSerializationSchema<>(
+                        BasicTypeInfo.INT_TYPE_INFO, env.getConfig()),
+                props,
+                new FlinkKafkaPartitioner<Integer>() {
+                    @Override
+                    public int partition(
+                            Integer next,
+                            byte[] serializedKey,
+                            byte[] serializedValue,
+                            String topic,
+                            int[] partitions) {
+                        return next % partitions.length;
+                    }
+                });
 
-		env.execute("Scrambles int sequence generator");
-	}
+        env.execute("Scrambles int sequence generator");
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * A generator that continuously writes strings into the configured topic. The generation is stopped if an exception
-	 * occurs or {@link #shutdown()} is called.
-	 */
-	public static class InfiniteStringsGenerator extends Thread {
+    /**
+     * A generator that continuously writes strings into the configured topic. The generation is
+     * stopped if an exception occurs or {@link #shutdown()} is called.
+     */
+    public static class InfiniteStringsGenerator extends Thread {
 
-		private final KafkaTestEnvironment server;
+        private final KafkaTestEnvironment server;
 
-		private final String topic;
+        private final String topic;
 
-		private volatile Throwable error;
+        private volatile Throwable error;
 
-		private volatile boolean running = true;
+        private volatile boolean running = true;
 
-		public InfiniteStringsGenerator(KafkaTestEnvironment server, String topic) {
-			this.server = server;
-			this.topic = topic;
-		}
+        public InfiniteStringsGenerator(KafkaTestEnvironment server, String topic) {
+            this.server = server;
+            this.topic = topic;
+        }
 
-		@Override
-		public void run() {
-			// we manually feed data into the Kafka sink
-			RichFunction producer = null;
-			try {
-				Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString());
-				producerProperties.setProperty("retries", "3");
-				Transformation<String> mockTransform = new MockTransformation();
-				DataStream<String> stream = new DataStream<>(new DummyStreamExecutionEnvironment(), mockTransform);
+        @Override
+        public void run() {
+            // we manually feed data into the Kafka sink
+            RichFunction producer = null;
+            try {
+                Properties producerProperties =
+                        FlinkKafkaProducerBase.getPropertiesFromBrokerList(
+                                server.getBrokerConnectionString());
+                producerProperties.setProperty("retries", "3");
+                Transformation<String> mockTransform = new MockTransformation();
+                DataStream<String> stream =
+                        new DataStream<>(new DummyStreamExecutionEnvironment(), mockTransform);
 
-				StreamSink<String> sink = server.getProducerSink(
-						topic,
-						new SimpleStringSchema(),
-						producerProperties,
-						new FlinkFixedPartitioner<>());
+                StreamSink<String> sink =
+                        server.getProducerSink(
+                                topic,
+                                new SimpleStringSchema(),
+                                producerProperties,
+                                new FlinkFixedPartitioner<>());
 
-				OneInputStreamOperatorTestHarness<String, Object> testHarness =
-						new OneInputStreamOperatorTestHarness<>(sink);
+                OneInputStreamOperatorTestHarness<String, Object> testHarness =
+                        new OneInputStreamOperatorTestHarness<>(sink);
 
-				testHarness.open();
+                testHarness.open();
 
-				final StringBuilder bld = new StringBuilder();
-				final Random rnd = new Random();
+                final StringBuilder bld = new StringBuilder();
+                final Random rnd = new Random();
 
-				while (running) {
-					bld.setLength(0);
+                while (running) {
+                    bld.setLength(0);
 
-					int len = rnd.nextInt(100) + 1;
-					for (int i = 0; i < len; i++) {
-						bld.append((char) (rnd.nextInt(20) + 'a'));
-					}
+                    int len = rnd.nextInt(100) + 1;
+                    for (int i = 0; i < len; i++) {
+                        bld.append((char) (rnd.nextInt(20) + 'a'));
+                    }
 
-					String next = bld.toString();
-					testHarness.processElement(new StreamRecord<>(next));
-				}
-			}
-			catch (Throwable t) {
-				this.error = t;
-			}
-			finally {
-				if (producer != null) {
-					try {
-						producer.close();
-					}
-					catch (Throwable t) {
-						// ignore
-					}
-				}
-			}
-		}
+                    String next = bld.toString();
+                    testHarness.processElement(new StreamRecord<>(next));
+                }
+            } catch (Throwable t) {
+                this.error = t;
+            } finally {
+                if (producer != null) {
+                    try {
+                        producer.close();
+                    } catch (Throwable t) {
+                        // ignore
+                    }
+                }
+            }
+        }
 
-		public void shutdown() {
-			this.running = false;
-			this.interrupt();
-		}
+        public void shutdown() {
+            this.running = false;
+            this.interrupt();
+        }
 
-		public Throwable getError() {
-			return this.error;
-		}
+        public Throwable getError() {
+            return this.error;
+        }
 
-		private static class MockTransformation extends Transformation<String> {
-			public MockTransformation() {
-				super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1);
-			}
+        private static class MockTransformation extends Transformation<String> {
+            public MockTransformation() {
+                super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1);
+            }
 
-			@Override
-			public List<Transformation<?>> getTransitivePredecessors() {
-				return null;
-			}
+            @Override
+            public List<Transformation<?>> getTransitivePredecessors() {
+                return null;
+            }
 
-			@Override
-			public List<Transformation<?>> getInputs() {
-				return Collections.emptyList();
-			}
-		}
+            @Override
+            public List<Transformation<?>> getInputs() {
+                return Collections.emptyList();
+            }
+        }
 
-		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+        private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
-			@Override
-			public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-				return null;
-			}
-		}
-	}
+            @Override
+            public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+                return null;
+            }
+        }
+    }
 }

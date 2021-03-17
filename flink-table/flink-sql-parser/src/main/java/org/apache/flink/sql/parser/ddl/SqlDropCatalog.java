@@ -30,46 +30,45 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-/**
- * DROP CATALOG DDL sql call.
- */
+/** DROP CATALOG DDL sql call. */
 public class SqlDropCatalog extends SqlDrop {
 
-	private static final SqlOperator OPERATOR = new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
+    private static final SqlOperator OPERATOR =
+            new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
 
-	private final SqlIdentifier catalogName;
-	private final boolean ifExists;
+    private final SqlIdentifier catalogName;
+    private final boolean ifExists;
 
-	public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
-		super(OPERATOR, pos, false);
-		this.catalogName = catalogName;
-		this.ifExists = ifExists;
-	}
+    public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
+        super(OPERATOR, pos, false);
+        this.catalogName = catalogName;
+        this.ifExists = ifExists;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(catalogName);
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(catalogName);
+    }
 
-	public SqlIdentifier getCatalogName() {
-		return catalogName;
-	}
+    public SqlIdentifier getCatalogName() {
+        return catalogName;
+    }
 
-	public boolean getIfExists() {
-		return this.ifExists;
-	}
+    public boolean getIfExists() {
+        return this.ifExists;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("DROP");
-		writer.keyword("CATALOG");
-		if (ifExists) {
-			writer.keyword("IF EXISTS");
-		}
-		catalogName.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("DROP");
+        writer.keyword("CATALOG");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
+        catalogName.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public String catalogName() {
-		return catalogName.getSimple();
-	}
+    public String catalogName() {
+        return catalogName.getSimple();
+    }
 }

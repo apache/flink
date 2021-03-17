@@ -34,88 +34,98 @@ import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.junit.Assert.assertArrayEquals;
 
-/**
- * {@link SpanningWrapper} test.
- */
+/** {@link SpanningWrapper} test. */
 public class SpanningWrapperTest {
 
-	private static final Random random = new Random();
+    private static final Random random = new Random();
 
-	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-	@Test
-	public void testLargeUnconsumedSegment() throws Exception {
-		int recordLen = 100;
-		int firstChunk = (int) (recordLen * .9);
-		int spillingThreshold = (int) (firstChunk * .9);
+    @Test
+    public void testLargeUnconsumedSegment() throws Exception {
+        int recordLen = 100;
+        int firstChunk = (int) (recordLen * .9);
+        int spillingThreshold = (int) (firstChunk * .9);
 
-		byte[] record1 = recordBytes(recordLen);
-		byte[] record2 = recordBytes(recordLen * 2);
+        byte[] record1 = recordBytes(recordLen);
+        byte[] record2 = recordBytes(recordLen * 2);
 
-		File canNotEecutableFile = folder.newFolder();
-		canNotEecutableFile.setExecutable(false);
-		// Always pick 'canNotEecutableFile' first as the Spilling Channel TmpDir. Thus trigger an IOException.
-		SpanningWrapper spanningWrapper = new SpanningWrapper(new String[]{folder.newFolder().getAbsolutePath(), canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"}, spillingThreshold, recordLen);
-		spanningWrapper.transferFrom(wrapNonSpanning(record1, firstChunk), recordLen);
-		spanningWrapper.addNextChunkFromMemorySegment(wrap(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
-		spanningWrapper.addNextChunkFromMemorySegment(wrap(record2), 0, record2.length);
+        File canNotEecutableFile = folder.newFolder();
+        canNotEecutableFile.setExecutable(false);
+        // Always pick 'canNotEecutableFile' first as the Spilling Channel TmpDir. Thus trigger an
+        // IOException.
+        SpanningWrapper spanningWrapper =
+                new SpanningWrapper(
+                        new String[] {
+                            folder.newFolder().getAbsolutePath(),
+                            canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"
+                        },
+                        spillingThreshold,
+                        recordLen);
+        spanningWrapper.transferFrom(wrapNonSpanning(record1, firstChunk), recordLen);
+        spanningWrapper.addNextChunkFromMemorySegment(
+                wrap(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
+        spanningWrapper.addNextChunkFromMemorySegment(wrap(record2), 0, record2.length);
 
-		CloseableIterator<Buffer> unconsumedSegment = spanningWrapper.getUnconsumedSegment();
+        CloseableIterator<Buffer> unconsumedSegment = spanningWrapper.getUnconsumedSegment();
 
-		spanningWrapper.getInputView().readFully(new byte[recordLen], 0, recordLen); // read out from file
-		spanningWrapper.transferLeftOverTo(new NonSpanningWrapper()); // clear any leftover
-		spanningWrapper.transferFrom(wrapNonSpanning(recordBytes(recordLen), recordLen), recordLen); // overwrite with new data
+        spanningWrapper
+                .getInputView()
+                .readFully(new byte[recordLen], 0, recordLen); // read out from file
+        spanningWrapper.transferLeftOverTo(new NonSpanningWrapper()); // clear any leftover
+        spanningWrapper.transferFrom(
+                wrapNonSpanning(recordBytes(recordLen), recordLen),
+                recordLen); // overwrite with new data
 
-		canNotEecutableFile.setExecutable(true);
+        canNotEecutableFile.setExecutable(true);
 
-		assertArrayEquals(concat(record1, record2), toByteArray(unconsumedSegment));
-	}
+        assertArrayEquals(concat(record1, record2), toByteArray(unconsumedSegment));
+    }
 
-	private byte[] recordBytes(int recordLen) {
-		byte[] inputData = randomBytes(recordLen + LENGTH_BYTES);
-		for (int i = 0; i < Integer.BYTES; i++) {
-			inputData[Integer.BYTES - i - 1] = (byte) (recordLen >>> i * 8);
-		}
-		return inputData;
-	}
+    private byte[] recordBytes(int recordLen) {
+        byte[] inputData = randomBytes(recordLen + LENGTH_BYTES);
+        for (int i = 0; i < Integer.BYTES; i++) {
+            inputData[Integer.BYTES - i - 1] = (byte) (recordLen >>> i * 8);
+        }
+        return inputData;
+    }
 
-	private NonSpanningWrapper wrapNonSpanning(byte[] bytes, int len) {
-		NonSpanningWrapper nonSpanningWrapper = new NonSpanningWrapper();
-		MemorySegment segment = wrap(bytes);
-		nonSpanningWrapper.initializeFromMemorySegment(segment, 0, len);
-		nonSpanningWrapper.readInt(); // emulate read length performed in getNextRecord to move position
-		return nonSpanningWrapper;
-	}
+    private NonSpanningWrapper wrapNonSpanning(byte[] bytes, int len) {
+        NonSpanningWrapper nonSpanningWrapper = new NonSpanningWrapper();
+        MemorySegment segment = wrap(bytes);
+        nonSpanningWrapper.initializeFromMemorySegment(segment, 0, len);
+        nonSpanningWrapper
+                .readInt(); // emulate read length performed in getNextRecord to move position
+        return nonSpanningWrapper;
+    }
 
-	private byte[] toByteArray(CloseableIterator<Buffer> unconsumed) {
-		final List<Buffer> buffers = new ArrayList<>();
-		try {
-			unconsumed.forEachRemaining(buffers::add);
-			byte[] result = new byte[buffers.stream().mapToInt(Buffer::readableBytes).sum()];
-			int offset = 0;
-			for (Buffer buffer : buffers) {
-				int len = buffer.readableBytes();
-				buffer.getNioBuffer(0, len).get(result, offset, len);
-				offset += len;
-			}
-			return result;
-		} finally {
-			buffers.forEach(Buffer::recycleBuffer);
-		}
-	}
+    private byte[] toByteArray(CloseableIterator<Buffer> unconsumed) {
+        final List<Buffer> buffers = new ArrayList<>();
+        try {
+            unconsumed.forEachRemaining(buffers::add);
+            byte[] result = new byte[buffers.stream().mapToInt(Buffer::readableBytes).sum()];
+            int offset = 0;
+            for (Buffer buffer : buffers) {
+                int len = buffer.readableBytes();
+                buffer.getNioBuffer(0, len).get(result, offset, len);
+                offset += len;
+            }
+            return result;
+        } finally {
+            buffers.forEach(Buffer::recycleBuffer);
+        }
+    }
 
-	private byte[] randomBytes(int length) {
-		byte[] inputData = new byte[length];
-		random.nextBytes(inputData);
-		return inputData;
-	}
+    private byte[] randomBytes(int length) {
+        byte[] inputData = new byte[length];
+        random.nextBytes(inputData);
+        return inputData;
+    }
 
-	private byte[] concat(byte[] input1, byte[] input2) {
-		byte[] expected = new byte[input1.length + input2.length];
-		System.arraycopy(input1, 0, expected, 0, input1.length);
-		System.arraycopy(input2, 0, expected, input1.length, input2.length);
-		return expected;
-	}
-
+    private byte[] concat(byte[] input1, byte[] input2) {
+        byte[] expected = new byte[input1.length + input2.length];
+        System.arraycopy(input1, 0, expected, 0, input1.length);
+        System.arraycopy(input2, 0, expected, input1.length, input2.length);
+        return expected;
+    }
 }

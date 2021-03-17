@@ -28,16 +28,17 @@ import java.util.Collections;
  */
 public class JobCancellationMessageParameters extends MessageParameters {
 
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
+    public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+    public final TerminationModeQueryParameter terminationModeQueryParameter =
+            new TerminationModeQueryParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(jobPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(terminationModeQueryParameter);
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singleton(terminationModeQueryParameter);
+    }
 }

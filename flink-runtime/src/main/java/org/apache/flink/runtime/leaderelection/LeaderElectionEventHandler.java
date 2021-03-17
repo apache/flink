@@ -19,33 +19,32 @@
 package org.apache.flink.runtime.leaderelection;
 
 /**
- * Interface which should be implemented to respond to leader changes in {@link LeaderElectionDriver}.
+ * Interface which should be implemented to respond to leader changes in {@link
+ * LeaderElectionDriver}.
  *
- * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is no
- * {@link LeaderElectionEventHandler} callbacks happen after {@link LeaderElectionDriver#close()}. This
- * means that the implementor of {@link LeaderElectionEventHandler} is responsible for filtering out
- * spurious callbacks(e.g. after close has been called on {@link LeaderElectionDriver}).
+ * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is
+ * no {@link LeaderElectionEventHandler} callbacks happen after {@link
+ * LeaderElectionDriver#close()}. This means that the implementor of {@link
+ * LeaderElectionEventHandler} is responsible for filtering out spurious callbacks(e.g. after close
+ * has been called on {@link LeaderElectionDriver}).
  */
 public interface LeaderElectionEventHandler {
 
-	/**
-	 * Called by specific {@link LeaderElectionDriver} when the leadership is granted.
-	 */
-	void onGrantLeadership();
+    /** Called by specific {@link LeaderElectionDriver} when the leadership is granted. */
+    void onGrantLeadership();
 
-	/**
-	 * Called by specific {@link LeaderElectionDriver} when the leadership is revoked.
-	 */
-	void onRevokeLeadership();
+    /** Called by specific {@link LeaderElectionDriver} when the leadership is revoked. */
+    void onRevokeLeadership();
 
-	/**
-	 * Called by specific {@link LeaderElectionDriver} when the leader information is changed. Then the
-	 * {@link LeaderElectionService} could write the leader information again if necessary. This method
-	 * should only be called when {@link LeaderElectionDriver#hasLeadership()} is true. Duplicated leader
-	 * change events could happen, so the implementation should check whether the passed leader information
-	 * is really different with internal confirmed leader information.
-	 *
-	 * @param leaderInformation leader information which contains leader session id and leader address.
-	 */
-	void onLeaderInformationChange(LeaderInformation leaderInformation);
+    /**
+     * Called by specific {@link LeaderElectionDriver} when the leader information is changed. Then
+     * the {@link LeaderElectionService} could write the leader information again if necessary. This
+     * method should only be called when {@link LeaderElectionDriver#hasLeadership()} is true.
+     * Duplicated leader change events could happen, so the implementation should check whether the
+     * passed leader information is really different with internal confirmed leader information.
+     *
+     * @param leaderInformation leader information which contains leader session id and leader
+     *     address.
+     */
+    void onLeaderInformationChange(LeaderInformation leaderInformation);
 }

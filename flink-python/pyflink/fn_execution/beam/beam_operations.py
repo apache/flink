@@ -110,6 +110,16 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
         operations.KeyedProcessFunctionOperation)
 
 
+@bundle_processor.BeamTransformFactory.register_urn(
+    operations.STREAM_GROUP_TABLE_AGGREGATE_URN,
+    flink_fn_execution_pb2.UserDefinedAggregateFunctions)
+def create_table_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatefulFunctionOperation,
+        operations.StreamGroupTableAggregateOperation)
+
+
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
                                             beam_operation_cls, internal_operation_cls):
     output_tags = list(transform_proto.outputs.keys())
@@ -127,6 +137,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,
+            None,
             spec.serialized_fn.state_cache_size,
             spec.serialized_fn.map_state_read_cache_size,
             spec.serialized_fn.map_state_write_cache_size)
@@ -140,11 +151,11 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             internal_operation_cls,
             keyed_state_backend)
     elif internal_operation_cls == operations.KeyedProcessFunctionOperation:
-        key_type_info = spec.serialized_fn.key_type_info
-        key_row_coder = from_type_info_proto(key_type_info.field[0].type)
+        key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,
+            None,
             1000,
             1000,
             1000)

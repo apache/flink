@@ -17,155 +17,172 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.checkpoint.RescaleMappings;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ErrorCollector;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests {@link SubtaskStateMapper}.
- */
+/** Tests to(@link SubtaskStateMapper). */
 public class SubtaskStateMapperTest {
-	@Test
-	public void testDiscardTaskMappingOnScaleDown() {
-		assertMappingEquals(new int[][] {{0}, {1}},
-			SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 2));
-	}
+    @Rule public ErrorCollector collector = new ErrorCollector();
 
-	@Test
-	public void testDiscardTaskMappingOnNoScale() {
-		// this may be a bit surprising, but the optimization should be done on call-site
-		assertMappingEquals(new int[][] {{0}, {1}, {2}},
-			SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 3));
-	}
+    @Test
+    public void testDiscardTaskMappingOnScaleDown() {
+        assertEquals(
+                RescaleMappings.of(Stream.of(to(0), to(1)), 3),
+                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 2));
+    }
 
-	@Test
-	public void testDiscardTaskMappingOnScaleUp() {
-		assertMappingEquals(new int[][] {{0}, {1}, {2}, {}},
-			SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 4));
-	}
+    @Test
+    public void testDiscardTaskMappingOnNoScale() {
+        // this may be a bit surprising, but the optimization should be done on call-site
+        assertEquals(
+                mappings(to(0), to(1), to(2)),
+                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 3));
+    }
 
-	@Test
-	public void testFirstTaskMappingOnScaleDown() {
-		assertMappingEquals(new int[][] {{0, 1, 2}, {}},
-			SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 2));
-	}
+    @Test
+    public void testDiscardTaskMappingOnScaleUp() {
+        assertEquals(
+                mappings(to(0), to(1), to(2), to()),
+                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 4));
+    }
 
-	@Test
-	public void testFirstTaskMappingOnNoScale() {
-		// this may be a bit surprising, but the optimization should be done on call-site
-		assertMappingEquals(new int[][] {{0, 1, 2}, {}, {}},
-			SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 3));
-	}
+    @Test
+    public void testFirstTaskMappingOnScaleDown() {
+        assertEquals(
+                mappings(to(0, 1, 2), to()),
+                SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 2));
+    }
 
-	@Test
-	public void testFirstTaskMappingOnScaleUp() {
-		assertMappingEquals(new int[][] {{0, 1, 2}, {}, {}, {}},
-			SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 4));
-	}
+    @Test
+    public void testFirstTaskMappingOnNoScale() {
+        // this may be a bit surprising, but the optimization should be done on call-site
+        assertEquals(
+                mappings(to(0, 1, 2), to(), to()),
+                SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 3));
+    }
 
-	@Test
-	public void testFullTaskMappingOnScaleDown() {
-		assertMappingEquals(new int[][] {{0, 1, 2}, {0, 1, 2}},
-			SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 2));
-	}
+    @Test
+    public void testFirstTaskMappingOnScaleUp() {
+        assertEquals(
+                mappings(to(0, 1, 2), to(), to(), to()),
+                SubtaskStateMapper.FIRST.getNewToOldSubtasksMapping(3, 4));
+    }
 
-	@Test
-	public void testFullTaskMappingOnNoScale() {
-		// this may be a bit surprising, but the optimization should be done on call-site
-		assertMappingEquals(new int[][] {{0, 1, 2}, {0, 1, 2}, {0, 1, 2}},
-			SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 3));
-	}
+    @Test
+    public void testFullTaskMappingOnScaleDown() {
+        assertEquals(
+                mappings(to(0, 1, 2), to(0, 1, 2)),
+                SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 2));
+    }
 
-	@Test
-	public void testFullTaskMappingOnScaleUp() {
-		assertMappingEquals(new int[][] {{0, 1, 2}, {0, 1, 2}, {0, 1, 2}, {0, 1, 2}},
-			SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 4));
-	}
+    @Test
+    public void testFullTaskMappingOnNoScale() {
+        // this may be a bit surprising, but the optimization should be done on call-site
+        assertEquals(
+                mappings(to(0, 1, 2), to(0, 1, 2), to(0, 1, 2)),
+                SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 3));
+    }
 
-	@Test
-	public void testRangeSelectorTaskMappingOnScaleDown() {
-		// 3 partitions: [0; 43) [43; 87) [87; 128)
-		// 2 partitions: [0; 64) [64; 128)
-		assertMappingEquals(new int[][] {{0, 1}, {1, 2}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 2));
+    @Test
+    public void testFullTaskMappingOnScaleUp() {
+        assertEquals(
+                mappings(to(0, 1, 2), to(0, 1, 2), to(0, 1, 2), to(0, 1, 2)),
+                SubtaskStateMapper.FULL.getNewToOldSubtasksMapping(3, 4));
+    }
 
-		assertMappingEquals(new int[][] {{0, 1, 2, 3, 4}, {5, 6, 7, 8, 9}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(10, 2));
+    @Test
+    public void testRangeSelectorTaskMappingOnScaleDown() {
+        // 3 partitions: [0; 43) [43; 87) [87; 128)
+        // 2 partitions: [0; 64) [64; 128)
+        assertEquals(
+                mappings(to(0, 1), to(1, 2)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 2));
 
-		assertMappingEquals(new int[][] {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(10, 1));
-	}
+        assertEquals(
+                mappings(to(0, 1, 2, 3, 4), to(5, 6, 7, 8, 9)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(10, 2));
 
-	@Test
-	public void testRangeSelectorTaskMappingOnNoScale() {
-		assertMappingEquals(new int[][] {{0}, {1}, {2}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 3));
-	}
+        assertEquals(
+                mappings(to(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(10, 1));
+    }
 
-	@Test
-	public void testRangeSelectorTaskMappingOnScaleUp() {
-		assertMappingEquals(new int[][] {{0}, {0, 1}, {1, 2}, {2}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 4));
+    @Test
+    public void testRangeSelectorTaskMappingOnNoScale() {
+        assertEquals(
+                mappings(to(0), to(1), to(2)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 3));
+    }
 
-		assertMappingEquals(new int[][] {{0}, {0}, {0, 1}, {1}, {1, 2}, {2}, {2}},
-			SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 7));
-	}
+    @Test
+    public void testRangeSelectorTaskMappingOnScaleUp() {
+        assertEquals(
+                mappings(to(0), to(0, 1), to(1, 2), to(2)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 4));
 
-	@Test
-	public void testRoundRobinTaskMappingOnScaleDown() {
-		assertMappingEquals(new int[][] {{0, 4, 8}, {1, 5, 9}, {2, 6}, {3, 7}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(10, 4));
+        assertEquals(
+                mappings(to(0), to(0), to(0, 1), to(1), to(1, 2), to(2), to(2)),
+                SubtaskStateMapper.RANGE.getNewToOldSubtasksMapping(3, 7));
+    }
 
-		assertMappingEquals(new int[][] {{0, 4}, {1}, {2}, {3}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 4));
+    @Test
+    public void testRoundRobinTaskMappingOnScaleDown() {
+        assertEquals(
+                mappings(to(0, 4, 8), to(1, 5, 9), to(2, 6), to(3, 7)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(10, 4));
 
-		assertMappingEquals(new int[][] {{0, 2, 4}, {1, 3}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 2));
+        assertEquals(
+                mappings(to(0, 4), to(1), to(2), to(3)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 4));
 
-		assertMappingEquals(new int[][] {{0, 1, 2, 3, 4}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 1));
-	}
+        assertEquals(
+                mappings(to(0, 2, 4), to(1, 3)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 2));
 
-	@Test
-	public void testRoundRobinTaskMappingOnNoScale() {
-		assertMappingEquals(new int[][] {{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(10, 10));
+        assertEquals(
+                mappings(to(0, 1, 2, 3, 4)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 1));
+    }
 
-		assertMappingEquals(new int[][] {{0}, {1}, {2}, {3}, {4}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 5));
+    @Test
+    public void testRoundRobinTaskMappingOnNoScale() {
+        assertEquals(
+                mappings(to(0), to(1), to(2), to(3), to(4), to(5), to(6), to(7), to(8), to(9)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(10, 10));
 
-		assertMappingEquals(new int[][] {{0}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(1, 1));
-	}
+        assertEquals(
+                mappings(to(0), to(1), to(2), to(3), to(4)),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(5, 5));
 
-	@Test
-	public void testRoundRobinTaskMappingOnScaleUp() {
-		assertMappingEquals(new int[][] {{0}, {1}, {2}, {3}, {}, {}, {}, {}, {}, {}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(4, 10));
+        assertEquals(
+                mappings(to(0)), SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(1, 1));
+    }
 
-		assertMappingEquals(new int[][] {{0}, {1}, {2}, {3}, {}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(4, 5));
+    @Test
+    public void testRoundRobinTaskMappingOnScaleUp() {
+        assertEquals(
+                mappings(to(0), to(1), to(2), to(3), to(), to(), to(), to(), to(), to()),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(4, 10));
 
-		assertMappingEquals(new int[][] {{0}, {1}, {}, {}, {}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(2, 5));
+        assertEquals(
+                mappings(to(0), to(1), to(2), to(3), to()),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(4, 5));
 
-		assertMappingEquals(new int[][] {{0}, {}, {}, {}, {}},
-			SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(1, 5));
-	}
+        assertEquals(
+                mappings(to(0), to(1), to(), to(), to()),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(2, 5));
 
-	static void assertMappingEquals(int[][] expected, Map<Integer, Set<Integer>> actual) {
-		Map<Integer, Set<Integer>> expectedMapping = new HashMap<>();
-		for (int newTaskIndex = 0; newTaskIndex < expected.length; newTaskIndex++) {
-			expectedMapping.put(
-				newTaskIndex,
-				Arrays.stream(expected[newTaskIndex]).boxed().collect(Collectors.toSet()));
-		}
-		assertEquals(expectedMapping, actual);
-	}
+        assertEquals(
+                mappings(to(0), to(), to(), to(), to()),
+                SubtaskStateMapper.ROUND_ROBIN.getNewToOldSubtasksMapping(1, 5));
+    }
 }

@@ -28,63 +28,63 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * A {@link StreamOperator} for executing a {@link ReduceFunction} on a
- * {@link org.apache.flink.streaming.api.datastream.KeyedStream} in a
- * {@link RuntimeExecutionMode#BATCH} mode.
+ * A {@link StreamOperator} for executing a {@link ReduceFunction} on a {@link
+ * org.apache.flink.streaming.api.datastream.KeyedStream} in a {@link RuntimeExecutionMode#BATCH}
+ * mode.
  */
 @Internal
 public class BatchGroupedReduceOperator<IN, KEY>
-		extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
-		implements OneInputStreamOperator<IN, IN>, Triggerable<KEY, VoidNamespace> {
+        extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
+        implements OneInputStreamOperator<IN, IN>, Triggerable<KEY, VoidNamespace> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String STATE_NAME = "_op_state";
+    private static final String STATE_NAME = "_op_state";
 
-	private transient ValueState<IN> values;
+    private transient ValueState<IN> values;
 
-	private final TypeSerializer<IN> serializer;
+    private final TypeSerializer<IN> serializer;
 
-	private InternalTimerService<VoidNamespace> timerService;
+    private InternalTimerService<VoidNamespace> timerService;
 
-	public BatchGroupedReduceOperator(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
-		super(reducer);
-		this.serializer = serializer;
-	}
+    public BatchGroupedReduceOperator(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
+        super(reducer);
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		ValueStateDescriptor<IN> stateId = new ValueStateDescriptor<>(STATE_NAME, serializer);
-		values = getPartitionedState(stateId);
-		timerService = getInternalTimerService(
-			"end-key-timers",
-			new VoidNamespaceSerializer(),
-			this
-		);
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        ValueStateDescriptor<IN> stateId = new ValueStateDescriptor<>(STATE_NAME, serializer);
+        values = getPartitionedState(stateId);
+        timerService =
+                getInternalTimerService("end-key-timers", new VoidNamespaceSerializer(), this);
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		IN value = element.getValue();
-		IN currentValue = values.value();
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        IN value = element.getValue();
+        IN currentValue = values.value();
 
-		if (currentValue != null) {
-			value = userFunction.reduce(currentValue, value);
-			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MAX_VALUE);
-		}
-		values.update(value);
-	}
+        if (currentValue == null) {
+            // register a timer for emitting the result at the end when this is the
+            // first input for this key
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MAX_VALUE);
+        } else {
+            // otherwise, reduce things
+            value = userFunction.reduce(currentValue, value);
+        }
+        values.update(value);
+    }
 
-	@Override
-	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-		IN currentValue = values.value();
-		if (currentValue != null) {
-			output.collect(new StreamRecord<>(currentValue, Long.MAX_VALUE));
-		}
-	}
+    @Override
+    public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+        IN currentValue = values.value();
+        if (currentValue != null) {
+            output.collect(new StreamRecord<>(currentValue, Long.MAX_VALUE));
+        }
+    }
 
-	@Override
-	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-	}
+    @Override
+    public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {}
 }

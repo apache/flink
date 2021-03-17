@@ -27,32 +27,33 @@ import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A stored Kubernetes worker, which contains the kubernetes pod.
- */
+/** A stored Kubernetes worker, which contains the kubernetes pod. */
 public class KubernetesWorkerNode implements ResourceIDRetrievable {
-	private final ResourceID resourceID;
+    private final ResourceID resourceID;
 
-	/**
-	 * This pattern should be updated when {@link KubernetesResourceManagerDriver#TASK_MANAGER_POD_FORMAT} changed.
-	 */
-	private static final Pattern TASK_MANAGER_POD_PATTERN = Pattern.compile("\\S+-taskmanager-([\\d]+)-([\\d]+)");
+    /**
+     * This pattern should be updated when {@link
+     * KubernetesResourceManagerDriver#TASK_MANAGER_POD_FORMAT} changed.
+     */
+    private static final Pattern TASK_MANAGER_POD_PATTERN =
+            Pattern.compile("\\S+-taskmanager-([\\d]+)-([\\d]+)");
 
-	KubernetesWorkerNode(ResourceID resourceID) {
-		this.resourceID = checkNotNull(resourceID);
-	}
+    KubernetesWorkerNode(ResourceID resourceID) {
+        this.resourceID = checkNotNull(resourceID);
+    }
 
-	@Override
-	public ResourceID getResourceID() {
-		return resourceID;
-	}
+    @Override
+    public ResourceID getResourceID() {
+        return resourceID;
+    }
 
-	public long getAttempt() throws ResourceManagerException {
-		Matcher matcher = TASK_MANAGER_POD_PATTERN.matcher(resourceID.toString());
-		if (matcher.find()) {
-			return Long.parseLong(matcher.group(1));
-		} else {
-			throw new ResourceManagerException("Error to parse KubernetesWorkerNode from " + resourceID + ".");
-		}
-	}
+    public long getAttempt() throws ResourceManagerException {
+        Matcher matcher = TASK_MANAGER_POD_PATTERN.matcher(resourceID.toString());
+        if (matcher.find()) {
+            return Long.parseLong(matcher.group(1));
+        } else {
+            throw new ResourceManagerException(
+                    "Error to parse KubernetesWorkerNode from " + resourceID + ".");
+        }
+    }
 }

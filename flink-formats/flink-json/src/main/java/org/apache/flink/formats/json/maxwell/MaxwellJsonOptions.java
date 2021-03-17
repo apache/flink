@@ -22,34 +22,29 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 
-/**
- * Option utils for maxwell-json format.
- */
+/** Option utils for maxwell-json format. */
 public class MaxwellJsonOptions {
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
-	public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
+    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
 
-	public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL = JsonOptions.MAP_NULL_KEY_LITERAL;
+    public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
+            JsonOptions.MAP_NULL_KEY_LITERAL;
 
-	// --------------------------------------------------------------------------------------------
-	// Validation
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Validator for maxwell decoding format.
-	 */
-	public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
-		JsonOptions.validateDecodingFormatOptions(tableOptions);
-	}
+    /** Validator for maxwell decoding format. */
+    public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
+        JsonOptions.validateDecodingFormatOptions(tableOptions);
+    }
 
-	/**
-	 * Validator for maxwell encoding format.
-	 */
-	public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
-		JsonOptions.validateEncodingFormatOptions(tableOptions);
-	}
+    /** Validator for maxwell encoding format. */
+    public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
+        JsonOptions.validateEncodingFormatOptions(tableOptions);
+    }
 }

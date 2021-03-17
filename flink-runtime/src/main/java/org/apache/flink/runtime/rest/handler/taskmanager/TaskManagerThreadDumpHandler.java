@@ -38,25 +38,32 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Rest handler which serves the thread dump info from a {@link TaskExecutor}.
- */
-public class TaskManagerThreadDumpHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
+/** Rest handler which serves the thread dump info from a {@link TaskExecutor}. */
+public class TaskManagerThreadDumpHandler
+        extends AbstractResourceManagerHandler<
+                RestfulGateway, EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
 
-	public TaskManagerThreadDumpHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> messageHeaders,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, resourceManagerGatewayRetriever);
-	}
+    public TaskManagerThreadDumpHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters>
+                    messageHeaders,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                resourceManagerGatewayRetriever);
+    }
 
-	@Override
-	protected CompletableFuture<ThreadDumpInfo> handleRequest(
-			@Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
-			@Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
-		final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
-		return gateway.requestThreadDump(taskManagerId, timeout);
-	}
+    @Override
+    protected CompletableFuture<ThreadDumpInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
+            @Nonnull ResourceManagerGateway gateway)
+            throws RestHandlerException {
+        final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
+        return gateway.requestThreadDump(taskManagerId, timeout);
+    }
 }

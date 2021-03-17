@@ -27,60 +27,58 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.core.IsSame.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link FailureHandlingResult}.
- */
+/** Tests for {@link FailureHandlingResult}. */
 public class FailureHandlingResultTest extends TestLogger {
 
-	/**
-	 * Tests normal FailureHandlingResult.
-	 */
-	@Test
-	public void testNormalFailureHandlingResult() {
-		// create a normal FailureHandlingResult
-		Set<ExecutionVertexID> tasks = new HashSet<>();
-		tasks.add(new ExecutionVertexID(new JobVertexID(), 0));
-		long delay = 1234;
-		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay, false);
+    /** Tests normal FailureHandlingResult. */
+    @Test
+    public void testNormalFailureHandlingResult() {
+        // create a normal FailureHandlingResult
+        ExecutionVertexID executionVertexID = new ExecutionVertexID(new JobVertexID(), 0);
+        Set<ExecutionVertexID> tasks = new HashSet<>();
+        tasks.add(executionVertexID);
+        long delay = 1234;
+        Throwable error = new RuntimeException();
+        FailureHandlingResult result =
+                FailureHandlingResult.restartable(executionVertexID, error, tasks, delay, false);
 
-		assertTrue(result.canRestart());
-		assertEquals(delay, result.getRestartDelayMS());
-		assertEquals(tasks, result.getVerticesToRestart());
-		try {
-			result.getError();
-			fail("Cannot get error when the restarting is accepted");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-	}
+        assertTrue(result.canRestart());
+        assertEquals(delay, result.getRestartDelayMS());
+        assertEquals(tasks, result.getVerticesToRestart());
+        assertThat(result.getError(), sameInstance(error));
+        assertTrue(result.getExecutionVertexIdOfFailedTask().isPresent());
+        assertThat(result.getExecutionVertexIdOfFailedTask().get(), is(executionVertexID));
+    }
 
-	/**
-	 * Tests FailureHandlingResult which suppresses restarts.
-	 */
-	@Test
-	public void testRestartingSuppressedFailureHandlingResult() {
-		// create a FailureHandlingResult with error
-		Throwable error = new Exception("test error");
-		FailureHandlingResult result = FailureHandlingResult.unrecoverable(error, false);
+    /** Tests FailureHandlingResult which suppresses restarts. */
+    @Test
+    public void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
+        // create a FailureHandlingResult with error
+        Throwable error = new Exception("test error");
+        FailureHandlingResult result = FailureHandlingResult.unrecoverable(null, error, false);
 
-		assertFalse(result.canRestart());
-		assertEquals(error, result.getError());
-		try {
-			result.getVerticesToRestart();
-			fail("get tasks to restart is not allowed when restarting is suppressed");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-		try {
-			result.getRestartDelayMS();
-			fail("get restart delay is not allowed when restarting is suppressed");
-		} catch (IllegalStateException ex) {
-			// expected
-		}
-	}
+        assertFalse(result.canRestart());
+        assertEquals(error, result.getError());
+        assertFalse(result.getExecutionVertexIdOfFailedTask().isPresent());
+        try {
+            result.getVerticesToRestart();
+            fail("get tasks to restart is not allowed when restarting is suppressed");
+        } catch (IllegalStateException ex) {
+            // expected
+        }
+        try {
+            result.getRestartDelayMS();
+            fail("get restart delay is not allowed when restarting is suppressed");
+        } catch (IllegalStateException ex) {
+            // expected
+        }
+    }
 }

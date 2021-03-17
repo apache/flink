@@ -28,41 +28,46 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The base implementations of {@link KafkaSubscriber}.
- */
+/** The base implementations of {@link KafkaSubscriber}. */
 class KafkaSubscriberUtils {
 
-	private KafkaSubscriberUtils() {}
+    private KafkaSubscriberUtils() {}
 
-	static void updatePartitionChanges(
-			String topic,
-			Set<TopicPartition> newPartitions,
-			Set<TopicPartition> removedPartitions,
-			List<TopicPartitionInfo> partitionInfoList) {
-		for (TopicPartitionInfo pi : partitionInfoList) {
-			TopicPartition tp = new TopicPartition(topic, pi.partition());
-			if (!removedPartitions.remove(tp)) {
-				newPartitions.add(tp);
-			}
-		}
-	}
+    static void updatePartitionChanges(
+            String topic,
+            Set<TopicPartition> newPartitions,
+            Set<TopicPartition> removedPartitions,
+            List<TopicPartitionInfo> partitionInfoList) {
+        for (TopicPartitionInfo pi : partitionInfoList) {
+            TopicPartition tp = new TopicPartition(topic, pi.partition());
+            if (!removedPartitions.remove(tp)) {
+                newPartitions.add(tp);
+            }
+        }
+    }
 
-	static Map<String, TopicDescription> getTopicMetadata(AdminClient adminClient) {
-		try {
-			Set<String> topicNames = adminClient.listTopics().names().get();
-			return adminClient.describeTopics(topicNames).all().get();
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get topic metadata.", e);
-		}
-	}
+    static Map<String, TopicDescription> getTopicMetadata(AdminClient adminClient) {
+        try {
+            Set<String> topicNames = adminClient.listTopics().names().get();
+            return adminClient.describeTopics(topicNames).all().get();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get topic metadata.", e);
+        }
+    }
 
-	static void maybeLog(Set<TopicPartition> newPartitions, Set<TopicPartition> removedPartitions, Logger logger) {
-		if (!removedPartitions.isEmpty()) {
-			logger.warn("The following partitions have been removed from the Kafka cluster. {}", removedPartitions);
-		}
-		if (!newPartitions.isEmpty()) {
-			logger.info("The following partitions have been added to the Kafka cluster. {}", newPartitions);
-		}
-	}
+    static void maybeLog(
+            Set<TopicPartition> newPartitions,
+            Set<TopicPartition> removedPartitions,
+            Logger logger) {
+        if (!removedPartitions.isEmpty()) {
+            logger.warn(
+                    "The following partitions have been removed from the Kafka cluster. {}",
+                    removedPartitions);
+        }
+        if (!newPartitions.isEmpty()) {
+            logger.info(
+                    "The following partitions have been added to the Kafka cluster. {}",
+                    newPartitions);
+        }
+    }
 }

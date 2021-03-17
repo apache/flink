@@ -33,69 +33,70 @@ import java.util.List;
 
 /**
  * A {@link Transformation} that describes a reduce operation on a {@link KeyedStream}.
+ *
  * @param <IN> The input and output type of the transformation.
  * @param <K> The type of the key of the stream.
  */
 @Internal
 public final class ReduceTransformation<IN, K> extends PhysicalTransformation<IN> {
-	private final Transformation<IN> input;
-	private final ReduceFunction<IN> reducer;
-	private final KeySelector<IN, K> keySelector;
-	private final TypeInformation<K> keyTypeInfo;
-	private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
+    private final Transformation<IN> input;
+    private final ReduceFunction<IN> reducer;
+    private final KeySelector<IN, K> keySelector;
+    private final TypeInformation<K> keyTypeInfo;
+    private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 
-	public ReduceTransformation(
-			String name,
-			int parallelism,
-			Transformation<IN> input,
-			ReduceFunction<IN> reducer,
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyTypeInfo) {
-		super(name, input.getOutputType(), parallelism);
-		this.input = input;
-		this.reducer = reducer;
-		this.keySelector = keySelector;
-		this.keyTypeInfo = keyTypeInfo;
-	}
+    public ReduceTransformation(
+            String name,
+            int parallelism,
+            Transformation<IN> input,
+            ReduceFunction<IN> reducer,
+            KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyTypeInfo) {
+        super(name, input.getOutputType(), parallelism);
+        this.input = input;
+        this.reducer = reducer;
+        this.keySelector = keySelector;
+        this.keyTypeInfo = keyTypeInfo;
 
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.chainingStrategy = strategy;
-	}
+        updateManagedMemoryStateBackendUseCase(true);
+    }
 
-	public ChainingStrategy getChainingStrategy() {
-		return chainingStrategy;
-	}
+    @Override
+    public void setChainingStrategy(ChainingStrategy strategy) {
+        this.chainingStrategy = strategy;
+    }
 
-	public KeySelector<IN, K> getKeySelector() {
-		return keySelector;
-	}
+    public ChainingStrategy getChainingStrategy() {
+        return chainingStrategy;
+    }
 
-	public TypeInformation<K> getKeyTypeInfo() {
-		return keyTypeInfo;
-	}
+    public KeySelector<IN, K> getKeySelector() {
+        return keySelector;
+    }
 
-	public ReduceFunction<IN> getReducer() {
-		return reducer;
-	}
+    public TypeInformation<K> getKeyTypeInfo() {
+        return keyTypeInfo;
+    }
 
-	/**
-	 * Returns the {@code TypeInformation} for the elements of the input.
-	 */
-	public TypeInformation<IN> getInputType() {
-		return input.getOutputType();
-	}
+    public ReduceFunction<IN> getReducer() {
+        return reducer;
+    }
 
-	@Override
-	public List<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    /** Returns the {@code TypeInformation} for the elements of the input. */
+    public TypeInformation<IN> getInputType() {
+        return input.getOutputType();
+    }
 
-	@Override
-	public List<Transformation<?>> getInputs() {
-		return Collections.singletonList(input);
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
+
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 }

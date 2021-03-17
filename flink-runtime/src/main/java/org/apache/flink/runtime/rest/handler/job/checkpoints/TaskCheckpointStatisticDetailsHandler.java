@@ -54,143 +54,167 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * REST handler which serves checkpoint statistics for subtasks.
- */
+/** REST handler which serves checkpoint statistics for subtasks. */
 public class TaskCheckpointStatisticDetailsHandler
-	extends AbstractCheckpointHandler<TaskCheckpointStatisticsWithSubtaskDetails, TaskCheckpointMessageParameters>
-	implements JsonArchivist {
+        extends AbstractCheckpointHandler<
+                TaskCheckpointStatisticsWithSubtaskDetails, TaskCheckpointMessageParameters>
+        implements JsonArchivist {
 
-	public TaskCheckpointStatisticDetailsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, TaskCheckpointStatisticsWithSubtaskDetails, TaskCheckpointMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			CheckpointStatsCache checkpointStatsCache) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor,
-			checkpointStatsCache);
-	}
+    public TaskCheckpointStatisticDetailsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<
+                            EmptyRequestBody,
+                            TaskCheckpointStatisticsWithSubtaskDetails,
+                            TaskCheckpointMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            CheckpointStatsCache checkpointStatsCache) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor,
+                checkpointStatsCache);
+    }
 
-	@Override
-	protected TaskCheckpointStatisticsWithSubtaskDetails handleCheckpointRequest(
-			HandlerRequest<EmptyRequestBody, TaskCheckpointMessageParameters> request,
-			AbstractCheckpointStats checkpointStats) throws RestHandlerException {
+    @Override
+    protected TaskCheckpointStatisticsWithSubtaskDetails handleCheckpointRequest(
+            HandlerRequest<EmptyRequestBody, TaskCheckpointMessageParameters> request,
+            AbstractCheckpointStats checkpointStats)
+            throws RestHandlerException {
 
-		final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
+        final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		final TaskStateStats taskStatistics = checkpointStats.getTaskStateStats(jobVertexId);
+        final TaskStateStats taskStatistics = checkpointStats.getTaskStateStats(jobVertexId);
 
-		if (taskStatistics == null) {
-			throw new NotFoundException("There is no checkpoint statistics for task " + jobVertexId + '.');
-		}
+        if (taskStatistics == null) {
+            throw new NotFoundException(
+                    "There is no checkpoint statistics for task " + jobVertexId + '.');
+        }
 
-		return createCheckpointDetails(checkpointStats, taskStatistics);
-	}
+        return createCheckpointDetails(checkpointStats, taskStatistics);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
-		if (stats == null) {
-			return Collections.emptyList();
-		}
-		CheckpointStatsHistory history = stats.getHistory();
-		List<ArchivedJson> archive = new ArrayList<>(history.getCheckpoints().size());
-		for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
-			for (TaskStateStats subtaskStats : checkpoint.getAllTaskStateStats()) {
-				ResponseBody json = createCheckpointDetails(checkpoint, subtaskStats);
-				String path = getMessageHeaders().getTargetRestEndpointURL()
-					.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-					.replace(':' + CheckpointIdPathParameter.KEY, String.valueOf(checkpoint.getCheckpointId()))
-					.replace(':' + JobVertexIdPathParameter.KEY, subtaskStats.getJobVertexId().toString());
-				archive.add(new ArchivedJson(path, json));
-			}
-		}
-		return archive;
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
+        if (stats == null) {
+            return Collections.emptyList();
+        }
+        CheckpointStatsHistory history = stats.getHistory();
+        List<ArchivedJson> archive = new ArrayList<>(history.getCheckpoints().size());
+        for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
+            for (TaskStateStats subtaskStats : checkpoint.getAllTaskStateStats()) {
+                ResponseBody json = createCheckpointDetails(checkpoint, subtaskStats);
+                String path =
+                        getMessageHeaders()
+                                .getTargetRestEndpointURL()
+                                .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+                                .replace(
+                                        ':' + CheckpointIdPathParameter.KEY,
+                                        String.valueOf(checkpoint.getCheckpointId()))
+                                .replace(
+                                        ':' + JobVertexIdPathParameter.KEY,
+                                        subtaskStats.getJobVertexId().toString());
+                archive.add(new ArchivedJson(path, json));
+            }
+        }
+        return archive;
+    }
 
-	private static TaskCheckpointStatisticsWithSubtaskDetails createCheckpointDetails(AbstractCheckpointStats checkpointStats, TaskStateStats taskStatistics) {
-		final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary = createSummary(
-			taskStatistics.getSummaryStats(),
-			checkpointStats.getTriggerTimestamp());
+    private static TaskCheckpointStatisticsWithSubtaskDetails createCheckpointDetails(
+            AbstractCheckpointStats checkpointStats, TaskStateStats taskStatistics) {
+        final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary =
+                createSummary(
+                        taskStatistics.getSummaryStats(), checkpointStats.getTriggerTimestamp());
 
-		final List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics = createSubtaskCheckpointStatistics(
-			taskStatistics.getSubtaskStats(),
-			checkpointStats.getTriggerTimestamp());
+        final List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics =
+                createSubtaskCheckpointStatistics(
+                        taskStatistics.getSubtaskStats(), checkpointStats.getTriggerTimestamp());
 
-		return new TaskCheckpointStatisticsWithSubtaskDetails(
-			checkpointStats.getCheckpointId(),
-			checkpointStats.getStatus(),
-			taskStatistics.getLatestAckTimestamp(),
-			taskStatistics.getStateSize(),
-			taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-			0,
-			taskStatistics.getProcessedDataStats(),
-			taskStatistics.getPersistedDataStats(),
-			taskStatistics.getNumberOfSubtasks(),
-			taskStatistics.getNumberOfAcknowledgedSubtasks(),
-			summary,
-			subtaskCheckpointStatistics);
-	}
+        return new TaskCheckpointStatisticsWithSubtaskDetails(
+                checkpointStats.getCheckpointId(),
+                checkpointStats.getStatus(),
+                taskStatistics.getLatestAckTimestamp(),
+                taskStatistics.getStateSize(),
+                taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
+                0,
+                taskStatistics.getProcessedDataStats(),
+                taskStatistics.getPersistedDataStats(),
+                taskStatistics.getNumberOfSubtasks(),
+                taskStatistics.getNumberOfAcknowledgedSubtasks(),
+                summary,
+                subtaskCheckpointStatistics);
+    }
 
-	private static TaskCheckpointStatisticsWithSubtaskDetails.Summary createSummary(TaskStateStats.TaskStateStatsSummary taskStatisticsSummary, long triggerTimestamp) {
-		final MinMaxAvgStats ackTSStats = taskStatisticsSummary.getAckTimestampStats();
+    private static TaskCheckpointStatisticsWithSubtaskDetails.Summary createSummary(
+            TaskStateStats.TaskStateStatsSummary taskStatisticsSummary, long triggerTimestamp) {
+        final MinMaxAvgStats ackTSStats = taskStatisticsSummary.getAckTimestampStats();
 
-		final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration checkpointDuration = new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getSyncCheckpointDurationStats()),
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getAsyncCheckpointDurationStats()));
+        final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration checkpointDuration =
+                new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
+                        MinMaxAvgStatistics.valueOf(
+                                taskStatisticsSummary.getSyncCheckpointDurationStats()),
+                        MinMaxAvgStatistics.valueOf(
+                                taskStatisticsSummary.getAsyncCheckpointDurationStats()));
 
-		final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment checkpointAlignment = new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-			new MinMaxAvgStatistics(0, 0, 0),
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getProcessedDataStats()),
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getPersistedDataStats()),
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getAlignmentDurationStats()));
+        final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment checkpointAlignment =
+                new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
+                        new MinMaxAvgStatistics(0, 0, 0),
+                        MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getProcessedDataStats()),
+                        MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getPersistedDataStats()),
+                        MinMaxAvgStatistics.valueOf(
+                                taskStatisticsSummary.getAlignmentDurationStats()));
 
-		return new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getStateSizeStats()),
-			new MinMaxAvgStatistics(
-				Math.max(0L, ackTSStats.getMinimum() - triggerTimestamp),
-				Math.max(0L, ackTSStats.getMaximum() - triggerTimestamp),
-				Math.max(0L, ackTSStats.getAverage() - triggerTimestamp)),
-			checkpointDuration,
-			checkpointAlignment,
-			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));
-	}
+        return new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
+                MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getStateSizeStats()),
+                new MinMaxAvgStatistics(
+                        Math.max(0L, ackTSStats.getMinimum() - triggerTimestamp),
+                        Math.max(0L, ackTSStats.getMaximum() - triggerTimestamp),
+                        Math.max(0L, ackTSStats.getAverage() - triggerTimestamp)),
+                checkpointDuration,
+                checkpointAlignment,
+                MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));
+    }
 
-	private static List<SubtaskCheckpointStatistics> createSubtaskCheckpointStatistics(SubtaskStateStats[] subtaskStateStats, long triggerTimestamp) {
-		final List<SubtaskCheckpointStatistics> result = new ArrayList<>(subtaskStateStats.length);
+    private static List<SubtaskCheckpointStatistics> createSubtaskCheckpointStatistics(
+            SubtaskStateStats[] subtaskStateStats, long triggerTimestamp) {
+        final List<SubtaskCheckpointStatistics> result = new ArrayList<>(subtaskStateStats.length);
 
-		for (int i = 0; i < subtaskStateStats.length; i++) {
-			final SubtaskStateStats subtask = subtaskStateStats[i];
+        for (int i = 0; i < subtaskStateStats.length; i++) {
+            final SubtaskStateStats subtask = subtaskStateStats[i];
 
-			if (subtask == null) {
-				result.add(new SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics(i));
-			} else {
-				result.add(new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics(
-					i,
-					subtask.getAckTimestamp(),
-					subtask.getEndToEndDuration(triggerTimestamp),
-					subtask.getStateSize(),
-					new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointDuration(
-						subtask.getSyncCheckpointDuration(),
-						subtask.getAsyncCheckpointDuration()),
-					new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(
-						0,
-						subtask.getProcessedData(),
-						subtask.getPersistedData(),
-						subtask.getAlignmentDuration()),
-					subtask.getCheckpointStartDelay()
-				));
-			}
-		}
+            if (subtask == null) {
+                result.add(new SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics(i));
+            } else {
+                result.add(
+                        new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics(
+                                i,
+                                subtask.getAckTimestamp(),
+                                subtask.getEndToEndDuration(triggerTimestamp),
+                                subtask.getStateSize(),
+                                new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
+                                        .CheckpointDuration(
+                                        subtask.getSyncCheckpointDuration(),
+                                        subtask.getAsyncCheckpointDuration()),
+                                new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
+                                        .CheckpointAlignment(
+                                        0,
+                                        subtask.getProcessedData(),
+                                        subtask.getPersistedData(),
+                                        subtask.getAlignmentDuration()),
+                                subtask.getCheckpointStartDelay(),
+                                subtask.getUnalignedCheckpoint(),
+                                !subtask.isCompleted()));
+            }
+        }
 
-		return result;
-	}
+        return result;
+    }
 }

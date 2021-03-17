@@ -31,69 +31,72 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 
 /**
- * Base class for {@link CustomCommandLine} implementations which specify a JobManager address and
- * a ZooKeeper namespace.
- *
+ * Base class for {@link CustomCommandLine} implementations which specify a JobManager address and a
+ * ZooKeeper namespace.
  */
 public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 
-	protected final Option zookeeperNamespaceOption = new Option("z", "zookeeperNamespace", true,
-		"Namespace to create the Zookeeper sub-paths for high availability mode");
+    protected final Option zookeeperNamespaceOption =
+            new Option(
+                    "z",
+                    "zookeeperNamespace",
+                    true,
+                    "Namespace to create the Zookeeper sub-paths for high availability mode");
 
-	@Override
-	public void addRunOptions(Options baseOptions) {
-		// nothing to add here
-	}
+    @Override
+    public void addRunOptions(Options baseOptions) {
+        // nothing to add here
+    }
 
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		baseOptions.addOption(zookeeperNamespaceOption);
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        baseOptions.addOption(zookeeperNamespaceOption);
+    }
 
-	@Override
-	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
-		final Configuration resultingConfiguration = new Configuration();
-		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+    @Override
+    public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
+        final Configuration resultingConfiguration = new Configuration();
+        resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
-		if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {
-			String zkNamespace = commandLine.getOptionValue(zookeeperNamespaceOption.getOpt());
-			resultingConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
-		}
+        if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {
+            String zkNamespace = commandLine.getOptionValue(zookeeperNamespaceOption.getOpt());
+            resultingConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+        }
 
-		return resultingConfiguration;
-	}
+        return resultingConfiguration;
+    }
 
-	protected void printUsage() {
-		System.out.println("Usage:");
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.setWidth(200);
-		formatter.setLeftPadding(5);
+    protected void printUsage() {
+        System.out.println("Usage:");
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setWidth(200);
+        formatter.setLeftPadding(5);
 
-		formatter.setSyntaxPrefix("   Optional");
-		Options options = new Options();
-		addGeneralOptions(options);
-		addRunOptions(options);
-		formatter.printHelp(" ", options);
-	}
+        formatter.setSyntaxPrefix("   Optional");
+        Options options = new Options();
+        addGeneralOptions(options);
+        addRunOptions(options);
+        formatter.printHelp(" ", options);
+    }
 
-	public static int handleCliArgsException(CliArgsException e, Logger logger) {
-		logger.error("Could not parse the command line arguments.", e);
+    public static int handleCliArgsException(CliArgsException e, Logger logger) {
+        logger.error("Could not parse the command line arguments.", e);
 
-		System.out.println(e.getMessage());
-		System.out.println();
-		System.out.println("Use the help option (-h or --help) to get help on the command.");
-		return 1;
-	}
+        System.out.println(e.getMessage());
+        System.out.println();
+        System.out.println("Use the help option (-h or --help) to get help on the command.");
+        return 1;
+    }
 
-	public static int handleError(Throwable t, Logger logger) {
-		logger.error("Error while running the Flink session.", t);
+    public static int handleError(Throwable t, Logger logger) {
+        logger.error("Error while running the Flink session.", t);
 
-		System.err.println();
-		System.err.println("------------------------------------------------------------");
-		System.err.println(" The program finished with the following exception:");
-		System.err.println();
+        System.err.println();
+        System.err.println("------------------------------------------------------------");
+        System.err.println(" The program finished with the following exception:");
+        System.err.println();
 
-		t.printStackTrace();
-		return 1;
-	}
+        t.printStackTrace();
+        return 1;
+    }
 }

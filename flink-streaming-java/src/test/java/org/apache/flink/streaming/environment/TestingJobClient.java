@@ -29,43 +29,43 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing implementation of {@link JobClient}.
- */
+/** Testing implementation of {@link JobClient}. */
 public class TestingJobClient implements JobClient {
 
-	@Override
-	public JobID getJobID() {
-		return new JobID();
-	}
+    @Override
+    public JobID getJobID() {
+        return new JobID();
+    }
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus() {
-		return CompletableFuture.completedFuture(JobStatus.FINISHED);
-	}
+    @Override
+    public CompletableFuture<JobStatus> getJobStatus() {
+        return CompletableFuture.completedFuture(JobStatus.FINISHED);
+    }
 
-	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
-		return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
-	}
+    @Override
+    public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+        return CompletableFuture.completedFuture(
+                new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
+    }
 
-	@Override
-	public CompletableFuture<Void> cancel() {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> cancel() {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		return CompletableFuture.completedFuture("null");
-	}
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+        return CompletableFuture.completedFuture("null");
+    }
 
-	@Override
-	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-		return CompletableFuture.completedFuture("null");
-	}
+    @Override
+    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+        return CompletableFuture.completedFuture("null");
+    }
 
-	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators() {
-		return CompletableFuture.completedFuture(Collections.emptyMap());
-	}
+    @Override
+    public CompletableFuture<Map<String, Object>> getAccumulators() {
+        return CompletableFuture.completedFuture(Collections.emptyMap());
+    }
 }

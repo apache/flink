@@ -28,46 +28,49 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * Implementations of this interface decorate streams with a compression scheme. Subclasses should be stateless.
+ * Implementations of this interface decorate streams with a compression scheme. Subclasses should
+ * be stateless.
  */
 @Internal
 public abstract class StreamCompressionDecorator implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Decorates the stream by wrapping it into a stream that applies a compression.
-	 *
-	 * IMPORTANT: For streams returned by this method, {@link OutputStream#close()} is not propagated to the inner
-	 * stream. The inner stream must be closed separately.
-	 *
-	 * @param stream the stream to decorate.
-	 * @return an output stream that is decorated by the compression scheme.
-	 */
-	public final OutputStream decorateWithCompression(OutputStream stream) throws IOException {
-		return decorateWithCompression(new NonClosingOutpusStreamDecorator(stream));
-	}
+    /**
+     * Decorates the stream by wrapping it into a stream that applies a compression.
+     *
+     * <p>IMPORTANT: For streams returned by this method, {@link OutputStream#close()} is not
+     * propagated to the inner stream. The inner stream must be closed separately.
+     *
+     * @param stream the stream to decorate.
+     * @return an output stream that is decorated by the compression scheme.
+     */
+    public final OutputStream decorateWithCompression(OutputStream stream) throws IOException {
+        return decorateWithCompression(new NonClosingOutpusStreamDecorator(stream));
+    }
 
-	/**
-	 * IMPORTANT: For streams returned by this method, {@link InputStream#close()} is not propagated to the inner
-	 * stream. The inner stream must be closed separately.
-	 *
-	 * @param stream the stream to decorate.
-	 * @return an input stream that is decorated by the compression scheme.
-	 */
-	public final InputStream decorateWithCompression(InputStream stream) throws IOException {
-		return decorateWithCompression(new NonClosingInputStreamDecorator(stream));
-	}
+    /**
+     * IMPORTANT: For streams returned by this method, {@link InputStream#close()} is not propagated
+     * to the inner stream. The inner stream must be closed separately.
+     *
+     * @param stream the stream to decorate.
+     * @return an input stream that is decorated by the compression scheme.
+     */
+    public final InputStream decorateWithCompression(InputStream stream) throws IOException {
+        return decorateWithCompression(new NonClosingInputStreamDecorator(stream));
+    }
 
-	/**
-	 * @param stream the stream to decorate
-	 * @return an output stream that is decorated by the compression scheme.
-	 */
-	protected abstract OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream) throws IOException;
+    /**
+     * @param stream the stream to decorate
+     * @return an output stream that is decorated by the compression scheme.
+     */
+    protected abstract OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream)
+            throws IOException;
 
-	/**
-	 * @param stream the stream to decorate.
-	 * @return an input stream that is decorated by the compression scheme.
-	 */
-	protected abstract InputStream decorateWithCompression(NonClosingInputStreamDecorator stream) throws IOException;
+    /**
+     * @param stream the stream to decorate.
+     * @return an input stream that is decorated by the compression scheme.
+     */
+    protected abstract InputStream decorateWithCompression(NonClosingInputStreamDecorator stream)
+            throws IOException;
 }

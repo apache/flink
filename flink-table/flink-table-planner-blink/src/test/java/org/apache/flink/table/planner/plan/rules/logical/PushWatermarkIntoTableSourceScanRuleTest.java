@@ -39,194 +39,221 @@ import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
+
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
+
 /**
- * Test rule {@link PushWatermarkIntoTableSourceScanAcrossCalcRule} and {@link PushWatermarkIntoTableSourceScanRule}.
- * */
+ * Test rule {@link PushWatermarkIntoTableSourceScanAcrossCalcRule} and {@link
+ * PushWatermarkIntoTableSourceScanRule}.
+ */
 public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
-	private StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
 
-	@Before
-	public void setup() {
-		FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
-		program.addLast(
-				"Converters",
-				FlinkVolcanoProgramBuilder.<StreamOptimizeContext>newBuilder()
-						.add(RuleSets.ofList(
-								CoreRules.PROJECT_TO_CALC,
-								CoreRules.FILTER_TO_CALC,
-								FlinkLogicalCalc.CONVERTER(),
-								FlinkLogicalTableSourceScan.CONVERTER(),
-								FlinkLogicalWatermarkAssigner.CONVERTER()
-								))
-						.setRequiredOutputTraits(new Convention[] {FlinkConventions.LOGICAL()})
-						.build()
-		);
-		program.addLast(
-				"PushWatermarkIntoTableSourceScanRule",
-				FlinkHepRuleSetProgramBuilder.<StreamOptimizeContext>newBuilder()
-						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-						.add(RuleSets.ofList(
-								PushWatermarkIntoTableSourceScanRule.INSTANCE,
-								PushWatermarkIntoTableSourceScanAcrossCalcRule.INSTANCE))
-						.build()
-		);
-		util.replaceStreamProgram(program);
-	}
+    @Before
+    public void setup() {
+        FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
+        program.addLast(
+                "Converters",
+                FlinkVolcanoProgramBuilder.<StreamOptimizeContext>newBuilder()
+                        .add(
+                                RuleSets.ofList(
+                                        CoreRules.PROJECT_TO_CALC,
+                                        CoreRules.FILTER_TO_CALC,
+                                        FlinkLogicalCalc.CONVERTER(),
+                                        FlinkLogicalTableSourceScan.CONVERTER(),
+                                        FlinkLogicalWatermarkAssigner.CONVERTER()))
+                        .setRequiredOutputTraits(new Convention[] {FlinkConventions.LOGICAL()})
+                        .build());
+        program.addLast(
+                "PushWatermarkIntoTableSourceScanRule",
+                FlinkHepRuleSetProgramBuilder.<StreamOptimizeContext>newBuilder()
+                        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                        .add(
+                                RuleSets.ofList(
+                                        PushWatermarkIntoTableSourceScanRule.INSTANCE,
+                                        PushWatermarkIntoTableSourceScanAcrossCalcRule.INSTANCE))
+                        .build());
+        util.replaceStreamProgram(program);
+    }
 
-	@Test
-	public void testSimpleWatermark() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c TIMESTAMP(3),\n" +
-						"  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("select a, c from MyTable");
-	}
+    @Test
+    public void testSimpleWatermark() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("select a, c from MyTable");
+    }
 
-	@Test
-	public void testWatermarkOnComputedColumn() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c TIMESTAMP(3),\n" +
-						"  d AS c + INTERVAL '5' SECOND,\n" +
-						"  WATERMARK FOR d AS d - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						" 'connector' = 'values',\n" +
-						" 'enable-watermark-push-down' = 'true',\n" +
-						" 'bounded' = 'false',\n" +
-						" 'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * from MyTable");
-	}
+    @Test
+    public void testWatermarkOnComputedColumn() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  d AS c + INTERVAL '5' SECOND,\n"
+                        + "  WATERMARK FOR d AS d - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * from MyTable");
+    }
 
-	@Test
-	public void testWatermarkOnComputedColumnWithQuery() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c TIMESTAMP(3) NOT NULL,\n" +
-						"  d AS c + INTERVAL '5' SECOND,\n" +
-						"  WATERMARK FOR d AS d - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT a, b FROM MyTable WHERE d > TO_TIMESTAMP('2020-10-09 12:12:12')");
-	}
+    @Test
+    public void testWatermarkOnComputedColumnWithQuery() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3) NOT NULL,\n"
+                        + "  d AS c + INTERVAL '5' SECOND,\n"
+                        + "  WATERMARK FOR d AS d - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan(
+                "SELECT a, b FROM MyTable WHERE d > TO_TIMESTAMP('2020-10-09 12:12:12')");
+    }
 
-	@Test
-	public void testWatermarkOnComputedColumnWithMultipleInputs() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a STRING,\n" +
-						"  b STRING,\n" +
-						"  c as TO_TIMESTAMP(a, b),\n" +
-						"  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
-	}
+    @Test
+    public void testWatermarkOnComputedColumnWithMultipleInputs() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a STRING,\n"
+                        + "  b STRING,\n"
+                        + "  c as TO_TIMESTAMP(a, b),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
+    }
 
-	@Test
-	public void testWatermarkOnRow() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c ROW<name STRING, d TIMESTAMP(3)>," +
-						"  e AS c.d," +
-						"  WATERMARK FOR e AS e - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
-	}
+    @Test
+    public void testWatermarkOnRow() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c ROW<name STRING, d TIMESTAMP(3)>,"
+                        + "  e AS c.d,"
+                        + "  WATERMARK FOR e AS e - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
+    }
 
-	@Test
-	public void testWatermarkOnNestedRow() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c ROW<name STRING, d row<e STRING, f TIMESTAMP(3)>>," +
-						"  g as c.d.f," +
-						"  WATERMARK for g as g - INTERVAL '5' SECOND\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
-	}
+    @Test
+    public void testWatermarkOnNestedRow() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c ROW<name STRING, d row<e STRING, f TIMESTAMP(3)>>,"
+                        + "  g as c.d.f,"
+                        + "  WATERMARK for g as g - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
+    }
 
-	@Test
-	public void testWatermarkWithMultiInputUdf() {
-		JavaFunc5.closeCalled = false;
-		JavaFunc5.openCalled = false;
-		util.addFunction("func", new JavaFunc5());
+    @Test
+    public void testWatermarkWithMultiInputUdf() {
+        JavaFunc5.closeCalled = false;
+        JavaFunc5.openCalled = false;
+        util.addTemporarySystemFunction("func", new JavaFunc5());
 
-		String ddl =
-				"CREATE TABLE MyTable(\n" +
-						"  a INT,\n" +
-						"  b BIGINT,\n" +
-						"  c TIMESTAMP(3),\n" +
-						"  d AS func(c, a),\n" +
-						"  WATERMARK FOR d AS func(func(d, a), a)\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
-	}
+        String ddl =
+                "CREATE TABLE MyTable(\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  d AS func(c, a),\n"
+                        + "  WATERMARK FOR d AS func(func(d, a), a)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
+    }
 
-	@Test
-	public void testWatermarkOnMetadata() {
-		String ddl =
-				"CREATE TABLE MyTable(" +
-						"  `a` INT,\n" +
-						"  `b` BIGINT,\n" +
-						"  `c` TIMESTAMP(3),\n" +
-						"  `metadata` BIGINT METADATA FROM 'metadata_2' VIRTUAL,\n" +
-						"  `computed` AS `metadata` + `b`,\n" +
-						"  WATERMARK for `c` as c - CAST(`metadata` + `computed` AS INTERVAL SECOND)\n" +
-						") WITH (\n" +
-						"  'connector' = 'values',\n" +
-						"  'readable-metadata' = 'metadata_1:STRING,metadata_2:INT',\n" +
-						"  'enable-watermark-push-down' = 'true',\n" +
-						"  'bounded' = 'false',\n" +
-						"  'disable-lookup' = 'true'" +
-						")";
-		util.tableEnv().executeSql(ddl);
-		util.verifyPlan("SELECT * FROM MyTable");
-	}
+    @Test
+    public void testWatermarkOnMetadata() {
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  `a` INT,\n"
+                        + "  `b` BIGINT,\n"
+                        + "  `c` TIMESTAMP(3),\n"
+                        + "  `metadata` BIGINT METADATA FROM 'metadata_2' VIRTUAL,\n"
+                        + "  `computed` AS `metadata` + `b`,\n"
+                        + "  WATERMARK for `c` as c - CAST(`metadata` + `computed` AS INTERVAL SECOND)\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'readable-metadata' = 'metadata_1:STRING,metadata_2:INT',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("SELECT * FROM MyTable");
+    }
+
+    @Test
+    public void testWatermarkWithIdleSource() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
+        String ddl =
+                "CREATE TABLE MyTable("
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR c AS c - INTERVAL '5' SECOND\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'enable-watermark-push-down' = 'true',\n"
+                        + "  'bounded' = 'false',\n"
+                        + "  'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        util.verifyRelPlan("select a, c from MyTable");
+    }
 }

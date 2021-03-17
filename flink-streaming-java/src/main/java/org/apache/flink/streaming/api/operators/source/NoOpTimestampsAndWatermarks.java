@@ -39,90 +39,91 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T> {
 
-	private final TimestampAssigner<T> timestamps;
+    private final TimestampAssigner<T> timestamps;
 
-	/**
-	 * Creates a new {@link NoOpTimestampsAndWatermarks} with the given TimestampAssigner.
-	 */
-	public NoOpTimestampsAndWatermarks(TimestampAssigner<T> timestamps) {
-		this.timestamps = checkNotNull(timestamps);
-	}
+    /** Creates a new {@link NoOpTimestampsAndWatermarks} with the given TimestampAssigner. */
+    public NoOpTimestampsAndWatermarks(TimestampAssigner<T> timestamps) {
+        this.timestamps = checkNotNull(timestamps);
+    }
 
-	@Override
-	public ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output) {
-		checkNotNull(output);
-		return new TimestampsOnlyOutput<>(output, timestamps);
-	}
+    @Override
+    public ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output) {
+        checkNotNull(output);
+        return new TimestampsOnlyOutput<>(output, timestamps);
+    }
 
-	@Override
-	public void startPeriodicWatermarkEmits() {
-		// no periodic watermarks
-	}
+    @Override
+    public void startPeriodicWatermarkEmits() {
+        // no periodic watermarks
+    }
 
-	@Override
-	public void stopPeriodicWatermarkEmits() {
-		// no periodic watermarks
-	}
+    @Override
+    public void stopPeriodicWatermarkEmits() {
+        // no periodic watermarks
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * A simple implementation of {@link SourceOutput} and {@link ReaderOutput} that extracts
-	 * timestamps but has no watermarking logic. Because only watermarking logic has state per
-	 * Source Split, the same instance gets shared across all Source Splits.
-	 *
-	 * @param <T> The type of the emitted records.
-	 */
-	private static final class TimestampsOnlyOutput<T> implements ReaderOutput<T> {
+    /**
+     * A simple implementation of {@link SourceOutput} and {@link ReaderOutput} that extracts
+     * timestamps but has no watermarking logic. Because only watermarking logic has state per
+     * Source Split, the same instance gets shared across all Source Splits.
+     *
+     * @param <T> The type of the emitted records.
+     */
+    private static final class TimestampsOnlyOutput<T> implements ReaderOutput<T> {
 
-		private final PushingAsyncDataInput.DataOutput<T> output;
-		private final TimestampAssigner<T> timestampAssigner;
-		private final StreamRecord<T> reusingRecord;
+        private final PushingAsyncDataInput.DataOutput<T> output;
+        private final TimestampAssigner<T> timestampAssigner;
+        private final StreamRecord<T> reusingRecord;
 
-		private TimestampsOnlyOutput(
-				PushingAsyncDataInput.DataOutput<T> output,
-				TimestampAssigner<T> timestampAssigner) {
+        private TimestampsOnlyOutput(
+                PushingAsyncDataInput.DataOutput<T> output,
+                TimestampAssigner<T> timestampAssigner) {
 
-			this.output = output;
-			this.timestampAssigner = timestampAssigner;
-			this.reusingRecord = new StreamRecord<>(null);
-		}
+            this.output = output;
+            this.timestampAssigner = timestampAssigner;
+            this.reusingRecord = new StreamRecord<>(null);
+        }
 
-		@Override
-		public void collect(T record) {
-			collect(record, TimestampAssigner.NO_TIMESTAMP);
-		}
+        @Override
+        public void collect(T record) {
+            collect(record, TimestampAssigner.NO_TIMESTAMP);
+        }
 
-		@Override
-		public void collect(T record, long timestamp) {
-			try {
-				output.emitRecord(reusingRecord.replace(record, timestampAssigner.extractTimestamp(record, timestamp)));
-			} catch (ExceptionInChainedOperatorException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-		}
+        @Override
+        public void collect(T record, long timestamp) {
+            try {
+                output.emitRecord(
+                        reusingRecord.replace(
+                                record, timestampAssigner.extractTimestamp(record, timestamp)));
+            } catch (ExceptionInChainedOperatorException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
+        }
 
-		@Override
-		public void emitWatermark(Watermark watermark) {
-			// do nothing, this does not forward any watermarks manually emitted by the source directly
-		}
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            // do nothing, this does not forward any watermarks manually emitted by the source
+            // directly
+        }
 
-		@Override
-		public void markIdle() {
-			// do nothing, because without watermarks there is no idleness
-		}
+        @Override
+        public void markIdle() {
+            // do nothing, because without watermarks there is no idleness
+        }
 
-		@Override
-		public SourceOutput<T> createOutputForSplit(String splitId) {
-			// we don't need per-partition instances, because we do not generate watermarks
-			return this;
-		}
+        @Override
+        public SourceOutput<T> createOutputForSplit(String splitId) {
+            // we don't need per-partition instances, because we do not generate watermarks
+            return this;
+        }
 
-		@Override
-		public void releaseOutputForSplit(String splitId) {
-			// nothing to release, because we do not create per-partition instances
-		}
-	}
+        @Override
+        public void releaseOutputForSplit(String splitId) {
+            // nothing to release, because we do not create per-partition instances
+        }
+    }
 }

@@ -97,302 +97,312 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /**
- * This test checks that task restores that get stuck in the presence of interrupts
- * are handled properly.
+ * This test checks that task restores that get stuck in the presence of interrupts are handled
+ * properly.
  *
- * <p>In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks
- * or livelocks if it is interrupted.
+ * <p>In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks or
+ * livelocks if it is interrupted.
  */
 public class InterruptSensitiveRestoreTest {
 
-	private static final OneShotLatch IN_RESTORE_LATCH = new OneShotLatch();
+    private static final OneShotLatch IN_RESTORE_LATCH = new OneShotLatch();
 
-	private static final int OPERATOR_MANAGED = 0;
-	private static final int OPERATOR_RAW = 1;
-	private static final int KEYED_MANAGED = 2;
-	private static final int KEYED_RAW = 3;
+    private static final int OPERATOR_MANAGED = 0;
+    private static final int OPERATOR_RAW = 1;
+    private static final int KEYED_MANAGED = 2;
+    private static final int KEYED_RAW = 3;
 
-	@Test
-	public void testRestoreWithInterruptOperatorManaged() throws Exception {
-		testRestoreWithInterrupt(OPERATOR_MANAGED);
-	}
+    @Test
+    public void testRestoreWithInterruptOperatorManaged() throws Exception {
+        testRestoreWithInterrupt(OPERATOR_MANAGED);
+    }
 
-	@Test
-	public void testRestoreWithInterruptOperatorRaw() throws Exception {
-		testRestoreWithInterrupt(OPERATOR_RAW);
-	}
+    @Test
+    public void testRestoreWithInterruptOperatorRaw() throws Exception {
+        testRestoreWithInterrupt(OPERATOR_RAW);
+    }
 
-	@Test
-	public void testRestoreWithInterruptKeyedManaged() throws Exception {
-		testRestoreWithInterrupt(KEYED_MANAGED);
-	}
+    @Test
+    public void testRestoreWithInterruptKeyedManaged() throws Exception {
+        testRestoreWithInterrupt(KEYED_MANAGED);
+    }
 
-	@Test
-	public void testRestoreWithInterruptKeyedRaw() throws Exception {
-		testRestoreWithInterrupt(KEYED_RAW);
-	}
+    @Test
+    public void testRestoreWithInterruptKeyedRaw() throws Exception {
+        testRestoreWithInterrupt(KEYED_RAW);
+    }
 
-	private void testRestoreWithInterrupt(int mode) throws Exception {
+    private void testRestoreWithInterrupt(int mode) throws Exception {
 
-		IN_RESTORE_LATCH.reset();
-		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
-		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		switch (mode) {
-			case OPERATOR_MANAGED:
-			case OPERATOR_RAW:
-			case KEYED_MANAGED:
-			case KEYED_RAW:
-				cfg.setStateKeySerializer(IntSerializer.INSTANCE);
-				cfg.setStreamOperator(new StreamSource<>(new TestSource(mode)));
-				break;
-			default:
-				throw new IllegalArgumentException();
-		}
+        IN_RESTORE_LATCH.reset();
+        Configuration taskConfig = new Configuration();
+        StreamConfig cfg = new StreamConfig(taskConfig);
+        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+        switch (mode) {
+            case OPERATOR_MANAGED:
+            case OPERATOR_RAW:
+            case KEYED_MANAGED:
+            case KEYED_RAW:
+                cfg.setStateKeySerializer(IntSerializer.INSTANCE);
+                cfg.setStreamOperator(new StreamSource<>(new TestSource(mode)));
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
 
-		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
+        StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		Task task = createTask(cfg, taskConfig, lockingHandle, mode);
+        Task task = createTask(cfg, taskConfig, lockingHandle, mode);
 
-		// start the task and wait until it is in "restore"
-		task.startTaskThread();
-		IN_RESTORE_LATCH.await();
+        // start the task and wait until it is in "restore"
+        task.startTaskThread();
+        IN_RESTORE_LATCH.await();
 
-		// trigger cancellation and signal to continue
-		task.cancelExecution();
+        // trigger cancellation and signal to continue
+        task.cancelExecution();
 
-		task.getExecutingThread().join(30000);
+        task.getExecutingThread().join(30000);
 
-		if (task.getExecutionState() == ExecutionState.CANCELING) {
-			fail("Task is stuck and not canceling");
-		}
+        if (task.getExecutionState() == ExecutionState.CANCELING) {
+            fail("Task is stuck and not canceling");
+        }
 
-		assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-		assertNull(task.getFailureCause());
-	}
+        assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+        assertNull(task.getFailureCause());
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	private static Task createTask(
-			StreamConfig streamConfig,
-			Configuration taskConfig,
-			StreamStateHandle state,
-			int mode) throws IOException {
+    private static Task createTask(
+            StreamConfig streamConfig, Configuration taskConfig, StreamStateHandle state, int mode)
+            throws IOException {
 
-		ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+        ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
-		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
-		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
-		Collection<OperatorStateHandle> operatorStateBackend = Collections.emptyList();
-		Collection<OperatorStateHandle> operatorStateStream = Collections.emptyList();
+        Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
+        Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
+        Collection<OperatorStateHandle> operatorStateBackend = Collections.emptyList();
+        Collection<OperatorStateHandle> operatorStateStream = Collections.emptyList();
 
-		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetadata = new HashMap<>(1);
-		OperatorStateHandle.StateMetaInfo metaInfo =
-				new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
-		operatorStateMetadata.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
+        Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetadata = new HashMap<>(1);
+        OperatorStateHandle.StateMetaInfo metaInfo =
+                new OperatorStateHandle.StateMetaInfo(
+                        new long[] {0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+        operatorStateMetadata.put(
+                DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
 
-		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
+        KeyGroupRangeOffsets keyGroupRangeOffsets =
+                new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
 
-		Collection<OperatorStateHandle> operatorStateHandles =
-				Collections.singletonList(new OperatorStreamStateHandle(operatorStateMetadata, state));
+        Collection<OperatorStateHandle> operatorStateHandles =
+                Collections.singletonList(
+                        new OperatorStreamStateHandle(operatorStateMetadata, state));
 
-		List<KeyedStateHandle> keyedStateHandles =
-				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+        List<KeyedStateHandle> keyedStateHandles =
+                Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
 
-		switch (mode) {
-			case OPERATOR_MANAGED:
-				operatorStateBackend = operatorStateHandles;
-				break;
-			case OPERATOR_RAW:
-				operatorStateStream = operatorStateHandles;
-				break;
-			case KEYED_MANAGED:
-				keyedStateFromBackend = keyedStateHandles;
-				break;
-			case KEYED_RAW:
-				keyedStateFromStream = keyedStateHandles;
-				break;
-			default:
-				throw new IllegalArgumentException();
-		}
+        switch (mode) {
+            case OPERATOR_MANAGED:
+                operatorStateBackend = operatorStateHandles;
+                break;
+            case OPERATOR_RAW:
+                operatorStateStream = operatorStateHandles;
+                break;
+            case KEYED_MANAGED:
+                keyedStateFromBackend = keyedStateHandles;
+                break;
+            case KEYED_RAW:
+                keyedStateFromStream = keyedStateHandles;
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
 
-		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
-			.setManagedOperatorState(new StateObjectCollection<>(operatorStateBackend))
-			.setRawOperatorState(new StateObjectCollection<>(operatorStateStream))
-			.setManagedKeyedState(new StateObjectCollection<>(keyedStateFromBackend))
-			.setRawKeyedState(new StateObjectCollection<>(keyedStateFromStream))
-			.build();
+        OperatorSubtaskState operatorSubtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(new StateObjectCollection<>(operatorStateBackend))
+                        .setRawOperatorState(new StateObjectCollection<>(operatorStateStream))
+                        .setManagedKeyedState(new StateObjectCollection<>(keyedStateFromBackend))
+                        .setRawKeyedState(new StateObjectCollection<>(keyedStateFromStream))
+                        .build();
 
-		JobVertexID jobVertexID = new JobVertexID();
-		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
-		streamConfig.setOperatorID(operatorID);
-		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
-		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+        JobVertexID jobVertexID = new JobVertexID();
+        OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
+        streamConfig.setOperatorID(operatorID);
+        TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
+        stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
-		JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, stateSnapshot);
+        JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, stateSnapshot);
 
-		JobInformation jobInformation = new JobInformation(
-			new JobID(),
-			"test job name",
-			new SerializedValue<>(new ExecutionConfig()),
-			new Configuration(),
-			Collections.emptyList(),
-			Collections.emptyList());
+        JobInformation jobInformation =
+                new JobInformation(
+                        new JobID(),
+                        "test job name",
+                        new SerializedValue<>(new ExecutionConfig()),
+                        new Configuration(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
 
-		TaskInformation taskInformation = new TaskInformation(
-			jobVertexID,
-			"test task name",
-			1,
-			1,
-			SourceStreamTask.class.getName(),
-			taskConfig);
+        TaskInformation taskInformation =
+                new TaskInformation(
+                        jobVertexID,
+                        "test task name",
+                        1,
+                        1,
+                        SourceStreamTask.class.getName(),
+                        taskConfig);
 
-		TestTaskStateManager taskStateManager = new TestTaskStateManager();
-		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
-		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
-			Collections.singletonMap(
-				taskRestore.getRestoreCheckpointId(),
-				taskRestore.getTaskStateSnapshot()));
+        TestTaskStateManager taskStateManager = new TestTaskStateManager();
+        taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
+        taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+                Collections.singletonMap(
+                        taskRestore.getRestoreCheckpointId(), taskRestore.getTaskStateSnapshot()));
 
-		return new Task(
-			jobInformation,
-			taskInformation,
-			new ExecutionAttemptID(),
-			new AllocationID(),
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			shuffleEnvironment,
-			new KvStateService(new KvStateRegistry(), null, null),
-			mock(BroadcastVariableManager.class),
-			new TaskEventDispatcher(),
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			taskStateManager,
-			mock(TaskManagerActions.class),
-			mock(InputSplitProvider.class),
-			mock(CheckpointResponder.class),
-			new NoOpTaskOperatorEventGateway(),
-			new TestGlobalAggregateManager(),
-			TestingClassLoaderLease.newBuilder().build(),
-			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
-				VoidPermanentBlobService.INSTANCE),
-			new TestingTaskManagerRuntimeInfo(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			new NoOpResultPartitionConsumableNotifier(),
-			mock(PartitionProducerStateChecker.class),
-			mock(Executor.class));
-	}
+        return new Task(
+                jobInformation,
+                taskInformation,
+                new ExecutionAttemptID(),
+                new AllocationID(),
+                0,
+                0,
+                Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+                Collections.<InputGateDeploymentDescriptor>emptyList(),
+                mock(MemoryManager.class),
+                mock(IOManager.class),
+                shuffleEnvironment,
+                new KvStateService(new KvStateRegistry(), null, null),
+                mock(BroadcastVariableManager.class),
+                new TaskEventDispatcher(),
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                taskStateManager,
+                mock(TaskManagerActions.class),
+                mock(InputSplitProvider.class),
+                mock(CheckpointResponder.class),
+                new NoOpTaskOperatorEventGateway(),
+                new TestGlobalAggregateManager(),
+                TestingClassLoaderLease.newBuilder().build(),
+                new FileCache(
+                        new String[] {EnvironmentInformation.getTemporaryFileDirectory()},
+                        VoidPermanentBlobService.INSTANCE),
+                new TestingTaskManagerRuntimeInfo(),
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                new NoOpResultPartitionConsumableNotifier(),
+                mock(PartitionProducerStateChecker.class),
+                mock(Executor.class));
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@SuppressWarnings("serial")
-	private static class InterruptLockingStateHandle implements StreamStateHandle {
+    @SuppressWarnings("serial")
+    private static class InterruptLockingStateHandle implements StreamStateHandle {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private volatile boolean closed;
+        private volatile boolean closed;
 
-		@Override
-		public FSDataInputStream openInputStream() throws IOException {
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
 
-			closed = false;
+            closed = false;
 
-			FSDataInputStream is = new FSDataInputStream() {
+            FSDataInputStream is =
+                    new FSDataInputStream() {
 
-				@Override
-				public void seek(long desired) {
-				}
+                        @Override
+                        public void seek(long desired) {}
 
-				@Override
-				public long getPos() {
-					return 0;
-				}
+                        @Override
+                        public long getPos() {
+                            return 0;
+                        }
 
-				@Override
-				public int read() throws IOException {
-					block();
-					throw new EOFException();
-				}
+                        @Override
+                        public int read() throws IOException {
+                            block();
+                            throw new EOFException();
+                        }
 
-				@Override
-				public void close() throws IOException {
-					super.close();
-					closed = true;
-				}
-			};
+                        @Override
+                        public void close() throws IOException {
+                            super.close();
+                            closed = true;
+                        }
+                    };
 
-			return is;
-		}
+            return is;
+        }
 
-		@Override
-		public Optional<byte[]> asBytesIfInMemory() {
-			return Optional.empty();
-		}
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            return Optional.empty();
+        }
 
-		private void block() {
-			IN_RESTORE_LATCH.trigger();
-			// this mimics what happens in the HDFS client code.
-			// an interrupt on a waiting object leads to an infinite loop
-			try {
-				synchronized (this) {
-					//noinspection WaitNotInLoop
-					wait();
-				}
-			}
-			catch (InterruptedException e) {
-				while (!closed) {
-					try {
-						synchronized (this) {
-							wait();
-						}
-					} catch (InterruptedException ignored) {}
-				}
-			}
-		}
+        private void block() {
+            IN_RESTORE_LATCH.trigger();
+            // this mimics what happens in the HDFS client code.
+            // an interrupt on a waiting object leads to an infinite loop
+            try {
+                synchronized (this) {
+                    //noinspection WaitNotInLoop
+                    wait();
+                }
+            } catch (InterruptedException e) {
+                while (!closed) {
+                    try {
+                        synchronized (this) {
+                            wait();
+                        }
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        }
 
-		@Override
-		public void discardState() throws Exception {}
+        @Override
+        public void discardState() throws Exception {}
 
-		@Override
-		public long getStateSize() {
-			return 0;
-		}
-	}
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class TestSource implements SourceFunction<Object>, CheckpointedFunction {
-		private static final long serialVersionUID = 1L;
-		private final int testType;
+    private static class TestSource implements SourceFunction<Object>, CheckpointedFunction {
+        private static final long serialVersionUID = 1L;
+        private final int testType;
 
-		public TestSource(int testType) {
-			this.testType = testType;
-		}
+        public TestSource(int testType) {
+            this.testType = testType;
+        }
 
-		@Override
-		public void run(SourceContext<Object> ctx) throws Exception {
-			fail("should never be called");
-		}
+        @Override
+        public void run(SourceContext<Object> ctx) throws Exception {
+            fail("should never be called");
+        }
 
-		@Override
-		public void cancel() {}
+        @Override
+        public void cancel() {}
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			fail("should never be called");
-		}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            fail("should never be called");
+        }
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			// raw keyed state is already read by timer service, all others to initialize the context...we only need to
-			// trigger this manually.
-			((StateInitializationContext) context).getRawOperatorStateInputs().iterator().next().getStream().read();
-		}
-	}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            // raw keyed state is already read by timer service, all others to initialize the
+            // context...we only need to
+            // trigger this manually.
+            ((StateInitializationContext) context)
+                    .getRawOperatorStateInputs()
+                    .iterator()
+                    .next()
+                    .getStream()
+                    .read();
+        }
+    }
 }

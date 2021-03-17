@@ -20,18 +20,19 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 
 /**
- * <p>For testing PubSub we need to have messages that can indicate the end of the stream
- * to cleanly terminate the test run.</p>
+ * For testing PubSub we need to have messages that can indicate the end of the stream to cleanly
+ * terminate the test run.
  *
  * <p>IMPORTANT NOTE: This way of testing uses an effect of the PubSub emulator that is absolutely
- * guaranteed NOT to work in the real PubSub: The ordering of the messages is maintained in the topic.
- * So here we can assume that if we add a stop message LAST we can terminate the test stream when we see it.</p>
+ * guaranteed NOT to work in the real PubSub: The ordering of the messages is maintained in the
+ * topic. So here we can assume that if we add a stop message LAST we can terminate the test stream
+ * when we see it.
  */
 public class SimpleStringSchemaWithStopMarkerDetection extends SimpleStringSchema {
-	public static final String STOP_MARKER = "<><><>STOP STOP STOP<><><>";
+    public static final String STOP_MARKER = "<><><>STOP STOP STOP<><><>";
 
-	@Override
-	public boolean isEndOfStream(String s) {
-		return (STOP_MARKER.equals(s));
-	}
+    @Override
+    public boolean isEndOfStream(String s) {
+        return (STOP_MARKER.equals(s));
+    }
 }

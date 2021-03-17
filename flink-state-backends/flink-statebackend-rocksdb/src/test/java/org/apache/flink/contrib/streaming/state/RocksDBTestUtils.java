@@ -39,84 +39,94 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
-/**
- * Test utils for the RocksDB state backend.
- */
+/** Test utils for the RocksDB state backend. */
 public final class RocksDBTestUtils {
 
-	public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
-			File instanceBasePath,
-			TypeSerializer<K> keySerializer) {
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
+            File instanceBasePath, TypeSerializer<K> keySerializer) {
 
-		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
+        return builderForTestDefaults(
+                instanceBasePath,
+                keySerializer,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
+    }
 
-		return new RocksDBKeyedStateBackendBuilder<>(
-			"no-op",
-			ClassLoader.getSystemClassLoader(),
-			instanceBasePath,
-			optionsContainer,
-			stateName -> optionsContainer.getColumnOptions(),
-			new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
-			keySerializer,
-			2,
-			new KeyGroupRange(0, 1),
-			new ExecutionConfig(),
-			TestLocalRecoveryConfig.disabled(),
-			RocksDBStateBackend.PriorityQueueStateType.HEAP,
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			UncompressedStreamCompressionDecorator.INSTANCE,
-			new CloseableRegistry());
-	}
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
+            File instanceBasePath,
+            TypeSerializer<K> keySerializer,
+            EmbeddedRocksDBStateBackend.PriorityQueueStateType queueStateType) {
 
-	public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDB(
-			File instanceBasePath,
-			TypeSerializer<K> keySerializer,
-			RocksDB db,
-			ColumnFamilyHandle defaultCFHandle,
-			ColumnFamilyOptions columnFamilyOptions) {
+        final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
-		final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
+        return new RocksDBKeyedStateBackendBuilder<>(
+                "no-op",
+                ClassLoader.getSystemClassLoader(),
+                instanceBasePath,
+                optionsContainer,
+                stateName -> optionsContainer.getColumnOptions(),
+                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+                keySerializer,
+                2,
+                new KeyGroupRange(0, 1),
+                new ExecutionConfig(),
+                TestLocalRecoveryConfig.disabled(),
+                queueStateType,
+                TtlTimeProvider.DEFAULT,
+                new UnregisteredMetricsGroup(),
+                Collections.emptyList(),
+                UncompressedStreamCompressionDecorator.INSTANCE,
+                new CloseableRegistry());
+    }
 
-		return new RocksDBKeyedStateBackendBuilder<>(
-				"no-op",
-				ClassLoader.getSystemClassLoader(),
-				instanceBasePath,
-				optionsContainer,
-				stateName -> columnFamilyOptions,
-				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
-				keySerializer,
-				2,
-				new KeyGroupRange(0, 1),
-				new ExecutionConfig(),
-				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT,
-				new UnregisteredMetricsGroup(),
-				Collections.emptyList(),
-				UncompressedStreamCompressionDecorator.INSTANCE,
-				db,
-				defaultCFHandle,
-				new CloseableRegistry());
-	}
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDB(
+            File instanceBasePath,
+            TypeSerializer<K> keySerializer,
+            RocksDB db,
+            ColumnFamilyHandle defaultCFHandle,
+            ColumnFamilyOptions columnFamilyOptions) {
 
-	public static <K> RocksDBKeyedStateBackend<K> createKeyedStateBackend(
-			RocksDBStateBackend rocksDbBackend,
-			Environment env,
-			TypeSerializer<K> keySerializer) throws IOException {
+        final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
-		return (RocksDBKeyedStateBackend<K>) rocksDbBackend.createKeyedStateBackend(
-			env,
-			env.getJobID(),
-			"test_op",
-			keySerializer,
-			1,
-			new KeyGroupRange(0, 0),
-			env.getTaskKvStateRegistry(),
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
-	}
+        return new RocksDBKeyedStateBackendBuilder<>(
+                "no-op",
+                ClassLoader.getSystemClassLoader(),
+                instanceBasePath,
+                optionsContainer,
+                stateName -> columnFamilyOptions,
+                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+                keySerializer,
+                2,
+                new KeyGroupRange(0, 1),
+                new ExecutionConfig(),
+                TestLocalRecoveryConfig.disabled(),
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                TtlTimeProvider.DEFAULT,
+                new UnregisteredMetricsGroup(),
+                Collections.emptyList(),
+                UncompressedStreamCompressionDecorator.INSTANCE,
+                db,
+                defaultCFHandle,
+                new CloseableRegistry());
+    }
+
+    public static <K> RocksDBKeyedStateBackend<K> createKeyedStateBackend(
+            EmbeddedRocksDBStateBackend rocksDbBackend,
+            Environment env,
+            TypeSerializer<K> keySerializer)
+            throws IOException {
+
+        return (RocksDBKeyedStateBackend<K>)
+                rocksDbBackend.createKeyedStateBackend(
+                        env,
+                        env.getJobID(),
+                        "test_op",
+                        keySerializer,
+                        1,
+                        new KeyGroupRange(0, 0),
+                        env.getTaskKvStateRegistry(),
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        new CloseableRegistry());
+    }
 }

@@ -26,49 +26,57 @@ import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
-/**
- * The Factory class for {@link CollectSinkOperator}.
- */
-public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFactory<Object> implements CoordinatedOperatorFactory<Object> {
+/** The Factory class for {@link CollectSinkOperator}. */
+public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFactory<Object>
+        implements CoordinatedOperatorFactory<Object> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final long DEFAULT_MAX_BYTES_PER_BATCH = 1 << 21; // 2MB
-	private static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 10000;
+    private static final long DEFAULT_MAX_BYTES_PER_BATCH = 1 << 21; // 2MB
+    private static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 10000;
 
-	private final CollectSinkOperator<IN> operator;
-	private final int socketTimeoutMillis;
+    private final CollectSinkOperator<IN> operator;
+    private final int socketTimeoutMillis;
 
-	public CollectSinkOperatorFactory(TypeSerializer<IN> serializer, String accumulatorName) {
-		this(serializer, accumulatorName, DEFAULT_MAX_BYTES_PER_BATCH, DEFAULT_SOCKET_TIMEOUT_MILLIS);
-	}
+    public CollectSinkOperatorFactory(TypeSerializer<IN> serializer, String accumulatorName) {
+        this(
+                serializer,
+                accumulatorName,
+                DEFAULT_MAX_BYTES_PER_BATCH,
+                DEFAULT_SOCKET_TIMEOUT_MILLIS);
+    }
 
-	public CollectSinkOperatorFactory(
-			TypeSerializer<IN> serializer,
-			String accumulatorName,
-			long maxBytesPerBatch,
-			int socketTimeoutMillis) {
-		super(new CollectSinkOperator<>(serializer, maxBytesPerBatch, accumulatorName));
-		this.operator = (CollectSinkOperator<IN>) getOperator();
-		this.socketTimeoutMillis = socketTimeoutMillis;
-	}
+    public CollectSinkOperatorFactory(
+            TypeSerializer<IN> serializer,
+            String accumulatorName,
+            long maxBytesPerBatch,
+            int socketTimeoutMillis) {
+        super(new CollectSinkOperator<>(serializer, maxBytesPerBatch, accumulatorName));
+        this.operator = (CollectSinkOperator<IN>) getOperator();
+        this.socketTimeoutMillis = socketTimeoutMillis;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<Object>> T  createStreamOperator(StreamOperatorParameters<Object> parameters) {
-		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
-		final OperatorEventDispatcher eventDispatcher = parameters.getOperatorEventDispatcher();
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends StreamOperator<Object>> T createStreamOperator(
+            StreamOperatorParameters<Object> parameters) {
+        final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
+        final OperatorEventDispatcher eventDispatcher = parameters.getOperatorEventDispatcher();
 
-		operator.setOperatorEventGateway(eventDispatcher.getOperatorEventGateway(operatorId));
-		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		eventDispatcher.registerEventHandler(operatorId, operator);
+        operator.setOperatorEventGateway(eventDispatcher.getOperatorEventGateway(operatorId));
+        operator.setup(
+                parameters.getContainingTask(),
+                parameters.getStreamConfig(),
+                parameters.getOutput());
+        eventDispatcher.registerEventHandler(operatorId, operator);
 
-		return (T) operator;
-	}
+        return (T) operator;
+    }
 
-	@Override
-	public OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID) {
-		operator.getOperatorIdFuture().complete(operatorID);
-		return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeoutMillis);
-	}
+    @Override
+    public OperatorCoordinator.Provider getCoordinatorProvider(
+            String operatorName, OperatorID operatorID) {
+        operator.getOperatorIdFuture().complete(operatorID);
+        return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeoutMillis);
+    }
 }

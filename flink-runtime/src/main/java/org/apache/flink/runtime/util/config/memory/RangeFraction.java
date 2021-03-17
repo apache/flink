@@ -22,31 +22,31 @@ import org.apache.flink.configuration.MemorySize;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Range and fraction of a memory component, which is a capped fraction of another component.
- */
+/** Range and fraction of a memory component, which is a capped fraction of another component. */
 public class RangeFraction {
-	private final MemorySize minSize;
-	private final MemorySize maxSize;
-	private final double fraction;
+    private final MemorySize minSize;
+    private final MemorySize maxSize;
+    private final double fraction;
 
-	RangeFraction(MemorySize minSize, MemorySize maxSize, double fraction) {
-		this.minSize = minSize;
-		this.maxSize = maxSize;
-		this.fraction = fraction;
-		checkArgument(minSize.getBytes() <= maxSize.getBytes(), "min value must be less or equal to max value");
-		checkArgument(fraction >= 0 && fraction < 1, "fraction must be in range [0, 1)");
-	}
+    RangeFraction(MemorySize minSize, MemorySize maxSize, double fraction) {
+        this.minSize = minSize;
+        this.maxSize = maxSize;
+        this.fraction = fraction;
+        checkArgument(
+                minSize.getBytes() <= maxSize.getBytes(),
+                "min value must be less or equal to max value");
+        checkArgument(fraction >= 0 && fraction < 1, "fraction must be in range [0, 1)");
+    }
 
-	public MemorySize getMinSize() {
-		return minSize;
-	}
+    public MemorySize getMinSize() {
+        return minSize;
+    }
 
-	public MemorySize getMaxSize() {
-		return maxSize;
-	}
+    public MemorySize getMaxSize() {
+        return maxSize;
+    }
 
-	public double getFraction() {
-		return fraction;
-	}
+    public double getFraction() {
+        return fraction;
+    }
 }

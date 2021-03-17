@@ -36,34 +36,33 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Test for {@link LimitableBulkFormat}.
- */
+/** Test for {@link LimitableBulkFormat}. */
 public class LimitableBulkFormatTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	@Test
-	public void test() throws IOException {
-		// prepare file
-		File file = TEMP_FOLDER.newFile();
-		file.createNewFile();
-		StringBuilder builder = new StringBuilder();
-		for (int i = 0; i < 10000; i++) {
-			builder.append(i).append("\n");
-		}
-		FileUtils.writeFileUtf8(file, builder.toString());
+    @Test
+    public void test() throws IOException {
+        // prepare file
+        File file = TEMP_FOLDER.newFile();
+        file.createNewFile();
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < 10000; i++) {
+            builder.append(i).append("\n");
+        }
+        FileUtils.writeFileUtf8(file, builder.toString());
 
-		// read
-		BulkFormat<String, FileSourceSplit> format = LimitableBulkFormat.create(
-				new StreamFormatAdapter<>(new TextLineFormat()), 22L);
+        // read
+        BulkFormat<String, FileSourceSplit> format =
+                LimitableBulkFormat.create(new StreamFormatAdapter<>(new TextLineFormat()), 22L);
 
-		BulkFormat.Reader<String> reader = format.createReader(
-				new Configuration(), new FileSourceSplit("id", new Path(file.toURI()), 0, file.length()));
+        BulkFormat.Reader<String> reader =
+                format.createReader(
+                        new Configuration(),
+                        new FileSourceSplit("id", new Path(file.toURI()), 0, file.length()));
 
-		AtomicInteger i = new AtomicInteger(0);
-		Utils.forEachRemaining(reader, s -> i.incrementAndGet());
-		Assert.assertEquals(22, i.get());
-	}
+        AtomicInteger i = new AtomicInteger(0);
+        Utils.forEachRemaining(reader, s -> i.incrementAndGet());
+        Assert.assertEquals(22, i.get());
+    }
 }

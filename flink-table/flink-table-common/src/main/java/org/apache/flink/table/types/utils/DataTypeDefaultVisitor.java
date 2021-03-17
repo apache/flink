@@ -27,31 +27,31 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 
 /**
- * Implementation of {@link DataTypeVisitor} that redirects all calls to
- * {@link DataTypeDefaultVisitor#defaultMethod(DataType)}.
+ * Implementation of {@link DataTypeVisitor} that redirects all calls to {@link
+ * DataTypeDefaultVisitor#defaultMethod(DataType)}.
  */
 @Internal
-public abstract class DataTypeDefaultVisitor<R> implements DataTypeVisitor<R>{
+public abstract class DataTypeDefaultVisitor<R> implements DataTypeVisitor<R> {
 
-	@Override
-	public R visit(AtomicDataType atomicDataType) {
-		return defaultMethod(atomicDataType);
-	}
+    @Override
+    public R visit(AtomicDataType atomicDataType) {
+        return defaultMethod(atomicDataType);
+    }
 
-	@Override
-	public R visit(CollectionDataType collectionDataType) {
-		return defaultMethod(collectionDataType);
-	}
+    @Override
+    public R visit(CollectionDataType collectionDataType) {
+        return defaultMethod(collectionDataType);
+    }
 
-	@Override
-	public R visit(FieldsDataType fieldsDataType) {
-		return defaultMethod(fieldsDataType);
-	}
+    @Override
+    public R visit(FieldsDataType fieldsDataType) {
+        return defaultMethod(fieldsDataType);
+    }
 
-	@Override
-	public R visit(KeyValueDataType keyValueDataType) {
-		return defaultMethod(keyValueDataType);
-	}
+    @Override
+    public R visit(KeyValueDataType keyValueDataType) {
+        return defaultMethod(keyValueDataType);
+    }
 
-	protected abstract R defaultMethod(DataType dataType);
+    protected abstract R defaultMethod(DataType dataType);
 }

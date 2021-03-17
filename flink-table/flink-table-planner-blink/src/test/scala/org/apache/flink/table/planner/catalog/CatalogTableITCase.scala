@@ -29,8 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -962,14 +961,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql("alter table t1 rename to t2")
     assert(tableEnv.listTables().sameElements(Array[String]("t2")))
     tableEnv.executeSql("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
-    val expectedProperties = new util.HashMap[String, String]()
-    expectedProperties.put("connector", "COLLECTION")
-    expectedProperties.put("k1", "a")
-    expectedProperties.put("k2", "b")
-    val properties = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val expectedOptions = new util.HashMap[String, String]()
+    expectedOptions.put("connector", "COLLECTION")
+    expectedOptions.put("k1", "a")
+    expectedOptions.put("k2", "b")
+    val options = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
-      .getProperties
-    assertEquals(expectedProperties, properties)
+      .getOptions
+    assertEquals(expectedOptions, options)
     val currentCatalog = tableEnv.getCurrentCatalog
     val currentDB = tableEnv.getCurrentDatabase
     tableEnv.executeSql("alter table t2 add constraint ct1 primary key(a) not enforced")
@@ -994,7 +993,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals("cat1", tableEnv.getCurrentCatalog)
     tableEnv.executeSql("use catalog cat2")
     assertEquals("cat2", tableEnv.getCurrentCatalog)
-    assertEquals("cat2", tableEnv.executeSql("show current catalog").collect().next().toString)
+    assertEquals("+I[cat2]", tableEnv.executeSql("show current catalog").collect().next().toString)
   }
 
   @Test
@@ -1008,11 +1007,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql("use cat1.db1")
     assertEquals("db1", tableEnv.getCurrentDatabase)
     var currentDatabase = tableEnv.executeSql("show current database").collect().next().toString
-    assertEquals("db1", currentDatabase)
+    assertEquals("+I[db1]", currentDatabase)
     tableEnv.executeSql("use db2")
     assertEquals("db2", tableEnv.getCurrentDatabase)
     currentDatabase = tableEnv.executeSql("show current database").collect().next().toString
-    assertEquals("db2", currentDatabase)
+    assertEquals("+I[db2]", currentDatabase)
   }
 
   @Test

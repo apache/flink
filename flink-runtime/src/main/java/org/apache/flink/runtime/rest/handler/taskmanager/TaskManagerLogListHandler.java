@@ -45,45 +45,57 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-/**
- * Handler which serves detailed TaskManager log list information.
- */
-public class TaskManagerLogListHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
+/** Handler which serves detailed TaskManager log list information. */
+public class TaskManagerLogListHandler
+        extends AbstractResourceManagerHandler<
+                RestfulGateway, EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> {
 
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	public TaskManagerLogListHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters> messageHeaders,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, resourceManagerGatewayRetriever);
+    public TaskManagerLogListHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, LogListInfo, TaskManagerMessageParameters>
+                    messageHeaders,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                resourceManagerGatewayRetriever);
 
-		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
-	}
+        this.resourceManagerGatewayRetriever =
+                Preconditions.checkNotNull(resourceManagerGatewayRetriever);
+    }
 
-	@Override
-	protected CompletableFuture<LogListInfo> handleRequest(
-			@Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
-			@Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
-		final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
-		final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
-		final CompletableFuture<Collection<LogInfo>> logsWithLengthFuture = resourceManagerGateway.requestTaskManagerLogList(taskManagerId, timeout);
+    @Override
+    protected CompletableFuture<LogListInfo> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
+            @Nonnull ResourceManagerGateway gateway)
+            throws RestHandlerException {
+        final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);
+        final ResourceManagerGateway resourceManagerGateway =
+                getResourceManagerGateway(resourceManagerGatewayRetriever);
+        final CompletableFuture<Collection<LogInfo>> logsWithLengthFuture =
+                resourceManagerGateway.requestTaskManagerLogList(taskManagerId, timeout);
 
-		return logsWithLengthFuture.thenApply(LogListInfo::new).exceptionally(
-			(throwable) -> {
-				final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-				if (strippedThrowable instanceof UnknownTaskExecutorException) {
-					throw new CompletionException(
-						new RestHandlerException(
-							"Could not find TaskExecutor " + taskManagerId,
-							HttpResponseStatus.NOT_FOUND,
-							strippedThrowable
-						));
-				} else {
-					throw new CompletionException(throwable);
-				}
-			});
-	}
+        return logsWithLengthFuture
+                .thenApply(LogListInfo::new)
+                .exceptionally(
+                        (throwable) -> {
+                            final Throwable strippedThrowable =
+                                    ExceptionUtils.stripCompletionException(throwable);
+                            if (strippedThrowable instanceof UnknownTaskExecutorException) {
+                                throw new CompletionException(
+                                        new RestHandlerException(
+                                                "Could not find TaskExecutor " + taskManagerId,
+                                                HttpResponseStatus.NOT_FOUND,
+                                                strippedThrowable));
+                            } else {
+                                throw new CompletionException(throwable);
+                            }
+                        });
+    }
 }

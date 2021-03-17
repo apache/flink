@@ -30,63 +30,66 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import java.time.Duration;
 
 /**
- * Basic interface for the timestamp extraction and watermark generation logic for the
- * {@link org.apache.flink.api.connector.source.SourceReader}.
+ * Basic interface for the timestamp extraction and watermark generation logic for the {@link
+ * org.apache.flink.api.connector.source.SourceReader}.
  *
  * <p>Implementations of this class may or may not actually perform certain tasks, like watermark
- * generation. For example, the batch-oriented implementation typically skips all watermark generation
- * logic.
+ * generation. For example, the batch-oriented implementation typically skips all watermark
+ * generation logic.
  *
  * @param <T> The type of the emitted records.
  */
 @Internal
 public interface TimestampsAndWatermarks<T> {
 
-	/**
-	 * Creates the ReaderOutput for the source reader, than internally runs the timestamp extraction and
-	 * watermark generation.
-	 */
-	ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output);
+    /**
+     * Creates the ReaderOutput for the source reader, than internally runs the timestamp extraction
+     * and watermark generation.
+     */
+    ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output);
 
-	/**
-	 * Starts emitting periodic watermarks, if this implementation produces watermarks, and if
-	 * periodic watermarks are configured.
-	 *
-	 * <p>Periodic watermarks are produced by periodically calling the
-	 * {@link org.apache.flink.api.common.eventtime.WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method
-	 * of the underlying Watermark Generators.
-	 */
-	void startPeriodicWatermarkEmits();
+    /**
+     * Starts emitting periodic watermarks, if this implementation produces watermarks, and if
+     * periodic watermarks are configured.
+     *
+     * <p>Periodic watermarks are produced by periodically calling the {@link
+     * org.apache.flink.api.common.eventtime.WatermarkGenerator#onPeriodicEmit(WatermarkOutput)}
+     * method of the underlying Watermark Generators.
+     */
+    void startPeriodicWatermarkEmits();
 
-	/**
-	 * Stops emitting periodic watermarks.
-	 */
-	void stopPeriodicWatermarkEmits();
+    /** Stops emitting periodic watermarks. */
+    void stopPeriodicWatermarkEmits();
 
-	// ------------------------------------------------------------------------
-	//  factories
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  factories
+    // ------------------------------------------------------------------------
 
-	static <E> TimestampsAndWatermarks<E> createProgressiveEventTimeLogic(
-			WatermarkStrategy<E> watermarkStrategy,
-			MetricGroup metrics,
-			ProcessingTimeService timeService,
-			long periodicWatermarkIntervalMillis) {
+    static <E> TimestampsAndWatermarks<E> createProgressiveEventTimeLogic(
+            WatermarkStrategy<E> watermarkStrategy,
+            MetricGroup metrics,
+            ProcessingTimeService timeService,
+            long periodicWatermarkIntervalMillis) {
 
-		final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
-		final TimestampAssigner<E> timestampAssigner = watermarkStrategy.createTimestampAssigner(context);
+        final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
+        final TimestampAssigner<E> timestampAssigner =
+                watermarkStrategy.createTimestampAssigner(context);
 
-		return new ProgressiveTimestampsAndWatermarks<>(
-			timestampAssigner, watermarkStrategy, context, timeService, Duration.ofMillis(periodicWatermarkIntervalMillis));
-	}
+        return new ProgressiveTimestampsAndWatermarks<>(
+                timestampAssigner,
+                watermarkStrategy,
+                context,
+                timeService,
+                Duration.ofMillis(periodicWatermarkIntervalMillis));
+    }
 
-	static <E> TimestampsAndWatermarks<E> createNoOpEventTimeLogic(
-			WatermarkStrategy<E> watermarkStrategy,
-			MetricGroup metrics) {
+    static <E> TimestampsAndWatermarks<E> createNoOpEventTimeLogic(
+            WatermarkStrategy<E> watermarkStrategy, MetricGroup metrics) {
 
-		final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
-		final TimestampAssigner<E> timestampAssigner = watermarkStrategy.createTimestampAssigner(context);
+        final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
+        final TimestampAssigner<E> timestampAssigner =
+                watermarkStrategy.createTimestampAssigner(context);
 
-		return new NoOpTimestampsAndWatermarks<>(timestampAssigner);
-	}
+        return new NoOpTimestampsAndWatermarks<>(timestampAssigner);
+    }
 }

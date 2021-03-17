@@ -22,29 +22,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
-/**
- * The collector is used to convert a {@link RowData} to a {@link StreamRecord}.
- */
+/** The collector is used to convert a {@link RowData} to a {@link StreamRecord}. */
 public class StreamRecordRowDataWrappingCollector implements Collector<RowData> {
 
-	private final Collector<StreamRecord<RowData>> out;
+    private final Collector<StreamRecord<RowData>> out;
 
-	/**
-	 * For Table API & SQL jobs, the timestamp field is not used.
-	 */
-	private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
+    /** For Table API & SQL jobs, the timestamp field is not used. */
+    private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
 
-	public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
-		this.out = out;
-	}
+    public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
+        this.out = out;
+    }
 
-	@Override
-	public void collect(RowData record) {
-		out.collect(reuseStreamRecord.replace(record));
-	}
+    @Override
+    public void collect(RowData record) {
+        out.collect(reuseStreamRecord.replace(record));
+    }
 
-	@Override
-	public void close() {
-		out.close();
-	}
+    @Override
+    public void close() {
+        out.close();
+    }
 }

@@ -24,23 +24,28 @@ import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.Arrays;
 
-/**
- * Marshalling test for the {@link JobIdsWithStatusOverview} message.
- */
-public class JobIdsWithStatusOverviewTest extends RestResponseMarshallingTestBase<JobIdsWithStatusOverview> {
+/** Marshalling test for the {@link JobIdsWithStatusOverview} message. */
+public class JobIdsWithStatusOverviewTest
+        extends RestResponseMarshallingTestBase<JobIdsWithStatusOverview> {
 
-	@Override
-	protected Class<JobIdsWithStatusOverview> getTestResponseClass() {
-		return JobIdsWithStatusOverview.class;
-	}
+    @Override
+    protected Class<JobIdsWithStatusOverview> getTestResponseClass() {
+        return JobIdsWithStatusOverview.class;
+    }
 
-	@Override
-	protected JobIdsWithStatusOverview getTestResponseInstance() {
-		return new JobIdsWithStatusOverview(Arrays.asList(
-			new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RUNNING),
-			new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CANCELED),
-			new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CREATED),
-			new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.FAILED),
-			new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RESTARTING)));
-	}
+    @Override
+    protected JobIdsWithStatusOverview getTestResponseInstance() {
+        return new JobIdsWithStatusOverview(
+                Arrays.asList(
+                        new JobIdsWithStatusOverview.JobIdWithStatus(
+                                JobID.generate(), JobStatus.RUNNING),
+                        new JobIdsWithStatusOverview.JobIdWithStatus(
+                                JobID.generate(), JobStatus.CANCELED),
+                        new JobIdsWithStatusOverview.JobIdWithStatus(
+                                JobID.generate(), JobStatus.CREATED),
+                        new JobIdsWithStatusOverview.JobIdWithStatus(
+                                JobID.generate(), JobStatus.FAILED),
+                        new JobIdsWithStatusOverview.JobIdWithStatus(
+                                JobID.generate(), JobStatus.RESTARTING)));
+    }
 }

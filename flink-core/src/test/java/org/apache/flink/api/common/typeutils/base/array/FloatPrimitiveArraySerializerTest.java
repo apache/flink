@@ -20,36 +20,58 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
- * A test for the {@link LongPrimitiveArraySerializer}.
+ * A test for the {@link
+ * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
 public class FloatPrimitiveArraySerializerTest extends SerializerTestBase<float[]> {
 
-	@Override
-	protected TypeSerializer<float[]> createSerializer() {
-		return new FloatPrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<float[]> createSerializer() {
+        return new FloatPrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<float[]> getTypeClass() {
-		return float[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<float[]> getTypeClass() {
+        return float[].class;
+    }
 
-	@Override
-	protected float[][] getTestData() {
-		return new float[][] {
-			new float[] {0, 1, 2, 3, -1, -2, -3, Integer.MAX_VALUE, Integer.MIN_VALUE, Float.MAX_VALUE, Float.MIN_VALUE},
-			new float[] {Float.NEGATIVE_INFINITY},
-			new float[] {},
-			new float[] {-1, -2, 96769243, Float.NaN, Float.POSITIVE_INFINITY, 26782, Float.MIN_NORMAL, 0, 0, 0}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected float[][] getTestData() {
+        return new float[][] {
+            new float[] {
+                0,
+                1,
+                2,
+                3,
+                -1,
+                -2,
+                -3,
+                Integer.MAX_VALUE,
+                Integer.MIN_VALUE,
+                Float.MAX_VALUE,
+                Float.MIN_VALUE
+            },
+            new float[] {Float.NEGATIVE_INFINITY},
+            new float[] {},
+            new float[] {
+                -1,
+                -2,
+                96769243,
+                Float.NaN,
+                Float.POSITIVE_INFINITY,
+                26782,
+                Float.MIN_NORMAL,
+                0,
+                0,
+                0
+            }
+        };
+    }
 }

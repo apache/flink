@@ -28,108 +28,114 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * JDBC dialect for MySQL.
- */
+/** JDBC dialect for MySQL. */
 public class MySQLDialect extends AbstractDialect {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// Define MAX/MIN precision of TIMESTAMP type according to Mysql docs:
-	// https://dev.mysql.com/doc/refman/8.0/en/fractional-seconds.html
-	private static final int MAX_TIMESTAMP_PRECISION = 6;
-	private static final int MIN_TIMESTAMP_PRECISION = 1;
+    // Define MAX/MIN precision of TIMESTAMP type according to Mysql docs:
+    // https://dev.mysql.com/doc/refman/8.0/en/fractional-seconds.html
+    private static final int MAX_TIMESTAMP_PRECISION = 6;
+    private static final int MIN_TIMESTAMP_PRECISION = 1;
 
-	// Define MAX/MIN precision of DECIMAL type according to Mysql docs:
-	// https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
-	private static final int MAX_DECIMAL_PRECISION = 65;
-	private static final int MIN_DECIMAL_PRECISION = 1;
+    // Define MAX/MIN precision of DECIMAL type according to Mysql docs:
+    // https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
+    private static final int MAX_DECIMAL_PRECISION = 65;
+    private static final int MIN_DECIMAL_PRECISION = 1;
 
-	@Override
-	public boolean canHandle(String url) {
-		return url.startsWith("jdbc:mysql:");
-	}
+    @Override
+    public boolean canHandle(String url) {
+        return url.startsWith("jdbc:mysql:");
+    }
 
-	@Override
-	public JdbcRowConverter getRowConverter(RowType rowType) {
-		return new MySQLRowConverter(rowType);
-	}
+    @Override
+    public JdbcRowConverter getRowConverter(RowType rowType) {
+        return new MySQLRowConverter(rowType);
+    }
 
-	@Override
-	public Optional<String> defaultDriverName() {
-		return Optional.of("com.mysql.jdbc.Driver");
-	}
+    @Override
+    public String getLimitClause(long limit) {
+        return "LIMIT " + limit;
+    }
 
-	@Override
-	public String quoteIdentifier(String identifier) {
-		return "`" + identifier + "`";
-	}
+    @Override
+    public Optional<String> defaultDriverName() {
+        return Optional.of("com.mysql.jdbc.Driver");
+    }
 
-	/**
-	 * Mysql upsert query use DUPLICATE KEY UPDATE.
-	 *
-	 * <p>NOTE: It requires Mysql's primary key to be consistent with pkFields.
-	 *
-	 * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
-	 */
-	@Override
-	public Optional<String> getUpsertStatement(String tableName, String[] fieldNames, String[] uniqueKeyFields) {
-		String updateClause = Arrays.stream(fieldNames)
-			.map(f -> quoteIdentifier(f) + "=VALUES(" + quoteIdentifier(f) + ")")
-			.collect(Collectors.joining(", "));
-		return Optional.of(getInsertIntoStatement(tableName, fieldNames) +
-			" ON DUPLICATE KEY UPDATE " + updateClause
-		);
-	}
+    @Override
+    public String quoteIdentifier(String identifier) {
+        return "`" + identifier + "`";
+    }
 
-	@Override
-	public String dialectName() {
-		return "MySQL";
-	}
+    /**
+     * Mysql upsert query use DUPLICATE KEY UPDATE.
+     *
+     * <p>NOTE: It requires Mysql's primary key to be consistent with pkFields.
+     *
+     * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
+     */
+    @Override
+    public Optional<String> getUpsertStatement(
+            String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+        String updateClause =
+                Arrays.stream(fieldNames)
+                        .map(f -> quoteIdentifier(f) + "=VALUES(" + quoteIdentifier(f) + ")")
+                        .collect(Collectors.joining(", "));
+        return Optional.of(
+                getInsertIntoStatement(tableName, fieldNames)
+                        + " ON DUPLICATE KEY UPDATE "
+                        + updateClause);
+    }
 
-	@Override
-	public int maxDecimalPrecision() {
-		return MAX_DECIMAL_PRECISION;
-	}
+    @Override
+    public String dialectName() {
+        return "MySQL";
+    }
 
-	@Override
-	public int minDecimalPrecision() {
-		return MIN_DECIMAL_PRECISION;
-	}
+    @Override
+    public int maxDecimalPrecision() {
+        return MAX_DECIMAL_PRECISION;
+    }
 
-	@Override
-	public int maxTimestampPrecision() {
-		return MAX_TIMESTAMP_PRECISION;
-	}
+    @Override
+    public int minDecimalPrecision() {
+        return MIN_DECIMAL_PRECISION;
+    }
 
-	@Override
-	public int minTimestampPrecision() {
-		return MIN_TIMESTAMP_PRECISION;
-	}
+    @Override
+    public int maxTimestampPrecision() {
+        return MAX_TIMESTAMP_PRECISION;
+    }
 
-	@Override
-	public List<LogicalTypeRoot> unsupportedTypes() {
-		// The data types used in Mysql are list at:
-		// https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+    @Override
+    public int minTimestampPrecision() {
+        return MIN_TIMESTAMP_PRECISION;
+    }
 
-		// TODO: We can't convert BINARY data type to
-		//  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in LegacyTypeInfoDataTypeConverter.
-		return Arrays.asList(
-			LogicalTypeRoot.BINARY,
-			LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-			LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE,
-			LogicalTypeRoot.INTERVAL_YEAR_MONTH,
-			LogicalTypeRoot.INTERVAL_DAY_TIME,
-			LogicalTypeRoot.ARRAY,
-			LogicalTypeRoot.MULTISET,
-			LogicalTypeRoot.MAP,
-			LogicalTypeRoot.ROW,
-			LogicalTypeRoot.DISTINCT_TYPE,
-			LogicalTypeRoot.STRUCTURED_TYPE,
-			LogicalTypeRoot.NULL,
-			LogicalTypeRoot.RAW,
-			LogicalTypeRoot.SYMBOL,
-			LogicalTypeRoot.UNRESOLVED
-		);
-	}
+    @Override
+    public List<LogicalTypeRoot> unsupportedTypes() {
+        // The data types used in Mysql are list at:
+        // https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+
+        // TODO: We can't convert BINARY data type to
+        //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
+        // LegacyTypeInfoDataTypeConverter.
+        return Arrays.asList(
+                LogicalTypeRoot.BINARY,
+                LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE,
+                LogicalTypeRoot.INTERVAL_YEAR_MONTH,
+                LogicalTypeRoot.INTERVAL_DAY_TIME,
+                LogicalTypeRoot.ARRAY,
+                LogicalTypeRoot.MULTISET,
+                LogicalTypeRoot.MAP,
+                LogicalTypeRoot.ROW,
+                LogicalTypeRoot.DISTINCT_TYPE,
+                LogicalTypeRoot.STRUCTURED_TYPE,
+                LogicalTypeRoot.NULL,
+                LogicalTypeRoot.RAW,
+                LogicalTypeRoot.SYMBOL,
+                LogicalTypeRoot.UNRESOLVED);
+    }
 }

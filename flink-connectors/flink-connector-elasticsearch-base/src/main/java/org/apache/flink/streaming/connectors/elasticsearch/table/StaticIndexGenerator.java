@@ -21,17 +21,15 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 
-/**
- * A static {@link IndexGenerator} which generate fixed index name.
- */
+/** A static {@link IndexGenerator} which generate fixed index name. */
 @Internal
 final class StaticIndexGenerator extends IndexGeneratorBase {
 
-	public StaticIndexGenerator(String index) {
-		super(index);
-	}
+    public StaticIndexGenerator(String index) {
+        super(index);
+    }
 
-	public String generate(RowData row) {
-		return index;
-	}
+    public String generate(RowData row) {
+        return index;
+    }
 }

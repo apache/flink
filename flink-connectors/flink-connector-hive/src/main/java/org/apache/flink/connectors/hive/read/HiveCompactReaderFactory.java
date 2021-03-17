@@ -19,6 +19,8 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connectors.hive.CachedSerializedValue;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.core.fs.FileSystem;
@@ -46,70 +48,84 @@ import java.util.Properties;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.restorePartitionValueFromType;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSpecFromPath;
 
-/**
- * The {@link CompactReader.Factory} to delegate hive bulk format.
- */
+/** The {@link CompactReader.Factory} to delegate hive bulk format. */
 public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final StorageDescriptor sd;
-	private final Properties properties;
-	private final JobConfWrapper jobConfWrapper;
-	private final List<String> partitionKeys;
-	private final String[] fieldNames;
-	private final DataType[] fieldTypes;
-	private final String hiveVersion;
-	private final HiveShim shim;
-	private final RowType producedRowType;
-	private final boolean useMapRedReader;
+    private final CachedSerializedValue<StorageDescriptor> sd;
+    private final Properties properties;
+    private final JobConfWrapper jobConfWrapper;
+    private final List<String> partitionKeys;
+    private final String[] fieldNames;
+    private final DataType[] fieldTypes;
+    private final String hiveVersion;
+    private final HiveShim shim;
+    private final RowType producedRowType;
+    private final boolean useMapRedReader;
 
-	public HiveCompactReaderFactory(
-			StorageDescriptor sd,
-			Properties properties,
-			JobConf jobConf,
-			CatalogTable catalogTable,
-			String hiveVersion,
-			RowType producedRowType,
-			boolean useMapRedReader) {
-		this.sd = sd;
-		this.properties = properties;
-		this.jobConfWrapper = new JobConfWrapper(jobConf);
-		this.partitionKeys = catalogTable.getPartitionKeys();
-		this.fieldNames = catalogTable.getSchema().getFieldNames();
-		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
-		this.hiveVersion = hiveVersion;
-		this.shim = HiveShimLoader.loadHiveShim(hiveVersion);
-		this.producedRowType = producedRowType;
-		this.useMapRedReader = useMapRedReader;
-	}
+    public HiveCompactReaderFactory(
+            StorageDescriptor sd,
+            Properties properties,
+            JobConf jobConf,
+            CatalogTable catalogTable,
+            String hiveVersion,
+            RowType producedRowType,
+            boolean useMapRedReader) {
+        try {
+            this.sd = new CachedSerializedValue<>(sd);
+        } catch (IOException e) {
+            throw new FlinkHiveException("Failed to serialize StorageDescriptor", e);
+        }
+        this.properties = properties;
+        this.jobConfWrapper = new JobConfWrapper(jobConf);
+        this.partitionKeys = catalogTable.getPartitionKeys();
+        this.fieldNames = catalogTable.getSchema().getFieldNames();
+        this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
+        this.hiveVersion = hiveVersion;
+        this.shim = HiveShimLoader.loadHiveShim(hiveVersion);
+        this.producedRowType = producedRowType;
+        this.useMapRedReader = useMapRedReader;
+    }
 
-	@Override
-	public CompactReader<RowData> create(CompactContext context) throws IOException {
-		HiveSourceSplit split = createSplit(context.getPath(), context.getFileSystem());
-		HiveBulkFormatAdapter format = new HiveBulkFormatAdapter(
-				jobConfWrapper, partitionKeys, fieldNames, fieldTypes, hiveVersion, producedRowType, useMapRedReader);
-		BulkFormat.Reader<RowData> reader = format.createReader(context.getConfig(), split);
-		return new CompactBulkReader<>(reader);
-	}
+    @Override
+    public CompactReader<RowData> create(CompactContext context) throws IOException {
+        HiveSourceSplit split = createSplit(context.getPath(), context.getFileSystem());
+        HiveBulkFormatAdapter format =
+                new HiveBulkFormatAdapter(
+                        jobConfWrapper,
+                        partitionKeys,
+                        fieldNames,
+                        fieldTypes,
+                        hiveVersion,
+                        producedRowType,
+                        useMapRedReader);
+        BulkFormat.Reader<RowData> reader = format.createReader(context.getConfig(), split);
+        return new CompactBulkReader<>(reader);
+    }
 
-	private HiveSourceSplit createSplit(Path path, FileSystem fs) throws IOException {
-		long len = fs.getFileStatus(path).getLen();
-		return new HiveSourceSplit("id", path, 0, len, new String[0], null, createPartition(path));
-	}
+    private HiveSourceSplit createSplit(Path path, FileSystem fs) throws IOException {
+        long len = fs.getFileStatus(path).getLen();
+        return new HiveSourceSplit("id", path, 0, len, new String[0], null, createPartition(path));
+    }
 
-	private HiveTablePartition createPartition(Path path) {
-		Map<String, Object> partitionSpec = new LinkedHashMap<>();
-		Map<String, DataType> nameToTypes = new HashMap<>();
-		for (int i = 0; i < fieldNames.length; i++) {
-			nameToTypes.put(fieldNames[i], fieldTypes[i]);
-		}
-		for (Map.Entry<String, String> entry : extractPartitionSpecFromPath(path).entrySet()) {
-			Object partitionValue = restorePartitionValueFromType(
-					shim, entry.getValue(), nameToTypes.get(entry.getKey()));
-			partitionSpec.put(entry.getKey(), partitionValue);
-		}
+    private HiveTablePartition createPartition(Path path) {
+        Map<String, Object> partitionSpec = new LinkedHashMap<>();
+        Map<String, DataType> nameToTypes = new HashMap<>();
+        for (int i = 0; i < fieldNames.length; i++) {
+            nameToTypes.put(fieldNames[i], fieldTypes[i]);
+        }
+        for (Map.Entry<String, String> entry : extractPartitionSpecFromPath(path).entrySet()) {
+            Object partitionValue =
+                    restorePartitionValueFromType(
+                            shim, entry.getValue(), nameToTypes.get(entry.getKey()));
+            partitionSpec.put(entry.getKey(), partitionValue);
+        }
 
-		return new HiveTablePartition(sd, partitionSpec, properties);
-	}
+        try {
+            return new HiveTablePartition(sd.deserializeValue(), partitionSpec, properties);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new FlinkHiveException("Failed to deserialize StorageDescriptor", e);
+        }
+    }
 }

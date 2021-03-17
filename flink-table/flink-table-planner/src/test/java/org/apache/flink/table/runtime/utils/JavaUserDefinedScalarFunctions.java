@@ -27,158 +27,139 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 
 import java.util.Arrays;
 
-/**
- * Test scalar functions.
- */
+/** Test scalar functions. */
 public class JavaUserDefinedScalarFunctions {
 
-	/**
-	 * Increment input.
-	 */
-	public static class JavaFunc0 extends ScalarFunction {
-		public long eval(Long l) {
-			return l + 1;
-		}
-	}
+    /** Increment input. */
+    public static class JavaFunc0 extends ScalarFunction {
+        public long eval(Long l) {
+            return l + 1;
+        }
+    }
 
-	/**
-	 * Concatenate inputs as strings.
-	 */
-	public static class JavaFunc1 extends ScalarFunction {
-		public String eval(Integer a, int b,  Long c) {
-			return a + " and " + b + " and " + c;
-		}
-	}
+    /** Concatenate inputs as strings. */
+    public static class JavaFunc1 extends ScalarFunction {
+        public String eval(Integer a, int b, Long c) {
+            return a + " and " + b + " and " + c;
+        }
+    }
 
-	/**
-	 * Append product to string.
-	 */
-	public static class JavaFunc2 extends ScalarFunction {
-		public String eval(String s, Integer... a) {
-			int m = 1;
-			for (int n : a) {
-				m *= n;
-			}
-			return s + m;
-		}
-	}
+    /** Append product to string. */
+    public static class JavaFunc2 extends ScalarFunction {
+        public String eval(String s, Integer... a) {
+            int m = 1;
+            for (int n : a) {
+                m *= n;
+            }
+            return s + m;
+        }
+    }
 
-	/**
-	 * Test overloading.
-	 */
-	public static class JavaFunc3 extends ScalarFunction {
-		public int eval(String a, int... b) {
-			return b.length;
-		}
+    /** Test overloading. */
+    public static class JavaFunc3 extends ScalarFunction {
+        public int eval(String a, int... b) {
+            return b.length;
+        }
 
-		public String eval(String c) {
-			return c;
-		}
-	}
+        public String eval(String c) {
+            return c;
+        }
+    }
 
-	/**
-	 * Concatenate arrays as strings.
-	 */
-	public static class JavaFunc4 extends ScalarFunction {
-		public String eval(Integer[] a, String[] b) {
-			return Arrays.toString(a) + " and " + Arrays.toString(b);
-		}
-	}
+    /** Concatenate arrays as strings. */
+    public static class JavaFunc4 extends ScalarFunction {
+        public String eval(Integer[] a, String[] b) {
+            return Arrays.toString(a) + " and " + Arrays.toString(b);
+        }
+    }
 
-	/**
-	 * Test for Python Scalar Function.
-	 */
-	public static class PythonScalarFunction extends ScalarFunction implements PythonFunction {
-		private final String name;
+    /** Test for Python Scalar Function. */
+    public static class PythonScalarFunction extends ScalarFunction implements PythonFunction {
+        private final String name;
 
-		public PythonScalarFunction(String name) {
-			this.name = name;
-		}
+        public PythonScalarFunction(String name) {
+            this.name = name;
+        }
 
-		public int eval(int i, int j) {
-			return i + j;
-		}
+        public int eval(int i, int j) {
+            return i + j;
+        }
 
-		public String eval(String s) {
-			return s;
-		}
+        public String eval(String s) {
+            return s;
+        }
 
-		@Override
-		public String toString() {
-			return name;
-		}
+        @Override
+        public String toString() {
+            return name;
+        }
 
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
 
-		@Override
-		public PythonEnv getPythonEnv() {
-			return null;
-		}
-	}
+        @Override
+        public PythonEnv getPythonEnv() {
+            return null;
+        }
+    }
 
-	/**
-	 * Test for Python Scalar Function.
-	 */
-	public static class BooleanPythonScalarFunction extends ScalarFunction implements PythonFunction {
-		private final String name;
+    /** Test for Python Scalar Function. */
+    public static class BooleanPythonScalarFunction extends ScalarFunction
+            implements PythonFunction {
+        private final String name;
 
-		public BooleanPythonScalarFunction(String name) {
-			this.name = name;
-		}
+        public BooleanPythonScalarFunction(String name) {
+            this.name = name;
+        }
 
-		public boolean eval(int i, int j) {
-			return i + j > 1;
-		}
+        public boolean eval(int i, int j) {
+            return i + j > 1;
+        }
 
-		@Override
-		public TypeInformation<?> getResultType(Class<?>[] signature) {
-			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
-		}
+        @Override
+        public TypeInformation<?> getResultType(Class<?>[] signature) {
+            return BasicTypeInfo.BOOLEAN_TYPE_INFO;
+        }
 
-		@Override
-		public String toString() {
-			return name;
-		}
+        @Override
+        public String toString() {
+            return name;
+        }
 
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
 
-		@Override
-		public PythonEnv getPythonEnv() {
-			return null;
-		}
-	}
+        @Override
+        public PythonEnv getPythonEnv() {
+            return null;
+        }
+    }
 
-	/**
-	 * Test for Pandas Python Scalar Function.
-	 */
-	public static class PandasScalarFunction extends PythonScalarFunction {
-		public PandasScalarFunction(String name) {
-			super(name);
-		}
+    /** Test for Pandas Python Scalar Function. */
+    public static class PandasScalarFunction extends PythonScalarFunction {
+        public PandasScalarFunction(String name) {
+            super(name);
+        }
 
-		@Override
-		public PythonFunctionKind getPythonFunctionKind() {
-			return PythonFunctionKind.PANDAS;
-		}
-	}
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return PythonFunctionKind.PANDAS;
+        }
+    }
 
-	/**
-	 * Test for Pandas Python Scalar Function.
-	 */
-	public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
-		public BooleanPandasScalarFunction(String name) {
-			super(name);
-		}
+    /** Test for Pandas Python Scalar Function. */
+    public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
+        public BooleanPandasScalarFunction(String name) {
+            super(name);
+        }
 
-		@Override
-		public PythonFunctionKind getPythonFunctionKind() {
-			return PythonFunctionKind.PANDAS;
-		}
-	}
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return PythonFunctionKind.PANDAS;
+        }
+    }
 }

@@ -60,119 +60,107 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker {
 
-	private final DataTypeFactory dataTypeFactory;
+    private final DataTypeFactory dataTypeFactory;
 
-	private final FunctionDefinition definition;
+    private final FunctionDefinition definition;
 
-	private final TypeInference typeInference;
+    private final TypeInference typeInference;
 
-	private final SqlOperandCountRange countRange;
+    private final SqlOperandCountRange countRange;
 
-	public TypeInferenceOperandChecker(
-			DataTypeFactory dataTypeFactory,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
-		this.dataTypeFactory = dataTypeFactory;
-		this.definition = definition;
-		this.typeInference = typeInference;
-		this.countRange = new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
-	}
+    public TypeInferenceOperandChecker(
+            DataTypeFactory dataTypeFactory,
+            FunctionDefinition definition,
+            TypeInference typeInference) {
+        this.dataTypeFactory = dataTypeFactory;
+        this.definition = definition;
+        this.typeInference = typeInference;
+        this.countRange =
+                new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
+    }
 
-	@Override
-	public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-		final CallContext callContext = new CallBindingCallContext(
-			dataTypeFactory,
-			definition,
-			callBinding,
-			null);
-		try {
-			return checkOperandTypesOrError(callBinding, callContext);
-		}
-		catch (ValidationException e) {
-			if (throwOnFailure) {
-				throw createInvalidCallException(callContext, e);
-			}
-			return false;
-		} catch (Throwable t) {
-			throw createUnexpectedException(callContext, t);
-		}
-	}
+    @Override
+    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        final CallContext callContext =
+                new CallBindingCallContext(dataTypeFactory, definition, callBinding, null);
+        try {
+            return checkOperandTypesOrError(callBinding, callContext);
+        } catch (ValidationException e) {
+            if (throwOnFailure) {
+                throw createInvalidCallException(callContext, e);
+            }
+            return false;
+        } catch (Throwable t) {
+            throw createUnexpectedException(callContext, t);
+        }
+    }
 
-	@Override
-	public SqlOperandCountRange getOperandCountRange() {
-		return countRange;
-	}
+    @Override
+    public SqlOperandCountRange getOperandCountRange() {
+        return countRange;
+    }
 
-	@Override
-	public String getAllowedSignatures(SqlOperator op, String opName) {
-		return TypeInferenceUtil.generateSignature(typeInference, opName, definition);
-	}
+    @Override
+    public String getAllowedSignatures(SqlOperator op, String opName) {
+        return TypeInferenceUtil.generateSignature(typeInference, opName, definition);
+    }
 
-	@Override
-	public Consistency getConsistency() {
-		return Consistency.NONE;
-	}
+    @Override
+    public Consistency getConsistency() {
+        return Consistency.NONE;
+    }
 
-	@Override
-	public boolean isOptional(int i) {
-		return false;
-	}
+    @Override
+    public boolean isOptional(int i) {
+        return false;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private boolean checkOperandTypesOrError(SqlCallBinding callBinding, CallContext callContext) {
-		final AdaptedCallContext adaptedCallContext;
-		try {
-			adaptedCallContext = adaptArguments(
-				typeInference,
-				callContext,
-				null);
-		} catch (ValidationException e) {
-			throw createInvalidInputException(
-				typeInference,
-				callContext,
-				e);
-		}
+    private boolean checkOperandTypesOrError(SqlCallBinding callBinding, CallContext callContext) {
+        final AdaptedCallContext adaptedCallContext;
+        try {
+            adaptedCallContext = adaptArguments(typeInference, callContext, null);
+        } catch (ValidationException e) {
+            throw createInvalidInputException(typeInference, callContext, e);
+        }
 
-		insertImplicitCasts(callBinding, adaptedCallContext.getArgumentDataTypes());
+        insertImplicitCasts(callBinding, adaptedCallContext.getArgumentDataTypes());
 
-		return true;
-	}
+        return true;
+    }
 
-	private void insertImplicitCasts(SqlCallBinding callBinding, List<DataType> expectedDataTypes) {
-		final FlinkTypeFactory flinkTypeFactory = unwrapTypeFactory(callBinding);
-		final List<SqlNode> operands = callBinding.operands();
-		for (int i = 0; i < operands.size(); i++) {
-			final LogicalType expectedType = expectedDataTypes.get(i).getLogicalType();
-			final LogicalType argumentType = toLogicalType(callBinding.getOperandType(i));
+    private void insertImplicitCasts(SqlCallBinding callBinding, List<DataType> expectedDataTypes) {
+        final FlinkTypeFactory flinkTypeFactory = unwrapTypeFactory(callBinding);
+        final List<SqlNode> operands = callBinding.operands();
+        for (int i = 0; i < operands.size(); i++) {
+            final LogicalType expectedType = expectedDataTypes.get(i).getLogicalType();
+            final LogicalType argumentType = toLogicalType(callBinding.getOperandType(i));
 
-			if (!supportsAvoidingCast(argumentType, expectedType)) {
-				final RelDataType expectedRelDataType = flinkTypeFactory.createFieldTypeFromLogicalType(expectedType);
-				final SqlNode castedOperand = castTo(operands.get(i), expectedRelDataType);
-				callBinding.getCall().setOperand(i, castedOperand);
-				updateInferredType(callBinding.getValidator(), castedOperand, expectedRelDataType);
-			}
-		}
-	}
+            if (!supportsAvoidingCast(argumentType, expectedType)) {
+                final RelDataType expectedRelDataType =
+                        flinkTypeFactory.createFieldTypeFromLogicalType(expectedType);
+                final SqlNode castedOperand = castTo(operands.get(i), expectedRelDataType);
+                callBinding.getCall().setOperand(i, castedOperand);
+                updateInferredType(callBinding.getValidator(), castedOperand, expectedRelDataType);
+            }
+        }
+    }
 
-	/**
-	 * Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}.
-	 */
-	private SqlNode castTo(SqlNode node, RelDataType type) {
-		return SqlStdOperatorTable.CAST.createCall(
-			SqlParserPos.ZERO,
-			node,
-			SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable()));
-	}
+    /** Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}. */
+    private SqlNode castTo(SqlNode node, RelDataType type) {
+        return SqlStdOperatorTable.CAST.createCall(
+                SqlParserPos.ZERO,
+                node,
+                SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable()));
+    }
 
-	/**
-	 * Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}.
-	 */
-	private void updateInferredType(SqlValidator validator, SqlNode node, RelDataType type) {
-		validator.setValidatedNodeType(node, type);
-		final SqlValidatorNamespace namespace = validator.getNamespace(node);
-		if (namespace != null) {
-			namespace.setType(type);
-		}
-	}
+    /** Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}. */
+    private void updateInferredType(SqlValidator validator, SqlNode node, RelDataType type) {
+        validator.setValidatedNodeType(node, type);
+        final SqlValidatorNamespace namespace = validator.getNamespace(node);
+        if (namespace != null) {
+            namespace.setType(type);
+        }
+    }
 }

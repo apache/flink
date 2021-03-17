@@ -23,29 +23,29 @@ import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 
 import java.util.concurrent.Executor;
 
-/**
- * Factory interface for {@link HighAvailabilityServices}.
- */
+/** Factory interface for {@link HighAvailabilityServices}. */
 public interface HighAvailabilityServicesFactory {
 
-	/**
-	 * Creates a {@link HighAvailabilityServices} instance.
-	 *
-	 * @param configuration Flink configuration
-	 * @param executor background task executor
-	 * @return instance of {@link HighAvailabilityServices}
-	 * @throws Exception when HAServices cannot be created
-	 */
-	HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) throws Exception;
+    /**
+     * Creates a {@link HighAvailabilityServices} instance.
+     *
+     * @param configuration Flink configuration
+     * @param executor background task executor
+     * @return instance of {@link HighAvailabilityServices}
+     * @throws Exception when HAServices cannot be created
+     */
+    HighAvailabilityServices createHAServices(Configuration configuration, Executor executor)
+            throws Exception;
 
-	/**
-	 * Create a {@link ClientHighAvailabilityServices} instance.
-	 *
-	 * @param configuration Flink configuration
-	 * @return instance of {@link ClientHighAvailabilityServices}
-	 * @throws Exception when ClientHAServices cannot be created
-	 */
-	default ClientHighAvailabilityServices createClientHAServices(Configuration configuration) throws Exception {
-		return createHAServices(configuration, UnsupportedOperationExecutor.INSTANCE);
-	}
+    /**
+     * Create a {@link ClientHighAvailabilityServices} instance.
+     *
+     * @param configuration Flink configuration
+     * @return instance of {@link ClientHighAvailabilityServices}
+     * @throws Exception when ClientHAServices cannot be created
+     */
+    default ClientHighAvailabilityServices createClientHAServices(Configuration configuration)
+            throws Exception {
+        return createHAServices(configuration, UnsupportedOperationExecutor.INSTANCE);
+    }
 }

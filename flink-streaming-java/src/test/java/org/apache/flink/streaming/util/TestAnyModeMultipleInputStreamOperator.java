@@ -32,55 +32,48 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * A test operator class for any mode reading.
- */
+/** A test operator class for any mode reading. */
 public class TestAnyModeMultipleInputStreamOperator extends AbstractStreamOperatorV2<String>
-	implements MultipleInputStreamOperator<String>, InputSelectable {
+        implements MultipleInputStreamOperator<String>, InputSelectable {
 
-	public TestAnyModeMultipleInputStreamOperator(StreamOperatorParameters<String> parameters) {
-		super(parameters, 2);
-	}
+    public TestAnyModeMultipleInputStreamOperator(StreamOperatorParameters<String> parameters) {
+        super(parameters, 2);
+    }
 
-	@Override
-	public InputSelection nextSelection() {
-		return InputSelection.ALL;
-	}
+    @Override
+    public InputSelection nextSelection() {
+        return InputSelection.ALL;
+    }
 
-	@Override
-	public List<Input> getInputs() {
-		return Arrays.asList(
-			new ToStringInput(this, 1),
-			new ToStringInput(this, 2));
-	}
+    @Override
+    public List<Input> getInputs() {
+        return Arrays.asList(new ToStringInput(this, 1), new ToStringInput(this, 2));
+    }
 
-	/**
-	 * Factory to construct {@link TestAnyModeMultipleInputStreamOperator}.
-	 */
-	public static class Factory extends AbstractStreamOperatorFactory<String> {
+    /** Factory to construct {@link TestAnyModeMultipleInputStreamOperator}. */
+    public static class Factory extends AbstractStreamOperatorFactory<String> {
 
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new TestAnyModeMultipleInputStreamOperator(parameters);
-		}
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new TestAnyModeMultipleInputStreamOperator(parameters);
+        }
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return TestAnyModeMultipleInputStreamOperator.class;
-		}
-	}
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return TestAnyModeMultipleInputStreamOperator.class;
+        }
+    }
 
-	/**
-	 * {@link AbstractInput} that converts argument to string pre-pending input id.
-	 */
-	public static class ToStringInput<T> extends AbstractInput<T, String> {
-		public ToStringInput(AbstractStreamOperatorV2<String> owner, int inputId) {
-			super(owner, inputId);
-		}
+    /** {@link AbstractInput} that converts argument to string pre-pending input id. */
+    public static class ToStringInput<T> extends AbstractInput<T, String> {
+        public ToStringInput(AbstractStreamOperatorV2<String> owner, int inputId) {
+            super(owner, inputId);
+        }
 
-		@Override
-		public void processElement(StreamRecord<T> element) {
-			output.collect(element.replace(String.format("[%d]: %s", inputId, element.getValue())));
-		}
-	}
+        @Override
+        public void processElement(StreamRecord<T> element) {
+            output.collect(element.replace(String.format("[%d]: %s", inputId, element.getValue())));
+        }
+    }
 }

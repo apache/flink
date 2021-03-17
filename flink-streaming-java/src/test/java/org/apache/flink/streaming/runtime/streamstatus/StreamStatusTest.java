@@ -25,59 +25,56 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link StreamStatus}.
- */
+/** Tests for {@link StreamStatus}. */
 public class StreamStatusTest {
 
-	@Test (expected = IllegalArgumentException.class)
-	public void testIllegalCreationThrowsException() {
-		new StreamStatus(32);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testIllegalCreationThrowsException() {
+        new StreamStatus(32);
+    }
 
-	@Test
-	public void testEquals() {
-		StreamStatus idleStatus = new StreamStatus(StreamStatus.IDLE_STATUS);
-		StreamStatus activeStatus = new StreamStatus(StreamStatus.ACTIVE_STATUS);
+    @Test
+    public void testEquals() {
+        StreamStatus idleStatus = new StreamStatus(StreamStatus.IDLE_STATUS);
+        StreamStatus activeStatus = new StreamStatus(StreamStatus.ACTIVE_STATUS);
 
-		assertEquals(StreamStatus.IDLE, idleStatus);
-		assertTrue(idleStatus.isIdle());
-		assertFalse(idleStatus.isActive());
+        assertEquals(StreamStatus.IDLE, idleStatus);
+        assertTrue(idleStatus.isIdle());
+        assertFalse(idleStatus.isActive());
 
-		assertEquals(StreamStatus.ACTIVE, activeStatus);
-		assertTrue(activeStatus.isActive());
-		assertFalse(activeStatus.isIdle());
-	}
+        assertEquals(StreamStatus.ACTIVE, activeStatus);
+        assertTrue(activeStatus.isActive());
+        assertFalse(activeStatus.isIdle());
+    }
 
-	@Test
-	public void testTypeCasting() {
-		StreamStatus status = StreamStatus.ACTIVE;
+    @Test
+    public void testTypeCasting() {
+        StreamStatus status = StreamStatus.ACTIVE;
 
-		assertTrue(status.isStreamStatus());
-		assertFalse(status.isRecord());
-		assertFalse(status.isWatermark());
-		assertFalse(status.isLatencyMarker());
+        assertTrue(status.isStreamStatus());
+        assertFalse(status.isRecord());
+        assertFalse(status.isWatermark());
+        assertFalse(status.isLatencyMarker());
 
-		try {
-			status.asWatermark();
-			fail("should throw an exception");
-		} catch (Exception e) {
-			// expected
-		}
+        try {
+            status.asWatermark();
+            fail("should throw an exception");
+        } catch (Exception e) {
+            // expected
+        }
 
-		try {
-			status.asRecord();
-			fail("should throw an exception");
-		} catch (Exception e) {
-			// expected
-		}
+        try {
+            status.asRecord();
+            fail("should throw an exception");
+        } catch (Exception e) {
+            // expected
+        }
 
-		try {
-			status.asLatencyMarker();
-			fail("should throw an exception");
-		} catch (Exception e) {
-			// expected
-		}
-	}
-
+        try {
+            status.asLatencyMarker();
+            fail("should throw an exception");
+        } catch (Exception e) {
+            // expected
+        }
+    }
 }

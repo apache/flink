@@ -30,36 +30,53 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * {@link SlotMatchingStrategy} which picks a matching slot from a TaskExecutor
- * with the least utilization.
+ * {@link SlotMatchingStrategy} which picks a matching slot from a TaskExecutor with the least
+ * utilization.
  */
 public enum LeastUtilizationSlotMatchingStrategy implements SlotMatchingStrategy {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public <T extends TaskManagerSlotInformation> Optional<T> findMatchingSlot(
-			ResourceProfile requestedProfile,
-			Collection<T> freeSlots,
-			Function<InstanceID, Integer> numberRegisteredSlotsLookup) {
-		final Map<InstanceID, Integer> numSlotsPerTaskExecutor = freeSlots.stream()
-			.collect(Collectors.groupingBy(
-				TaskManagerSlotInformation::getInstanceId,
-				Collectors.reducing(0, i -> 1, Integer::sum)));
+    @Override
+    public <T extends TaskManagerSlotInformation> Optional<T> findMatchingSlot(
+            ResourceProfile requestedProfile,
+            Collection<T> freeSlots,
+            Function<InstanceID, Integer> numberRegisteredSlotsLookup) {
+        final Map<InstanceID, Integer> numSlotsPerTaskExecutor =
+                freeSlots.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        TaskManagerSlotInformation::getInstanceId,
+                                        Collectors.reducing(0, i -> 1, Integer::sum)));
 
-		return freeSlots.stream()
-			.filter(taskManagerSlot -> taskManagerSlot.isMatchingRequirement(requestedProfile))
-			.min(Comparator.comparingDouble(taskManagerSlot -> calculateUtilization(taskManagerSlot.getInstanceId(), numberRegisteredSlotsLookup, numSlotsPerTaskExecutor)));
-	}
+        return freeSlots.stream()
+                .filter(taskManagerSlot -> taskManagerSlot.isMatchingRequirement(requestedProfile))
+                .min(
+                        Comparator.comparingDouble(
+                                taskManagerSlot ->
+                                        calculateUtilization(
+                                                taskManagerSlot.getInstanceId(),
+                                                numberRegisteredSlotsLookup,
+                                                numSlotsPerTaskExecutor)));
+    }
 
-	private static double calculateUtilization(InstanceID instanceId, Function<? super InstanceID, Integer> numberRegisteredSlotsLookup, Map<InstanceID, Integer> numSlotsPerTaskExecutor) {
-		final int numberRegisteredSlots = numberRegisteredSlotsLookup.apply(instanceId);
+    private static double calculateUtilization(
+            InstanceID instanceId,
+            Function<? super InstanceID, Integer> numberRegisteredSlotsLookup,
+            Map<InstanceID, Integer> numSlotsPerTaskExecutor) {
+        final int numberRegisteredSlots = numberRegisteredSlotsLookup.apply(instanceId);
 
-		Preconditions.checkArgument(numberRegisteredSlots > 0, "The TaskExecutor %s has no slots registered.", instanceId);
+        Preconditions.checkArgument(
+                numberRegisteredSlots > 0,
+                "The TaskExecutor %s has no slots registered.",
+                instanceId);
 
-		final int numberFreeSlots = numSlotsPerTaskExecutor.getOrDefault(instanceId, 0);
+        final int numberFreeSlots = numSlotsPerTaskExecutor.getOrDefault(instanceId, 0);
 
-		Preconditions.checkArgument(numberRegisteredSlots >= numberFreeSlots, "The TaskExecutor %s has fewer registered slots than free slots.", instanceId);
+        Preconditions.checkArgument(
+                numberRegisteredSlots >= numberFreeSlots,
+                "The TaskExecutor %s has fewer registered slots than free slots.",
+                instanceId);
 
-		return (double) (numberRegisteredSlots - numberFreeSlots) / numberRegisteredSlots;
-	}
+        return (double) (numberRegisteredSlots - numberFreeSlots) / numberRegisteredSlots;
+    }
 }

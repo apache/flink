@@ -34,8 +34,8 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.TaskContext;
-import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
+import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
@@ -58,391 +58,399 @@ import java.util.LinkedList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public abstract class DriverTestBase<S extends Function> extends TestLogger implements TaskContext<S, Record> {
-	
-	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
-	
-	protected static final int PAGE_SIZE = 32 * 1024; 
-	
-	private final IOManager ioManager;
-	
-	private final MemoryManager memManager;
+public abstract class DriverTestBase<S extends Function> extends TestLogger
+        implements TaskContext<S, Record> {
 
-	private final List<MutableObjectIterator<Record>> inputs;
-	
-	private final List<TypeComparator<Record>> comparators;
-	
-	private final List<Sorter<Record>> sorters;
-	
-	private final AbstractInvokable owner;
+    protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 
-	private final TaskConfig taskConfig;
-	
-	private final TaskManagerRuntimeInfo taskManageInfo;
-	
-	protected final long perSortMem;
+    protected static final int PAGE_SIZE = 32 * 1024;
 
-	protected final double perSortFractionMem;
-	
-	private Collector<Record> output;
-	
-	protected int numFileHandles;
-	
-	private S stub;
-	
-	private Driver<S, Record> driver;
-	
-	private volatile boolean running = true;
+    private final IOManager ioManager;
 
-	private ExecutionConfig executionConfig;
-	
-	protected DriverTestBase(ExecutionConfig executionConfig, long memory, int maxNumSorters) {
-		this(executionConfig, memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
-	}
-	
-	protected DriverTestBase(ExecutionConfig executionConfig, long memory, int maxNumSorters, long perSortMemory) {
-		if (memory < 0 || maxNumSorters < 0 || perSortMemory < 0) {
-			throw new IllegalArgumentException();
-		}
-		
-		final long totalMem = Math.max(memory, 0) + (Math.max(maxNumSorters, 0) * perSortMemory);
-		
-		this.perSortMem = perSortMemory;
-		this.perSortFractionMem = (double)perSortMemory/totalMem;
-		this.ioManager = new IOManagerAsync();
-		this.memManager = totalMem > 0 ? MemoryManagerBuilder.newBuilder().setMemorySize(totalMem).build() : null;
+    private final MemoryManager memManager;
 
-		this.inputs = new ArrayList<>();
-		this.comparators = new ArrayList<>();
-		this.sorters = new ArrayList<>();
-		
-		this.owner = new DummyInvokable();
-		this.taskConfig = new TaskConfig(new Configuration());
-		this.executionConfig = executionConfig;
-		this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
-	}
+    private final List<MutableObjectIterator<Record>> inputs;
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() {
+    private final List<TypeComparator<Record>> comparators;
 
-		LinkedList<Object[]> configs = new LinkedList<Object[]>();
+    private final List<Sorter<Record>> sorters;
 
-		ExecutionConfig withReuse = new ExecutionConfig();
-		withReuse.enableObjectReuse();
+    private final AbstractInvokable owner;
 
-		ExecutionConfig withoutReuse = new ExecutionConfig();
-		withoutReuse.disableObjectReuse();
+    private final TaskConfig taskConfig;
 
-		Object[] a = { withoutReuse };
-		configs.add(a);
-		Object[] b = { withReuse };
-		configs.add(b);
+    private final TaskManagerRuntimeInfo taskManageInfo;
 
-		return configs;
-	}
+    protected final long perSortMem;
 
-	public void addInput(MutableObjectIterator<Record> input) {
-		this.inputs.add(input);
-		this.sorters.add(null);
-	}
-	
-	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
-		Sorter<Record> sorter =
-			ExternalSorter.newBuilder(
-					this.memManager,
-					this.owner,
-					RecordSerializerFactory.get().getSerializer(),
-					comp)
-				.maxNumFileHandles(32)
-				.enableSpilling(ioManager, 0.8f)
-				.memoryFraction(this.perSortFractionMem)
-				.objectReuse(true)
-				.largeRecords(true)
-				.build(input);
-		this.sorters.add(sorter);
-		this.inputs.add(null);
-	}
-	
-	public void addDriverComparator(RecordComparator comparator) {
-		this.comparators.add(comparator);
-	}
+    protected final double perSortFractionMem;
 
-	public void setOutput(Collector<Record> output) {
-		this.output = output;
-	}
-	public void setOutput(List<Record> output) {
-		this.output = new ListOutputCollector(output);
-	}
-	
-	public int getNumFileHandlesForSort() {
-		return numFileHandles;
-	}
+    private Collector<Record> output;
 
-	
-	public void setNumFileHandlesForSort(int numFileHandles) {
-		this.numFileHandles = numFileHandles;
-	}
+    protected int numFileHandles;
 
-	@SuppressWarnings("rawtypes")
-	public void testDriver(Driver driver, Class stubClass) throws Exception {
-		testDriverInternal(driver, stubClass);
-	}
+    private S stub;
 
-	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
+    private Driver<S, Record> driver;
 
-		this.driver = driver;
-		driver.setup(this);
+    private volatile boolean running = true;
 
-		this.stub = (S)stubClass.newInstance();
+    private ExecutionConfig executionConfig;
 
-		// regular running logic
-		boolean stubOpen = false;
+    protected DriverTestBase(ExecutionConfig executionConfig, long memory, int maxNumSorters) {
+        this(executionConfig, memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
+    }
 
-		try {
-			// run the data preparation
-			try {
-				driver.prepare();
-			}
-			catch (Throwable t) {
-				throw new Exception("The data preparation caused an error: " + t.getMessage(), t);
-			}
+    protected DriverTestBase(
+            ExecutionConfig executionConfig, long memory, int maxNumSorters, long perSortMemory) {
+        if (memory < 0 || maxNumSorters < 0 || perSortMemory < 0) {
+            throw new IllegalArgumentException();
+        }
 
-			// open stub implementation
-			try {
-				FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
-				stubOpen = true;
-			}
-			catch (Throwable t) {
-				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
-			}
+        final long totalMem = Math.max(memory, 0) + (Math.max(maxNumSorters, 0) * perSortMemory);
 
-			if (!running) {
-				return;
-			}
-			
-			// run the user code
-			driver.run();
+        this.perSortMem = perSortMemory;
+        this.perSortFractionMem = (double) perSortMemory / totalMem;
+        this.ioManager = new IOManagerAsync();
+        this.memManager =
+                totalMem > 0
+                        ? MemoryManagerBuilder.newBuilder().setMemorySize(totalMem).build()
+                        : null;
 
-			// close. We close here such that a regular close throwing an exception marks a task as failed.
-			if (this.running) {
-				FunctionUtils.closeFunction (this.stub);
-				stubOpen = false;
-			}
+        this.inputs = new ArrayList<>();
+        this.comparators = new ArrayList<>();
+        this.sorters = new ArrayList<>();
 
-			this.output.close();
-		}
-		catch (Exception ex) {
-			// close the input, but do not report any exceptions, since we already have another root cause
-			if (stubOpen) {
-				try {
-					FunctionUtils.closeFunction(this.stub);
-				}
-				catch (Throwable ignored) {}
-			}
+        this.owner = new DummyInvokable();
+        this.taskConfig = new TaskConfig(new Configuration());
+        this.executionConfig = executionConfig;
+        this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
+    }
 
-			// if resettable driver invoke tear down
-			if (this.driver instanceof ResettableDriver) {
-				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-				try {
-					resDriver.teardown();
-				} catch (Throwable t) {
-					throw new Exception("Error while shutting down an iterative operator: " + t.getMessage(), t);
-				}
-			}
+    @Parameterized.Parameters
+    public static Collection<Object[]> getConfigurations() {
 
-			// drop exception, if the task was canceled
-			if (this.running) {
-				throw ex;
-			}
+        LinkedList<Object[]> configs = new LinkedList<Object[]>();
 
-		}
-		finally {
-			driver.cleanup();
-		}
-	}
+        ExecutionConfig withReuse = new ExecutionConfig();
+        withReuse.enableObjectReuse();
 
-	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations) throws Exception {
+        ExecutionConfig withoutReuse = new ExecutionConfig();
+        withoutReuse.disableObjectReuse();
 
-		driver.setup(this);
-		
-		for(int i = 0; i < iterations; i++) {
-			
-			if(i == 0) {
-				driver.initialize();
-			}
-			else {
-				driver.reset();
-			}
-			
-			testDriver(driver, stubClass);
-			
-		}
-		
-		driver.teardown();
-	}
-	
-	public void cancel() throws Exception {
-		this.running = false;
-		
-		// compensate for races, where cancel is called before the driver is set
-		// not that this is an artifact of a bad design of this test base, where the setup
-		// of the basic properties is not separated from the invocation of the execution logic 
-		while (this.driver == null) {
-			Thread.sleep(200);
-		}
-		this.driver.cancel();
-	}
+        Object[] a = {withoutReuse};
+        configs.add(a);
+        Object[] b = {withReuse};
+        configs.add(b);
 
-	// --------------------------------------------------------------------------------------------
+        return configs;
+    }
 
-	@Override
-	public TaskConfig getTaskConfig() {
-		return this.taskConfig;
-	}
+    public void addInput(MutableObjectIterator<Record> input) {
+        this.inputs.add(input);
+        this.sorters.add(null);
+    }
 
-	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
-	}
+    public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp)
+            throws Exception {
+        Sorter<Record> sorter =
+                ExternalSorter.newBuilder(
+                                this.memManager,
+                                this.owner,
+                                RecordSerializerFactory.get().getSerializer(),
+                                comp)
+                        .maxNumFileHandles(32)
+                        .enableSpilling(ioManager, 0.8f)
+                        .memoryFraction(this.perSortFractionMem)
+                        .objectReuse(true)
+                        .largeRecords(true)
+                        .build(input);
+        this.sorters.add(sorter);
+        this.inputs.add(null);
+    }
 
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
-	}
-	
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return getClass().getClassLoader();
-	}
+    public void addDriverComparator(RecordComparator comparator) {
+        this.comparators.add(comparator);
+    }
 
-	@Override
-	public IOManager getIOManager() {
-		return this.ioManager;
-	}
+    public void setOutput(Collector<Record> output) {
+        this.output = output;
+    }
 
-	@Override
-	public MemoryManager getMemoryManager() {
-		return this.memManager;
-	}
+    public void setOutput(List<Record> output) {
+        this.output = new ListOutputCollector(output);
+    }
 
-	@Override
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		MutableObjectIterator<Record> in = this.inputs.get(index);
-		if (in == null) {
-			// waiting from sorter
-			try {
-				in = this.sorters.get(index).getIterator();
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Interrupted");
-			} catch (IOException e) {
-				throw new RuntimeException("IOException");
-			}
-			this.inputs.set(index, in);
-		}
-		
-		@SuppressWarnings("unchecked")
-		MutableObjectIterator<X> input = (MutableObjectIterator<X>) this.inputs.get(index);
-		return input;
-	}
+    public int getNumFileHandlesForSort() {
+        return numFileHandles;
+    }
 
-	@Override
-	public <X> TypeSerializerFactory<X> getInputSerializer(int index) {
-		@SuppressWarnings("unchecked")
-		TypeSerializerFactory<X> factory = (TypeSerializerFactory<X>) RecordSerializerFactory.get();
-		return factory;
-	}
+    public void setNumFileHandlesForSort(int numFileHandles) {
+        this.numFileHandles = numFileHandles;
+    }
 
-	@Override
-	public <X> TypeComparator<X> getDriverComparator(int index) {
-		@SuppressWarnings("unchecked")
-		TypeComparator<X> comparator = (TypeComparator<X>) this.comparators.get(index);
-		return comparator;
-	}
+    @SuppressWarnings("rawtypes")
+    public void testDriver(Driver driver, Class stubClass) throws Exception {
+        testDriverInternal(driver, stubClass);
+    }
 
-	@Override
-	public S getStub() {
-		return this.stub;
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
-	@Override
-	public Collector<Record> getOutputCollector() {
-		return this.output;
-	}
+        this.driver = driver;
+        driver.setup(this);
 
-	@Override
-	public AbstractInvokable getContainingTask() {
-		return this.owner;
-	}
+        this.stub = (S) stubClass.newInstance();
 
-	@Override
-	public String formatLogString(String message) {
-		return "Driver Tester: " + message;
-	}
-	
-	@Override
-	public OperatorMetricGroup getMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-	}
+        // regular running logic
+        boolean stubOpen = false;
 
-	// --------------------------------------------------------------------------------------------
-	
-	@After
-	public void shutdownAll() throws Exception {
-		// 1st, shutdown sorters
-		for (Sorter<?> sorter : this.sorters) {
-			if (sorter != null) {
-				sorter.close();
-			}
-		}
-		this.sorters.clear();
-		
-		// 2nd, shutdown I/O
-		this.ioManager.close();
+        try {
+            // run the data preparation
+            try {
+                driver.prepare();
+            } catch (Throwable t) {
+                throw new Exception("The data preparation caused an error: " + t.getMessage(), t);
+            }
 
-		// last, verify all memory is returned and shutdown mem manager
-		MemoryManager memMan = getMemoryManager();
-		if (memMan != null) {
-			Assert.assertTrue("Memory Manager managed memory was not completely freed.", memMan.verifyEmpty());
-			memMan.shutdown();
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private static final class ListOutputCollector implements Collector<Record> {
-		
-		private final List<Record> output;
-		
-		public ListOutputCollector(List<Record> outputList) {
-			this.output = outputList;
-		}
-		
+            // open stub implementation
+            try {
+                FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
+                stubOpen = true;
+            } catch (Throwable t) {
+                throw new Exception(
+                        "The user defined 'open()' method caused an exception: " + t.getMessage(),
+                        t);
+            }
 
-		@Override
-		public void collect(Record record) {
-			this.output.add(record.createCopy());
-		}
+            if (!running) {
+                return;
+            }
 
-		@Override
-		public void close() {}
-	}
-	
-	public static final class CountingOutputCollector implements Collector<Record> {
-		
-		private int num;
+            // run the user code
+            driver.run();
 
-		@Override
-		public void collect(Record record) {
-			this.num++;
-		}
+            // close. We close here such that a regular close throwing an exception marks a task as
+            // failed.
+            if (this.running) {
+                FunctionUtils.closeFunction(this.stub);
+                stubOpen = false;
+            }
 
-		@Override
-		public void close() {}
-		
-		public int getNumberOfRecords() {
-			return this.num;
-		}
-	}
+            this.output.close();
+        } catch (Exception ex) {
+            // close the input, but do not report any exceptions, since we already have another root
+            // cause
+            if (stubOpen) {
+                try {
+                    FunctionUtils.closeFunction(this.stub);
+                } catch (Throwable ignored) {
+                }
+            }
+
+            // if resettable driver invoke tear down
+            if (this.driver instanceof ResettableDriver) {
+                final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+                try {
+                    resDriver.teardown();
+                } catch (Throwable t) {
+                    throw new Exception(
+                            "Error while shutting down an iterative operator: " + t.getMessage(),
+                            t);
+                }
+            }
+
+            // drop exception, if the task was canceled
+            if (this.running) {
+                throw ex;
+            }
+
+        } finally {
+            driver.cleanup();
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
+            throws Exception {
+
+        driver.setup(this);
+
+        for (int i = 0; i < iterations; i++) {
+
+            if (i == 0) {
+                driver.initialize();
+            } else {
+                driver.reset();
+            }
+
+            testDriver(driver, stubClass);
+        }
+
+        driver.teardown();
+    }
+
+    public void cancel() throws Exception {
+        this.running = false;
+
+        // compensate for races, where cancel is called before the driver is set
+        // not that this is an artifact of a bad design of this test base, where the setup
+        // of the basic properties is not separated from the invocation of the execution logic
+        while (this.driver == null) {
+            Thread.sleep(200);
+        }
+        this.driver.cancel();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public TaskConfig getTaskConfig() {
+        return this.taskConfig;
+    }
+
+    @Override
+    public TaskManagerRuntimeInfo getTaskManagerInfo() {
+        return this.taskManageInfo;
+    }
+
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return executionConfig;
+    }
+
+    @Override
+    public ClassLoader getUserCodeClassLoader() {
+        return getClass().getClassLoader();
+    }
+
+    @Override
+    public IOManager getIOManager() {
+        return this.ioManager;
+    }
+
+    @Override
+    public MemoryManager getMemoryManager() {
+        return this.memManager;
+    }
+
+    @Override
+    public <X> MutableObjectIterator<X> getInput(int index) {
+        MutableObjectIterator<Record> in = this.inputs.get(index);
+        if (in == null) {
+            // waiting from sorter
+            try {
+                in = this.sorters.get(index).getIterator();
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted");
+            } catch (IOException e) {
+                throw new RuntimeException("IOException");
+            }
+            this.inputs.set(index, in);
+        }
+
+        @SuppressWarnings("unchecked")
+        MutableObjectIterator<X> input = (MutableObjectIterator<X>) this.inputs.get(index);
+        return input;
+    }
+
+    @Override
+    public <X> TypeSerializerFactory<X> getInputSerializer(int index) {
+        @SuppressWarnings("unchecked")
+        TypeSerializerFactory<X> factory = (TypeSerializerFactory<X>) RecordSerializerFactory.get();
+        return factory;
+    }
+
+    @Override
+    public <X> TypeComparator<X> getDriverComparator(int index) {
+        @SuppressWarnings("unchecked")
+        TypeComparator<X> comparator = (TypeComparator<X>) this.comparators.get(index);
+        return comparator;
+    }
+
+    @Override
+    public S getStub() {
+        return this.stub;
+    }
+
+    @Override
+    public Collector<Record> getOutputCollector() {
+        return this.output;
+    }
+
+    @Override
+    public AbstractInvokable getContainingTask() {
+        return this.owner;
+    }
+
+    @Override
+    public String formatLogString(String message) {
+        return "Driver Tester: " + message;
+    }
+
+    @Override
+    public OperatorMetricGroup getMetricGroup() {
+        return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @After
+    public void shutdownAll() throws Exception {
+        // 1st, shutdown sorters
+        for (Sorter<?> sorter : this.sorters) {
+            if (sorter != null) {
+                sorter.close();
+            }
+        }
+        this.sorters.clear();
+
+        // 2nd, shutdown I/O
+        this.ioManager.close();
+
+        // last, verify all memory is returned and shutdown mem manager
+        MemoryManager memMan = getMemoryManager();
+        if (memMan != null) {
+            Assert.assertTrue(
+                    "Memory Manager managed memory was not completely freed.",
+                    memMan.verifyEmpty());
+            memMan.shutdown();
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private static final class ListOutputCollector implements Collector<Record> {
+
+        private final List<Record> output;
+
+        public ListOutputCollector(List<Record> outputList) {
+            this.output = outputList;
+        }
+
+        @Override
+        public void collect(Record record) {
+            this.output.add(record.createCopy());
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    public static final class CountingOutputCollector implements Collector<Record> {
+
+        private int num;
+
+        @Override
+        public void collect(Record record) {
+            this.num++;
+        }
+
+        @Override
+        public void close() {}
+
+        public int getNumberOfRecords() {
+            return this.num;
+        }
+    }
 }

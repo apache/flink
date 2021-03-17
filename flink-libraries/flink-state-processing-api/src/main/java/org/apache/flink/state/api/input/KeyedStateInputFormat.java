@@ -62,190 +62,201 @@ import java.util.List;
  * @param <OUT> The type of the output of the {@link KeyedStateReaderFunction}.
  */
 @Internal
-public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> {
+public class KeyedStateInputFormat<K, N, OUT>
+        extends RichInputFormat<OUT, KeyGroupRangeInputSplit> {
 
-	private static final long serialVersionUID = 8230460226049597182L;
+    private static final long serialVersionUID = 8230460226049597182L;
 
-	private final OperatorState operatorState;
+    private final OperatorState operatorState;
 
-	private final StateBackend stateBackend;
+    private final StateBackend stateBackend;
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private final StateReaderOperator<?, K, N, OUT> operator;
+    private final StateReaderOperator<?, K, N, OUT> operator;
 
-	private transient CloseableRegistry registry;
+    private transient CloseableRegistry registry;
 
-	private transient BufferingCollector<OUT> out;
+    private transient BufferingCollector<OUT> out;
 
-	private transient CloseableIterator<Tuple2<K, N>> keysAndNamespaces;
+    private transient CloseableIterator<Tuple2<K, N>> keysAndNamespaces;
 
-	/**
-	 * Creates an input format for reading partitioned state from an operator in a savepoint.
-	 *
-	 * @param operatorState The state to be queried.
-	 * @param stateBackend  The state backed used to snapshot the operator.
-	 * @param configuration The underlying Flink configuration used to configure the state backend.
-	 */
-	public KeyedStateInputFormat(
-		OperatorState operatorState,
-		StateBackend stateBackend,
-		Configuration configuration,
-		StateReaderOperator<?, K, N, OUT> operator) {
-		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
-		Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
-		Preconditions.checkNotNull(configuration, "The configuration cannot be null");
-		Preconditions.checkNotNull(operator, "The operator cannot be null");
+    /**
+     * Creates an input format for reading partitioned state from an operator in a savepoint.
+     *
+     * @param operatorState The state to be queried.
+     * @param stateBackend The state backed used to snapshot the operator.
+     * @param configuration The underlying Flink configuration used to configure the state backend.
+     */
+    public KeyedStateInputFormat(
+            OperatorState operatorState,
+            StateBackend stateBackend,
+            Configuration configuration,
+            StateReaderOperator<?, K, N, OUT> operator) {
+        Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
+        Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
+        Preconditions.checkNotNull(configuration, "The configuration cannot be null");
+        Preconditions.checkNotNull(operator, "The operator cannot be null");
 
-		this.operatorState = operatorState;
-		this.stateBackend = stateBackend;
-		// Eagerly deep copy the configuration object
-		// otherwise there will be undefined behavior
-		// when executing pipelines with multiple input formats
-		this.configuration = new Configuration(configuration);
-		this.operator = operator;
-	}
+        this.operatorState = operatorState;
+        this.stateBackend = stateBackend;
+        // Eagerly deep copy the configuration object
+        // otherwise there will be undefined behavior
+        // when executing pipelines with multiple input formats
+        this.configuration = new Configuration(configuration);
+        this.operator = operator;
+    }
 
-	@Override
-	public void configure(Configuration parameters) {
-	}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(KeyGroupRangeInputSplit[] inputSplits) {
-		return new DefaultInputSplitAssigner(inputSplits);
-	}
+    @Override
+    public InputSplitAssigner getInputSplitAssigner(KeyGroupRangeInputSplit[] inputSplits) {
+        return new DefaultInputSplitAssigner(inputSplits);
+    }
 
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return cachedStatistics;
-	}
+    @Override
+    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+        return cachedStatistics;
+    }
 
-	@Override
-	public KeyGroupRangeInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		final int maxParallelism = operatorState.getMaxParallelism();
+    @Override
+    public KeyGroupRangeInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+        final int maxParallelism = operatorState.getMaxParallelism();
 
-		final List<KeyGroupRange> keyGroups = sortedKeyGroupRanges(minNumSplits, maxParallelism);
+        final List<KeyGroupRange> keyGroups = sortedKeyGroupRanges(minNumSplits, maxParallelism);
 
-		return CollectionUtil.mapWithIndex(
-			keyGroups,
-			(keyGroupRange, index) -> createKeyGroupRangeInputSplit(
-				operatorState,
-				maxParallelism,
-				keyGroupRange,
-				index)
-		).toArray(KeyGroupRangeInputSplit[]::new);
-	}
+        return CollectionUtil.mapWithIndex(
+                        keyGroups,
+                        (keyGroupRange, index) ->
+                                createKeyGroupRangeInputSplit(
+                                        operatorState, maxParallelism, keyGroupRange, index))
+                .toArray(KeyGroupRangeInputSplit[]::new);
+    }
 
-	@Override
-	public void openInputFormat() {
-		out = new BufferingCollector<>();
-	}
+    @Override
+    public void openInputFormat() {
+        out = new BufferingCollector<>();
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open(KeyGroupRangeInputSplit split) throws IOException {
-		registry = new CloseableRegistry();
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open(KeyGroupRangeInputSplit split) throws IOException {
+        registry = new CloseableRegistry();
 
-		final Environment environment = new SavepointEnvironment
-			.Builder(getRuntimeContext(), split.getNumKeyGroups())
-			.setConfiguration(configuration)
-			.setSubtaskIndex(split.getSplitNumber())
-			.setPrioritizedOperatorSubtaskState(split.getPrioritizedOperatorSubtaskState())
-			.build();
+        final Environment environment =
+                new SavepointEnvironment.Builder(getRuntimeContext(), split.getNumKeyGroups())
+                        .setConfiguration(configuration)
+                        .setSubtaskIndex(split.getSplitNumber())
+                        .setPrioritizedOperatorSubtaskState(
+                                split.getPrioritizedOperatorSubtaskState())
+                        .build();
 
-		final StreamOperatorStateContext context = getStreamOperatorStateContext(environment);
+        final StreamOperatorStateContext context = getStreamOperatorStateContext(environment);
 
-		AbstractKeyedStateBackend<K> keyedStateBackend = (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
+        AbstractKeyedStateBackend<K> keyedStateBackend =
+                (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
 
-		final DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getRuntimeContext().getExecutionConfig());
-		SavepointRuntimeContext ctx = new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
+        final DefaultKeyedStateStore keyedStateStore =
+                new DefaultKeyedStateStore(
+                        keyedStateBackend, getRuntimeContext().getExecutionConfig());
+        SavepointRuntimeContext ctx =
+                new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
 
-		InternalTimeServiceManager<K> timeServiceManager = (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
-		try {
-			operator.setup(getRuntimeContext().getExecutionConfig(), keyedStateBackend, timeServiceManager, ctx);
-			operator.open();
-			keysAndNamespaces = operator.getKeysAndNamespaces(ctx);
-		} catch (Exception e) {
-			throw new IOException("Failed to restore timer state", e);
-		}
-	}
+        InternalTimeServiceManager<K> timeServiceManager =
+                (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
+        try {
+            operator.setup(
+                    getRuntimeContext().getExecutionConfig(),
+                    keyedStateBackend,
+                    timeServiceManager,
+                    ctx);
+            operator.open();
+            keysAndNamespaces = operator.getKeysAndNamespaces(ctx);
+        } catch (Exception e) {
+            throw new IOException("Failed to restore timer state", e);
+        }
+    }
 
-	private StreamOperatorStateContext getStreamOperatorStateContext(Environment environment) throws IOException {
-		StreamTaskStateInitializer initializer = new StreamTaskStateInitializerImpl(
-			environment,
-			stateBackend);
+    private StreamOperatorStateContext getStreamOperatorStateContext(Environment environment)
+            throws IOException {
+        StreamTaskStateInitializer initializer =
+                new StreamTaskStateInitializerImpl(environment, stateBackend);
 
-		try {
-			return initializer.streamOperatorStateContext(
-				operatorState.getOperatorID(),
-				operatorState.getOperatorID().toString(),
-				new NeverFireProcessingTimeService(),
-				operator,
-				operator.getKeyType().createSerializer(environment.getExecutionConfig()),
-				registry,
-				getRuntimeContext().getMetricGroup(),
-				1.0,
-				false);
-		} catch (Exception e) {
-			throw new IOException("Failed to restore state backend", e);
-		}
-	}
+        try {
+            return initializer.streamOperatorStateContext(
+                    operatorState.getOperatorID(),
+                    operatorState.getOperatorID().toString(),
+                    new NeverFireProcessingTimeService(),
+                    operator,
+                    operator.getKeyType().createSerializer(environment.getExecutionConfig()),
+                    registry,
+                    getRuntimeContext().getMetricGroup(),
+                    1.0,
+                    false);
+        } catch (Exception e) {
+            throw new IOException("Failed to restore state backend", e);
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		try {
-			IOUtils.closeQuietly(keysAndNamespaces);
-			operator.close();
-			registry.close();
-		} catch (Exception e) {
-			throw new IOException("Failed to close state backend", e);
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        try {
+            IOUtils.closeQuietly(keysAndNamespaces);
+            operator.close();
+            registry.close();
+        } catch (Exception e) {
+            throw new IOException("Failed to close state backend", e);
+        }
+    }
 
-	@Override
-	public boolean reachedEnd() {
-		return !out.hasNext() && !keysAndNamespaces.hasNext();
-	}
+    @Override
+    public boolean reachedEnd() {
+        return !out.hasNext() && !keysAndNamespaces.hasNext();
+    }
 
-	@Override
-	public OUT nextRecord(OUT reuse) throws IOException {
-		if (out.hasNext()) {
-			return out.next();
-		}
+    @Override
+    public OUT nextRecord(OUT reuse) throws IOException {
+        if (out.hasNext()) {
+            return out.next();
+        }
 
-		final Tuple2<K, N> keyAndNamespace = keysAndNamespaces.next();
-		operator.setCurrentKey(keyAndNamespace.f0);
+        final Tuple2<K, N> keyAndNamespace = keysAndNamespaces.next();
+        operator.setCurrentKey(keyAndNamespace.f0);
 
-		try {
-			operator.processElement(keyAndNamespace.f0, keyAndNamespace.f1, out);
-		} catch (Exception e) {
-			throw new IOException("User defined function KeyedStateReaderFunction#readKey threw an exception", e);
-		}
+        try {
+            operator.processElement(keyAndNamespace.f0, keyAndNamespace.f1, out);
+        } catch (Exception e) {
+            throw new IOException(
+                    "User defined function KeyedStateReaderFunction#readKey threw an exception", e);
+        }
 
-		keysAndNamespaces.remove();
+        keysAndNamespaces.remove();
 
-		return out.next();
-	}
+        return out.next();
+    }
 
-	private static KeyGroupRangeInputSplit createKeyGroupRangeInputSplit(
-		OperatorState operatorState,
-		int maxParallelism,
-		KeyGroupRange keyGroupRange,
-		Integer index) {
+    private static KeyGroupRangeInputSplit createKeyGroupRangeInputSplit(
+            OperatorState operatorState,
+            int maxParallelism,
+            KeyGroupRange keyGroupRange,
+            Integer index) {
 
-		final List<KeyedStateHandle> managedKeyedState = StateAssignmentOperation.getManagedKeyedStateHandles(operatorState, keyGroupRange);
-		final List<KeyedStateHandle> rawKeyedState = StateAssignmentOperation.getRawKeyedStateHandles(operatorState, keyGroupRange);
+        final List<KeyedStateHandle> managedKeyedState =
+                StateAssignmentOperation.getManagedKeyedStateHandles(operatorState, keyGroupRange);
+        final List<KeyedStateHandle> rawKeyedState =
+                StateAssignmentOperation.getRawKeyedStateHandles(operatorState, keyGroupRange);
 
-		return new KeyGroupRangeInputSplit(managedKeyedState, rawKeyedState, maxParallelism, index);
-	}
+        return new KeyGroupRangeInputSplit(managedKeyedState, rawKeyedState, maxParallelism, index);
+    }
 
-	@Nonnull
-	private static List<KeyGroupRange> sortedKeyGroupRanges(int minNumSplits, int maxParallelism) {
-		List<KeyGroupRange> keyGroups = StateAssignmentOperation.createKeyGroupPartitions(
-			maxParallelism,
-			Math.min(minNumSplits, maxParallelism));
+    @Nonnull
+    private static List<KeyGroupRange> sortedKeyGroupRanges(int minNumSplits, int maxParallelism) {
+        List<KeyGroupRange> keyGroups =
+                StateAssignmentOperation.createKeyGroupPartitions(
+                        maxParallelism, Math.min(minNumSplits, maxParallelism));
 
-		keyGroups.sort(Comparator.comparing(KeyGroupRange::getStartKeyGroup));
-		return keyGroups;
-	}
+        keyGroups.sort(Comparator.comparing(KeyGroupRange::getStartKeyGroup));
+        return keyGroups;
+    }
 }

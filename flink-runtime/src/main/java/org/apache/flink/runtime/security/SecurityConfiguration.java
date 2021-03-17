@@ -40,122 +40,132 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SecurityConfiguration {
 
-	private final List<String> securityContextFactory;
+    private final List<String> securityContextFactory;
 
-	private final List<String> securityModuleFactories;
+    private final List<String> securityModuleFactories;
 
-	private final Configuration flinkConfig;
+    private final Configuration flinkConfig;
 
-	private final boolean isZkSaslDisable;
+    private final boolean isZkSaslDisable;
 
-	private final boolean useTicketCache;
+    private final boolean useTicketCache;
 
-	private final String keytab;
+    private final String keytab;
 
-	private final String principal;
+    private final String principal;
 
-	private final List<String> loginContextNames;
+    private final List<String> loginContextNames;
 
-	private final String zkServiceName;
+    private final String zkServiceName;
 
-	private final String zkLoginContextName;
+    private final String zkLoginContextName;
 
-	/**
-	 * Create a security configuration from the global configuration.
-	 * @param flinkConf the Flink global configuration.
-*/
-	public SecurityConfiguration(Configuration flinkConf) {
-		this(flinkConf,
-			flinkConf.get(SECURITY_CONTEXT_FACTORY_CLASSES),
-			flinkConf.get(SECURITY_MODULE_FACTORY_CLASSES));
-	}
+    /**
+     * Create a security configuration from the global configuration.
+     *
+     * @param flinkConf the Flink global configuration.
+     */
+    public SecurityConfiguration(Configuration flinkConf) {
+        this(
+                flinkConf,
+                flinkConf.get(SECURITY_CONTEXT_FACTORY_CLASSES),
+                flinkConf.get(SECURITY_MODULE_FACTORY_CLASSES));
+    }
 
-	/**
-	 * Create a security configuration from the global configuration.
-	 * @param flinkConf the Flink global configuration.
-	 * @param securityModuleFactories the security modules to apply.
-	 */
-	public SecurityConfiguration(Configuration flinkConf,
-			List<String> securityContextFactory,
-			List<String> securityModuleFactories) {
-		this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
-		this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
-		this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
-		this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
-		this.loginContextNames = parseList(flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
-		this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
-		this.zkLoginContextName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
-		this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
-		this.securityContextFactory = securityContextFactory;
-		this.flinkConfig = checkNotNull(flinkConf);
-		validate();
-	}
+    /**
+     * Create a security configuration from the global configuration.
+     *
+     * @param flinkConf the Flink global configuration.
+     * @param securityModuleFactories the security modules to apply.
+     */
+    public SecurityConfiguration(
+            Configuration flinkConf,
+            List<String> securityContextFactory,
+            List<String> securityModuleFactories) {
+        this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
+        this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
+        this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
+        this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+        this.loginContextNames =
+                parseList(flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
+        this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
+        this.zkLoginContextName =
+                flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
+        this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
+        this.securityContextFactory = securityContextFactory;
+        this.flinkConfig = checkNotNull(flinkConf);
+        validate();
+    }
 
-	public boolean isZkSaslDisable() {
-		return isZkSaslDisable;
-	}
+    public boolean isZkSaslDisable() {
+        return isZkSaslDisable;
+    }
 
-	public String getKeytab() {
-		return keytab;
-	}
+    public String getKeytab() {
+        return keytab;
+    }
 
-	public String getPrincipal() {
-		return principal;
-	}
+    public String getPrincipal() {
+        return principal;
+    }
 
-	public boolean useTicketCache() {
-		return useTicketCache;
-	}
+    public boolean useTicketCache() {
+        return useTicketCache;
+    }
 
-	public Configuration getFlinkConfig() {
-		return flinkConfig;
-	}
+    public Configuration getFlinkConfig() {
+        return flinkConfig;
+    }
 
-	public List<String> getSecurityContextFactories() {
-		return securityContextFactory;
-	}
+    public List<String> getSecurityContextFactories() {
+        return securityContextFactory;
+    }
 
-	public List<String> getSecurityModuleFactories() {
-		return securityModuleFactories;
-	}
+    public List<String> getSecurityModuleFactories() {
+        return securityModuleFactories;
+    }
 
-	public List<String> getLoginContextNames() {
-		return loginContextNames;
-	}
+    public List<String> getLoginContextNames() {
+        return loginContextNames;
+    }
 
-	public String getZooKeeperServiceName() {
-		return zkServiceName;
-	}
+    public String getZooKeeperServiceName() {
+        return zkServiceName;
+    }
 
-	public String getZooKeeperLoginContextName() {
-		return zkLoginContextName;
-	}
+    public String getZooKeeperLoginContextName() {
+        return zkLoginContextName;
+    }
 
-	private void validate() {
-		if (!StringUtils.isBlank(keytab)) {
-			// principal is required
-			if (StringUtils.isBlank(principal)) {
-				throw new IllegalConfigurationException("Kerberos login configuration is invalid: keytab requires a principal.");
-			}
+    private void validate() {
+        if (!StringUtils.isBlank(keytab)) {
+            // principal is required
+            if (StringUtils.isBlank(principal)) {
+                throw new IllegalConfigurationException(
+                        "Kerberos login configuration is invalid: keytab requires a principal.");
+            }
 
-			// check the keytab is readable
-			File keytabFile = new File(keytab);
-			if (!keytabFile.exists() || !keytabFile.isFile()) {
-				throw new IllegalConfigurationException("Kerberos login configuration is invalid: keytab [" + keytab + "] doesn't exist!");
-			} else if (!keytabFile.canRead()) {
-				throw new IllegalConfigurationException("Kerberos login configuration is invalid: keytab [" + keytab + "] is unreadable!");
-			}
-		}
-	}
+            // check the keytab is readable
+            File keytabFile = new File(keytab);
+            if (!keytabFile.exists() || !keytabFile.isFile()) {
+                throw new IllegalConfigurationException(
+                        "Kerberos login configuration is invalid: keytab ["
+                                + keytab
+                                + "] doesn't exist!");
+            } else if (!keytabFile.canRead()) {
+                throw new IllegalConfigurationException(
+                        "Kerberos login configuration is invalid: keytab ["
+                                + keytab
+                                + "] is unreadable!");
+            }
+        }
+    }
 
-	private static List<String> parseList(String value) {
-		if (value == null || value.isEmpty()) {
-			return Collections.emptyList();
-		}
+    private static List<String> parseList(String value) {
+        if (value == null || value.isEmpty()) {
+            return Collections.emptyList();
+        }
 
-		return Arrays.asList(value
-			.trim()
-			.replaceAll("(\\s*,+\\s*)+", ",")
-			.split(","));
-	}
+        return Arrays.asList(value.trim().replaceAll("(\\s*,+\\s*)+", ",").split(","));
+    }
 }

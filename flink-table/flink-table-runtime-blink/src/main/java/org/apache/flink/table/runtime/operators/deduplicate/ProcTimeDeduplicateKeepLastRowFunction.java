@@ -18,42 +18,67 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
-/**
- * This function is used to deduplicate on keys and keeps only last row.
- */
+/** This function is used to deduplicate on keys and keeps only last row. */
 public class ProcTimeDeduplicateKeepLastRowFunction
-		extends DeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
+        extends DeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = -291348892087180350L;
-	private final boolean generateUpdateBefore;
-	private final boolean generateInsert;
-	private final boolean inputIsInsertOnly;
+    private static final long serialVersionUID = -291348892087180350L;
+    private final boolean generateUpdateBefore;
+    private final boolean generateInsert;
+    private final boolean inputIsInsertOnly;
+    private final boolean isStateTtlEnabled;
+    /** The code generated equaliser used to equal RowData. */
+    private final GeneratedRecordEqualiser genRecordEqualiser;
 
-	public ProcTimeDeduplicateKeepLastRowFunction(
-			InternalTypeInfo<RowData> typeInfo,
-			long stateRetentionTime,
-			boolean generateUpdateBefore,
-			boolean generateInsert,
-			boolean inputInsertOnly) {
-		super(typeInfo, null, stateRetentionTime);
-		this.generateUpdateBefore = generateUpdateBefore;
-		this.generateInsert = generateInsert;
-		this.inputIsInsertOnly = inputInsertOnly;
-	}
+    /** The record equaliser used to equal RowData. */
+    private transient RecordEqualiser equaliser;
 
-	@Override
-	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		if (inputIsInsertOnly) {
-			processLastRowOnProcTime(input, generateUpdateBefore, generateInsert, state, out);
-		} else {
-			processLastRowOnChangelog(input, generateUpdateBefore, state, out);
-		}
-	}
+    public ProcTimeDeduplicateKeepLastRowFunction(
+            InternalTypeInfo<RowData> typeInfo,
+            long stateRetentionTime,
+            boolean generateUpdateBefore,
+            boolean generateInsert,
+            boolean inputInsertOnly,
+            GeneratedRecordEqualiser genRecordEqualiser) {
+        super(typeInfo, null, stateRetentionTime);
+        this.generateUpdateBefore = generateUpdateBefore;
+        this.generateInsert = generateInsert;
+        this.inputIsInsertOnly = inputInsertOnly;
+        this.genRecordEqualiser = genRecordEqualiser;
+        this.isStateTtlEnabled = stateRetentionTime > 0;
+    }
+
+    @Override
+    public void open(Configuration configure) throws Exception {
+        super.open(configure);
+        equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+    }
+
+    @Override
+    public void processElement(RowData input, Context ctx, Collector<RowData> out)
+            throws Exception {
+        if (inputIsInsertOnly) {
+            processLastRowOnProcTime(
+                    input,
+                    generateUpdateBefore,
+                    generateInsert,
+                    state,
+                    out,
+                    isStateTtlEnabled,
+                    equaliser);
+        } else {
+            processLastRowOnChangelog(
+                    input, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
+        }
+    }
 }

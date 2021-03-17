@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[INSERT INTO sink SELECT a, b, c FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -38,14 +38,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
     <Resource name="sql">
       <![CDATA[INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
 +- Exchange(distribution=[hash[b, c]])
@@ -57,14 +57,14 @@ Sink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
     <Resource name="sql">
       <![CDATA[INSERT INTO sink PARTITION (b=1) SELECT a, c FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
 +- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, c])
@@ -76,14 +76,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
     <Resource name="sql">
       <![CDATA[INSERT INTO sink PARTITION (b=1, c=1) SELECT a FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, 1:BIGINT AS EXPR$2])

@@ -26,47 +26,51 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link AsynchronousOperationTriggerMessageHeaders} for the {@link SavepointDisposalHandlers.SavepointDisposalTriggerHandler}.
+ * {@link AsynchronousOperationTriggerMessageHeaders} for the {@link
+ * SavepointDisposalHandlers.SavepointDisposalTriggerHandler}.
  */
-public class SavepointDisposalTriggerHeaders extends AsynchronousOperationTriggerMessageHeaders<SavepointDisposalRequest, EmptyMessageParameters> {
+public class SavepointDisposalTriggerHeaders
+        extends AsynchronousOperationTriggerMessageHeaders<
+                SavepointDisposalRequest, EmptyMessageParameters> {
 
-	private static final SavepointDisposalTriggerHeaders INSTANCE = new SavepointDisposalTriggerHeaders();
+    private static final SavepointDisposalTriggerHeaders INSTANCE =
+            new SavepointDisposalTriggerHeaders();
 
-	private static final String URL = "/savepoint-disposal";
+    private static final String URL = "/savepoint-disposal";
 
-	private SavepointDisposalTriggerHeaders() {}
+    private SavepointDisposalTriggerHeaders() {}
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<SavepointDisposalRequest> getRequestClass() {
-		return SavepointDisposalRequest.class;
-	}
+    @Override
+    public Class<SavepointDisposalRequest> getRequestClass() {
+        return SavepointDisposalRequest.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.POST;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SavepointDisposalTriggerHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SavepointDisposalTriggerHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	protected String getAsyncOperationDescription() {
-		return "Triggers the desposal of a savepoint.";
-	}
+    @Override
+    protected String getAsyncOperationDescription() {
+        return "Triggers the desposal of a savepoint.";
+    }
 }

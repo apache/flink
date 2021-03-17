@@ -41,64 +41,64 @@ import java.util.Set;
  */
 public final class SocketDynamicTableFactory implements DynamicTableSourceFactory {
 
-	// define all options statically
-	public static final ConfigOption<String> HOSTNAME = ConfigOptions.key("hostname")
-		.stringType()
-		.noDefaultValue();
+    // define all options statically
+    public static final ConfigOption<String> HOSTNAME =
+            ConfigOptions.key("hostname").stringType().noDefaultValue();
 
-	public static final ConfigOption<Integer> PORT = ConfigOptions.key("port")
-		.intType()
-		.noDefaultValue();
+    public static final ConfigOption<Integer> PORT =
+            ConfigOptions.key("port").intType().noDefaultValue();
 
-	public static final ConfigOption<Integer> BYTE_DELIMITER = ConfigOptions.key("byte-delimiter")
-		.intType()
-		.defaultValue(10); // corresponds to '\n'
+    public static final ConfigOption<Integer> BYTE_DELIMITER =
+            ConfigOptions.key("byte-delimiter").intType().defaultValue(10); // corresponds to '\n'
 
-	@Override
-	public String factoryIdentifier() {
-		return "socket"; // used for matching to `connector = '...'`
-	}
+    @Override
+    public String factoryIdentifier() {
+        return "socket"; // used for matching to `connector = '...'`
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(HOSTNAME);
-		options.add(PORT);
-		options.add(FactoryUtil.FORMAT); // use pre-defined option for format
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(HOSTNAME);
+        options.add(PORT);
+        options.add(FactoryUtil.FORMAT); // use pre-defined option for format
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(BYTE_DELIMITER);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(BYTE_DELIMITER);
+        return options;
+    }
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		// either implement your custom validation logic here ...
-		// or use the provided helper utility
-		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        // either implement your custom validation logic here ...
+        // or use the provided helper utility
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(this, context);
 
-		// discover a suitable decoding format
-		final DecodingFormat<DeserializationSchema<RowData>> decodingFormat = helper.discoverDecodingFormat(
-			DeserializationFormatFactory.class,
-			FactoryUtil.FORMAT);
+        // discover a suitable decoding format
+        final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
+                helper.discoverDecodingFormat(
+                        DeserializationFormatFactory.class, FactoryUtil.FORMAT);
 
-		// validate all options
-		helper.validate();
+        // validate all options
+        helper.validate();
 
-		// get the validated options
-		final ReadableConfig options = helper.getOptions();
-		final String hostname = options.get(HOSTNAME);
-		final int port = options.get(PORT);
-		final byte byteDelimiter = (byte) (int) options.get(BYTE_DELIMITER);
+        // get the validated options
+        final ReadableConfig options = helper.getOptions();
+        final String hostname = options.get(HOSTNAME);
+        final int port = options.get(PORT);
+        final byte byteDelimiter = (byte) (int) options.get(BYTE_DELIMITER);
 
-		// derive the produced data type (excluding computed columns) from the catalog table
-		final DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+        // derive the produced data type (excluding computed columns) from the catalog table
+        final DataType producedDataType =
+                context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
-		// create and return dynamic table source
-		return new SocketDynamicTableSource(hostname, port, byteDelimiter, decodingFormat, producedDataType);
-	}
+        // create and return dynamic table source
+        return new SocketDynamicTableSource(
+                hostname, port, byteDelimiter, decodingFormat, producedDataType);
+    }
 }

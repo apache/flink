@@ -33,69 +33,75 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-/**
- * {@link ContinuousFileReaderOperator} test.
- */
+/** {@link ContinuousFileReaderOperator} test. */
 public class ContinuousFileReaderOperatorTest {
 
-	@Test(expected = ExpectedTestException.class)
-	public void testExceptionRethrownFromClose() throws Exception {
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(failingFormat());
-		harness.getExecutionConfig().setAutoWatermarkInterval(10);
-		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
-			tester.open();
-		}
-	}
+    @Test(expected = ExpectedTestException.class)
+    public void testExceptionRethrownFromClose() throws Exception {
+        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+                createHarness(failingFormat());
+        harness.getExecutionConfig().setAutoWatermarkInterval(10);
+        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
+                harness) {
+            tester.open();
+        }
+    }
 
-	@Test(expected = ExpectedTestException.class)
-	public void testExceptionRethrownFromProcessElement() throws Exception {
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness = createHarness(failingFormat());
-		harness.getExecutionConfig().setAutoWatermarkInterval(10);
-		harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester = harness) {
-			tester.open();
-			tester.processElement(new StreamRecord<>(new TimestampedFileInputSplit(0L, 1, new Path(), 0L, 0L, new String[]{})));
-			for (Mail m : harness.getTaskMailbox().drain()) {
-				m.run();
-			}
-			fail("should throw from processElement");
-		}
-	}
+    @Test(expected = ExpectedTestException.class)
+    public void testExceptionRethrownFromProcessElement() throws Exception {
+        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+                createHarness(failingFormat());
+        harness.getExecutionConfig().setAutoWatermarkInterval(10);
+        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
+                harness) {
+            tester.open();
+            tester.processElement(
+                    new StreamRecord<>(
+                            new TimestampedFileInputSplit(
+                                    0L, 1, new Path(), 0L, 0L, new String[] {})));
+            for (Mail m : harness.getTaskMailbox().drain()) {
+                m.run();
+            }
+            fail("should throw from processElement");
+        }
+    }
 
-	private FileInputFormat<String> failingFormat() {
-		return new FileInputFormat<String>() {
-			@Override
-			public boolean reachedEnd() {
-				return false;
-			}
+    private FileInputFormat<String> failingFormat() {
+        return new FileInputFormat<String>() {
+            @Override
+            public boolean reachedEnd() {
+                return false;
+            }
 
-			@Override
-			public String nextRecord(String reuse) {
-				throw new ExpectedTestException();
-			}
+            @Override
+            public String nextRecord(String reuse) {
+                throw new ExpectedTestException();
+            }
 
-			@Override
-			public void open(FileInputSplit fileSplit) {
-				throw new ExpectedTestException();
-			}
+            @Override
+            public void open(FileInputSplit fileSplit) {
+                throw new ExpectedTestException();
+            }
 
-			@Override
-			public void close() {
-				throw new ExpectedTestException();
-			}
+            @Override
+            public void close() {
+                throw new ExpectedTestException();
+            }
 
-			@Override
-			public void configure(Configuration parameters) {
-			}
-		};
-	}
+            @Override
+            public void configure(Configuration parameters) {}
+        };
+    }
 
-	private <T> OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, T> createHarness(FileInputFormat<T> format) throws Exception {
-		ExecutionConfig config = new ExecutionConfig();
-		return new OneInputStreamOperatorTestHarness<>(
-				new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
-				TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
-	}
-
+    private <T> OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, T> createHarness(
+            FileInputFormat<T> format) throws Exception {
+        ExecutionConfig config = new ExecutionConfig();
+        return new OneInputStreamOperatorTestHarness<>(
+                new ContinuousFileReaderOperatorFactory<>(
+                        format, TypeExtractor.getInputFormatTypes(format), config),
+                TypeExtractor.getForClass(TimestampedFileInputSplit.class)
+                        .createSerializer(config));
+    }
 }

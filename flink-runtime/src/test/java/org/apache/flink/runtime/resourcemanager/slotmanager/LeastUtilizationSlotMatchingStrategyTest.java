@@ -36,45 +36,47 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link LeastUtilizationSlotMatchingStrategy}.
- */
+/** Tests for the {@link LeastUtilizationSlotMatchingStrategy}. */
 public class LeastUtilizationSlotMatchingStrategyTest extends TestLogger {
 
-	@Test
-	public void findMatchingSlot_multipleMatchingSlots_returnsSlotWithLeastUtilization() {
-		final ResourceProfile requestedResourceProfile = ResourceProfile.fromResources(2.0, 2);
+    @Test
+    public void findMatchingSlot_multipleMatchingSlots_returnsSlotWithLeastUtilization() {
+        final ResourceProfile requestedResourceProfile = ResourceProfile.fromResources(2.0, 2);
 
-		final TestingTaskManagerSlotInformation leastUtilizedSlot = TestingTaskManagerSlotInformation.newBuilder()
-			.setResourceProfile(requestedResourceProfile)
-			.build();
-		final TestingTaskManagerSlotInformation tooSmallSlot = TestingTaskManagerSlotInformation.newBuilder()
-			.setResourceProfile(ResourceProfile.fromResources(1.0, 10))
-			.build();
-		final TestingTaskManagerSlotInformation alternativeSlot = TestingTaskManagerSlotInformation.newBuilder()
-			.setResourceProfile(requestedResourceProfile)
-			.build();
+        final TestingTaskManagerSlotInformation leastUtilizedSlot =
+                TestingTaskManagerSlotInformation.newBuilder()
+                        .setResourceProfile(requestedResourceProfile)
+                        .build();
+        final TestingTaskManagerSlotInformation tooSmallSlot =
+                TestingTaskManagerSlotInformation.newBuilder()
+                        .setResourceProfile(ResourceProfile.fromResources(1.0, 10))
+                        .build();
+        final TestingTaskManagerSlotInformation alternativeSlot =
+                TestingTaskManagerSlotInformation.newBuilder()
+                        .setResourceProfile(requestedResourceProfile)
+                        .build();
 
-		final Collection<TestingTaskManagerSlotInformation> freeSlots = Arrays.asList(
-			tooSmallSlot,
-			leastUtilizedSlot,
-			alternativeSlot);
+        final Collection<TestingTaskManagerSlotInformation> freeSlots =
+                Arrays.asList(tooSmallSlot, leastUtilizedSlot, alternativeSlot);
 
-		Map<InstanceID, Integer> registeredSlotPerTaskExecutor = ImmutableMap.of(
-			leastUtilizedSlot.getInstanceId(), 1,
-			tooSmallSlot.getInstanceId(), 1,
-			alternativeSlot.getInstanceId(), 2);
+        Map<InstanceID, Integer> registeredSlotPerTaskExecutor =
+                ImmutableMap.of(
+                        leastUtilizedSlot.getInstanceId(), 1,
+                        tooSmallSlot.getInstanceId(), 1,
+                        alternativeSlot.getInstanceId(), 2);
 
-		final Optional<TestingTaskManagerSlotInformation> matchingSlot = LeastUtilizationSlotMatchingStrategy.INSTANCE.findMatchingSlot(
-			requestedResourceProfile,
-			freeSlots,
-			createRegisteredSlotsLookupFunction(registeredSlotPerTaskExecutor));
+        final Optional<TestingTaskManagerSlotInformation> matchingSlot =
+                LeastUtilizationSlotMatchingStrategy.INSTANCE.findMatchingSlot(
+                        requestedResourceProfile,
+                        freeSlots,
+                        createRegisteredSlotsLookupFunction(registeredSlotPerTaskExecutor));
 
-		assertTrue(matchingSlot.isPresent());
-		assertThat(matchingSlot.get().getSlotId(), is(leastUtilizedSlot.getSlotId()));
-	}
+        assertTrue(matchingSlot.isPresent());
+        assertThat(matchingSlot.get().getSlotId(), is(leastUtilizedSlot.getSlotId()));
+    }
 
-	private Function<InstanceID, Integer> createRegisteredSlotsLookupFunction(Map<InstanceID, Integer> registeredSlotPerTaskExecutor) {
-		return instanceID -> registeredSlotPerTaskExecutor.getOrDefault(instanceID, 0);
-	}
+    private Function<InstanceID, Integer> createRegisteredSlotsLookupFunction(
+            Map<InstanceID, Integer> registeredSlotPerTaskExecutor) {
+        return instanceID -> registeredSlotPerTaskExecutor.getOrDefault(instanceID, 0);
+    }
 }

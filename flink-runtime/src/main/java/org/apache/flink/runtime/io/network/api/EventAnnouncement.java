@@ -27,72 +27,70 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * {@link EventAnnouncement} is announcing presence or receiving of an {@link AbstractEvent}.
- * That {@link #announcedEvent} is identified by it's sequence number.
+ * {@link EventAnnouncement} is announcing presence or receiving of an {@link AbstractEvent}. That
+ * {@link #announcedEvent} is identified by it's sequence number.
  */
 public class EventAnnouncement extends RuntimeEvent {
 
-	private final AbstractEvent announcedEvent;
-	private final int sequenceNumber;
+    private final AbstractEvent announcedEvent;
+    private final int sequenceNumber;
 
-	public EventAnnouncement(AbstractEvent announcedEvent, int sequenceNumber) {
-		this.announcedEvent = announcedEvent;
-		this.sequenceNumber = sequenceNumber;
-	}
+    public EventAnnouncement(AbstractEvent announcedEvent, int sequenceNumber) {
+        this.announcedEvent = announcedEvent;
+        this.sequenceNumber = sequenceNumber;
+    }
 
-	public AbstractEvent getAnnouncedEvent() {
-		return announcedEvent;
-	}
+    public AbstractEvent getAnnouncedEvent() {
+        return announcedEvent;
+    }
 
-	public int getSequenceNumber() {
-		return sequenceNumber;
-	}
+    public int getSequenceNumber() {
+        return sequenceNumber;
+    }
 
-	// ------------------------------------------------------------------------
-	// Serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Serialization
+    // ------------------------------------------------------------------------
 
-	//
-	//  These methods are inherited form the generic serialization of AbstractEvent
-	//  but would require the CheckpointBarrier to be mutable. Since all serialization
-	//  for events goes through the EventSerializer class, which has special serialization
-	//  for the CheckpointBarrier, we don't need these methods
-	//
+    //
+    //  These methods are inherited form the generic serialization of AbstractEvent
+    //  but would require the CheckpointBarrier to be mutable. Since all serialization
+    //  for events goes through the EventSerializer class, which has special serialization
+    //  for the CheckpointBarrier, we don't need these methods
+    //
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		throw new UnsupportedOperationException("This method should never be called");
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        throw new UnsupportedOperationException("This method should never be called");
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		throw new UnsupportedOperationException("This method should never be called");
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        throw new UnsupportedOperationException("This method should never be called");
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(announcedEvent, sequenceNumber);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(announcedEvent, sequenceNumber);
+    }
 
-	@Override
-	public boolean equals(Object other) {
-		if (other == this) {
-			return true;
-		}
-		else if (other == null || other.getClass() != EventAnnouncement.class) {
-			return false;
-		}
-		else {
-			EventAnnouncement that = (EventAnnouncement) other;
-			return Objects.equals(this.announcedEvent, that.announcedEvent) &&
-					this.sequenceNumber == that.sequenceNumber;
-		}
-	}
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        } else if (other == null || other.getClass() != EventAnnouncement.class) {
+            return false;
+        } else {
+            EventAnnouncement that = (EventAnnouncement) other;
+            return Objects.equals(this.announcedEvent, that.announcedEvent)
+                    && this.sequenceNumber == that.sequenceNumber;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return String.format("Announcement of [%s] at %d", announcedEvent, sequenceNumber);
-	}
+    @Override
+    public String toString() {
+        return String.format("Announcement of [%s] at %d", announcedEvent, sequenceNumber);
+    }
 }

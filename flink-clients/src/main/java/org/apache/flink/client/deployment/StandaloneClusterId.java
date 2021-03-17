@@ -18,15 +18,13 @@
 
 package org.apache.flink.client.deployment;
 
-/**
- * Identifier for standalone clusters.
- */
+/** Identifier for standalone clusters. */
 public class StandaloneClusterId {
-	private static final StandaloneClusterId INSTANCE = new StandaloneClusterId();
+    private static final StandaloneClusterId INSTANCE = new StandaloneClusterId();
 
-	private StandaloneClusterId() {}
+    private StandaloneClusterId() {}
 
-	public static StandaloneClusterId getInstance() {
-		return INSTANCE;
-	}
+    public static StandaloneClusterId getInstance() {
+        return INSTANCE;
+    }
 }

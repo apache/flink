@@ -31,64 +31,80 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_SERDE_PROPS;
 
-/**
- * ALTER TABLE DDL to change a Hive table's SerDe.
- */
+/** ALTER TABLE DDL to change a Hive table's SerDe. */
 public class SqlAlterHiveTableSerDe extends SqlAlterHiveTable {
 
-	private final SqlCharStringLiteral serdeLib;
-	private final SqlNodeList origSerDeProps;
+    private final SqlCharStringLiteral serdeLib;
+    private final SqlNodeList origSerDeProps;
 
-	public SqlAlterHiveTableSerDe(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec,
-			SqlNodeList propertyList, SqlCharStringLiteral serdeLib) throws ParseException {
-		super(CHANGE_SERDE_PROPS, pos, tableName, partitionSpec, HiveDDLUtils.checkReservedTableProperties(propertyList));
-		HiveDDLUtils.unescapeProperties(propertyList);
-		// remove the last property which is the ALTER_TABLE_OP
-		origSerDeProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
-				propertyList.getParserPosition());
-		appendPrefix(getPropertyList());
-		if (serdeLib != null) {
-			propertyList.add(HiveDDLUtils.toTableOption(
-					HiveTableRowFormat.SERDE_LIB_CLASS_NAME, serdeLib, serdeLib.getParserPosition()));
-		}
-		this.serdeLib = serdeLib;
-	}
+    public SqlAlterHiveTableSerDe(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partitionSpec,
+            SqlNodeList propertyList,
+            SqlCharStringLiteral serdeLib)
+            throws ParseException {
+        super(
+                CHANGE_SERDE_PROPS,
+                pos,
+                tableName,
+                partitionSpec,
+                HiveDDLUtils.checkReservedTableProperties(propertyList));
+        HiveDDLUtils.unescapeProperties(propertyList);
+        // remove the last property which is the ALTER_TABLE_OP
+        origSerDeProps =
+                new SqlNodeList(
+                        propertyList.getList().subList(0, propertyList.size() - 1),
+                        propertyList.getParserPosition());
+        appendPrefix(getPropertyList());
+        if (serdeLib != null) {
+            propertyList.add(
+                    HiveDDLUtils.toTableOption(
+                            HiveTableRowFormat.SERDE_LIB_CLASS_NAME,
+                            serdeLib,
+                            serdeLib.getParserPosition()));
+        }
+        this.serdeLib = serdeLib;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-		if (serdeLib != null) {
-			writer.keyword("SERDE");
-			serdeLib.unparse(writer, leftPrec, rightPrec);
-		}
-		if (origSerDeProps != null && origSerDeProps.size() > 0) {
-			if (serdeLib == null) {
-				writer.keyword("SERDEPROPERTIES");
-			} else {
-				writer.keyword("WITH SERDEPROPERTIES");
-			}
-			SqlWriter.Frame withFrame = writer.startList("(", ")");
-			for (SqlNode property : origSerDeProps) {
-				printIndent(writer);
-				property.unparse(writer, leftPrec, rightPrec);
-			}
-			writer.newlineAndIndent();
-			writer.endList(withFrame);
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET");
+        if (serdeLib != null) {
+            writer.keyword("SERDE");
+            serdeLib.unparse(writer, leftPrec, rightPrec);
+        }
+        if (origSerDeProps != null && origSerDeProps.size() > 0) {
+            if (serdeLib == null) {
+                writer.keyword("SERDEPROPERTIES");
+            } else {
+                writer.keyword("WITH SERDEPROPERTIES");
+            }
+            SqlWriter.Frame withFrame = writer.startList("(", ")");
+            for (SqlNode property : origSerDeProps) {
+                printIndent(writer);
+                property.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.newlineAndIndent();
+            writer.endList(withFrame);
+        }
+    }
 
-	private static SqlNodeList appendPrefix(SqlNodeList propList) {
-		if (propList != null) {
-			for (int i = 0; i < propList.size(); i++) {
-				SqlTableOption tableOption = (SqlTableOption) propList.get(i);
-				if (!tableOption.getKeyString().equals(ALTER_TABLE_OP)) {
-					String key = HiveTableRowFormat.SERDE_INFO_PROP_PREFIX + tableOption.getKeyString();
-					tableOption = HiveDDLUtils.toTableOption(key, tableOption.getValue(), tableOption.getParserPosition());
-					propList.set(i, tableOption);
-				}
-			}
-		}
-		return propList;
-	}
+    private static SqlNodeList appendPrefix(SqlNodeList propList) {
+        if (propList != null) {
+            for (int i = 0; i < propList.size(); i++) {
+                SqlTableOption tableOption = (SqlTableOption) propList.get(i);
+                if (!tableOption.getKeyString().equals(ALTER_TABLE_OP)) {
+                    String key =
+                            HiveTableRowFormat.SERDE_INFO_PROP_PREFIX + tableOption.getKeyString();
+                    tableOption =
+                            HiveDDLUtils.toTableOption(
+                                    key, tableOption.getValue(), tableOption.getParserPosition());
+                    propList.set(i, tableOption);
+                }
+            }
+        }
+        return propList;
+    }
 }

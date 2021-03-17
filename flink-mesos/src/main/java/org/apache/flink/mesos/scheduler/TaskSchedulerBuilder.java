@@ -25,27 +25,20 @@ import com.netflix.fenzo.functions.Action1;
 /**
  * A builder for the Fenzo task scheduler.
  *
- * <p>Note that the Fenzo-provided {@link TaskScheduler.Builder} cannot be mocked, which motivates this interface.
+ * <p>Note that the Fenzo-provided {@link TaskScheduler.Builder} cannot be mocked, which motivates
+ * this interface.
  */
 public interface TaskSchedulerBuilder {
 
-	/**
-	 * Set the callback action for rejecting a lease.
-	 */
-	TaskSchedulerBuilder withLeaseRejectAction(Action1<VirtualMachineLease> action);
+    /** Set the callback action for rejecting a lease. */
+    TaskSchedulerBuilder withLeaseRejectAction(Action1<VirtualMachineLease> action);
 
-	/**
-	 * Set up TaskScheduler to reject all offers on expiry.
-	 */
-	TaskSchedulerBuilder withRejectAllExpiredOffers();
+    /** Set up TaskScheduler to reject all offers on expiry. */
+    TaskSchedulerBuilder withRejectAllExpiredOffers();
 
-	/**
-	 * Specify the expiration time for unused resource offers.
-	 */
-	TaskSchedulerBuilder withLeaseOfferExpirySecs(long leaseOfferExpirySecs);
+    /** Specify the expiration time for unused resource offers. */
+    TaskSchedulerBuilder withLeaseOfferExpirySecs(long leaseOfferExpirySecs);
 
-	/**
-	 * Build a Fenzo task scheduler.
-	 */
-	TaskScheduler build();
+    /** Build a Fenzo task scheduler. */
+    TaskScheduler build();
 }

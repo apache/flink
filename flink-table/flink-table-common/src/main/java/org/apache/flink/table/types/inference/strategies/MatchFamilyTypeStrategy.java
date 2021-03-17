@@ -30,45 +30,42 @@ import java.util.Optional;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 
-/**
- * Type strategy that returns the given argument if it is of the same logical type family.
- */
+/** Type strategy that returns the given argument if it is of the same logical type family. */
 @Internal
 public final class MatchFamilyTypeStrategy implements TypeStrategy {
 
-	private final int argumentPos;
+    private final int argumentPos;
 
-	private final LogicalTypeFamily matchingTypeFamily;
+    private final LogicalTypeFamily matchingTypeFamily;
 
-	public MatchFamilyTypeStrategy(int argumentPos, LogicalTypeFamily matchingTypeFamily) {
-		this.argumentPos = argumentPos;
-		this.matchingTypeFamily = Preconditions.checkNotNull(matchingTypeFamily);
-	}
+    public MatchFamilyTypeStrategy(int argumentPos, LogicalTypeFamily matchingTypeFamily) {
+        this.argumentPos = argumentPos;
+        this.matchingTypeFamily = Preconditions.checkNotNull(matchingTypeFamily);
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		final DataType argumentDataType = callContext.getArgumentDataTypes().get(argumentPos);
-		if (hasFamily(argumentDataType.getLogicalType(), matchingTypeFamily)) {
-			return Optional.of(argumentDataType);
-		}
-		return Optional.empty();
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        final DataType argumentDataType = callContext.getArgumentDataTypes().get(argumentPos);
+        if (hasFamily(argumentDataType.getLogicalType(), matchingTypeFamily)) {
+            return Optional.of(argumentDataType);
+        }
+        return Optional.empty();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		MatchFamilyTypeStrategy that = (MatchFamilyTypeStrategy) o;
-		return argumentPos == that.argumentPos &&
-			matchingTypeFamily == that.matchingTypeFamily;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        MatchFamilyTypeStrategy that = (MatchFamilyTypeStrategy) o;
+        return argumentPos == that.argumentPos && matchingTypeFamily == that.matchingTypeFamily;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(argumentPos, matchingTypeFamily);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(argumentPos, matchingTypeFamily);
+    }
 }

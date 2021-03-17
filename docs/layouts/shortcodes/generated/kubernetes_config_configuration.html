@@ -1,0 +1,216 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.kubernetes.config-key</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>If configured, Flink will add "resources.limits.&lt;config-key&gt;" and "resources.requests.&lt;config-key&gt;" to the main container of TaskExecutor and set the value to the value of external-resource.&lt;resource_name&gt;.amount.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.cluster-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <span markdown="span">`[a-z]([-a-z0-9]*[a-z0-9])`</span>. If not set, the client will automatically generate it with a random ID.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.config.file</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The kubernetes config file will be used to create the client. The default is located at ~/.kube/config</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container.image</h5></td>
+            <td style="word-wrap: break-word;">The default value depends on the actually running version. In general it looks like "flink:&lt;FLINK_VERSION&gt;-scala_&lt;SCALA_VERSION&gt;"</td>
+            <td>String</td>
+            <td>Image to use for Flink containers. The specified image must be based upon the same Apache Flink and Scala versions as used by the application. Visit <a href="https://hub.docker.com/_/flink?tab=tags">here</a> for the official docker images provided by the Flink project. The Flink project also publishes docker images to <a href="https://hub.docker.com/r/apache/flink/tags">apache/flink DockerHub repository</a>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container.image.pull-policy</h5></td>
+            <td style="word-wrap: break-word;">IfNotPresent</td>
+            <td><p>Enum</p>Possible values: [IfNotPresent, Always, Never]</td>
+            <td>The Kubernetes container image pull policy (IfNotPresent or Always or Never). The default policy is IfNotPresent to avoid putting pressure to image repository.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.container.image.pull-secrets</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of the Kubernetes secrets used to access private image registries.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.context</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The desired context from your Kubernetes config file used to configure the Kubernetes client for interacting with the cluster. This could be helpful if one has multiple contexts configured and wants to administrate different Flink clusters on different Kubernetes clusters/contexts.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.entry.path</h5></td>
+            <td style="word-wrap: break-word;">"/docker-entrypoint.sh"</td>
+            <td>String</td>
+            <td>The entrypoint script of kubernetes in the image. It will be used as command for jobmanager and taskmanager container.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.env.secretKeyRef</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <span markdown="span">`env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.flink.conf.dir</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/conf"</td>
+            <td>String</td>
+            <td>The flink conf directory that will be mounted in pod. The flink-conf.yaml, log4j.properties, logback.xml in this path will be overwritten from config map.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.flink.log.dir</h5></td>
+            <td style="word-wrap: break-word;">"/opt/flink/log"</td>
+            <td>String</td>
+            <td>The directory that logs of jobmanager and taskmanager be saved in the pod.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.hadoop.conf.config-map.name</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the JobManager pod. The value could be in the form of a1:v1,a2:v2</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.cpu</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The number of cpu used by job manager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.labels</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.node-selector</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The node selector to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.owner.reference</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified <a href="https://ci.apache.org/projects/flink/flink-docs-master/deployment/resource-providers/native_kubernetes.html#manual-resource-cleanup">Owner References</a> to be set to the JobManager Deployment. When all the owner resources are deleted, the JobManager Deployment will be deleted automatically, which also deletes all the resources created by this Flink cluster. The value should be formatted as a semicolon-separated list of owner references, where each owner reference is a comma-separated list of `key:value` pairs. E.g., apiVersion:v1,blockOwnerDeletion:true,controller:true,kind:FlinkApplication,name:flink-app-name,uid:flink-app-uid;apiVersion:v1,kind:Deployment,name:deploy-name,uid:deploy-uid</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the JobManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.namespace</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>The namespace that will be used for running the jobmanager and taskmanager pods.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.pod-template-file</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify a local file that contains the pod template definition. It will be used to initialize the jobmanager and taskmanager pod. The main container should be defined with name 'flink-main-container'. Notice that this can be overwritten by config options 'kubernetes.pod-template-file.jobmanager' and 'kubernetes.pod-template-file.taskmanager' for jobmanager and taskmanager respectively.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.pod-template-file.jobmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify a local file that contains the jobmanager pod template definition. It will be used to initialize the jobmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.pod-template-file.taskmanager</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify a local file that contains the taskmanager pod template definition. It will be used to initialize the taskmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.rest-service.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the rest Service. The value should be in the form of a1:v1,a2:v2</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.rest-service.exposed.type</h5></td>
+            <td style="word-wrap: break-word;">LoadBalancer</td>
+            <td><p>Enum</p>Possible values: [ClusterIP, NodePort, LoadBalancer]</td>
+            <td>The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.secrets</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager and taskmanager within kubernetes cluster. Notice that this can be overwritten by config options 'kubernetes.jobmanager.service-account' and 'kubernetes.taskmanager.service-account' for jobmanager and taskmanager respectively.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the TaskManager pod. The value could be in the form of a1:v1,a2:v2</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.cpu</h5></td>
+            <td style="word-wrap: break-word;">-1.0</td>
+            <td>Double</td>
+            <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.labels</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.node-selector</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.tolerations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <span markdown="span">`FlinkKubeClient#checkAndUpdateConfigMap`</span>.</td>
+        </tr>
+    </tbody>
+</table>

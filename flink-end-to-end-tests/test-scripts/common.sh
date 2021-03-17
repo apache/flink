@@ -364,6 +364,7 @@ function check_logs_for_errors {
       | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
+      | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
@@ -401,6 +402,7 @@ function check_logs_for_exceptions {
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
    | grep -v "org.apache.flink.runtime.JobException: Recovery is suppressed" \
+   | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
@@ -640,6 +642,8 @@ function wait_oper_metric_num_in_records {
     JOB_NAME="${3:-General purpose test job}"
     NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
     OLD_NUM_METRICS=${4:-${NUM_METRICS}}
+    local timeout="${5:-600}"
+    local i=0
     # monitor the numRecordsIn metric of the state machine operator in the second execution
     # we let the test finish once the second restore execution has processed 200 records
     while : ; do
@@ -654,6 +658,11 @@ function wait_oper_metric_num_in_records {
       if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
         echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_METRICS} records"
+            exit 1
+        fi
       else
         break
       fi
@@ -664,6 +673,8 @@ function wait_num_of_occurence_in_logs {
     local text=$1
     local number=$2
     local logs=${3:-standalonesession}
+    local timeout="${4:-600}"
+    local i=0
 
     echo "Waiting for text ${text} to appear ${number} of times in logs..."
 
@@ -676,15 +687,23 @@ function wait_num_of_occurence_in_logs {
 
       if (( N < number )); then
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for ${text} to appear ${number} of times in logs."
+            exit 1
+        fi
       else
         break
       fi
     done
+
 }
 
 function wait_num_checkpoints {
     JOB=$1
     NUM_CHECKPOINTS=$2
+    local timeout="${3:-600}"
+    local i=0
 
     echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
 
@@ -697,6 +716,11 @@ function wait_num_checkpoints {
 
       if (( N < NUM_CHECKPOINTS )); then
         sleep 1
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ."
+            exit 1
+        fi
       else
         break
       fi

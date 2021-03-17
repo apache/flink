@@ -28,37 +28,39 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link PhysicalSlotRequestBulkWithTimestamp}.
- */
+/** Tests for {@link PhysicalSlotRequestBulkWithTimestamp}. */
 public class PhysicalSlotRequestBulkWithTimestampTest extends TestLogger {
 
-	private final ManualClock clock = new ManualClock();
+    private final ManualClock clock = new ManualClock();
 
-	@Test
-	public void testMarkBulkUnfulfillable() {
-		final PhysicalSlotRequestBulkWithTimestamp bulk = createPhysicalSlotRequestBulkWithTimestamp();
+    @Test
+    public void testMarkBulkUnfulfillable() {
+        final PhysicalSlotRequestBulkWithTimestamp bulk =
+                createPhysicalSlotRequestBulkWithTimestamp();
 
-		clock.advanceTime(456, TimeUnit.MILLISECONDS);
-		bulk.markUnfulfillable(clock.relativeTimeMillis());
+        clock.advanceTime(456, TimeUnit.MILLISECONDS);
+        bulk.markUnfulfillable(clock.relativeTimeMillis());
 
-		assertThat(bulk.getUnfulfillableSince(), is(clock.relativeTimeMillis()));
-	}
+        assertThat(bulk.getUnfulfillableSince(), is(clock.relativeTimeMillis()));
+    }
 
-	@Test
-	public void testUnfulfillableTimestampWillNotBeOverriddenByFollowingUnfulfillableTimestamp() {
-		final PhysicalSlotRequestBulkWithTimestamp bulk = createPhysicalSlotRequestBulkWithTimestamp();
+    @Test
+    public void testUnfulfillableTimestampWillNotBeOverriddenByFollowingUnfulfillableTimestamp() {
+        final PhysicalSlotRequestBulkWithTimestamp bulk =
+                createPhysicalSlotRequestBulkWithTimestamp();
 
-		final long unfulfillableSince = clock.relativeTimeMillis();
-		bulk.markUnfulfillable(unfulfillableSince);
+        final long unfulfillableSince = clock.relativeTimeMillis();
+        bulk.markUnfulfillable(unfulfillableSince);
 
-		clock.advanceTime(456, TimeUnit.MILLISECONDS);
-		bulk.markUnfulfillable(clock.relativeTimeMillis());
+        clock.advanceTime(456, TimeUnit.MILLISECONDS);
+        bulk.markUnfulfillable(clock.relativeTimeMillis());
 
-		assertThat(bulk.getUnfulfillableSince(), is(unfulfillableSince));
-	}
+        assertThat(bulk.getUnfulfillableSince(), is(unfulfillableSince));
+    }
 
-	private static PhysicalSlotRequestBulkWithTimestamp createPhysicalSlotRequestBulkWithTimestamp() {
-		return TestingPhysicalSlotRequestBulkBuilder.newBuilder().buildPhysicalSlotRequestBulkWithTimestamp();
-	}
+    private static PhysicalSlotRequestBulkWithTimestamp
+            createPhysicalSlotRequestBulkWithTimestamp() {
+        return TestingPhysicalSlotRequestBulkBuilder.newBuilder()
+                .buildPhysicalSlotRequestBulkWithTimestamp();
+    }
 }

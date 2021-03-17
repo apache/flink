@@ -21,30 +21,28 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
-/**
- * Jdbc query type options.
- */
+/** Jdbc query type options. */
 abstract class JdbcTypedQueryOptions implements Serializable {
 
-	@Nullable
-	private final int[] fieldTypes;
+    @Nullable private final int[] fieldTypes;
 
-	JdbcTypedQueryOptions(int[] fieldTypes) {
-		this.fieldTypes = fieldTypes;
-	}
+    JdbcTypedQueryOptions(int[] fieldTypes) {
+        this.fieldTypes = fieldTypes;
+    }
 
-	public int[] getFieldTypes() {
-		return fieldTypes;
-	}
+    public int[] getFieldTypes() {
+        return fieldTypes;
+    }
 
-	public abstract static class JdbcUpdateQueryOptionsBuilder<T extends JdbcUpdateQueryOptionsBuilder<T>> {
-		int[] fieldTypes;
+    public abstract static class JdbcUpdateQueryOptionsBuilder<
+            T extends JdbcUpdateQueryOptionsBuilder<T>> {
+        int[] fieldTypes;
 
-		protected abstract T self();
+        protected abstract T self();
 
-		public T withFieldTypes(int[] fieldTypes) {
-			this.fieldTypes = fieldTypes;
-			return self();
-		}
-	}
+        public T withFieldTypes(int[] fieldTypes) {
+            this.fieldTypes = fieldTypes;
+            return self();
+        }
+    }
 }

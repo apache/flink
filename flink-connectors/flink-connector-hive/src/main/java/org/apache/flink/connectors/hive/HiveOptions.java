@@ -22,34 +22,33 @@ import org.apache.flink.configuration.ConfigOption;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * This class holds configuration constants used by hive connector.
- */
+/** This class holds configuration constants used by hive connector. */
 public class HiveOptions {
 
-	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER =
-			key("table.exec.hive.fallback-mapred-reader")
-					.defaultValue(false)
-					.withDescription(
-							"If it is false, using flink native vectorized reader to read orc files; " +
-									"If it is true, using hadoop mapred record reader to read orc files.");
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER =
+            key("table.exec.hive.fallback-mapred-reader")
+                    .defaultValue(false)
+                    .withDescription(
+                            "If it is false, using flink native vectorized reader to read orc files; "
+                                    + "If it is true, using hadoop mapred record reader to read orc files.");
 
-	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
-			key("table.exec.hive.infer-source-parallelism")
-					.defaultValue(true)
-					.withDescription(
-							"If is false, parallelism of source are set by config.\n" +
-							"If is true, source parallelism is inferred according to splits number.\n");
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
+            key("table.exec.hive.infer-source-parallelism")
+                    .defaultValue(true)
+                    .withDescription(
+                            "If is false, parallelism of source are set by config.\n"
+                                    + "If is true, source parallelism is inferred according to splits number.\n");
 
-	public static final ConfigOption<Integer> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX =
-			key("table.exec.hive.infer-source-parallelism.max")
-					.defaultValue(1000)
-					.withDescription("Sets max infer parallelism for source operator.");
+    public static final ConfigOption<Integer> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX =
+            key("table.exec.hive.infer-source-parallelism.max")
+                    .defaultValue(1000)
+                    .withDescription("Sets max infer parallelism for source operator.");
 
-	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER =
-			key("table.exec.hive.fallback-mapred-writer")
-					.booleanType()
-					.defaultValue(true)
-					.withDescription("If it is false, using flink native writer to write parquet and orc files; " +
-							"If it is true, using hadoop mapred record writer to write parquet and orc files.");
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER =
+            key("table.exec.hive.fallback-mapred-writer")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "If it is false, using flink native writer to write parquet and orc files; "
+                                    + "If it is true, using hadoop mapred record writer to write parquet and orc files.");
 }

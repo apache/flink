@@ -49,131 +49,111 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
 
-/**
- * A class that provides utility methods for multiple input testing.
- */
+/** A class that provides utility methods for multiple input testing. */
 public class MultipleInputTestBase {
 
-	protected Transformation<RowData> createSource(StreamExecutionEnvironment env, String... data) {
-		return env.fromCollection(
-				Arrays.stream(data).map(StringData::fromString).map(GenericRowData::of).collect(Collectors.toList()),
-				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())))
-				.getTransformation();
-	}
+    protected Transformation<RowData> createSource(StreamExecutionEnvironment env, String... data) {
+        return env.fromCollection(
+                        Arrays.stream(data)
+                                .map(StringData::fromString)
+                                .map(GenericRowData::of)
+                                .collect(Collectors.toList()),
+                        InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())))
+                .getTransformation();
+    }
 
-	protected TestingOneInputStreamOperator createOneInputStreamOperator() throws Exception {
-		TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
-		op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-		return op;
-	}
+    protected TestingOneInputStreamOperator createOneInputStreamOperator() throws Exception {
+        TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
+        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
+        return op;
+    }
 
-	protected TestingTwoInputStreamOperator createTwoInputStreamOperator() throws Exception {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
-		op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-		return op;
-	}
+    protected TestingTwoInputStreamOperator createTwoInputStreamOperator() throws Exception {
+        TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
+        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
+        return op;
+    }
 
-	protected OneInputTransformation<RowData, RowData> createOneInputTransform(
-			Transformation<RowData> input,
-			String name,
-			TypeInformation<RowData> outputType) {
-		return createOneInputTransform(
-				input,
-				name,
-				new TestingOneInputStreamOperator(),
-				outputType);
-	}
+    protected OneInputTransformation<RowData, RowData> createOneInputTransform(
+            Transformation<RowData> input, String name, TypeInformation<RowData> outputType) {
+        return createOneInputTransform(
+                input, name, new TestingOneInputStreamOperator(), outputType);
+    }
 
-	protected OneInputTransformation<RowData, RowData> createOneInputTransform(
-			Transformation<RowData> input,
-			String name,
-			TestingOneInputStreamOperator operator,
-			TypeInformation<RowData> outputType) {
-		return new OneInputTransformation<>(
-				input,
-				name,
-				operator,
-				outputType,
-				10);
-	}
+    protected OneInputTransformation<RowData, RowData> createOneInputTransform(
+            Transformation<RowData> input,
+            String name,
+            TestingOneInputStreamOperator operator,
+            TypeInformation<RowData> outputType) {
+        return new OneInputTransformation<>(input, name, operator, outputType, 10);
+    }
 
-	protected TwoInputTransformation<RowData, RowData, RowData> createTwoInputTransform(
-			Transformation<RowData> input1,
-			Transformation<RowData> input2,
-			String name,
-			TypeInformation<RowData> outputType) {
-		return createTwoInputTransform(
-				input1,
-				input2,
-				name,
-				new TestingTwoInputStreamOperator(),
-				outputType);
-	}
+    protected TwoInputTransformation<RowData, RowData, RowData> createTwoInputTransform(
+            Transformation<RowData> input1,
+            Transformation<RowData> input2,
+            String name,
+            TypeInformation<RowData> outputType) {
+        return createTwoInputTransform(
+                input1, input2, name, new TestingTwoInputStreamOperator(), outputType);
+    }
 
-	protected TwoInputTransformation<RowData, RowData, RowData> createTwoInputTransform(
-			Transformation<RowData> input1,
-			Transformation<RowData> input2,
-			String name,
-			TestingTwoInputStreamOperator operator,
-			TypeInformation<RowData> outputType) {
-		return new TwoInputTransformation<>(
-				input1,
-				input2,
-				name,
-				operator,
-				outputType,
-				10);
-	}
+    protected TwoInputTransformation<RowData, RowData, RowData> createTwoInputTransform(
+            Transformation<RowData> input1,
+            Transformation<RowData> input2,
+            String name,
+            TestingTwoInputStreamOperator operator,
+            TypeInformation<RowData> outputType) {
+        return new TwoInputTransformation<>(input1, input2, name, operator, outputType, 10);
+    }
 
-	protected TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(
-			TestingOneInputStreamOperator operator, String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(operator),
-				name,
-				Collections.singletonList(new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING)
-		);
-	}
+    protected TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(
+            TestingOneInputStreamOperator operator, String name) {
+        return new TableOperatorWrapper<>(
+                SimpleOperatorFactory.of(operator),
+                name,
+                Collections.singletonList(new RowTypeInfo(Types.STRING)),
+                new RowTypeInfo(Types.STRING));
+    }
 
-	protected TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(String name) {
-		return createOneInputOperatorWrapper(new TestingOneInputStreamOperator(), name);
-	}
+    protected TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(
+            String name) {
+        return createOneInputOperatorWrapper(new TestingOneInputStreamOperator(), name);
+    }
 
-	protected TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(
-			TestingTwoInputStreamOperator operator, String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(operator),
-				name,
-				Arrays.asList(new RowTypeInfo(Types.STRING), new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING, Types.STRING)
-		);
-	}
+    protected TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(
+            TestingTwoInputStreamOperator operator, String name) {
+        return new TableOperatorWrapper<>(
+                SimpleOperatorFactory.of(operator),
+                name,
+                Arrays.asList(new RowTypeInfo(Types.STRING), new RowTypeInfo(Types.STRING)),
+                new RowTypeInfo(Types.STRING, Types.STRING));
+    }
 
-	protected TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(String name) {
-		return createTwoInputOperatorWrapper(new TestingTwoInputStreamOperator(), name);
-	}
+    protected TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(
+            String name) {
+        return createTwoInputOperatorWrapper(new TestingTwoInputStreamOperator(), name);
+    }
 
-	protected StreamOperatorParameters<RowData> createStreamOperatorParameters() throws Exception {
-		return createStreamOperatorParameters(new CollectorOutput<>(new ArrayList<>()));
-	}
+    protected StreamOperatorParameters<RowData> createStreamOperatorParameters() throws Exception {
+        return createStreamOperatorParameters(new CollectorOutput<>(new ArrayList<>()));
+    }
 
-	protected StreamConfig createStreamConfig() {
-		return new MockStreamConfig(new Configuration(), 1);
-	}
+    protected StreamConfig createStreamConfig() {
+        return new MockStreamConfig(new Configuration(), 1);
+    }
 
-	protected StreamTask createStreamTask() throws Exception {
-		Environment env = new MockEnvironmentBuilder().build();
-		return new MockStreamTaskBuilder(env).build();
-	}
+    protected StreamTask createStreamTask() throws Exception {
+        Environment env = new MockEnvironmentBuilder().build();
+        return new MockStreamTaskBuilder(env).build();
+    }
 
-	protected StreamOperatorParameters<RowData> createStreamOperatorParameters(
-			CollectorOutput<RowData> output) throws Exception {
-		return new StreamOperatorParameters<>(
-				createStreamTask(),
-				createStreamConfig(),
-				output,
-				TestProcessingTimeService::new,
-				null
-		);
-	}
+    protected StreamOperatorParameters<RowData> createStreamOperatorParameters(
+            CollectorOutput<RowData> output) throws Exception {
+        return new StreamOperatorParameters<>(
+                createStreamTask(),
+                createStreamConfig(),
+                output,
+                TestProcessingTimeService::new,
+                null);
+    }
 }

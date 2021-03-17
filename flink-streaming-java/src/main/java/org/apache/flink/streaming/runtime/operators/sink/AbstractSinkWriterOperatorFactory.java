@@ -31,16 +31,23 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  * @param <InputT> The input type of the {@link SinkWriter}.
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
-abstract class AbstractSinkWriterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
-	implements OneInputStreamOperatorFactory<InputT, CommT> {
+abstract class AbstractSinkWriterOperatorFactory<InputT, CommT>
+        extends AbstractStreamOperatorFactory<CommT>
+        implements OneInputStreamOperatorFactory<InputT, CommT> {
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
-		final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator(this.processingTimeService);
-		writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		return (T) writerOperator;
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends StreamOperator<CommT>> T createStreamOperator(
+            StreamOperatorParameters<CommT> parameters) {
+        final AbstractSinkWriterOperator<InputT, CommT> writerOperator =
+                createWriterOperator(this.processingTimeService);
+        writerOperator.setup(
+                parameters.getContainingTask(),
+                parameters.getStreamConfig(),
+                parameters.getOutput());
+        return (T) writerOperator;
+    }
 
-	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService);
+    abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+            ProcessingTimeService processingTimeService);
 }

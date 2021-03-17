@@ -27,24 +27,20 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-/**
- * It takes {@link Row} as the input type.
- */
+/** It takes {@link Row} as the input type. */
 @Internal
 public class RowArrowSerializer extends ArrowSerializer<Row> {
-	public RowArrowSerializer(
-		RowType inputType,
-		RowType outputType) {
-		super(inputType, outputType);
-	}
+    public RowArrowSerializer(RowType inputType, RowType outputType) {
+        super(inputType, outputType);
+    }
 
-	@Override
-	public ArrowWriter<Row> createArrowWriter() {
-		return ArrowUtils.createRowArrowWriter(rootWriter, inputType);
-	}
+    @Override
+    public ArrowWriter<Row> createArrowWriter() {
+        return ArrowUtils.createRowArrowWriter(rootWriter, inputType);
+    }
 
-	@Override
-	public ArrowReader<Row> createArrowReader(VectorSchemaRoot root) {
-		return ArrowUtils.createRowArrowReader(root, outputType);
-	}
+    @Override
+    public ArrowReader<Row> createArrowReader(VectorSchemaRoot root) {
+        return ArrowUtils.createRowArrowReader(root, outputType);
+    }
 }

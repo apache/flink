@@ -18,87 +18,87 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
 @Internal
-public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeComparator<T> implements java.io.Serializable {
+public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeComparator<T>
+        implements java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
-	
-	private transient T reference;
-	
-	protected final boolean ascendingComparison;
+    private static final long serialVersionUID = 1L;
 
-	// For use by getComparators
-	@SuppressWarnings("rawtypes")
-	private final TypeComparator[] comparators = new TypeComparator[] {this};
-	
+    private transient T reference;
 
-	protected BasicTypeComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
-	}
+    protected final boolean ascendingComparison;
 
-	@Override
-	public int hash(T value) {
-		return value.hashCode();
-	}
+    // For use by getComparators
+    @SuppressWarnings("rawtypes")
+    private final TypeComparator[] comparators = new TypeComparator[] {this};
 
-	@Override
-	public void setReference(T toCompare) {
-		this.reference = toCompare;
-	}
+    protected BasicTypeComparator(boolean ascending) {
+        this.ascendingComparison = ascending;
+    }
 
-	@Override
-	public boolean equalToReference(T candidate) {
-		return candidate.equals(reference);
-	}
+    @Override
+    public int hash(T value) {
+        return value.hashCode();
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<T> referencedComparator) {
-		int comp = ((BasicTypeComparator<T>) referencedComparator).reference.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public void setReference(T toCompare) {
+        this.reference = toCompare;
+    }
 
-	@Override
-	public int compare(T first, T second) {
-		int cmp = first.compareTo(second);
-		return ascendingComparison ? cmp : -cmp;
-	}
+    @Override
+    public boolean equalToReference(T candidate) {
+        return candidate.equals(reference);
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-	
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public int compareToReference(TypeComparator<T> referencedComparator) {
+        int comp = ((BasicTypeComparator<T>) referencedComparator).reference.compareTo(reference);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public int compare(T first, T second) {
+        int cmp = first.compareTo(second);
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return !ascendingComparison;
+    }
 
-	@SuppressWarnings("rawtypes")
-	@Override
-	public TypeComparator[] getFlatComparators() {
-		return comparators;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    public TypeComparator[] getFlatComparators() {
+        return comparators;
+    }
+
+    @Override
+    public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

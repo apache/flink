@@ -29,61 +29,63 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link RetrievableStateStorageHelper} implementation for testing purposes. Set the functions or handlers
- * before {@link #store} if you want to do something else(e.g. throw an exception when the state is specific value).
- * Note: {@link TestingRetrievableStateHandle} is not serializable, so this helper could only work with
- * {@link TestingStateHandleStore}.
+ * {@link RetrievableStateStorageHelper} implementation for testing purposes. Set the functions or
+ * handlers before {@link #store} if you want to do something else(e.g. throw an exception when the
+ * state is specific value). Note: {@link TestingRetrievableStateHandle} is not serializable, so
+ * this helper could only work with {@link TestingStateHandleStore}.
  *
  * @param <T> type of the element to store
  */
-public final class TestingRetrievableStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
+public final class TestingRetrievableStateStorageHelper<T extends Serializable>
+        implements RetrievableStateStorageHelper<T> {
 
-	private FunctionWithException<T, T, IOException> retrieveStateFunction = (state) -> state;
+    private FunctionWithException<T, T, IOException> retrieveStateFunction = (state) -> state;
 
-	private ThrowingConsumer<T, Exception> discardStateHandler = (state) -> {};
+    private ThrowingConsumer<T, Exception> discardStateHandler = (state) -> {};
 
-	private Function<T, Long> getStateSizeFunction = (state) -> 0L;
+    private Function<T, Long> getStateSizeFunction = (state) -> 0L;
 
-	@Override
-	public RetrievableStateHandle<T> store(T state) {
-		return new TestingRetrievableStateHandle(state);
-	}
+    @Override
+    public RetrievableStateHandle<T> store(T state) {
+        return new TestingRetrievableStateHandle(state);
+    }
 
-	public void setRetrieveStateFunction(FunctionWithException<T, T, IOException> retrieveStateFunction) {
-		this.retrieveStateFunction = checkNotNull(retrieveStateFunction);
-	}
+    public void setRetrieveStateFunction(
+            FunctionWithException<T, T, IOException> retrieveStateFunction) {
+        this.retrieveStateFunction = checkNotNull(retrieveStateFunction);
+    }
 
-	public void setDiscardStateHandler(ThrowingConsumer<T, Exception> discardStateHandler) {
-		this.discardStateHandler = checkNotNull(discardStateHandler);
-	}
+    public void setDiscardStateHandler(ThrowingConsumer<T, Exception> discardStateHandler) {
+        this.discardStateHandler = checkNotNull(discardStateHandler);
+    }
 
-	public void setGetStateSizeFunction(Function<T, Long> getStateSizeFunction) {
-		this.getStateSizeFunction = checkNotNull(getStateSizeFunction);
-	}
+    public void setGetStateSizeFunction(Function<T, Long> getStateSizeFunction) {
+        this.getStateSizeFunction = checkNotNull(getStateSizeFunction);
+    }
 
-	private final class TestingRetrievableStateHandle implements RetrievableStateHandle<T> {
+    private final class TestingRetrievableStateHandle implements RetrievableStateHandle<T> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final T state;
+        private final T state;
 
-		private TestingRetrievableStateHandle(T state) {
-			this.state = state;
-		}
+        private TestingRetrievableStateHandle(T state) {
+            this.state = state;
+        }
 
-		@Override
-		public T retrieveState() throws IOException {
-			return retrieveStateFunction.apply(state);
-		}
+        @Override
+        public T retrieveState() throws IOException {
+            return retrieveStateFunction.apply(state);
+        }
 
-		@Override
-		public void discardState() throws Exception {
-			discardStateHandler.accept(state);
-		}
+        @Override
+        public void discardState() throws Exception {
+            discardStateHandler.accept(state);
+        }
 
-		@Override
-		public long getStateSize() {
-			return getStateSizeFunction.apply(state);
-		}
-	}
+        @Override
+        public long getStateSize() {
+            return getStateSizeFunction.apply(state);
+        }
+    }
 }

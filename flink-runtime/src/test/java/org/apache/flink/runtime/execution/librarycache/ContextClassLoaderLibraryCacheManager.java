@@ -20,19 +20,15 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 
-/**
- * {@link LibraryCacheManager} implementation which returns the context class loader.
- */
+/** {@link LibraryCacheManager} implementation which returns the context class loader. */
 public enum ContextClassLoaderLibraryCacheManager implements LibraryCacheManager {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
-		return TestingClassLoaderLease.newBuilder().build();
-	}
+    @Override
+    public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
+        return TestingClassLoaderLease.newBuilder().build();
+    }
 
-	@Override
-	public void shutdown() {
-
-	}
+    @Override
+    public void shutdown() {}
 }

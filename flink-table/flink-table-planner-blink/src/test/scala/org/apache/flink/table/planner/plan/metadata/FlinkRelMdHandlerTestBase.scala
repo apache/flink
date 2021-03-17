@@ -26,12 +26,9 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.TableSourceQueryOperation
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowReference, PlannerWindowStart}
-import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowReference, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
@@ -39,15 +36,13 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
-import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.{CountAggFunction, Top3}
+import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
@@ -75,7 +70,6 @@ import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -91,17 +85,17 @@ class FlinkRelMdHandlerTestBase {
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
-    new PlannerContext(
-      tableConfig,
-      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-      catalogManager,
-      CalciteSchema.from(rootSchema),
-      util.Arrays.asList(
-        ConventionTraitDef.INSTANCE,
-        FlinkRelDistributionTraitDef.INSTANCE,
-        RelCollationTraitDef.INSTANCE
-      )
+  new PlannerContext(
+    tableConfig,
+    new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+    catalogManager,
+    CalciteSchema.from(rootSchema),
+    util.Arrays.asList(
+      ConventionTraitDef.INSTANCE,
+      FlinkRelDistributionTraitDef.INSTANCE,
+      RelCollationTraitDef.INSTANCE
     )
+  )
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
 
@@ -157,18 +151,18 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("student"), logicalTraits)
   protected lazy val studentFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
     createDataStreamScan(ImmutableList.of("student"), flinkLogicalTraits)
-  protected lazy val studentBatchScan: BatchExecBoundedStreamScan =
+  protected lazy val studentBatchScan: BatchPhysicalBoundedStreamScan =
     createDataStreamScan(ImmutableList.of("student"), batchPhysicalTraits)
-  protected lazy val studentStreamScan: StreamExecDataStreamScan =
+  protected lazy val studentStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScan(ImmutableList.of("student"), streamPhysicalTraits)
 
   protected lazy val empLogicalScan: LogicalTableScan =
     createDataStreamScan(ImmutableList.of("emp"), logicalTraits)
   protected lazy val empFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
     createDataStreamScan(ImmutableList.of("emp"), flinkLogicalTraits)
-  protected lazy val empBatchScan: BatchExecBoundedStreamScan =
+  protected lazy val empBatchScan: BatchPhysicalBoundedStreamScan =
     createDataStreamScan(ImmutableList.of("emp"), batchPhysicalTraits)
-  protected lazy val empStreamScan: StreamExecDataStreamScan =
+  protected lazy val empStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
@@ -247,7 +241,7 @@ class FlinkRelMdHandlerTestBase {
     (filter, calc)
   }
 
-  protected lazy val logicalWatermarkAssigner = {
+  protected lazy val logicalWatermarkAssigner: RelNode = {
     val scan = relBuilder.scan("TemporalTable2").build()
     val flinkContext = cluster
       .getPlanner
@@ -285,10 +279,10 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalExpand = new FlinkLogicalExpand(cluster, flinkLogicalTraits,
       studentFlinkLogicalScan, expandOutputType, expandProjects, 7)
 
-    val batchExpand = new BatchExecExpand(cluster, batchPhysicalTraits,
+    val batchExpand = new BatchPhysicalExpand(cluster, batchPhysicalTraits,
       studentBatchScan, expandOutputType, expandProjects, 7)
 
-    val streamExecExpand = new StreamExecExpand(cluster, streamPhysicalTraits,
+    val streamExecExpand = new StreamPhysicalExpand(cluster, streamPhysicalTraits,
       studentStreamScan, expandOutputType, expandProjects, 7)
 
     (logicalExpand, flinkLogicalExpand, batchExpand, streamExecExpand)
@@ -297,13 +291,13 @@ class FlinkRelMdHandlerTestBase {
   // hash exchange on class
   protected lazy val (batchExchange, streamExchange) = {
     val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
-    val batchExchange = new BatchExecExchange(
+    val batchExchange = new BatchPhysicalExchange(
       cluster,
       batchPhysicalTraits.replace(hash6),
       studentBatchScan,
       hash6
     )
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster,
       streamPhysicalTraits.replace(hash6),
       studentStreamScan,
@@ -322,10 +316,10 @@ class FlinkRelMdHandlerTestBase {
     val collation = logicalSort.getCollation
     val flinkLogicalSort = new FlinkLogicalSort(cluster, flinkLogicalTraits.replace(collation),
       studentFlinkLogicalScan, collation, null, null)
-    val batchSort = new BatchExecSort(cluster,
+    val batchSort = new BatchPhysicalSort(cluster,
       batchPhysicalTraits.replace(collation).replace(FlinkRelDistribution.SINGLETON),
       studentBatchScan, collation)
-    val streamSort = new StreamExecSort(cluster,
+    val streamSort = new StreamPhysicalSort(cluster,
       streamPhysicalTraits.replace(collation).replace(FlinkRelDistribution.SINGLETON),
       studentStreamScan, collation)
     (logicalSort, flinkLogicalSort, batchSort, streamSort)
@@ -348,27 +342,27 @@ class FlinkRelMdHandlerTestBase {
       cluster, flinkLogicalTraits.replace(collation), studentFlinkLogicalScan, collation,
       logicalSort.offset, logicalSort.fetch)
 
-    val batchSort = new BatchExecLimit(cluster, batchPhysicalTraits.replace(collation),
-      new BatchExecExchange(
+    val batchSort = new BatchPhysicalLimit(cluster, batchPhysicalTraits.replace(collation),
+      new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
       logicalSort.offset, logicalSort.fetch, true)
 
-    val batchSortLocal = new BatchExecLimit(cluster, batchPhysicalTraits.replace(collation),
+    val batchSortLocal = new BatchPhysicalLimit(cluster, batchPhysicalTraits.replace(collation),
       studentBatchScan,
       relBuilder.literal(0),
       relBuilder.literal(SortUtil.getLimitEnd(logicalSort.offset, logicalSort.fetch)),
       false)
-    val batchSortGlobal = new BatchExecLimit(cluster, batchPhysicalTraits.replace(collation),
-      new BatchExecExchange(
+    val batchSortGlobal = new BatchPhysicalLimit(cluster, batchPhysicalTraits.replace(collation),
+      new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocal,
         FlinkRelDistribution.SINGLETON),
       logicalSort.offset, logicalSort.fetch, true)
 
-    val streamSort = new StreamExecLimit(cluster, streamPhysicalTraits.replace(collation),
+    val streamLimit = new StreamPhysicalLimit(cluster, streamPhysicalTraits.replace(collation),
       studentStreamScan, logicalSort.offset, logicalSort.fetch)
 
-    (logicalSort, flinkLogicalSort, batchSort, batchSortLocal, batchSortGlobal, streamSort)
+    (logicalSort, flinkLogicalSort, batchSort, batchSortLocal, batchSortGlobal, streamLimit)
   }
 
   // equivalent SQL is
@@ -392,25 +386,27 @@ class FlinkRelMdHandlerTestBase {
     val flinkLogicalSortLimit = new FlinkLogicalSort(cluster,
       flinkLogicalTraits.replace(collection), studentFlinkLogicalScan, collection, offset, fetch)
 
-    val batchSortLimit = new BatchExecSortLimit(cluster, batchPhysicalTraits.replace(collection),
-      new BatchExecExchange(
+    val batchSortLimit = new BatchPhysicalSortLimit(
+        cluster, batchPhysicalTraits.replace(collection),
+      new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
       collection, offset, fetch, true)
 
-    val batchSortLocalLimit = new BatchExecSortLimit(cluster,
+    val batchSortLocalLimit = new BatchPhysicalSortLimit(cluster,
       batchPhysicalTraits.replace(collection), studentBatchScan, collection,
       relBuilder.literal(0),
       relBuilder.literal(SortUtil.getLimitEnd(offset, fetch)),
       false)
-    val batchSortGlobal = new BatchExecSortLimit(cluster, batchPhysicalTraits.replace(collection),
-      new BatchExecExchange(
+    val batchSortGlobal = new BatchPhysicalSortLimit(
+        cluster, batchPhysicalTraits.replace(collection),
+      new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocalLimit,
         FlinkRelDistribution.SINGLETON),
       collection, offset, fetch, true)
 
-    val streamSort = new StreamExecSortLimit(cluster, streamPhysicalTraits.replace(collection),
-      studentStreamScan, collection, offset, fetch, UndefinedStrategy)
+    val streamSort = new StreamPhysicalSortLimit(cluster, streamPhysicalTraits.replace(collection),
+      studentStreamScan, collection, offset, fetch, RankProcessStrategy.UNDEFINED_STRATEGY)
 
     (logicalSortLimit, flinkLogicalSortLimit,
       batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
@@ -451,7 +447,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val batchLocalRank = new BatchExecRank(
+    val batchLocalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -465,9 +461,9 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
-    val batchExchange = new BatchExecExchange(
+    val batchExchange = new BatchPhysicalExchange(
       cluster, batchLocalRank.getTraitSet.replace(hash6), batchLocalRank, hash6)
-    val batchGlobalRank = new BatchExecRank(
+    val batchGlobalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       batchExchange,
@@ -480,9 +476,9 @@ class FlinkRelMdHandlerTestBase {
       isGlobal = true
     )
 
-    val streamExchange = new BatchExecExchange(cluster,
+    val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash6), studentStreamScan, hash6)
-    val streamRank = new StreamExecRank(
+    val streamRank = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -492,7 +488,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -533,7 +529,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val batchLocalRank = new BatchExecRank(
+    val batchLocalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -547,9 +543,9 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
-    val batchExchange = new BatchExecExchange(
+    val batchExchange = new BatchPhysicalExchange(
       cluster, batchLocalRank.getTraitSet.replace(hash6), batchLocalRank, hash6)
-    val batchGlobalRank = new BatchExecRank(
+    val batchGlobalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       batchExchange,
@@ -562,9 +558,9 @@ class FlinkRelMdHandlerTestBase {
       isGlobal = true
     )
 
-    val streamExchange = new BatchExecExchange(cluster,
+    val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash6), studentStreamScan, hash6)
-    val streamRank = new StreamExecRank(
+    val streamRank = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -574,7 +570,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -611,9 +607,9 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val singleton = FlinkRelDistribution.SINGLETON
-    val streamExchange = new BatchExecExchange(cluster,
+    val streamExchange = new BatchPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(singleton), studentStreamScan, singleton)
-    val streamRowNumber = new StreamExecRank(
+    val streamRowNumber = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange,
@@ -623,7 +619,7 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -658,12 +654,12 @@ class FlinkRelMdHandlerTestBase {
   }
 
   def buildFirstRowAndLastRowDeduplicateNode(isRowtime: Boolean): (RelNode, RelNode) = {
-    val scan: StreamExecDataStreamScan =
+    val scan: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable3"), streamPhysicalTraits)
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
-    val streamExchange1 = new StreamExecExchange(
+    val streamExchange1 = new StreamPhysicalExchange(
       cluster, scan.getTraitSet.replace(hash1), scan, hash1)
-    val firstRow = new StreamExecDeduplicate(
+    val firstRow = new StreamPhysicalDeduplicate(
       cluster,
       streamPhysicalTraits,
       streamExchange1,
@@ -681,7 +677,7 @@ class FlinkRelMdHandlerTestBase {
       builder.build(),
       rexBuilder
     )
-    val calcOfFirstRow = new StreamExecCalc(
+    val calcOfFirstRow = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       firstRow,
@@ -690,9 +686,9 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val hash12 = FlinkRelDistribution.hash(Array(1, 2), requireStrict = true)
-    val streamExchange2 = new BatchExecExchange(cluster,
+    val streamExchange2 = new BatchPhysicalExchange(cluster,
       scan.getTraitSet.replace(hash12), scan, hash12)
-    val lastRow = new StreamExecDeduplicate(
+    val lastRow = new StreamPhysicalDeduplicate(
       cluster,
       streamPhysicalTraits,
       streamExchange2,
@@ -700,7 +696,7 @@ class FlinkRelMdHandlerTestBase {
       isRowtime,
       keepLastRow = true
     )
-    val calcOfLastRow = new StreamExecCalc(
+    val calcOfLastRow = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       lastRow,
@@ -714,13 +710,21 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val streamChangelogNormalize = {
     val key = Array(1, 0)
     val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, studentStreamScan.getTraitSet.replace(hash1), studentStreamScan, hash1)
-    new StreamExecChangelogNormalize(
+    new StreamPhysicalChangelogNormalize(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       key)
+  }
+
+  protected lazy val streamDropUpdateBefore = {
+    new StreamPhysicalDropUpdateBefore(
+      cluster,
+      streamPhysicalTraits,
+      studentStreamScan
+    )
   }
 
   // equivalent SQL is
@@ -756,7 +760,7 @@ class FlinkRelMdHandlerTestBase {
       outputRankNumber = true
     )
 
-    val streamRankWithVariableRange = new StreamExecRank(
+    val streamRankWithVariableRange = new StreamPhysicalRank(
       cluster,
       logicalTraits,
       studentStreamScan,
@@ -766,7 +770,7 @@ class FlinkRelMdHandlerTestBase {
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      UndefinedStrategy
+      RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
@@ -830,7 +834,7 @@ class FlinkRelMdHandlerTestBase {
     builder.add("f1", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
     val relDataType = builder.build()
 
-    val streamExecTableAgg = new StreamExecGroupTableAggregate(
+    val streamTableAgg = new StreamPhysicalGroupTableAggregate(
       cluster,
       logicalTraits,
       studentLogicalScan,
@@ -839,7 +843,7 @@ class FlinkRelMdHandlerTestBase {
       Seq(tableAggCall)
     )
 
-    (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg)
+    (logicalTableAgg, flinkLogicalTableAgg, streamTableAgg)
   }
 
   // equivalent Table API is
@@ -885,24 +889,22 @@ class FlinkRelMdHandlerTestBase {
 
     val hash01 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
 
-    val streamTs: StreamExecDataStreamScan =
+    val streamTs: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
-    val streamCalc = new BatchExecCalc(
+    val streamCalc = new StreamPhysicalCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowTableAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
@@ -946,7 +948,9 @@ class FlinkRelMdHandlerTestBase {
 
     val aggCalls = logicalAgg.getAggCallList
     val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
+      Array.empty[Int],
+      Array.fill(aggCalls.size())(false))
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -970,9 +974,8 @@ class FlinkRelMdHandlerTestBase {
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
     val hash3 = FlinkRelDistribution.hash(Array(3), requireStrict = true)
 
-    val batchLocalAgg = new BatchExecLocalHashAggregate(
+    val batchLocalAgg = new BatchPhysicalLocalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       studentBatchScan,
       rowTypeOfLocalAgg,
@@ -981,11 +984,10 @@ class FlinkRelMdHandlerTestBase {
       auxGrouping = Array(),
       aggCallToAggFunction)
 
-    val batchExchange1 = new BatchExecExchange(
+    val batchExchange1 = new BatchPhysicalExchange(
       cluster, batchLocalAgg.getTraitSet.replace(hash0), batchLocalAgg, hash0)
-    val batchGlobalAgg = new BatchExecHashAggregate(
+    val batchGlobalAgg = new BatchPhysicalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange1,
       rowTypeOfGlobalAgg,
@@ -996,11 +998,10 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction,
       isMerge = true)
 
-    val batchExchange2 = new BatchExecExchange(cluster,
+    val batchExchange2 = new BatchPhysicalExchange(cluster,
       studentBatchScan.getTraitSet.replace(hash3), studentBatchScan, hash3)
-    val batchGlobalAggWithoutLocal = new BatchExecHashAggregate(
+    val batchGlobalAggWithoutLocal = new BatchPhysicalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       rowTypeOfGlobalAgg,
@@ -1011,47 +1012,35 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction,
       isMerge = false)
 
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      1, needRetraction = false, null, aggCalls)
-
-    val localAggInfoList = transformToStreamAggregateInfoList(
-      aggCalls,
-      studentStreamScan.getRowType,
-      needRetractionArray,
-      needInputCount = false,
-      isStateBackendDataViews = false)
-    val streamLocalAgg = new StreamExecLocalGroupAggregate(
+    val aggCallNeedRetractions = AggregateUtil.deriveAggCallNeedRetractions(
+      1, aggCalls, needRetraction = false, null)
+    val streamLocalAgg = new StreamPhysicalLocalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       studentStreamScan,
-      rowTypeOfLocalAgg,
       Array(3),
       aggCalls,
-      localAggInfoList,
+      aggCallNeedRetractions,
+      false,
       PartialFinalType.NONE)
 
-    val streamExchange1 = new StreamExecExchange(
+    val streamExchange1 = new StreamPhysicalExchange(
       cluster, streamLocalAgg.getTraitSet.replace(hash0), streamLocalAgg, hash0)
-    val globalAggInfoList = transformToStreamAggregateInfoList(
-      aggCalls,
-      streamExchange1.getRowType,
-      needRetractionArray,
-      needInputCount = false,
-      isStateBackendDataViews = true)
-    val streamGlobalAgg = new StreamExecGlobalGroupAggregate(
+    val streamGlobalAgg = new StreamPhysicalGlobalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange1,
-      streamExchange1.getRowType,
       rowTypeOfGlobalAgg,
       Array(0),
-      localAggInfoList,
-      globalAggInfoList,
+      aggCalls,
+      aggCallNeedRetractions,
+      streamLocalAgg.getInput.getRowType,
+      AggregateUtil.needRetraction(streamLocalAgg),
       PartialFinalType.NONE)
 
-    val streamExchange2 = new StreamExecExchange(cluster,
+    val streamExchange2 = new StreamPhysicalExchange(cluster,
       studentStreamScan.getTraitSet.replace(hash3), studentStreamScan, hash3)
-    val streamGlobalAggWithoutLocal = new StreamExecGroupAggregate(
+    val streamGlobalAggWithoutLocal = new StreamPhysicalGroupAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange2,
@@ -1097,7 +1086,9 @@ class FlinkRelMdHandlerTestBase {
       call => call.getAggregation != FlinkSqlOperatorTable.AUXILIARY_GROUP
     }
     val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
+      Array.empty[Int],
+      Array.fill(aggCalls.size())(false))
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -1110,9 +1101,8 @@ class FlinkRelMdHandlerTestBase {
       .add("sum_score", doubleType)
       .add("cnt", longType).build()
 
-    val batchLocalAggWithAuxGroup = new BatchExecLocalHashAggregate(
+    val batchLocalAggWithAuxGroup = new BatchPhysicalLocalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       studentBatchScan,
       rowTypeOfLocalAgg,
@@ -1122,7 +1112,7 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction)
 
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
-    val batchExchange = new BatchExecExchange(cluster,
+    val batchExchange = new BatchPhysicalExchange(cluster,
       batchLocalAggWithAuxGroup.getTraitSet.replace(hash0), batchLocalAggWithAuxGroup, hash0)
 
     val rowTypeOfGlobalAgg = typeFactory.builder
@@ -1132,9 +1122,8 @@ class FlinkRelMdHandlerTestBase {
       .add("avg_score", doubleType)
       .add("sum_score", doubleType)
       .add("cnt", longType).build()
-    val batchGlobalAggWithAuxGroup = new BatchExecHashAggregate(
+    val batchGlobalAggWithAuxGroup = new BatchPhysicalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange,
       rowTypeOfGlobalAgg,
@@ -1145,11 +1134,10 @@ class FlinkRelMdHandlerTestBase {
       aggCallToAggFunction,
       isMerge = true)
 
-    val batchExchange2 = new BatchExecExchange(cluster,
+    val batchExchange2 = new BatchPhysicalExchange(cluster,
       studentBatchScan.getTraitSet.replace(hash0), studentBatchScan, hash0)
-    val batchGlobalAggWithoutLocalWithAuxGroup = new BatchExecHashAggregate(
+    val batchGlobalAggWithoutLocalWithAuxGroup = new BatchPhysicalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       rowTypeOfGlobalAgg,
@@ -1168,7 +1156,7 @@ class FlinkRelMdHandlerTestBase {
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
   private lazy val windowRef: PlannerWindowReference =
-  PlannerWindowReference.apply("w$", Some(new TimestampType(3)))
+    new PlannerWindowReference("w$", new TimestampType(3))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -1182,10 +1170,10 @@ class FlinkRelMdHandlerTestBase {
     )
 
   protected lazy val namedPropertiesOfWindowAgg: Seq[PlannerNamedWindowProperty] =
-    Seq(PlannerNamedWindowProperty("w$start", PlannerWindowStart(windowRef)),
-      PlannerNamedWindowProperty("w$end", PlannerWindowStart(windowRef)),
-      PlannerNamedWindowProperty("w$rowtime", PlannerRowtimeAttribute(windowRef)),
-      PlannerNamedWindowProperty("w$proctime", PlannerProctimeAttribute(windowRef)))
+    Seq(new PlannerNamedWindowProperty("w$start", new PlannerWindowStart(windowRef)),
+      new PlannerNamedWindowProperty("w$end", new PlannerWindowStart(windowRef)),
+      new PlannerNamedWindowProperty("w$rowtime", new PlannerRowtimeAttribute(windowRef)),
+      new PlannerNamedWindowProperty("w$proctime", new PlannerProctimeAttribute(windowRef)))
 
   // equivalent SQL is
   // select a, b, count(c) as s,
@@ -1230,16 +1218,17 @@ class FlinkRelMdHandlerTestBase {
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg)
 
-    val batchTs: BatchExecBoundedStreamScan =
+    val batchTs: BatchPhysicalBoundedStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable1"), batchPhysicalTraits)
-    val batchCalc = new BatchExecCalc(
+    val batchCalc = new BatchPhysicalCalc(
       cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
     val hash01 = FlinkRelDistribution.hash(Array(0, 1), requireStrict = true)
-    val batchExchange1 = new BatchExecExchange(
+    val batchExchange1 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash01), batchCalc, hash01)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
     val localWindowAggTypes =
@@ -1252,9 +1241,8 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAgg = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchCalc,
       localWindowAggRowType,
@@ -1267,15 +1255,13 @@ class FlinkRelMdHandlerTestBase {
       inputTimeIsDate = false,
       namedPropertiesOfWindowAgg,
       enableAssignPane = false)
-    val batchExchange2 = new BatchExecExchange(
+    val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash01), batchLocalWindowAgg, hash01)
-    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocal = new BatchPhysicalHashWindowAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       flinkLogicalWindowAgg.getRowType,
-      batchExchange2.getRowType,
       batchCalc.getRowType,
       Array(0, 1),
       Array.empty,
@@ -1288,13 +1274,11 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocal = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange1,
       flinkLogicalWindowAgg.getRowType,
-      batchExchange1.getRowType,
       batchExchange1.getRowType,
       Array(0, 1),
       Array.empty,
@@ -1307,24 +1291,22 @@ class FlinkRelMdHandlerTestBase {
       isMerge = false
     )
 
-    val streamTs: StreamExecDataStreamScan =
+    val streamTs: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
-    val streamCalc = new BatchExecCalc(
+    val streamCalc = new BatchPhysicalCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(0, 1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
@@ -1375,16 +1357,17 @@ class FlinkRelMdHandlerTestBase {
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg)
 
-    val batchTs: BatchExecBoundedStreamScan =
+    val batchTs: BatchPhysicalBoundedStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable1"), batchPhysicalTraits)
-    val batchCalc = new BatchExecCalc(
+    val batchCalc = new BatchPhysicalCalc(
       cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
-    val batchExchange1 = new BatchExecExchange(
+    val batchExchange1 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash1), batchCalc, hash1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
 
     val localWindowAggTypes =
@@ -1397,9 +1380,8 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAgg = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchCalc,
       localWindowAggRowType,
@@ -1412,15 +1394,13 @@ class FlinkRelMdHandlerTestBase {
       inputTimeIsDate = false,
       namedPropertiesOfWindowAgg,
       enableAssignPane = false)
-    val batchExchange2 = new BatchExecExchange(
+    val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash1), batchLocalWindowAgg, hash1)
-    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocal = new BatchPhysicalHashWindowAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       flinkLogicalWindowAgg.getRowType,
-      batchExchange2.getRowType,
       batchCalc.getRowType,
       Array(0),
       Array.empty,
@@ -1433,13 +1413,11 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocal = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange1,
       flinkLogicalWindowAgg.getRowType,
-      batchExchange1.getRowType,
       batchExchange1.getRowType,
       Array(1),
       Array.empty,
@@ -1452,24 +1430,22 @@ class FlinkRelMdHandlerTestBase {
       isMerge = false
     )
 
-    val streamTs: StreamExecDataStreamScan =
+    val streamTs: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
-    val streamCalc = new BatchExecCalc(
+    val streamCalc = new StreamPhysicalCalc(
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
-    val streamExchange = new StreamExecExchange(
+    val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash1), streamCalc, hash1)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
@@ -1522,17 +1498,18 @@ class FlinkRelMdHandlerTestBase {
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg)
 
-    val batchTs: BatchExecBoundedStreamScan =
+    val batchTs: BatchPhysicalBoundedStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable2"), batchPhysicalTraits)
-    val batchCalc = new BatchExecCalc(
+    val batchCalc = new BatchPhysicalCalc(
       cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
-    val batchExchange1 = new BatchExecExchange(
+    val batchExchange1 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash0), batchCalc, hash0)
     val aggCallsWithoutAuxGroup = flinkLogicalWindowAggWithAuxGroup.getAggCallList.drop(1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
-        aggCallsWithoutAuxGroup, batchExchange1.getRowType)
+        FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
+        aggCallsWithoutAuxGroup)
     val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)
 
     val localWindowAggTypes =
@@ -1547,9 +1524,8 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAggWithAuxGroup = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAggWithAuxGroup = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchCalc,
       localWindowAggRowType,
@@ -1562,15 +1538,13 @@ class FlinkRelMdHandlerTestBase {
       inputTimeIsDate = false,
       namedPropertiesOfWindowAgg,
       enableAssignPane = false)
-    val batchExchange2 = new BatchExecExchange(
+    val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash0), batchLocalWindowAggWithAuxGroup, hash0)
-    val batchWindowAggWithLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocalWithAuxGroup = new BatchPhysicalHashWindowAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       flinkLogicalWindowAggWithAuxGroup.getRowType,
-      batchExchange2.getRowType,
       batchCalc.getRowType,
       Array(0),
       Array(2), // local output grouping keys: grouping + assignTs + auxGrouping
@@ -1583,13 +1557,11 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocalWithAuxGroup = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange1,
       flinkLogicalWindowAggWithAuxGroup.getRowType,
-      batchExchange1.getRowType,
       batchExchange1.getRowType,
       Array(0),
       Array(1),
@@ -1689,33 +1661,25 @@ class FlinkRelMdHandlerTestBase {
       projectProgram
     )
 
-    val calc = new BatchExecCalc(
+    val calc = new BatchPhysicalCalc(
       cluster, batchPhysicalTraits, studentBatchScan, rexProgram, rowTypeOfCalc)
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
-    val exchange1 = new BatchExecExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
+    val exchange1 = new BatchPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
     // sort class, name
     val collection1 = RelCollations.of(
       FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(1))
     val newSortTrait1 = exchange1.getTraitSet.replace(collection1)
-    val sort1 = new BatchExecSort(cluster, newSortTrait1, exchange1,
+    val sort1 = new BatchPhysicalSort(cluster, newSortTrait1, exchange1,
       newSortTrait1.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType1 = createRowType("id", "name", "score", "age", "class", "rn")
-    val innerWindowAgg1 = new BatchExecOverAggregate(
+    val innerWindowAgg1 = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       sort1,
       outputRowType1,
       sort1.getRowType,
-      Array(4),
-      Array(1),
-      Array(true),
-      Array(false),
-      Seq((overAggGroups(0), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.ROW_NUMBER, false, ImmutableList.of(), -1,
-          longType, "rn"),
-          new RowNumberAggFunction())))),
+      Seq(overAggGroups(0)),
       flinkLogicalOverAgg
     )
 
@@ -1723,69 +1687,39 @@ class FlinkRelMdHandlerTestBase {
     val collation2 = RelCollations.of(
       FlinkRelOptUtil.ofRelFieldCollation(4), FlinkRelOptUtil.ofRelFieldCollation(2))
     val newSortTrait2 = innerWindowAgg1.getTraitSet.replace(collation2)
-    val sort2 = new BatchExecSort(cluster, newSortTrait2, innerWindowAgg1,
+    val sort2 = new BatchPhysicalSort(cluster, newSortTrait2, innerWindowAgg1,
       newSortTrait2.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType2 = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk", "count$0_score", "sum$0_score")
-    val innerWindowAgg2 = new BatchExecOverAggregate(
+    val innerWindowAgg2 = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       sort2,
       outputRowType2,
       sort2.getRowType,
-      Array(4),
-      Array(2),
-      Array(true),
-      Array(false),
-      Seq((overAggGroups(1), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType,
-          "rk"),
-          new RankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
-        (AggregateCall.create(SqlStdOperatorTable.DENSE_RANK, false, ImmutableList.of(), -1,
-          longType, "drk"),
-          new DenseRankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
-        (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, longType, "count$0_socre"),
-          new CountAggFunction()),
-        (AggregateCall.create(SqlStdOperatorTable.SUM, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, doubleType, "sum$0_score"),
-          new DoubleSumAggFunction())
-      ))),
+      Seq(overAggGroups(1)),
       flinkLogicalOverAgg
     )
 
     val hash3 = FlinkRelDistribution.hash(Array(3), requireStrict = true)
-    val exchange2 = new BatchExecExchange(
+    val exchange2 = new BatchPhysicalExchange(
       cluster, innerWindowAgg2.getTraitSet.replace(hash3), innerWindowAgg2, hash3)
 
     val outputRowType3 = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk",
       "count$0_score", "sum$0_score", "max_score", "cnt")
-    val batchWindowAgg = new BatchExecOverAggregate(
+    val batchWindowAgg = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       exchange2,
       outputRowType3,
       exchange2.getRowType,
-      Array(3),
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Seq((overAggGroups(2), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.MAX, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, longType, "max_score"),
-          new CountAggFunction()),
-        (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-          ImmutableList.of(Integer.valueOf(0)), -1, doubleType, "cnt"),
-          new DoubleSumAggFunction())
-      ))),
+      Seq(overAggGroups(2)),
       flinkLogicalOverAgg
     )
 
-    val batchWindowAggOutput = new BatchExecCalc(
+    val batchWindowAggOutput = new BatchPhysicalCalc(
       cluster,
       batchPhysicalTraits,
       batchWindowAgg,
@@ -1844,19 +1778,18 @@ class FlinkRelMdHandlerTestBase {
       util.Arrays.asList(overAggGroups.get(1))
     )
 
-    val streamScan: StreamExecDataStreamScan =
+    val streamScan: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("student"), streamPhysicalTraits)
-    val calc = new StreamExecCalc(
+    val calc = new StreamPhysicalCalc(
       cluster, streamPhysicalTraits, streamScan, rexProgram, rowTypeOfCalc)
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
-    val exchange = new StreamExecExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
+    val exchange = new StreamPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
 
-    val windowAgg = new StreamExecOverAggregate(
+    val windowAgg = new StreamPhysicalOverAggregate(
       cluster,
       streamPhysicalTraits,
       exchange,
       rowTypeOfWindowAgg,
-      exchange.getRowType,
       flinkLogicalOverAgg
     )
 
@@ -1879,7 +1812,7 @@ class FlinkRelMdHandlerTestBase {
       rowTypeOfWindowAggOutput,
       rexBuilder
     )
-    val streamWindowAggOutput = new StreamExecCalc(
+    val streamWindowAggOutput = new StreamPhysicalCalc(
       cluster,
       streamPhysicalTraits,
       windowAgg,
@@ -1980,11 +1913,14 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected lazy val flinkLogicalSnapshot: FlinkLogicalSnapshot = {
+    val temporalTableRelType = relBuilder.scan("TemporalTable1").build().getRowType
+    val correlVar = rexBuilder.makeCorrel(temporalTableRelType, new CorrelationId(0))
+    val rowtimeField = rexBuilder.makeFieldAccess(correlVar, 4)
     new FlinkLogicalSnapshot(
       cluster,
       flinkLogicalTraits,
       studentFlinkLogicalScan,
-      relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+      rowtimeField)
   }
 
   // SELECT * FROM student AS T JOIN TemporalTable
@@ -1993,7 +1929,7 @@ class FlinkRelMdHandlerTestBase {
     val temporalTableSource = new TestTemporalTable
     val batchSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, true)
     val batchScan = relBuilder.queryOperation(batchSourceOp).build().asInstanceOf[TableScan]
-    val batchLookupJoin = new BatchExecLookupJoin(
+    val batchLookupJoin = new BatchPhysicalLookupJoin(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -2004,7 +1940,7 @@ class FlinkRelMdHandlerTestBase {
     )
     val streamSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, false)
     val streamScan = relBuilder.queryOperation(streamSourceOp).build().asInstanceOf[TableScan]
-    val streamLookupJoin = new StreamExecLookupJoin(
+    val streamLookupJoin = new StreamPhysicalLookupJoin(
       cluster,
       streamPhysicalTraits,
       studentBatchScan,
@@ -2411,87 +2347,6 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable2")
     .minus(false).build()
 
-  // select * from
-  //  (select b, sum(e) from MyTable1 group by b) v1,
-  //  (select a, sum(c) from MyTable4 group by a) v2
-  //   where a = b
-  protected lazy val batchMultipleInput: RelNode = {
-    val leftInput = createGlobalAgg("MyTable1", "b", "e")
-    val leftEdge = leftInput.getInputEdges.get(0)
-    val rightInput = createGlobalAgg("MyTable4", "a", "c")
-    val rightEdge = rightInput.getInputEdges.get(0)
-    val join = new BatchExecHashJoin(
-      cluster,
-      batchPhysicalTraits,
-      leftInput,
-      rightInput,
-      rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
-        rexBuilder.makeInputRef(longType, 0),
-        rexBuilder.makeInputRef(longType, 2)),
-      JoinRelType.INNER,
-      leftIsBuild = true,
-      isBroadcast = false,
-      tryDistinctBuildRow = false
-    )
-   new BatchExecMultipleInput(
-      cluster,
-      batchPhysicalTraits,
-      Array(leftInput.getInput, rightInput.getInput),
-      join,
-      Array(
-        ExecEdge.builder()
-          .requiredShuffle(leftEdge.getRequiredShuffle)
-          .damBehavior(leftEdge.getDamBehavior)
-          .priority(0)
-          .build(),
-        ExecEdge.builder()
-          .requiredShuffle(rightEdge.getRequiredShuffle)
-          .damBehavior(rightEdge.getDamBehavior)
-          .priority(1)
-          .build()))
-  }
-
-  private def createGlobalAgg(
-      table: String, groupBy: String, sum: String): BatchExecHashAggregate = {
-    val scan: BatchExecBoundedStreamScan =
-      createDataStreamScan(ImmutableList.of(table), batchPhysicalTraits)
-    relBuilder.push(scan)
-    val groupByField = relBuilder.field(groupBy)
-    val sumField = relBuilder.field(sum)
-    val hash = FlinkRelDistribution.hash(Array(groupByField.getIndex), requireStrict = true)
-
-    val exchange = new BatchExecExchange(cluster, batchPhysicalTraits.replace(hash), scan, hash)
-    relBuilder.push(exchange)
-
-    val logicalAgg = relBuilder.aggregate(
-      relBuilder.groupKey(groupBy),
-      relBuilder.aggregateCall(SqlStdOperatorTable.SUM, relBuilder.field(sum))
-    ).build().asInstanceOf[LogicalAggregate]
-    val aggCalls = logicalAgg.getAggCallList
-    val aggFunctionFactory = new AggFunctionFactory(
-      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
-    val aggCallToAggFunction = aggCalls.zipWithIndex.map {
-      case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
-    }
-
-    val rowTypeOfGlobalAgg = typeFactory.builder
-      .add(groupByField.getName, groupByField.getType)
-      .add(sumField.getName, sumField.getType).build()
-
-    new BatchExecHashAggregate(
-      cluster,
-      relBuilder,
-      batchPhysicalTraits,
-      exchange,
-      rowTypeOfGlobalAgg,
-      exchange.getRowType,
-      exchange.getRowType,
-      Array(groupByField.getIndex),
-      auxGrouping = Array(),
-      aggCallToAggFunction,
-      isMerge = false)
-  }
-
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
@@ -2508,9 +2363,9 @@ class FlinkRelMdHandlerTestBase {
       case FlinkConventions.LOGICAL =>
         new FlinkLogicalDataStreamTableScan(cluster, traitSet, table)
       case FlinkConventions.BATCH_PHYSICAL =>
-        new BatchExecBoundedStreamScan(cluster, traitSet, table, table.getRowType)
+        new BatchPhysicalBoundedStreamScan(cluster, traitSet, table, table.getRowType)
       case FlinkConventions.STREAM_PHYSICAL =>
-        new StreamExecDataStreamScan(cluster, traitSet, table, table.getRowType)
+        new StreamPhysicalDataStreamScan(cluster, traitSet, table, table.getRowType)
       case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
     }
     scan.asInstanceOf[T]

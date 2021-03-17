@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -34,75 +35,82 @@ import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor.IMMEDIATE;
 
-/**
- * A mock builder to build {@link SubtaskCheckpointCoordinator}.
- */
+/** A mock builder to build {@link SubtaskCheckpointCoordinator}. */
 public class MockSubtaskCheckpointCoordinatorBuilder {
-	private String taskName = "mock-task";
-	private CheckpointStorageWorkerView checkpointStorage;
-	private Environment environment;
-	private AsyncExceptionHandler asyncExceptionHandler;
-	private StreamTaskActionExecutor actionExecutor = IMMEDIATE;
-	private CloseableRegistry closeableRegistry = new CloseableRegistry();
-	private ExecutorService executorService = Executors.newDirectExecutorService();
-	private BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
-	private boolean unalignedCheckpointEnabled;
-	private int maxRecordAbortedCheckpoints = 10;
+    private String taskName = "mock-task";
+    private CheckpointStorageWorkerView checkpointStorage;
+    private Environment environment;
+    private AsyncExceptionHandler asyncExceptionHandler;
+    private StreamTaskActionExecutor actionExecutor = IMMEDIATE;
+    private CloseableRegistry closeableRegistry = new CloseableRegistry();
+    private ExecutorService executorService = Executors.newDirectExecutorService();
+    private BiFunctionWithException<
+                    ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
+            prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
+    private boolean unalignedCheckpointEnabled;
+    private int maxRecordAbortedCheckpoints = 10;
 
-	public MockSubtaskCheckpointCoordinatorBuilder setEnvironment(Environment environment) {
-		this.environment = environment;
-		return this;
-	}
+    public MockSubtaskCheckpointCoordinatorBuilder setEnvironment(Environment environment) {
+        this.environment = environment;
+        return this;
+    }
 
-	public MockSubtaskCheckpointCoordinatorBuilder setPrepareInputSnapshot(BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot) {
-		this.prepareInputSnapshot = prepareInputSnapshot;
-		return this;
-	}
+    public MockSubtaskCheckpointCoordinatorBuilder setPrepareInputSnapshot(
+            BiFunctionWithException<
+                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
+                    prepareInputSnapshot) {
+        this.prepareInputSnapshot = prepareInputSnapshot;
+        return this;
+    }
 
-	public MockSubtaskCheckpointCoordinatorBuilder setExecutor(ExecutorService executor) {
-		this.executorService = executor;
-		return this;
-	}
+    public MockSubtaskCheckpointCoordinatorBuilder setExecutor(ExecutorService executor) {
+        this.executorService = executor;
+        return this;
+    }
 
-	public MockSubtaskCheckpointCoordinatorBuilder setMaxRecordAbortedCheckpoints(int maxRecordAbortedCheckpoints) {
-		this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
-		return this;
-	}
+    public MockSubtaskCheckpointCoordinatorBuilder setMaxRecordAbortedCheckpoints(
+            int maxRecordAbortedCheckpoints) {
+        this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
+        return this;
+    }
 
-	public MockSubtaskCheckpointCoordinatorBuilder setUnalignedCheckpointEnabled(boolean unalignedCheckpointEnabled) {
-		this.unalignedCheckpointEnabled = unalignedCheckpointEnabled;
-		return this;
-	}
+    public MockSubtaskCheckpointCoordinatorBuilder setUnalignedCheckpointEnabled(
+            boolean unalignedCheckpointEnabled) {
+        this.unalignedCheckpointEnabled = unalignedCheckpointEnabled;
+        return this;
+    }
 
-	SubtaskCheckpointCoordinator build() throws IOException {
-		if (environment == null) {
-			this.environment = MockEnvironment.builder().build();
-		}
-		if (checkpointStorage == null) {
-			this.checkpointStorage = new MemoryBackendCheckpointStorageAccess(environment.getJobID(), null, null, 1024);
-		}
-		if (asyncExceptionHandler == null) {
-			this.asyncExceptionHandler = new NonHandleAsyncException();
-		}
+    SubtaskCheckpointCoordinator build() throws IOException {
+        if (environment == null) {
+            this.environment = MockEnvironment.builder().build();
+        }
+        if (checkpointStorage == null) {
+            this.checkpointStorage =
+                    new MemoryBackendCheckpointStorageAccess(
+                            environment.getJobID(), null, null, 1024);
+        }
+        if (asyncExceptionHandler == null) {
+            this.asyncExceptionHandler = new NonHandleAsyncException();
+        }
 
-		return new SubtaskCheckpointCoordinatorImpl(
-			checkpointStorage,
-			taskName,
-			actionExecutor,
-			closeableRegistry,
-			executorService,
-			environment,
-			asyncExceptionHandler,
-			unalignedCheckpointEnabled,
-			prepareInputSnapshot,
-			maxRecordAbortedCheckpoints);
-	}
+        return new SubtaskCheckpointCoordinatorImpl(
+                checkpointStorage,
+                taskName,
+                actionExecutor,
+                closeableRegistry,
+                executorService,
+                environment,
+                asyncExceptionHandler,
+                unalignedCheckpointEnabled,
+                prepareInputSnapshot,
+                maxRecordAbortedCheckpoints);
+    }
 
-	private static class NonHandleAsyncException implements AsyncExceptionHandler {
+    private static class NonHandleAsyncException implements AsyncExceptionHandler {
 
-		@Override
-		public void handleAsyncException(String message, Throwable exception) {
-			// do nothing.
-		}
-	}
+        @Override
+        public void handleAsyncException(String message, Throwable exception) {
+            // do nothing.
+        }
+    }
 }

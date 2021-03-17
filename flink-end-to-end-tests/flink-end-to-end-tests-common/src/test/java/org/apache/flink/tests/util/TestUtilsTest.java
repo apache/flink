@@ -32,40 +32,38 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-/**
- * Tests for {@link TestUtils}.
- */
+/** Tests for {@link TestUtils}. */
 public class TestUtilsTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@BeforeClass
-	public static void setupClass() {
-		OperatingSystemRestriction.forbid("Symbolic links usually require special permissions on Windows.", OperatingSystem.WINDOWS);
-	}
+    @BeforeClass
+    public static void setupClass() {
+        OperatingSystemRestriction.forbid(
+                "Symbolic links usually require special permissions on Windows.",
+                OperatingSystem.WINDOWS);
+    }
 
-	@Test
-	public void copyDirectory() throws IOException {
-		Path[] files = {
-			Paths.get("file1"),
-			Paths.get("dir1", "file2"),
-		};
+    @Test
+    public void copyDirectory() throws IOException {
+        Path[] files = {
+            Paths.get("file1"), Paths.get("dir1", "file2"),
+        };
 
-		Path source = temporaryFolder.newFolder("source").toPath();
-		for (Path file : files) {
-			Files.createDirectories(source.resolve(file).getParent());
-			Files.createFile(source.resolve(file));
-		}
+        Path source = temporaryFolder.newFolder("source").toPath();
+        for (Path file : files) {
+            Files.createDirectories(source.resolve(file).getParent());
+            Files.createFile(source.resolve(file));
+        }
 
-		Path symbolicLink = source.getParent().resolve("link");
-		Files.createSymbolicLink(symbolicLink, source);
+        Path symbolicLink = source.getParent().resolve("link");
+        Files.createSymbolicLink(symbolicLink, source);
 
-		Path target = source.getParent().resolve("target");
-		TestUtils.copyDirectory(symbolicLink, target);
+        Path target = source.getParent().resolve("target");
+        TestUtils.copyDirectory(symbolicLink, target);
 
-		for (Path file: files) {
-			Assert.assertTrue(Files.exists(target.resolve(file)));
-		}
-	}
+        for (Path file : files) {
+            Assert.assertTrue(Files.exists(target.resolve(file)));
+        }
+    }
 }

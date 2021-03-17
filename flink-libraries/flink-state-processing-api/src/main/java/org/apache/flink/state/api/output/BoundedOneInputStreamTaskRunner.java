@@ -28,8 +28,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.util.Collector;
 
 /**
- * A {@link RichMapPartitionFunction} that serves as the runtime for a {@link
- * BoundedStreamTask}.
+ * A {@link RichMapPartitionFunction} that serves as the runtime for a {@link BoundedStreamTask}.
  *
  * <p>The task is executed processing the data in a particular partition instead of the pulling from
  * the network stack. After all data has been processed the runner will output the {@link
@@ -38,46 +37,46 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input to the partition
  */
 @Internal
-public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
+public class BoundedOneInputStreamTaskRunner<IN>
+        extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final StreamConfig streamConfig;
+    private final StreamConfig streamConfig;
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	private final Timestamper<IN> timestamper;
+    private final Timestamper<IN> timestamper;
 
-	private transient SavepointEnvironment env;
+    private transient SavepointEnvironment env;
 
-	/**
-	 * Create a new {@link BoundedOneInputStreamTaskRunner}.
-	 *
-	 * @param streamConfig The internal configuration for the task.
-	 * @param  maxParallelism The max parallelism of the operator.
-	 */
-	public BoundedOneInputStreamTaskRunner(
-		StreamConfig streamConfig,
-		int maxParallelism,
-		Timestamper<IN> timestamper) {
+    /**
+     * Create a new {@link BoundedOneInputStreamTaskRunner}.
+     *
+     * @param streamConfig The internal configuration for the task.
+     * @param maxParallelism The max parallelism of the operator.
+     */
+    public BoundedOneInputStreamTaskRunner(
+            StreamConfig streamConfig, int maxParallelism, Timestamper<IN> timestamper) {
 
-		this.streamConfig = streamConfig;
-		this.maxParallelism = maxParallelism;
-		this.timestamper = timestamper;
-	}
+        this.streamConfig = streamConfig;
+        this.maxParallelism = maxParallelism;
+        this.timestamper = timestamper;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		env = new SavepointEnvironment
-			.Builder(getRuntimeContext(), maxParallelism)
-			.setConfiguration(streamConfig.getConfiguration())
-			.build();
-	}
+        env =
+                new SavepointEnvironment.Builder(getRuntimeContext(), maxParallelism)
+                        .setConfiguration(streamConfig.getConfiguration())
+                        .build();
+    }
 
-	@Override
-	public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out) throws Exception {
-		new BoundedStreamTask<>(env, values, timestamper, out).invoke();
-	}
+    @Override
+    public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out)
+            throws Exception {
+        new BoundedStreamTask<>(env, values, timestamper, out).invoke();
+    }
 }

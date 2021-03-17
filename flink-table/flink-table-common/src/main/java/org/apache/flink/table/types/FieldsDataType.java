@@ -40,85 +40,78 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 @PublicEvolving
 public final class FieldsDataType extends DataType {
 
-	private final List<DataType> fieldDataTypes;
+    private final List<DataType> fieldDataTypes;
 
-	public FieldsDataType(
-			LogicalType logicalType,
-			@Nullable Class<?> conversionClass,
-			List<DataType> fieldDataTypes) {
-		super(logicalType, conversionClass);
-		Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
-		this.fieldDataTypes = fieldDataTypes.stream()
-			.map(this::updateInnerDataType)
-			.collect(Collectors.toList());
-	}
+    public FieldsDataType(
+            LogicalType logicalType,
+            @Nullable Class<?> conversionClass,
+            List<DataType> fieldDataTypes) {
+        super(logicalType, conversionClass);
+        Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+        this.fieldDataTypes =
+                fieldDataTypes.stream().map(this::updateInnerDataType).collect(Collectors.toList());
+    }
 
-	public FieldsDataType(
-			LogicalType logicalType,
-			List<DataType> fieldDataTypes) {
-		this(logicalType, null, fieldDataTypes);
-	}
+    public FieldsDataType(LogicalType logicalType, List<DataType> fieldDataTypes) {
+        this(logicalType, null, fieldDataTypes);
+    }
 
-	@Override
-	public DataType notNull() {
-		return new FieldsDataType(
-			logicalType.copy(false),
-			conversionClass,
-			fieldDataTypes);
-	}
+    @Override
+    public DataType notNull() {
+        return new FieldsDataType(logicalType.copy(false), conversionClass, fieldDataTypes);
+    }
 
-	@Override
-	public DataType nullable() {
-		return new FieldsDataType(
-			logicalType.copy(true),
-			conversionClass,
-			fieldDataTypes);
-	}
+    @Override
+    public DataType nullable() {
+        return new FieldsDataType(logicalType.copy(true), conversionClass, fieldDataTypes);
+    }
 
-	@Override
-	public DataType bridgedTo(Class<?> newConversionClass) {
-		return new FieldsDataType(
-			logicalType,
-			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
-			fieldDataTypes);
-	}
+    @Override
+    public DataType bridgedTo(Class<?> newConversionClass) {
+        return new FieldsDataType(
+                logicalType,
+                Preconditions.checkNotNull(
+                        newConversionClass, "New conversion class must not be null."),
+                fieldDataTypes);
+    }
 
-	@Override
-	public List<DataType> getChildren() {
-		return fieldDataTypes;
-	}
+    @Override
+    public List<DataType> getChildren() {
+        return fieldDataTypes;
+    }
 
-	@Override
-	public <R> R accept(DataTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(DataTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		FieldsDataType that = (FieldsDataType) o;
-		return fieldDataTypes.equals(that.fieldDataTypes);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        FieldsDataType that = (FieldsDataType) o;
+        return fieldDataTypes.equals(that.fieldDataTypes);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), fieldDataTypes);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), fieldDataTypes);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private DataType updateInnerDataType(DataType innerDataType) {
-		if (conversionClass == RowData.class) {
-			return innerDataType.bridgedTo(toInternalConversionClass(innerDataType.getLogicalType()));
-		}
-		return innerDataType;
-	}
+    private DataType updateInnerDataType(DataType innerDataType) {
+        if (conversionClass == RowData.class) {
+            return innerDataType.bridgedTo(
+                    toInternalConversionClass(innerDataType.getLogicalType()));
+        }
+        return innerDataType;
+    }
 }

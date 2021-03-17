@@ -35,73 +35,76 @@ import java.util.List;
 /**
  * Tests for {@code DataStream} collect methods.
  *
- * <b>Important:</b> This test does not use a shared
- * {@code MiniCluster} to validate collection on bounded streams
- * after the Flink session has completed.
+ * <p><b>Important:</b> This test does not use a shared {@code MiniCluster} to validate collection
+ * on bounded streams after the Flink session has completed.
  */
 public class DataStreamCollectTestITCase extends TestLogger {
 
-	@Test
-	public void testStreamingCollect() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testStreamingCollect() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataStream<Integer> stream = env.fromElements(1, 2, 3);
+        DataStream<Integer> stream = env.fromElements(1, 2, 3);
 
-		try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
-			List<Integer> results = CollectionUtil.iteratorToList(iterator);
-			Assert.assertThat("Failed to collect all data from the stream", results,
-					Matchers.containsInAnyOrder(1, 2, 3));
-		}
-	}
+        try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
+            List<Integer> results = CollectionUtil.iteratorToList(iterator);
+            Assert.assertThat(
+                    "Failed to collect all data from the stream",
+                    results,
+                    Matchers.containsInAnyOrder(1, 2, 3));
+        }
+    }
 
-	@Test
-	public void testStreamingCollectAndLimit() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testStreamingCollectAndLimit() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
+        DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
-		List<Integer> results = stream.executeAndCollect(1);
-		Assert.assertEquals(
-				"Failed to collect the correct number of elements from the stream",
-				1,
-				results.size());
-	}
+        List<Integer> results = stream.executeAndCollect(1);
+        Assert.assertEquals(
+                "Failed to collect the correct number of elements from the stream",
+                1,
+                results.size());
+    }
 
-	@Test
-	public void testBoundedCollect() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testBoundedCollect() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataStream<Integer> stream = env.fromElements(1, 2, 3);
+        DataStream<Integer> stream = env.fromElements(1, 2, 3);
 
-		Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, DataStreamCollectTestITCase.class.getClassLoader());
+        Configuration config = new Configuration();
+        config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        env.configure(config, DataStreamCollectTestITCase.class.getClassLoader());
 
-		try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
-			List<Integer> results = CollectionUtil.iteratorToList(iterator);
-			Assert.assertThat("Failed to collect all data from the stream", results,
-				Matchers.containsInAnyOrder(1, 2, 3));
-		}
-	}
+        try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
+            List<Integer> results = CollectionUtil.iteratorToList(iterator);
+            Assert.assertThat(
+                    "Failed to collect all data from the stream",
+                    results,
+                    Matchers.containsInAnyOrder(1, 2, 3));
+        }
+    }
 
-	@Test
-	public void testBoundedCollectAndLimit() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Test
+    public void testBoundedCollectAndLimit() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, DataStreamCollectTestITCase.class.getClassLoader());
+        Configuration config = new Configuration();
+        config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        env.configure(config, DataStreamCollectTestITCase.class.getClassLoader());
 
-		DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
+        DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
-		List<Integer> results = stream.executeAndCollect(1);
-		Assert.assertEquals(
-			"Failed to collect the correct number of elements from the stream",
-			1,
-			results.size());
-	}
+        List<Integer> results = stream.executeAndCollect(1);
+        Assert.assertEquals(
+                "Failed to collect the correct number of elements from the stream",
+                1,
+                results.size());
+    }
 }

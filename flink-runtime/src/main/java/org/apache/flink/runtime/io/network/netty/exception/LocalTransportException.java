@@ -22,13 +22,13 @@ import java.net.SocketAddress;
 
 public class LocalTransportException extends TransportException {
 
-	private static final long serialVersionUID = 2366708881288640674L;
+    private static final long serialVersionUID = 2366708881288640674L;
 
-	public LocalTransportException(String message, SocketAddress address) {
-		super(message, address);
-	}
+    public LocalTransportException(String message, SocketAddress address) {
+        super(message, address);
+    }
 
-	public LocalTransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, address, cause);
-	}
+    public LocalTransportException(String message, SocketAddress address, Throwable cause) {
+        super(message, address, cause);
+    }
 }

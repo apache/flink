@@ -23,38 +23,39 @@ import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 
-/**
- * This class encapsulates the data from the job manager to restore a task.
- */
+/** This class encapsulates the data from the job manager to restore a task. */
 public class JobManagerTaskRestore implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The id of the checkpoint from which we restore. */
-	private final long restoreCheckpointId;
+    /** The id of the checkpoint from which we restore. */
+    private final long restoreCheckpointId;
 
-	/** The state for this task to restore. */
-	private final TaskStateSnapshot taskStateSnapshot;
+    /** The state for this task to restore. */
+    private final TaskStateSnapshot taskStateSnapshot;
 
-	public JobManagerTaskRestore(@Nonnegative long restoreCheckpointId, @Nonnull TaskStateSnapshot taskStateSnapshot) {
-		this.restoreCheckpointId = restoreCheckpointId;
-		this.taskStateSnapshot = taskStateSnapshot;
-	}
+    public JobManagerTaskRestore(
+            @Nonnegative long restoreCheckpointId, @Nonnull TaskStateSnapshot taskStateSnapshot) {
+        this.restoreCheckpointId = restoreCheckpointId;
+        this.taskStateSnapshot = taskStateSnapshot;
+    }
 
-	public long getRestoreCheckpointId() {
-		return restoreCheckpointId;
-	}
+    public long getRestoreCheckpointId() {
+        return restoreCheckpointId;
+    }
 
-	@Nonnull
-	public TaskStateSnapshot getTaskStateSnapshot() {
-		return taskStateSnapshot;
-	}
+    @Nonnull
+    public TaskStateSnapshot getTaskStateSnapshot() {
+        return taskStateSnapshot;
+    }
 
-	@Override
-	public String toString() {
-		return "JobManagerTaskRestore{" +
-			"restoreCheckpointId=" + restoreCheckpointId +
-			", taskStateSnapshot=" + taskStateSnapshot +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "JobManagerTaskRestore{"
+                + "restoreCheckpointId="
+                + restoreCheckpointId
+                + ", taskStateSnapshot="
+                + taskStateSnapshot
+                + '}';
+    }
 }

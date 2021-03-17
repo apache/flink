@@ -37,184 +37,186 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.LinkedList;
 
-/**
- * The Batch Arrow Python {@link AggregateFunction} Operator for Group Window Aggregation.
- */
+/** The Batch Arrow Python {@link AggregateFunction} Operator for Group Window Aggregation. */
 @Internal
 public class BatchArrowPythonGroupWindowAggregateFunctionOperator
-	extends AbstractBatchArrowPythonAggregateFunctionOperator {
+        extends AbstractBatchArrowPythonAggregateFunctionOperator {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The Infos of the Window.
-	 * 0 -> start of the Window.
-	 * 1 -> end of the Window.
-	 * 2 -> row time of the Window.
-	 */
-	private final int[] namedProperties;
+    /**
+     * The Infos of the Window. 0 -> start of the Window. 1 -> end of the Window. 2 -> row time of
+     * the Window.
+     */
+    private final int[] namedProperties;
 
-	/**
-	 * The row time index of the input data.
-	 */
-	private final int inputTimeFieldIndex;
+    /** The row time index of the input data. */
+    private final int inputTimeFieldIndex;
 
-	/**
-	 * The window elements buffer size limit used in group window agg operator.
-	 */
-	private final int maxLimitSize;
+    /** The window elements buffer size limit used in group window agg operator. */
+    private final int maxLimitSize;
 
-	/**
-	 * The window size of the window.
-	 */
-	private final long windowSize;
+    /** The window size of the window. */
+    private final long windowSize;
 
-	/**
-	 * The sliding size of the sliding window.
-	 */
-	private final long slideSize;
+    /** The sliding size of the sliding window. */
+    private final long slideSize;
 
-	private transient WindowsGrouping windowsGrouping;
+    private transient WindowsGrouping windowsGrouping;
 
-	/**
-	 * The GenericRowData reused holding the property of the window, such as window start, window
-	 * end and window time.
-	 */
-	private transient GenericRowData windowProperty;
+    /**
+     * The GenericRowData reused holding the property of the window, such as window start, window
+     * end and window time.
+     */
+    private transient GenericRowData windowProperty;
 
-	/**
-	 * The JoinedRowData reused holding the window agg execution result.
-	 */
-	private transient JoinedRowData windowAggResult;
+    /** The JoinedRowData reused holding the window agg execution result. */
+    private transient JoinedRowData windowAggResult;
 
-	/**
-	 * The queue holding the input groupSet with the TimeWindow for which the execution results
-	 * have not been received.
-	 */
-	private transient LinkedList<Tuple2<RowData, TimeWindow>> inputKeyAndWindow;
+    /**
+     * The queue holding the input groupSet with the TimeWindow for which the execution results have
+     * not been received.
+     */
+    private transient LinkedList<Tuple2<RowData, TimeWindow>> inputKeyAndWindow;
 
-	/**
-	 * The type serializer for the forwarded fields.
-	 */
-	private transient RowDataSerializer forwardedInputSerializer;
+    /** The type serializer for the forwarded fields. */
+    private transient RowDataSerializer forwardedInputSerializer;
 
-	public BatchArrowPythonGroupWindowAggregateFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int inputTimeFieldIndex,
-		int maxLimitSize,
-		long windowSize,
-		long slideSize,
-		int[] namedProperties,
-		int[] groupKey,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, groupKey, groupingSet, udafInputOffsets);
-		this.namedProperties = namedProperties;
-		this.inputTimeFieldIndex = inputTimeFieldIndex;
-		this.maxLimitSize = maxLimitSize;
-		this.windowSize = windowSize;
-		this.slideSize = slideSize;
-	}
+    public BatchArrowPythonGroupWindowAggregateFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int inputTimeFieldIndex,
+            int maxLimitSize,
+            long windowSize,
+            long slideSize,
+            int[] namedProperties,
+            int[] groupKey,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                outputType,
+                groupKey,
+                groupingSet,
+                udafInputOffsets);
+        this.namedProperties = namedProperties;
+        this.inputTimeFieldIndex = inputTimeFieldIndex;
+        this.maxLimitSize = maxLimitSize;
+        this.windowSize = windowSize;
+        this.slideSize = slideSize;
+    }
 
-	@Override
-	public void open() throws Exception {
-		userDefinedFunctionOutputType = new RowType(
-			outputType.getFields().subList(groupingSet.length, outputType.getFieldCount() - namedProperties.length));
-		inputKeyAndWindow = new LinkedList<>();
-		windowProperty = new GenericRowData(namedProperties.length);
-		windowAggResult = new JoinedRowData();
-		windowsGrouping = new HeapWindowsGrouping(
-			maxLimitSize, windowSize, slideSize, inputTimeFieldIndex, false);
-		forwardedInputSerializer = new RowDataSerializer(inputType);
-		super.open();
-	}
+    @Override
+    public void open() throws Exception {
+        userDefinedFunctionOutputType =
+                new RowType(
+                        outputType
+                                .getFields()
+                                .subList(
+                                        groupingSet.length,
+                                        outputType.getFieldCount() - namedProperties.length));
+        inputKeyAndWindow = new LinkedList<>();
+        windowProperty = new GenericRowData(namedProperties.length);
+        windowAggResult = new JoinedRowData();
+        windowsGrouping =
+                new HeapWindowsGrouping(
+                        maxLimitSize, windowSize, slideSize, inputTimeFieldIndex, false);
+        forwardedInputSerializer = new RowDataSerializer(inputType);
+        super.open();
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		windowsGrouping.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        windowsGrouping.close();
+    }
 
-	@Override
-	public void bufferInput(RowData input) throws Exception {
-		BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
-		if (isNewKey(currentKey)) {
-			if (lastGroupKey != null) {
-				invokeCurrentBatch();
-			}
-			lastGroupKey = currentKey;
-			lastGroupSet = groupSetProjection.apply(input).copy();
-		}
-	}
+    @Override
+    public void bufferInput(RowData input) throws Exception {
+        BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
+        if (isNewKey(currentKey)) {
+            if (lastGroupKey != null) {
+                invokeCurrentBatch();
+            }
+            lastGroupKey = currentKey;
+            lastGroupSet = groupSetProjection.apply(input).copy();
+        }
+    }
 
-	@Override
-	protected void invokeCurrentBatch() throws Exception {
-		windowsGrouping.advanceWatermarkToTriggerAllWindows();
-		triggerWindowProcess();
-		windowsGrouping.reset();
-	}
+    @Override
+    protected void invokeCurrentBatch() throws Exception {
+        windowsGrouping.advanceWatermarkToTriggerAllWindows();
+        triggerWindowProcess();
+        windowsGrouping.reset();
+    }
 
-	@Override
-	public void processElementInternal(RowData value) throws Exception {
-		windowsGrouping.addInputToBuffer(forwardedInputSerializer.toBinaryRow(value).copy());
-		triggerWindowProcess();
-	}
+    @Override
+    public void processElementInternal(RowData value) throws Exception {
+        windowsGrouping.addInputToBuffer(forwardedInputSerializer.toBinaryRow(value).copy());
+        triggerWindowProcess();
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] udafResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(udafResult, 0, length);
-		int rowCount = arrowSerializer.load();
-		for (int i = 0; i < rowCount; i++) {
-			Tuple2<RowData, TimeWindow> input = inputKeyAndWindow.poll();
-			RowData key = input.f0;
-			TimeWindow window = input.f1;
-			setWindowProperty(window);
-			windowAggResult.replace(key, arrowSerializer.read(i));
-			rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
-		}
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] udafResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(udafResult, 0, length);
+        int rowCount = arrowSerializer.load();
+        for (int i = 0; i < rowCount; i++) {
+            Tuple2<RowData, TimeWindow> input = inputKeyAndWindow.poll();
+            RowData key = input.f0;
+            TimeWindow window = input.f1;
+            setWindowProperty(window);
+            windowAggResult.replace(key, arrowSerializer.read(i));
+            rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
+        }
+        arrowSerializer.resetReader();
+    }
 
-	private void triggerWindowProcess() throws Exception {
-		while (windowsGrouping.hasTriggerWindow()) {
-			RowIterator<BinaryRowData> elementIterator =
-				windowsGrouping.buildTriggerWindowElementsIterator();
-			while (elementIterator.advanceNext()) {
-				BinaryRowData winElement = elementIterator.getRow();
-				arrowSerializer.write(getFunctionInput(winElement));
-				currentBatchCount++;
-			}
-			if (currentBatchCount > 0) {
-				TimeWindow currentWindow = windowsGrouping.getTriggerWindow();
-				inputKeyAndWindow.add(Tuple2.of(lastGroupSet, currentWindow));
-				arrowSerializer.finishCurrentBatch();
-				pythonFunctionRunner.process(baos.toByteArray());
-				elementCount += currentBatchCount;
-				checkInvokeFinishBundleByCount();
-				currentBatchCount = 0;
-				baos.reset();
-			}
-		}
-	}
+    private void triggerWindowProcess() throws Exception {
+        while (windowsGrouping.hasTriggerWindow()) {
+            RowIterator<BinaryRowData> elementIterator =
+                    windowsGrouping.buildTriggerWindowElementsIterator();
+            while (elementIterator.advanceNext()) {
+                BinaryRowData winElement = elementIterator.getRow();
+                arrowSerializer.write(getFunctionInput(winElement));
+                currentBatchCount++;
+            }
+            if (currentBatchCount > 0) {
+                TimeWindow currentWindow = windowsGrouping.getTriggerWindow();
+                inputKeyAndWindow.add(Tuple2.of(lastGroupSet, currentWindow));
+                arrowSerializer.finishCurrentBatch();
+                pythonFunctionRunner.process(baos.toByteArray());
+                elementCount += currentBatchCount;
+                checkInvokeFinishBundleByCount();
+                currentBatchCount = 0;
+                baos.reset();
+                arrowSerializer.resetWriter();
+            }
+        }
+    }
 
-	private void setWindowProperty(TimeWindow currentWindow) {
-		for (int i = 0; i < namedProperties.length; i++) {
-			switch (namedProperties[i]) {
-				case 0:
-					windowProperty.setField(i, TimestampData.fromEpochMillis(currentWindow.getStart()));
-					break;
-				case 1:
-					windowProperty.setField(i, TimestampData.fromEpochMillis(currentWindow.getEnd()));
-					break;
-				case 2:
-					windowProperty.setField(i, TimestampData.fromEpochMillis(currentWindow.maxTimestamp()));
-					break;
-			}
-		}
-	}
+    private void setWindowProperty(TimeWindow currentWindow) {
+        for (int i = 0; i < namedProperties.length; i++) {
+            switch (namedProperties[i]) {
+                case 0:
+                    windowProperty.setField(
+                            i, TimestampData.fromEpochMillis(currentWindow.getStart()));
+                    break;
+                case 1:
+                    windowProperty.setField(
+                            i, TimestampData.fromEpochMillis(currentWindow.getEnd()));
+                    break;
+                case 2:
+                    windowProperty.setField(
+                            i, TimestampData.fromEpochMillis(currentWindow.maxTimestamp()));
+                    break;
+            }
+        }
+    }
 }

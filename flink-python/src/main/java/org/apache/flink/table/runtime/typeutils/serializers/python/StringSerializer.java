@@ -29,10 +29,10 @@ import org.apache.flink.table.runtime.util.StringUtf8Utils;
 import java.io.IOException;
 
 /**
- * <p>We create the StringSerializer instead of using the StringSerializer of flink-core module
- * because the StringSerializer of flink-core module serialize every Char of String in serialize
- * method and deserialize the Char to build the String. We want to convert String to UTF-8 bytes
- * to serialize which is compatible with BinaryStringSerializer in blink.</p>
+ * We create the StringSerializer instead of using the StringSerializer of flink-core module because
+ * the StringSerializer of flink-core module serialize every Char of String in serialize method and
+ * deserialize the Char to build the String. We want to convert String to UTF-8 bytes to serialize
+ * which is compatible with BinaryStringSerializer in blink.
  *
  * <p>So we create this StringSerializer (only used in Java and Python data communication in udf).
  *
@@ -41,82 +41,81 @@ import java.io.IOException;
 @Internal
 public class StringSerializer extends TypeSerializerSingleton<String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final StringSerializer INSTANCE = new StringSerializer();
+    public static final StringSerializer INSTANCE = new StringSerializer();
 
-	private static final String EMPTY = "";
+    private static final String EMPTY = "";
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return true;
+    }
 
-	@Override
-	public String createInstance() {
-		return EMPTY;
-	}
+    @Override
+    public String createInstance() {
+        return EMPTY;
+    }
 
-	@Override
-	public String copy(String from) {
-		return from;
-	}
+    @Override
+    public String copy(String from) {
+        return from;
+    }
 
-	@Override
-	public String copy(String from, String reuse) {
-		return from;
-	}
+    @Override
+    public String copy(String from, String reuse) {
+        return from;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(String record, DataOutputView target) throws IOException {
-		if (record == null) {
-			throw new IllegalArgumentException("The String record must not be null.");
-		}
-		byte[] bytes = StringUtf8Utils.encodeUTF8(record);
-		target.writeInt(bytes.length);
-		target.write(bytes);
-	}
+    @Override
+    public void serialize(String record, DataOutputView target) throws IOException {
+        if (record == null) {
+            throw new IllegalArgumentException("The String record must not be null.");
+        }
+        byte[] bytes = StringUtf8Utils.encodeUTF8(record);
+        target.writeInt(bytes.length);
+        target.write(bytes);
+    }
 
-	@Override
-	public String deserialize(DataInputView source) throws IOException {
-		int len = source.readInt();
-		byte[] bytes = new byte[len];
-		source.read(bytes);
-		return StringUtf8Utils.decodeUTF8(bytes, 0, len);
-	}
+    @Override
+    public String deserialize(DataInputView source) throws IOException {
+        int len = source.readInt();
+        byte[] bytes = new byte[len];
+        source.read(bytes);
+        return StringUtf8Utils.decodeUTF8(bytes, 0, len);
+    }
 
-	@Override
-	public String deserialize(String reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public String deserialize(String reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int len = source.readInt();
-		target.writeInt(len);
-		byte[] bytes = new byte[len];
-		source.read(bytes);
-		target.write(bytes);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        int len = source.readInt();
+        target.writeInt(len);
+        byte[] bytes = new byte[len];
+        source.read(bytes);
+        target.write(bytes);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<String> snapshotConfiguration() {
-		return new StringSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<String> snapshotConfiguration() {
+        return new StringSerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class StringSerializerSnapshot extends SimpleTypeSerializerSnapshot<String> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class StringSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<String> {
 
-		public StringSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public StringSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

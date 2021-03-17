@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -76,16 +76,26 @@ under the License.
 							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
+									<pattern>org.apache.kafka</pattern>
+									<shadedPattern>org.apache.flink.avro.registry.confluent.shaded.org.apache.kafka</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.confluent</pattern>
+									<shadedPattern>org.apache.flink.avro.registry.confluent.shaded.io.confluent</shadedPattern>
+								</relocation>
+								<!--The following modules must have the same shading pattern as in flink-sql-avro. It is needed to be able to put
+									both the flink-sql-avro & flink-sql-avro-confluent on the classpath -->
+								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>org.apache.flink.avro.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.avro</pattern>
+									<shadedPattern>org.apache.flink.avro.shaded.org.apache.avro</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.commons.compress</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.commons.compress</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.kafka</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.kafka</shadedPattern>
+									<shadedPattern>org.apache.flink.avro.shaded.org.apache.commons.compress</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

@@ -29,25 +29,24 @@ import java.time.Duration;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * unit test for ClientOptions.
- */
+/** unit test for ClientOptions. */
 @RunWith(JUnit4.class)
 public class ClientOptionsTest {
 
-	@Test
-	public void testGetClientTimeout() {
-		Configuration configuration = new Configuration();
-		configuration.set(ClientOptions.CLIENT_TIMEOUT, Duration.ofSeconds(10));
+    @Test
+    public void testGetClientTimeout() {
+        Configuration configuration = new Configuration();
+        configuration.set(ClientOptions.CLIENT_TIMEOUT, Duration.ofSeconds(10));
 
-		assertEquals(configuration.get(ClientOptions.CLIENT_TIMEOUT), Duration.ofSeconds(10));
+        assertEquals(configuration.get(ClientOptions.CLIENT_TIMEOUT), Duration.ofSeconds(10));
 
-		configuration = new Configuration();
-		configuration.set(AkkaOptions.CLIENT_TIMEOUT, "20 s");
-		assertEquals(configuration.get(ClientOptions.CLIENT_TIMEOUT), Duration.ofSeconds(20));
+        configuration = new Configuration();
+        configuration.set(AkkaOptions.CLIENT_TIMEOUT, "20 s");
+        assertEquals(configuration.get(ClientOptions.CLIENT_TIMEOUT), Duration.ofSeconds(20));
 
-		configuration = new Configuration();
-		assertEquals(configuration.get(ClientOptions.CLIENT_TIMEOUT), ClientOptions.CLIENT_TIMEOUT.defaultValue());
-	}
-
+        configuration = new Configuration();
+        assertEquals(
+                configuration.get(ClientOptions.CLIENT_TIMEOUT),
+                ClientOptions.CLIENT_TIMEOUT.defaultValue());
+    }
 }

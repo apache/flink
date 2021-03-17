@@ -34,85 +34,121 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class CheckpointMetricsBuilder {
-	private CompletableFuture<Long> bytesProcessedDuringAlignment = new CompletableFuture<>();
-	private long bytesPersistedDuringAlignment = -1L;
-	private CompletableFuture<Long> alignmentDurationNanos = new CompletableFuture<>();
-	private long syncDurationMillis = -1L;
-	private long asyncDurationMillis = -1L;
-	private long checkpointStartDelayNanos = -1L;
+    private CompletableFuture<Long> bytesProcessedDuringAlignment = new CompletableFuture<>();
+    private long bytesPersistedDuringAlignment = -1L;
+    private CompletableFuture<Long> alignmentDurationNanos = new CompletableFuture<>();
+    private long syncDurationMillis = -1L;
+    private long asyncDurationMillis = -1L;
+    private long checkpointStartDelayNanos = -1L;
+    private boolean unalignedCheckpoint = false;
+    private long totalBytesPersisted = -1L;
 
-	public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(long bytesProcessedDuringAlignment) {
-		checkState(this.bytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment), "bytesProcessedDuringAlignment has already been completed by someone else");
-		return this;
-	}
+    public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
+            long bytesProcessedDuringAlignment) {
+        checkState(
+                this.bytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment),
+                "bytesProcessedDuringAlignment has already been completed by someone else");
+        return this;
+    }
 
-	public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(CompletableFuture<Long> bytesProcessedDuringAlignment) {
-		this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
-		return this;
-	}
+    public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
+            CompletableFuture<Long> bytesProcessedDuringAlignment) {
+        this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
+        return this;
+    }
 
-	public CompletableFuture<Long> getBytesProcessedDuringAlignment() {
-		return bytesProcessedDuringAlignment;
-	}
+    public CompletableFuture<Long> getBytesProcessedDuringAlignment() {
+        return bytesProcessedDuringAlignment;
+    }
 
-	public CheckpointMetricsBuilder setBytesPersistedDuringAlignment(long bytesPersistedDuringAlignment) {
-		this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
-		return this;
-	}
+    public CheckpointMetricsBuilder setBytesPersistedDuringAlignment(
+            long bytesPersistedDuringAlignment) {
+        this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
+        return this;
+    }
 
-	public long getAlignmentDurationNanosOrDefault() {
-		return FutureUtils.getOrDefault(alignmentDurationNanos, -1L);
-	}
+    public long getAlignmentDurationNanosOrDefault() {
+        return FutureUtils.getOrDefault(alignmentDurationNanos, -1L);
+    }
 
-	public CheckpointMetricsBuilder setAlignmentDurationNanos(long alignmentDurationNanos) {
-		checkState(this.alignmentDurationNanos.complete(alignmentDurationNanos), "alignmentDurationNanos has already been completed by someone else");
-		return this;
-	}
+    public CheckpointMetricsBuilder setAlignmentDurationNanos(long alignmentDurationNanos) {
+        checkState(
+                this.alignmentDurationNanos.complete(alignmentDurationNanos),
+                "alignmentDurationNanos has already been completed by someone else");
+        return this;
+    }
 
-	public CheckpointMetricsBuilder setAlignmentDurationNanos(CompletableFuture<Long> alignmentDurationNanos) {
-		checkState(!this.alignmentDurationNanos.isDone(), "alignmentDurationNanos has already been completed by someone else");
-		this.alignmentDurationNanos = alignmentDurationNanos;
-		return this;
-	}
+    public CheckpointMetricsBuilder setAlignmentDurationNanos(
+            CompletableFuture<Long> alignmentDurationNanos) {
+        checkState(
+                !this.alignmentDurationNanos.isDone(),
+                "alignmentDurationNanos has already been completed by someone else");
+        this.alignmentDurationNanos = alignmentDurationNanos;
+        return this;
+    }
 
-	public CompletableFuture<Long> getAlignmentDurationNanos() {
-		return alignmentDurationNanos;
-	}
+    public CompletableFuture<Long> getAlignmentDurationNanos() {
+        return alignmentDurationNanos;
+    }
 
-	public CheckpointMetricsBuilder setSyncDurationMillis(long syncDurationMillis) {
-		this.syncDurationMillis = syncDurationMillis;
-		return this;
-	}
+    public CheckpointMetricsBuilder setSyncDurationMillis(long syncDurationMillis) {
+        this.syncDurationMillis = syncDurationMillis;
+        return this;
+    }
 
-	public long getSyncDurationMillis() {
-		return syncDurationMillis;
-	}
+    public long getSyncDurationMillis() {
+        return syncDurationMillis;
+    }
 
-	public CheckpointMetricsBuilder setAsyncDurationMillis(long asyncDurationMillis) {
-		this.asyncDurationMillis = asyncDurationMillis;
-		return this;
-	}
+    public CheckpointMetricsBuilder setAsyncDurationMillis(long asyncDurationMillis) {
+        this.asyncDurationMillis = asyncDurationMillis;
+        return this;
+    }
 
-	public long getAsyncDurationMillis() {
-		return asyncDurationMillis;
-	}
+    public long getAsyncDurationMillis() {
+        return asyncDurationMillis;
+    }
 
-	public CheckpointMetricsBuilder setCheckpointStartDelayNanos(long checkpointStartDelayNanos) {
-		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
-		return this;
-	}
+    public CheckpointMetricsBuilder setCheckpointStartDelayNanos(long checkpointStartDelayNanos) {
+        this.checkpointStartDelayNanos = checkpointStartDelayNanos;
+        return this;
+    }
 
-	public long getCheckpointStartDelayNanos() {
-		return checkpointStartDelayNanos;
-	}
+    public long getCheckpointStartDelayNanos() {
+        return checkpointStartDelayNanos;
+    }
 
-	public CheckpointMetrics build() {
-		return new CheckpointMetrics(
-			checkStateAndGet(bytesProcessedDuringAlignment),
-			bytesPersistedDuringAlignment,
-			checkStateAndGet(alignmentDurationNanos),
-			syncDurationMillis,
-			asyncDurationMillis,
-			checkpointStartDelayNanos);
-	}
+    public CheckpointMetricsBuilder setUnalignedCheckpoint(boolean unalignedCheckpoint) {
+        this.unalignedCheckpoint = unalignedCheckpoint;
+        return this;
+    }
+
+    public CheckpointMetricsBuilder setTotalBytesPersisted(long totalBytesPersisted) {
+        this.totalBytesPersisted = totalBytesPersisted;
+        return this;
+    }
+
+    public CheckpointMetrics build() {
+        return new CheckpointMetrics(
+                checkStateAndGet(bytesProcessedDuringAlignment),
+                bytesPersistedDuringAlignment,
+                checkStateAndGet(alignmentDurationNanos),
+                syncDurationMillis,
+                asyncDurationMillis,
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
+    }
+
+    public CheckpointMetrics buildIncomplete() {
+        return new CheckpointMetrics(
+                bytesProcessedDuringAlignment.getNow(CheckpointMetrics.UNSET),
+                bytesPersistedDuringAlignment,
+                alignmentDurationNanos.getNow(CheckpointMetrics.UNSET),
+                syncDurationMillis,
+                asyncDurationMillis,
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
+    }
 }

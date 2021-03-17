@@ -22,17 +22,11 @@ limitations under the License.
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -44,33 +38,19 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[EXPR$0], changelogMode=[I,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0], changelogMode=[I,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[a], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[EXPR$0])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -80,17 +60,11 @@ Calc(select=[EXPR$0], changelogMode=[I,UA]): rowcount = , cumulative cost = {row
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -100,17 +74,11 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -120,17 +88,11 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -142,33 +104,19 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[EXPR$0])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -179,22 +127,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[((a MOD 2) = 0)])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -205,22 +144,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[((a MOD 2) = 0)])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -233,7 +163,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c, e, f])
 +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
@@ -241,29 +171,13 @@ Calc(select=[a, b, c, e, f])
    +- Exchange(distribution=[hash[d]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[a, b, c, e, f])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, e, f])
++- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -276,26 +190,15 @@ LogicalUnion(all=[true])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Union(all=[true], union=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 :- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Union(all=[true], union=[a, b, c])
+:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -308,7 +211,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c, e, f], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    :- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -316,29 +219,13 @@ Calc(select=[a, b, c, e, f], changelogMode=[I]): rowcount = , cumulative cost = 
    +- Exchange(distribution=[hash[d]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[a, b, c, e, f])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, e, f])
++- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -359,68 +246,34 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fie
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], reuse_id=[1])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[>(cnt, 10)])
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[<(cnt, 10)])
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
-
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[a, cnt], where=[(cnt > 10)])
-					ship_strategy : FORWARD
-
-					 : Operator
-						content : SinkConversionToTuple2
-						ship_strategy : FORWARD
-
-						 : Operator
-							content : Map
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : Calc(select=[a, cnt], where=[(cnt < 10)])
-								ship_strategy : FORWARD
-
-								 : Operator
-									content : SinkConversionToTuple2
-									ship_strategy : FORWARD
-
-									 : Operator
-										content : Map
-										ship_strategy : FORWARD
-
-										 : Data Sink
-											content : Sink: TestingUpsertTableSink(keys=(0))
-											ship_strategy : FORWARD
-
-											 : Data Sink
-												content : Sink: TestingUpsertTableSink(keys=(0))
-												ship_strategy : FORWARD
-
 ]]>
     </Resource>
   </TestCase>
@@ -441,68 +294,34 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fie
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- Calc(select=[a], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-
+== Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- Reused(reference_id=[1])
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[a], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[a], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
-				ship_strategy : HASH
-
-				 : Operator
-					content : Calc(select=[a, cnt], where=[(cnt > 10)])
-					ship_strategy : FORWARD
-
-					 : Operator
-						content : SinkConversionToTuple2
-						ship_strategy : FORWARD
-
-						 : Operator
-							content : Map
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : Calc(select=[a, cnt], where=[(cnt < 10)])
-								ship_strategy : FORWARD
-
-								 : Operator
-									content : SinkConversionToTuple2
-									ship_strategy : FORWARD
-
-									 : Operator
-										content : Map
-										ship_strategy : FORWARD
-
-										 : Data Sink
-											content : Sink: TestingUpsertTableSink(keys=(0))
-											ship_strategy : FORWARD
-
-											 : Data Sink
-												content : Sink: TestingUpsertTableSink(keys=(0))
-												ship_strategy : FORWARD
-
+LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -514,31 +333,15 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[(a > 10)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				 : Data Sink
-					content : Sink: TestingAppendTableSink
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
++- Calc(select=[a, b, c], where=[(a > 10)])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -550,31 +353,15 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[(a > 10)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				 : Data Sink
-					content : Sink: TestingAppendTableSink
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
++- Calc(select=[a, b, c], where=[(a > 10)])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -585,23 +372,15 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
-			ship_strategy : GLOBAL
-
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -612,23 +391,15 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy], changelogMode=[I,UA,D]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Exchange(distribution=[single], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
-			ship_strategy : GLOBAL
-
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -657,86 +428,51 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-== Optimized Logical Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], changelogMode=[I], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-:- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-
+== Optimized Physical Plan ==
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- Reused(reference_id=[1])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- Exchange(distribution=[hash[id2]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
+:- Exchange(distribution=[hash[id1]])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+:     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
++- Exchange(distribution=[hash[id2]])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
+      +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
          +- Reused(reference_id=[1])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SourceConversion(table=[default_catalog.default_database.T2], fields=[id2, cnt, name, goods, rowtime])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-					ship_strategy : FORWARD
-
-					 : Operator
-						content : IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
-						ship_strategy : HASH
-
-						 : Operator
-							content : Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-								ship_strategy : HASH
-
-								 : Operator
-									content : SinkConversionToRow
-									ship_strategy : FORWARD
-
-									 : Operator
-										content : Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
-										ship_strategy : FORWARD
-
-										 : Operator
-											content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-											ship_strategy : HASH
-
-											 : Operator
-												content : SinkConversionToRow
-												ship_strategy : FORWARD
-
-												 : Data Sink
-													content : Sink: TestingAppendTableSink
-													ship_strategy : FORWARD
-
-													 : Data Sink
-														content : Sink: TestingAppendTableSink
-														ship_strategy : FORWARD
-
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -749,26 +485,15 @@ LogicalUnion(all=[true])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Union(all=[true], union=[a, b, c])
 :- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Union(all=[true], union=[a, b, c])
+:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -797,13 +522,38 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-== Optimized Logical Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0], reuse_id=[1])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
+            :- Exchange(distribution=[hash[id1]])
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+            +- Exchange(distribution=[hash[id2]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
+   +- Exchange(distribution=[hash[id1]])
+      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
+         +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
+            :- Exchange(distribution=[hash[id1]])
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
+            +- Exchange(distribution=[hash[id2]])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+                  +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+
+== Optimized Execution Plan ==
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])(reuse_id=[1])
 :- Exchange(distribution=[hash[id1]])
-:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+:  +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
 :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
 +- Exchange(distribution=[hash[id2]])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
       +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
@@ -817,66 +567,6 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a,
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
          +- Reused(reference_id=[1])
-
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.T1], fields=[id1, text, rowtime])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SourceConversion(table=[default_catalog.default_database.T2], fields=[id2, cnt, name, goods, rowtime])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
-					ship_strategy : FORWARD
-
-					 : Operator
-						content : IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=4], where=[((id1 = id2) AND (CAST(rowtime) > (CAST(rowtime0) - 300000:INTERVAL MINUTE)) AND (CAST(rowtime) < (CAST(rowtime0) + 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, cnt, name, goods, rowtime0])
-						ship_strategy : HASH
-
-						 : Operator
-							content : Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-								ship_strategy : HASH
-
-								 : Operator
-									content : SinkConversionToRow
-									ship_strategy : FORWARD
-
-									 : Operator
-										content : Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
-										ship_strategy : FORWARD
-
-										 : Operator
-											content : GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-											ship_strategy : HASH
-
-											 : Operator
-												content : SinkConversionToRow
-												ship_strategy : FORWARD
-
-												 : Data Sink
-													content : Sink: TestingAppendTableSink
-													ship_strategy : FORWARD
-
-													 : Data Sink
-														content : Sink: TestingAppendTableSink
-														ship_strategy : FORWARD
-
 ]]>
     </Resource>
   </TestCase>

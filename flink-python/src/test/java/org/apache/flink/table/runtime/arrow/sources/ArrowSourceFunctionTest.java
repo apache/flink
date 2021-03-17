@@ -43,75 +43,77 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Tests for {@link ArrowSourceFunction}.
- */
+/** Tests for {@link ArrowSourceFunction}. */
 public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData> {
 
-	private static List<LogicalType> fieldTypes = new ArrayList<>();
-	private static RowType rowType;
-	private static DataType dataType;
-	private static RowDataSerializer serializer;
-	private static BufferAllocator allocator;
+    private static List<LogicalType> fieldTypes = new ArrayList<>();
+    private static RowType rowType;
+    private static DataType dataType;
+    private static RowDataSerializer serializer;
+    private static BufferAllocator allocator;
 
-	public ArrowSourceFunctionTest() {
-		super(VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator),
-			serializer,
-			Comparator.comparing(o -> o.getString(0)),
-			new DeeplyEqualsChecker()
-				.withCustomCheck(
-					(o1, o2) -> o1 instanceof RowData && o2 instanceof RowData,
-					(o1, o2, checker) -> deepEqualsBaseRow(
-						(RowData) o1,
-						(RowData) o2,
-						(RowDataSerializer) serializer.duplicate(),
-						(RowDataSerializer) serializer.duplicate())));
-	}
+    public ArrowSourceFunctionTest() {
+        super(
+                VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator),
+                serializer,
+                Comparator.comparing(o -> o.getString(0)),
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o1, o2) -> o1 instanceof RowData && o2 instanceof RowData,
+                                (o1, o2, checker) ->
+                                        deepEqualsBaseRow(
+                                                (RowData) o1,
+                                                (RowData) o2,
+                                                (RowDataSerializer) serializer.duplicate(),
+                                                (RowDataSerializer) serializer.duplicate())));
+    }
 
-	private static boolean deepEqualsBaseRow(
-		RowData should, RowData is,
-		RowDataSerializer serializer1, RowDataSerializer serializer2) {
-		if (should.getArity() != is.getArity()) {
-			return false;
-		}
-		BinaryRowData row1 = serializer1.toBinaryRow(should);
-		BinaryRowData row2 = serializer2.toBinaryRow(is);
+    private static boolean deepEqualsBaseRow(
+            RowData should,
+            RowData is,
+            RowDataSerializer serializer1,
+            RowDataSerializer serializer2) {
+        if (should.getArity() != is.getArity()) {
+            return false;
+        }
+        BinaryRowData row1 = serializer1.toBinaryRow(should);
+        BinaryRowData row2 = serializer2.toBinaryRow(is);
 
-		return Objects.equals(row1, row2);
-	}
+        return Objects.equals(row1, row2);
+    }
 
-	@BeforeClass
-	public static void init() {
-		fieldTypes.add(new VarCharType());
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		for (int i = 0; i < fieldTypes.size(); i++) {
-			rowFields.add(new RowType.RowField("f" + i, fieldTypes.get(i)));
-		}
-		rowType = new RowType(rowFields);
-		dataType = TypeConversions.fromLogicalToDataType(rowType);
-		serializer = new RowDataSerializer(fieldTypes.toArray(new LogicalType[0]));
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
-	}
+    @BeforeClass
+    public static void init() {
+        fieldTypes.add(new VarCharType());
+        List<RowType.RowField> rowFields = new ArrayList<>();
+        for (int i = 0; i < fieldTypes.size(); i++) {
+            rowFields.add(new RowType.RowField("f" + i, fieldTypes.get(i)));
+        }
+        rowType = new RowType(rowFields);
+        dataType = TypeConversions.fromLogicalToDataType(rowType);
+        serializer = new RowDataSerializer(fieldTypes.toArray(new LogicalType[0]));
+        allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
+    }
 
-	@Override
-	public Tuple2<List<RowData>, Integer> getTestData() {
-		return Tuple2.of(
-			Arrays.asList(
-				GenericRowData.of(BinaryStringData.fromString("aaa")),
-				GenericRowData.of(BinaryStringData.fromString("bbb")),
-				GenericRowData.of(BinaryStringData.fromString("ccc")),
-				GenericRowData.of(BinaryStringData.fromString("ddd")),
-				GenericRowData.of(BinaryStringData.fromString("eee"))),
-			3);
-	}
+    @Override
+    public Tuple2<List<RowData>, Integer> getTestData() {
+        return Tuple2.of(
+                Arrays.asList(
+                        GenericRowData.of(BinaryStringData.fromString("aaa")),
+                        GenericRowData.of(BinaryStringData.fromString("bbb")),
+                        GenericRowData.of(BinaryStringData.fromString("ccc")),
+                        GenericRowData.of(BinaryStringData.fromString("ddd")),
+                        GenericRowData.of(BinaryStringData.fromString("eee"))),
+                3);
+    }
 
-	@Override
-	public ArrowWriter<RowData> createArrowWriter() {
-		return ArrowUtils.createRowDataArrowWriter(root, rowType);
-	}
+    @Override
+    public ArrowWriter<RowData> createArrowWriter() {
+        return ArrowUtils.createRowDataArrowWriter(root, rowType);
+    }
 
-	@Override
-	public AbstractArrowSourceFunction<RowData> createArrowSourceFunction(byte[][] arrowData) {
-		return new ArrowSourceFunction(dataType, arrowData);
-	}
+    @Override
+    public AbstractArrowSourceFunction<RowData> createArrowSourceFunction(byte[][] arrowData) {
+        return new ArrowSourceFunction(dataType, arrowData);
+    }
 }

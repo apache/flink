@@ -37,7 +37,7 @@ class SetOperatorsTest extends TableTestBase {
     val elements = t.where("b === 'two'").select($"a").as("a1")
     val in = t.select($"*").where('c.in(elements))
 
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 
   @Test
@@ -47,6 +47,6 @@ class SetOperatorsTest extends TableTestBase {
 
     val in = t.select($"b" in ("1972-02-22 07:12:00.333".toTimestamp)).as("b2")
 
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 }

@@ -27,67 +27,62 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 
-/**
- * Test for {@link ArrayDataSerializer}.
- */
+/** Test for {@link ArrayDataSerializer}. */
 public class ArrayDataSerializerTest {
 
-	/**
-	 * Test for ArrayData with Primitive data type.
-	 */
-	public static class BaseArrayWithPrimitiveTest extends SerializerTestBase<ArrayData> {
-		@Override
-		protected TypeSerializer<ArrayData> createSerializer() {
-			return new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
-		}
+    /** Test for ArrayData with Primitive data type. */
+    public static class BaseArrayWithPrimitiveTest extends SerializerTestBase<ArrayData> {
+        @Override
+        protected TypeSerializer<ArrayData> createSerializer() {
+            return new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
+        }
 
-		@Override
-		protected int getLength() {
-			return -1;
-		}
+        @Override
+        protected int getLength() {
+            return -1;
+        }
 
-		@Override
-		protected Class<ArrayData> getTypeClass() {
-			return ArrayData.class;
-		}
+        @Override
+        protected Class<ArrayData> getTypeClass() {
+            return ArrayData.class;
+        }
 
-		@Override
-		protected ArrayData[] getTestData() {
-			return new BinaryArrayData[]{BinaryArrayData.fromPrimitiveArray(new long[]{100L})};
-		}
-	}
+        @Override
+        protected ArrayData[] getTestData() {
+            return new BinaryArrayData[] {BinaryArrayData.fromPrimitiveArray(new long[] {100L})};
+        }
+    }
 
-	/**
-	 * Test for ArrayData with ArrayData data type.
-	 */
-	public static class ArrayDataWithBinaryArrayTest extends SerializerTestBase<ArrayData> {
+    /** Test for ArrayData with ArrayData data type. */
+    public static class ArrayDataWithBinaryArrayTest extends SerializerTestBase<ArrayData> {
 
-		@Override
-		protected TypeSerializer<ArrayData> createSerializer() {
-			return new ArrayDataSerializer(new ArrayType(new BigIntType()),
-				new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE));
-		}
+        @Override
+        protected TypeSerializer<ArrayData> createSerializer() {
+            return new ArrayDataSerializer(
+                    new ArrayType(new BigIntType()),
+                    new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE));
+        }
 
-		@Override
-		protected int getLength() {
-			return -1;
-		}
+        @Override
+        protected int getLength() {
+            return -1;
+        }
 
-		@Override
-		protected Class<ArrayData> getTypeClass() {
-			return ArrayData.class;
-		}
+        @Override
+        protected Class<ArrayData> getTypeClass() {
+            return ArrayData.class;
+        }
 
-		@Override
-		protected ArrayData[] getTestData() {
-			BinaryArrayData elementArray = BinaryArrayData.fromPrimitiveArray(new long[]{100L});
-			ArrayDataSerializer elementTypeSerializer =
-				new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
-			BinaryArrayData array = new BinaryArrayData();
-			BinaryArrayWriter writer = new BinaryArrayWriter(array, 1, 8);
-			writer.writeArray(0, elementArray, elementTypeSerializer);
-			writer.complete();
-			return new BinaryArrayData[]{array};
-		}
-	}
+        @Override
+        protected ArrayData[] getTestData() {
+            BinaryArrayData elementArray = BinaryArrayData.fromPrimitiveArray(new long[] {100L});
+            ArrayDataSerializer elementTypeSerializer =
+                    new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
+            BinaryArrayData array = new BinaryArrayData();
+            BinaryArrayWriter writer = new BinaryArrayWriter(array, 1, 8);
+            writer.writeArray(0, elementArray, elementTypeSerializer);
+            writer.complete();
+            return new BinaryArrayData[] {array};
+        }
+    }
 }

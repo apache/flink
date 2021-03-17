@@ -28,31 +28,31 @@ import org.apache.flink.table.expressions.Expression;
 
 import java.util.Arrays;
 
-/**
- * Util class for testing {@link org.apache.flink.ml.api.core.PipelineStage}.
- */
+/** Util class for testing {@link org.apache.flink.ml.api.core.PipelineStage}. */
 public class UserDefinedPipelineStages {
 
-	/**
-	 * A {@link Transformer} which is used to perform column selection.
-	 */
-	public static class SelectColumnTransformer implements
-		Transformer<SelectColumnTransformer>, HasSelectedCols<SelectColumnTransformer> {
+    /** A {@link Transformer} which is used to perform column selection. */
+    public static class SelectColumnTransformer
+            implements Transformer<SelectColumnTransformer>,
+                    HasSelectedCols<SelectColumnTransformer> {
 
-		private Params params;
+        private Params params;
 
-		public SelectColumnTransformer() {
-			this.params = new Params();
-		}
+        public SelectColumnTransformer() {
+            this.params = new Params();
+        }
 
-		@Override
-		public Table transform(TableEnvironment tEnv, Table input) {
-			return input.select(Arrays.stream(this.getSelectedCols()).map(Expressions::$).toArray(Expression[]::new));
-		}
+        @Override
+        public Table transform(TableEnvironment tEnv, Table input) {
+            return input.select(
+                    Arrays.stream(this.getSelectedCols())
+                            .map(Expressions::$)
+                            .toArray(Expression[]::new));
+        }
 
-		@Override
-		public Params getParams() {
-			return params;
-		}
-	}
+        @Override
+        public Params getParams() {
+            return params;
+        }
+    }
 }

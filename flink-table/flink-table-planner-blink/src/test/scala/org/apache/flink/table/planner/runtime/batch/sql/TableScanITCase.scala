@@ -56,12 +56,12 @@ class TableScanITCase extends BatchTestBase {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     checkResult(
-      s"SELECT name FROM $tableName",
+      s"SELECT name, CHAR_LENGTH(DATE_FORMAT(ptime, 'yyyy-MM-dd HH:mm')) FROM $tableName",
       Seq(
-        row("Mary"),
-        row("Peter"),
-        row("Bob"),
-        row("Liz"))
+        row("Mary", 16),
+        row("Peter", 16),
+        row("Bob", 16),
+        row("Liz", 16))
     )
   }
 

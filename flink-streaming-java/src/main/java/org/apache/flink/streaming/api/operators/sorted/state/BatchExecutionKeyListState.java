@@ -29,73 +29,72 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link ListState} which keeps value for a single key at a time.
- */
+/** A {@link ListState} which keeps value for a single key at a time. */
 class BatchExecutionKeyListState<K, N, T>
-		extends MergingAbstractBatchExecutionKeyState<K, N, List<T>, T, Iterable<T>>
-		implements InternalListState<K, N, T> {
+        extends MergingAbstractBatchExecutionKeyState<K, N, List<T>, T, Iterable<T>>
+        implements InternalListState<K, N, T> {
 
-	protected BatchExecutionKeyListState(
-			List<T> defaultValue,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<List<T>> stateTypeSerializer) {
-		super(defaultValue, keySerializer, namespaceSerializer, stateTypeSerializer);
-	}
+    protected BatchExecutionKeyListState(
+            List<T> defaultValue,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<List<T>> stateTypeSerializer) {
+        super(defaultValue, keySerializer, namespaceSerializer, stateTypeSerializer);
+    }
 
-	@Override
-	public void update(List<T> values) {
-		checkNotNull(values);
-		clear();
-		for (T value : values) {
-			add(value);
-		}
-	}
+    @Override
+    public void update(List<T> values) {
+        checkNotNull(values);
+        clear();
+        for (T value : values) {
+            add(value);
+        }
+    }
 
-	@Override
-	public void addAll(List<T> values) {
-		if (checkNotNull(values).isEmpty()) {
-			return;
-		}
-		for (T value : values) {
-			add(value);
-		}
-	}
+    @Override
+    public void addAll(List<T> values) {
+        if (checkNotNull(values).isEmpty()) {
+            return;
+        }
+        for (T value : values) {
+            add(value);
+        }
+    }
 
-	@Override
-	public void add(T value) {
-		checkNotNull(value);
-		initIfNull();
-		getCurrentNamespaceValue().add(value);
-	}
+    @Override
+    public void add(T value) {
+        checkNotNull(value);
+        initIfNull();
+        getCurrentNamespaceValue().add(value);
+    }
 
-	private void initIfNull() {
-		if (getCurrentNamespaceValue() == null) {
-			setCurrentNamespaceValue(new ArrayList<>());
-		}
-	}
+    private void initIfNull() {
+        if (getCurrentNamespaceValue() == null) {
+            setCurrentNamespaceValue(new ArrayList<>());
+        }
+    }
 
-	@Override
-	public Iterable<T> get() throws Exception {
-		return getCurrentNamespaceValue();
-	}
+    @Override
+    public Iterable<T> get() throws Exception {
+        return getCurrentNamespaceValue();
+    }
 
-	@SuppressWarnings("unchecked")
-	static <T, K, N, SV, S extends State, IS extends S> IS create(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, SV> stateDesc) {
-		return (IS) new BatchExecutionKeyListState<>(
-			(List<T>) stateDesc.getDefaultValue(),
-			keySerializer,
-			namespaceSerializer,
-			(TypeSerializer<List<T>>) stateDesc.getSerializer());
-	}
+    @SuppressWarnings("unchecked")
+    static <T, K, N, SV, S extends State, IS extends S> IS create(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, SV> stateDesc) {
+        return (IS)
+                new BatchExecutionKeyListState<>(
+                        (List<T>) stateDesc.getDefaultValue(),
+                        keySerializer,
+                        namespaceSerializer,
+                        (TypeSerializer<List<T>>) stateDesc.getSerializer());
+    }
 
-	@Override
-	protected List<T> merge(List<T> target, List<T> source) {
-		target.addAll(source);
-		return target;
-	}
+    @Override
+    protected List<T> merge(List<T> target, List<T> source) {
+        target.addAll(source);
+        return target;
+    }
 }

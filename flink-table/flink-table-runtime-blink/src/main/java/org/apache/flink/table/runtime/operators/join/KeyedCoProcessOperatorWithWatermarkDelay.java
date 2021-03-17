@@ -28,35 +28,40 @@ import java.io.Serializable;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-/**
- * A {@link KeyedCoProcessOperator} that supports holding back watermarks with a static delay.
- */
+/** A {@link KeyedCoProcessOperator} that supports holding back watermarks with a static delay. */
 public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
-		extends KeyedCoProcessOperator<K, IN1, IN2, OUT> {
+        extends KeyedCoProcessOperator<K, IN1, IN2, OUT> {
 
-	private static final long serialVersionUID = -7435774708099223442L;
+    private static final long serialVersionUID = -7435774708099223442L;
 
-	private final Consumer<Watermark> emitter;
+    private final Consumer<Watermark> emitter;
 
-	public KeyedCoProcessOperatorWithWatermarkDelay(KeyedCoProcessFunction<K, IN1, IN2, OUT> flatMapper, long watermarkDelay) {
-		super(flatMapper);
-		Preconditions.checkArgument(watermarkDelay >= 0, "The watermark delay should be non-negative.");
-		if (watermarkDelay == 0) {
-			// emits watermark without delay
-			emitter = (Consumer<Watermark> & Serializable) (Watermark mark) -> output.emitWatermark(mark);
-		} else {
-			// emits watermark with delay
-			emitter = (Consumer<Watermark> & Serializable) (Watermark mark) -> output
-					.emitWatermark(new Watermark(mark.getTimestamp() - watermarkDelay));
-		}
-	}
+    public KeyedCoProcessOperatorWithWatermarkDelay(
+            KeyedCoProcessFunction<K, IN1, IN2, OUT> flatMapper, long watermarkDelay) {
+        super(flatMapper);
+        Preconditions.checkArgument(
+                watermarkDelay >= 0, "The watermark delay should be non-negative.");
+        if (watermarkDelay == 0) {
+            // emits watermark without delay
+            emitter =
+                    (Consumer<Watermark> & Serializable)
+                            (Watermark mark) -> output.emitWatermark(mark);
+        } else {
+            // emits watermark with delay
+            emitter =
+                    (Consumer<Watermark> & Serializable)
+                            (Watermark mark) ->
+                                    output.emitWatermark(
+                                            new Watermark(mark.getTimestamp() - watermarkDelay));
+        }
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		Optional<InternalTimeServiceManager<?>> timeServiceManager = getTimeServiceManager();
-		if (timeServiceManager.isPresent()) {
-			timeServiceManager.get().advanceWatermark(mark);
-		}
-		emitter.accept(mark);
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        Optional<InternalTimeServiceManager<?>> timeServiceManager = getTimeServiceManager();
+        if (timeServiceManager.isPresent()) {
+            timeServiceManager.get().advanceWatermark(mark);
+        }
+        emitter.accept(mark);
+    }
 }

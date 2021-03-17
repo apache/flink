@@ -23,28 +23,22 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Tests for {@link JobManagerMetricsHandler}.
- */
+/** Tests for {@link JobManagerMetricsHandler}. */
 public class JobManagerMetricsHandlerTest extends MetricsHandlerTestBase<JobManagerMetricsHandler> {
 
-	@Override
-	JobManagerMetricsHandler getMetricsHandler() {
-		return new JobManagerMetricsHandler(
-			leaderRetriever,
-			TIMEOUT,
-			TEST_HEADERS,
-			mockMetricFetcher);
-	}
+    @Override
+    JobManagerMetricsHandler getMetricsHandler() {
+        return new JobManagerMetricsHandler(
+                leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    }
 
-	@Override
-	QueryScopeInfo getQueryScopeInfo() {
-		return new QueryScopeInfo.JobManagerQueryScopeInfo();
-	}
+    @Override
+    QueryScopeInfo getQueryScopeInfo() {
+        return new QueryScopeInfo.JobManagerQueryScopeInfo();
+    }
 
-	@Override
-	Map<String, String> getPathParameters() {
-		return Collections.emptyMap();
-	}
-
+    @Override
+    Map<String, String> getPathParameters() {
+        return Collections.emptyMap();
+    }
 }

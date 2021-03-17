@@ -15,3 +15,4 @@
 
 org.apache.flink.table.planner.delegation.BlinkPlannerFactory
 org.apache.flink.table.planner.delegation.BlinkExecutorFactory
+org.apache.flink.table.planner.delegation.DefaultParserFactory

@@ -20,13 +20,11 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.table.planner.runtime.stream.sql.FileCompactionITCaseBase;
 
-/**
- * Compaction it case for json.
- */
+/** Compaction it case for json. */
 public class JsonFileCompactionITCase extends FileCompactionITCaseBase {
 
-	@Override
-	protected String format() {
-		return "json";
-	}
+    @Override
+    protected String format() {
+        return "json";
+    }
 }

@@ -47,4 +47,7 @@ class MultisetRelDataType(
     typeInfo.hashCode()
   }
 
+  override def generateTypeString(sb: java.lang.StringBuilder, withDetail: Boolean): Unit = {
+    sb.append(s"$elementType MULTISET($typeInfo)")
+  }
 }

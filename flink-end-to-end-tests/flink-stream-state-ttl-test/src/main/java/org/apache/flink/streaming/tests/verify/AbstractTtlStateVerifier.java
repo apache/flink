@@ -33,76 +33,80 @@ import java.util.Objects;
 import java.util.Random;
 
 /** Base class for State TTL verifiers. */
-abstract class AbstractTtlStateVerifier<D extends StateDescriptor<S, SV>, S extends State, SV, UV, GV>
-	implements TtlStateVerifier<UV, GV> {
-	static final Random RANDOM = new Random();
+abstract class AbstractTtlStateVerifier<
+                D extends StateDescriptor<S, SV>, S extends State, SV, UV, GV>
+        implements TtlStateVerifier<UV, GV> {
+    static final Random RANDOM = new Random();
 
-	@Nonnull
-	final D stateDesc;
+    @Nonnull final D stateDesc;
 
-	AbstractTtlStateVerifier(@Nonnull D stateDesc) {
-		this.stateDesc = stateDesc;
-	}
+    AbstractTtlStateVerifier(@Nonnull D stateDesc) {
+        this.stateDesc = stateDesc;
+    }
 
-	@Nonnull
-	static String randomString() {
-		return StringUtils.getRandomString(RANDOM, 2, 20);
-	}
+    @Nonnull
+    static String randomString() {
+        return StringUtils.getRandomString(RANDOM, 2, 20);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	@Nonnull
-	public State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig) {
-		stateDesc.enableTimeToLive(ttlConfig);
-		return createState(context);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    @Nonnull
+    public State createState(
+            @Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig) {
+        stateDesc.enableTimeToLive(ttlConfig);
+        return createState(context);
+    }
 
-	abstract State createState(FunctionInitializationContext context);
+    abstract State createState(FunctionInitializationContext context);
 
-	@SuppressWarnings("unchecked")
-	@Override
-	@Nonnull
-	public TypeSerializer<UV> getUpdateSerializer() {
-		return (TypeSerializer<UV>) stateDesc.getSerializer();
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    @Nonnull
+    public TypeSerializer<UV> getUpdateSerializer() {
+        return (TypeSerializer<UV>) stateDesc.getSerializer();
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public GV get(@Nonnull State state) throws Exception {
-		return getInternal((S) state);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public GV get(@Nonnull State state) throws Exception {
+        return getInternal((S) state);
+    }
 
-	abstract GV getInternal(@Nonnull S state) throws Exception;
+    abstract GV getInternal(@Nonnull S state) throws Exception;
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void update(@Nonnull State state, Object update) throws Exception {
-		updateInternal((S) state, (UV) update);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void update(@Nonnull State state, Object update) throws Exception {
+        updateInternal((S) state, (UV) update);
+    }
 
-	abstract void updateInternal(@Nonnull S state, UV update) throws Exception;
+    abstract void updateInternal(@Nonnull S state, UV update) throws Exception;
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContextRaw) {
-		TtlVerificationContext<UV, GV> verificationContext = (TtlVerificationContext<UV, GV>) verificationContextRaw;
-		long currentTimestamp = verificationContext.getUpdateContext().getTimestamp();
+    @SuppressWarnings("unchecked")
+    @Override
+    public boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContextRaw) {
+        TtlVerificationContext<UV, GV> verificationContext =
+                (TtlVerificationContext<UV, GV>) verificationContextRaw;
+        long currentTimestamp = verificationContext.getUpdateContext().getTimestamp();
 
-		GV valueBeforeUpdate = verificationContext.getUpdateContext().getValueBeforeUpdate();
-		List<ValueWithTs<UV>> updates = new ArrayList<>(verificationContext.getPrevUpdates());
-		GV expectedValueBeforeUpdate = expected(updates, currentTimestamp);
+        GV valueBeforeUpdate = verificationContext.getUpdateContext().getValueBeforeUpdate();
+        List<ValueWithTs<UV>> updates = new ArrayList<>(verificationContext.getPrevUpdates());
+        GV expectedValueBeforeUpdate = expected(updates, currentTimestamp);
 
-		GV valueAfterUpdate = verificationContext.getUpdateContext().getValueAfterUpdate();
-		ValueWithTs<UV> update = verificationContext.getUpdateContext().getUpdateWithTs();
-		updates.add(update);
-		GV expectedValueAfterUpdate = expected(updates, currentTimestamp);
+        GV valueAfterUpdate = verificationContext.getUpdateContext().getValueAfterUpdate();
+        ValueWithTs<UV> update = verificationContext.getUpdateContext().getUpdateWithTs();
+        updates.add(update);
+        GV expectedValueAfterUpdate = expected(updates, currentTimestamp);
 
-		return Objects.equals(valueBeforeUpdate, expectedValueBeforeUpdate) && Objects.equals(valueAfterUpdate, expectedValueAfterUpdate);
-	}
+        return Objects.equals(valueBeforeUpdate, expectedValueBeforeUpdate)
+                && Objects.equals(valueAfterUpdate, expectedValueAfterUpdate);
+    }
 
-	abstract GV expected(@Nonnull List<ValueWithTs<UV>> updates, long currentTimestamp);
+    abstract GV expected(@Nonnull List<ValueWithTs<UV>> updates, long currentTimestamp);
 
-	boolean expired(long lastTimestamp, long currentTimestamp) {
-		return lastTimestamp + stateDesc.getTtlConfig().getTtl().toMilliseconds() <= currentTimestamp;
-	}
+    boolean expired(long lastTimestamp, long currentTimestamp) {
+        return lastTimestamp + stateDesc.getTtlConfig().getTtl().toMilliseconds()
+                <= currentTimestamp;
+    }
 }

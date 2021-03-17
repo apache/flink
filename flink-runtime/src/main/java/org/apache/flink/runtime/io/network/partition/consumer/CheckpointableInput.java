@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
@@ -25,22 +26,24 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Input, with just basic methods for blocking and resuming consumption. It can be for example an {@link InputGate}
- * or a chained source.
+ * Input, with just basic methods for blocking and resuming consumption. It can be for example an
+ * {@link InputGate} or a chained source.
  */
 @Internal
 public interface CheckpointableInput {
-	void blockConsumption(InputChannelInfo channelInfo);
+    void blockConsumption(InputChannelInfo channelInfo);
 
-	void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
+    void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
-	List<InputChannelInfo> getChannelInfos();
+    List<InputChannelInfo> getChannelInfos();
 
-	int getNumberOfInputChannels();
+    int getNumberOfInputChannels();
 
-	void checkpointStarted(CheckpointBarrier barrier);
+    void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException;
 
-	void checkpointStopped(long cancelledCheckpointId);
+    void checkpointStopped(long cancelledCheckpointId);
 
-	int getInputGateIndex();
+    int getInputGateIndex();
+
+    void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException;
 }

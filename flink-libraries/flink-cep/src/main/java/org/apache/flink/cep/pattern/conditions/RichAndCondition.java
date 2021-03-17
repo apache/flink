@@ -21,36 +21,32 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * A {@link RichIterativeCondition condition} which combines two conditions with a logical
- * {@code AND} and returns {@code true} if both are {@code true}.
+ * A {@link RichIterativeCondition condition} which combines two conditions with a logical {@code
+ * AND} and returns {@code true} if both are {@code true}.
  *
  * @param <T> Type of the element to filter
  */
 @Internal
 public class RichAndCondition<T> extends RichCompositeIterativeCondition<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public RichAndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
-		super(left, right);
-	}
+    public RichAndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
+        super(left, right);
+    }
 
-	@Override
-	public boolean filter(T value, Context<T> ctx) throws Exception {
-		return getLeft().filter(value, ctx) && getRight().filter(value, ctx);
-	}
+    @Override
+    public boolean filter(T value, Context<T> ctx) throws Exception {
+        return getLeft().filter(value, ctx) && getRight().filter(value, ctx);
+    }
 
-	/**
-	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
-	 */
-	public IterativeCondition<T> getLeft() {
-		return getNestedConditions()[0];
-	}
+    /** @return One of the {@link IterativeCondition conditions} combined in this condition. */
+    public IterativeCondition<T> getLeft() {
+        return getNestedConditions()[0];
+    }
 
-	/**
-	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
-	 */
-	public IterativeCondition<T> getRight() {
-		return getNestedConditions()[1];
-	}
+    /** @return One of the {@link IterativeCondition conditions} combined in this condition. */
+    public IterativeCondition<T> getRight() {
+        return getNestedConditions()[1];
+    }
 }

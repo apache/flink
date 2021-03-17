@@ -30,29 +30,27 @@ import java.io.Serializable;
  */
 public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
 
-	private static final long serialVersionUID = 2;
+    private static final long serialVersionUID = 2;
 
-	private final MesosWorkerStore.Worker worker;
+    private final MesosWorkerStore.Worker worker;
 
-	public RegisteredMesosWorkerNode(MesosWorkerStore.Worker worker) {
-		this.worker = Preconditions.checkNotNull(worker);
-		Preconditions.checkArgument(worker.slaveID().isDefined());
-		Preconditions.checkArgument(worker.hostname().isDefined());
-	}
+    public RegisteredMesosWorkerNode(MesosWorkerStore.Worker worker) {
+        this.worker = Preconditions.checkNotNull(worker);
+        Preconditions.checkArgument(worker.slaveID().isDefined());
+        Preconditions.checkArgument(worker.hostname().isDefined());
+    }
 
-	public MesosWorkerStore.Worker getWorker() {
-		return worker;
-	}
+    public MesosWorkerStore.Worker getWorker() {
+        return worker;
+    }
 
-	@Override
-	public ResourceID getResourceID() {
-		return MesosResourceManagerDriver.extractResourceID(worker.taskID());
-	}
+    @Override
+    public ResourceID getResourceID() {
+        return MesosResourceManagerDriver.extractResourceID(worker.taskID());
+    }
 
-	@Override
-	public String toString() {
-		return "RegisteredMesosWorkerNode{" +
-			"worker=" + worker +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "RegisteredMesosWorkerNode{" + "worker=" + worker + '}';
+    }
 }

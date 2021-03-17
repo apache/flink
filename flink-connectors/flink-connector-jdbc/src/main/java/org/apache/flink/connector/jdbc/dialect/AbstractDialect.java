@@ -30,68 +30,70 @@ import java.util.List;
 
 abstract class AbstractDialect implements JdbcDialect {
 
-	@Override
-	public void validate(TableSchema schema) throws ValidationException {
-		for (int i = 0; i < schema.getFieldCount(); i++) {
-			DataType dt = schema.getFieldDataType(i).get();
-			String fieldName = schema.getFieldName(i).get();
+    @Override
+    public void validate(TableSchema schema) throws ValidationException {
+        for (int i = 0; i < schema.getFieldCount(); i++) {
+            DataType dt = schema.getFieldDataType(i).get();
+            String fieldName = schema.getFieldName(i).get();
 
-			// TODO: We can't convert VARBINARY(n) data type to
-			//  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in LegacyTypeInfoDataTypeConverter
-			//  when n is smaller than Integer.MAX_VALUE
-			if (unsupportedTypes().contains(dt.getLogicalType().getTypeRoot()) ||
-				(dt.getLogicalType() instanceof VarBinaryType
-					&& Integer.MAX_VALUE != ((VarBinaryType) dt.getLogicalType()).getLength())) {
-				throw new ValidationException(
-					String.format("The %s dialect doesn't support type: %s.",
-						dialectName(),
-						dt.toString()));
-			}
+            // TODO: We can't convert VARBINARY(n) data type to
+            //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
+            // LegacyTypeInfoDataTypeConverter
+            //  when n is smaller than Integer.MAX_VALUE
+            if (unsupportedTypes().contains(dt.getLogicalType().getTypeRoot())
+                    || (dt.getLogicalType() instanceof VarBinaryType
+                            && Integer.MAX_VALUE
+                                    != ((VarBinaryType) dt.getLogicalType()).getLength())) {
+                throw new ValidationException(
+                        String.format(
+                                "The %s dialect doesn't support type: %s.",
+                                dialectName(), dt.toString()));
+            }
 
-			// only validate precision of DECIMAL type for blink planner
-			if (dt.getLogicalType() instanceof DecimalType) {
-				int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
-				if (precision > maxDecimalPrecision()
-					|| precision < minDecimalPrecision()) {
-					throw new ValidationException(
-						String.format("The precision of field '%s' is out of the DECIMAL " +
-								"precision range [%d, %d] supported by %s dialect.",
-							fieldName,
-							minDecimalPrecision(),
-							maxDecimalPrecision(),
-							dialectName()));
-				}
-			}
+            // only validate precision of DECIMAL type for blink planner
+            if (dt.getLogicalType() instanceof DecimalType) {
+                int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
+                if (precision > maxDecimalPrecision() || precision < minDecimalPrecision()) {
+                    throw new ValidationException(
+                            String.format(
+                                    "The precision of field '%s' is out of the DECIMAL "
+                                            + "precision range [%d, %d] supported by %s dialect.",
+                                    fieldName,
+                                    minDecimalPrecision(),
+                                    maxDecimalPrecision(),
+                                    dialectName()));
+                }
+            }
 
-			// only validate precision of DECIMAL type for blink planner
-			if (dt.getLogicalType() instanceof TimestampType) {
-				int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
-				if (precision > maxTimestampPrecision()
-					|| precision < minTimestampPrecision()) {
-					throw new ValidationException(
-						String.format("The precision of field '%s' is out of the TIMESTAMP " +
-								"precision range [%d, %d] supported by %s dialect.",
-							fieldName,
-							minTimestampPrecision(),
-							maxTimestampPrecision(),
-							dialectName()));
-				}
-			}
-		}
-	}
+            // only validate precision of DECIMAL type for blink planner
+            if (dt.getLogicalType() instanceof TimestampType) {
+                int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
+                if (precision > maxTimestampPrecision() || precision < minTimestampPrecision()) {
+                    throw new ValidationException(
+                            String.format(
+                                    "The precision of field '%s' is out of the TIMESTAMP "
+                                            + "precision range [%d, %d] supported by %s dialect.",
+                                    fieldName,
+                                    minTimestampPrecision(),
+                                    maxTimestampPrecision(),
+                                    dialectName()));
+                }
+            }
+        }
+    }
 
-	public abstract int maxDecimalPrecision();
+    public abstract int maxDecimalPrecision();
 
-	public abstract int minDecimalPrecision();
+    public abstract int minDecimalPrecision();
 
-	public abstract int maxTimestampPrecision();
+    public abstract int maxTimestampPrecision();
 
-	public abstract int minTimestampPrecision();
+    public abstract int minTimestampPrecision();
 
-	/**
-	 * Defines the unsupported types for the dialect.
-	 *
-	 * @return a list of logical type roots.
-	 */
-	public abstract List<LogicalTypeRoot> unsupportedTypes();
+    /**
+     * Defines the unsupported types for the dialect.
+     *
+     * @return a list of logical type roots.
+     */
+    public abstract List<LogicalTypeRoot> unsupportedTypes();
 }

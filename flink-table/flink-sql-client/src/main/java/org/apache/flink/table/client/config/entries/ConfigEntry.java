@@ -26,47 +26,45 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Describes an environment configuration entry (such as catalogs, table, functions, views). Config entries
- * are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL Client's
- * environment files only.
+ * Describes an environment configuration entry (such as catalogs, table, functions, views). Config
+ * entries are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL
+ * Client's environment files only.
  */
 abstract class ConfigEntry {
 
-	protected final DescriptorProperties properties;
+    protected final DescriptorProperties properties;
 
-	protected ConfigEntry(DescriptorProperties properties) {
-		try {
-			validate(properties);
-		} catch (ValidationException e) {
-			throw new SqlClientException("Invalid configuration entry.", e);
-		}
+    protected ConfigEntry(DescriptorProperties properties) {
+        try {
+            validate(properties);
+        } catch (ValidationException e) {
+            throw new SqlClientException("Invalid configuration entry.", e);
+        }
 
-		this.properties = properties;
-	}
+        this.properties = properties;
+    }
 
-	/**
-	 * Performs syntactic validation.
-	 */
-	protected abstract void validate(DescriptorProperties properties);
+    /** Performs syntactic validation. */
+    protected abstract void validate(DescriptorProperties properties);
 
-	public Map<String, String> asMap() {
-		return properties.asMap();
-	}
+    public Map<String, String> asMap() {
+        return properties.asMap();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ConfigEntry that = (ConfigEntry) o;
-		return Objects.equals(properties, that.properties);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ConfigEntry that = (ConfigEntry) o;
+        return Objects.equals(properties, that.properties);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(properties);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(properties);
+    }
 }

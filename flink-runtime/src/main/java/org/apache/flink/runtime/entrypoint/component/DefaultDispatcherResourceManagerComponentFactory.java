@@ -25,9 +25,9 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -74,204 +74,223 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
+ * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent}
+ * components.
  */
-public class DefaultDispatcherResourceManagerComponentFactory implements DispatcherResourceManagerComponentFactory {
+public class DefaultDispatcherResourceManagerComponentFactory
+        implements DispatcherResourceManagerComponentFactory {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-	@Nonnull
-	private final DispatcherRunnerFactory dispatcherRunnerFactory;
+    @Nonnull private final DispatcherRunnerFactory dispatcherRunnerFactory;
 
-	@Nonnull
-	private final ResourceManagerFactory<?> resourceManagerFactory;
+    @Nonnull private final ResourceManagerFactory<?> resourceManagerFactory;
 
-	@Nonnull
-	private final RestEndpointFactory<?> restEndpointFactory;
+    @Nonnull private final RestEndpointFactory<?> restEndpointFactory;
 
-	public DefaultDispatcherResourceManagerComponentFactory(
-			@Nonnull DispatcherRunnerFactory dispatcherRunnerFactory,
-			@Nonnull ResourceManagerFactory<?> resourceManagerFactory,
-			@Nonnull RestEndpointFactory<?> restEndpointFactory) {
-		this.dispatcherRunnerFactory = dispatcherRunnerFactory;
-		this.resourceManagerFactory = resourceManagerFactory;
-		this.restEndpointFactory = restEndpointFactory;
-	}
+    public DefaultDispatcherResourceManagerComponentFactory(
+            @Nonnull DispatcherRunnerFactory dispatcherRunnerFactory,
+            @Nonnull ResourceManagerFactory<?> resourceManagerFactory,
+            @Nonnull RestEndpointFactory<?> restEndpointFactory) {
+        this.dispatcherRunnerFactory = dispatcherRunnerFactory;
+        this.resourceManagerFactory = resourceManagerFactory;
+        this.restEndpointFactory = restEndpointFactory;
+    }
 
-	@Override
-	public DispatcherResourceManagerComponent create(
-			Configuration configuration,
-			Executor ioExecutor,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
-			ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			MetricQueryServiceRetriever metricQueryServiceRetriever,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+    @Override
+    public DispatcherResourceManagerComponent create(
+            Configuration configuration,
+            Executor ioExecutor,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            BlobServer blobServer,
+            HeartbeatServices heartbeatServices,
+            MetricRegistry metricRegistry,
+            ExecutionGraphInfoStore executionGraphInfoStore,
+            MetricQueryServiceRetriever metricQueryServiceRetriever,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
 
-		LeaderRetrievalService dispatcherLeaderRetrievalService = null;
-		LeaderRetrievalService resourceManagerRetrievalService = null;
-		WebMonitorEndpoint<?> webMonitorEndpoint = null;
-		ResourceManager<?> resourceManager = null;
-		DispatcherRunner dispatcherRunner = null;
+        LeaderRetrievalService dispatcherLeaderRetrievalService = null;
+        LeaderRetrievalService resourceManagerRetrievalService = null;
+        WebMonitorEndpoint<?> webMonitorEndpoint = null;
+        ResourceManager<?> resourceManager = null;
+        DispatcherRunner dispatcherRunner = null;
 
-		try {
-			dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+        try {
+            dispatcherLeaderRetrievalService =
+                    highAvailabilityServices.getDispatcherLeaderRetriever();
 
-			resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
+            resourceManagerRetrievalService =
+                    highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-			final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
-				rpcService,
-				DispatcherGateway.class,
-				DispatcherId::fromUuid,
-				new ExponentialBackoffRetryStrategy(12, Duration.ofMillis(10), Duration.ofMillis(50)));
+            final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever =
+                    new RpcGatewayRetriever<>(
+                            rpcService,
+                            DispatcherGateway.class,
+                            DispatcherId::fromUuid,
+                            new ExponentialBackoffRetryStrategy(
+                                    12, Duration.ofMillis(10), Duration.ofMillis(50)));
 
-			final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
-				rpcService,
-				ResourceManagerGateway.class,
-				ResourceManagerId::fromUuid,
-				new ExponentialBackoffRetryStrategy(12, Duration.ofMillis(10), Duration.ofMillis(50)));
+            final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
+                    new RpcGatewayRetriever<>(
+                            rpcService,
+                            ResourceManagerGateway.class,
+                            ResourceManagerId::fromUuid,
+                            new ExponentialBackoffRetryStrategy(
+                                    12, Duration.ofMillis(10), Duration.ofMillis(50)));
 
-			final ScheduledExecutorService executor = WebMonitorEndpoint.createExecutorService(
-				configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
-				configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
-				"DispatcherRestEndpoint");
+            final ScheduledExecutorService executor =
+                    WebMonitorEndpoint.createExecutorService(
+                            configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
+                            configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+                            "DispatcherRestEndpoint");
 
-			final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
-			final MetricFetcher metricFetcher = updateInterval == 0
-				? VoidMetricFetcher.INSTANCE
-				: MetricFetcherImpl.fromConfiguration(
-					configuration,
-					metricQueryServiceRetriever,
-					dispatcherGatewayRetriever,
-					executor);
+            final long updateInterval =
+                    configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+            final MetricFetcher metricFetcher =
+                    updateInterval == 0
+                            ? VoidMetricFetcher.INSTANCE
+                            : MetricFetcherImpl.fromConfiguration(
+                                    configuration,
+                                    metricQueryServiceRetriever,
+                                    dispatcherGatewayRetriever,
+                                    executor);
 
-			webMonitorEndpoint = restEndpointFactory.createRestEndpoint(
-				configuration,
-				dispatcherGatewayRetriever,
-				resourceManagerGatewayRetriever,
-				blobServer,
-				executor,
-				metricFetcher,
-				highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
-				fatalErrorHandler);
+            webMonitorEndpoint =
+                    restEndpointFactory.createRestEndpoint(
+                            configuration,
+                            dispatcherGatewayRetriever,
+                            resourceManagerGatewayRetriever,
+                            blobServer,
+                            executor,
+                            metricFetcher,
+                            highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
+                            fatalErrorHandler);
 
-			log.debug("Starting Dispatcher REST endpoint.");
-			webMonitorEndpoint.start();
+            log.debug("Starting Dispatcher REST endpoint.");
+            webMonitorEndpoint.start();
 
-			final String hostname = RpcUtils.getHostname(rpcService);
+            final String hostname = RpcUtils.getHostname(rpcService);
 
-			resourceManager = resourceManagerFactory.createResourceManager(
-				configuration,
-				ResourceID.generate(),
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				fatalErrorHandler,
-				new ClusterInformation(hostname, blobServer.getPort()),
-				webMonitorEndpoint.getRestBaseUrl(),
-				metricRegistry,
-				hostname,
-				ioExecutor);
+            resourceManager =
+                    resourceManagerFactory.createResourceManager(
+                            configuration,
+                            ResourceID.generate(),
+                            rpcService,
+                            highAvailabilityServices,
+                            heartbeatServices,
+                            fatalErrorHandler,
+                            new ClusterInformation(hostname, blobServer.getPort()),
+                            webMonitorEndpoint.getRestBaseUrl(),
+                            metricRegistry,
+                            hostname,
+                            ioExecutor);
 
-			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
+            final HistoryServerArchivist historyServerArchivist =
+                    HistoryServerArchivist.createHistoryServerArchivist(
+                            configuration, webMonitorEndpoint, ioExecutor);
 
-			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
-				configuration,
-				highAvailabilityServices,
-				resourceManagerGatewayRetriever,
-				blobServer,
-				heartbeatServices,
-				() -> MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostname),
-				archivedExecutionGraphStore,
-				fatalErrorHandler,
-				historyServerArchivist,
-				metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
-				ioExecutor);
+            final PartialDispatcherServices partialDispatcherServices =
+                    new PartialDispatcherServices(
+                            configuration,
+                            highAvailabilityServices,
+                            resourceManagerGatewayRetriever,
+                            blobServer,
+                            heartbeatServices,
+                            () ->
+                                    MetricUtils.instantiateJobManagerMetricGroup(
+                                            metricRegistry, hostname),
+                            executionGraphInfoStore,
+                            fatalErrorHandler,
+                            historyServerArchivist,
+                            metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
+                            ioExecutor);
 
-			log.debug("Starting Dispatcher.");
-			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(
-				highAvailabilityServices.getDispatcherLeaderElectionService(),
-				fatalErrorHandler,
-				new HaServicesJobGraphStoreFactory(highAvailabilityServices),
-				ioExecutor,
-				rpcService,
-				partialDispatcherServices);
+            log.debug("Starting Dispatcher.");
+            dispatcherRunner =
+                    dispatcherRunnerFactory.createDispatcherRunner(
+                            highAvailabilityServices.getDispatcherLeaderElectionService(),
+                            fatalErrorHandler,
+                            new HaServicesJobGraphStoreFactory(highAvailabilityServices),
+                            ioExecutor,
+                            rpcService,
+                            partialDispatcherServices);
 
-			log.debug("Starting ResourceManager.");
-			resourceManager.start();
+            log.debug("Starting ResourceManager.");
+            resourceManager.start();
 
-			resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
-			dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
+            resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
+            dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
-			return new DispatcherResourceManagerComponent(
-				dispatcherRunner,
-				DefaultResourceManagerService.createFor(resourceManager),
-				dispatcherLeaderRetrievalService,
-				resourceManagerRetrievalService,
-				webMonitorEndpoint,
-				fatalErrorHandler);
+            return new DispatcherResourceManagerComponent(
+                    dispatcherRunner,
+                    DefaultResourceManagerService.createFor(resourceManager),
+                    dispatcherLeaderRetrievalService,
+                    resourceManagerRetrievalService,
+                    webMonitorEndpoint,
+                    fatalErrorHandler);
 
-		} catch (Exception exception) {
-			// clean up all started components
-			if (dispatcherLeaderRetrievalService != null) {
-				try {
-					dispatcherLeaderRetrievalService.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-			}
+        } catch (Exception exception) {
+            // clean up all started components
+            if (dispatcherLeaderRetrievalService != null) {
+                try {
+                    dispatcherLeaderRetrievalService.stop();
+                } catch (Exception e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+            }
 
-			if (resourceManagerRetrievalService != null) {
-				try {
-					resourceManagerRetrievalService.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-			}
+            if (resourceManagerRetrievalService != null) {
+                try {
+                    resourceManagerRetrievalService.stop();
+                } catch (Exception e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+            }
 
-			final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+            final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
 
-			if (webMonitorEndpoint != null) {
-				terminationFutures.add(webMonitorEndpoint.closeAsync());
-			}
+            if (webMonitorEndpoint != null) {
+                terminationFutures.add(webMonitorEndpoint.closeAsync());
+            }
 
-			if (resourceManager != null) {
-				terminationFutures.add(resourceManager.closeAsync());
-			}
+            if (resourceManager != null) {
+                terminationFutures.add(resourceManager.closeAsync());
+            }
 
-			if (dispatcherRunner != null) {
-				terminationFutures.add(dispatcherRunner.closeAsync());
-			}
+            if (dispatcherRunner != null) {
+                terminationFutures.add(dispatcherRunner.closeAsync());
+            }
 
-			final FutureUtils.ConjunctFuture<Void> terminationFuture = FutureUtils.completeAll(terminationFutures);
+            final FutureUtils.ConjunctFuture<Void> terminationFuture =
+                    FutureUtils.completeAll(terminationFutures);
 
-			try {
-				terminationFuture.get();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+            try {
+                terminationFuture.get();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
-		}
-	}
+            throw new FlinkException(
+                    "Could not create the DispatcherResourceManagerComponent.", exception);
+        }
+    }
 
-	public static DefaultDispatcherResourceManagerComponentFactory createSessionComponentFactory(
-			ResourceManagerFactory<?> resourceManagerFactory) {
-		return new DefaultDispatcherResourceManagerComponentFactory(
-			DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE),
-			resourceManagerFactory,
-			SessionRestEndpointFactory.INSTANCE);
-	}
+    public static DefaultDispatcherResourceManagerComponentFactory createSessionComponentFactory(
+            ResourceManagerFactory<?> resourceManagerFactory) {
+        return new DefaultDispatcherResourceManagerComponentFactory(
+                DefaultDispatcherRunnerFactory.createSessionRunner(
+                        SessionDispatcherFactory.INSTANCE),
+                resourceManagerFactory,
+                SessionRestEndpointFactory.INSTANCE);
+    }
 
-	public static DefaultDispatcherResourceManagerComponentFactory createJobComponentFactory(
-			ResourceManagerFactory<?> resourceManagerFactory,
-			JobGraphRetriever jobGraphRetriever) {
-		return new DefaultDispatcherResourceManagerComponentFactory(
-			DefaultDispatcherRunnerFactory.createJobRunner(jobGraphRetriever),
-			resourceManagerFactory,
-			JobRestEndpointFactory.INSTANCE);
-	}
+    public static DefaultDispatcherResourceManagerComponentFactory createJobComponentFactory(
+            ResourceManagerFactory<?> resourceManagerFactory, JobGraphRetriever jobGraphRetriever) {
+        return new DefaultDispatcherResourceManagerComponentFactory(
+                DefaultDispatcherRunnerFactory.createJobRunner(jobGraphRetriever),
+                resourceManagerFactory,
+                JobRestEndpointFactory.INSTANCE);
+    }
 }

@@ -72,222 +72,241 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 
 /**
- * IT case for HiveCatalog.
- * TODO: move to flink-connector-hive-test end-to-end test module once it's setup
+ * IT case for HiveCatalog. TODO: move to flink-connector-hive-test end-to-end test module once it's
+ * setup
  */
 public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private static HiveCatalog hiveCatalog;
+    private static HiveCatalog hiveCatalog;
 
-	private String sourceTableName = "csv_source";
-	private String sinkTableName = "csv_sink";
+    private String sourceTableName = "csv_source";
+    private String sinkTableName = "csv_sink";
 
-	@BeforeClass
-	public static void createCatalog() {
-		hiveCatalog = HiveTestUtils.createHiveCatalog();
-		hiveCatalog.open();
-	}
+    @BeforeClass
+    public static void createCatalog() {
+        hiveCatalog = HiveTestUtils.createHiveCatalog();
+        hiveCatalog.open();
+    }
 
-	@AfterClass
-	public static void closeCatalog() {
-		if (hiveCatalog != null) {
-			hiveCatalog.close();
-		}
-	}
+    @AfterClass
+    public static void closeCatalog() {
+        if (hiveCatalog != null) {
+            hiveCatalog.close();
+        }
+    }
 
-	@Test
-	public void testBlinkUdf() throws Exception {
-		TableSchema schema = TableSchema.builder()
-				.field("name", DataTypes.STRING())
-				.field("age", DataTypes.INT())
-				.build();
+    @Test
+    public void testBlinkUdf() throws Exception {
+        TableSchema schema =
+                TableSchema.builder()
+                        .field("name", DataTypes.STRING())
+                        .field("age", DataTypes.INT())
+                        .build();
 
-		FormatDescriptor format = new OldCsv()
-				.field("name", Types.STRING())
-				.field("age", Types.INT());
+        FormatDescriptor format =
+                new OldCsv().field("name", Types.STRING()).field("age", Types.INT());
 
-		CatalogTable source =
-				new CatalogTableBuilder(
-						new FileSystem().path(this.getClass().getResource("/csv/test.csv").getPath()),
-						schema)
-						.withFormat(format)
-						.inAppendMode()
-						.withComment("Comment.")
-						.build();
+        CatalogTable source =
+                new CatalogTableBuilder(
+                                new FileSystem()
+                                        .path(
+                                                this.getClass()
+                                                        .getResource("/csv/test.csv")
+                                                        .getPath()),
+                                schema)
+                        .withFormat(format)
+                        .inAppendMode()
+                        .withComment("Comment.")
+                        .build();
 
-		hiveCatalog.createTable(
-				new ObjectPath(HiveCatalog.DEFAULT_DB, sourceTableName),
-				source,
-				false
-		);
+        hiveCatalog.createTable(
+                new ObjectPath(HiveCatalog.DEFAULT_DB, sourceTableName), source, false);
 
-		hiveCatalog.createFunction(
-				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudf"),
-				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName()),
-				false);
-		hiveCatalog.createFunction(
-				new ObjectPath(HiveCatalog.DEFAULT_DB, "mygenericudf"),
-				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName()),
-				false);
-		hiveCatalog.createFunction(
-				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudtf"),
-				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName()),
-				false);
-		hiveCatalog.createFunction(
-				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudaf"),
-				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName()),
-				false);
+        hiveCatalog.createFunction(
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "myudf"),
+                new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName()),
+                false);
+        hiveCatalog.createFunction(
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "mygenericudf"),
+                new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName()),
+                false);
+        hiveCatalog.createFunction(
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "myudtf"),
+                new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName()),
+                false);
+        hiveCatalog.createFunction(
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "myudaf"),
+                new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName()),
+                false);
 
-		testUdf(true);
-		testUdf(false);
-	}
+        testUdf(true);
+        testUdf(false);
+    }
 
-	private void testUdf(boolean batch) throws Exception {
-		StreamExecutionEnvironment env = null;
-		TableEnvironment tEnv;
-		EnvironmentSettings.Builder envBuilder = EnvironmentSettings.newInstance().useBlinkPlanner();
-		if (batch) {
-			envBuilder.inBatchMode();
-		} else {
-			envBuilder.inStreamingMode();
-		}
-		if (batch) {
-			tEnv = TableEnvironment.create(envBuilder.build());
-		} else {
-			env = StreamExecutionEnvironment.getExecutionEnvironment();
-			tEnv = StreamTableEnvironment.create(env, envBuilder.build());
-		}
+    private void testUdf(boolean batch) throws Exception {
+        StreamExecutionEnvironment env = null;
+        TableEnvironment tEnv;
+        EnvironmentSettings.Builder envBuilder =
+                EnvironmentSettings.newInstance().useBlinkPlanner();
+        if (batch) {
+            envBuilder.inBatchMode();
+        } else {
+            envBuilder.inStreamingMode();
+        }
+        if (batch) {
+            tEnv = TableEnvironment.create(envBuilder.build());
+        } else {
+            env = StreamExecutionEnvironment.getExecutionEnvironment();
+            tEnv = StreamTableEnvironment.create(env, envBuilder.build());
+        }
 
-		BatchTestBase.configForMiniCluster(tEnv.getConfig());
+        BatchTestBase.configForMiniCluster(tEnv.getConfig());
 
-		tEnv.registerCatalog("myhive", hiveCatalog);
-		tEnv.useCatalog("myhive");
+        tEnv.registerCatalog("myhive", hiveCatalog);
+        tEnv.useCatalog("myhive");
 
-		String innerSql = format("select mygenericudf(myudf(name), 1) as a, mygenericudf(myudf(age), 1) as b," +
-				" s from %s, lateral table(myudtf(name, 1)) as T(s)", sourceTableName);
+        String innerSql =
+                format(
+                        "select mygenericudf(myudf(name), 1) as a, mygenericudf(myudf(age), 1) as b,"
+                                + " s from %s, lateral table(myudtf(name, 1)) as T(s)",
+                        sourceTableName);
 
-		String selectSql = format("select a, s, sum(b), myudaf(b) from (%s) group by a, s", innerSql);
+        String selectSql =
+                format("select a, s, sum(b), myudaf(b) from (%s) group by a, s", innerSql);
 
-		List<String> results;
-		if (batch) {
-			Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
+        List<String> results;
+        if (batch) {
+            Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
 
-			TableSchema sinkSchema = TableSchema.builder()
-					.field("name1", Types.STRING())
-					.field("name2", Types.STRING())
-					.field("sum1", Types.INT())
-					.field("sum2", Types.LONG())
-					.build();
+            TableSchema sinkSchema =
+                    TableSchema.builder()
+                            .field("name1", Types.STRING())
+                            .field("name2", Types.STRING())
+                            .field("sum1", Types.INT())
+                            .field("sum2", Types.LONG())
+                            .build();
 
-			FormatDescriptor sinkFormat = new OldCsv()
-					.field("name1", Types.STRING())
-					.field("name2", Types.STRING())
-					.field("sum1", Types.INT())
-					.field("sum2", Types.LONG());
-			CatalogTable sink =
-					new CatalogTableBuilder(
-							new FileSystem().path(p.toAbsolutePath().toString()),
-							sinkSchema)
-							.withFormat(sinkFormat)
-							.inAppendMode()
-							.withComment("Comment.")
-							.build();
+            FormatDescriptor sinkFormat =
+                    new OldCsv()
+                            .field("name1", Types.STRING())
+                            .field("name2", Types.STRING())
+                            .field("sum1", Types.INT())
+                            .field("sum2", Types.LONG());
+            CatalogTable sink =
+                    new CatalogTableBuilder(
+                                    new FileSystem().path(p.toAbsolutePath().toString()),
+                                    sinkSchema)
+                            .withFormat(sinkFormat)
+                            .inAppendMode()
+                            .withComment("Comment.")
+                            .build();
 
-			hiveCatalog.createTable(
-					new ObjectPath(HiveCatalog.DEFAULT_DB, sinkTableName),
-					sink,
-					false
-			);
+            hiveCatalog.createTable(
+                    new ObjectPath(HiveCatalog.DEFAULT_DB, sinkTableName), sink, false);
 
-			tEnv.executeSql(format("insert into %s " + selectSql, sinkTableName)).await();
+            tEnv.executeSql(format("insert into %s " + selectSql, sinkTableName)).await();
 
-			// assert written result
-			StringBuilder builder = new StringBuilder();
-			try (Stream<Path> paths = Files.walk(Paths.get(p.toAbsolutePath().toString()))) {
-				paths.filter(Files::isRegularFile).forEach(path -> {
-					try {
-						String content = FileUtils.readFileUtf8(path.toFile());
-						if (content.isEmpty()) {
-							return;
-						}
-						builder.append(content);
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-				});
-			}
-			results = Arrays.stream(builder.toString().split("\n"))
-					.filter(s -> !s.isEmpty())
-					.collect(Collectors.toList());
-		} else {
-			StreamTableEnvironment streamTEnv = (StreamTableEnvironment) tEnv;
-			TestingRetractSink sink = new TestingRetractSink();
-			streamTEnv.toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
-					.map(new JavaToScala())
-					.addSink((SinkFunction) sink);
-			env.execute("");
-			results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
-		}
+            // assert written result
+            StringBuilder builder = new StringBuilder();
+            try (Stream<Path> paths = Files.walk(Paths.get(p.toAbsolutePath().toString()))) {
+                paths.filter(Files::isRegularFile)
+                        .forEach(
+                                path -> {
+                                    try {
+                                        String content = FileUtils.readFileUtf8(path.toFile());
+                                        if (content.isEmpty()) {
+                                            return;
+                                        }
+                                        builder.append(content);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+            }
+            results =
+                    Arrays.stream(builder.toString().split("\n"))
+                            .filter(s -> !s.isEmpty())
+                            .collect(Collectors.toList());
+        } else {
+            StreamTableEnvironment streamTEnv = (StreamTableEnvironment) tEnv;
+            TestingRetractSink sink = new TestingRetractSink();
+            streamTEnv
+                    .toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
+                    .map(new JavaToScala())
+                    .addSink((SinkFunction) sink);
+            env.execute("");
+            results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
+        }
 
-		results = new ArrayList<>(results);
-		results.sort(String::compareTo);
-		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
-	}
+        results = new ArrayList<>(results);
+        results.sort(String::compareTo);
+        Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
+    }
 
-	@Test
-	public void testTimestampUDF() throws Exception {
+    @Test
+    public void testTimestampUDF() throws Exception {
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
-		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-		tableEnv.useCatalog(hiveCatalog.getName());
-		tableEnv.executeSql(String.format("create function myyear as '%s'", UDFYear.class.getName()));
-		tableEnv.executeSql("create table src(ts timestamp)");
-		try {
-			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
-					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
-					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
-					.commit();
+        TableEnvironment tableEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+        tableEnv.executeSql(
+                String.format("create function myyear as '%s'", UDFYear.class.getName()));
+        tableEnv.executeSql("create table src(ts timestamp)");
+        try {
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+                    .addRow(new Object[] {Timestamp.valueOf("2013-07-15 10:00:00")})
+                    .addRow(new Object[] {Timestamp.valueOf("2019-05-23 17:32:55")})
+                    .commit();
 
-			List<Row> results = CollectionUtil.iteratorToList(
-					tableEnv.sqlQuery("select myyear(ts) as y from src").execute().collect());
-			Assert.assertEquals(2, results.size());
-			Assert.assertEquals("[2013, 2019]", results.toString());
-		} finally {
-			tableEnv.executeSql("drop table src");
-		}
-	}
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery("select myyear(ts) as y from src")
+                                    .execute()
+                                    .collect());
+            Assert.assertEquals(2, results.size());
+            Assert.assertEquals("[+I[2013], +I[2019]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table src");
+        }
+    }
 
-	@Test
-	public void testDateUDF() throws Exception {
+    @Test
+    public void testDateUDF() throws Exception {
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
-		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-		tableEnv.useCatalog(hiveCatalog.getName());
-		tableEnv.executeSql(String.format("create function mymonth as '%s'", UDFMonth.class.getName()));
-		tableEnv.executeSql("create table src(dt date)");
-		try {
-			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
-					.addRow(new Object[]{Date.valueOf("2019-01-19")})
-					.addRow(new Object[]{Date.valueOf("2019-03-02")})
-					.commit();
+        TableEnvironment tableEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+        tableEnv.executeSql(
+                String.format("create function mymonth as '%s'", UDFMonth.class.getName()));
+        tableEnv.executeSql("create table src(dt date)");
+        try {
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+                    .addRow(new Object[] {Date.valueOf("2019-01-19")})
+                    .addRow(new Object[] {Date.valueOf("2019-03-02")})
+                    .commit();
 
-			List<Row> results = CollectionUtil.iteratorToList(
-					tableEnv.sqlQuery("select mymonth(dt) as m from src order by m").execute().collect());
-			Assert.assertEquals(2, results.size());
-			Assert.assertEquals("[1, 3]", results.toString());
-		} finally {
-			tableEnv.executeSql("drop table src");
-		}
-	}
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery("select mymonth(dt) as m from src order by m")
+                                    .execute()
+                                    .collect());
+            Assert.assertEquals(2, results.size());
+            Assert.assertEquals("[+I[1], +I[3]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table src");
+        }
+    }
 
-	private static class JavaToScala implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {
+    private static class JavaToScala
+            implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {
 
-		@Override
-		public scala.Tuple2<Boolean, Row> map(Tuple2<Boolean, Row> value) throws Exception {
-			return new scala.Tuple2<>(value.f0, value.f1);
-		}
-	}
+        @Override
+        public scala.Tuple2<Boolean, Row> map(Tuple2<Boolean, Row> value) throws Exception {
+            return new scala.Tuple2<>(value.f0, value.f1);
+        }
+    }
 }

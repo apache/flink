@@ -40,11 +40,13 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.apache.flink.table.runtime.util.RowDataTestUtil
+
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 

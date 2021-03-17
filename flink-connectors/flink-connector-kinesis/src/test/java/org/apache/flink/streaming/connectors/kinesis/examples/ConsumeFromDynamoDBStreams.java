@@ -26,35 +26,34 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 
 import java.util.Properties;
 
-/**
- * Sample command-line program of consuming data from a single DynamoDB stream.
- */
+/** Sample command-line program of consuming data from a single DynamoDB stream. */
 public class ConsumeFromDynamoDBStreams {
-	private static final String DYNAMODB_STREAM_NAME = "stream";
+    private static final String DYNAMODB_STREAM_NAME = "stream";
 
-	public static void main(String[] args) throws Exception {
-		ParameterTool pt = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        ParameterTool pt = ParameterTool.fromArgs(args);
 
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.setParallelism(1);
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.setParallelism(1);
 
-		Properties dynamodbStreamsConsumerConfig = new Properties();
-		final String streamName = pt.getRequired(DYNAMODB_STREAM_NAME);
-		dynamodbStreamsConsumerConfig.setProperty(
-				ConsumerConfigConstants.AWS_REGION, pt.getRequired("region"));
-		dynamodbStreamsConsumerConfig.setProperty(
-				ConsumerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accesskey"));
-		dynamodbStreamsConsumerConfig.setProperty(
-				ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
+        Properties dynamodbStreamsConsumerConfig = new Properties();
+        final String streamName = pt.getRequired(DYNAMODB_STREAM_NAME);
+        dynamodbStreamsConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_REGION, pt.getRequired("region"));
+        dynamodbStreamsConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accesskey"));
+        dynamodbStreamsConsumerConfig.setProperty(
+                ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretkey"));
 
-		DataStream<String> dynamodbStreams = see.addSource(new FlinkDynamoDBStreamsConsumer<>(
-				streamName,
-				new SimpleStringSchema(),
-				dynamodbStreamsConsumerConfig));
+        DataStream<String> dynamodbStreams =
+                see.addSource(
+                        new FlinkDynamoDBStreamsConsumer<>(
+                                streamName,
+                                new SimpleStringSchema(),
+                                dynamodbStreamsConsumerConfig));
 
-		dynamodbStreams.print();
+        dynamodbStreams.print();
 
-		see.execute();
-	}
-
+        see.execute();
+    }
 }

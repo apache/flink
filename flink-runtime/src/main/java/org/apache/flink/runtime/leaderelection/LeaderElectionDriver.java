@@ -19,36 +19,37 @@
 package org.apache.flink.runtime.leaderelection;
 
 /**
- * A {@link LeaderElectionDriver} is responsible for performing the leader election and storing the leader information.
- * All the leader internal state is guarded by lock in {@link LeaderElectionService}. Different driver
- * implementations do not need to care about the lock. And it should use {@link LeaderElectionEventHandler}
- * if it want to respond to the leader change events.
+ * A {@link LeaderElectionDriver} is responsible for performing the leader election and storing the
+ * leader information. All the leader internal state is guarded by lock in {@link
+ * LeaderElectionService}. Different driver implementations do not need to care about the lock. And
+ * it should use {@link LeaderElectionEventHandler} if it want to respond to the leader change
+ * events.
  *
- * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is no
- * {@link LeaderElectionEventHandler} callbacks happen after {@link #close()}.
+ * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is
+ * no {@link LeaderElectionEventHandler} callbacks happen after {@link #close()}.
  */
 public interface LeaderElectionDriver {
 
-	/**
-	 * Write the current leader information to external persistent storage(e.g. Zookeeper, Kubernetes ConfigMap). This
-	 * is a blocking IO operation. The write operation takes effect only when the driver still has the leadership.
-	 *
-	 * @param leaderInformation current leader information. It could be {@link LeaderInformation#empty()}, which means
-	 * the caller want to clear the leader information on external storage. Please remember that the clear operation
-	 * should only happen before a new leader is elected and has written his leader information on the storage.
-	 * Otherwise, we may have a risk to wrongly update the storage with empty leader information.
-	 */
-	void writeLeaderInformation(LeaderInformation leaderInformation);
+    /**
+     * Write the current leader information to external persistent storage(e.g. Zookeeper,
+     * Kubernetes ConfigMap). This is a blocking IO operation. The write operation takes effect only
+     * when the driver still has the leadership.
+     *
+     * @param leaderInformation current leader information. It could be {@link
+     *     LeaderInformation#empty()}, which means the caller want to clear the leader information
+     *     on external storage. Please remember that the clear operation should only happen before a
+     *     new leader is elected and has written his leader information on the storage. Otherwise,
+     *     we may have a risk to wrongly update the storage with empty leader information.
+     */
+    void writeLeaderInformation(LeaderInformation leaderInformation);
 
-	/**
-	 * Check whether the driver still have the leadership in the distributed coordination system.
-	 * @return Return whether the driver has leadership.
-	 */
-	boolean hasLeadership();
+    /**
+     * Check whether the driver still have the leadership in the distributed coordination system.
+     *
+     * @return Return whether the driver has leadership.
+     */
+    boolean hasLeadership();
 
-	/**
-	 * Close the services used for leader election.
-	 */
-	void close() throws Exception;
-
+    /** Close the services used for leader election. */
+    void close() throws Exception;
 }

@@ -27,16 +27,16 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
  */
 public class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedClass<C> {
 
-	private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = -7355875544905245676L;
 
-	/**
-	 * Creates a GeneratedOperator.
-	 *
-	 * @param className class name of the generated StreamOperator.
-	 * @param code code of the generated StreamOperator.
-	 * @param references referenced objects of the generated StreamOperator.
-	 */
-	public GeneratedOperator(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    /**
+     * Creates a GeneratedOperator.
+     *
+     * @param className class name of the generated StreamOperator.
+     * @param code code of the generated StreamOperator.
+     * @param references referenced objects of the generated StreamOperator.
+     */
+    public GeneratedOperator(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

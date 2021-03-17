@@ -26,58 +26,70 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.FrameworkConfig;
 
 import java.util.Collections;
 import java.util.Properties;
 import java.util.stream.Stream;
 
-/**
- * Standard implementation of {@link SqlExprToRexConverter}.
- */
+/** Standard implementation of {@link SqlExprToRexConverter}. */
 public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
 
-	private final FlinkPlannerImpl planner;
+    private final FlinkPlannerImpl planner;
 
-	private final RelDataType tableRowType;
+    private final SqlDialect sqlDialect;
 
-	public SqlExprToRexConverterImpl(
-			FrameworkConfig config,
-			FlinkTypeFactory typeFactory,
-			RelOptCluster cluster,
-			RelDataType tableRowType) {
-		this.planner = new FlinkPlannerImpl(
-			config,
-			(isLenient) -> createEmptyCatalogReader(typeFactory),
-			typeFactory,
-			cluster
-		);
-		this.tableRowType = tableRowType;
-	}
+    private final RelDataType tableRowType;
 
-	@Override
-	public RexNode convertToRexNode(String expr) {
-		return convertToRexNodes(new String[]{expr})[0];
-	}
+    public SqlExprToRexConverterImpl(
+            FrameworkConfig config,
+            FlinkTypeFactory typeFactory,
+            RelOptCluster cluster,
+            SqlDialect sqlDialect,
+            RelDataType tableRowType) {
+        this.planner =
+                new FlinkPlannerImpl(
+                        config,
+                        (isLenient) -> createEmptyCatalogReader(typeFactory),
+                        typeFactory,
+                        cluster);
+        this.sqlDialect = sqlDialect;
+        this.tableRowType = tableRowType;
+    }
 
-	@Override
-	public RexNode[] convertToRexNodes(String[] exprs) {
-		final CalciteParser parser = planner.parser();
-		return Stream.of(exprs)
-			.map(parser::parseExpression)
-			.map(node -> planner.rex(node, tableRowType))
-			.toArray(RexNode[]::new);
-	}
+    @Override
+    public String expand(String expr) {
+        final CalciteParser parser = planner.parser();
+        final SqlNode node = parser.parseExpression(expr);
+        final SqlNode validated = planner.validateExpression(node, tableRowType);
+        return validated.toSqlString(sqlDialect).getSql();
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Utilities
-	// ------------------------------------------------------------------------------------------
+    @Override
+    public RexNode convertToRexNode(String expr) {
+        return convertToRexNodes(new String[] {expr})[0];
+    }
 
-	private static CalciteCatalogReader createEmptyCatalogReader(FlinkTypeFactory typeFactory) {
-		return new FlinkCalciteCatalogReader(
-			CalciteSchema.createRootSchema(false),
-			Collections.emptyList(),
-			typeFactory,
-			new CalciteConnectionConfigImpl(new Properties()));
-	}
+    @Override
+    public RexNode[] convertToRexNodes(String[] exprs) {
+        final CalciteParser parser = planner.parser();
+        return Stream.of(exprs)
+                .map(parser::parseExpression)
+                .map(node -> planner.rex(node, tableRowType))
+                .toArray(RexNode[]::new);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Utilities
+    // ------------------------------------------------------------------------------------------
+
+    private static CalciteCatalogReader createEmptyCatalogReader(FlinkTypeFactory typeFactory) {
+        return new FlinkCalciteCatalogReader(
+                CalciteSchema.createRootSchema(false),
+                Collections.emptyList(),
+                typeFactory,
+                new CalciteConnectionConfigImpl(new Properties()));
+    }
 }

@@ -31,64 +31,65 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link MessageHeaders} for testing purpose.
- * Its request body, response body and message parameters are all empty.
+ * A {@link MessageHeaders} for testing purpose. Its request body, response body and message
+ * parameters are all empty.
  */
-public class TestEmptyMessageHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+public class TestEmptyMessageHeaders
+        implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-	private static final String URL = "/test/empty";
-	private static final String DESCRIPTION = "This is an empty testing REST API.";
+    private static final String URL = "/test/empty";
+    private static final String DESCRIPTION = "This is an empty testing REST API.";
 
-	private final String url;
-	private final String description;
+    private final String url;
+    private final String description;
 
-	public TestEmptyMessageHeaders() {
-		this.url = URL;
-		this.description = DESCRIPTION;
-	}
+    public TestEmptyMessageHeaders() {
+        this.url = URL;
+        this.description = DESCRIPTION;
+    }
 
-	public TestEmptyMessageHeaders(String url, String description) {
-		this.url = url;
-		this.description = description;
-	}
+    public TestEmptyMessageHeaders(String url, String description) {
+        this.url = url;
+        this.description = description;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return description;
-	}
+    @Override
+    public String getDescription() {
+        return description;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return url;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return url;
+    }
 
-	@Override
-	public Collection<RestAPIVersion> getSupportedAPIVersions() {
-		return Collections.singleton(RestAPIVersion.V0);
-	}
+    @Override
+    public Collection<RestAPIVersion> getSupportedAPIVersions() {
+        return Collections.singleton(RestAPIVersion.V0);
+    }
 }

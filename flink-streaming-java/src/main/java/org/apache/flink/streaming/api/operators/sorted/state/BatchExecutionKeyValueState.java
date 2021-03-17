@@ -24,40 +24,38 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 
-/**
- * A {@link ValueState} which keeps value for a single key at a time.
- */
-class BatchExecutionKeyValueState<K, N, T>
-		extends AbstractBatchExecutionKeyState<K, N, T>
-		implements InternalValueState<K, N, T> {
+/** A {@link ValueState} which keeps value for a single key at a time. */
+class BatchExecutionKeyValueState<K, N, T> extends AbstractBatchExecutionKeyState<K, N, T>
+        implements InternalValueState<K, N, T> {
 
-	BatchExecutionKeyValueState(
-			T defaultValue,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<T> stateTypeSerializer) {
-		super(defaultValue, keySerializer, namespaceSerializer, stateTypeSerializer);
-	}
+    BatchExecutionKeyValueState(
+            T defaultValue,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<T> stateTypeSerializer) {
+        super(defaultValue, keySerializer, namespaceSerializer, stateTypeSerializer);
+    }
 
-	@Override
-	public T value() {
-		return getOrDefault();
-	}
+    @Override
+    public T value() {
+        return getOrDefault();
+    }
 
-	@Override
-	public void update(T value) {
-		setCurrentNamespaceValue(value);
-	}
+    @Override
+    public void update(T value) {
+        setCurrentNamespaceValue(value);
+    }
 
-	@SuppressWarnings("unchecked")
-	static <T, K, N, SV, S extends State, IS extends S> IS create(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, SV> stateDesc) {
-		return (IS) new BatchExecutionKeyValueState<>(
-			stateDesc.getDefaultValue(),
-			keySerializer,
-			namespaceSerializer,
-			stateDesc.getSerializer());
-	}
+    @SuppressWarnings("unchecked")
+    static <T, K, N, SV, S extends State, IS extends S> IS create(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, SV> stateDesc) {
+        return (IS)
+                new BatchExecutionKeyValueState<>(
+                        stateDesc.getDefaultValue(),
+                        keySerializer,
+                        namespaceSerializer,
+                        stateDesc.getSerializer());
+    }
 }

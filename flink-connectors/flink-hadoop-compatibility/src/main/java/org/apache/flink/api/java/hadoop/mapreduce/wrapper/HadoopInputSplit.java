@@ -30,73 +30,75 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
- * A wrapper that represents an input split from the Hadoop mapreduce API as
- * a Flink {@link InputSplit}.
+ * A wrapper that represents an input split from the Hadoop mapreduce API as a Flink {@link
+ * InputSplit}.
  */
 public class HadoopInputSplit extends LocatableInputSplit {
 
-	private static final long serialVersionUID = 6119153593707857235L;
+    private static final long serialVersionUID = 6119153593707857235L;
 
-	private final Class<? extends org.apache.hadoop.mapreduce.InputSplit> splitType;
+    private final Class<? extends org.apache.hadoop.mapreduce.InputSplit> splitType;
 
-	private transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
+    private transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
 
-	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit, JobContext jobContext) {
-		super(splitNumber, (String) null);
+    public HadoopInputSplit(
+            int splitNumber,
+            org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit,
+            JobContext jobContext) {
+        super(splitNumber, (String) null);
 
-		if (mapreduceInputSplit == null) {
-			throw new NullPointerException("Hadoop input split must not be null");
-		}
-		if (!(mapreduceInputSplit instanceof Writable)) {
-			throw new IllegalArgumentException("InputSplit must implement Writable interface.");
-		}
-		this.splitType = mapreduceInputSplit.getClass();
-		this.mapreduceInputSplit = mapreduceInputSplit;
-	}
+        if (mapreduceInputSplit == null) {
+            throw new NullPointerException("Hadoop input split must not be null");
+        }
+        if (!(mapreduceInputSplit instanceof Writable)) {
+            throw new IllegalArgumentException("InputSplit must implement Writable interface.");
+        }
+        this.splitType = mapreduceInputSplit.getClass();
+        this.mapreduceInputSplit = mapreduceInputSplit;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Properties
+    // ------------------------------------------------------------------------
 
-	public org.apache.hadoop.mapreduce.InputSplit getHadoopInputSplit() {
-		return mapreduceInputSplit;
-	}
+    public org.apache.hadoop.mapreduce.InputSplit getHadoopInputSplit() {
+        return mapreduceInputSplit;
+    }
 
-	@Override
-	public String[] getHostnames() {
-		try {
-			return mapreduceInputSplit.getLocations();
-		}
-		catch (Exception e) {
-			return new String[0];
-		}
-	}
+    @Override
+    public String[] getHostnames() {
+        try {
+            return mapreduceInputSplit.getLocations();
+        } catch (Exception e) {
+            return new String[0];
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Serialization
+    // ------------------------------------------------------------------------
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		// serialize the parent fields and the final fields
-		out.defaultWriteObject();
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        // serialize the parent fields and the final fields
+        out.defaultWriteObject();
 
-		// write the input split
-		((Writable) mapreduceInputSplit).write(out);
-	}
+        // write the input split
+        ((Writable) mapreduceInputSplit).write(out);
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		// read the parent fields and the final fields
-		in.defaultReadObject();
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        // read the parent fields and the final fields
+        in.defaultReadObject();
 
-		try {
-			Class<? extends Writable> writableSplit = splitType.asSubclass(Writable.class);
-			mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(writableSplit);
-		}
+        try {
+            Class<? extends Writable> writableSplit = splitType.asSubclass(Writable.class);
+            mapreduceInputSplit =
+                    (org.apache.hadoop.mapreduce.InputSplit)
+                            WritableFactories.newInstance(writableSplit);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to instantiate the Hadoop InputSplit", e);
+        }
 
-		catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the Hadoop InputSplit", e);
-		}
-
-		((Writable) mapreduceInputSplit).readFields(in);
-	}
+        ((Writable) mapreduceInputSplit).readFields(in);
+    }
 }

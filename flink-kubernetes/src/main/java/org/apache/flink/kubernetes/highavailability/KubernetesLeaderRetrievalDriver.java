@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
@@ -29,6 +30,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
@@ -36,85 +39,117 @@ import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInforma
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The counterpart to the {@link KubernetesLeaderElectionDriver}.
- * {@link LeaderRetrievalDriver} implementation for Kubernetes. It retrieves the current leader which has
- * been elected by the {@link KubernetesLeaderElectionDriver}.
- * The leader address as well as the current leader session ID is retrieved from Kubernetes ConfigMap.
+ * The counterpart to the {@link KubernetesLeaderElectionDriver}. {@link LeaderRetrievalDriver}
+ * implementation for Kubernetes. It retrieves the current leader which has been elected by the
+ * {@link KubernetesLeaderElectionDriver}. The leader address as well as the current leader session
+ * ID is retrieved from Kubernetes ConfigMap.
  */
 public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
-	private final String configMapName;
+    private final Object watchLock = new Object();
 
-	private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
+    private final FlinkKubeClient kubeClient;
 
-	private final KubernetesWatch kubernetesWatch;
+    private final String configMapName;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
 
-	private volatile boolean running;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	public KubernetesLeaderRetrievalDriver(
-			FlinkKubeClient kubeClient,
-			String configMapName,
-			LeaderRetrievalEventHandler leaderRetrievalEventHandler,
-			FatalErrorHandler fatalErrorHandler) {
-		checkNotNull(kubeClient, "Kubernetes client");
-		this.configMapName = checkNotNull(configMapName, "ConfigMap name");
-		this.leaderRetrievalEventHandler = checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
-		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+    private volatile boolean running;
 
-		kubernetesWatch = kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+    @GuardedBy("watchLock")
+    private KubernetesWatch kubernetesWatch;
 
-		running = true;
-	}
+    public KubernetesLeaderRetrievalDriver(
+            FlinkKubeClient kubeClient,
+            String configMapName,
+            LeaderRetrievalEventHandler leaderRetrievalEventHandler,
+            FatalErrorHandler fatalErrorHandler) {
+        this.kubeClient = checkNotNull(kubeClient, "Kubernetes client");
+        this.configMapName = checkNotNull(configMapName, "ConfigMap name");
+        this.leaderRetrievalEventHandler =
+                checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
+        this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
-	@Override
-	public void close() {
-		if (!running) {
-			return;
-		}
-		running = false;
+        kubernetesWatch =
+                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
 
-		LOG.info("Stopping {}.", this);
-		kubernetesWatch.close();
-	}
+        running = true;
+    }
 
-	private class ConfigMapCallbackHandlerImpl implements FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> {
+    @Override
+    public void close() {
+        if (!running) {
+            return;
+        }
+        running = false;
 
-		@Override
-		public void onAdded(List<KubernetesConfigMap> configMaps) {
-			// The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We do not process this
-			// useless event.
-		}
+        LOG.info("Stopping {}.", this);
 
-		@Override
-		public void onModified(List<KubernetesConfigMap> configMaps) {
-			final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
-			leaderRetrievalEventHandler.notifyLeaderAddress(getLeaderInformationFromConfigMap(configMap));
-		}
+        synchronized (watchLock) {
+            if (kubernetesWatch != null) {
+                kubernetesWatch.close();
+            }
+        }
+    }
 
-		@Override
-		public void onDeleted(List<KubernetesConfigMap> configMaps) {
-			// Nothing to do since the delete event will be handled in the leader election part.
-		}
+    private class ConfigMapCallbackHandlerImpl
+            implements FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> {
 
-		@Override
-		public void onError(List<KubernetesConfigMap> configMaps) {
-			fatalErrorHandler.onFatalError(
-				new LeaderRetrievalException("Error while watching the ConfigMap " + configMapName));
-		}
+        @Override
+        public void onAdded(List<KubernetesConfigMap> configMaps) {
+            // The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We do not
+            // process this
+            // useless event.
+        }
 
-		@Override
-		public void handleFatalError(Throwable throwable) {
-			fatalErrorHandler.onFatalError(
-				new LeaderRetrievalException("Error while watching the ConfigMap " + configMapName));
-		}
-	}
+        @Override
+        public void onModified(List<KubernetesConfigMap> configMaps) {
+            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            leaderRetrievalEventHandler.notifyLeaderAddress(
+                    getLeaderInformationFromConfigMap(configMap));
+        }
 
-	@Override
-	public String toString() {
-		return "KubernetesLeaderRetrievalDriver{configMapName='" + configMapName + "'}";
-	}
+        @Override
+        public void onDeleted(List<KubernetesConfigMap> configMaps) {
+            // Nothing to do since the delete event will be handled in the leader election part.
+        }
+
+        @Override
+        public void onError(List<KubernetesConfigMap> configMaps) {
+            fatalErrorHandler.onFatalError(
+                    new LeaderRetrievalException(
+                            "Error while watching the ConfigMap " + configMapName));
+        }
+
+        @Override
+        public void handleError(Throwable throwable) {
+            if (throwable instanceof KubernetesTooOldResourceVersionException) {
+                synchronized (watchLock) {
+                    if (running) {
+                        if (kubernetesWatch != null) {
+                            kubernetesWatch.close();
+                        }
+                        LOG.info("Creating a new watch on ConfigMap {}.", configMapName);
+                        kubernetesWatch =
+                                kubeClient.watchConfigMaps(
+                                        configMapName, new ConfigMapCallbackHandlerImpl());
+                    }
+                }
+            } else {
+                fatalErrorHandler.onFatalError(
+                        new LeaderRetrievalException(
+                                "Error while watching the ConfigMap " + configMapName, throwable));
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "KubernetesLeaderRetrievalDriver{configMapName='" + configMapName + "'}";
+    }
 }

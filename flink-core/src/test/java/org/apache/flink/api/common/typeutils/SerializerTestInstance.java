@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.typeutils;
 
-
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import org.junit.Ignore;
@@ -30,76 +29,77 @@ import java.lang.reflect.Method;
 @Ignore
 public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 
-	private final TypeSerializer<T> serializer;
+    private final TypeSerializer<T> serializer;
 
-	private final Class<T> typeClass;
+    private final Class<T> typeClass;
 
-	private final int length;
+    private final int length;
 
-	private final T[] testData;
+    private final T[] testData;
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@SafeVarargs
-	public SerializerTestInstance(TypeSerializer<T> serializer, Class<T> typeClass, int length, T... testData) {
-		this(new DeeplyEqualsChecker(), serializer, typeClass, length, testData);
-	}
+    @SafeVarargs
+    public SerializerTestInstance(
+            TypeSerializer<T> serializer, Class<T> typeClass, int length, T... testData) {
+        this(new DeeplyEqualsChecker(), serializer, typeClass, length, testData);
+    }
 
-	@SafeVarargs
-	public SerializerTestInstance(
-			DeeplyEqualsChecker checker,
-			TypeSerializer<T> serializer,
-			Class<T> typeClass,
-			int length,
-			T... testData) {
-		super(checker);
-		this.serializer = serializer;
-		this.typeClass = typeClass;
-		this.length = length;
-		this.testData = testData;
-	}
+    @SafeVarargs
+    public SerializerTestInstance(
+            DeeplyEqualsChecker checker,
+            TypeSerializer<T> serializer,
+            Class<T> typeClass,
+            int length,
+            T... testData) {
+        super(checker);
+        this.serializer = serializer;
+        this.typeClass = typeClass;
+        this.length = length;
+        this.testData = testData;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	protected TypeSerializer<T> createSerializer() {
-		return this.serializer;
-	}
+    @Override
+    protected TypeSerializer<T> createSerializer() {
+        return this.serializer;
+    }
 
-	@Override
-	protected int getLength() {
-		return this.length;
-	}
+    @Override
+    protected int getLength() {
+        return this.length;
+    }
 
-	@Override
-	protected Class<T> getTypeClass() {
-		return this.typeClass;
-	}
+    @Override
+    protected Class<T> getTypeClass() {
+        return this.typeClass;
+    }
 
-	@Override
-	protected T[] getTestData() {
-		return this.testData;
-	}
+    @Override
+    protected T[] getTestData() {
+        return this.testData;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public void testAll() {
-		for (Method method : SerializerTestBase.class.getMethods()) {
-			if (method.getAnnotation(Test.class) == null) {
-				continue;
-			}
-			try {
-				method.invoke(this);
-			} catch (IllegalAccessException e) {
-				throw new RuntimeException("Unable to invoke test " + method.getName(), e);
-			} catch (InvocationTargetException e) {
-				sneakyThrow(e.getCause());
-			}
-		}
-	}
+    public void testAll() {
+        for (Method method : SerializerTestBase.class.getMethods()) {
+            if (method.getAnnotation(Test.class) == null) {
+                continue;
+            }
+            try {
+                method.invoke(this);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Unable to invoke test " + method.getName(), e);
+            } catch (InvocationTargetException e) {
+                sneakyThrow(e.getCause());
+            }
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
-		throw (E) e;
-	}
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+        throw (E) e;
+    }
 }

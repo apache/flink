@@ -21,37 +21,35 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 
-/**
- * Aggregator for {@link Boolean} type.
- */
+/** Aggregator for {@link Boolean} type. */
 @Internal
 public class BooleanSummaryAggregator implements Aggregator<Boolean, BooleanColumnSummary> {
 
-	private long trueCount = 0L;
-	private long falseCount = 0L;
-	private long nullCount = 0L;
+    private long trueCount = 0L;
+    private long falseCount = 0L;
+    private long nullCount = 0L;
 
-	@Override
-	public void aggregate(Boolean value) {
-		if (value == null) {
-			nullCount++;
-		} else if (value) {
-			trueCount++;
-		} else {
-			falseCount++;
-		}
-	}
+    @Override
+    public void aggregate(Boolean value) {
+        if (value == null) {
+            nullCount++;
+        } else if (value) {
+            trueCount++;
+        } else {
+            falseCount++;
+        }
+    }
 
-	@Override
-	public void combine(Aggregator<Boolean, BooleanColumnSummary> otherSameType) {
-		BooleanSummaryAggregator other = (BooleanSummaryAggregator) otherSameType;
-		trueCount += other.trueCount;
-		falseCount += other.falseCount;
-		nullCount += other.nullCount;
-	}
+    @Override
+    public void combine(Aggregator<Boolean, BooleanColumnSummary> otherSameType) {
+        BooleanSummaryAggregator other = (BooleanSummaryAggregator) otherSameType;
+        trueCount += other.trueCount;
+        falseCount += other.falseCount;
+        nullCount += other.nullCount;
+    }
 
-	@Override
-	public BooleanColumnSummary result() {
-		return new BooleanColumnSummary(trueCount, falseCount, nullCount);
-	}
+    @Override
+    public BooleanColumnSummary result() {
+        return new BooleanColumnSummary(trueCount, falseCount, nullCount);
+    }
 }

@@ -30,70 +30,68 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Default implementation of {@link SchedulingResultPartition}.
- */
+/** Default implementation of {@link SchedulingResultPartition}. */
 class DefaultResultPartition implements SchedulingResultPartition {
 
-	private final IntermediateResultPartitionID resultPartitionId;
+    private final IntermediateResultPartitionID resultPartitionId;
 
-	private final IntermediateDataSetID intermediateDataSetId;
+    private final IntermediateDataSetID intermediateDataSetId;
 
-	private final ResultPartitionType partitionType;
+    private final ResultPartitionType partitionType;
 
-	private final Supplier<ResultPartitionState> resultPartitionStateSupplier;
+    private final Supplier<ResultPartitionState> resultPartitionStateSupplier;
 
-	private DefaultExecutionVertex producer;
+    private DefaultExecutionVertex producer;
 
-	private final List<DefaultExecutionVertex> consumers;
+    private final List<DefaultExecutionVertex> consumers;
 
-	DefaultResultPartition(
-			IntermediateResultPartitionID partitionId,
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionType partitionType,
-			Supplier<ResultPartitionState> resultPartitionStateSupplier) {
-		this.resultPartitionId = checkNotNull(partitionId);
-		this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
-		this.partitionType = checkNotNull(partitionType);
-		this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
-		this.consumers = new ArrayList<>();
-	}
+    DefaultResultPartition(
+            IntermediateResultPartitionID partitionId,
+            IntermediateDataSetID intermediateDataSetId,
+            ResultPartitionType partitionType,
+            Supplier<ResultPartitionState> resultPartitionStateSupplier) {
+        this.resultPartitionId = checkNotNull(partitionId);
+        this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
+        this.partitionType = checkNotNull(partitionType);
+        this.resultPartitionStateSupplier = checkNotNull(resultPartitionStateSupplier);
+        this.consumers = new ArrayList<>();
+    }
 
-	@Override
-	public IntermediateResultPartitionID getId() {
-		return resultPartitionId;
-	}
+    @Override
+    public IntermediateResultPartitionID getId() {
+        return resultPartitionId;
+    }
 
-	@Override
-	public IntermediateDataSetID getResultId() {
-		return intermediateDataSetId;
-	}
+    @Override
+    public IntermediateDataSetID getResultId() {
+        return intermediateDataSetId;
+    }
 
-	@Override
-	public ResultPartitionType getResultType() {
-		return partitionType;
-	}
+    @Override
+    public ResultPartitionType getResultType() {
+        return partitionType;
+    }
 
-	@Override
-	public ResultPartitionState getState() {
-		return resultPartitionStateSupplier.get();
-	}
+    @Override
+    public ResultPartitionState getState() {
+        return resultPartitionStateSupplier.get();
+    }
 
-	@Override
-	public DefaultExecutionVertex getProducer() {
-		return producer;
-	}
+    @Override
+    public DefaultExecutionVertex getProducer() {
+        return producer;
+    }
 
-	@Override
-	public Iterable<DefaultExecutionVertex> getConsumers() {
-		return consumers;
-	}
+    @Override
+    public Iterable<DefaultExecutionVertex> getConsumers() {
+        return consumers;
+    }
 
-	void addConsumer(DefaultExecutionVertex vertex) {
-		consumers.add(checkNotNull(vertex));
-	}
+    void addConsumer(DefaultExecutionVertex vertex) {
+        consumers.add(checkNotNull(vertex));
+    }
 
-	void setProducer(DefaultExecutionVertex vertex) {
-		producer = checkNotNull(vertex);
-	}
+    void setProducer(DefaultExecutionVertex vertex) {
+        producer = checkNotNull(vertex);
+    }
 }

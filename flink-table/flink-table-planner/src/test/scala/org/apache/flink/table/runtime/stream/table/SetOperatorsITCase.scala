@@ -24,15 +24,19 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Ignore, Rule, Test}
 
 import scala.collection.mutable
 
 class SetOperatorsITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(

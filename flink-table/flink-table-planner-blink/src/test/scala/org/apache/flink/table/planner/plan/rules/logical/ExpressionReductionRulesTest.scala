@@ -38,14 +38,14 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testExpressionReductionWithUDF(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT MyUdf(1) FROM MyTable")
+    util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
   }
 
   @Test
   def testExpressionReductionWithRichUDF(): Unit = {
     util.addFunction("MyUdf", new RichFunc1)
     util.getTableEnv.getConfig.addJobParameter("int.value", "10")
-    util.verifyPlan("SELECT myUdf(1) FROM MyTable")
+    util.verifyRelPlan("SELECT myUdf(1) FROM MyTable")
   }
 
   @Test
@@ -54,14 +54,14 @@ class ExpressionReductionRulesTest extends TableTestBase {
     // FunctionContext.getCachedFile will fail during expression reduction
     // it will be executed during runtime though
     util.getTableEnv.getConfig.addJobParameter("fail-for-cached-file", "true")
-    util.verifyPlan("SELECT myUdf(1 + 1) FROM MyTable")
+    util.verifyRelPlan("SELECT myUdf(1 + 1) FROM MyTable")
   }
 
   @Test
   def testExpressionReductionWithPythonUDF(): Unit = {
     util.addFunction("PyUdf", DeterministicPythonFunc)
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
+    util.verifyExecPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
 }
 

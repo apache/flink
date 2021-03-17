@@ -18,8 +18,5 @@
 
 package org.slf4j.impl;
 
-/**
- * Fake appender to work around HBase referring to it directly.
- */
-public interface Log4jLoggerAdapter {
-}
+/** Fake appender to work around HBase referring to it directly. */
+public interface Log4jLoggerAdapter {}

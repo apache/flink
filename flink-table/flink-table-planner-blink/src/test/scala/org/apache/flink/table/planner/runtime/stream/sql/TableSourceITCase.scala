@@ -23,12 +23,16 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.utils._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 class TableSourceITCase extends StreamingTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   override def before(): Unit = {

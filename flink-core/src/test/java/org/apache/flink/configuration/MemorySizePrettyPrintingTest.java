@@ -28,45 +28,30 @@ import org.junit.runners.Parameterized;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link MemorySize#toString()}.
- */
+/** Tests for {@link MemorySize#toString()}. */
 @RunWith(Parameterized.class)
 public class MemorySizePrettyPrintingTest extends TestLogger {
-	@Parameterized.Parameters
-	public static Object[][] parameters() {
-		return new Object[][]{
-			new Object[]{
-				new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1),
-				"1025 bytes"
-			},
-			new Object[]{
-				new MemorySize(100),
-				"100 bytes"
-			},
-			new Object[]{
-				new MemorySize(1024),
-				"1 kb"
-			},
-			new Object[]{
-				new MemorySize(MemoryUnit.GIGA_BYTES.getMultiplier() + 1),
-				String.format("%d %s", MemoryUnit.GIGA_BYTES.getMultiplier() + 1, "bytes")
-			},
-			new Object[]{
-				new MemorySize(0),
-				"0 bytes"
-			}
-		};
-	}
+    @Parameterized.Parameters
+    public static Object[][] parameters() {
+        return new Object[][] {
+            new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},
+            new Object[] {new MemorySize(100), "100 bytes"},
+            new Object[] {new MemorySize(1024), "1 kb"},
+            new Object[] {
+                new MemorySize(MemoryUnit.GIGA_BYTES.getMultiplier() + 1),
+                String.format("%d %s", MemoryUnit.GIGA_BYTES.getMultiplier() + 1, "bytes")
+            },
+            new Object[] {new MemorySize(0), "0 bytes"}
+        };
+    }
 
-	@Parameterized.Parameter
-	public MemorySize memorySize;
+    @Parameterized.Parameter public MemorySize memorySize;
 
-	@Parameterized.Parameter(1)
-	public String expectedString;
+    @Parameterized.Parameter(1)
+    public String expectedString;
 
-	@Test
-	public void testFormatting() {
-		assertThat(memorySize.toString(), is(expectedString));
-	}
+    @Test
+    public void testFormatting() {
+        assertThat(memorySize.toString(), is(expectedString));
+    }
 }

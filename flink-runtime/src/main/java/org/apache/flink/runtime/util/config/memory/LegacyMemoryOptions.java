@@ -24,29 +24,30 @@ import org.apache.flink.configuration.MemorySize;
 /**
  * Legacy JVM heap/process memory options.
  *
- * <p>If these memory options are set, they are interpreted as other new memory options for the backwards compatibility
- * in {@link MemoryBackwardsCompatibilityUtils}.
+ * <p>If these memory options are set, they are interpreted as other new memory options for the
+ * backwards compatibility in {@link MemoryBackwardsCompatibilityUtils}.
  */
 public class LegacyMemoryOptions {
-	private final String envVar;
-	private final ConfigOption<MemorySize> heap;
-	private final ConfigOption<Integer> heapMb;
+    private final String envVar;
+    private final ConfigOption<MemorySize> heap;
+    private final ConfigOption<Integer> heapMb;
 
-	public LegacyMemoryOptions(String envVar, ConfigOption<MemorySize> heap, ConfigOption<Integer> heapMb) {
-		this.envVar = envVar;
-		this.heap = heap;
-		this.heapMb = heapMb;
-	}
+    public LegacyMemoryOptions(
+            String envVar, ConfigOption<MemorySize> heap, ConfigOption<Integer> heapMb) {
+        this.envVar = envVar;
+        this.heap = heap;
+        this.heapMb = heapMb;
+    }
 
-	String getEnvVar() {
-		return envVar;
-	}
+    String getEnvVar() {
+        return envVar;
+    }
 
-	ConfigOption<MemorySize> getHeap() {
-		return heap;
-	}
+    ConfigOption<MemorySize> getHeap() {
+        return heap;
+    }
 
-	ConfigOption<Integer> getHeapMb() {
-		return heapMb;
-	}
+    ConfigOption<Integer> getHeapMb() {
+        return heapMb;
+    }
 }

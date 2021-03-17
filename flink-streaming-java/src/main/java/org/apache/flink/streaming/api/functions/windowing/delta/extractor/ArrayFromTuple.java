@@ -21,53 +21,51 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Converts a Tuple to an Object-Array. The field which should be included in
- * the array can selected and reordered as needed.
+ * Converts a Tuple to an Object-Array. The field which should be included in the array can selected
+ * and reordered as needed.
  */
 @Internal
 public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 
-	private static final long serialVersionUID = -6076121226427616818L;
-	int[] order = null;
+    private static final long serialVersionUID = -6076121226427616818L;
+    int[] order = null;
 
-	/**
-	 * Using this constructor the extractor will convert the whole tuple (all
-	 * fields in the original order) to an array.
-	 */
-	public ArrayFromTuple() {
-		// noting to do
-	}
+    /**
+     * Using this constructor the extractor will convert the whole tuple (all fields in the original
+     * order) to an array.
+     */
+    public ArrayFromTuple() {
+        // noting to do
+    }
 
-	/**
-	 * Using this constructor the extractor will combine the fields as specified
-	 * in the indexes parameter in an object array.
-	 *
-	 * @param indexes
-	 *            the field ids (enumerated from 0)
-	 */
-	public ArrayFromTuple(int... indexes) {
-		this.order = indexes;
-	}
+    /**
+     * Using this constructor the extractor will combine the fields as specified in the indexes
+     * parameter in an object array.
+     *
+     * @param indexes the field ids (enumerated from 0)
+     */
+    public ArrayFromTuple(int... indexes) {
+        this.order = indexes;
+    }
 
-	@Override
-	public Object[] extract(Tuple in) {
-		Object[] output;
+    @Override
+    public Object[] extract(Tuple in) {
+        Object[] output;
 
-		if (order == null) {
-			// copy the whole tuple
-			output = new Object[in.getArity()];
-			for (int i = 0; i < in.getArity(); i++) {
-				output[i] = in.getField(i);
-			}
-		} else {
-			// copy user specified order
-			output = new Object[order.length];
-			for (int i = 0; i < order.length; i++) {
-				output[i] = in.getField(order[i]);
-			}
-		}
+        if (order == null) {
+            // copy the whole tuple
+            output = new Object[in.getArity()];
+            for (int i = 0; i < in.getArity(); i++) {
+                output[i] = in.getField(i);
+            }
+        } else {
+            // copy user specified order
+            output = new Object[order.length];
+            for (int i = 0; i < order.length; i++) {
+                output[i] = in.getField(order[i]);
+            }
+        }
 
-		return output;
-	}
-
+        return output;
+    }
 }

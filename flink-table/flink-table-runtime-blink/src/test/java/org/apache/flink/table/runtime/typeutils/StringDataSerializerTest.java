@@ -23,30 +23,31 @@ import org.apache.flink.table.data.StringData;
 
 import java.util.Arrays;
 
-/**
- * A test for the {@link StringDataSerializer}.
- */
+/** A test for the {@link StringDataSerializer}. */
 public class StringDataSerializerTest extends SerializerTestBase<StringData> {
 
-	@Override
-	protected StringDataSerializer createSerializer() {
-		return StringDataSerializer.INSTANCE;
-	}
+    @Override
+    protected StringDataSerializer createSerializer() {
+        return StringDataSerializer.INSTANCE;
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<StringData> getTypeClass() {
-		return StringData.class;
-	}
+    @Override
+    protected Class<StringData> getTypeClass() {
+        return StringData.class;
+    }
 
-	@Override
-	protected StringData[] getTestData() {
-		return Arrays.stream(
-				new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"})
-				.map(StringData::fromString).toArray(StringData[]::new);
-	}
+    @Override
+    protected StringData[] getTestData() {
+        return Arrays.stream(
+                        new String[] {
+                            "a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"
+                        })
+                .map(StringData::fromString)
+                .toArray(StringData[]::new);
+    }
 }

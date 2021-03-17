@@ -32,20 +32,23 @@ import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
- * This is the only executor that {@link org.apache.flink.table.planner.delegation.StreamPlanner} supports.
+ * This is the only executor that {@link org.apache.flink.table.planner.delegation.StreamPlanner}
+ * supports.
  */
 @Internal
 public class StreamExecutor extends ExecutorBase {
 
-	@VisibleForTesting
-	public StreamExecutor(StreamExecutionEnvironment executionEnvironment) {
-		super(executionEnvironment);
-	}
+    @VisibleForTesting
+    public StreamExecutor(StreamExecutionEnvironment executionEnvironment) {
+        super(executionEnvironment);
+    }
 
-	@Override
-	public Pipeline createPipeline(List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
-		StreamGraph streamGraph = ExecutorUtils.generateStreamGraph(getExecutionEnvironment(), transformations);
-		streamGraph.setJobName(getNonEmptyJobName(jobName));
-		return streamGraph;
-	}
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+        StreamGraph streamGraph =
+                ExecutorUtils.generateStreamGraph(getExecutionEnvironment(), transformations);
+        streamGraph.setJobName(getNonEmptyJobName(jobName));
+        return streamGraph;
+    }
 }

@@ -34,18 +34,21 @@ import java.util.Collections;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
-final class StatelessSinkWriterOperator<InputT, CommT> extends AbstractSinkWriterOperator<InputT, CommT> {
+final class StatelessSinkWriterOperator<InputT, CommT>
+        extends AbstractSinkWriterOperator<InputT, CommT> {
 
-	/** Used to create the stateless {@link SinkWriter}. */
-	private final Sink<InputT, CommT, ?, ?> sink;
+    /** Used to create the stateless {@link SinkWriter}. */
+    private final Sink<InputT, CommT, ?, ?> sink;
 
-	StatelessSinkWriterOperator(final ProcessingTimeService processingTimeService, final Sink<InputT, CommT, ?, ?> sink) {
-		super(processingTimeService);
-		this.sink = sink;
-	}
+    StatelessSinkWriterOperator(
+            final ProcessingTimeService processingTimeService,
+            final Sink<InputT, CommT, ?, ?> sink) {
+        super(processingTimeService);
+        this.sink = sink;
+    }
 
-	@Override
-	SinkWriter<InputT, CommT, ?> createWriter() throws IOException {
-		return sink.createWriter(createInitContext(), Collections.emptyList());
-	}
+    @Override
+    SinkWriter<InputT, CommT, ?> createWriter() throws IOException {
+        return sink.createWriter(createInitContext(), Collections.emptyList());
+    }
 }

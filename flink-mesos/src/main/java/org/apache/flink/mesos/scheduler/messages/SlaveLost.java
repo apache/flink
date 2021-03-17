@@ -23,27 +23,25 @@ import org.apache.mesos.Protos;
 import java.io.Serializable;
 
 /**
- * Message sent by the callback handler to the scheduler actor
- * when a slave has been determined unreachable (e.g., machine failure, network partition).
+ * Message sent by the callback handler to the scheduler actor when a slave has been determined
+ * unreachable (e.g., machine failure, network partition).
  */
 public class SlaveLost implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Protos.SlaveID slaveId;
+    private final Protos.SlaveID slaveId;
 
-	public SlaveLost(Protos.SlaveID slaveId) {
-		this.slaveId = slaveId;
-	}
+    public SlaveLost(Protos.SlaveID slaveId) {
+        this.slaveId = slaveId;
+    }
 
-	public Protos.SlaveID slaveId() {
-		return slaveId;
-	}
+    public Protos.SlaveID slaveId() {
+        return slaveId;
+    }
 
-	@Override
-	public String toString() {
-		return "SlaveLost{" +
-			"slaveId=" + slaveId +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "SlaveLost{" + "slaveId=" + slaveId + '}';
+    }
 }

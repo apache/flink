@@ -1,0 +1,680 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+
+comparison:
+    - sql: value1 = value2
+      table: value1 === value2
+      description: Returns TRUE if value1 is equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value1 <> value2
+      table: value1 !== value2
+      description: Returns TRUE if value1 is not equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value1 > value2
+      table: value1 > value2
+      description: Returns TRUE if value1 is greater than value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value1 >= value2
+      table: value1 >= value2
+      description: Returns TRUE if value1 is greater than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value1 < value2
+      table: value1 < value2
+      description: Returns TRUE if value1 is less than value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value1 <= value2
+      table: value1 <= value2
+      description: Returns TRUE if value1 is less than or equal to value2; returns UNKNOWN if value1 or value2 is NULL.
+    - sql: value IS NULL
+      table: value.isNull
+      description: Returns TRUE if value is NULL.
+    - sql: value IS NOT NULL
+      table: value.isNotNull
+      description: Returns TRUE if value is not NULL.
+    - sql: value1 IS DISTINCT FROM value2
+      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+    - sql: value1 IS NOT DISTINCT FROM value2
+      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+    - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
+      description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is greater than or equal to value2 and less than or equal to value3. With the SYMMETRIC keyword, returns TRUE if value1 is inclusively between value2 and value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN. E.g., 12 BETWEEN 15 AND 12 returns FALSE; 12 BETWEEN SYMMETRIC 15 AND 12 returns TRUE; 12 BETWEEN 10 AND NULL returns UNKNOWN; 12 BETWEEN NULL AND 10 returns FALSE; 12 BETWEEN SYMMETRIC NULL AND 12 returns UNKNOWN.
+    - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
+      description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is less than value2 or greater than value3. With the SYMMETRIC keyword, returns TRUE if value1 is not inclusively between value2 and value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN. E.g., 12 NOT BETWEEN 15 AND 12 returns TRUE; 12 NOT BETWEEN SYMMETRIC 15 AND 12 returns FALSE; 12 NOT BETWEEN NULL AND 15 returns UNKNOWN; 12 NOT BETWEEN 15 AND NULL returns TRUE; 12 NOT BETWEEN SYMMETRIC 12 AND NULL returns UNKNOWN.
+    - sql: string1 LIKE string2 [ ESCAPE char ]
+      table: string1.like(string2)
+      description: Returns TRUE if string1 matches pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    - sql: string1 NOT LIKE string2 [ ESCAPE char ]
+      description: Returns TRUE if string1 does not match pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
+      table: string1.similar(string2)
+      description: Returns TRUE if string1 matches SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    - sql: string1 NOT SIMILAR TO string2 [ ESCAPE char ]
+      description: Returns TRUE if string1 does not match SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    - sql: value1 IN (value2 [, value3]* )
+      table: value1.in(valu2) 
+      description: Returns TRUE if value1 exists in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 IN (1, 2, 3) returns FALSE; 1 IN (1, 2, NULL) returns TRUE; 4 IN (1, 2, NULL) returns UNKNOWN.
+    - sql: value1 NOT IN (value2 [, value3]* )
+      description: Returns TRUE if value1 does not exist in the given list (value2, value3, ...). When (value2, value3, ...). contains NULL, returns FALSE if value1 can be found and UNKNOWN otherwise. Always returns UNKNOWN if value1 is NULL. E.g., 4 NOT IN (1, 2, 3) returns TRUE; 1 NOT IN (1, 2, NULL) returns FALSE; 4 NOT IN (1, 2, NULL) returns UNKNOWN.
+    - sql: EXISTS (sub-query)
+      description: Returns TRUE if sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation. For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size.
+    - sql: value IN (sub-query)
+      table: value1.in(TABLE)
+      description: Returns TRUE if value is equal to a row returned by sub-query.
+    - sql: value NOT IN (sub-query)
+      description: Returns TRUE if value is not equal to a row returned by sub-query.
+    - table: value1.between(value2, value3)
+      description: Returns TRUE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
+    - table: value1.notBetween(value2, value3)
+      description: Returns FALSE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
+
+logical:
+  - sql: boolean1 OR boolean2
+    table: BOOLEAN1 || BOOLEAN2
+    description: Returns TRUE if BOOLEAN1 is TRUE or BOOLEAN2 is TRUE. Supports three-valued logic. E.g., true || Null(BOOLEAN) returns TRUE.
+  - sql: boolean1 AND boolean2
+    table: BOOLEAN1 && BOOLEAN2
+    description: Returns TRUE if BOOLEAN1 and BOOLEAN2 are both TRUE. Supports three-valued logic. E.g., true && Null(BOOLEAN) returns UNKNOWN.
+  - sql: NOT boolean
+    table: '!BOOLEAN'
+    description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE; returns UNKNOWN if boolean is UNKNOWN.
+  - sql: boolean IS FALSE
+    table: BOOLEAN.isFalse
+    description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE or UNKNOWN.
+  - sql: boolean IS NOT FALSE
+    table: BOOLEAN.isNotFalse
+    description: Returns TRUE if BOOLEAN is TRUE or UNKNOWN; returns FALSE if BOOLEAN is FALSE.
+  - sql: boolean IS TRUE
+    table: BOOLEAN.isTrue
+    description: Returns TRUE if BOOLEAN is TRUE; returns FALSE if BOOLEAN is FALSE or UNKNOWN.
+  - sql: boolean IS NOT TRUE
+    table: BOOLEAN.isNotTrue
+    description: Returns TRUE if boolean is FALSE or UNKNOWN; returns FALSE if boolean is TRUE.
+  - sql: boolean IS UNKNOWN 
+    description: Returns TRUE if boolean is UNKNOWN; returns FALSE if boolean is TRUE or FALSE.
+  - sql: boolean IS NOT UNKNOWN 
+    description: Returns TRUE if boolean is TRUE or FALSE; returns FALSE if boolean is UNKNOWN.
+
+arithmetic:
+  - sql: + numeric
+    table: + NUMERIC
+    description: Returns NUMERIC.
+  - sql: '- numeric'
+    table: '- numeric'
+    description: Returns negative Numeric
+  - sql: numeric1 + numeric2
+    table: NUMERIC1 + NUMERIC2
+    description: Returns NUMERIC1 plus NUMERIC2.
+  - sql: numeric1 - numeric2
+    table: NUMERIC1 + NUMERIC2
+    description: Return NUMERIC1 minus NUMERIC2
+  - sql: numeric1 * numberic2
+    table: NUMERIC1 * NUMERIC2
+    description: Returns NUMERIC1 multiplied by NUMERIC2
+  - sql: numeric1 / numeric2
+    table: NUMERIC1 / NUMERIC2
+    description: Returns NUMERIC1 divided by NUMERIC2
+  - sql: numeric1 % numeric2
+    table: MOD(numeric1, numeric2)
+    description: Returns the remainder (modulus) of numeric1 divided by numeric2. The result is negative only if numeric1 is negative.
+  - sql: POWER(numeric1, numeric2)
+    table: NUMERIC1.power(NUMERIC2)
+    description: NUMERIC1.power(NUMERIC2)
+  - sql: ABS(numeric)
+    table: numeric.abs()
+    description: Returns the absolute value of numeric.
+  - sql: SQRT(numeric)
+    table: NUMERIC.sqrt()
+    description: Returns the square root of NUMERIC.
+  - sql: LN(numeric)
+    table: NUMERIC.ln()
+    description: Returns the natural logarithm (base e) of NUMERIC.
+  - sql: LOG10(numeric)
+    table: numeric.log10()
+    description: Returns the base 10 logarithm of numeric.
+  - sql: LOG2(numeric)
+    table: numeric.log2()
+    description: Returns the base 2 logarithm of numeric.
+  - sql: | 
+        LOG(numeric2)
+        LOG(numeric1, numeric2)
+    table: |
+        NUMERIC1.log()
+        NUMERIC1.log(NUMERIC2)
+    description: When called with one argument, returns the natural logarithm of numeric2. When called with two arguments, this function returns the logarithm of numeric2 to the base numeric1. Currently, numeric2 must be greater than 0 and numeric1 must be greater than 1. 
+  - sql: EXP(numeric)
+    table: NUMERIC.exp()
+    description: Returns e raised to the power of numeric.
+  - sql: |
+      CEIL(numeric)
+      CEILING(numeric)
+    table: |
+      NUMERIC.ceil()
+      NUMERIC.ceiling()
+    description: Rounds numeric up, and returns the smallest number that is greater than or equal to numeric.
+  - sql: FLOOR(numeric)
+    table: NUMERIC.floor()
+    description: Rounds numeric down, and returns the largest number that is less than or equal to numeric.
+  - sql: SIN(numeric)
+    table: NUMERIC.sin()
+    description: Returns the sine of numeric.
+  - sql: SINH(numeric)
+    table: NUMERIC.sinh()
+    description: Returns the hyperbolic sine of numeric. The return type is DOUBLE.
+  - sql: COS(numeric)
+    table: NUMERIC.cos()
+    description: Returns the cosine of numeric.
+  - sql: TAN(numeric)
+    table: NUMERIC.tan()
+    description: Returns the tangent of numeric.
+  - sql: TANH(numeric)
+    table: NUMERIC.tanh()
+    description: Returns the hyperbolic tangent of numeric. The return type is DOUBLE.
+  - sql: COT(numeric)
+    table: NUMERIC.cot()
+    description: Returns the cotangent of a numeric.
+  - sql: ASIN(numeric)
+    table: NUMERIC.asin()
+    description: Returns the arc sine of numeric.
+  - sql: ACOS(numeric)
+    table: NUMERIC.acos()
+    description: Returns the arc cosine of numeric.
+  - sql: ATAN(numeric)
+    table: NUMERIC.atan()
+    description: Returns the arc tangent of numeric.
+  - sql: ATAN2(numeric1, numeric2)
+    table: atan2(NUMERIC1, NUMERIC2)
+    description: Returns the arc tangent of a coordinate (NUMERIC1, NUMERIC2).
+  - sql: COSH(numeric)
+    table: NUMERIC.cosh()
+    description: Returns the hyperbolic cosine of NUMERIC. Return value type is DOUBLE.
+  - sql: DEGREES(numeric)
+    table: NUMERIC.degrees()
+    description: Returns the degree representation of a radian NUMERIC.
+  - sql: RADIANS(numeric)
+    table: NUMERIC.radians()
+    description: Returns the radian representation of a degree NUMERIC.
+  - sql: SIGN(numeric)
+    table: NUMERIC.sign()
+    description: Returns the signum of NUMERIC.
+  - sql: ROUND(NUMERIC, INT)
+    table: NUMERIC.round(INT)
+    description: Returns a number rounded to INT decimal places for NUMERIC.
+  - sql: PI()
+    table: pi()
+    description: Returns a value that is closer than any other values to pi.
+  - sql: E()
+    table: e()
+    description: Returns a value that is closer than any other values to e.
+  - sql: RAND()
+    table: rand()
+    description: Returns a pseudorandom double value in the range [0.0, 1.0)
+  - sql: RAND(INT)
+    table: rand(INT)
+    description: Returns a pseudorandom double value in the range [0.0, 1.0) with an initial seed integer. Two RAND functions will return identical sequences of numbers if they have the same initial seed.
+  - sql: RAND_INTEGER(INT)
+    table: randInteger(INT)
+    description: Returns a pseudorandom double value in the range [0.0, INT)
+  - sql: RAND_INTEGER(INT1, INT2)
+    table: randInteger(INT1, INT2)
+    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
+  - sql: UUID()
+    table: uuid()
+    description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
+  - sql: BIN(INT)
+    table: INT.bin()
+    description: Returns a string representation of INTEGER in binary format. Returns NULL if INTEGER is NULL. E.g., 4.bin() returns "100" and 12.bin() returns "1100".
+  - sql: |
+      HEX(numeric)
+      HEX(string)
+    table: | 
+      NUMERIC.hex()
+      STRING.hex()
+    description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
+  - sql: TRUNCATE(numeric1, integer2)
+    table: numeric1.truncate(INTEGER2)
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.This function can also pass in only one numeric1 parameter and not set Integer2 to use.If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.34. and 42.324.truncate() to 42.0.
+
+string:
+  - sql: string1 || string2
+    table: STRING1 + STRING2
+    description: Returns the concatenation of STRING1 and STRING2.
+  - sql: |
+      CHAR_LENGTH(string)
+      CHARACTER_LENGTH(string)
+    table: STRING.charLength()
+    description: Returns the number of characters in STRING.
+  - sql: UPPER(string)
+    table: STRING.upperCase()
+    description: Returns STRING in uppercase.
+  - sql: LOWER(string)
+    table: STRING.lowerCase()
+    description: Returns string in lowercase.
+  - sql: POSITION(string1 IN string2)
+    table: STRING1.position(STRING2)
+    description: Returns the position (start from 1) of the first occurrence of STRING1 in STRING2; returns 0 if STRING1 cannot be found in STRING2.
+  - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
+    table: |
+      STRING1.trim(LEADING, STRING2)
+      STRING1.trim(TRAILING, STRING2)
+      STRING1.trim(BOTH, STRING2)
+      STRING1.trim(BOTH)
+      STRING1.trim()
+    description: Returns a string that removes leading and/or trailing characters STRING2 from STRING1. By default, whitespaces at both sides are removed.
+  - sql: LTRIM(string)
+    table: STRING.ltrim()
+    description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
+  - sql: RTRIM(string)
+    table: STRING.rtrim()
+    description: Returns a string that removes the right whitespaces from STRING.E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+  - sql: REPEAT(string, int)
+    table: STRING.repeat(INT)
+    description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
+  - sql: REGEXP_REPLACE(string1, string2, string3)
+    table: STRING1.regexpReplace(STRING2, STRING3)
+    description: Returns a string from STRING1 with all the substrings that match a regular expression STRING2 consecutively being replaced with STRING3. E.g., 'foobar'.regexpReplace('oo|ar', '') returns "fb".
+  - sql: OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
+    table: |
+      STRING1.overlay(STRING2, INT1)
+      STRING1.overlay(STRING2, INT1, INT2)
+    description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., 'xxxxxtest'.overlay('xxxx', 6) returns "xxxxxxxxx"; 'xxxxxtest'.overlay('xxxx', 6, 2) returns "xxxxxxxxxst".
+  - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
+    table: |
+      STRING.substring(INT1)
+      STRING.substring(INT1, INT2)
+    description: Returns a substring of STRING starting from position INT1 with length INT2 (to the end by default).
+  - sql: REPLACE(string1, string2, string3)
+    table: STRING1.replace(STRING2, STRING3)
+    description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
+  - sql: REGEXP_EXTRACT(string1, string2[, integer])
+    table: STRING1.regexpExtract(STRING2[, INTEGER1])
+    description: |
+      Returns a string from string1 which extracted with a specified
+      regular expression string2 and a regex match group index integer. 
+
+      The regex match group index starts from 1 and 0 means matching
+      the whole regex. In addition, the regex match group index should
+      not exceed the number of the defined groups.
+
+      E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)" returns "bar".
+
+  - sql: INITCAP(string)
+    table: STRING.initCap()
+    description: Returns a new form of STRING with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.
+  - sql: CONCAT(string1, string2,...)
+    table: concat(STRING1, STRING2, ...)
+    description: Returns a string that concatenates string1, string2, .... Returns NULL if any argument is NULL. E.g., CONCAT('AA', 'BB', 'CC') returns "AABBCC".
+  - sql: CONCAT_WS(string1, string2, string3,...)
+    table: concat_ws(STRING1, STRING2, STRING3, ...)
+    description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC') returns "AA~BB~~CC".
+  - sql: LPAD(string1, integer, string2)
+    table: STRING1.lpad(INT, STRING2)
+    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi',4,'??') returns "??hi"; LPAD('hi',1,'??') returns "h".
+  - sql: RPAD(string1, integer, string2)
+    table: STRING1.rpad(INT, STRING2)
+    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi',4,'??') returns "hi??", RPAD('hi',1,'??') returns "h". 
+  - sql: FROM_BASE64(string)
+    table: STRING.fromBase64()
+    description: Returns the base64-decoded result from string; returns NULL if string is NULL. E.g., FROM_BASE64('aGVsbG8gd29ybGQ=') returns "hello world".
+  - sql: TO_BASE64(string)
+    table: STRING.toBase64()
+    description: Returns the base64-encoded result from string; returns NULL if string is NULL. E.g., TO_BASE64('hello world') returns "aGVsbG8gd29ybGQ=".
+  - sql: ASCII(string)
+    description: Returns the numeric value of the first character of string. Returns NULL if string is NULL. E.g., ascii('abc') returns 97, and ascii(CAST(NULL AS VARCHAR)) returns NULL.
+  - sql: CHR(integer)
+    description: Returns the ASCII character having the binary equivalent to integer. If integer is larger than 255, we will get the modulus of integer divided by 255 first, and returns CHR of the modulus. Returns NULL if integer is NULL. E.g., chr(97) returns a, chr(353) returns a, and ascii(CAST(NULL AS VARCHAR)) returns NULL.
+  - sql: DECODE(binary, string)
+    description: Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.
+  - sql: ENCODE(string1, string2)
+    description: Encodes the string1 into a BINARY using the provided string2 character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.
+  - sql: INSTR(string1, string2)
+    description:  Returns the position of the first occurrence of string2 in string1. Returns NULL if any of arguments is NULL.
+  - sql: LEFT(string, integer)
+    description: Returns the leftmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
+  - sql: RIGHT(string, integer)
+    description: Returns the rightmost integer characters from the string. Returns EMPTY String if integer is negative. Returns NULL if any argument is NULL.
+  - sql: LOCATE(string1, string2[, integer])
+    description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
+  - sql: PARSE_URL(string1, string2[, string3])
+    description: |
+      Returns the specified part from the URL. Valid values for string2 include 'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'. Returns NULL if any of arguments is NULL.
+
+      E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), returns 'facebook.com'.
+
+      Also a value of a particular key in QUERY can be extracted by providing the key as the third argument string3.
+
+      E.g., parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. 
+  - sql: REGEXP(string1, string2)
+    description: Returns TRUE if any (possibly empty) substring of string1 matches the Java regular expression string2, otherwise FALSE. Returns NULL if any of arguments is NULL.
+  - sql: REVERSE(string)
+    description: Returns the reversed string. Returns NULL if string is NULL.
+  - sql: SPLIT_INDEX(string1, string2, integer1)
+    description: Splits string1 by the delimiter string2, returns the integerth (zero-based) string of the split strings. Returns NULL if integer is negative. Returns NULL if any of arguments is NULL.
+  - sql: STR_TO_MAP(string1[, string2, string3]])
+    description: Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+  - sql: SUBSTR(string[, integer1[, integer2]])
+    description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
+
+temporal:
+  - sql: DATE string
+    table: STRING.toDate()
+    description: Returns a SQL date parsed from string in form of "yyyy-MM-dd".
+  - sql: TIME string
+    table: STRING.toTime()
+    description: Returns a SQL time parsed from string in form of "HH:mm:ss".
+  - sql: TIMESTAMP string
+    table: STRING.toTimestamp()
+    description: Returns a SQL timestamp parsed from string in form of "yyyy-MM-dd HH:mm:ss[.SSS]".
+  - sql: INTERVAL string range
+    description: |
+      Parses an interval string in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months.
+      An interval range might be DAY, MINUTE, DAY TO HOUR, or DAY TO SECOND for intervals of milliseconds; YEAR or YEAR TO MONTH for intervals of months.
+
+      E.g., INTERVAL '10 00:00:00.004' DAY TO SECOND, INTERVAL '10' DAY, or INTERVAL '2-10' YEAR TO MONTH return intervals.
+  - sql: YEAR(date)
+    table: |
+      NUMERIC.year
+      NUMERIC.years
+    description: Creates an interval of months for NUMERIC years.
+  - table: |
+      NUMERIC.quarter
+      NUMERIC.quarters
+    description: Creates an interval of months for NUMERIC quarters. E.g., 2.quarters returns 6.
+  - table: |
+      NUMERIC.month
+      NUMERIC.months
+    description: Creates an interval of NUMERIC months.
+  - table: |
+      NUMERIC.week
+      NUMERIC.weeks
+    description: Creates an interval of milliseconds for NUMERIC weeks. E.g., 2.weeks returns 1209600000.
+  - table: |
+      NUMERIC.day
+      NUMERIC.days
+    description: Creates an interval of milliseconds for NUMERIC days.
+  - table: | 
+      NUMERIC.hour
+      NUMERIC.hours
+    desription: Creates an interval of milliseconds for NUMERIC hours.
+  - table: |
+      NUMERIC.minute
+      NUMERIC.minutes
+    description: Creates an interval of milliseconds for NUMERIC minutes.
+  - table: | 
+      NUMERIC.second
+      NUMERIC.seconds
+    description: Creates an interval of milliseconds for NUMERIC seconds.
+  - table: | 
+      NUMERIC.milli
+      NUMERIC.millis
+    description: Creates an interval of NUMERIC milliseconds.
+  - sql: CURRENT_DATE
+    table: currentDate()
+    description: Returns the current SQL date in the UTC time zone.
+  - sql: CURRENT_TIME
+    table: currentTime()
+    description: Returns the current SQL time in the UTC time zone.
+  - sql: LOCALTIME
+    table: localTime()
+    description: Returns the current SQL timestamp in the UTC time zone.
+  - sql: LOCALTIMESTAMP
+    table: localTimestamp()
+    description: Returns the current SQL timestamp in local time zone.
+  - sql: EXTRACT(timeinteravlunit FROM temporal)
+    table: TEMPORAL.extract(TIMEINTERVALUNIT)
+    description: Returns a long value extracted from the timeintervalunit part of temporal. E.g., EXTRACT(DAY FROM DATE '2006-06-05') returns 5.
+  - sql: YEAR(date)
+    description: Returns the year from SQL date date. Equivalent to EXTRACT(YEAR FROM date). E.g., YEAR(DATE '1994-09-27') returns 1994.
+  - sql: QUARTER(date)
+    description: Returns the quarter of a year (an integer between 1 and 4) from SQL date date. Equivalent to EXTRACT(QUARTER FROM date). E.g., QUARTER(DATE '1994-09-27') returns 3.
+  - sql: MONTH(date)
+    description: Returns the month of a year (an integer between 1 and 12) from SQL date date. Equivalent to EXTRACT(MONTH FROM date). E.g., MONTH(DATE '1994-09-27') returns 9.
+  - sql: WEEK(date)
+    description: Returns the week of a year (an integer between 1 and 53) from SQL date date. Equivalent to EXTRACT(WEEK FROM date). E.g., WEEK(DATE '1994-09-27') returns 39.
+  - sql: DAYOFYEAR(date)
+    description:  Returns the day of a year (an integer between 1 and 366) from SQL date date. Equivalent to EXTRACT(DOY FROM date). E.g., DAYOFYEAR(DATE '1994-09-27') returns 270.
+  - sql: DAYOFMONTH
+    description: Returns the day of a month (an integer between 1 and 31) from SQL date date. Equivalent to EXTRACT(DAY FROM date). E.g., DAYOFWEEK(DATE '1994-09-27') returns 3.
+  - sql: HOUR(timestamp)
+    description: Returns the hour of a day (an integer between 0 and 23) from SQL timestamp timestamp. Equivalent to EXTRACT(HOUR FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
+  - sql: MINUTE(timestamp)
+    description: Returns the minute of an hour (an integer between 0 and 59) from SQL timestamp timestamp. Equivalent to EXTRACT(MINUTE FROM timestamp). E.g., MINUTE(TIMESTAMP '1994-09-27 13:14:15') returns 14.
+  - sql: SECOND(timestamp)
+    description: Returns the second of a minute (an integer between 0 and 59) from SQL timestamp. Equivalent to EXTRACT(SECOND FROM timestamp). E.g., SECOND(TIMESTAMP '1994-09-27 13:14:15') returns 15.
+  - sql: FLOOR(timepoint TO timeintervalunit) 
+    table: TIMEPOINT.floor(TIMEINTERVALUNIT)
+    description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
+  - sql: CEIL(timespoint TO timeintervaluntit)
+    table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
+    description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
+  - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
+    table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
+    description: Returns TRUE if two time intervals defined by (timepoint1, temporal1) and (timepoint2, temporal2) overlap. The temporal values could be either a time point or a time interval. E.g., (TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR) returns TRUE; (TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR) returns FALSE.
+  - sql: DATE_FORMAT(timestamp, string)
+    description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
+  - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
+  - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
+    table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
+    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
+  - sql: CONVERT_TZ(string1, string2, string3)
+    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
+  - sql: FROM_UNIXTIME(numeric[, string])
+    description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
+  - sql: UNIX_TIMESTAMP()
+    description: Gets current Unix timestamp in seconds. This function is not deterministic which means the value would be recalculated for each record.
+  - sql: UNIX_TIMESTAMP(string1[, string2])
+    description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
+  - sql: TO_DATE(string1[, string2])
+    description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
+  - sql: TO_TIMESTAMP_LTZ(numeric[, precision])
+    table: toTimestampLtz(NUMERIC[, PRECISION])
+    description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 is default value which means TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
+  - sql: TO_TIMESTAMP(string1[, string2])
+    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp."
+  - sql: NOW()
+    description: Returns the current SQL timestamp in the UTC time zone. This function is not deterministic which means the value would be recalculated for each record.
+
+conditional:
+  - sql: |
+      CASE value
+        WHEN value1_1 [, value1_2]* THEN RESULT1
+        (WHEN value2_1 [, value2_2 ]* THEN result_2)*
+        (ELSE result_z)
+      END
+    description: Returns resultX when the first time value is contained in (valueX_1, valueX_2, ...). When no value matches, returns result_z if it is provided and returns NULL otherwise.
+  - sql: |
+      CASE 
+        WHEN condition1 THEN result1
+        (WHEN condition2 THEN result2)*
+        (ELSE result_z)
+      END
+    description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
+  - sql: NULLIF(value1, value2)
+    description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
+  - sql: COALESCE(value1, value2 [, value3]*)
+    description: Returns the first value that is not NULL from value1, value2, .... E.g., IF(5 > 3, 5, 3) returns 5.
+  - sql: IF(condition, true_value, false_value)
+    description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
+  - sql: IFNULL(input, null_replacement)
+    table: input.ifNull(nullReplacement)
+    description: |
+      Returns null_replacement if input is NULL; otherwise input is returned. 
+
+      Compared to COALESCE or CASE WHEN, this function returns a data type that is very specific in terms of nullability. The returned type is the common type of both arguments but only nullable if the null_replacement is nullable.
+
+      The function allows to pass nullable columns into a function or table that is declared with a NOT NULL constraint.
+
+      E.g., IFNULL(nullable_column, 5) returns never NULL.
+  - sql: IS_ALPHA(string)
+    description: Returns true if all characters in string are letter, otherwise false.
+  - sql: IS_DECIMAL(string)
+    description: Returns true if string can be parsed to a valid numeric, otherwise false.
+  - sql: IS_DIGIT(string)
+    description: Returns true if all characters in string are digit, otherwise false.
+  - table: BOOLEAN.?(VALUE1, VALUE2)
+    description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
+   
+conversion:
+  - sql: CAST(value AS type)
+    table: ANY.cast(TYPE)
+    description: Returns a new value being cast to type type. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS VARCHAR) returns NULL of type VARCHAR.
+  - sql: |
+     TYPEOF(input)
+     TYPEOF(input, force_serializable)
+    table: |
+      call("TYPEOF", input)
+      call("TYPEOF", input, force_serializable)
+    description: Returns the string representation of the input expression's data type. By default, the returned string is a summary string that might omit certain details for readability. If force_serializable is set to TRUE, the string represents a full data type that could be persisted in a catalog. Note that especially anonymous, inline data types have no serializable string representation. In this case, NULL is returned.
+
+collection:
+  - sql: CARDINALITY(array)
+    table: ARRAY.cardinality()
+    description: Returns the number of elements in array.
+  - sql: array '[' INT ']'
+    table: ARRAY.at(INT)
+    description: Returns the element at position INT in array. The index starts from 1.
+  - sql: ELEMENT(array)
+    table: ARRAY.element()
+    table: Returns the sole element of array (whose cardinality should be one); returns NULL if array is empty. Throws an exception if array has more than one element.
+  - sql: CARDINALITY(map)
+    table: MAP.cardinality()
+    description: Returns the number of entries in map.
+  - sql: map ‘[’ value ‘]’
+    table: MAP.at(ANY)
+    description: Returns the value specified by key value in map.
+
+valueconstruction:
+  - sql: |
+      -- implicit constructor with parenthesis
+      (value1 [, value2]*)
+    table: row(ANY1, ANY2, ...)
+    description: |
+      Returns a row created from a list of values (value1, value2,...).
+
+      The implicit row constructor supports arbitrary expressions as fields but requires at least two fields. The explicit row constructor can deal with an arbitrary number of fields but does not support all kinds of field expressions well currently. 
+  - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
+    table: array(ANY1, ANY2, ...)
+    description: Returns an array created from a list of values (value1, value2, ...).
+  - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
+    table: map(ANY1, ANY2, ANY3, ANY4, ...)
+    description: Returns a map created from a list of key-value pairs ((value1, value2), (value3, value4), ...).
+  - table: NUMERIC.rows
+    description: Creates a NUMERIC interval of rows (commonly used in window creation).
+
+valueaccess:
+  - sql: tableName.compositeType.field
+    table: |
+      COMPOSITE.get(STRING)
+      COMPOSITE.get(INT)
+    description: Returns the value of a field from a Flink composite type (e.g., Tuple, POJO) by name.
+  - sql: tableName.compositeType.*
+    table: ANY.flatten()
+    description: Returns a flat representation of a Flink composite type (e.g., Tuple, POJO) that converts each of its direct subtype into a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g., mypojo$mytuple$f0).
+
+grouping:
+  - sql: GROUP_ID()
+    description: Returns an integer that uniquely identifies the combination of grouping keys.
+  - sql: |
+      GROUPING(expression1 [, expression2]* )
+      GROUPING_ID(expression1 [, expression2]* )
+    description: Returns a bit vector of the given grouping expressions.
+
+hashfunctions:
+  - sql: MD5(string)
+    table: STRING.md5()
+    description: Returns the MD5 hash of string as a string of 32 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA1(string)
+    table: STRING.sha1()
+    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA224(string)
+    table: STRING.sha224()
+    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA256(string)
+    table: STRING.sha256()
+    description: Returns the SHA-256 hash of string as a string of 64 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA384(string)
+    table: STRING.sha384()
+    description: Returns the SHA-384 hash of string as a string of 96 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA512(string)
+    table: STRING.sha512()
+    description: Returns the SHA-512 hash of string as a string of 128 hexadecimal digits; returns NULL if string is NULL.
+  - sql: SHA2(string, hashLength)
+    table: STRING.sha2(INT)
+    description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
+
+auxilary:
+  - table:  callSql(STRING)
+    description: |
+      A call to a SQL expression.
+
+      The given string is parsed and translated into a Table API expression during planning. Only the translated expression is evaluated during runtime.
+
+      Currently, calls are limited to simple scalar expressions. Calls to aggregate or table-valued functions are not supported. Sub-queries are also not allowed.
+
+      E.g. table.select(callSql("UPPER(myColumn)").substring(3))
+
+  - table: ANY.as(NAME1, NAME2, ...)
+    description: Specifies a name for ANY (a field). Additional names can be specified if the expression expands to multiple fields.
+
+aggregate: 
+  - sql: COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
+    description: By default or with ALL, returns the number of input rows for which expression is not NULL. Use DISTINCT for one unique instance of each value.
+  - sql: |
+      COUNT(*)
+      COUNT(1)
+    table: FIELD.count
+    description: Returns the number of input rows.
+  - sql: AVG([ ALL | DISTINCT ] expression)
+    table: FIELD.avg
+    description: By default or with keyword ALL, returns the average (arithmetic mean) of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: SUM([ ALL | DISTINCT ] expression)
+    table: FIELD.sum
+    description: By default or with keyword ALL, returns the sum of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - table: FIELD.sum0
+    description: Returns the sum of numeric field FIELD across all input rows. If all values are NULL, returns 0.
+  - sql: MAX([ ALL | DISTINCT ] expression)
+    table: FIELD.max
+    description: By default or with keyword ALL, returns the maximum value of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: MIN([ ALL | DISTINCT ] expression )
+    table: FIELD.min
+    description: By default or with keyword ALL, returns the minimum value of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: STDDEV_POP([ ALL | DISTINCT ] expression)
+    table: FIELD.stddevPop
+    description: By default or with keyword ALL, returns the population standard deviation of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: STDDEV_SAMP([ ALL | DISTINCT ] expression)
+    table: FIELD.stddevSamp
+    description: By default or with keyword ALL, returns the sample standard deviation of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: VAR_POP([ ALL | DISTINCT ] expression)
+    table: FIELD.varPop
+    description: By default or with keyword ALL, returns the population variance (square of the population standard deviation) of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: VAR_SAMP([ ALL | DISTINCT ] expression)
+    table: FIELD.varSamp
+    description: By default or with keyword ALL, returns the sample variance (square of the sample standard deviation) of expression across all input rows. Use DISTINCT for one unique instance of each value.
+  - sql: COLLECT([ ALL | DISTINCT ] expression)
+    table: FIELD.collect
+    description: By default or with keyword ALL, returns a multiset of expression across all input rows. NULL values will be ignored. Use DISTINCT for one unique instance of each value.
+  - sql: VARIANCE([ ALL | DISTINCT ] expression)
+    description: Synonyms for VAR_SAMP().
+  - sql: RANK()
+    description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
+  - sql: DENSE_RANK()
+    description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
+  - sql: ROW_NUMER()
+    description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
+  - sql: LEAD(expression [, offset] [, default])
+    description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
+  - sql: LAG(expression [, offset] [, default])
+    description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
+  - sql: FIRST_VALUE(expression) 
+    description: Returns the first value in an ordered set of values.
+  - sql: LAST_VALUE(expression)
+    description: Returns the last value in an ordered set of values.
+  - sql: LISTAGG(expression [, separator])
+    description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.

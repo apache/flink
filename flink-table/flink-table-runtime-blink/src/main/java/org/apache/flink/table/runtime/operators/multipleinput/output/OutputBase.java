@@ -24,21 +24,22 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Base {@link Output} that can be used to emit elements and other messages in {@link MultipleInputStreamOperatorBase}.
+ * Base {@link Output} that can be used to emit elements and other messages in {@link
+ * MultipleInputStreamOperatorBase}.
  */
 public abstract class OutputBase implements Output<StreamRecord<RowData>> {
-	private final StreamOperator<?> operator;
+    private final StreamOperator<?> operator;
 
-	public OutputBase(StreamOperator<?> operator) {
-		this.operator = operator;
-	}
+    public OutputBase(StreamOperator<?> operator) {
+        this.operator = operator;
+    }
 
-	@Override
-	public void close() {
-		try {
-			operator.close();
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+    @Override
+    public void close() {
+        try {
+            operator.close();
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 }

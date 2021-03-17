@@ -47,77 +47,80 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Simple integration test case for writing bulk encoded files with the
- * {@link StreamingFileSink} with Parquet.
+ * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
+ * with Parquet.
  */
 public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
 
-	@Rule
-	public final Timeout timeoutPerTest = Timeout.seconds(20);
+    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
-	@Test
-	public void testParquetProtoWriters() throws Exception {
-		File folder = TEMPORARY_FOLDER.newFolder();
+    @Test
+    public void testParquetProtoWriters() throws Exception {
+        File folder = TEMPORARY_FOLDER.newFolder();
 
-		List<SimpleProtoRecord> data = Arrays.asList(
-			SimpleProtoRecord.newBuilder().setFoo("a").setBar("x").setNum(1).build(),
-			SimpleProtoRecord.newBuilder().setFoo("b").setBar("y").setNum(2).build(),
-			SimpleProtoRecord.newBuilder().setFoo("c").setBar("z").setNum(3).build());
+        List<SimpleProtoRecord> data =
+                Arrays.asList(
+                        SimpleProtoRecord.newBuilder().setFoo("a").setBar("x").setNum(1).build(),
+                        SimpleProtoRecord.newBuilder().setFoo("b").setBar("y").setNum(2).build(),
+                        SimpleProtoRecord.newBuilder().setFoo("c").setBar("z").setNum(3).build());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.enableCheckpointing(100);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
-		DataStream<SimpleProtoRecord> stream = env.addSource(
-			new FiniteTestSource<>(data), TypeInformation.of(SimpleProtoRecord.class));
+        DataStream<SimpleProtoRecord> stream =
+                env.addSource(
+                        new FiniteTestSource<>(data), TypeInformation.of(SimpleProtoRecord.class));
 
-		stream.addSink(
-			StreamingFileSink.forBulkFormat(
-				Path.fromLocalFile(folder),
-				ParquetProtoWriters.forType(SimpleProtoRecord.class))
-			.build());
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetProtoWriters.forType(SimpleProtoRecord.class))
+                        .build());
 
-		env.execute();
+        env.execute();
 
-		validateResults(folder, data);
-	}
+        validateResults(folder, data);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static <T extends MessageOrBuilder> void validateResults(File folder, List<T> expected) throws Exception {
-		File[] buckets = folder.listFiles();
-		assertNotNull(buckets);
-		assertEquals(1, buckets.length);
+    private static <T extends MessageOrBuilder> void validateResults(File folder, List<T> expected)
+            throws Exception {
+        File[] buckets = folder.listFiles();
+        assertNotNull(buckets);
+        assertEquals(1, buckets.length);
 
-		File[] partFiles = buckets[0].listFiles();
-		assertNotNull(partFiles);
-		assertEquals(2, partFiles.length);
+        File[] partFiles = buckets[0].listFiles();
+        assertNotNull(partFiles);
+        assertEquals(2, partFiles.length);
 
-		for (File partFile : partFiles) {
-			assertTrue(partFile.length() > 0);
+        for (File partFile : partFiles) {
+            assertTrue(partFile.length() > 0);
 
-			final List<Message> fileContent = readParquetFile(partFile);
-			assertEquals(expected, fileContent);
-		}
-	}
+            final List<Message> fileContent = readParquetFile(partFile);
+            assertEquals(expected, fileContent);
+        }
+    }
 
-	private static List<Message> readParquetFile(File file) throws IOException {
-		org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(file.getAbsolutePath());
+    private static List<Message> readParquetFile(File file) throws IOException {
+        org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(file.getAbsolutePath());
 
-		ArrayList<Message> results = new ArrayList<>();
-		try (ParquetReader<MessageOrBuilder> reader = ProtoParquetReader.<MessageOrBuilder>builder(path).build()) {
-			MessageOrBuilder next;
-			while ((next = reader.read()) != null) {
-				if (next instanceof Builder) {
-					// Builder is mutable and we need to ensure the saved reference does not change
-					// after reading more records.
-					results.add(((Builder) next).build());
-				} else {
-					results.add((Message) next);
-				}
-			}
-		}
+        ArrayList<Message> results = new ArrayList<>();
+        try (ParquetReader<MessageOrBuilder> reader =
+                ProtoParquetReader.<MessageOrBuilder>builder(path).build()) {
+            MessageOrBuilder next;
+            while ((next = reader.read()) != null) {
+                if (next instanceof Builder) {
+                    // Builder is mutable and we need to ensure the saved reference does not change
+                    // after reading more records.
+                    results.add(((Builder) next).build());
+                } else {
+                    results.add((Message) next);
+                }
+            }
+        }
 
-		return results;
-	}
+        return results;
+    }
 }

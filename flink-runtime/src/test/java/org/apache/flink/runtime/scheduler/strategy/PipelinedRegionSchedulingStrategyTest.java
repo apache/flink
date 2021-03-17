@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,142 +39,202 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Unit tests for {@link PipelinedRegionSchedulingStrategy}.
- */
+/** Unit tests for {@link PipelinedRegionSchedulingStrategy}. */
 public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
 
-	private TestingSchedulerOperations testingSchedulerOperation;
+    private TestingSchedulerOperations testingSchedulerOperation;
 
-	private static final int PARALLELISM = 2;
+    private static final int PARALLELISM = 2;
 
-	private TestingSchedulingTopology testingSchedulingTopology;
+    private TestingSchedulingTopology testingSchedulingTopology;
 
-	private List<TestingSchedulingExecutionVertex> source;
+    private List<TestingSchedulingExecutionVertex> source;
 
-	private List<TestingSchedulingExecutionVertex> map;
+    private List<TestingSchedulingExecutionVertex> map;
 
-	private List<TestingSchedulingExecutionVertex> sink;
+    private List<TestingSchedulingExecutionVertex> sink;
 
-	@Before
-	public void setUp() {
-		testingSchedulerOperation = new TestingSchedulerOperations();
+    @Before
+    public void setUp() {
+        testingSchedulerOperation = new TestingSchedulerOperations();
 
-		buildTopology();
-	}
+        buildTopology();
+    }
 
-	private void buildTopology() {
-		testingSchedulingTopology = new TestingSchedulingTopology();
+    private void buildTopology() {
+        testingSchedulingTopology = new TestingSchedulingTopology();
 
-		source = testingSchedulingTopology.addExecutionVertices().withParallelism(PARALLELISM).finish();
-		map = testingSchedulingTopology.addExecutionVertices().withParallelism(PARALLELISM).finish();
-		sink =  testingSchedulingTopology.addExecutionVertices().withParallelism(PARALLELISM).finish();
+        source =
+                testingSchedulingTopology
+                        .addExecutionVertices()
+                        .withParallelism(PARALLELISM)
+                        .finish();
+        map =
+                testingSchedulingTopology
+                        .addExecutionVertices()
+                        .withParallelism(PARALLELISM)
+                        .finish();
+        sink =
+                testingSchedulingTopology
+                        .addExecutionVertices()
+                        .withParallelism(PARALLELISM)
+                        .finish();
 
-		testingSchedulingTopology.connectPointwise(source, map)
-			.withResultPartitionState(ResultPartitionState.CREATED)
-			.withResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
-			.finish();
-		testingSchedulingTopology.connectAllToAll(map, sink)
-			.withResultPartitionState(ResultPartitionState.CREATED)
-			.withResultPartitionType(ResultPartitionType.BLOCKING)
-			.finish();
-	}
+        testingSchedulingTopology
+                .connectPointwise(source, map)
+                .withResultPartitionState(ResultPartitionState.CREATED)
+                .withResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+                .finish();
+        testingSchedulingTopology
+                .connectAllToAll(map, sink)
+                .withResultPartitionState(ResultPartitionState.CREATED)
+                .withResultPartitionType(ResultPartitionType.BLOCKING)
+                .finish();
+    }
 
-	@Test
-	public void testStartScheduling() {
-		startScheduling(testingSchedulingTopology);
+    @Test
+    public void testStartScheduling() {
+        startScheduling(testingSchedulingTopology);
 
-		final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices = new ArrayList<>();
-		expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
-		expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
-		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
-	}
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
+        expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
 
-	@Test
-	public void testRestartTasks() {
-		final PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
+    @Test
+    public void testRestartTasks() {
+        final PipelinedRegionSchedulingStrategy schedulingStrategy =
+                startScheduling(testingSchedulingTopology);
 
-		final Set<ExecutionVertexID> verticesToRestart = Stream.of(source, map, sink)
-			.flatMap(List::stream)
-			.map(TestingSchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
+        final Set<ExecutionVertexID> verticesToRestart =
+                Stream.of(source, map, sink)
+                        .flatMap(List::stream)
+                        .map(TestingSchedulingExecutionVertex::getId)
+                        .collect(Collectors.toSet());
 
-		schedulingStrategy.restartTasks(verticesToRestart);
+        schedulingStrategy.restartTasks(verticesToRestart);
 
-		final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices = new ArrayList<>();
-		expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
-		expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
-		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
-	}
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
+        expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
 
-	@Test
-	public void testNotifyingBlockingResultPartitionProducerFinished() {
-		final PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(testingSchedulingTopology);
+    @Test
+    public void testNotifyingBlockingResultPartitionProducerFinished() {
+        final PipelinedRegionSchedulingStrategy schedulingStrategy =
+                startScheduling(testingSchedulingTopology);
 
-		final TestingSchedulingExecutionVertex map1 = map.get(0);
-		map1.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
-		schedulingStrategy.onExecutionStateChange(map1.getId(), ExecutionState.FINISHED);
+        final TestingSchedulingExecutionVertex map1 = map.get(0);
+        map1.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
+        schedulingStrategy.onExecutionStateChange(map1.getId(), ExecutionState.FINISHED);
 
-		// sinks' inputs are not all consumable yet so they are not scheduled
-		assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(2));
+        // sinks' inputs are not all consumable yet so they are not scheduled
+        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(2));
 
-		final TestingSchedulingExecutionVertex map2 = map.get(1);
-		map2.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
-		schedulingStrategy.onExecutionStateChange(map2.getId(), ExecutionState.FINISHED);
+        final TestingSchedulingExecutionVertex map2 = map.get(1);
+        map2.getProducedResults().iterator().next().setState(ResultPartitionState.CONSUMABLE);
+        schedulingStrategy.onExecutionStateChange(map2.getId(), ExecutionState.FINISHED);
 
-		assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(4));
+        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(4));
 
-		final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices = new ArrayList<>();
-		expectedScheduledVertices.add(Arrays.asList(sink.get(0)));
-		expectedScheduledVertices.add(Arrays.asList(sink.get(1)));
-		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
-	}
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Arrays.asList(sink.get(0)));
+        expectedScheduledVertices.add(Arrays.asList(sink.get(1)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
 
-	@Test
-	public void testSchedulingTopologyWithPersistentBlockingEdges() {
-		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+    @Test
+    public void testFinishedBlockingResultPartitionProducerDoNotScheduleNonCreatedRegions() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		final List<TestingSchedulingExecutionVertex> v1 = topology.addExecutionVertices().withParallelism(1).finish();
-		final List<TestingSchedulingExecutionVertex> v2 = topology.addExecutionVertices().withParallelism(1).finish();
+        final List<TestingSchedulingExecutionVertex> producer =
+                topology.addExecutionVertices().withParallelism(2).finish();
+        final List<TestingSchedulingExecutionVertex> consumer =
+                topology.addExecutionVertices().withParallelism(2).finish();
 
-		topology.connectPointwise(v1, v2)
-			.withResultPartitionState(ResultPartitionState.CREATED)
-			.withResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
-			.finish();
+        topology.connectPointwise(producer, consumer)
+                .withResultPartitionState(ResultPartitionState.CONSUMABLE)
+                .withResultPartitionType(ResultPartitionType.BLOCKING)
+                .finish();
 
-		startScheduling(topology);
+        final PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(topology);
 
-		final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices = new ArrayList<>();
-		expectedScheduledVertices.add(Arrays.asList(v1.get(0)));
-		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
-	}
+        consumer.get(0).setState(ExecutionState.SCHEDULED);
+        schedulingStrategy.onExecutionStateChange(producer.get(0).getId(), ExecutionState.FINISHED);
 
-	private PipelinedRegionSchedulingStrategy startScheduling(TestingSchedulingTopology testingSchedulingTopology) {
-		final PipelinedRegionSchedulingStrategy schedulingStrategy = new PipelinedRegionSchedulingStrategy(
-			testingSchedulerOperation,
-			testingSchedulingTopology);
-		schedulingStrategy.startScheduling();
-		return schedulingStrategy;
-	}
+        // non-CREATED regions should not be re-scheduled
+        assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(3));
 
-	private void assertLatestScheduledVerticesAreEqualTo(final List<List<TestingSchedulingExecutionVertex>> expected) {
-		final List<List<ExecutionVertexDeploymentOption>> deploymentOptions = testingSchedulerOperation.getScheduledVertices();
-		final int expectedScheduledBulks = expected.size();
-		assertThat(expectedScheduledBulks, lessThanOrEqualTo(deploymentOptions.size()));
-		for (int i = 0; i < expectedScheduledBulks; i++) {
-			assertEquals(
-				idsFromVertices(expected.get(expectedScheduledBulks - i - 1)),
-				idsFromDeploymentOptions(deploymentOptions.get(deploymentOptions.size() - i - 1)));
-		}
-	}
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Collections.singletonList(producer.get(0)));
+        expectedScheduledVertices.add(Collections.singletonList(producer.get(1)));
+        expectedScheduledVertices.add(Collections.singletonList(consumer.get(1)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
 
-	private static List<ExecutionVertexID> idsFromVertices(final List<TestingSchedulingExecutionVertex> vertices) {
-		return vertices.stream().map(TestingSchedulingExecutionVertex::getId).collect(Collectors.toList());
-	}
+    @Test
+    public void testSchedulingTopologyWithPersistentBlockingEdges() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-	private static List<ExecutionVertexID> idsFromDeploymentOptions(
-			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
+        final List<TestingSchedulingExecutionVertex> v1 =
+                topology.addExecutionVertices().withParallelism(1).finish();
+        final List<TestingSchedulingExecutionVertex> v2 =
+                topology.addExecutionVertices().withParallelism(1).finish();
 
-		return deploymentOptions.stream().map(ExecutionVertexDeploymentOption::getExecutionVertexId).collect(Collectors.toList());
-	}
+        topology.connectPointwise(v1, v2)
+                .withResultPartitionState(ResultPartitionState.CREATED)
+                .withResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
+                .finish();
+
+        startScheduling(topology);
+
+        final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
+                new ArrayList<>();
+        expectedScheduledVertices.add(Arrays.asList(v1.get(0)));
+        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+    }
+
+    private PipelinedRegionSchedulingStrategy startScheduling(
+            TestingSchedulingTopology testingSchedulingTopology) {
+        final PipelinedRegionSchedulingStrategy schedulingStrategy =
+                new PipelinedRegionSchedulingStrategy(
+                        testingSchedulerOperation, testingSchedulingTopology);
+        schedulingStrategy.startScheduling();
+        return schedulingStrategy;
+    }
+
+    private void assertLatestScheduledVerticesAreEqualTo(
+            final List<List<TestingSchedulingExecutionVertex>> expected) {
+        final List<List<ExecutionVertexDeploymentOption>> deploymentOptions =
+                testingSchedulerOperation.getScheduledVertices();
+        final int expectedScheduledBulks = expected.size();
+        assertThat(expectedScheduledBulks, lessThanOrEqualTo(deploymentOptions.size()));
+        for (int i = 0; i < expectedScheduledBulks; i++) {
+            assertEquals(
+                    idsFromVertices(expected.get(expectedScheduledBulks - i - 1)),
+                    idsFromDeploymentOptions(
+                            deploymentOptions.get(deploymentOptions.size() - i - 1)));
+        }
+    }
+
+    private static List<ExecutionVertexID> idsFromVertices(
+            final List<TestingSchedulingExecutionVertex> vertices) {
+        return vertices.stream()
+                .map(TestingSchedulingExecutionVertex::getId)
+                .collect(Collectors.toList());
+    }
+
+    private static List<ExecutionVertexID> idsFromDeploymentOptions(
+            final List<ExecutionVertexDeploymentOption> deploymentOptions) {
+
+        return deploymentOptions.stream()
+                .map(ExecutionVertexDeploymentOption::getExecutionVertexId)
+                .collect(Collectors.toList());
+    }
 }

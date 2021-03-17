@@ -22,8 +22,5 @@ import com.rabbitmq.client.ReturnListener;
 
 import java.io.Serializable;
 
-/**
- * A serializable {@link ReturnListener}.
- */
-public interface SerializableReturnListener extends Serializable, ReturnListener {
-}
+/** A serializable {@link ReturnListener}. */
+public interface SerializableReturnListener extends Serializable, ReturnListener {}

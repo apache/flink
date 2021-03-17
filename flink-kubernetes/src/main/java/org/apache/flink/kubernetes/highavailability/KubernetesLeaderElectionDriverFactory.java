@@ -24,27 +24,24 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEventHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-/**
- * {@link LeaderElectionDriverFactory} implementation for Kubernetes.
- */
+/** {@link LeaderElectionDriverFactory} implementation for Kubernetes. */
 public class KubernetesLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
 
-	private final FlinkKubeClient kubeClient;
-	private final KubernetesLeaderElectionConfiguration leaderConfig;
+    private final FlinkKubeClient kubeClient;
+    private final KubernetesLeaderElectionConfiguration leaderConfig;
 
-	public KubernetesLeaderElectionDriverFactory(
-			FlinkKubeClient kubeClient,
-			KubernetesLeaderElectionConfiguration leaderConfig) {
-		this.kubeClient = kubeClient;
-		this.leaderConfig = leaderConfig;
-	}
+    public KubernetesLeaderElectionDriverFactory(
+            FlinkKubeClient kubeClient, KubernetesLeaderElectionConfiguration leaderConfig) {
+        this.kubeClient = kubeClient;
+        this.leaderConfig = leaderConfig;
+    }
 
-	@Override
-	public KubernetesLeaderElectionDriver createLeaderElectionDriver(
-			LeaderElectionEventHandler leaderEventHandler,
-			FatalErrorHandler fatalErrorHandler,
-			String leaderContenderDescription) {
-		return new KubernetesLeaderElectionDriver(
-			kubeClient, leaderConfig, leaderEventHandler, fatalErrorHandler);
-	}
+    @Override
+    public KubernetesLeaderElectionDriver createLeaderElectionDriver(
+            LeaderElectionEventHandler leaderEventHandler,
+            FatalErrorHandler fatalErrorHandler,
+            String leaderContenderDescription) {
+        return new KubernetesLeaderElectionDriver(
+                kubeClient, leaderConfig, leaderEventHandler, fatalErrorHandler);
+    }
 }

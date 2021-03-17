@@ -25,37 +25,37 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 
 /**
- * The {@link PythonMapOperator} is responsible for executing Python functions that gets one
- * input and produces zero/one or more outputs.
+ * The {@link PythonMapOperator} is responsible for executing Python functions that gets one input
+ * and produces zero/one or more outputs.
  *
- * @param <IN>  The type of the input elements
+ * @param <IN> The type of the input elements
  * @param <OUT> The type of the output elements
  */
 @Internal
 public class PythonMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String MAP_CODER_URN = "flink:coder:map:v1";
+    private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
-	public PythonMapOperator(
-		Configuration config,
-		TypeInformation<IN> inputTypeInfo,
-		TypeInformation<OUT> outputTypeInfo,
-		DataStreamPythonFunctionInfo pythonFunctionInfo) {
-		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-	}
+    public PythonMapOperator(
+            Configuration config,
+            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<OUT> outputTypeInfo,
+            DataStreamPythonFunctionInfo pythonFunctionInfo) {
+        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+    }
 
-	@Override
-	public String getCoderUrn() {
-		return MAP_CODER_URN;
-	}
+    @Override
+    public String getCoderUrn() {
+        return MAP_CODER_URN;
+    }
 
-	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(rawResult, 0, length);
-		collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
-		collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
-	}
+    @Override
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] rawResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(rawResult, 0, length);
+        collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
+        collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
+    }
 }

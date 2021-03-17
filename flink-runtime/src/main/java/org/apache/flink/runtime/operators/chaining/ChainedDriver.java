@@ -37,93 +37,104 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.util.Map;
 
 /**
- * The interface to be implemented by drivers that do not run in an own task context, but are chained to other
- * tasks.
+ * The interface to be implemented by drivers that do not run in an own task context, but are
+ * chained to other tasks.
  */
 public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
-	protected TaskConfig config;
+    protected TaskConfig config;
 
-	protected String taskName;
+    protected String taskName;
 
-	protected Collector<OT> outputCollector;
-	
-	protected ClassLoader userCodeClassLoader;
-	
-	private DistributedRuntimeUDFContext udfContext;
+    protected Collector<OT> outputCollector;
 
-	protected ExecutionConfig executionConfig;
+    protected ClassLoader userCodeClassLoader;
 
-	protected boolean objectReuseEnabled = false;
-	
-	protected OperatorMetricGroup metrics;
-	
-	protected Counter numRecordsIn;
-	
-	protected Counter numRecordsOut;
+    private DistributedRuntimeUDFContext udfContext;
 
-	
-	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
-			AbstractInvokable parent, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-			Map<String, Accumulator<?,?>> accumulatorMap)
-	{
-		this.config = config;
-		this.taskName = taskName;
-		this.userCodeClassLoader = userCodeClassLoader.asClassLoader();
-		this.metrics = parent.getEnvironment().getMetricGroup().getOrAddOperator(taskName);
-		this.numRecordsIn = this.metrics.getIOMetricGroup().getNumRecordsInCounter();
-		this.numRecordsOut = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
-		this.outputCollector = new CountingCollector<>(outputCollector, numRecordsOut);
+    protected ExecutionConfig executionConfig;
 
-		Environment env = parent.getEnvironment();
+    protected boolean objectReuseEnabled = false;
 
-		if (parent instanceof BatchTask) {
-			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext(metrics);
-		} else {
-			this.udfContext = new DistributedRuntimeUDFContext(env.getTaskInfo(), userCodeClassLoader,
-					parent.getExecutionConfig(), env.getDistributedCacheEntries(), accumulatorMap, metrics, env.getExternalResourceInfoProvider()
-			);
-		}
+    protected OperatorMetricGroup metrics;
 
-		this.executionConfig = executionConfig;
-		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+    protected Counter numRecordsIn;
 
-		setup(parent);
-	}
+    protected Counter numRecordsOut;
 
-	public abstract void setup(AbstractInvokable parent);
+    public void setup(
+            TaskConfig config,
+            String taskName,
+            Collector<OT> outputCollector,
+            AbstractInvokable parent,
+            UserCodeClassLoader userCodeClassLoader,
+            ExecutionConfig executionConfig,
+            Map<String, Accumulator<?, ?>> accumulatorMap) {
+        this.config = config;
+        this.taskName = taskName;
+        this.userCodeClassLoader = userCodeClassLoader.asClassLoader();
+        this.metrics = parent.getEnvironment().getMetricGroup().getOrAddOperator(taskName);
+        this.numRecordsIn = this.metrics.getIOMetricGroup().getNumRecordsInCounter();
+        this.numRecordsOut = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
+        this.outputCollector = new CountingCollector<>(outputCollector, numRecordsOut);
 
-	public abstract void openTask() throws Exception;
+        Environment env = parent.getEnvironment();
 
-	public abstract void closeTask() throws Exception;
+        if (parent instanceof BatchTask) {
+            this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext(metrics);
+        } else {
+            this.udfContext =
+                    new DistributedRuntimeUDFContext(
+                            env.getTaskInfo(),
+                            userCodeClassLoader,
+                            parent.getExecutionConfig(),
+                            env.getDistributedCacheEntries(),
+                            accumulatorMap,
+                            metrics,
+                            env.getExternalResourceInfoProvider(),
+                            env.getJobID());
+        }
 
-	public abstract void cancelTask();
+        this.executionConfig = executionConfig;
+        this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-	public abstract Function getStub();
+        setup(parent);
+    }
 
-	public abstract String getTaskName();
+    public abstract void setup(AbstractInvokable parent);
 
-	@Override
-	public abstract void collect(IT record);
+    public abstract void openTask() throws Exception;
 
-	public OperatorIOMetricGroup getIOMetrics() {
-		return this.metrics.getIOMetricGroup();
-	}
-	
-	protected RuntimeContext getUdfRuntimeContext() {
-		return this.udfContext;
-	}
+    public abstract void closeTask() throws Exception;
 
-	@SuppressWarnings("unchecked")
-	public void setOutputCollector(Collector<?> outputCollector) {
-		this.outputCollector = new CountingCollector<>((Collector<OT>) outputCollector, numRecordsOut);
-	}
+    public abstract void cancelTask();
 
-	public Collector<OT> getOutputCollector() {
-		return outputCollector;
-	}
-	
-	public TaskConfig getTaskConfig() {
-		return this.config;
-	}
+    public abstract Function getStub();
+
+    public abstract String getTaskName();
+
+    @Override
+    public abstract void collect(IT record);
+
+    public OperatorIOMetricGroup getIOMetrics() {
+        return this.metrics.getIOMetricGroup();
+    }
+
+    protected RuntimeContext getUdfRuntimeContext() {
+        return this.udfContext;
+    }
+
+    @SuppressWarnings("unchecked")
+    public void setOutputCollector(Collector<?> outputCollector) {
+        this.outputCollector =
+                new CountingCollector<>((Collector<OT>) outputCollector, numRecordsOut);
+    }
+
+    public Collector<OT> getOutputCollector() {
+        return outputCollector;
+    }
+
+    public TaskConfig getTaskConfig() {
+        return this.config;
+    }
 }

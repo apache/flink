@@ -27,33 +27,33 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * A utility class to compare two GenericRowData based on sortKey value.
- * Note: Only support sortKey is Comparable value.
+ * A utility class to compare two GenericRowData based on sortKey value. Note: Only support sortKey
+ * is Comparable value.
  */
 public class GenericRowRecordSortComparator implements Comparator<GenericRowData>, Serializable {
 
-	private static final long serialVersionUID = -4988371592272863772L;
+    private static final long serialVersionUID = -4988371592272863772L;
 
-	private final RowData.FieldGetter sortKeyGetter;
+    private final RowData.FieldGetter sortKeyGetter;
 
-	public GenericRowRecordSortComparator(int sortKeyIdx, LogicalType sortKeyType) {
-		this.sortKeyGetter = RowData.createFieldGetter(sortKeyType, sortKeyIdx);
-	}
+    public GenericRowRecordSortComparator(int sortKeyIdx, LogicalType sortKeyType) {
+        this.sortKeyGetter = RowData.createFieldGetter(sortKeyType, sortKeyIdx);
+    }
 
-	@Override
-	public int compare(GenericRowData row1, GenericRowData row2) {
-		RowKind kind1 = row1.getRowKind();
-		RowKind kind2 = row2.getRowKind();
-		if (kind1 != kind2) {
-			return kind1.toByteValue() - kind2.toByteValue();
-		} else {
-			Object key1 = sortKeyGetter.getFieldOrNull(row1);
-			Object key2 = sortKeyGetter.getFieldOrNull(row2);
-			if (key1 instanceof Comparable) {
-				return ((Comparable) key1).compareTo(key2);
-			} else {
-				throw new UnsupportedOperationException();
-			}
-		}
-	}
+    @Override
+    public int compare(GenericRowData row1, GenericRowData row2) {
+        RowKind kind1 = row1.getRowKind();
+        RowKind kind2 = row2.getRowKind();
+        if (kind1 != kind2) {
+            return kind1.toByteValue() - kind2.toByteValue();
+        } else {
+            Object key1 = sortKeyGetter.getFieldOrNull(row1);
+            Object key2 = sortKeyGetter.getFieldOrNull(row2);
+            if (key1 instanceof Comparable) {
+                return ((Comparable) key1).compareTo(key2);
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+    }
 }

@@ -24,11 +24,13 @@ from typing import Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.expression import Expression, _get_java_expression
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, with_columns, without_columns
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import create_arrow_schema
+from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
+    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
@@ -308,7 +310,7 @@ class Table(object):
             right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
     def join_lateral(self,
-                     table_function_call: Union[str, Expression],
+                     table_function_call: Union[str, Expression, UserDefinedTableFunctionWrapper],
                      join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
@@ -324,12 +326,27 @@ class Table(object):
 
             >>> from pyflink.table import expressions as expr
             >>> tab.join_lateral(expr.call('split', ' ').alias('b'), expr.col('a') == expr.col('b'))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.join_lateral(split_row.alias("a", "b"))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
         :return: The result Table.
         """
+        if isinstance(table_function_call, UserDefinedTableFunctionWrapper):
+            table_function_call._set_takes_row_as_input()
+            if hasattr(table_function_call, "_alias_names"):
+                alias_names = getattr(table_function_call, "_alias_names")
+                table_function_call = table_function_call(with_columns(col("*"))) \
+                    .alias(*alias_names)
+            else:
+                raise AttributeError('table_function_call must be followed by a alias function'
+                                     'e.g. table_function.alias("a", "b")')
         if join_predicate is None:
             return Table(self._j_table.joinLateral(
                 _get_java_expression(table_function_call)), self._t_env)
@@ -340,7 +357,8 @@ class Table(object):
                 self._t_env)
 
     def left_outer_join_lateral(self,
-                                table_function_call: Union[str, Expression],
+                                table_function_call: Union[str, Expression,
+                                                           UserDefinedTableFunctionWrapper],
                                 join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to
@@ -356,12 +374,27 @@ class Table(object):
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
             >>> from pyflink.table import expressions as expr
             >>> tab.left_outer_join_lateral(expr.call('split', ' ').alias('b'))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.left_outer_join_lateral(split_row.alias("a", "b"))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
         :return: The result Table.
         """
+        if isinstance(table_function_call, UserDefinedTableFunctionWrapper):
+            table_function_call._set_takes_row_as_input()
+            if hasattr(table_function_call, "_alias_names"):
+                alias_names = getattr(table_function_call, "_alias_names")
+                table_function_call = table_function_call(with_columns(col("*"))) \
+                    .alias(*alias_names)
+            else:
+                raise AttributeError('table_function_call must be followed by a alias function'
+                                     'e.g. table_function.alias("a", "b")')
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoinLateral(
                 _get_java_expression(table_function_call)), self._t_env)
@@ -759,6 +792,165 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.dropColumns(fields[0]), self._t_env)
 
+    def map(self, func: Union[str, Expression, UserDefinedScalarFunctionWrapper]) -> 'Table':
+        """
+        Performs a map operation with a user-defined scalar function.
+
+        Example:
+        ::
+
+            >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(add(tab.a)).alias("a, b")
+            >>> # take all the columns as inputs
+            >>> identity = udf(lambda row: row, result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(identity)
+
+        :param func: user-defined scalar function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.map(func), self._t_env)
+        elif isinstance(func, Expression):
+            return Table(self._j_table.map(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            return Table(self._j_table.map(func(with_columns(col("*")))._j_expr), self._t_env)
+
+    def flat_map(self, func: Union[str, Expression, UserDefinedTableFunctionWrapper]) -> 'Table':
+        """
+        Performs a flatMap operation with a user-defined table function.
+
+        Example:
+        ::
+
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split(x, string):
+            ...     for s in string.split(","):
+            ...         yield x, s
+            >>> tab.flat_map(split(tab.a, table.b))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.flat_map(split_row)
+
+        :param func: user-defined table function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.flatMap(func), self._t_env)
+        elif isinstance(func, Expression):
+            return Table(self._j_table.flatMap(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            return Table(self._j_table.flatMap(func(with_columns(col("*")))._j_expr), self._t_env)
+
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs a global aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg.alias("a, b")).select("a, b")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
+        """
+        Perform a global flat_aggregate without group_by. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after the flat_aggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.flat_aggregate(top2.alias("a", "b")).select("a, b")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
     def insert_into(self, table_path: str):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
@@ -924,6 +1116,105 @@ class GroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs a aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select("a, c, d")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
+        """
+        Performs a flat_aggregate operation on a grouped table. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after flatAggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select("c, a")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+
 
 class GroupWindowedTable(object):
     """
@@ -1002,6 +1293,60 @@ class WindowGroupedTable(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs an aggregate operation on a window grouped table. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w") \
+            ...     .aggregate(agg(window_grouped_table.b) \
+            ...     .alias("c", "d")) \
+            ...     .select("c, d")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w, a").aggregate(agg_row)
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            func = self._to_expr(func)
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def _to_expr(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
+        group_window_field = self._j_table.getClass().getDeclaredField("window")
+        group_window_field.setAccessible(True)
+        j_group_window = group_window_field.get(self._j_table)
+        j_time_field = j_group_window.getTimeField()
+        fields_without_window = without_columns(j_time_field)
+        if hasattr(func, "_alias_names"):
+            alias_names = getattr(func, "_alias_names")
+            func_expression = func(fields_without_window).alias(*alias_names)
+        else:
+            func_expression = func(fields_without_window)
+        return func_expression
+
 
 class OverWindowedTable(object):
     """
@@ -1029,6 +1374,107 @@ class OverWindowedTable(object):
             ...                            col('b').count.over(col('ow')),
             ...                            col('e').sum.over(col('ow')))
             >>> over_windowed_table.select("c, b.count over ow, e.sum over ow")
+
+        :param fields: Expression string.
+        :return: The result table.
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class AggregatedTable(object):
+    """
+    A table that has been performed on the aggregate function.
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation after an aggregate operation. The field expressions
+        cannot contain table functions and aggregations.
+
+        Example:
+        ""
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
+
+        :param fields: Expression string.
+        :return: The result table.
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class FlatAggregateTable(object):
+    """
+    A table that performs flatAggregate on a :class:`~pyflink.table.Table`, a
+    :class:`~pyflink.table.GroupedTable` or a :class:`~pyflink.table.WindowGroupedTable`
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation on a FlatAggregateTable. Similar to a SQL SELECT statement.
+        The field expressions can contain complex expressions.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
 
         :param fields: Expression string.
         :return: The result table.

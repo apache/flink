@@ -22,32 +22,30 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
-/**
- * Collection of test {@link ConfigOptions ConfigOptions}.
- */
+/** Collection of test {@link ConfigOptions ConfigOptions}. */
 @SuppressWarnings("unused") // this class is only accessed reflectively
 public class TestCommonOptions {
 
-	public static final String SECTION_1 = "test_A";
-	public static final String SECTION_2 = "other";
+    public static final String SECTION_1 = "test_A";
+    public static final String SECTION_2 = "other";
 
-	@Documentation.Section({SECTION_1, SECTION_2})
-	public static final ConfigOption<Integer> COMMON_OPTION = ConfigOptions
-		.key("first.option.a")
-		.intType()
-		.defaultValue(2)
-		.withDescription("This is the description for the common option.");
+    @Documentation.Section({SECTION_1, SECTION_2})
+    public static final ConfigOption<Integer> COMMON_OPTION =
+            ConfigOptions.key("first.option.a")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription("This is the description for the common option.");
 
-	public static final ConfigOption<String> GENERIC_OPTION = ConfigOptions
-		.key("second.option.a")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("This is the description for the generic option.");
+    public static final ConfigOption<String> GENERIC_OPTION =
+            ConfigOptions.key("second.option.a")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("This is the description for the generic option.");
 
-	@Documentation.Section(value = SECTION_1, position = 2)
-	public static final ConfigOption<Integer> COMMON_POSITIONED_OPTION = ConfigOptions
-		.key("third.option.a")
-		.intType()
-		.defaultValue(3)
-		.withDescription("This is the description for the positioned common option.");
+    @Documentation.Section(value = SECTION_1, position = 2)
+    public static final ConfigOption<Integer> COMMON_POSITIONED_OPTION =
+            ConfigOptions.key("third.option.a")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription("This is the description for the positioned common option.");
 }

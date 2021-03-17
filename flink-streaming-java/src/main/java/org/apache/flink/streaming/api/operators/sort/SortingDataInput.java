@@ -26,6 +26,7 @@ import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -53,9 +54,9 @@ import java.util.concurrent.CompletableFuture;
  * After it is done it emits a single record at a time from the sorter.
  *
  * <p>The sorter uses binary comparison of keys, which are extracted and serialized when received
- * from the chained input. Moreover the timestamps of incoming records are used for secondary ordering.
- * For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of the
- * serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
+ * from the chained input. Moreover the timestamps of incoming records are used for secondary
+ * ordering. For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of
+ * the serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
  * <p>Watermarks, stream statuses, nor latency markers are propagated downstream as they do not make
  * sense with buffered records. The input emits the largest watermark seen after all records.
@@ -65,166 +66,166 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 
-	private final StreamTaskInput<T> wrappedInput;
-	private final PushSorter<Tuple2<byte[], StreamRecord<T>>> sorter;
-	private final KeySelector<T, K> keySelector;
-	private final TypeSerializer<K> keySerializer;
-	private final DataOutputSerializer dataOutputSerializer;
-	private final ForwardingDataOutput forwardingDataOutput;
-	private MutableObjectIterator<Tuple2<byte[], StreamRecord<T>>> sortedInput = null;
-	private boolean emittedLast;
-	private long watermarkSeen = Long.MIN_VALUE;
+    private final StreamTaskInput<T> wrappedInput;
+    private final PushSorter<Tuple2<byte[], StreamRecord<T>>> sorter;
+    private final KeySelector<T, K> keySelector;
+    private final TypeSerializer<K> keySerializer;
+    private final DataOutputSerializer dataOutputSerializer;
+    private final ForwardingDataOutput forwardingDataOutput;
+    private MutableObjectIterator<Tuple2<byte[], StreamRecord<T>>> sortedInput = null;
+    private boolean emittedLast;
+    private long watermarkSeen = Long.MIN_VALUE;
 
-	public SortingDataInput(
-			StreamTaskInput<T> wrappedInput,
-			TypeSerializer<T> typeSerializer,
-			TypeSerializer<K> keySerializer,
-			KeySelector<T, K> keySelector,
-			MemoryManager memoryManager,
-			IOManager ioManager,
-			boolean objectReuse,
-			double managedMemoryFraction,
-			Configuration jobConfiguration,
-			AbstractInvokable containingTask) {
-		try {
-			this.forwardingDataOutput = new ForwardingDataOutput();
-			this.keySelector = keySelector;
-			this.keySerializer = keySerializer;
-			int keyLength = keySerializer.getLength();
-			final TypeComparator<Tuple2<byte[], StreamRecord<T>>> comparator;
-			if (keyLength > 0) {
-				this.dataOutputSerializer = new DataOutputSerializer(keyLength);
-				comparator = new FixedLengthByteKeyComparator<>(keyLength);
-			} else {
-				this.dataOutputSerializer = new DataOutputSerializer(64);
-				comparator = new VariableLengthByteKeyComparator<>();
-			}
-			KeyAndValueSerializer<T> keyAndValueSerializer = new KeyAndValueSerializer<>(typeSerializer, keyLength);
-			this.wrappedInput = wrappedInput;
-			this.sorter = ExternalSorter.newBuilder(
-					memoryManager,
-					containingTask,
-					keyAndValueSerializer,
-					comparator)
-				.memoryFraction(managedMemoryFraction)
-				.enableSpilling(
-					ioManager,
-					jobConfiguration.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD))
-				.maxNumFileHandles(jobConfiguration.get(AlgorithmOptions.SPILLING_MAX_FAN))
-				.objectReuse(objectReuse)
-				.largeRecords(jobConfiguration.get(AlgorithmOptions.USE_LARGE_RECORDS_HANDLER))
-				.build();
-		} catch (MemoryAllocationException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    public SortingDataInput(
+            StreamTaskInput<T> wrappedInput,
+            TypeSerializer<T> typeSerializer,
+            TypeSerializer<K> keySerializer,
+            KeySelector<T, K> keySelector,
+            MemoryManager memoryManager,
+            IOManager ioManager,
+            boolean objectReuse,
+            double managedMemoryFraction,
+            Configuration jobConfiguration,
+            AbstractInvokable containingTask) {
+        try {
+            this.forwardingDataOutput = new ForwardingDataOutput();
+            this.keySelector = keySelector;
+            this.keySerializer = keySerializer;
+            int keyLength = keySerializer.getLength();
+            final TypeComparator<Tuple2<byte[], StreamRecord<T>>> comparator;
+            if (keyLength > 0) {
+                this.dataOutputSerializer = new DataOutputSerializer(keyLength);
+                comparator = new FixedLengthByteKeyComparator<>(keyLength);
+            } else {
+                this.dataOutputSerializer = new DataOutputSerializer(64);
+                comparator = new VariableLengthByteKeyComparator<>();
+            }
+            KeyAndValueSerializer<T> keyAndValueSerializer =
+                    new KeyAndValueSerializer<>(typeSerializer, keyLength);
+            this.wrappedInput = wrappedInput;
+            this.sorter =
+                    ExternalSorter.newBuilder(
+                                    memoryManager,
+                                    containingTask,
+                                    keyAndValueSerializer,
+                                    comparator)
+                            .memoryFraction(managedMemoryFraction)
+                            .enableSpilling(
+                                    ioManager,
+                                    jobConfiguration.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD))
+                            .maxNumFileHandles(
+                                    jobConfiguration.get(AlgorithmOptions.SPILLING_MAX_FAN))
+                            .objectReuse(objectReuse)
+                            .largeRecords(
+                                    jobConfiguration.get(
+                                            AlgorithmOptions.USE_LARGE_RECORDS_HANDLER))
+                            .build();
+        } catch (MemoryAllocationException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public int getInputIndex() {
-		return wrappedInput.getInputIndex();
-	}
+    @Override
+    public int getInputIndex() {
+        return wrappedInput.getInputIndex();
+    }
 
-	@Override
-	public CompletableFuture<Void> prepareSnapshot(
-			ChannelStateWriter channelStateWriter,
-			long checkpointId) {
-		throw new UnsupportedOperationException("Checkpoints are not supported with sorted inputs" +
-			" in the BATCH runtime.");
-	}
+    @Override
+    public CompletableFuture<Void> prepareSnapshot(
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
+        throw new UnsupportedOperationException(
+                "Checkpoints are not supported with sorted inputs" + " in the BATCH runtime.");
+    }
 
-	@Override
-	public void close() throws IOException {
-		IOException ex = null;
-		try {
-			wrappedInput.close();
-		} catch (IOException e) {
-			ex = ExceptionUtils.firstOrSuppressed(e, ex);
-		}
+    @Override
+    public void close() throws IOException {
+        IOException ex = null;
+        try {
+            wrappedInput.close();
+        } catch (IOException e) {
+            ex = ExceptionUtils.firstOrSuppressed(e, ex);
+        }
 
-		try {
-			sorter.close();
-		} catch (IOException e) {
-			ex = ExceptionUtils.firstOrSuppressed(e, ex);
-		}
+        try {
+            sorter.close();
+        } catch (IOException e) {
+            ex = ExceptionUtils.firstOrSuppressed(e, ex);
+        }
 
-		if (ex != null) {
-			throw ex;
-		}
-	}
+        if (ex != null) {
+            throw ex;
+        }
+    }
 
-	private class ForwardingDataOutput implements DataOutput<T> {
-		@Override
-		public void emitRecord(StreamRecord<T> streamRecord) throws Exception {
-			K key = keySelector.getKey(streamRecord.getValue());
+    private class ForwardingDataOutput implements DataOutput<T> {
+        @Override
+        public void emitRecord(StreamRecord<T> streamRecord) throws Exception {
+            K key = keySelector.getKey(streamRecord.getValue());
 
-			keySerializer.serialize(key, dataOutputSerializer);
-			byte[] serializedKey = dataOutputSerializer.getCopyOfBuffer();
-			dataOutputSerializer.clear();
+            keySerializer.serialize(key, dataOutputSerializer);
+            byte[] serializedKey = dataOutputSerializer.getCopyOfBuffer();
+            dataOutputSerializer.clear();
 
-			sorter.writeRecord(Tuple2.of(serializedKey, streamRecord));
-		}
+            sorter.writeRecord(Tuple2.of(serializedKey, streamRecord));
+        }
 
-		@Override
-		public void emitWatermark(Watermark watermark) {
-			watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
-		}
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
+        }
 
-		@Override
-		public void emitStreamStatus(StreamStatus streamStatus) {
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) {}
 
-		}
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+    }
 
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+    @Override
+    public InputStatus emitNext(DataOutput<T> output) throws Exception {
+        if (sortedInput != null) {
+            return emitNextSortedRecord(output);
+        }
 
-		}
-	}
+        InputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
+        if (inputStatus == InputStatus.END_OF_INPUT) {
+            endSorting();
+            return emitNextSortedRecord(output);
+        }
 
-	@Override
-	public InputStatus emitNext(DataOutput<T> output) throws Exception {
-		if (sortedInput != null) {
-			return emitNextSortedRecord(output);
-		}
+        return inputStatus;
+    }
 
-		InputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
-		if (inputStatus == InputStatus.END_OF_INPUT) {
-			endSorting();
-			return emitNextSortedRecord(output);
-		}
+    @Nonnull
+    private InputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
+        if (emittedLast) {
+            return InputStatus.END_OF_INPUT;
+        }
 
-		return inputStatus;
-	}
+        Tuple2<byte[], StreamRecord<T>> next = sortedInput.next();
+        if (next != null) {
+            output.emitRecord(next.f1);
+            return InputStatus.MORE_AVAILABLE;
+        } else {
+            emittedLast = true;
+            if (watermarkSeen > Long.MIN_VALUE) {
+                output.emitWatermark(new Watermark(watermarkSeen));
+            }
+            return InputStatus.END_OF_INPUT;
+        }
+    }
 
-	@Nonnull
-	private InputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
-		if (emittedLast) {
-			return InputStatus.END_OF_INPUT;
-		}
+    private void endSorting() throws Exception {
+        this.sorter.finishReading();
+        this.sortedInput = sorter.getIterator();
+    }
 
-		Tuple2<byte[], StreamRecord<T>> next = sortedInput.next();
-		if (next != null) {
-			output.emitRecord(next.f1);
-			return InputStatus.MORE_AVAILABLE;
-		} else {
-			emittedLast = true;
-			if (watermarkSeen > Long.MIN_VALUE) {
-				output.emitWatermark(new Watermark(watermarkSeen));
-			}
-			return InputStatus.END_OF_INPUT;
-		}
-	}
-
-	private void endSorting() throws Exception {
-		this.sorter.finishReading();
-		this.sortedInput = sorter.getIterator();
-	}
-
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		if (sortedInput != null) {
-			return AvailabilityProvider.AVAILABLE;
-		} else {
-			return wrappedInput.getAvailableFuture();
-		}
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        if (sortedInput != null) {
+            return AvailabilityProvider.AVAILABLE;
+        } else {
+            return wrappedInput.getAvailableFuture();
+        }
+    }
 }

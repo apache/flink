@@ -41,53 +41,56 @@ import static org.apache.flink.util.Preconditions.checkState;
  * function for configuring common graph properties.
  */
 abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Transformation<OUT>>
-		extends SimpleTransformationTranslator<OUT, OP> {
-	protected Collection<Integer> translateInternal(
-			final Transformation<OUT> transformation,
-			final StreamOperatorFactory<OUT> operatorFactory,
-			final TypeInformation<IN> inputType,
-			@Nullable final KeySelector<IN, ?> stateKeySelector,
-			@Nullable final TypeInformation<?> stateKeyType,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(operatorFactory);
-		checkNotNull(inputType);
-		checkNotNull(context);
+        extends SimpleTransformationTranslator<OUT, OP> {
 
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final String slotSharingGroup = context.getSlotSharingGroup();
-		final int transformationId = transformation.getId();
-		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+    protected Collection<Integer> translateInternal(
+            final Transformation<OUT> transformation,
+            final StreamOperatorFactory<OUT> operatorFactory,
+            final TypeInformation<IN> inputType,
+            @Nullable final KeySelector<IN, ?> stateKeySelector,
+            @Nullable final TypeInformation<?> stateKeyType,
+            final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(operatorFactory);
+        checkNotNull(inputType);
+        checkNotNull(context);
 
-		streamGraph.addOperator(
-			transformationId,
-			slotSharingGroup,
-			transformation.getCoLocationGroupKey(),
-			operatorFactory,
-			inputType,
-			transformation.getOutputType(),
-			transformation.getName());
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final String slotSharingGroup = context.getSlotSharingGroup();
+        final int transformationId = transformation.getId();
+        final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-		if (stateKeySelector != null) {
-			TypeSerializer<?> keySerializer = stateKeyType.createSerializer(executionConfig);
-			streamGraph.setOneInputStateKey(transformationId, stateKeySelector, keySerializer);
-		}
+        streamGraph.addOperator(
+                transformationId,
+                slotSharingGroup,
+                transformation.getCoLocationGroupKey(),
+                operatorFactory,
+                inputType,
+                transformation.getOutputType(),
+                transformation.getName());
 
-		int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-			? transformation.getParallelism()
-			: executionConfig.getParallelism();
-		streamGraph.setParallelism(transformationId, parallelism);
-		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
+        if (stateKeySelector != null) {
+            TypeSerializer<?> keySerializer = stateKeyType.createSerializer(executionConfig);
+            streamGraph.setOneInputStateKey(transformationId, stateKeySelector, keySerializer);
+        }
 
-		final List<Transformation<?>> parentTransformations = transformation.getInputs();
-		checkState(
-			parentTransformations.size() == 1,
-			"Expected exactly one input transformation but found " + parentTransformations.size());
+        int parallelism =
+                transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
+                        ? transformation.getParallelism()
+                        : executionConfig.getParallelism();
+        streamGraph.setParallelism(transformationId, parallelism);
+        streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		for (Integer inputId: context.getStreamNodeIds(parentTransformations.get(0))) {
-			streamGraph.addEdge(inputId, transformationId, 0);
-		}
+        final List<Transformation<?>> parentTransformations = transformation.getInputs();
+        checkState(
+                parentTransformations.size() == 1,
+                "Expected exactly one input transformation but found "
+                        + parentTransformations.size());
 
-		return Collections.singleton(transformationId);
-	}
+        for (Integer inputId : context.getStreamNodeIds(parentTransformations.get(0))) {
+            streamGraph.addEdge(inputId, transformationId, 0);
+        }
+
+        return Collections.singleton(transformationId);
+    }
 }

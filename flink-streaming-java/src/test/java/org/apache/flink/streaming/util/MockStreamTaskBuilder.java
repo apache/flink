@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.MockStreamStatusMaintainer;
@@ -41,101 +40,105 @@ import javax.annotation.Nullable;
 
 import java.util.function.BiConsumer;
 
-/**
- * A builder of {@link MockStreamTask}.
- */
+/** A builder of {@link MockStreamTask}. */
 public class MockStreamTaskBuilder {
-	private final Environment environment;
-	private Object checkpointLock = new Object();
-	private StreamConfig config;
-	private ExecutionConfig executionConfig = new ExecutionConfig();
-	private StreamStatusMaintainer streamStatusMaintainer = new MockStreamStatusMaintainer();
-	private CheckpointStorageWorkerView checkpointStorage;
-	private TimerService timerService = new TestProcessingTimeService();
-	private StreamTaskStateInitializer streamTaskStateInitializer;
-	private BiConsumer<String, Throwable> handleAsyncException = (message, throwable) -> { };
-	private TaskMailbox taskMailbox = new TaskMailboxImpl();
-	private StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor = StreamTaskActionExecutor.synchronizedExecutor();
-	@Nullable
-	private StreamInputProcessor inputProcessor;
+    private final Environment environment;
+    private Object checkpointLock = new Object();
+    private StreamConfig config;
+    private ExecutionConfig executionConfig = new ExecutionConfig();
+    private StreamStatusMaintainer streamStatusMaintainer = new MockStreamStatusMaintainer();
+    private CheckpointStorageWorkerView checkpointStorage;
+    private TimerService timerService = new TestProcessingTimeService();
+    private StreamTaskStateInitializer streamTaskStateInitializer;
+    private BiConsumer<String, Throwable> handleAsyncException = (message, throwable) -> {};
+    private TaskMailbox taskMailbox = new TaskMailboxImpl();
+    private StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor =
+            StreamTaskActionExecutor.synchronizedExecutor();
+    @Nullable private StreamInputProcessor inputProcessor;
 
-	public MockStreamTaskBuilder(Environment environment) throws Exception {
-		this.environment = environment;
-		this.config = new StreamConfig(environment.getTaskConfiguration());
+    public MockStreamTaskBuilder(Environment environment) throws Exception {
+        this.environment = environment;
+        this.config = new StreamConfig(environment.getTaskConfiguration());
 
-		StateBackend stateBackend = new MemoryStateBackend();
-		this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
-		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend);
-	}
+        MemoryStateBackend stateBackend = new MemoryStateBackend();
+        this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
+        this.streamTaskStateInitializer =
+                new StreamTaskStateInitializerImpl(environment, stateBackend);
+    }
 
-	public MockStreamTaskBuilder setCheckpointLock(Object checkpointLock) {
-		this.checkpointLock = checkpointLock;
-		return this;
-	}
+    public MockStreamTaskBuilder setCheckpointLock(Object checkpointLock) {
+        this.checkpointLock = checkpointLock;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setConfig(StreamConfig config) {
-		this.config = config;
-		return this;
-	}
+    public MockStreamTaskBuilder setConfig(StreamConfig config) {
+        this.config = config;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setExecutionConfig(ExecutionConfig executionConfig) {
-		this.executionConfig = executionConfig;
-		return this;
-	}
+    public MockStreamTaskBuilder setExecutionConfig(ExecutionConfig executionConfig) {
+        this.executionConfig = executionConfig;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setStreamTaskStateInitializer(StreamTaskStateInitializer streamTaskStateInitializer) {
-		this.streamTaskStateInitializer = streamTaskStateInitializer;
-		return this;
-	}
+    public MockStreamTaskBuilder setStreamTaskStateInitializer(
+            StreamTaskStateInitializer streamTaskStateInitializer) {
+        this.streamTaskStateInitializer = streamTaskStateInitializer;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setStreamStatusMaintainer(StreamStatusMaintainer streamStatusMaintainer) {
-		this.streamStatusMaintainer = streamStatusMaintainer;
-		return this;
-	}
+    public MockStreamTaskBuilder setStreamStatusMaintainer(
+            StreamStatusMaintainer streamStatusMaintainer) {
+        this.streamStatusMaintainer = streamStatusMaintainer;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setCheckpointStorage(CheckpointStorageAccess checkpointStorageAccess) {
-		this.checkpointStorage = checkpointStorageAccess;
-		return this;
-	}
+    public MockStreamTaskBuilder setCheckpointStorage(
+            CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorage = checkpointStorageAccess;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setTimerService(TimerService timerService) {
-		this.timerService = timerService;
-		return this;
-	}
+    public MockStreamTaskBuilder setTimerService(TimerService timerService) {
+        this.timerService = timerService;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setHandleAsyncException(BiConsumer<String, Throwable> handleAsyncException) {
-		this.handleAsyncException = handleAsyncException;
-		return this;
-	}
+    public MockStreamTaskBuilder setHandleAsyncException(
+            BiConsumer<String, Throwable> handleAsyncException) {
+        this.handleAsyncException = handleAsyncException;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setTaskMailbox(TaskMailbox taskMailbox) {
-		this.taskMailbox = taskMailbox;
-		return this;
-	}
+    public MockStreamTaskBuilder setTaskMailbox(TaskMailbox taskMailbox) {
+        this.taskMailbox = taskMailbox;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setTaskActionExecutor(StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor) {
-		this.taskActionExecutor = taskActionExecutor;
-		return this;
-	}
+    public MockStreamTaskBuilder setTaskActionExecutor(
+            StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor taskActionExecutor) {
+        this.taskActionExecutor = taskActionExecutor;
+        return this;
+    }
 
-	public MockStreamTaskBuilder setStreamInputProcessor(StreamInputProcessor inputProcessor) {
-		this.inputProcessor = inputProcessor;
-		return this;
-	}
+    public MockStreamTaskBuilder setStreamInputProcessor(StreamInputProcessor inputProcessor) {
+        this.inputProcessor = inputProcessor;
+        return this;
+    }
 
-	public MockStreamTask build() throws Exception {
-		return new MockStreamTask(
-			environment,
-			checkpointLock,
-			config,
-			executionConfig,
-			streamTaskStateInitializer,
-			streamStatusMaintainer,
-			checkpointStorage,
-			timerService,
-			handleAsyncException,
-			taskMailbox,
-			taskActionExecutor,
-			inputProcessor);
-	}
+    public MockStreamTask build() throws Exception {
+        return new MockStreamTask(
+                environment,
+                checkpointLock,
+                config,
+                executionConfig,
+                streamTaskStateInitializer,
+                streamStatusMaintainer,
+                checkpointStorage,
+                timerService,
+                handleAsyncException,
+                taskMailbox,
+                taskActionExecutor,
+                inputProcessor);
+    }
 }

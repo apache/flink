@@ -49,84 +49,118 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Request handler for the subtask execution attempt accumulators.
- */
+/** Request handler for the subtask execution attempt accumulators. */
 public class SubtaskExecutionAttemptAccumulatorsHandler
-	extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters>
-	implements JsonArchivist {
+        extends AbstractSubtaskAttemptHandler<
+                SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters>
+        implements JsonArchivist {
 
-	/**
-	 * Instantiates a new Abstract job vertex handler.
-	 *
-	 * @param leaderRetriever     the leader retriever
-	 * @param timeout             the timeout
-	 * @param responseHeaders     the response headers
-	 * @param messageHeaders      the message headers
-	 * @param executionGraphCache the execution graph cache
-	 * @param executor            the executor
-	 */
-	public SubtaskExecutionAttemptAccumulatorsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
+    /**
+     * Instantiates a new Abstract job vertex handler.
+     *
+     * @param leaderRetriever the leader retriever
+     * @param timeout the timeout
+     * @param responseHeaders the response headers
+     * @param messageHeaders the message headers
+     * @param executionGraphCache the execution graph cache
+     * @param executor the executor
+     */
+    public SubtaskExecutionAttemptAccumulatorsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<
+                            EmptyRequestBody,
+                            SubtaskExecutionAttemptAccumulatorsInfo,
+                            SubtaskAttemptMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
 
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
-	}
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected SubtaskExecutionAttemptAccumulatorsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-			AccessExecution execution) throws RestHandlerException {
-		return createAccumulatorInfo(execution);
-	}
+    @Override
+    protected SubtaskExecutionAttemptAccumulatorsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
+            AccessExecution execution)
+            throws RestHandlerException {
+        return createAccumulatorInfo(execution);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		List<ArchivedJson> archive = new ArrayList<>(16);
-		for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
-			for (AccessExecutionVertex subtask : task.getTaskVertices()) {
-				ResponseBody curAttemptJson = createAccumulatorInfo(subtask.getCurrentExecutionAttempt());
-				String curAttemptPath = getMessageHeaders().getTargetRestEndpointURL()
-					.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-					.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
-					.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
-					.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(subtask.getCurrentExecutionAttempt().getAttemptNumber()));
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        List<ArchivedJson> archive = new ArrayList<>(16);
+        for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
+            for (AccessExecutionVertex subtask : task.getTaskVertices()) {
+                ResponseBody curAttemptJson =
+                        createAccumulatorInfo(subtask.getCurrentExecutionAttempt());
+                String curAttemptPath =
+                        getMessageHeaders()
+                                .getTargetRestEndpointURL()
+                                .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+                                .replace(
+                                        ':' + JobVertexIdPathParameter.KEY,
+                                        task.getJobVertexId().toString())
+                                .replace(
+                                        ':' + SubtaskIndexPathParameter.KEY,
+                                        String.valueOf(subtask.getParallelSubtaskIndex()))
+                                .replace(
+                                        ':' + SubtaskAttemptPathParameter.KEY,
+                                        String.valueOf(
+                                                subtask.getCurrentExecutionAttempt()
+                                                        .getAttemptNumber()));
 
-				archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
+                archive.add(new ArchivedJson(curAttemptPath, curAttemptJson));
 
-				for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
-					AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
-					if (attempt != null){
-						ResponseBody json = createAccumulatorInfo(attempt);
-						String path = getMessageHeaders().getTargetRestEndpointURL()
-							.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
-							.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString())
-							.replace(':' + SubtaskIndexPathParameter.KEY, String.valueOf(subtask.getParallelSubtaskIndex()))
-							.replace(':' + SubtaskAttemptPathParameter.KEY, String.valueOf(attempt.getAttemptNumber()));
-						archive.add(new ArchivedJson(path, json));
-					}
-				}
-			}
-		}
-		return archive;
-	}
+                for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
+                    AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
+                    if (attempt != null) {
+                        ResponseBody json = createAccumulatorInfo(attempt);
+                        String path =
+                                getMessageHeaders()
+                                        .getTargetRestEndpointURL()
+                                        .replace(
+                                                ':' + JobIDPathParameter.KEY,
+                                                graph.getJobID().toString())
+                                        .replace(
+                                                ':' + JobVertexIdPathParameter.KEY,
+                                                task.getJobVertexId().toString())
+                                        .replace(
+                                                ':' + SubtaskIndexPathParameter.KEY,
+                                                String.valueOf(subtask.getParallelSubtaskIndex()))
+                                        .replace(
+                                                ':' + SubtaskAttemptPathParameter.KEY,
+                                                String.valueOf(attempt.getAttemptNumber()));
+                        archive.add(new ArchivedJson(path, json));
+                    }
+                }
+            }
+        }
+        return archive;
+    }
 
-	private static SubtaskExecutionAttemptAccumulatorsInfo createAccumulatorInfo(AccessExecution execution) {
-		final StringifiedAccumulatorResult[] accs = execution.getUserAccumulatorsStringified();
-		final ArrayList<UserAccumulator> userAccumulatorList = new ArrayList<>(accs.length);
+    private static SubtaskExecutionAttemptAccumulatorsInfo createAccumulatorInfo(
+            AccessExecution execution) {
+        final StringifiedAccumulatorResult[] accs = execution.getUserAccumulatorsStringified();
+        final ArrayList<UserAccumulator> userAccumulatorList = new ArrayList<>(accs.length);
 
-		for (StringifiedAccumulatorResult acc : accs) {
-			userAccumulatorList.add(new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
-		}
+        for (StringifiedAccumulatorResult acc : accs) {
+            userAccumulatorList.add(
+                    new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
+        }
 
-		return new SubtaskExecutionAttemptAccumulatorsInfo(
-			execution.getParallelSubtaskIndex(),
-			execution.getAttemptNumber(),
-			execution.getAttemptId().toString(),
-			userAccumulatorList);
-	}
+        return new SubtaskExecutionAttemptAccumulatorsInfo(
+                execution.getParallelSubtaskIndex(),
+                execution.getAttemptNumber(),
+                execution.getAttemptId().toString(),
+                userAccumulatorList);
+    }
 }

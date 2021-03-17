@@ -25,33 +25,32 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import java.util.Collections;
 import java.util.Set;
 
-/**
- * {@link DynamicTableFactory} that conflicts with {@link TestConflictingDynamicTableFactory1}.
- */
-public class TestConflictingDynamicTableFactory2 implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+/** {@link DynamicTableFactory} that conflicts with {@link TestConflictingDynamicTableFactory1}. */
+public class TestConflictingDynamicTableFactory2
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return TestConflictingDynamicTableFactory1.IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return TestConflictingDynamicTableFactory1.IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
 }

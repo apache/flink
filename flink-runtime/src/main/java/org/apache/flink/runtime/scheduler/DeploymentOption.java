@@ -19,17 +19,18 @@
 package org.apache.flink.runtime.scheduler;
 
 /**
- * Deployment option which indicates whether the task should send scheduleOrUpdateConsumer message to master.
+ * Deployment option which indicates whether the task should notify master when its data is
+ * available.
  */
 public class DeploymentOption {
 
-	private final boolean sendScheduleOrUpdateConsumerMessage;
+    private final boolean notifyPartitionDataAvailable;
 
-	public DeploymentOption(boolean sendScheduleOrUpdateConsumerMessage) {
-		this.sendScheduleOrUpdateConsumerMessage = sendScheduleOrUpdateConsumerMessage;
-	}
+    public DeploymentOption(boolean notifyPartitionDataAvailable) {
+        this.notifyPartitionDataAvailable = notifyPartitionDataAvailable;
+    }
 
-	public boolean sendScheduleOrUpdateConsumerMessage() {
-		return sendScheduleOrUpdateConsumerMessage;
-	}
+    public boolean notifyPartitionDataAvailable() {
+        return notifyPartitionDataAvailable;
+    }
 }

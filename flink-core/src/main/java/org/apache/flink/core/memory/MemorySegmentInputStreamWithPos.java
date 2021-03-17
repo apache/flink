@@ -24,91 +24,88 @@ import javax.annotation.Nonnull;
 
 import java.io.InputStream;
 
-/**
- * Un-synchronized input stream using the given memory segment.
- */
+/** Un-synchronized input stream using the given memory segment. */
 public class MemorySegmentInputStreamWithPos extends InputStream {
 
-	private MemorySegment segment;
-	private int position;
-	private int count;
-	private int mark;
+    private MemorySegment segment;
+    private int position;
+    private int count;
+    private int mark;
 
-	public MemorySegmentInputStreamWithPos(MemorySegment segment, int offset, int length) {
-		setSegment(segment, offset, length);
-	}
+    public MemorySegmentInputStreamWithPos(MemorySegment segment, int offset, int length) {
+        setSegment(segment, offset, length);
+    }
 
-	@Override
-	public int read() {
-		return (position < count) ? 0xFF & (segment.get(position++)) : -1;
-	}
+    @Override
+    public int read() {
+        return (position < count) ? 0xFF & (segment.get(position++)) : -1;
+    }
 
-	@Override
-	public int read(@Nonnull byte[] b, int off, int len) {
-		if (position >= count) {
-			return -1; // signal EOF
-		}
-		if (len <= 0) {
-			return 0;
-		}
+    @Override
+    public int read(@Nonnull byte[] b, int off, int len) {
+        if (position >= count) {
+            return -1; // signal EOF
+        }
+        if (len <= 0) {
+            return 0;
+        }
 
-		final int numBytes = Math.min(count - position, len);
+        final int numBytes = Math.min(count - position, len);
 
-		segment.get(position, b, off, numBytes);
-		position += numBytes;
+        segment.get(position, b, off, numBytes);
+        position += numBytes;
 
-		return numBytes;
-	}
+        return numBytes;
+    }
 
-	@Override
-	public long skip(long toSkip) {
-		long remain = count - position;
+    @Override
+    public long skip(long toSkip) {
+        long remain = count - position;
 
-		if (toSkip < remain) {
-			remain = toSkip < 0 ? 0 : toSkip;
-		}
+        if (toSkip < remain) {
+            remain = toSkip < 0 ? 0 : toSkip;
+        }
 
-		position += remain;
-		return remain;
-	}
+        position += remain;
+        return remain;
+    }
 
-	@Override
-	public boolean markSupported() {
-		return true;
-	}
+    @Override
+    public boolean markSupported() {
+        return true;
+    }
 
-	@Override
-	public void mark(int readAheadLimit) {
-		mark = position;
-	}
+    @Override
+    public void mark(int readAheadLimit) {
+        mark = position;
+    }
 
-	@Override
-	public void reset() {
-		position = mark;
-	}
+    @Override
+    public void reset() {
+        position = mark;
+    }
 
-	@Override
-	public int available() {
-		return count - position;
-	}
+    @Override
+    public int available() {
+        return count - position;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 
-	public int getPosition() {
-		return position;
-	}
+    public int getPosition() {
+        return position;
+    }
 
-	public void setPosition(int pos) {
-		Preconditions.checkArgument(pos >= 0 && pos <= count, "Position out of bounds.");
-		this.position = pos;
-	}
+    public void setPosition(int pos) {
+        Preconditions.checkArgument(pos >= 0 && pos <= count, "Position out of bounds.");
+        this.position = pos;
+    }
 
-	public void setSegment(MemorySegment segment, int offset, int length) {
-		this.count = Math.min(segment.size(), offset + length);
-		setPosition(offset);
-		this.segment = segment;
-		this.mark = offset;
-	}
+    public void setSegment(MemorySegment segment, int offset, int length) {
+        this.count = Math.min(segment.size(), offset + length);
+        setPosition(offset);
+        this.segment = segment;
+        this.mark = offset;
+    }
 }

@@ -31,47 +31,52 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
- * {@link GlobalCommitter} in the batch execution mode.
+ * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * GlobalCommitter} in the batch execution mode.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}
  * @param <GlobalCommT> The committable type of the {@link GlobalCommitter}
  */
-final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator<GlobalCommT>
-		implements OneInputStreamOperator<CommT, GlobalCommT>, BoundedOneInput {
+final class BatchGlobalCommitterOperator<CommT, GlobalCommT>
+        extends AbstractStreamOperator<GlobalCommT>
+        implements OneInputStreamOperator<CommT, GlobalCommT>, BoundedOneInput {
 
-	/** Aggregate committables to global committables and commit the global committables to the external system. */
-	private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
+    /**
+     * Aggregate committables to global committables and commit the global committables to the
+     * external system.
+     */
+    private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
-	/** Record all the committables until the end of the input. */
-	private final List<CommT> allCommittables;
+    /** Record all the committables until the end of the input. */
+    private final List<CommT> allCommittables;
 
-	BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
-		this.globalCommitter = checkNotNull(globalCommitter);
-		this.allCommittables = new ArrayList<>();
-	}
+    BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
+        this.globalCommitter = checkNotNull(globalCommitter);
+        this.allCommittables = new ArrayList<>();
+    }
 
-	@Override
-	public void processElement(StreamRecord<CommT> element) {
-		allCommittables.add(element.getValue());
-	}
+    @Override
+    public void processElement(StreamRecord<CommT> element) {
+        allCommittables.add(element.getValue());
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		if (!allCommittables.isEmpty()) {
-			final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
-			final List<GlobalCommT> neededRetryCommittables = globalCommitter.commit(
-					Collections.singletonList(globalCommittable));
-			if (!neededRetryCommittables.isEmpty()) {
-				throw new UnsupportedOperationException("Currently does not support the re-commit!");
-			}
-		}
-		globalCommitter.endOfInput();
-	}
+    @Override
+    public void endInput() throws Exception {
+        if (!allCommittables.isEmpty()) {
+            final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
+            final List<GlobalCommT> neededRetryCommittables =
+                    globalCommitter.commit(Collections.singletonList(globalCommittable));
+            if (!neededRetryCommittables.isEmpty()) {
+                throw new UnsupportedOperationException(
+                        "Currently does not support the re-commit!");
+            }
+        }
+        globalCommitter.endOfInput();
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		globalCommitter.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        globalCommitter.close();
+    }
 }

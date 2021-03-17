@@ -22,27 +22,26 @@ import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.LocatedFileStatus;
 
 /**
- * Concrete implementation of the {@link LocatedFileStatus} interface for the
- * Hadoop Distributed File System.
+ * Concrete implementation of the {@link LocatedFileStatus} interface for the Hadoop Distributed
+ * File System.
  */
 public final class LocatedHadoopFileStatus extends HadoopFileStatus implements LocatedFileStatus {
 
-	/**
-	 * Creates a new located file status from an HDFS file status.
-	 */
-	public LocatedHadoopFileStatus(org.apache.hadoop.fs.LocatedFileStatus fileStatus) {
-		super(fileStatus);
-	}
+    /** Creates a new located file status from an HDFS file status. */
+    public LocatedHadoopFileStatus(org.apache.hadoop.fs.LocatedFileStatus fileStatus) {
+        super(fileStatus);
+    }
 
-	@Override
-	public BlockLocation[] getBlockLocations() {
-		final org.apache.hadoop.fs.BlockLocation[] hadoopLocations =
-				((org.apache.hadoop.fs.LocatedFileStatus) getInternalFileStatus()).getBlockLocations();
+    @Override
+    public BlockLocation[] getBlockLocations() {
+        final org.apache.hadoop.fs.BlockLocation[] hadoopLocations =
+                ((org.apache.hadoop.fs.LocatedFileStatus) getInternalFileStatus())
+                        .getBlockLocations();
 
-		final HadoopBlockLocation[] locations = new HadoopBlockLocation[hadoopLocations.length];
-		for (int i = 0; i < locations.length; i++) {
-			locations[i] = new HadoopBlockLocation(hadoopLocations[i]);
-		}
-		return locations;
-	}
+        final HadoopBlockLocation[] locations = new HadoopBlockLocation[hadoopLocations.length];
+        for (int i = 0; i < locations.length; i++) {
+            locations[i] = new HadoopBlockLocation(hadoopLocations[i]);
+        }
+        return locations;
+    }
 }

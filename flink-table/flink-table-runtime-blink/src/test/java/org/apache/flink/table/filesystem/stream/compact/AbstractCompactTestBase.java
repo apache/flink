@@ -28,34 +28,31 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-/**
- * Test base for compact operators.
- */
+/** Test base for compact operators. */
 public abstract class AbstractCompactTestBase {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	public static final int TARGET_SIZE = 9;
+    public static final int TARGET_SIZE = 9;
 
-	Path folder;
+    Path folder;
 
-	@Before
-	public void before() throws IOException {
-		folder = new Path(TEMP_FOLDER.newFolder().getPath());
-	}
+    @Before
+    public void before() throws IOException {
+        folder = new Path(TEMP_FOLDER.newFolder().getPath());
+    }
 
-	Path newFile(String name, int len) throws IOException {
-		Path path = new Path(folder, name);
-		File file = new File(path.getPath());
-		file.delete();
-		file.createNewFile();
+    Path newFile(String name, int len) throws IOException {
+        Path path = new Path(folder, name);
+        File file = new File(path.getPath());
+        file.delete();
+        file.createNewFile();
 
-		try (FileOutputStream out = new FileOutputStream(file)) {
-			for (int i = 0; i < len; i++) {
-				out.write(i);
-			}
-		}
-		return path;
-	}
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            for (int i = 0; i < len; i++) {
+                out.write(i);
+            }
+        }
+        return path;
+    }
 }

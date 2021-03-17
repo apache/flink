@@ -36,48 +36,51 @@ import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 
-/**
- * External resource for tests that require an instance of RocksDBKeyedStateBackend.
- */
+/** External resource for tests that require an instance of RocksDBKeyedStateBackend. */
 public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
 
-	private MockEnvironment env;
+    private MockEnvironment env;
 
-	private RocksDBKeyedStateBackend<?> keyedStateBackend;
+    private RocksDBKeyedStateBackend<?> keyedStateBackend;
 
-	public <K> RocksDBKeyedStateBackend<K> create(TemporaryFolder tmp, TypeSerializer<K> keySerializer, int maxKeyGroupNumber) throws Exception {
-		RocksDBStateBackend backend = getRocksDBStateBackend(tmp);
-		env = MockEnvironment.builder().build();
-		keyedStateBackend = (RocksDBKeyedStateBackend<K>) backend.createKeyedStateBackend(
-			env,
-			new JobID(),
-			"Test",
-			keySerializer,
-			maxKeyGroupNumber,
-			new KeyGroupRange(0, maxKeyGroupNumber - 1),
-			mock(TaskKvStateRegistry.class),
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
+    public <K> RocksDBKeyedStateBackend<K> create(
+            TemporaryFolder tmp, TypeSerializer<K> keySerializer, int maxKeyGroupNumber)
+            throws Exception {
+        RocksDBStateBackend backend = getRocksDBStateBackend(tmp);
+        env = MockEnvironment.builder().build();
+        keyedStateBackend =
+                (RocksDBKeyedStateBackend<K>)
+                        backend.createKeyedStateBackend(
+                                env,
+                                new JobID(),
+                                "Test",
+                                keySerializer,
+                                maxKeyGroupNumber,
+                                new KeyGroupRange(0, maxKeyGroupNumber - 1),
+                                mock(TaskKvStateRegistry.class),
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                Collections.emptyList(),
+                                new CloseableRegistry());
 
-		return (RocksDBKeyedStateBackend<K>) keyedStateBackend;
-	}
+        return (RocksDBKeyedStateBackend<K>) keyedStateBackend;
+    }
 
-	@Override
-	public void close() {
-		if (keyedStateBackend != null) {
-			keyedStateBackend.dispose();
-		}
+    @Override
+    public void close() {
+        if (keyedStateBackend != null) {
+            keyedStateBackend.dispose();
+        }
 
-		IOUtils.closeQuietly(env);
-	}
+        IOUtils.closeQuietly(env);
+    }
 
-	private RocksDBStateBackend getRocksDBStateBackend(TemporaryFolder tmp) throws IOException {
-		String dbPath = tmp.newFolder().getAbsolutePath();
-		String checkpointPath = tmp.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), true);
-		backend.setDbStoragePath(dbPath);
-		return backend;
-	}
+    private RocksDBStateBackend getRocksDBStateBackend(TemporaryFolder tmp) throws IOException {
+        String dbPath = tmp.newFolder().getAbsolutePath();
+        String checkpointPath = tmp.newFolder().toURI().toString();
+        RocksDBStateBackend backend =
+                new RocksDBStateBackend(new FsStateBackend(checkpointPath), true);
+        backend.setDbStoragePath(dbPath);
+        return backend;
+    }
 }

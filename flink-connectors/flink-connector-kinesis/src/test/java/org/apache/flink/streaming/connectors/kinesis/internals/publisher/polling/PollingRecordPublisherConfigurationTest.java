@@ -28,47 +28,48 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link PollingRecordPublisherConfiguration}.
- */
+/** Tests for {@link PollingRecordPublisherConfiguration}. */
 public class PollingRecordPublisherConfigurationTest {
 
-	@Test
-	public void testDefaults() {
-		PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(new Properties());
-		assertEquals(configuration.getFetchIntervalMillis(), 200);
-		assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 10000);
-		assertFalse(configuration.isAdaptiveReads());
-	}
+    @Test
+    public void testDefaults() {
+        PollingRecordPublisherConfiguration configuration =
+                new PollingRecordPublisherConfiguration(new Properties());
+        assertEquals(configuration.getFetchIntervalMillis(), 200);
+        assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 10000);
+        assertFalse(configuration.isAdaptiveReads());
+    }
 
-	@Test
-	public void testGetFetchIntervalMillis() {
-		Properties properties = properties(SHARD_GETRECORDS_INTERVAL_MILLIS, "1");
-		PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(properties);
+    @Test
+    public void testGetFetchIntervalMillis() {
+        Properties properties = properties(SHARD_GETRECORDS_INTERVAL_MILLIS, "1");
+        PollingRecordPublisherConfiguration configuration =
+                new PollingRecordPublisherConfiguration(properties);
 
-		assertEquals(configuration.getFetchIntervalMillis(), 1);
-	}
+        assertEquals(configuration.getFetchIntervalMillis(), 1);
+    }
 
-	@Test
-	public void testGetMaxNumberOfRecordsPerFetch() {
-		Properties properties = properties(SHARD_GETRECORDS_MAX, "2");
-		PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(properties);
+    @Test
+    public void testGetMaxNumberOfRecordsPerFetch() {
+        Properties properties = properties(SHARD_GETRECORDS_MAX, "2");
+        PollingRecordPublisherConfiguration configuration =
+                new PollingRecordPublisherConfiguration(properties);
 
-		assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 2);
-	}
+        assertEquals(configuration.getMaxNumberOfRecordsPerFetch(), 2);
+    }
 
-	@Test
-	public void testIsAdaptiveReads() {
-		Properties properties = properties(SHARD_USE_ADAPTIVE_READS, "true");
-		PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(properties);
+    @Test
+    public void testIsAdaptiveReads() {
+        Properties properties = properties(SHARD_USE_ADAPTIVE_READS, "true");
+        PollingRecordPublisherConfiguration configuration =
+                new PollingRecordPublisherConfiguration(properties);
 
-		assertTrue(configuration.isAdaptiveReads());
-	}
+        assertTrue(configuration.isAdaptiveReads());
+    }
 
-	private Properties properties(final String key, final String value) {
-		final Properties properties = new Properties();
-		properties.setProperty(key, value);
-		return properties;
-	}
-
+    private Properties properties(final String key, final String value) {
+        final Properties properties = new Properties();
+        properties.setProperty(key, value);
+        return properties;
+    }
 }

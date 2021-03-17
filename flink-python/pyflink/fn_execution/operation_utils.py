@@ -26,7 +26,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
-    AggregateFunction, PandasAggregateFunctionWrapper
+    ImperativeAggregateFunction, PandasAggregateFunctionWrapper
 
 _func_num = 0
 _constant_num = 0
@@ -34,7 +34,24 @@ _constant_num = 0
 
 def wrap_pandas_result(it):
     import pandas as pd
-    return [pd.Series([result]) for result in it]
+    arrays = []
+    for result in it:
+        if isinstance(result, (Row, Tuple)):
+            arrays.append(pd.concat([pd.Series([item]) for item in result], axis=1))
+        else:
+            arrays.append(pd.Series([result]))
+    return arrays
+
+
+def wrap_inputs_as_row(*args):
+    from pyflink.common.types import Row
+    import pandas as pd
+    if type(args[0]) == pd.Series:
+        return pd.concat(args, axis=1)
+    elif len(args) == 1 and isinstance(args[0], (pd.DataFrame, Row, Tuple)):
+        return args[0]
+    else:
+        return Row(*args)
 
 
 def extract_over_window_user_defined_function(user_defined_function_proto):
@@ -97,7 +114,12 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)
     variable_dict.update(input_variable_dict)
     user_defined_funcs.extend(input_funcs)
-    return "%s(%s)" % (func_name, func_args), variable_dict, user_defined_funcs
+    if user_defined_function_proto.takes_row_as_input:
+        variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
+        func_str = "%s(wrap_inputs_as_row(%s))" % (func_name, func_args)
+    else:
+        func_str = "%s(%s)" % (func_name, func_args)
+    return func_str, variable_dict, user_defined_funcs
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:
@@ -141,7 +163,7 @@ def extract_user_defined_aggregate_function(
         user_defined_function_proto,
         distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]]):
     user_defined_agg = load_aggregate_function(user_defined_function_proto.payload)
-    assert isinstance(user_defined_agg, AggregateFunction)
+    assert isinstance(user_defined_agg, ImperativeAggregateFunction)
     args_str = []
     local_variable_dict = {}
     for arg in user_defined_function_proto.inputs:
@@ -171,8 +193,13 @@ def extract_user_defined_aggregate_function(
             distinct_index = current_index
     else:
         distinct_index = -1
+    if user_defined_function_proto.takes_row_as_input:
+        local_variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
+        func_str = "lambda value : [wrap_inputs_as_row(%s)]" % ",".join(args_str)
+    else:
+        func_str = "lambda value : (%s,)" % ",".join(args_str)
     return user_defined_agg, \
-        eval("lambda value : (%s,)" % ",".join(args_str), local_variable_dict) \
+        eval(func_str, local_variable_dict) \
         if args_str else lambda v: tuple(), \
         user_defined_function_proto.filter_arg, \
         distinct_index
@@ -210,12 +237,6 @@ def extract_data_stream_stateless_function(udf_proto):
         func = user_defined_func.map
     elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
         func = user_defined_func.flat_map
-    elif func_type == UserDefinedDataStreamFunction.REDUCE:
-        reduce_func = user_defined_func.reduce
-
-        def wrapped_func(value):
-            return reduce_func(value[0], value[1])
-        func = wrapped_func
     elif func_type == UserDefinedDataStreamFunction.CO_MAP:
         co_map_func = user_defined_func
 
@@ -256,7 +277,7 @@ def extract_data_stream_stateless_function(udf_proto):
     return func, user_defined_func
 
 
-def extract_process_function(user_defined_function_proto, ctx, collector):
+def extract_process_function(user_defined_function_proto, ctx):
     process_function = pickle.loads(user_defined_function_proto.payload)
     process_element = process_function.process_element
 
@@ -264,11 +285,8 @@ def extract_process_function(user_defined_function_proto, ctx, collector):
         # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
         ctx.set_timestamp(value[0])
         ctx.timer_service().set_current_watermark(value[1])
-        process_element(value[2], ctx, collector)
-
-        for a in collector.buf:
-            yield a[1]
-        collector.clear()
+        output_result = process_element(value[2], ctx)
+        return output_result
 
     return wrapped_process_function, process_function
 
@@ -294,7 +312,7 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
                 on_timer_ctx.set_time_domain(TimeDomain.PROCESSING_TIME)
             else:
                 raise TypeError("TimeCharacteristic[%s] is not supported." % str(value[0]))
-            on_timer(value[1], on_timer_ctx, collector)
+            output_result = on_timer(value[1], on_timer_ctx)
         else:
             # it is normal data
             # VALUE: TIMER_FLAG, CURRENT_TIMESTAMP, CURRENT_WATERMARK, None, NORMAL_DATA
@@ -305,17 +323,19 @@ def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ct
             ctx.set_current_key(current_key)
             keyed_state_backend.set_current_key(Row(current_key))
 
-            process_element(value[4][1], ctx, collector)
+            output_result = process_element(value[4][1], ctx)
+
+        if output_result:
+            for result in output_result:
+                yield Row(None, None, None, result)
 
         for result in collector.buf:
             # 0: proc time timer data
             # 1: event time timer data
             # 2: normal data
             # result_row: [TIMER_FLAG, TIMER TYPE, TIMER_KEY, RESULT_DATA]
-            if result[0] == KeyedProcessFunctionOutputFlag.NORMAL_DATA.value:
-                yield Row(None, None, None, result[1])
-            else:
-                yield Row(result[0], result[1], result[2], None)
+            yield Row(result[0], result[1], result[2], None)
+
         collector.clear()
 
     return wrapped_keyed_process_function, process_function

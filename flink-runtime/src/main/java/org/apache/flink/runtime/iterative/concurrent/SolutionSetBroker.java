@@ -18,19 +18,15 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-/**
- * Used to hand over the hash-join from the iteration head to the solution-set match.
- */
+/** Used to hand over the hash-join from the iteration head to the solution-set match. */
 public class SolutionSetBroker extends Broker<Object> {
 
-	private static final SolutionSetBroker INSTANCE = new SolutionSetBroker();
+    private static final SolutionSetBroker INSTANCE = new SolutionSetBroker();
 
-	/**
-	 * Retrieve the singleton instance.
-	 */
-	public static Broker<Object> instance() {
-		return INSTANCE;
-	}
+    /** Retrieve the singleton instance. */
+    public static Broker<Object> instance() {
+        return INSTANCE;
+    }
 
-	private SolutionSetBroker() {}
+    private SolutionSetBroker() {}
 }

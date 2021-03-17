@@ -22,24 +22,22 @@ import org.apache.flink.api.connector.source.SourceSplit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link SourceSplit} that only has an ID.
- */
+/** A {@link SourceSplit} that only has an ID. */
 public class TestingSourceSplit implements SourceSplit {
 
-	private final String splitId;
+    private final String splitId;
 
-	public TestingSourceSplit(String splitId) {
-		this.splitId = checkNotNull(splitId);
-	}
+    public TestingSourceSplit(String splitId) {
+        this.splitId = checkNotNull(splitId);
+    }
 
-	@Override
-	public String splitId() {
-		return splitId;
-	}
+    @Override
+    public String splitId() {
+        return splitId;
+    }
 
-	@Override
-	public String toString() {
-		return splitId;
-	}
+    @Override
+    public String toString() {
+        return splitId;
+    }
 }

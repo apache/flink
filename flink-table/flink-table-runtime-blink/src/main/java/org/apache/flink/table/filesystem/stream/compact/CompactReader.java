@@ -23,20 +23,14 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
- * Reader for compaction.
- */
+/** Reader for compaction. */
 public interface CompactReader<T> extends Closeable {
 
-	/**
-	 * Read a record, return null if no more record.
-	 */
-	T read() throws IOException;
+    /** Read a record, return null if no more record. */
+    T read() throws IOException;
 
-	/**
-	 * Factory to create {@link CompactReader}.
-	 */
-	interface Factory<T> extends Serializable {
-		CompactReader<T> create(CompactContext context) throws IOException;
-	}
+    /** Factory to create {@link CompactReader}. */
+    interface Factory<T> extends Serializable {
+        CompactReader<T> create(CompactContext context) throws IOException;
+    }
 }

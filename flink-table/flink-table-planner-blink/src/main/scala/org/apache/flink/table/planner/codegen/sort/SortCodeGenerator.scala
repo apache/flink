@@ -23,28 +23,26 @@ import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.sort.SortUtil
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{DecimalType, LogicalType, TimestampType}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, RowType, TimestampType}
 
 import scala.collection.mutable
 
 /**
   * A code generator for generating [[NormalizedKeyComputer]] and [[RecordComparator]].
   *
-  * @param keys        key positions describe which fields are keys in what order.
-  * @param keyTypes       types for the key fields, in the same order as the key fields.
-  * @param orders      sorting orders for the key fields.
-  * @param nullsIsLast      Ordering of nulls.
+  * @param conf         config of the planner.
+  * @param input        input type.
+  * @param sortSpec     sort specification.
   */
 class SortCodeGenerator(
     conf: TableConfig,
-    val keys: Array[Int],
-    val keyTypes: Array[LogicalType],
-    val orders: Array[Boolean],
-    val nullsIsLast: Array[Boolean]) {
+    val input: RowType,
+    val sortSpec: SortSpec) {
 
   private val MAX_NORMALIZED_KEY_LEN = 16
 
@@ -70,10 +68,11 @@ class SortCodeGenerator(
     val keyLengths = new mutable.ArrayBuffer[Int]
     var break = false
     var i = 0
-    while (i < keys.length && !break) {
-      val t = keyTypes(i)
+    while (i < sortSpec.getFieldSize && !break) {
+      val fieldSpec = sortSpec.getFieldSpec(i)
+      val t = input.getTypeAt(fieldSpec.getFieldIndex)
       if (supportNormalizedKey(t)) {
-        val invert = !orders(i)
+        val invert = !fieldSpec.getIsAscendingOrder
 
         if (i == 0) {
           // the first comparator decides whether we need to invert the key direction
@@ -113,7 +112,7 @@ class SortCodeGenerator(
       // Anyway, we can't fit it, so align the most efficient 8 bytes.
       (false, Math.min(MAX_NORMALIZED_KEY_LEN, 8 * normalizedKeyNum))
     } else {
-      (normalizedKeyNum == keys.length, nullAwareNormalizedKeyLen)
+      (normalizedKeyNum == sortSpec.getFieldSize, nullAwareNormalizedKeyLen)
     }
   }
 
@@ -203,10 +202,11 @@ class SortCodeGenerator(
     var keyIndex = 0
     while (bytesLeft > 0 && keyIndex < normalizedKeyNum) {
       var len = normalizedKeyLengths(keyIndex)
-      val index = keys(keyIndex)
-      val nullIsMaxValue = orders(keyIndex) == nullsIsLast(keyIndex)
+      val fieldSpec = sortSpec.getFieldSpec(keyIndex)
+      val index = fieldSpec.getFieldIndex
+      val nullIsMaxValue = fieldSpec.getIsAscendingOrder == fieldSpec.getNullIsLast
       len = if (bytesLeft >= len) len else bytesLeft
-      val t = keyTypes(keyIndex)
+      val t = input.getTypeAt(fieldSpec.getFieldIndex)
       val prefix = prefixGetFromBinaryRow(t)
       val putCode = t match {
         case _ if getNormalizeKeyLen(t) != Int.MaxValue =>
@@ -382,7 +382,11 @@ class SortCodeGenerator(
     * @return A GeneratedRecordComparator
     */
   def generateRecordComparator(name: String): GeneratedRecordComparator = {
-    ComparatorCodeGenerator.gen(conf, name, keys, keyTypes, orders, nullsIsLast)
+    ComparatorCodeGenerator.gen(
+        conf,
+        name,
+        input,
+        sortSpec)
   }
 
   def getter(t: LogicalType, index: Int): String = {

@@ -40,73 +40,79 @@ import scala.Option;
 import scala.Some;
 
 /**
- * The abstract physical rule base is responsible for converting {@link FlinkLogicalCorrelate} to physical
- * Python correlate RelNode.
+ * The abstract physical rule base is responsible for converting {@link FlinkLogicalCorrelate} to
+ * physical Python correlate RelNode.
  */
 public abstract class AbstractPythonCorrelateRuleBase extends ConverterRule {
 
-	public AbstractPythonCorrelateRuleBase(Convention physicalConvention, String description) {
-		super(FlinkLogicalCorrelate.class, FlinkConventions.LOGICAL(), physicalConvention,
-			description);
-	}
+    public AbstractPythonCorrelateRuleBase(Convention physicalConvention, String description) {
+        super(
+                FlinkLogicalCorrelate.class,
+                FlinkConventions.LOGICAL(),
+                physicalConvention,
+                description);
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalCorrelate join = call.rel(0);
-		RelNode right = ((RelSubset) join.getRight()).getOriginal();
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalCorrelate join = call.rel(0);
+        RelNode right = ((RelSubset) join.getRight()).getOriginal();
 
-		if (right instanceof FlinkLogicalTableFunctionScan) {
-			// right node is a python table function
-			return PythonUtil.isPythonCall(((FlinkLogicalTableFunctionScan) right).getCall(), null);
-		} else if (right instanceof FlinkLogicalCalc) {
-			// a filter is pushed above the table function
-			FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
-			Option<FlinkLogicalTableFunctionScan> scan = CorrelateUtil.getTableFunctionScan(calc);
-			return scan.isDefined() && PythonUtil.isPythonCall(scan.get().getCall(), null);
-		}
-		return false;
-	}
+        if (right instanceof FlinkLogicalTableFunctionScan) {
+            // right node is a python table function
+            return PythonUtil.isPythonCall(((FlinkLogicalTableFunctionScan) right).getCall(), null);
+        } else if (right instanceof FlinkLogicalCalc) {
+            // a filter is pushed above the table function
+            FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
+            Option<FlinkLogicalTableFunctionScan> scan = CorrelateUtil.getTableFunctionScan(calc);
+            return scan.isDefined() && PythonUtil.isPythonCall(scan.get().getCall(), null);
+        }
+        return false;
+    }
 
-	/**
-	 * The abstract factory is responsible for creating {@link DataSetPythonCorrelate} or {@link DataStreamPythonCorrelate}.
-	 */
-	public abstract static class PythonCorrelateFactoryBase {
-		protected final RelNode correlateRel;
-		protected final FlinkLogicalCorrelate join;
-		protected final RelTraitSet traitSet;
-		protected final RelNode convInput;
-		protected final RelNode right;
+    /**
+     * The abstract factory is responsible for creating {@link DataSetPythonCorrelate} or {@link
+     * DataStreamPythonCorrelate}.
+     */
+    public abstract static class PythonCorrelateFactoryBase {
+        protected final RelNode correlateRel;
+        protected final FlinkLogicalCorrelate join;
+        protected final RelTraitSet traitSet;
+        protected final RelNode convInput;
+        protected final RelNode right;
 
-		public PythonCorrelateFactoryBase(RelNode rel, Convention physicalConvention) {
-			this.correlateRel = rel;
-			this.join = (FlinkLogicalCorrelate) rel;
-			this.traitSet = rel.getTraitSet().replace(physicalConvention);
-			this.convInput = RelOptRule.convert(join.getInput(0), physicalConvention);
-			this.right = join.getInput(1);
-		}
+        public PythonCorrelateFactoryBase(RelNode rel, Convention physicalConvention) {
+            this.correlateRel = rel;
+            this.join = (FlinkLogicalCorrelate) rel;
+            this.traitSet = rel.getTraitSet().replace(physicalConvention);
+            this.convInput = RelOptRule.convert(join.getInput(0), physicalConvention);
+            this.right = join.getInput(1);
+        }
 
-		public RelNode convertToCorrelate() {
-			return convertToCorrelate(right, Option.empty());
-		}
+        public RelNode convertToCorrelate() {
+            return convertToCorrelate(right, Option.empty());
+        }
 
-		private RelNode convertToCorrelate(
-			RelNode relNode,
-			Option<RexNode> condition) {
-			if (relNode instanceof RelSubset) {
-				RelSubset rel = (RelSubset) relNode;
-				return convertToCorrelate(rel.getRelList().get(0), condition);
-			} else if (relNode instanceof FlinkLogicalCalc) {
-				FlinkLogicalCalc calc = (FlinkLogicalCalc) relNode;
-				FlinkLogicalTableFunctionScan tableScan = CorrelateUtil.getTableFunctionScan(calc).get();
-				FlinkLogicalCalc newCalc = CorrelateUtil.getMergedCalc(calc);
-				return convertToCorrelate(
-					tableScan,
-					Some.apply(newCalc.getProgram().expandLocalRef(newCalc.getProgram().getCondition())));
-			} else {
-				return createPythonCorrelateNode(relNode, condition);
-			}
-		}
+        private RelNode convertToCorrelate(RelNode relNode, Option<RexNode> condition) {
+            if (relNode instanceof RelSubset) {
+                RelSubset rel = (RelSubset) relNode;
+                return convertToCorrelate(rel.getRelList().get(0), condition);
+            } else if (relNode instanceof FlinkLogicalCalc) {
+                FlinkLogicalCalc calc = (FlinkLogicalCalc) relNode;
+                FlinkLogicalTableFunctionScan tableScan =
+                        CorrelateUtil.getTableFunctionScan(calc).get();
+                FlinkLogicalCalc newCalc = CorrelateUtil.getMergedCalc(calc);
+                return convertToCorrelate(
+                        tableScan,
+                        Some.apply(
+                                newCalc.getProgram()
+                                        .expandLocalRef(newCalc.getProgram().getCondition())));
+            } else {
+                return createPythonCorrelateNode(relNode, condition);
+            }
+        }
 
-		public abstract RelNode createPythonCorrelateNode(RelNode relNode, Option<RexNode> condition);
-	}
+        public abstract RelNode createPythonCorrelateNode(
+                RelNode relNode, Option<RexNode> condition);
+    }
 }

@@ -27,41 +27,41 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The specific delegate implementation for the single output case.
- */
+/** The specific delegate implementation for the single output case. */
 public class SingleRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
 
-	private final RecordWriter<T> recordWriter;
+    private final RecordWriter<T> recordWriter;
 
-	public SingleRecordWriter(RecordWriter<T> recordWriter) {
-		this.recordWriter = checkNotNull(recordWriter);
-	}
+    public SingleRecordWriter(RecordWriter<T> recordWriter) {
+        this.recordWriter = checkNotNull(recordWriter);
+    }
 
-	@Override
-	public void broadcastEvent(AbstractEvent event) throws IOException {
-		recordWriter.broadcastEvent(event);
-	}
+    @Override
+    public void broadcastEvent(AbstractEvent event) throws IOException {
+        recordWriter.broadcastEvent(event);
+    }
 
-	@Override
-	public RecordWriter<T> getRecordWriter(int outputIndex) {
-		checkArgument(outputIndex == 0, "The index should always be 0 for the single record writer delegate.");
+    @Override
+    public RecordWriter<T> getRecordWriter(int outputIndex) {
+        checkArgument(
+                outputIndex == 0,
+                "The index should always be 0 for the single record writer delegate.");
 
-		return recordWriter;
-	}
+        return recordWriter;
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return recordWriter.getAvailableFuture();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return recordWriter.getAvailableFuture();
+    }
 
-	@Override
-	public boolean isAvailable() {
-		return recordWriter.isAvailable();
-	}
+    @Override
+    public boolean isAvailable() {
+        return recordWriter.isAvailable();
+    }
 
-	@Override
-	public void close() {
-		recordWriter.close();
-	}
+    @Override
+    public void close() {
+        recordWriter.close();
+    }
 }

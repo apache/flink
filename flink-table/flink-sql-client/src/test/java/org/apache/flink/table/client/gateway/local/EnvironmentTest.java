@@ -40,119 +40,107 @@ import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODUL
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link Environment}.
- */
+/** Tests for {@link Environment}. */
 public class EnvironmentTest {
 
-	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
+    private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+    private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
 
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
+    @Rule public ExpectedException exception = ExpectedException.none();
 
-	@Test
-	public void testMerging() throws Exception {
-		final Map<String, String> replaceVars1 = new HashMap<>();
-		replaceVars1.put("$VAR_PLANNER", "old");
-		replaceVars1.put("$VAR_EXECUTION_TYPE", "batch");
-		replaceVars1.put("$VAR_RESULT_MODE", "table");
-		replaceVars1.put("$VAR_UPDATE_MODE", "");
-		replaceVars1.put("$VAR_MAX_ROWS", "100");
-		replaceVars1.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-		final Environment env1 = EnvironmentFileUtil.parseModified(
-			DEFAULTS_ENVIRONMENT_FILE,
-			replaceVars1);
+    @Test
+    public void testMerging() throws Exception {
+        final Map<String, String> replaceVars1 = new HashMap<>();
+        replaceVars1.put("$VAR_PLANNER", "old");
+        replaceVars1.put("$VAR_EXECUTION_TYPE", "batch");
+        replaceVars1.put("$VAR_RESULT_MODE", "table");
+        replaceVars1.put("$VAR_UPDATE_MODE", "");
+        replaceVars1.put("$VAR_MAX_ROWS", "100");
+        replaceVars1.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
+        final Environment env1 =
+                EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars1);
 
-		final Map<String, String> replaceVars2 = new HashMap<>(replaceVars1);
-		replaceVars2.put("TableNumber1", "NewTable");
-		final Environment env2 = EnvironmentFileUtil.parseModified(
-			FACTORY_ENVIRONMENT_FILE,
-			replaceVars2);
+        final Map<String, String> replaceVars2 = new HashMap<>(replaceVars1);
+        replaceVars2.put("TableNumber1", "NewTable");
+        final Environment env2 =
+                EnvironmentFileUtil.parseModified(FACTORY_ENVIRONMENT_FILE, replaceVars2);
 
-		final Environment merged = Environment.merge(env1, env2);
+        final Environment merged = Environment.merge(env1, env2);
 
-		final Set<String> tables = new HashSet<>();
-		tables.add("TableNumber1");
-		tables.add("TableNumber2");
-		tables.add("NewTable");
-		tables.add("TableSourceSink");
-		tables.add("TestView1");
-		tables.add("TestView2");
+        final Set<String> tables = new HashSet<>();
+        tables.add("TableNumber1");
+        tables.add("TableNumber2");
+        tables.add("NewTable");
+        tables.add("TableSourceSink");
+        tables.add("TestView1");
+        tables.add("TestView2");
 
-		assertEquals(tables, merged.getTables().keySet());
-		assertTrue(merged.getExecution().inStreamingMode());
-		assertEquals(16, merged.getExecution().getMaxParallelism());
+        assertEquals(tables, merged.getTables().keySet());
+        assertTrue(merged.getExecution().inStreamingMode());
+        assertEquals(16, merged.getExecution().getMaxParallelism());
 
-		final Map<String, String> configuration = new HashMap<>();
-		configuration.put("table.optimizer.join-reorder-enabled", "true");
+        final Map<String, String> configuration = new HashMap<>();
+        configuration.put("table.optimizer.join-reorder-enabled", "true");
 
-		assertEquals(configuration, merged.getConfiguration().asMap());
-	}
+        assertEquals(configuration, merged.getConfiguration().asMap());
+    }
 
-	@Test
-	public void testDuplicateCatalog() {
-		exception.expect(SqlClientException.class);
-		exception.expectMessage("Cannot create catalog 'catalog2' because a catalog with this name is already registered.");
-		Environment env = new Environment();
-		env.setCatalogs(Arrays.asList(
-			createCatalog("catalog1", "test"),
-			createCatalog("catalog2", "test"),
-			createCatalog("catalog2", "test")));
-	}
+    @Test
+    public void testDuplicateCatalog() {
+        exception.expect(SqlClientException.class);
+        exception.expectMessage(
+                "Cannot create catalog 'catalog2' because a catalog with this name is already registered.");
+        Environment env = new Environment();
+        env.setCatalogs(
+                Arrays.asList(
+                        createCatalog("catalog1", "test"),
+                        createCatalog("catalog2", "test"),
+                        createCatalog("catalog2", "test")));
+    }
 
-	@Test
-	public void testDuplicateModules() {
-		exception.expect(SqlClientException.class);
-		Environment env = new Environment();
-		env.setModules(Arrays.asList(
-			createModule("module1", "test"),
-			createModule("module2", "test"),
-			createModule("module2", "test")));
-	}
+    @Test
+    public void testDuplicateModules() {
+        exception.expect(SqlClientException.class);
+        Environment env = new Environment();
+        env.setModules(
+                Arrays.asList(
+                        createModule("module1", "test"),
+                        createModule("module2", "test"),
+                        createModule("module2", "test")));
+    }
 
-	@Test
-	public void testModuleOrder() {
-		Environment env1 = new Environment();
-		Environment env2 = new Environment();
-		env1.setModules(Arrays.asList(
-			createModule("b", "test"),
-			createModule("d", "test")));
+    @Test
+    public void testModuleOrder() {
+        Environment env1 = new Environment();
+        Environment env2 = new Environment();
+        env1.setModules(Arrays.asList(createModule("b", "test"), createModule("d", "test")));
 
-		env2.setModules(Arrays.asList(
-			createModule("c", "test"),
-			createModule("a", "test")));
+        env2.setModules(Arrays.asList(createModule("c", "test"), createModule("a", "test")));
 
-		assertEquals(
-			Arrays.asList("b", "d"), new ArrayList<>(env1.getModules().keySet())
-		);
+        assertEquals(Arrays.asList("b", "d"), new ArrayList<>(env1.getModules().keySet()));
 
-		assertEquals(
-			Arrays.asList("c", "a"), new ArrayList<>(env2.getModules().keySet())
-		);
+        assertEquals(Arrays.asList("c", "a"), new ArrayList<>(env2.getModules().keySet()));
 
-		Environment env = Environment.merge(env1, env2);
+        Environment env = Environment.merge(env1, env2);
 
-		assertEquals(
-			Arrays.asList("b", "d", "c", "a"), new ArrayList<>(env.getModules().keySet())
-		);
-	}
+        assertEquals(Arrays.asList("b", "d", "c", "a"), new ArrayList<>(env.getModules().keySet()));
+    }
 
-	private static Map<String, Object> createCatalog(String name, String type) {
-		Map<String, Object> prop = new HashMap<>();
+    private static Map<String, Object> createCatalog(String name, String type) {
+        Map<String, Object> prop = new HashMap<>();
 
-		prop.put(CATALOG_NAME, name);
-		prop.put(CATALOG_TYPE, type);
+        prop.put(CATALOG_NAME, name);
+        prop.put(CATALOG_TYPE, type);
 
-		return prop;
-	}
+        return prop;
+    }
 
-	private static Map<String, Object> createModule(String name, String type) {
-		Map<String, Object> prop = new HashMap<>();
+    private static Map<String, Object> createModule(String name, String type) {
+        Map<String, Object> prop = new HashMap<>();
 
-		prop.put(MODULE_NAME, name);
-		prop.put(MODULE_TYPE, type);
+        prop.put(MODULE_NAME, name);
+        prop.put(MODULE_TYPE, type);
 
-		return prop;
-	}
+        return prop;
+    }
 }

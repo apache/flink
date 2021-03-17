@@ -18,69 +18,72 @@
 
 package org.apache.flink.test.windowing.sessionwindows;
 
-/**
- * Configuration for event generators.
- */
+/** Configuration for event generators. */
 public final class GeneratorConfiguration {
 
-	// allowed lateness for this generator (in ms)
-	private final long allowedLateness;
+    // allowed lateness for this generator (in ms)
+    private final long allowedLateness;
 
-	// how many late events within lateness per session the generator will produce
-	private final int lateEventsWithinLateness;
+    // how many late events within lateness per session the generator will produce
+    private final int lateEventsWithinLateness;
 
-	// how many late events after lateness per session the generator will produce
-	private final int lateEventsAfterLateness;
+    // how many late events after lateness per session the generator will produce
+    private final int lateEventsAfterLateness;
 
-	// hint for the maximum additional gap introduced between event times of two generators to separate sessions
-	private final long maxAdditionalSessionGap;
+    // hint for the maximum additional gap introduced between event times of two generators to
+    // separate sessions
+    private final long maxAdditionalSessionGap;
 
-	public GeneratorConfiguration(
-			long allowedLateness,
-			int lateEventsWithinLateness,
-			int lateEventsAfterLateness,
-			long maxAdditionalSessionGap) {
-		this.allowedLateness = allowedLateness;
-		this.lateEventsWithinLateness = lateEventsWithinLateness;
-		this.lateEventsAfterLateness = lateEventsAfterLateness;
-		this.maxAdditionalSessionGap = maxAdditionalSessionGap;
-	}
+    public GeneratorConfiguration(
+            long allowedLateness,
+            int lateEventsWithinLateness,
+            int lateEventsAfterLateness,
+            long maxAdditionalSessionGap) {
+        this.allowedLateness = allowedLateness;
+        this.lateEventsWithinLateness = lateEventsWithinLateness;
+        this.lateEventsAfterLateness = lateEventsAfterLateness;
+        this.maxAdditionalSessionGap = maxAdditionalSessionGap;
+    }
 
-	public long getAllowedLateness() {
-		return allowedLateness;
-	}
+    public long getAllowedLateness() {
+        return allowedLateness;
+    }
 
-	public int getLateEventsWithinLateness() {
-		return lateEventsWithinLateness;
-	}
+    public int getLateEventsWithinLateness() {
+        return lateEventsWithinLateness;
+    }
 
-	public int getLateEventsAfterLateness() {
-		return lateEventsAfterLateness;
-	}
+    public int getLateEventsAfterLateness() {
+        return lateEventsAfterLateness;
+    }
 
-	public long getMaxAdditionalSessionGap() {
-		return maxAdditionalSessionGap;
-	}
+    public long getMaxAdditionalSessionGap() {
+        return maxAdditionalSessionGap;
+    }
 
-	public static GeneratorConfiguration of(
-			long allowedLateness,
-			int lateEventsPerSessionWithinLateness,
-			int lateEventsPerSessionOutsideLateness,
-			long maxAdditionalSessionGap) {
-		return new GeneratorConfiguration(
-				allowedLateness,
-				lateEventsPerSessionWithinLateness,
-				lateEventsPerSessionOutsideLateness,
-				maxAdditionalSessionGap);
-	}
+    public static GeneratorConfiguration of(
+            long allowedLateness,
+            int lateEventsPerSessionWithinLateness,
+            int lateEventsPerSessionOutsideLateness,
+            long maxAdditionalSessionGap) {
+        return new GeneratorConfiguration(
+                allowedLateness,
+                lateEventsPerSessionWithinLateness,
+                lateEventsPerSessionOutsideLateness,
+                maxAdditionalSessionGap);
+    }
 
-	@Override
-	public String toString() {
-		return "GeneratorConfiguration{" +
-				"allowedLateness=" + allowedLateness +
-				", lateEventsWithinLateness=" + lateEventsWithinLateness +
-				", lateEventsAfterLateness=" + lateEventsAfterLateness +
-				", maxAdditionalSessionGap=" + maxAdditionalSessionGap +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "GeneratorConfiguration{"
+                + "allowedLateness="
+                + allowedLateness
+                + ", lateEventsWithinLateness="
+                + lateEventsWithinLateness
+                + ", lateEventsAfterLateness="
+                + lateEventsAfterLateness
+                + ", maxAdditionalSessionGap="
+                + maxAdditionalSessionGap
+                + '}';
+    }
 }

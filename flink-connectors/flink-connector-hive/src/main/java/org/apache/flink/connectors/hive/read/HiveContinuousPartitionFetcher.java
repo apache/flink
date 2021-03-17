@@ -29,35 +29,40 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A {@link ContinuousPartitionFetcher} for hive table.
- */
+/** A {@link ContinuousPartitionFetcher} for hive table. */
 @Internal
-public class HiveContinuousPartitionFetcher<T extends Comparable<T>> implements ContinuousPartitionFetcher<Partition, T> {
+public class HiveContinuousPartitionFetcher<T extends Comparable<T>>
+        implements ContinuousPartitionFetcher<Partition, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public List<Tuple2<Partition, T>> fetchPartitions(Context<Partition, T> context, T previousOffset) throws Exception {
-		List<Tuple2<Partition, T>> partitions = new ArrayList<>();
-		List<ComparablePartitionValue> partitionValueList = context.getComparablePartitionValueList();
-		for (ComparablePartitionValue<List<String>, T> partitionValue : partitionValueList) {
-			T partitionOffset = partitionValue.getComparator();
-			if (partitionOffset.compareTo(previousOffset) >= 0) {
-				Partition partition = context
-						.getPartition(partitionValue.getPartitionValue())
-						.orElseThrow(() -> new IllegalArgumentException(
-								String.format("Fetch partition fail for hive table %s.", context.getTablePath())));
-				partitions.add(new Tuple2<>(partition, partitionValue.getComparator()));
-			}
-		}
-		return partitions;
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Tuple2<Partition, T>> fetchPartitions(
+            Context<Partition, T> context, T previousOffset) throws Exception {
+        List<Tuple2<Partition, T>> partitions = new ArrayList<>();
+        List<ComparablePartitionValue> partitionValueList =
+                context.getComparablePartitionValueList();
+        for (ComparablePartitionValue<List<String>, T> partitionValue : partitionValueList) {
+            T partitionOffset = partitionValue.getComparator();
+            if (partitionOffset.compareTo(previousOffset) >= 0) {
+                Partition partition =
+                        context.getPartition(partitionValue.getPartitionValue())
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalArgumentException(
+                                                        String.format(
+                                                                "Fetch partition fail for hive table %s.",
+                                                                context.getTablePath())));
+                partitions.add(new Tuple2<>(partition, partitionValue.getComparator()));
+            }
+        }
+        return partitions;
+    }
 
-	@Override
-	public List<Partition> fetch(PartitionFetcher.Context<Partition> context) throws Exception {
-		throw new UnsupportedOperationException("HiveContinuousPartitionFetcher does not support fetch all partition.");
-	}
-
+    @Override
+    public List<Partition> fetch(PartitionFetcher.Context<Partition> context) throws Exception {
+        throw new UnsupportedOperationException(
+                "HiveContinuousPartitionFetcher does not support fetch all partition.");
+    }
 }

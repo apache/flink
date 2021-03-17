@@ -29,28 +29,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Test for {@link ConnectTableDescriptor}.
- */
+/** Test for {@link ConnectTableDescriptor}. */
 public class ConnectTableDescriptorTest {
 
-	@Test
-	public void testProperties() {
-		AtomicReference<CatalogTableImpl> reference = new AtomicReference<>();
-		Registration registration = (path, table) -> reference.set((CatalogTableImpl) table);
-		ConnectTableDescriptor descriptor = new StreamTableDescriptor(
-				registration, new FileSystem().path("myPath"))
-				.withFormat(new FormatDescriptor("myFormat", 1) {
-					@Override
-					protected Map<String, String> toFormatProperties() {
-						return new HashMap<>();
-					}
-				})
-				.withSchema(new Schema()
-						.field("f0", DataTypes.INT())
-						.rowtime(new Rowtime().timestampsFromField("f0")));
-		descriptor.createTemporaryTable("myTable");
+    @Test
+    public void testProperties() {
+        AtomicReference<CatalogTableImpl> reference = new AtomicReference<>();
+        Registration registration = (path, table) -> reference.set((CatalogTableImpl) table);
+        ConnectTableDescriptor descriptor =
+                new StreamTableDescriptor(registration, new FileSystem().path("myPath"))
+                        .withFormat(
+                                new FormatDescriptor("myFormat", 1) {
+                                    @Override
+                                    protected Map<String, String> toFormatProperties() {
+                                        return new HashMap<>();
+                                    }
+                                })
+                        .withSchema(
+                                new Schema()
+                                        .field("f0", DataTypes.INT())
+                                        .rowtime(new Rowtime().timestampsFromField("f0")));
+        descriptor.createTemporaryTable("myTable");
 
-		Assert.assertEquals(descriptor.toProperties(), reference.get().toProperties());
-	}
+        Assert.assertEquals(descriptor.toProperties(), reference.get().toProperties());
+    }
 }

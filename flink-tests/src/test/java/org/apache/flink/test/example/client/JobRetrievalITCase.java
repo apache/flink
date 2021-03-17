@@ -27,6 +27,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -45,115 +46,116 @@ import java.util.concurrent.Semaphore;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests retrieval of a job from a running Flink cluster.
- */
+/** Tests retrieval of a job from a running Flink cluster. */
 public class JobRetrievalITCase extends TestLogger {
 
-	private static final Semaphore lock = new Semaphore(1);
+    private static final Semaphore lock = new Semaphore(1);
 
-	@ClassRule
-	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(4)
-			.build());
+    @ClassRule
+    public static final MiniClusterResource CLUSTER =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
-	private RestClusterClient<StandaloneClusterId> client;
+    private RestClusterClient<StandaloneClusterId> client;
 
-	@Before
-	public void setUp() throws Exception {
-		final Configuration clientConfig = new Configuration();
-		clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
-		clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
-		clientConfig.addAll(CLUSTER.getClientConfiguration());
+    @Before
+    public void setUp() throws Exception {
+        final Configuration clientConfig = new Configuration();
+        clientConfig.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 0);
+        clientConfig.setLong(RestOptions.RETRY_DELAY, 0);
+        clientConfig.addAll(CLUSTER.getClientConfiguration());
 
-		client = new RestClusterClient<>(
-			clientConfig,
-			StandaloneClusterId.getInstance()
-		);
-	}
+        client = new RestClusterClient<>(clientConfig, StandaloneClusterId.getInstance());
+    }
 
-	@After
-	public void tearDown() {
-		if (client != null) {
-			client.close();
-		}
-	}
+    @After
+    public void tearDown() {
+        if (client != null) {
+            client.close();
+        }
+    }
 
-	@Test
-	public void testJobRetrieval() throws Exception {
-		final JobID jobID = new JobID();
+    @Test
+    public void testJobRetrieval() throws Exception {
+        final JobVertex imalock = new JobVertex("imalock");
+        imalock.setInvokableClass(SemaphoreInvokable.class);
 
-		final JobVertex imalock = new JobVertex("imalock");
-		imalock.setInvokableClass(SemaphoreInvokable.class);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(imalock);
+        final JobID jobId = jobGraph.getJobID();
 
-		final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
+        // acquire the lock to make sure that the job cannot complete until the job client
+        // has been attached in resumingThread
+        lock.acquire();
 
-		// acquire the lock to make sure that the job cannot complete until the job client
-		// has been attached in resumingThread
-		lock.acquire();
+        client.submitJob(jobGraph).get();
 
-		client.submitJob(jobGraph).get();
+        final CheckedThread resumingThread =
+                new CheckedThread("Flink-Job-Retriever") {
+                    @Override
+                    public void go() throws Exception {
+                        assertNotNull(client.requestJobResult(jobId).get());
+                    }
+                };
 
-		final CheckedThread resumingThread = new CheckedThread("Flink-Job-Retriever") {
-			@Override
-			public void go() throws Exception {
-				assertNotNull(client.requestJobResult(jobID).get());
-			}
-		};
+        // wait until the job is running
+        while (client.listJobs().get().isEmpty()) {
+            Thread.sleep(50);
+        }
 
-		// wait until the job is running
-		while (client.listJobs().get().isEmpty()) {
-			Thread.sleep(50);
-		}
+        // kick off resuming
+        resumingThread.start();
 
-		// kick off resuming
-		resumingThread.start();
+        // wait for client to connect
+        while (resumingThread.getState() != Thread.State.WAITING) {
+            Thread.sleep(10);
+        }
 
-		// wait for client to connect
-		while (resumingThread.getState() != Thread.State.WAITING) {
-			Thread.sleep(10);
-		}
+        // client has connected, we can release the lock
+        lock.release();
 
-		// client has connected, we can release the lock
-		lock.release();
+        resumingThread.sync();
+    }
 
-		resumingThread.sync();
-	}
+    @Test
+    public void testNonExistingJobRetrieval() throws Exception {
+        final JobID jobID = new JobID();
 
-	@Test
-	public void testNonExistingJobRetrieval() throws Exception {
-		final JobID jobID = new JobID();
+        try {
+            client.requestJobResult(jobID).get();
+            fail();
+        } catch (Exception exception) {
+            Optional<Throwable> expectedCause =
+                    ExceptionUtils.findThrowable(
+                            exception,
+                            candidate ->
+                                    candidate.getMessage() != null
+                                            && candidate
+                                                    .getMessage()
+                                                    .contains("Could not find Flink job"));
+            if (!expectedCause.isPresent()) {
+                throw exception;
+            }
+        }
+    }
 
-		try {
-			client.requestJobResult(jobID).get();
-			fail();
-		} catch (Exception exception) {
-			Optional<Throwable> expectedCause = ExceptionUtils.findThrowable(exception,
-				candidate -> candidate.getMessage() != null && candidate.getMessage().contains("Could not find Flink job"));
-			if (!expectedCause.isPresent()) {
-				throw exception;
-			}
-		}
-	}
+    /**
+     * Invokable that waits on {@link #lock} to be released and finishes afterwards.
+     *
+     * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
+     */
+    public static class SemaphoreInvokable extends AbstractInvokable {
 
-	/**
-	 * Invokable that waits on {@link #lock} to be released and finishes afterwards.
-	 *
-	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
-	 */
-	public static class SemaphoreInvokable extends AbstractInvokable {
+        public SemaphoreInvokable(Environment environment) {
+            super(environment);
+        }
 
-		public SemaphoreInvokable(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			lock.acquire();
-			lock.release();
-		}
-	}
-
+        @Override
+        public void invoke() throws Exception {
+            lock.acquire();
+            lock.release();
+        }
+    }
 }

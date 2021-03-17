@@ -35,160 +35,163 @@ import java.net.InetSocketAddress;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
-/**
- * Builder for various {@link InputChannel} types.
- */
+/** Builder for various {@link InputChannel} types. */
 public class InputChannelBuilder {
-	public static final ConnectionID STUB_CONNECTION_ID =
-		new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
+    public static final ConnectionID STUB_CONNECTION_ID =
+            new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
 
-	private int channelIndex = 0;
-	private ResultPartitionID partitionId = new ResultPartitionID();
-	private ConnectionID connectionID = STUB_CONNECTION_ID;
-	private ResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
-	private TaskEventPublisher taskEventPublisher = new TaskEventDispatcher();
-	private ChannelStateWriter stateWriter = ChannelStateWriter.NO_OP;
-	private ConnectionManager connectionManager = new TestingConnectionManager();
-	private int initialBackoff = 0;
-	private int maxBackoff = 0;
-	private int networkBuffersPerChannel = 2;
-	private InputChannelMetrics metrics = InputChannelTestUtils.newUnregisteredInputChannelMetrics();
+    private int channelIndex = 0;
+    private ResultPartitionID partitionId = new ResultPartitionID();
+    private ConnectionID connectionID = STUB_CONNECTION_ID;
+    private ResultPartitionManager partitionManager =
+            new TestingResultPartitionManager(new NoOpResultSubpartitionView());
+    private TaskEventPublisher taskEventPublisher = new TaskEventDispatcher();
+    private ChannelStateWriter stateWriter = ChannelStateWriter.NO_OP;
+    private ConnectionManager connectionManager = new TestingConnectionManager();
+    private int initialBackoff = 0;
+    private int maxBackoff = 0;
+    private int networkBuffersPerChannel = 2;
+    private InputChannelMetrics metrics =
+            InputChannelTestUtils.newUnregisteredInputChannelMetrics();
 
-	public static InputChannelBuilder newBuilder() {
-		return new InputChannelBuilder();
-	}
+    public static InputChannelBuilder newBuilder() {
+        return new InputChannelBuilder();
+    }
 
-	public InputChannelBuilder setChannelIndex(int channelIndex) {
-		this.channelIndex = channelIndex;
-		return this;
-	}
+    public InputChannelBuilder setChannelIndex(int channelIndex) {
+        this.channelIndex = channelIndex;
+        return this;
+    }
 
-	public InputChannelBuilder setPartitionId(ResultPartitionID partitionId) {
-		this.partitionId = partitionId;
-		return this;
-	}
+    public InputChannelBuilder setPartitionId(ResultPartitionID partitionId) {
+        this.partitionId = partitionId;
+        return this;
+    }
 
-	public InputChannelBuilder setPartitionManager(ResultPartitionManager partitionManager) {
-		this.partitionManager = partitionManager;
-		return this;
-	}
+    public InputChannelBuilder setPartitionManager(ResultPartitionManager partitionManager) {
+        this.partitionManager = partitionManager;
+        return this;
+    }
 
-	InputChannelBuilder setTaskEventPublisher(TaskEventPublisher taskEventPublisher) {
-		this.taskEventPublisher = taskEventPublisher;
-		return this;
-	}
+    InputChannelBuilder setTaskEventPublisher(TaskEventPublisher taskEventPublisher) {
+        this.taskEventPublisher = taskEventPublisher;
+        return this;
+    }
 
-	public InputChannelBuilder setConnectionManager(ConnectionManager connectionManager) {
-		this.connectionManager = connectionManager;
-		return this;
-	}
+    public InputChannelBuilder setConnectionManager(ConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+        return this;
+    }
 
-	public InputChannelBuilder setInitialBackoff(int initialBackoff) {
-		this.initialBackoff = initialBackoff;
-		return this;
-	}
+    public InputChannelBuilder setInitialBackoff(int initialBackoff) {
+        this.initialBackoff = initialBackoff;
+        return this;
+    }
 
-	public InputChannelBuilder setMaxBackoff(int maxBackoff) {
-		this.maxBackoff = maxBackoff;
-		return this;
-	}
+    public InputChannelBuilder setMaxBackoff(int maxBackoff) {
+        this.maxBackoff = maxBackoff;
+        return this;
+    }
 
-	public InputChannelBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
-		return this;
-	}
+    public InputChannelBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
+        this.networkBuffersPerChannel = networkBuffersPerChannel;
+        return this;
+    }
 
-	public InputChannelBuilder setMetrics(InputChannelMetrics metrics) {
-		this.metrics = metrics;
-		return this;
-	}
+    public InputChannelBuilder setMetrics(InputChannelMetrics metrics) {
+        this.metrics = metrics;
+        return this;
+    }
 
-	public InputChannelBuilder setStateWriter(ChannelStateWriter stateWriter) {
-		this.stateWriter = stateWriter;
-		return this;
-	}
+    public InputChannelBuilder setStateWriter(ChannelStateWriter stateWriter) {
+        this.stateWriter = stateWriter;
+        return this;
+    }
 
-	public InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
-		this.partitionManager = network.getResultPartitionManager();
-		this.connectionManager = network.getConnectionManager();
-		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
-		this.maxBackoff = network.getConfiguration().partitionRequestMaxBackoff();
-		this.networkBuffersPerChannel = network.getConfiguration().networkBuffersPerChannel();
-		return this;
-	}
+    public InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
+        this.partitionManager = network.getResultPartitionManager();
+        this.connectionManager = network.getConnectionManager();
+        this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
+        this.maxBackoff = network.getConfiguration().partitionRequestMaxBackoff();
+        this.networkBuffersPerChannel = network.getConfiguration().networkBuffersPerChannel();
+        return this;
+    }
 
-	UnknownInputChannel buildUnknownChannel(SingleInputGate inputGate) {
-		UnknownInputChannel channel = new UnknownInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			partitionManager,
-			taskEventPublisher,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			metrics);
-		channel.setChannelStateWriter(stateWriter);
-		return channel;
-	}
+    UnknownInputChannel buildUnknownChannel(SingleInputGate inputGate) {
+        UnknownInputChannel channel =
+                new UnknownInputChannel(
+                        inputGate,
+                        channelIndex,
+                        partitionId,
+                        partitionManager,
+                        taskEventPublisher,
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        networkBuffersPerChannel,
+                        metrics);
+        channel.setChannelStateWriter(stateWriter);
+        return channel;
+    }
 
-	public LocalInputChannel buildLocalChannel(SingleInputGate inputGate) {
-		return new LocalInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			partitionManager,
-			taskEventPublisher,
-			initialBackoff,
-			maxBackoff,
-			metrics.getNumBytesInLocalCounter(),
-			metrics.getNumBuffersInLocalCounter(),
-			stateWriter);
-	}
+    public LocalInputChannel buildLocalChannel(SingleInputGate inputGate) {
+        return new LocalInputChannel(
+                inputGate,
+                channelIndex,
+                partitionId,
+                partitionManager,
+                taskEventPublisher,
+                initialBackoff,
+                maxBackoff,
+                metrics.getNumBytesInLocalCounter(),
+                metrics.getNumBuffersInLocalCounter(),
+                stateWriter);
+    }
 
-	public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
-		return new RemoteInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			connectionID,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			metrics.getNumBytesInRemoteCounter(),
-			metrics.getNumBuffersInRemoteCounter(),
-			stateWriter);
-	}
+    public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
+        return new RemoteInputChannel(
+                inputGate,
+                channelIndex,
+                partitionId,
+                connectionID,
+                connectionManager,
+                initialBackoff,
+                maxBackoff,
+                networkBuffersPerChannel,
+                metrics.getNumBytesInRemoteCounter(),
+                metrics.getNumBuffersInRemoteCounter(),
+                stateWriter);
+    }
 
-	public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {
-		LocalRecoveredInputChannel channel = new LocalRecoveredInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			partitionManager,
-			taskEventPublisher,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			metrics);
-		channel.setChannelStateWriter(stateWriter);
-		return channel;
-	}
+    public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {
+        LocalRecoveredInputChannel channel =
+                new LocalRecoveredInputChannel(
+                        inputGate,
+                        channelIndex,
+                        partitionId,
+                        partitionManager,
+                        taskEventPublisher,
+                        initialBackoff,
+                        maxBackoff,
+                        networkBuffersPerChannel,
+                        metrics);
+        channel.setChannelStateWriter(stateWriter);
+        return channel;
+    }
 
-	public RemoteRecoveredInputChannel buildRemoteRecoveredChannel(SingleInputGate inputGate) {
-		RemoteRecoveredInputChannel channel = new RemoteRecoveredInputChannel(
-			inputGate,
-			channelIndex,
-			partitionId,
-			connectionID,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			metrics);
-		channel.setChannelStateWriter(stateWriter);
-		return channel;
-	}
+    public RemoteRecoveredInputChannel buildRemoteRecoveredChannel(SingleInputGate inputGate) {
+        RemoteRecoveredInputChannel channel =
+                new RemoteRecoveredInputChannel(
+                        inputGate,
+                        channelIndex,
+                        partitionId,
+                        connectionID,
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        networkBuffersPerChannel,
+                        metrics);
+        channel.setChannelStateWriter(stateWriter);
+        return channel;
+    }
 }

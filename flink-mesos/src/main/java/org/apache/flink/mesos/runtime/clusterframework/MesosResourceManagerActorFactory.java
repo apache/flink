@@ -30,50 +30,39 @@ import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.duration.FiniteDuration;
 
-/**
- * Factory class for actors used in mesos deployment.
- */
+/** Factory class for actors used in mesos deployment. */
 public interface MesosResourceManagerActorFactory {
 
-	/**
-	 * Create self actor for mesos resource manager.
-	 */
-	ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self);
+    /** Create self actor for mesos resource manager. */
+    ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self);
 
-	/**
-	 * Create actor for the connection monitor.
-	 */
-	ActorRef createConnectionMonitor(Configuration flinkConfig);
+    /** Create actor for the connection monitor. */
+    ActorRef createConnectionMonitor(Configuration flinkConfig);
 
-	/**
-	 * Create actor for the task monitor.
-	 */
-	ActorRef createTaskMonitor(
-			Configuration flinkConfig,
-			ActorRef resourceManagerActor,
-			SchedulerDriver schedulerDriver);
+    /** Create actor for the task monitor. */
+    ActorRef createTaskMonitor(
+            Configuration flinkConfig,
+            ActorRef resourceManagerActor,
+            SchedulerDriver schedulerDriver);
 
-	/**
-	 * Create actor for the launch coordinator.
-	 */
-	ActorRef createLaunchCoordinator(
-			Configuration flinkConfig,
-			ActorRef resourceManagerActor,
-			SchedulerDriver schedulerDriver,
-			TaskSchedulerBuilder optimizer);
+    /** Create actor for the launch coordinator. */
+    ActorRef createLaunchCoordinator(
+            Configuration flinkConfig,
+            ActorRef resourceManagerActor,
+            SchedulerDriver schedulerDriver,
+            TaskSchedulerBuilder optimizer);
 
-	/**
-	 * Create actor for the reconciliation coordinator.
-	 */
-	ActorRef createReconciliationCoordinator(Configuration flinkConfig, SchedulerDriver schedulerDriver);
+    /** Create actor for the reconciliation coordinator. */
+    ActorRef createReconciliationCoordinator(
+            Configuration flinkConfig, SchedulerDriver schedulerDriver);
 
-	/**
-	 * Tries to shut down the given actor gracefully.
-	 *
-	 * @param actorRef specifying the actor to shut down
-	 * @param timeout  for the graceful shut down
-	 * @return A future that finishes with {@code true} iff. the actor could be stopped gracefully
-	 * or {@code actorRef} was {@code null}.
-	 */
-	CompletableFuture<Boolean> stopActor(@Nullable final ActorRef actorRef, FiniteDuration timeout);
+    /**
+     * Tries to shut down the given actor gracefully.
+     *
+     * @param actorRef specifying the actor to shut down
+     * @param timeout for the graceful shut down
+     * @return A future that finishes with {@code true} iff. the actor could be stopped gracefully
+     *     or {@code actorRef} was {@code null}.
+     */
+    CompletableFuture<Boolean> stopActor(@Nullable final ActorRef actorRef, FiniteDuration timeout);
 }

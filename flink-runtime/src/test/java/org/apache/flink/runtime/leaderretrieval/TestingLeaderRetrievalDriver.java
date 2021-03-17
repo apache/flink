@@ -24,51 +24,51 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import javax.annotation.Nullable;
 
 /**
- * {@link LeaderRetrievalDriver} implementation which provides some convenience functions for testing purposes.
+ * {@link LeaderRetrievalDriver} implementation which provides some convenience functions for
+ * testing purposes.
  */
 public class TestingLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
-	private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
-	private final FatalErrorHandler fatalErrorHandler;
+    private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	private TestingLeaderRetrievalDriver(
-			LeaderRetrievalEventHandler leaderRetrievalEventHandler,
-			FatalErrorHandler fatalErrorHandler) {
-		this.leaderRetrievalEventHandler = leaderRetrievalEventHandler;
-		this.fatalErrorHandler = fatalErrorHandler;
-	}
+    private TestingLeaderRetrievalDriver(
+            LeaderRetrievalEventHandler leaderRetrievalEventHandler,
+            FatalErrorHandler fatalErrorHandler) {
+        this.leaderRetrievalEventHandler = leaderRetrievalEventHandler;
+        this.fatalErrorHandler = fatalErrorHandler;
+    }
 
-	@Override
-	public void close() throws Exception {
-		// noop
-	}
+    @Override
+    public void close() throws Exception {
+        // noop
+    }
 
-	public void onUpdate(LeaderInformation newLeader) {
-		leaderRetrievalEventHandler.notifyLeaderAddress(newLeader);
-	}
+    public void onUpdate(LeaderInformation newLeader) {
+        leaderRetrievalEventHandler.notifyLeaderAddress(newLeader);
+    }
 
-	public void onFatalError(Throwable throwable) {
-		fatalErrorHandler.onFatalError(throwable);
-	}
+    public void onFatalError(Throwable throwable) {
+        fatalErrorHandler.onFatalError(throwable);
+    }
 
-	/**
-	 * Factory for create {@link TestingLeaderRetrievalDriver}.
-	 */
-	public static class TestingLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
+    /** Factory for create {@link TestingLeaderRetrievalDriver}. */
+    public static class TestingLeaderRetrievalDriverFactory
+            implements LeaderRetrievalDriverFactory {
 
-		private TestingLeaderRetrievalDriver currentDriver;
+        private TestingLeaderRetrievalDriver currentDriver;
 
-		@Override
-		public LeaderRetrievalDriver createLeaderRetrievalDriver(
-				LeaderRetrievalEventHandler leaderEventHandler,
-				FatalErrorHandler fatalErrorHandler) {
-			currentDriver = new TestingLeaderRetrievalDriver(leaderEventHandler, fatalErrorHandler);
-			return currentDriver;
-		}
+        @Override
+        public LeaderRetrievalDriver createLeaderRetrievalDriver(
+                LeaderRetrievalEventHandler leaderEventHandler,
+                FatalErrorHandler fatalErrorHandler) {
+            currentDriver = new TestingLeaderRetrievalDriver(leaderEventHandler, fatalErrorHandler);
+            return currentDriver;
+        }
 
-		@Nullable
-		public TestingLeaderRetrievalDriver getCurrentRetrievalDriver() {
-			return currentDriver;
-		}
-	}
+        @Nullable
+        public TestingLeaderRetrievalDriver getCurrentRetrievalDriver() {
+            return currentDriver;
+        }
+    }
 }

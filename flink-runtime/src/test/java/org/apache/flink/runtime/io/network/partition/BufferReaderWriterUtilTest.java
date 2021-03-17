@@ -40,164 +40,179 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link BufferReaderWriterUtil}.
- */
+/** Tests for the {@link BufferReaderWriterUtil}. */
 public class BufferReaderWriterUtilTest {
 
-	@ClassRule
-	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-	// ------------------------------------------------------------------------
-	// Byte Buffer
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Byte Buffer
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void writeReadByteBuffer() {
-		final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
-		final Buffer buffer = createTestBuffer();
+    @Test
+    public void writeReadByteBuffer() {
+        final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
+        final Buffer buffer = createTestBuffer();
 
-		BufferReaderWriterUtil.writeBuffer(buffer, memory);
-		final int pos = memory.position();
-		memory.flip();
-		Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
+        BufferReaderWriterUtil.writeBuffer(buffer, memory);
+        final int pos = memory.position();
+        memory.flip();
+        Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
 
-		assertEquals(pos, memory.position());
-		validateTestBuffer(result);
-	}
+        assertEquals(pos, memory.position());
+        validateTestBuffer(result);
+    }
 
-	@Test
-	public void writeByteBufferNotEnoughSpace() {
-		final ByteBuffer memory = ByteBuffer.allocateDirect(10);
-		final Buffer buffer = createTestBuffer();
+    @Test
+    public void writeByteBufferNotEnoughSpace() {
+        final ByteBuffer memory = ByteBuffer.allocateDirect(10);
+        final Buffer buffer = createTestBuffer();
 
-		final boolean written = BufferReaderWriterUtil.writeBuffer(buffer, memory);
+        final boolean written = BufferReaderWriterUtil.writeBuffer(buffer, memory);
 
-		assertFalse(written);
-		assertEquals(0, memory.position());
-		assertEquals(memory.capacity(), memory.limit());
-	}
+        assertFalse(written);
+        assertEquals(0, memory.position());
+        assertEquals(memory.capacity(), memory.limit());
+    }
 
-	@Test
-	public void readFromEmptyByteBuffer() {
-		final ByteBuffer memory = ByteBuffer.allocateDirect(100);
-		memory.position(memory.limit());
+    @Test
+    public void readFromEmptyByteBuffer() {
+        final ByteBuffer memory = ByteBuffer.allocateDirect(100);
+        memory.position(memory.limit());
 
-		final Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
+        final Buffer result = BufferReaderWriterUtil.sliceNextBuffer(memory);
 
-		assertNull(result);
-	}
+        assertNull(result);
+    }
 
-	@Test
-	public void testReadFromByteBufferNotEnoughData() {
-		final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
-		final Buffer buffer = createTestBuffer();
-		BufferReaderWriterUtil.writeBuffer(buffer, memory);
+    @Test
+    public void testReadFromByteBufferNotEnoughData() {
+        final ByteBuffer memory = ByteBuffer.allocateDirect(1200);
+        final Buffer buffer = createTestBuffer();
+        BufferReaderWriterUtil.writeBuffer(buffer, memory);
 
-		memory.flip().limit(memory.limit() - 1);
-		ByteBuffer tooSmall = memory.slice();
+        memory.flip().limit(memory.limit() - 1);
+        ByteBuffer tooSmall = memory.slice();
 
-		try {
-			BufferReaderWriterUtil.sliceNextBuffer(tooSmall);
-			fail();
-		}
-		catch (Exception e) {
-			// expected
-		}
-	}
+        try {
+            BufferReaderWriterUtil.sliceNextBuffer(tooSmall);
+            fail();
+        } catch (Exception e) {
+            // expected
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  File Channel
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  File Channel
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void writeReadFileChannel() throws Exception {
-		final FileChannel fc = tmpFileChannel();
-		final Buffer buffer = createTestBuffer();
-		final MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
+    @Test
+    public void writeReadFileChannel() throws Exception {
+        final FileChannel fc = tmpFileChannel();
+        final Buffer buffer = createTestBuffer();
+        final MemorySegment readBuffer =
+                MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
 
-		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
-		fc.position(0);
+        BufferReaderWriterUtil.writeToByteChannel(
+                fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
+        fc.position(0);
 
-		Buffer result = BufferReaderWriterUtil.readFromByteChannel(
-				fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
+        Buffer result =
+                BufferReaderWriterUtil.readFromByteChannel(
+                        fc,
+                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                        readBuffer,
+                        FreeingBufferRecycler.INSTANCE);
 
-		validateTestBuffer(result);
-	}
+        validateTestBuffer(result);
+    }
 
-	@Test
-	public void readPrematureEndOfFile1() throws Exception {
-		final FileChannel fc = tmpFileChannel();
-		final Buffer buffer = createTestBuffer();
-		final MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
+    @Test
+    public void readPrematureEndOfFile1() throws Exception {
+        final FileChannel fc = tmpFileChannel();
+        final Buffer buffer = createTestBuffer();
+        final MemorySegment readBuffer =
+                MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
 
-		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
-		fc.truncate(fc.position() - 1);
-		fc.position(0);
+        BufferReaderWriterUtil.writeToByteChannel(
+                fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
+        fc.truncate(fc.position() - 1);
+        fc.position(0);
 
-		try {
-			BufferReaderWriterUtil.readFromByteChannel(
-					fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
-			fail();
-		}
-		catch (IOException e) {
-			// expected
-		}
-	}
+        try {
+            BufferReaderWriterUtil.readFromByteChannel(
+                    fc,
+                    BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                    readBuffer,
+                    FreeingBufferRecycler.INSTANCE);
+            fail();
+        } catch (IOException e) {
+            // expected
+        }
+    }
 
-	@Test
-	public void readPrematureEndOfFile2() throws Exception {
-		final FileChannel fc = tmpFileChannel();
-		final Buffer buffer = createTestBuffer();
-		final MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
+    @Test
+    public void readPrematureEndOfFile2() throws Exception {
+        final FileChannel fc = tmpFileChannel();
+        final Buffer buffer = createTestBuffer();
+        final MemorySegment readBuffer =
+                MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
 
-		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
-		fc.truncate(2); // less than a header size
-		fc.position(0);
+        BufferReaderWriterUtil.writeToByteChannel(
+                fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
+        fc.truncate(2); // less than a header size
+        fc.position(0);
 
-		try {
-			BufferReaderWriterUtil.readFromByteChannel(
-					fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
-			fail();
-		}
-		catch (IOException e) {
-			// expected
-		}
-	}
+        try {
+            BufferReaderWriterUtil.readFromByteChannel(
+                    fc,
+                    BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                    readBuffer,
+                    FreeingBufferRecycler.INSTANCE);
+            fail();
+        } catch (IOException e) {
+            // expected
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Mixed
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Mixed
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void writeFileReadMemoryBuffer() throws Exception {
-		final FileChannel fc = tmpFileChannel();
-		final Buffer buffer = createTestBuffer();
-		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
+    @Test
+    public void writeFileReadMemoryBuffer() throws Exception {
+        final FileChannel fc = tmpFileChannel();
+        final Buffer buffer = createTestBuffer();
+        BufferReaderWriterUtil.writeToByteChannel(
+                fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
 
-		final ByteBuffer bb = fc.map(MapMode.READ_ONLY, 0, fc.position()).order(ByteOrder.nativeOrder());
-		BufferReaderWriterUtil.configureByteBuffer(bb);
-		fc.close();
+        final ByteBuffer bb =
+                fc.map(MapMode.READ_ONLY, 0, fc.position()).order(ByteOrder.nativeOrder());
+        BufferReaderWriterUtil.configureByteBuffer(bb);
+        fc.close();
 
-		Buffer result = BufferReaderWriterUtil.sliceNextBuffer(bb);
+        Buffer result = BufferReaderWriterUtil.sliceNextBuffer(bb);
 
-		validateTestBuffer(result);
-	}
+        validateTestBuffer(result);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Util
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Util
+    // ------------------------------------------------------------------------
 
-	private static FileChannel tmpFileChannel() throws IOException {
-		return FileChannel.open(TMP_FOLDER.newFile().toPath(),
-				StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-	}
+    private static FileChannel tmpFileChannel() throws IOException {
+        return FileChannel.open(
+                TMP_FOLDER.newFile().toPath(),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.READ,
+                StandardOpenOption.WRITE);
+    }
 
-	private static Buffer createTestBuffer() {
-		return BufferBuilderTestUtils.buildBufferWithAscendingInts(1024, 200, 0);
-	}
+    private static Buffer createTestBuffer() {
+        return BufferBuilderTestUtils.buildBufferWithAscendingInts(1024, 200, 0);
+    }
 
-	private static void validateTestBuffer(Buffer buffer) {
-		BufferBuilderTestUtils.validateBufferWithAscendingInts(buffer, 200, 0);
-	}
+    private static void validateTestBuffer(Buffer buffer) {
+        BufferBuilderTestUtils.validateBufferWithAscendingInts(buffer, 200, 0);
+    }
 }

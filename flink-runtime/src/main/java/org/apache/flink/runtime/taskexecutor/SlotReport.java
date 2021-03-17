@@ -27,46 +27,55 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A report about the current status of all slots of the TaskExecutor, describing
- * which slots are available and allocated, and what jobs (JobManagers) the allocated slots
- * have been allocated to.
+ * A report about the current status of all slots of the TaskExecutor, describing which slots are
+ * available and allocated, and what jobs (JobManagers) the allocated slots have been allocated to.
  */
 public class SlotReport implements Serializable, Iterable<SlotStatus> {
 
-	private static final long serialVersionUID = -3150175198722481689L;
+    private static final long serialVersionUID = -3150175198722481689L;
 
-	/** The slots status of the TaskManager. */
-	private final Collection<SlotStatus> slotsStatus;
+    /** The slots status of the TaskManager. */
+    private final Collection<SlotStatus> slotsStatus;
 
-	public SlotReport() {
-		this(Collections.<SlotStatus>emptyList());
-	}
+    public SlotReport() {
+        this(Collections.<SlotStatus>emptyList());
+    }
 
-	public SlotReport(SlotStatus slotStatus) {
-		this(Collections.singletonList(slotStatus));
-	}
+    public SlotReport(SlotStatus slotStatus) {
+        this(Collections.singletonList(slotStatus));
+    }
 
-	public SlotReport(final Collection<SlotStatus> slotsStatus) {
-		this.slotsStatus = checkNotNull(slotsStatus);
-	}
+    public SlotReport(final Collection<SlotStatus> slotsStatus) {
+        this.slotsStatus = checkNotNull(slotsStatus);
+    }
 
-	public int getNumSlotStatus() {
-		return slotsStatus.size();
-	}
+    public int getNumSlotStatus() {
+        return slotsStatus.size();
+    }
 
-	@Override
-	public Iterator<SlotStatus> iterator() {
-		return slotsStatus.iterator();
-	}
+    public boolean hasAllocatedSlot() {
+        for (SlotStatus status : slotsStatus) {
+            if (status.getAllocationID() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	@Override
-	public String toString() {
-		final String lineSeparator = slotsStatus.size() == 1 || slotsStatus.size() > 10
-			? ""
-			: System.lineSeparator() + "\t";
+    @Override
+    public Iterator<SlotStatus> iterator() {
+        return slotsStatus.iterator();
+    }
 
-		return slotsStatus.stream()
-			.map(SlotStatus::toString)
-			.collect(Collectors.joining(lineSeparator, "SlotReport{" + lineSeparator, "}"));
-	}
+    @Override
+    public String toString() {
+        final String lineSeparator =
+                slotsStatus.size() == 1 || slotsStatus.size() > 10
+                        ? ""
+                        : System.lineSeparator() + "\t";
+
+        return slotsStatus.stream()
+                .map(SlotStatus::toString)
+                .collect(Collectors.joining(lineSeparator, "SlotReport{" + lineSeparator, "}"));
+    }
 }

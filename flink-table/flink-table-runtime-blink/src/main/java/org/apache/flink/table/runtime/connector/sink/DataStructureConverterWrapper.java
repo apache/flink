@@ -32,21 +32,21 @@ import javax.annotation.Nullable;
 @Internal
 class DataStructureConverterWrapper implements DynamicTableSink.DataStructureConverter {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final DataStructureConverter<Object, Object> structureConverter;
+    private final DataStructureConverter<Object, Object> structureConverter;
 
-	DataStructureConverterWrapper(DataStructureConverter<Object, Object> structureConverter) {
-		this.structureConverter = structureConverter;
-	}
+    DataStructureConverterWrapper(DataStructureConverter<Object, Object> structureConverter) {
+        this.structureConverter = structureConverter;
+    }
 
-	@Override
-	public void open(Context context) {
-		structureConverter.open(context.getClassLoader());
-	}
+    @Override
+    public void open(Context context) {
+        structureConverter.open(context.getClassLoader());
+    }
 
-	@Override
-	public @Nullable Object toExternal(@Nullable Object internalStructure) {
-		return structureConverter.toExternalOrNull(internalStructure);
-	}
+    @Override
+    public @Nullable Object toExternal(@Nullable Object internalStructure) {
+        return structureConverter.toExternalOrNull(internalStructure);
+    }
 }

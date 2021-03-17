@@ -26,7 +26,7 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT($0)])
 +- LogicalProject(cnt=[$1])
@@ -37,7 +37,7 @@ LogicalAggregate(group=[{0}], frequency=[COUNT($0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [CollectionTableSource(word, cnt)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
@@ -55,14 +55,14 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], cha
     <Resource name="sql">
       <![CDATA[SELECT COUNT(number) FROM MyTable GROUP BY word]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[EXPR$0], changelogMode=[I,UA])
 +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS EXPR$0], changelogMode=[I,UA])
@@ -75,13 +75,13 @@ Calc(select=[EXPR$0], changelogMode=[I,UA])
     <Resource name="sql">
       <![CDATA[SELECT word, number FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(word=[$0], number=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
@@ -95,7 +95,7 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT()])
 +- LogicalProject(cnt=[$1])
@@ -103,7 +103,7 @@ LogicalAggregate(group=[{0}], frequency=[COUNT()])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(*) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
@@ -122,7 +122,7 @@ SELECT * FROM Orders AS o
  ON o.currency = r.currency
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
@@ -135,7 +135,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
             +- LogicalTableScan(table=[[default_catalog, default_database, ratesChangelogStream]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
 +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
@@ -143,9 +143,10 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
    :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
-   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA,D])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UB,UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- DropUpdateBefore(changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -157,7 +158,7 @@ SELECT cnt, COUNT(cnt) AS frequency FROM (
 ) GROUP BY cnt
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], frequency=[COUNT()])
 +- LogicalProject(cnt=[$1])
@@ -165,7 +166,7 @@ LogicalAggregate(group=[{0}], frequency=[COUNT()])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS frequency], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[cnt]], changelogMode=[I])
@@ -187,7 +188,7 @@ SELECT * FROM Orders AS o
  ON o.currency = r.currency
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
@@ -203,7 +204,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
                      +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0) AS rowtime0], changelogMode=[I])
 +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])

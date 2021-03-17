@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.context.ExecutionContext;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -30,50 +33,72 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
-/**
- * This function is used to get the last row for every key partition in miniBatch mode.
- */
+/** This function is used to get the last row for every key partition in miniBatch mode. */
 public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
-		extends MiniBatchDeduplicateFunctionBase<RowData, RowData, RowData, RowData, RowData> {
+        extends MiniBatchDeduplicateFunctionBase<RowData, RowData, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = -8981813609115029119L;
-	private final TypeSerializer<RowData> serializer;
-	private final boolean generateUpdateBefore;
-	private final boolean generateInsert;
-	private final boolean inputInsertOnly;
+    private static final long serialVersionUID = -8981813609115029119L;
+    private final TypeSerializer<RowData> serializer;
+    private final boolean generateUpdateBefore;
+    private final boolean generateInsert;
+    private final boolean inputInsertOnly;
+    private final boolean isStateTtlEnabled;
+    // The code generated equaliser used to equal RowData.
+    private final GeneratedRecordEqualiser genRecordEqualiser;
 
-	public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
-			InternalTypeInfo<RowData> typeInfo,
-			TypeSerializer<RowData> serializer,
-			long stateRetentionTime,
-			boolean generateUpdateBefore,
-			boolean generateInsert,
-			boolean inputInsertOnly) {
-		super(typeInfo, stateRetentionTime);
-		this.serializer = serializer;
-		this.generateUpdateBefore = generateUpdateBefore;
-		this.generateInsert = generateInsert;
-		this.inputInsertOnly = inputInsertOnly;
-	}
+    // The record equaliser used to equal RowData.
+    private transient RecordEqualiser equaliser;
 
-	@Override
-	public RowData addInput(@Nullable RowData value, RowData input) {
-		// always put the input into buffer
-		return serializer.copy(input);
-	}
+    public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
+            InternalTypeInfo<RowData> typeInfo,
+            TypeSerializer<RowData> serializer,
+            long stateRetentionTime,
+            boolean generateUpdateBefore,
+            boolean generateInsert,
+            boolean inputInsertOnly,
+            GeneratedRecordEqualiser genRecordEqualiser) {
+        super(typeInfo, stateRetentionTime);
+        this.serializer = serializer;
+        this.generateUpdateBefore = generateUpdateBefore;
+        this.generateInsert = generateInsert;
+        this.inputInsertOnly = inputInsertOnly;
+        this.genRecordEqualiser = genRecordEqualiser;
+        this.isStateTtlEnabled = stateRetentionTime > 0;
+    }
 
-	@Override
-	public void finishBundle(
-			Map<RowData, RowData> buffer, Collector<RowData> out) throws Exception {
-		for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
-			RowData currentKey = entry.getKey();
-			RowData currentRow = entry.getValue();
-			ctx.setCurrentKey(currentKey);
-			if (inputInsertOnly) {
-				processLastRowOnProcTime(currentRow, generateUpdateBefore, generateInsert, state, out);
-			} else {
-				processLastRowOnChangelog(currentRow, generateUpdateBefore, state, out);
-			}
-		}
-	}
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        equaliser =
+                genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
+    }
+
+    @Override
+    public RowData addInput(@Nullable RowData value, RowData input) {
+        // always put the input into buffer
+        return serializer.copy(input);
+    }
+
+    @Override
+    public void finishBundle(Map<RowData, RowData> buffer, Collector<RowData> out)
+            throws Exception {
+        for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+            RowData currentKey = entry.getKey();
+            RowData currentRow = entry.getValue();
+            ctx.setCurrentKey(currentKey);
+            if (inputInsertOnly) {
+                processLastRowOnProcTime(
+                        currentRow,
+                        generateUpdateBefore,
+                        generateInsert,
+                        state,
+                        out,
+                        isStateTtlEnabled,
+                        equaliser);
+            } else {
+                processLastRowOnChangelog(
+                        currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
+            }
+        }
+    }
 }

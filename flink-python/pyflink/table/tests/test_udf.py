@@ -24,9 +24,9 @@ import pytz
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBatchTableTestCase
+    PyFlinkOldBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -69,7 +69,7 @@ class UserDefinedFunctionTests(object):
             add_one_partial(t.a), check_memory_limit(), t.a) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,1,4,2,2,1,1", "4,0,12,4,4,1,3"])
+        self.assert_equals(actual, ["+I[2, 1, 4, 2, 2, 1, 1]", "+I[4, 0, 12, 4, 4, 1, 3]"])
 
     def test_chaining_scalar_function(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
@@ -84,7 +84,7 @@ class UserDefinedFunctionTests(object):
         t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1)) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,1,1", "7,2,1", "4,3,1"])
+        self.assert_equals(actual, ["+I[3, 1, 1]", "+I[7, 2, 1]", "+I[4, 3, 1]"])
 
     def test_udf_in_join_condition(self):
         t1 = self.t_env.from_elements([(2, "Hi")], ['a', 'b'])
@@ -99,7 +99,7 @@ class UserDefinedFunctionTests(object):
 
         t1.join(t2).where(f(t1.a) == t2.c).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,Hi,2,Flink"])
+        self.assert_equals(actual, ["+I[2, Hi, 2, Flink]"])
 
     def test_udf_in_join_condition_2(self):
         t1 = self.t_env.from_elements([(1, "Hi"), (2, "Hi")], ['a', 'b'])
@@ -114,14 +114,13 @@ class UserDefinedFunctionTests(object):
 
         t1.join(t2).where(f(t1.a) == f(t2.c)).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,Hi,2,Flink"])
+        self.assert_equals(actual, ["+I[2, Hi, 2, Flink]"])
 
     def test_udf_with_constant_params(self):
         def udf_with_constant_params(p, null_param, tinyint_param, smallint_param, int_param,
                                      bigint_param, decimal_param, float_param, double_param,
                                      boolean_param, str_param,
                                      date_param, time_param, timestamp_param):
-
             from decimal import Decimal
             import datetime
 
@@ -202,7 +201,7 @@ class UserDefinedFunctionTests(object):
                              " from test_table").insert_into("Results")
         self.t_env.execute("test")
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,8", "3,9", "3,10"])
+        self.assert_equals(actual, ["+I[3, 8]", "+I[3, 9]", "+I[3, 10]"])
 
     def test_overwrite_builtin_function(self):
         self.t_env.create_temporary_system_function(
@@ -215,7 +214,7 @@ class UserDefinedFunctionTests(object):
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.select("plus(a, b)").execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2", "6", "3"])
+        self.assert_equals(actual, ["+I[2]", "+I[6]", "+I[3]"])
 
     def test_open(self):
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
@@ -227,7 +226,7 @@ class UserDefinedFunctionTests(object):
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 4)], ['a', 'b'])
         t.select(t.a, subtract(t.b)).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,1", "2,4", "3,3"])
+        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 4]", "+I[3, 3]"])
 
     def test_udf_without_arguments(self):
         one = udf(lambda: 1, result_type=DataTypes.BIGINT(), deterministic=True)
@@ -240,10 +239,9 @@ class UserDefinedFunctionTests(object):
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(one(), two()).execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,2", "1,2", "1,2"])
+        self.assert_equals(actual, ["+I[1, 2]", "+I[1, 2]", "+I[1, 2]"])
 
     def test_all_data_types_expression(self):
-
         @udf(result_type=DataTypes.BOOLEAN())
         def boolean_func(bool_param):
             assert isinstance(bool_param, bool), 'bool_param of wrong type %s !' \
@@ -413,14 +411,13 @@ class UserDefinedFunctionTests(object):
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
-                           ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
-                            "[102, 108, 105, 110, 107],pyflink,2014-09-13,"
-                            "12:00:00,2018-03-11 03:00:00.123,[1, 2, 3],"
-                            "{1=flink, 2=pyflink},1000000000000000000.050000000000000000,"
-                            "1000000000000000000.059999999999999999"])
+                           ["+I[1, null, 1, true, 32767, -2147483648, 1.23, 1.98932, "
+                            "[102, 108, 105, 110, 107], pyflink, 2014-09-13, "
+                            "12:00:00, 2018-03-11 03:00:00.123, [1, 2, 3], "
+                            "{1=flink, 2=pyflink}, 1000000000000000000.050000000000000000, "
+                            "1000000000000000000.059999999999999999]"])
 
     def test_all_data_types(self):
-
         def boolean_func(bool_param):
             assert isinstance(bool_param, bool), 'bool_param of wrong type %s !' \
                                                  % type(bool_param)
@@ -616,11 +613,11 @@ class UserDefinedFunctionTests(object):
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
-                           ["1,null,1,true,32767,-2147483648,1.23,1.98932,"
-                            "[102, 108, 105, 110, 107],pyflink,2014-09-13,"
-                            "12:00:00,2018-03-11 03:00:00.123,[1, 2, 3],"
-                            "{1=flink, 2=pyflink},1000000000000000000.050000000000000000,"
-                            "1000000000000000000.059999999999999999"])
+                           ["+I[1, null, 1, true, 32767, -2147483648, 1.23, 1.98932, "
+                            "[102, 108, 105, 110, 107], pyflink, 2014-09-13, "
+                            "12:00:00, 2018-03-11 03:00:00.123, [1, 2, 3], "
+                            "{1=flink, 2=pyflink}, 1000000000000000000.050000000000000000, "
+                            "1000000000000000000.059999999999999999]"])
 
     def test_create_and_drop_function(self):
         t_env = self.t_env
@@ -643,11 +640,11 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkStreamTableTestCase):
+                                            PyFlinkOldStreamTableTestCase):
     pass
 
 
-class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(PyFlinkOldBatchTableTestCase):
 
     def test_chaining_scalar_function(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
@@ -657,7 +654,7 @@ class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
         t = t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1))
 
         result = self.collect(t)
-        self.assertEqual(result, ["3,1,1", "7,2,1", "4,3,1"])
+        self.assertEqual(result, ["+I[3, 1, 1]", "+I[7, 2, 1]", "+I[4, 3, 1]"])
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
@@ -749,7 +746,7 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
+        self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])
 
 
 class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
@@ -795,6 +792,7 @@ if __name__ == '__main__':
 
     try:
         import xmlrunner
+
         testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
     except ImportError:
         testRunner = None

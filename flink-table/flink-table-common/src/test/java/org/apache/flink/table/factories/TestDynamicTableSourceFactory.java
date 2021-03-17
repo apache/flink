@@ -31,27 +31,27 @@ import java.util.Set;
  */
 public final class TestDynamicTableSourceFactory implements DynamicTableSourceFactory {
 
-	public static final String IDENTIFIER = "test";
+    public static final String IDENTIFIER = "test";
 
-	private static final TestDynamicTableFactory delegate = new TestDynamicTableFactory();
+    private static final TestDynamicTableFactory delegate = new TestDynamicTableFactory();
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		return delegate.createDynamicTableSource(context);
-	}
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        return delegate.createDynamicTableSource(context);
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return delegate.requiredOptions();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return delegate.requiredOptions();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		return delegate.optionalOptions();
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return delegate.optionalOptions();
+    }
 }

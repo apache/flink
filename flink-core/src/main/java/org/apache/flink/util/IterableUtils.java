@@ -24,30 +24,26 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A collection of utilities that expand the usage of {@link Iterable}.
- */
+/** A collection of utilities that expand the usage of {@link Iterable}. */
 public class IterableUtils {
 
-	/**
-	 * Convert the given {@link Iterable} to a {@link Stream}.
-	 *
-	 * @param iterable to convert to a stream
-	 * @param <E> type of the elements of the iterable
-	 * @return stream converted from the given {@link Iterable}
-	 */
-	public static <E> Stream<E> toStream(Iterable<E> iterable) {
-		checkNotNull(iterable);
+    /**
+     * Convert the given {@link Iterable} to a {@link Stream}.
+     *
+     * @param iterable to convert to a stream
+     * @param <E> type of the elements of the iterable
+     * @return stream converted from the given {@link Iterable}
+     */
+    public static <E> Stream<E> toStream(Iterable<E> iterable) {
+        checkNotNull(iterable);
 
-		return iterable instanceof Collection ?
-			((Collection<E>) iterable).stream() :
-			StreamSupport.stream(iterable.spliterator(), false);
-	}
+        return iterable instanceof Collection
+                ? ((Collection<E>) iterable).stream()
+                : StreamSupport.stream(iterable.spliterator(), false);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Private default constructor to avoid instantiation.
-	 */
-	private IterableUtils() {}
+    /** Private default constructor to avoid instantiation. */
+    private IterableUtils() {}
 }

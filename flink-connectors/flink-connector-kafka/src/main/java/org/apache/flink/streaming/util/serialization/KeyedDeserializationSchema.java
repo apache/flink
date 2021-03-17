@@ -25,31 +25,32 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import java.io.IOException;
 
 /**
- * The deserialization schema describes how to turn the byte key / value messages delivered by certain
- * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
+ * The deserialization schema describes how to turn the byte key / value messages delivered by
+ * certain data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
  * processed by Flink.
  *
  * @param <T> The type created by the keyed deserialization schema.
- *
  * @deprecated Use {@link KafkaDeserializationSchema}.
  */
 @Deprecated
 @PublicEvolving
 public interface KeyedDeserializationSchema<T> extends KafkaDeserializationSchema<T> {
-	/**
-	 * Deserializes the byte message.
-	 *
-	 * @param messageKey the key as a byte array (null if no key has been set).
-	 * @param message The message, as a byte array (null if the message was empty or deleted).
-	 * @param partition The partition the message has originated from.
-	 * @param offset the offset of the message in the original source (for example the Kafka offset).
-	 *
-	 * @return The deserialized message as an object (null if the message cannot be deserialized).
-	 */
-	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
+    /**
+     * Deserializes the byte message.
+     *
+     * @param messageKey the key as a byte array (null if no key has been set).
+     * @param message The message, as a byte array (null if the message was empty or deleted).
+     * @param partition The partition the message has originated from.
+     * @param offset the offset of the message in the original source (for example the Kafka
+     *     offset).
+     * @return The deserialized message as an object (null if the message cannot be deserialized).
+     */
+    T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)
+            throws IOException;
 
-	@Override
-	default T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
-		return deserialize(record.key(), record.value(), record.topic(), record.partition(), record.offset());
-	}
+    @Override
+    default T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
+        return deserialize(
+                record.key(), record.value(), record.topic(), record.partition(), record.offset());
+    }
 }

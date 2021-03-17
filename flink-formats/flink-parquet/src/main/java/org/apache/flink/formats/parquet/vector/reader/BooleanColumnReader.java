@@ -27,89 +27,86 @@ import org.apache.parquet.schema.PrimitiveType;
 
 import java.io.IOException;
 
-/**
- * Boolean {@link ColumnReader}.
- */
+/** Boolean {@link ColumnReader}. */
 public class BooleanColumnReader extends AbstractColumnReader<WritableBooleanVector> {
 
-	/**
-	 * Parquet use a bit to store booleans, so we need split a byte to 8 boolean.
-	 */
-	private int bitOffset;
-	private byte currentByte = 0;
+    /** Parquet use a bit to store booleans, so we need split a byte to 8 boolean. */
+    private int bitOffset;
 
-	public BooleanColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.BOOLEAN);
-	}
+    private byte currentByte = 0;
 
-	@Override
-	protected boolean supportLazyDecode() {
-		return true;
-	}
+    public BooleanColumnReader(ColumnDescriptor descriptor, PageReader pageReader)
+            throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.BOOLEAN);
+    }
 
-	@Override
-	protected void afterReadPage() {
-		bitOffset = 0;
-		currentByte = 0;
-	}
+    @Override
+    protected boolean supportLazyDecode() {
+        return true;
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableBooleanVector column,
-			WritableIntVector dictionaryIds) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    protected void afterReadPage() {
+        bitOffset = 0;
+        currentByte = 0;
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableBooleanVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						for (int i = 0; i < n; i++) {
-							column.setBoolean(rowId + i, readBoolean());
-						}
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setBoolean(rowId + i, readBoolean());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableBooleanVector column, WritableIntVector dictionaryIds) {
+        throw new UnsupportedOperationException();
+    }
 
-	private boolean readBoolean() {
-		if (bitOffset == 0) {
-			try {
-				currentByte = (byte) dataInputStream.read();
-			} catch (IOException e) {
-				throw new ParquetDecodingException("Failed to read a byte", e);
-			}
-		}
+    @Override
+    protected void readBatch(int rowId, int num, WritableBooleanVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        for (int i = 0; i < n; i++) {
+                            column.setBoolean(rowId + i, readBoolean());
+                        }
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setBoolean(rowId + i, readBoolean());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-		boolean v = (currentByte & (1 << bitOffset)) != 0;
-		bitOffset += 1;
-		if (bitOffset == 8) {
-			bitOffset = 0;
-		}
-		return v;
-	}
+    private boolean readBoolean() {
+        if (bitOffset == 0) {
+            try {
+                currentByte = (byte) dataInputStream.read();
+            } catch (IOException e) {
+                throw new ParquetDecodingException("Failed to read a byte", e);
+            }
+        }
+
+        boolean v = (currentByte & (1 << bitOffset)) != 0;
+        bitOffset += 1;
+        if (bitOffset == 8) {
+            bitOffset = 0;
+        }
+        return v;
+    }
 }

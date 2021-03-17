@@ -29,62 +29,71 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded
- * OVER window.
+ * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded OVER
+ * window.
  */
 @Internal
 public class StreamArrowPythonProcTimeBoundedRowsOperator<K>
-	extends AbstractStreamArrowPythonBoundedRowsOperator<K> {
+        extends AbstractStreamArrowPythonBoundedRowsOperator<K> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient long currentTime;
+    private transient long currentTime;
 
-	private transient List<RowData> rowList;
+    private transient List<RowData> rowList;
 
-	public StreamArrowPythonProcTimeBoundedRowsOperator(
-		Configuration config,
-		long minRetentionTime,
-		long maxRetentionTime,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int inputTimeFieldIndex,
-		long lowerBoundary,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, minRetentionTime, maxRetentionTime, pandasAggFunctions,
-			inputType, outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
-	}
+    public StreamArrowPythonProcTimeBoundedRowsOperator(
+            Configuration config,
+            long minRetentionTime,
+            long maxRetentionTime,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int inputTimeFieldIndex,
+            long lowerBoundary,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(
+                config,
+                minRetentionTime,
+                maxRetentionTime,
+                pandasAggFunctions,
+                inputType,
+                outputType,
+                inputTimeFieldIndex,
+                lowerBoundary,
+                groupingSet,
+                udafInputOffsets);
+    }
 
-	@Override
-	public void bufferInput(RowData input) throws Exception {
-		currentTime = timerService.currentProcessingTime();
-		// register state-cleanup timer
-		registerProcessingCleanupTimer(currentTime);
+    @Override
+    public void bufferInput(RowData input) throws Exception {
+        currentTime = timerService.currentProcessingTime();
+        // register state-cleanup timer
+        registerProcessingCleanupTimer(currentTime);
 
-		// buffer the event incoming event
+        // buffer the event incoming event
 
-		// add current element to the window list of elements with corresponding timestamp
-		rowList = inputState.get(currentTime);
-		// null value means that this is the first event received for this timestamp
-		if (rowList == null) {
-			rowList = new ArrayList<>();
-		}
-		rowList.add(input);
-		inputState.put(currentTime, rowList);
-	}
+        // add current element to the window list of elements with corresponding timestamp
+        rowList = inputState.get(currentTime);
+        // null value means that this is the first event received for this timestamp
+        if (rowList == null) {
+            rowList = new ArrayList<>();
+        }
+        rowList.add(input);
+        inputState.put(currentTime, rowList);
+    }
 
-	@Override
-	public void processElementInternal(RowData value) throws Exception {
-		forwardedInputQueue.add(value);
-		Iterable<Long> keyIter = inputState.keys();
-		for (Long dataTs : keyIter) {
-			insertToSortedList(dataTs);
-		}
-		int index = sortedTimestamps.indexOf(currentTime);
-		triggerWindowProcess(rowList, rowList.size() - 1, index);
-		sortedTimestamps.clear();
-		windowData.clear();
-	}
+    @Override
+    public void processElementInternal(RowData value) throws Exception {
+        forwardedInputQueue.add(value);
+        Iterable<Long> keyIter = inputState.keys();
+        for (Long dataTs : keyIter) {
+            insertToSortedList(dataTs);
+        }
+        int index = sortedTimestamps.indexOf(currentTime);
+        triggerWindowProcess(rowList, rowList.size() - 1, index);
+        sortedTimestamps.clear();
+        windowData.clear();
+    }
 }

@@ -26,30 +26,28 @@ import java.time.Duration;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Settings describing how to do continuous file discovery and enumeration for the
- * file source's continuous discovery and streaming mode.
+ * Settings describing how to do continuous file discovery and enumeration for the file source's
+ * continuous discovery and streaming mode.
  */
 @Internal
 public final class ContinuousEnumerationSettings implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Duration discoveryInterval;
+    private final Duration discoveryInterval;
 
-	public ContinuousEnumerationSettings(Duration discoveryInterval) {
-		this.discoveryInterval = checkNotNull(discoveryInterval);
-	}
+    public ContinuousEnumerationSettings(Duration discoveryInterval) {
+        this.discoveryInterval = checkNotNull(discoveryInterval);
+    }
 
-	public Duration getDiscoveryInterval() {
-		return discoveryInterval;
-	}
+    public Duration getDiscoveryInterval() {
+        return discoveryInterval;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "ContinuousEnumerationSettings{" +
-			"discoveryInterval=" + discoveryInterval +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "ContinuousEnumerationSettings{" + "discoveryInterval=" + discoveryInterval + '}';
+    }
 }

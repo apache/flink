@@ -23,6 +23,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -30,10 +31,14 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
@@ -61,332 +66,342 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Simple parser for determining the type of command and its parameters.
- */
+/** Simple parser for determining the type of command and its parameters. */
 public final class SqlCommandParser {
 
-	private SqlCommandParser() {
-		// private
-	}
+    private SqlCommandParser() {
+        // private
+    }
 
-	/**
-	 * Parse a sql statement and return corresponding {@link SqlCommandCall}.
-	 * If the statement is invalid, a {@link SqlExecutionException} will be thrown.
-	 *
-	 * @param sqlParser The sql parser instance
-	 * @param stmt The statement to be parsed
-	 * @return the corresponding SqlCommandCall.
-	 */
-	public static SqlCommandCall parse(Parser sqlParser, String stmt) {
-		// normalize
-		stmt = stmt.trim();
-		// remove ';' at the end
-		if (stmt.endsWith(";")) {
-			stmt = stmt.substring(0, stmt.length() - 1).trim();
-		}
+    /**
+     * Parse a sql statement and return corresponding {@link SqlCommandCall}. If the statement is
+     * invalid, a {@link SqlExecutionException} will be thrown.
+     *
+     * @param sqlParser The sql parser instance
+     * @param stmt The statement to be parsed
+     * @return the corresponding SqlCommandCall.
+     */
+    public static SqlCommandCall parse(Parser sqlParser, String stmt) {
+        // normalize
+        stmt = stmt.trim();
+        // remove ';' at the end
+        if (stmt.endsWith(";")) {
+            stmt = stmt.substring(0, stmt.length() - 1).trim();
+        }
 
-		// parse statement via regex matching first
-		Optional<SqlCommandCall> callOpt = parseByRegexMatching(stmt);
-		if (callOpt.isPresent()) {
-			return callOpt.get();
-		} else {
-			return parseBySqlParser(sqlParser, stmt);
-		}
-	}
+        // parse statement via regex matching first
+        Optional<SqlCommandCall> callOpt = parseByRegexMatching(stmt);
+        if (callOpt.isPresent()) {
+            return callOpt.get();
+        } else {
+            return parseBySqlParser(sqlParser, stmt);
+        }
+    }
 
-	private static SqlCommandCall parseBySqlParser(Parser sqlParser, String stmt) {
-		List<Operation> operations;
-		try {
-			operations = sqlParser.parse(stmt);
-		} catch (Throwable e) {
-			throw new SqlExecutionException("Invalidate SQL statement.", e);
-		}
-		if (operations.size() != 1) {
-			throw new SqlExecutionException("Only single statement is supported now.");
-		}
+    private static SqlCommandCall parseBySqlParser(Parser sqlParser, String stmt) {
+        List<Operation> operations;
+        try {
+            operations = sqlParser.parse(stmt);
+        } catch (Throwable e) {
+            throw new SqlExecutionException("Invalidate SQL statement.", e);
+        }
+        if (operations.size() != 1) {
+            throw new SqlExecutionException("Only single statement is supported now.");
+        }
 
-		final SqlCommand cmd;
-		String[] operands = new String[] { stmt };
-		Operation operation = operations.get(0);
-		if (operation instanceof CatalogSinkModifyOperation) {
-			boolean overwrite = ((CatalogSinkModifyOperation) operation).isOverwrite();
-			cmd = overwrite ? SqlCommand.INSERT_OVERWRITE : SqlCommand.INSERT_INTO;
-		} else if (operation instanceof CreateTableOperation) {
-			cmd = SqlCommand.CREATE_TABLE;
-		} else if (operation instanceof DropTableOperation) {
-			cmd = SqlCommand.DROP_TABLE;
-		} else if (operation instanceof AlterTableOperation) {
-			cmd = SqlCommand.ALTER_TABLE;
-		} else if (operation instanceof CreateViewOperation) {
-			cmd = SqlCommand.CREATE_VIEW;
-		} else if (operation instanceof DropViewOperation) {
-			cmd = SqlCommand.DROP_VIEW;
-		} else if (operation instanceof AlterViewOperation) {
-			cmd = SqlCommand.ALTER_VIEW;
-		} else if (operation instanceof CreateDatabaseOperation) {
-			cmd = SqlCommand.CREATE_DATABASE;
-		} else if (operation instanceof DropDatabaseOperation) {
-			cmd = SqlCommand.DROP_DATABASE;
-		} else if (operation instanceof AlterDatabaseOperation) {
-			cmd = SqlCommand.ALTER_DATABASE;
-		} else if (operation instanceof CreateCatalogOperation) {
-			cmd = SqlCommand.CREATE_CATALOG;
-		} else if (operation instanceof DropCatalogOperation) {
-			cmd = SqlCommand.DROP_CATALOG;
-		} else if (operation instanceof UseCatalogOperation) {
-			cmd = SqlCommand.USE_CATALOG;
-			operands = new String[] { ((UseCatalogOperation) operation).getCatalogName() };
-		} else if (operation instanceof UseDatabaseOperation) {
-			cmd = SqlCommand.USE;
-			operands = new String[] { ((UseDatabaseOperation) operation).getDatabaseName() };
-		} else if (operation instanceof ShowCatalogsOperation) {
-			cmd = SqlCommand.SHOW_CATALOGS;
-			operands = new String[0];
-		} else if (operation instanceof ShowCurrentCatalogOperation) {
-			cmd = SqlCommand.SHOW_CURRENT_CATALOG;
-			operands = new String[0];
-		} else if (operation instanceof ShowDatabasesOperation) {
-			cmd = SqlCommand.SHOW_DATABASES;
-			operands = new String[0];
-		} else if (operation instanceof ShowCurrentDatabaseOperation) {
-			cmd = SqlCommand.SHOW_CURRENT_DATABASE;
-			operands = new String[0];
-		} else if (operation instanceof ShowTablesOperation) {
-			cmd = SqlCommand.SHOW_TABLES;
-			operands = new String[0];
-		} else if (operation instanceof ShowFunctionsOperation) {
-			cmd = SqlCommand.SHOW_FUNCTIONS;
-			operands = new String[0];
-		} else if (operation instanceof ShowPartitionsOperation) {
-			cmd = SqlCommand.SHOW_PARTITIONS;
-		} else if (operation instanceof CreateCatalogFunctionOperation ||
-				operation instanceof CreateTempSystemFunctionOperation) {
-			cmd = SqlCommand.CREATE_FUNCTION;
-		} else if (operation instanceof DropCatalogFunctionOperation ||
-				operation instanceof DropTempSystemFunctionOperation) {
-			cmd = SqlCommand.DROP_FUNCTION;
-		} else if (operation instanceof AlterCatalogFunctionOperation) {
-			cmd = SqlCommand.ALTER_FUNCTION;
-		} else if (operation instanceof ExplainOperation) {
-			cmd = SqlCommand.EXPLAIN;
-		} else if (operation instanceof DescribeTableOperation) {
-			cmd = SqlCommand.DESCRIBE;
-			operands = new String[] { ((DescribeTableOperation) operation).getSqlIdentifier().asSerializableString() };
-		} else if (operation instanceof QueryOperation) {
-			cmd = SqlCommand.SELECT;
-		} else {
-			throw new SqlExecutionException("Unknown operation: " + operation.asSummaryString());
-		}
+        final SqlCommand cmd;
+        String[] operands = new String[] {stmt};
+        Operation operation = operations.get(0);
+        if (operation instanceof CatalogSinkModifyOperation) {
+            boolean overwrite = ((CatalogSinkModifyOperation) operation).isOverwrite();
+            cmd = overwrite ? SqlCommand.INSERT_OVERWRITE : SqlCommand.INSERT_INTO;
+        } else if (operation instanceof CreateTableOperation) {
+            cmd = SqlCommand.CREATE_TABLE;
+        } else if (operation instanceof DropTableOperation) {
+            cmd = SqlCommand.DROP_TABLE;
+        } else if (operation instanceof AlterTableOperation) {
+            cmd = SqlCommand.ALTER_TABLE;
+        } else if (operation instanceof CreateViewOperation) {
+            cmd = SqlCommand.CREATE_VIEW;
+        } else if (operation instanceof DropViewOperation) {
+            cmd = SqlCommand.DROP_VIEW;
+        } else if (operation instanceof AlterViewOperation) {
+            cmd = SqlCommand.ALTER_VIEW;
+        } else if (operation instanceof CreateDatabaseOperation) {
+            cmd = SqlCommand.CREATE_DATABASE;
+        } else if (operation instanceof DropDatabaseOperation) {
+            cmd = SqlCommand.DROP_DATABASE;
+        } else if (operation instanceof AlterDatabaseOperation) {
+            cmd = SqlCommand.ALTER_DATABASE;
+        } else if (operation instanceof CreateCatalogOperation) {
+            cmd = SqlCommand.CREATE_CATALOG;
+        } else if (operation instanceof DropCatalogOperation) {
+            cmd = SqlCommand.DROP_CATALOG;
+        } else if (operation instanceof UseCatalogOperation) {
+            cmd = SqlCommand.USE_CATALOG;
+            operands = new String[] {((UseCatalogOperation) operation).getCatalogName()};
+        } else if (operation instanceof UseDatabaseOperation) {
+            cmd = SqlCommand.USE;
+            operands = new String[] {((UseDatabaseOperation) operation).getDatabaseName()};
+        } else if (operation instanceof ShowCatalogsOperation) {
+            cmd = SqlCommand.SHOW_CATALOGS;
+            operands = new String[0];
+        } else if (operation instanceof ShowCurrentCatalogOperation) {
+            cmd = SqlCommand.SHOW_CURRENT_CATALOG;
+            operands = new String[0];
+        } else if (operation instanceof ShowDatabasesOperation) {
+            cmd = SqlCommand.SHOW_DATABASES;
+            operands = new String[0];
+        } else if (operation instanceof ShowCurrentDatabaseOperation) {
+            cmd = SqlCommand.SHOW_CURRENT_DATABASE;
+            operands = new String[0];
+        } else if (operation instanceof ShowModulesOperation) {
+            cmd = SqlCommand.SHOW_MODULES;
+        } else if (operation instanceof ShowTablesOperation) {
+            cmd = SqlCommand.SHOW_TABLES;
+            operands = new String[0];
+        } else if (operation instanceof ShowViewsOperation) {
+            cmd = SqlCommand.SHOW_VIEWS;
+            operands = new String[0];
+        } else if (operation instanceof ShowFunctionsOperation) {
+            cmd = SqlCommand.SHOW_FUNCTIONS;
+        } else if (operation instanceof ShowPartitionsOperation) {
+            cmd = SqlCommand.SHOW_PARTITIONS;
+        } else if (operation instanceof CreateCatalogFunctionOperation
+                || operation instanceof CreateTempSystemFunctionOperation) {
+            cmd = SqlCommand.CREATE_FUNCTION;
+        } else if (operation instanceof DropCatalogFunctionOperation
+                || operation instanceof DropTempSystemFunctionOperation) {
+            cmd = SqlCommand.DROP_FUNCTION;
+        } else if (operation instanceof AlterCatalogFunctionOperation) {
+            cmd = SqlCommand.ALTER_FUNCTION;
+        } else if (operation instanceof ExplainOperation) {
+            cmd = SqlCommand.EXPLAIN;
+        } else if (operation instanceof LoadModuleOperation) {
+            cmd = SqlCommand.LOAD_MODULE;
+        } else if (operation instanceof UnloadModuleOperation) {
+            cmd = SqlCommand.UNLOAD_MODULE;
+        } else if (operation instanceof UseModulesOperation) {
+            cmd = SqlCommand.USE_MODULES;
+        } else if (operation instanceof DescribeTableOperation) {
+            cmd = SqlCommand.DESCRIBE;
+            operands =
+                    new String[] {
+                        ((DescribeTableOperation) operation)
+                                .getSqlIdentifier()
+                                .asSerializableString()
+                    };
+        } else if (operation instanceof QueryOperation) {
+            cmd = SqlCommand.SELECT;
+        } else {
+            throw new SqlExecutionException("Unknown operation: " + operation.asSummaryString());
+        }
 
-		return new SqlCommandCall(cmd, operands);
-	}
+        return new SqlCommandCall(cmd, operands);
+    }
 
-	private static Optional<SqlCommandCall> parseByRegexMatching(String stmt) {
-		// parse statement via regex matching
-		for (SqlCommand cmd : SqlCommand.values()) {
-			if (cmd.hasRegexPattern()) {
-				final Matcher matcher = cmd.pattern.matcher(stmt);
-				if (matcher.matches()) {
-					final String[] groups = new String[matcher.groupCount()];
-					for (int i = 0; i < groups.length; i++) {
-						groups[i] = matcher.group(i + 1);
-					}
-					return cmd.operandConverter.apply(groups)
-							.map((operands) -> {
-								String[] newOperands = operands;
-								if (cmd == SqlCommand.EXPLAIN) {
-									// convert `explain xx` to `explain plan for xx`
-									// which can execute through executeSql method
-									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] + " "  + operands[1] };
-								}
-								return new SqlCommandCall(cmd, newOperands);
-							});
-				}
-			}
-		}
-		return Optional.empty();
-	}
+    private static Optional<SqlCommandCall> parseByRegexMatching(String stmt) {
+        // parse statement via regex matching
+        for (SqlCommand cmd : SqlCommand.values()) {
+            if (cmd.hasRegexPattern()) {
+                final Matcher matcher = cmd.pattern.matcher(stmt);
+                if (matcher.matches()) {
+                    final String[] groups = new String[matcher.groupCount()];
+                    for (int i = 0; i < groups.length; i++) {
+                        groups[i] = matcher.group(i + 1);
+                    }
+                    return cmd.operandConverter
+                            .apply(groups)
+                            .map(
+                                    (operands) -> {
+                                        String[] newOperands = operands;
+                                        if (cmd == SqlCommand.EXPLAIN) {
+                                            // convert `explain xx` to `explain plan for xx`
+                                            // which can execute through executeSql method
+                                            newOperands =
+                                                    new String[] {
+                                                        "EXPLAIN PLAN FOR "
+                                                                + operands[0]
+                                                                + " "
+                                                                + operands[1]
+                                                    };
+                                        }
+                                        return new SqlCommandCall(cmd, newOperands);
+                                    });
+                }
+            }
+        }
+        return Optional.empty();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static final Function<String[], Optional<String[]>> NO_OPERANDS =
-		(operands) -> Optional.of(new String[0]);
+    private static final Function<String[], Optional<String[]>> NO_OPERANDS =
+            (operands) -> Optional.of(new String[0]);
 
-	private static final Function<String[], Optional<String[]>> SINGLE_OPERAND =
-		(operands) -> Optional.of(new String[]{operands[0]});
+    private static final Function<String[], Optional<String[]>> SINGLE_OPERAND =
+            (operands) -> Optional.of(new String[] {operands[0]});
 
-	private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
+    private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 
-	/**
-	 * Supported SQL commands.
-	 */
-	enum SqlCommand {
-		QUIT(
-			"(QUIT|EXIT)",
-			NO_OPERANDS),
+    /** Supported SQL commands. */
+    enum SqlCommand {
+        QUIT("(QUIT|EXIT)", NO_OPERANDS),
 
-		CLEAR(
-			"CLEAR",
-			NO_OPERANDS),
+        CLEAR("CLEAR", NO_OPERANDS),
 
-		HELP(
-			"HELP",
-			NO_OPERANDS),
+        HELP("HELP", NO_OPERANDS),
 
-		SHOW_CATALOGS,
+        SHOW_CATALOGS,
 
-		SHOW_CURRENT_CATALOG,
+        SHOW_CURRENT_CATALOG,
 
-		SHOW_DATABASES,
+        SHOW_DATABASES,
 
-		SHOW_CURRENT_DATABASE,
+        SHOW_CURRENT_DATABASE,
 
-		SHOW_TABLES,
+        SHOW_TABLES,
 
-		SHOW_FUNCTIONS,
+        SHOW_VIEWS,
 
-		// FLINK-17396
-		SHOW_MODULES(
-			"SHOW\\s+MODULES",
-			NO_OPERANDS),
+        SHOW_FUNCTIONS,
 
-		SHOW_PARTITIONS,
+        SHOW_MODULES,
 
-		USE_CATALOG,
+        LOAD_MODULE,
 
-		USE,
+        UNLOAD_MODULE,
 
-		CREATE_CATALOG,
+        USE_MODULES,
 
-		DROP_CATALOG,
+        SHOW_PARTITIONS,
 
-		DESC(
-			"DESC\\s+(.*)",
-			SINGLE_OPERAND),
+        USE_CATALOG,
 
-		DESCRIBE,
+        USE,
 
-		// supports both `explain xx` and `explain plan for xx` now
-		// TODO should keep `explain xx` ?
-		// only match "EXPLAIN SELECT xx" and "EXPLAIN INSERT xx" here
-		// "EXPLAIN PLAN FOR xx" should be parsed via sql parser
-		EXPLAIN(
-			"EXPLAIN\\s+(SELECT|INSERT)\\s+(.*)",
-			(operands) -> {
-				return Optional.of(new String[] { operands[0], operands[1] });
-			}),
+        CREATE_CATALOG,
 
-		CREATE_DATABASE,
+        DROP_CATALOG,
 
-		DROP_DATABASE,
+        DESC("DESC\\s+(.*)", SINGLE_OPERAND),
 
-		ALTER_DATABASE,
+        DESCRIBE,
 
-		CREATE_TABLE,
+        // supports both `explain xx` and `explain plan for xx` now
+        // TODO should keep `explain xx` ?
+        // only match "EXPLAIN SELECT xx" and "EXPLAIN INSERT xx" here
+        // "EXPLAIN PLAN FOR xx" should be parsed via sql parser
+        EXPLAIN(
+                "EXPLAIN\\s+(SELECT|INSERT)\\s+(.*)",
+                (operands) -> {
+                    return Optional.of(new String[] {operands[0], operands[1]});
+                }),
 
-		DROP_TABLE,
+        CREATE_DATABASE,
 
-		ALTER_TABLE,
+        DROP_DATABASE,
 
-		CREATE_VIEW,
+        ALTER_DATABASE,
 
-		DROP_VIEW,
+        CREATE_TABLE,
 
-		ALTER_VIEW,
+        DROP_TABLE,
 
-		CREATE_FUNCTION,
+        ALTER_TABLE,
 
-		DROP_FUNCTION,
+        CREATE_VIEW,
 
-		ALTER_FUNCTION,
+        DROP_VIEW,
 
-		SELECT,
+        ALTER_VIEW,
 
-		INSERT_INTO,
+        CREATE_FUNCTION,
 
-		INSERT_OVERWRITE,
+        DROP_FUNCTION,
 
-		SET(
-			"SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='
-			(operands) -> {
-				if (operands.length < 3) {
-					return Optional.empty();
-				} else if (operands[0] == null) {
-					return Optional.of(new String[0]);
-				}
-				return Optional.of(new String[]{operands[1], operands[2]});
-			}),
+        ALTER_FUNCTION,
 
-		RESET(
-			"RESET",
-			NO_OPERANDS),
+        SELECT,
 
-		SOURCE(
-			"SOURCE\\s+(.*)",
-			SINGLE_OPERAND);
+        INSERT_INTO,
 
-		public final @Nullable Pattern pattern;
-		public final @Nullable Function<String[], Optional<String[]>> operandConverter;
+        INSERT_OVERWRITE,
 
-		SqlCommand() {
-			this.pattern = null;
-			this.operandConverter = null;
-		}
+        SET(
+                "SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='
+                (operands) -> {
+                    if (operands.length < 3) {
+                        return Optional.empty();
+                    } else if (operands[0] == null) {
+                        return Optional.of(new String[0]);
+                    }
+                    return Optional.of(new String[] {operands[1], operands[2]});
+                }),
 
-		SqlCommand(String matchingRegex, Function<String[], Optional<String[]>> operandConverter) {
-			this.pattern = Pattern.compile(matchingRegex, DEFAULT_PATTERN_FLAGS);
-			this.operandConverter = operandConverter;
-		}
+        RESET("RESET", NO_OPERANDS),
 
-		@Override
-		public String toString() {
-			return super.toString().replace('_', ' ');
-		}
+        SOURCE("SOURCE\\s+(.*)", SINGLE_OPERAND);
 
-		public boolean hasOperands() {
-			return operandConverter != NO_OPERANDS;
-		}
+        public final @Nullable Pattern pattern;
+        public final @Nullable Function<String[], Optional<String[]>> operandConverter;
 
-		public boolean hasRegexPattern() {
-			return pattern != null;
-		}
-	}
+        SqlCommand() {
+            this.pattern = null;
+            this.operandConverter = null;
+        }
 
-	/**
-	 * Call of SQL command with operands and command type.
-	 */
-	public static class SqlCommandCall {
-		public final SqlCommand command;
-		public final String[] operands;
+        SqlCommand(String matchingRegex, Function<String[], Optional<String[]>> operandConverter) {
+            this.pattern = Pattern.compile(matchingRegex, DEFAULT_PATTERN_FLAGS);
+            this.operandConverter = operandConverter;
+        }
 
-		public SqlCommandCall(SqlCommand command, String[] operands) {
-			this.command = command;
-			this.operands = operands;
-		}
+        @Override
+        public String toString() {
+            return super.toString().replace('_', ' ');
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			SqlCommandCall that = (SqlCommandCall) o;
-			return command == that.command && Arrays.equals(operands, that.operands);
-		}
+        public boolean hasOperands() {
+            return operandConverter != NO_OPERANDS;
+        }
 
-		@Override
-		public int hashCode() {
-			int result = Objects.hash(command);
-			result = 31 * result + Arrays.hashCode(operands);
-			return result;
-		}
+        public boolean hasRegexPattern() {
+            return pattern != null;
+        }
+    }
 
-		@Override
-		public String toString() {
-			return command + "(" + Arrays.toString(operands) + ")";
-		}
-	}
+    /** Call of SQL command with operands and command type. */
+    public static class SqlCommandCall {
+        public final SqlCommand command;
+        public final String[] operands;
+
+        public SqlCommandCall(SqlCommand command, String[] operands) {
+            this.command = command;
+            this.operands = operands;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SqlCommandCall that = (SqlCommandCall) o;
+            return command == that.command && Arrays.equals(operands, that.operands);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(command);
+            result = 31 * result + Arrays.hashCode(operands);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return command + "(" + Arrays.toString(operands) + ")";
+        }
+    }
 }

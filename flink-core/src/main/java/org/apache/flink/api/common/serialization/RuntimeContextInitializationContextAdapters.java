@@ -26,102 +26,95 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.util.function.Function;
 
 /**
- * A set of adapters between {@link RuntimeContext}
- * and {@link DeserializationSchema.InitializationContext}
- * or {@link SerializationSchema.InitializationContext}.
+ * A set of adapters between {@link RuntimeContext} and {@link
+ * DeserializationSchema.InitializationContext} or {@link
+ * SerializationSchema.InitializationContext}.
  */
 @Internal
 public final class RuntimeContextInitializationContextAdapters {
-	public static DeserializationSchema.InitializationContext deserializationAdapter(
-			RuntimeContext runtimeContext) {
-		return deserializationAdapter(runtimeContext, Function.identity());
-	}
+    public static DeserializationSchema.InitializationContext deserializationAdapter(
+            RuntimeContext runtimeContext) {
+        return deserializationAdapter(runtimeContext, Function.identity());
+    }
 
-	public static DeserializationSchema.InitializationContext deserializationAdapter(
-			RuntimeContext runtimeContext,
-			Function<MetricGroup, MetricGroup> mapMetricGroup) {
-		return new RuntimeContextDeserializationInitializationContextAdapter(
-				runtimeContext,
-				mapMetricGroup);
-	}
+    public static DeserializationSchema.InitializationContext deserializationAdapter(
+            RuntimeContext runtimeContext, Function<MetricGroup, MetricGroup> mapMetricGroup) {
+        return new RuntimeContextDeserializationInitializationContextAdapter(
+                runtimeContext, mapMetricGroup);
+    }
 
-	public static SerializationSchema.InitializationContext serializationAdapter(
-			RuntimeContext runtimeContext) {
-		return serializationAdapter(runtimeContext, Function.identity());
-	}
+    public static SerializationSchema.InitializationContext serializationAdapter(
+            RuntimeContext runtimeContext) {
+        return serializationAdapter(runtimeContext, Function.identity());
+    }
 
-	public static SerializationSchema.InitializationContext serializationAdapter(
-			RuntimeContext runtimeContext,
-			Function<MetricGroup, MetricGroup> mapMetricGroup) {
-		return new RuntimeContextSerializationInitializationContextAdapter(
-				runtimeContext,
-				mapMetricGroup);
-	}
+    public static SerializationSchema.InitializationContext serializationAdapter(
+            RuntimeContext runtimeContext, Function<MetricGroup, MetricGroup> mapMetricGroup) {
+        return new RuntimeContextSerializationInitializationContextAdapter(
+                runtimeContext, mapMetricGroup);
+    }
 
-	private static final class RuntimeContextDeserializationInitializationContextAdapter
-			implements DeserializationSchema.InitializationContext {
-		private final RuntimeContext runtimeContext;
-		private final Function<MetricGroup, MetricGroup> mapMetricGroup;
+    private static final class RuntimeContextDeserializationInitializationContextAdapter
+            implements DeserializationSchema.InitializationContext {
+        private final RuntimeContext runtimeContext;
+        private final Function<MetricGroup, MetricGroup> mapMetricGroup;
 
-		private RuntimeContextDeserializationInitializationContextAdapter(
-				RuntimeContext runtimeContext,
-				Function<MetricGroup, MetricGroup> mapMetricGroup) {
-			this.runtimeContext = runtimeContext;
-			this.mapMetricGroup = mapMetricGroup;
-		}
+        private RuntimeContextDeserializationInitializationContextAdapter(
+                RuntimeContext runtimeContext, Function<MetricGroup, MetricGroup> mapMetricGroup) {
+            this.runtimeContext = runtimeContext;
+            this.mapMetricGroup = mapMetricGroup;
+        }
 
-		@Override
-		public MetricGroup getMetricGroup() {
-			return mapMetricGroup.apply(runtimeContext.getMetricGroup());
-		}
+        @Override
+        public MetricGroup getMetricGroup() {
+            return mapMetricGroup.apply(runtimeContext.getMetricGroup());
+        }
 
-		@Override
-		public UserCodeClassLoader getUserCodeClassLoader() {
-			return new RuntimeContextUserCodeClassLoaderAdapter(runtimeContext);
-		}
-	}
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return new RuntimeContextUserCodeClassLoaderAdapter(runtimeContext);
+        }
+    }
 
-	private static final class RuntimeContextSerializationInitializationContextAdapter
-			implements SerializationSchema.InitializationContext {
-		private final RuntimeContext runtimeContext;
-		private final Function<MetricGroup, MetricGroup> mapMetricGroup;
+    private static final class RuntimeContextSerializationInitializationContextAdapter
+            implements SerializationSchema.InitializationContext {
+        private final RuntimeContext runtimeContext;
+        private final Function<MetricGroup, MetricGroup> mapMetricGroup;
 
-		private RuntimeContextSerializationInitializationContextAdapter(
-				RuntimeContext runtimeContext,
-				Function<MetricGroup, MetricGroup> mapMetricGroup) {
-			this.runtimeContext = runtimeContext;
-			this.mapMetricGroup = mapMetricGroup;
-		}
+        private RuntimeContextSerializationInitializationContextAdapter(
+                RuntimeContext runtimeContext, Function<MetricGroup, MetricGroup> mapMetricGroup) {
+            this.runtimeContext = runtimeContext;
+            this.mapMetricGroup = mapMetricGroup;
+        }
 
-		@Override
-		public MetricGroup getMetricGroup() {
-			return mapMetricGroup.apply(runtimeContext.getMetricGroup());
-		}
+        @Override
+        public MetricGroup getMetricGroup() {
+            return mapMetricGroup.apply(runtimeContext.getMetricGroup());
+        }
 
-		@Override
-		public UserCodeClassLoader getUserCodeClassLoader() {
-			return new RuntimeContextUserCodeClassLoaderAdapter(runtimeContext);
-		}
-	}
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return new RuntimeContextUserCodeClassLoaderAdapter(runtimeContext);
+        }
+    }
 
-	private static final class RuntimeContextUserCodeClassLoaderAdapter
-			implements UserCodeClassLoader {
-		private final RuntimeContext runtimeContext;
+    private static final class RuntimeContextUserCodeClassLoaderAdapter
+            implements UserCodeClassLoader {
+        private final RuntimeContext runtimeContext;
 
-		private RuntimeContextUserCodeClassLoaderAdapter(RuntimeContext runtimeContext) {
-			this.runtimeContext = runtimeContext;
-		}
+        private RuntimeContextUserCodeClassLoaderAdapter(RuntimeContext runtimeContext) {
+            this.runtimeContext = runtimeContext;
+        }
 
-		@Override
-		public ClassLoader asClassLoader() {
-			return runtimeContext.getUserCodeClassLoader();
-		}
+        @Override
+        public ClassLoader asClassLoader() {
+            return runtimeContext.getUserCodeClassLoader();
+        }
 
-		@Override
-		public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
-			runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(
-					releaseHookName,
-					releaseHook);
-		}
-	}
+        @Override
+        public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+            runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(
+                    releaseHookName, releaseHook);
+        }
+    }
 }

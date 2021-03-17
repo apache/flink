@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
@@ -34,38 +34,46 @@ import java.util.ArrayList;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
-/**
- * A utility class for creating an instance of {@link FlinkPlannerImpl} for testing.
- */
+/** A utility class for creating an instance of {@link FlinkPlannerImpl} for testing. */
 public class PlannerMocks {
-	public static FlinkPlannerImpl createDefaultPlanner() {
-		final boolean isStreamingMode = false;
-		TableConfig tableConfig = new TableConfig();
-		CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-		ModuleManager moduleManager = new ModuleManager();
-		FunctionCatalog functionCatalog = new FunctionCatalog(
-				tableConfig,
-				catalogManager,
-				moduleManager);
-		PlannerContext plannerContext = new PlannerContext(
-				tableConfig,
-				functionCatalog,
-				catalogManager,
-				asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-				new ArrayList<>());
-		FlinkPlannerImpl planner = plannerContext.createFlinkPlanner(
-				catalogManager.getCurrentCatalog(),
-				catalogManager.getCurrentDatabase());
-		Parser parser = new ParserImpl(
-				catalogManager,
-				() -> planner,
-				planner::parser,
-				t -> plannerContext.createSqlExprToRexConverter(plannerContext.getTypeFactory().buildRelNodeRowType(t))
-		);
-		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, isStreamingMode));
-		return planner;
-	}
+    public static FlinkPlannerImpl createDefaultPlanner() {
+        final boolean isStreamingMode = false;
+        TableConfig tableConfig = new TableConfig();
+        CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        ModuleManager moduleManager = new ModuleManager();
+        FunctionCatalog functionCatalog =
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        PlannerContext plannerContext =
+                new PlannerContext(
+                        tableConfig,
+                        functionCatalog,
+                        catalogManager,
+                        asRootSchema(
+                                new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+                        new ArrayList<>());
+        FlinkPlannerImpl planner =
+                plannerContext.createFlinkPlanner(
+                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        Parser parser =
+                new ParserImpl(
+                        catalogManager,
+                        () -> planner,
+                        planner::parser,
+                        t ->
+                                plannerContext.createSqlExprToRexConverter(
+                                        plannerContext.getTypeFactory().buildRelNodeRowType(t)));
+        catalogManager.initSchemaResolver(
+                isStreamingMode,
+                ExpressionResolver.resolverFor(
+                        tableConfig,
+                        name -> {
+                            throw new UnsupportedOperationException();
+                        },
+                        functionCatalog.asLookup(parser::parseIdentifier),
+                        catalogManager.getDataTypeFactory(),
+                        parser::parseSqlExpression));
+        return planner;
+    }
 
-	private PlannerMocks() {
-	}
+    private PlannerMocks() {}
 }

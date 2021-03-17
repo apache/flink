@@ -45,102 +45,123 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Fenced extension of the {@link AkkaInvocationHandler}. This invocation handler will be used in combination
- * with the {@link FencedRpcEndpoint}. The fencing is done by wrapping all messages in a {@link FencedMessage}.
+ * Fenced extension of the {@link AkkaInvocationHandler}. This invocation handler will be used in
+ * combination with the {@link FencedRpcEndpoint}. The fencing is done by wrapping all messages in a
+ * {@link FencedMessage}.
  *
  * @param <F> type of the fencing token
  */
-public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInvocationHandler implements FencedMainThreadExecutable, FencedRpcGateway<F> {
+public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInvocationHandler
+        implements FencedMainThreadExecutable, FencedRpcGateway<F> {
 
-	private final Supplier<F> fencingTokenSupplier;
+    private final Supplier<F> fencingTokenSupplier;
 
-	public FencedAkkaInvocationHandler(
-			String address,
-			String hostname,
-			ActorRef rpcEndpoint,
-			Time timeout,
-			long maximumFramesize,
-			@Nullable CompletableFuture<Void> terminationFuture,
-			Supplier<F> fencingTokenSupplier,
-			boolean captureAskCallStacks) {
-		super(address, hostname, rpcEndpoint, timeout, maximumFramesize, terminationFuture, captureAskCallStacks);
+    public FencedAkkaInvocationHandler(
+            String address,
+            String hostname,
+            ActorRef rpcEndpoint,
+            Time timeout,
+            long maximumFramesize,
+            @Nullable CompletableFuture<Void> terminationFuture,
+            Supplier<F> fencingTokenSupplier,
+            boolean captureAskCallStacks) {
+        super(
+                address,
+                hostname,
+                rpcEndpoint,
+                timeout,
+                maximumFramesize,
+                terminationFuture,
+                captureAskCallStacks);
 
-		this.fencingTokenSupplier = Preconditions.checkNotNull(fencingTokenSupplier);
-	}
+        this.fencingTokenSupplier = Preconditions.checkNotNull(fencingTokenSupplier);
+    }
 
-	@Override
-	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-		Class<?> declaringClass = method.getDeclaringClass();
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        Class<?> declaringClass = method.getDeclaringClass();
 
-		if (declaringClass.equals(FencedMainThreadExecutable.class) ||
-			declaringClass.equals(FencedRpcGateway.class)) {
-			return method.invoke(this, args);
-		} else {
-			return super.invoke(proxy, method, args);
-		}
-	}
+        if (declaringClass.equals(FencedMainThreadExecutable.class)
+                || declaringClass.equals(FencedRpcGateway.class)) {
+            return method.invoke(this, args);
+        } else {
+            return super.invoke(proxy, method, args);
+        }
+    }
 
-	@Override
-	public void runAsyncWithoutFencing(Runnable runnable) {
-		checkNotNull(runnable, "runnable");
+    @Override
+    public void runAsyncWithoutFencing(Runnable runnable) {
+        checkNotNull(runnable, "runnable");
 
-		if (isLocal) {
-			getActorRef().tell(
-				new UnfencedMessage<>(new RunAsync(runnable, 0L)), ActorRef.noSender());
-		} else {
-			throw new RuntimeException("Trying to send a Runnable to a remote actor at " +
-				getActorRef().path() + ". This is not supported.");
-		}
-	}
+        if (isLocal) {
+            getActorRef()
+                    .tell(new UnfencedMessage<>(new RunAsync(runnable, 0L)), ActorRef.noSender());
+        } else {
+            throw new RuntimeException(
+                    "Trying to send a Runnable to a remote actor at "
+                            + getActorRef().path()
+                            + ". This is not supported.");
+        }
+    }
 
-	@Override
-	public <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout) {
-		checkNotNull(callable, "callable");
-		checkNotNull(timeout, "timeout");
+    @Override
+    public <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout) {
+        checkNotNull(callable, "callable");
+        checkNotNull(timeout, "timeout");
 
-		if (isLocal) {
-			@SuppressWarnings("unchecked")
-			CompletableFuture<V> resultFuture = (CompletableFuture<V>) FutureUtils.toJava(
-				Patterns.ask(
-					getActorRef(),
-					new UnfencedMessage<>(new CallAsync(callable)),
-					timeout.toMilliseconds()));
+        if (isLocal) {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<V> resultFuture =
+                    (CompletableFuture<V>)
+                            FutureUtils.toJava(
+                                    Patterns.ask(
+                                            getActorRef(),
+                                            new UnfencedMessage<>(new CallAsync(callable)),
+                                            timeout.toMilliseconds()));
 
-			return resultFuture;
-		} else {
-			throw new RuntimeException("Trying to send a Runnable to a remote actor at " +
-				getActorRef().path() + ". This is not supported.");
-		}
-	}
+            return resultFuture;
+        } else {
+            throw new RuntimeException(
+                    "Trying to send a Runnable to a remote actor at "
+                            + getActorRef().path()
+                            + ". This is not supported.");
+        }
+    }
 
-	@Override
-	public void tell(Object message) {
-		super.tell(fenceMessage(message));
-	}
+    @Override
+    public void tell(Object message) {
+        super.tell(fenceMessage(message));
+    }
 
-	@Override
-	public CompletableFuture<?> ask(Object message, Time timeout) {
-		return super.ask(fenceMessage(message), timeout);
-	}
+    @Override
+    public CompletableFuture<?> ask(Object message, Time timeout) {
+        return super.ask(fenceMessage(message), timeout);
+    }
 
-	@Override
-	public F getFencingToken() {
-		return fencingTokenSupplier.get();
-	}
+    @Override
+    public F getFencingToken() {
+        return fencingTokenSupplier.get();
+    }
 
-	private <P> FencedMessage<F, P> fenceMessage(P message) {
-		if (isLocal) {
-			return new LocalFencedMessage<>(fencingTokenSupplier.get(), message);
-		} else {
-			if (message instanceof Serializable) {
-				@SuppressWarnings("unchecked")
-				FencedMessage<F, P> result = (FencedMessage<F, P>) new RemoteFencedMessage<>(fencingTokenSupplier.get(), (Serializable) message);
+    private <P> FencedMessage<F, P> fenceMessage(P message) {
+        if (isLocal) {
+            return new LocalFencedMessage<>(fencingTokenSupplier.get(), message);
+        } else {
+            if (message instanceof Serializable) {
+                @SuppressWarnings("unchecked")
+                FencedMessage<F, P> result =
+                        (FencedMessage<F, P>)
+                                new RemoteFencedMessage<>(
+                                        fencingTokenSupplier.get(), (Serializable) message);
 
-				return result;
-			} else {
-				throw new RuntimeException("Trying to send a non-serializable message " + message + " to a remote " +
-					"RpcEndpoint. Please make sure that the message implements java.io.Serializable.");
-			}
-		}
-	}
+                return result;
+            } else {
+                throw new RuntimeException(
+                        "Trying to send a non-serializable message "
+                                + message
+                                + " to a remote "
+                                + "RpcEndpoint. Please make sure that the message implements java.io.Serializable.");
+            }
+        }
+    }
 }

@@ -26,104 +26,101 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Simple {@link ScheduledExecutor} implementation for testing purposes.
- */
+/** Simple {@link ScheduledExecutor} implementation for testing purposes. */
 public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 
-	/**
-	 * The service that we redirect to. We wrap this rather than extending it to limit the
-	 * surfaced interface.
-	 */
-	org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService execService =
-			new org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService();
+    /**
+     * The service that we redirect to. We wrap this rather than extending it to limit the surfaced
+     * interface.
+     */
+    org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService execService =
+            new org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService();
 
-	@Override
-	public void execute(@Nonnull Runnable command) {
-		execService.execute(command);
-	}
+    @Override
+    public void execute(@Nonnull Runnable command) {
+        execService.execute(command);
+    }
 
-	/** Triggers all {@code queuedRunnables}. */
-	public void triggerAll() {
-		execService.triggerAll();
-	}
+    /** Triggers all {@code queuedRunnables}. */
+    public void triggerAll() {
+        execService.triggerAll();
+    }
 
-	/**
-	 * Triggers the next queued runnable and executes it synchronously.
-	 * This method throws an exception if no Runnable is currently queued.
-	 */
-	public void trigger() {
-		execService.trigger();
-	}
+    /**
+     * Triggers the next queued runnable and executes it synchronously. This method throws an
+     * exception if no Runnable is currently queued.
+     */
+    public void trigger() {
+        execService.trigger();
+    }
 
-	/**
-	 * Gets the number of Runnables currently queued.
-	 */
-	public int numQueuedRunnables() {
-		return execService.numQueuedRunnables();
-	}
+    /** Gets the number of Runnables currently queued. */
+    public int numQueuedRunnables() {
+        return execService.numQueuedRunnables();
+    }
 
-	@Override
-	public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-		return execService.schedule(command, delay, unit);
-	}
+    @Override
+    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+        return execService.schedule(command, delay, unit);
+    }
 
-	@Override
-	public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-		return execService.schedule(callable, delay, unit);
-	}
+    @Override
+    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+        return execService.schedule(callable, delay, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-		return execService.scheduleAtFixedRate(command, initialDelay, period, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+            Runnable command, long initialDelay, long period, TimeUnit unit) {
+        return execService.scheduleAtFixedRate(command, initialDelay, period, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-		return execService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+            Runnable command, long initialDelay, long delay, TimeUnit unit) {
+        return execService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+    }
 
-	public Collection<ScheduledFuture<?>> getScheduledTasks() {
-		return execService.getScheduledTasks();
-	}
+    public Collection<ScheduledFuture<?>> getScheduledTasks() {
+        return execService.getScheduledTasks();
+    }
 
-	public Collection<ScheduledFuture<?>> getPeriodicScheduledTask() {
-		return execService.getPeriodicScheduledTask();
-	}
+    public Collection<ScheduledFuture<?>> getPeriodicScheduledTask() {
+        return execService.getPeriodicScheduledTask();
+    }
 
-	public Collection<ScheduledFuture<?>> getNonPeriodicScheduledTask() {
-		return execService.getNonPeriodicScheduledTask();
-	}
+    public Collection<ScheduledFuture<?>> getNonPeriodicScheduledTask() {
+        return execService.getNonPeriodicScheduledTask();
+    }
 
-	/**
-	 * Triggers all registered tasks.
-	 */
-	public void triggerScheduledTasks() {
-		execService.triggerScheduledTasks();
-	}
+    /** Triggers all registered tasks. */
+    public void triggerScheduledTasks() {
+        execService.triggerScheduledTasks();
+    }
 
-	/**
-	 * Triggers a single non-periodically scheduled task.
-	 *
-	 * @throws NoSuchElementException If there is no such task.
-	 */
-	public void triggerNonPeriodicScheduledTask() {
-		execService.triggerNonPeriodicScheduledTask();
-	}
+    /**
+     * Triggers a single non-periodically scheduled task.
+     *
+     * @throws NoSuchElementException If there is no such task.
+     */
+    public void triggerNonPeriodicScheduledTask() {
+        execService.triggerNonPeriodicScheduledTask();
+    }
 
-	/**
-	 * Triggers all non-periodically scheduled tasks. In contrast to {@link #triggerNonPeriodicScheduledTasks()},
-	 * if such a task schedules another non-periodically schedule task, then this new task will also be triggered.
-	 */
-	public void triggerNonPeriodicScheduledTasksWithRecursion() {
-		execService.triggerNonPeriodicScheduledTasksWithRecursion();
-	}
+    /**
+     * Triggers all non-periodically scheduled tasks. In contrast to {@link
+     * #triggerNonPeriodicScheduledTasks()}, if such a task schedules another non-periodically
+     * schedule task, then this new task will also be triggered.
+     */
+    public void triggerNonPeriodicScheduledTasksWithRecursion() {
+        execService.triggerNonPeriodicScheduledTasksWithRecursion();
+    }
 
-	public void triggerNonPeriodicScheduledTasks() {
-		execService.triggerNonPeriodicScheduledTasks();
-	}
+    public void triggerNonPeriodicScheduledTasks() {
+        execService.triggerNonPeriodicScheduledTasks();
+    }
 
-	public void triggerPeriodicScheduledTasks() {
-		execService.triggerPeriodicScheduledTasks();
-	}
+    public void triggerPeriodicScheduledTasks() {
+        execService.triggerPeriodicScheduledTasks();
+    }
 }

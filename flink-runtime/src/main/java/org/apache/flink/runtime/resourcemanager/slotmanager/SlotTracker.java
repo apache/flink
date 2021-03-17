@@ -27,76 +27,77 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 
-/**
- * Tracks slots and their {@link SlotState}.
- */
+/** Tracks slots and their {@link SlotState}. */
 interface SlotTracker {
 
-	/**
-	 * Registers the given listener with this tracker.
-	 *
-	 * @param slotStatusUpdateListener listener to register
-	 */
-	void registerSlotStatusUpdateListener(SlotStatusUpdateListener slotStatusUpdateListener);
+    /**
+     * Registers the given listener with this tracker.
+     *
+     * @param slotStatusUpdateListener listener to register
+     */
+    void registerSlotStatusUpdateListener(SlotStatusUpdateListener slotStatusUpdateListener);
 
-	/**
-	 * Adds the given slot to this tracker. The given slot may already be allocated for a job.
-	 * This method must be called before the tracker is notified of any state transition or slot status notification.
-	 *
-	 * @param slotId ID of the slot
-	 * @param resourceProfile resource of the slot
-	 * @param taskManagerConnection connection to the hosting task executor
-	 * @param initialJob job that the slot is allocated for, or null if it is free
-	 */
-	void addSlot(
-		SlotID slotId,
-		ResourceProfile resourceProfile,
-		TaskExecutorConnection taskManagerConnection,
-		@Nullable JobID initialJob);
+    /**
+     * Adds the given slot to this tracker. The given slot may already be allocated for a job. This
+     * method must be called before the tracker is notified of any state transition or slot status
+     * notification.
+     *
+     * @param slotId ID of the slot
+     * @param resourceProfile resource of the slot
+     * @param taskManagerConnection connection to the hosting task executor
+     * @param initialJob job that the slot is allocated for, or null if it is free
+     */
+    void addSlot(
+            SlotID slotId,
+            ResourceProfile resourceProfile,
+            TaskExecutorConnection taskManagerConnection,
+            @Nullable JobID initialJob);
 
-	/**
-	 * Removes the given set of slots from the slot manager. If a removed slot was not free at the time of removal, then
-	 * this method will automatically transition the slot to a free state.
-	 *
-	 * @param slotsToRemove identifying the slots to remove from the slot manager
-	 */
-	void removeSlots(Iterable<SlotID> slotsToRemove);
+    /**
+     * Removes the given set of slots from the slot manager. If a removed slot was not free at the
+     * time of removal, then this method will automatically transition the slot to a free state.
+     *
+     * @param slotsToRemove identifying the slots to remove from the slot manager
+     */
+    void removeSlots(Iterable<SlotID> slotsToRemove);
 
-	/**
-	 * Notifies the tracker that the allocation for the given slot, for the given job, has started.
-	 *
-	 * @param slotId slot being allocated
-	 * @param jobId job for which the slot is being allocated
-	 */
-	void notifyAllocationStart(SlotID slotId, JobID jobId);
+    /**
+     * Notifies the tracker that the allocation for the given slot, for the given job, has started.
+     *
+     * @param slotId slot being allocated
+     * @param jobId job for which the slot is being allocated
+     */
+    void notifyAllocationStart(SlotID slotId, JobID jobId);
 
-	/**
-	 * Notifies the tracker that the allocation for the given slot, for the given job, has completed successfully.
-	 *
-	 * @param slotId slot being allocated
-	 * @param jobId job for which the slot is being allocated
-	 */
-	void notifyAllocationComplete(SlotID slotId, JobID jobId);
+    /**
+     * Notifies the tracker that the allocation for the given slot, for the given job, has completed
+     * successfully.
+     *
+     * @param slotId slot being allocated
+     * @param jobId job for which the slot is being allocated
+     */
+    void notifyAllocationComplete(SlotID slotId, JobID jobId);
 
-	/**
-	 * Notifies the tracker that the given slot was freed.
-	 *
-	 * @param slotId slot being freed
-	 */
-	void notifyFree(SlotID slotId);
+    /**
+     * Notifies the tracker that the given slot was freed.
+     *
+     * @param slotId slot being freed
+     */
+    void notifyFree(SlotID slotId);
 
-	/**
-	 * Notifies the tracker about the slot statuses.
-	 *
-	 * @param slotStatuses slot statues
-	 */
-	void notifySlotStatus(Iterable<SlotStatus> slotStatuses);
+    /**
+     * Notifies the tracker about the slot statuses.
+     *
+     * @param slotStatuses slot statues
+     * @return whether any slot status has changed
+     */
+    boolean notifySlotStatus(Iterable<SlotStatus> slotStatuses);
 
-	/**
-	 * Returns a view over free slots. The returned collection cannot be modified directly, but reflects changes to the
-	 * set of free slots.
-	 *
-	 * @return free slots
-	 */
-	Collection<TaskManagerSlotInformation> getFreeSlots();
+    /**
+     * Returns a view over free slots. The returned collection cannot be modified directly, but
+     * reflects changes to the set of free slots.
+     *
+     * @return free slots
+     */
+    Collection<TaskManagerSlotInformation> getFreeSlots();
 }

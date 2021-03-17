@@ -37,145 +37,149 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
-/**
- * Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}.
- */
-public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
+/** Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}. */
+public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
+        extends ProcTimeDeduplicateFunctionTestBase {
 
-	private TypeSerializer<RowData> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
+    private TypeSerializer<RowData> typeSerializer =
+            inputRowType.createSerializer(new ExecutionConfig());
 
-	private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
-			boolean generateUpdateBefore,
-			boolean generateInsert,
-			long minRetentionTime) {
-		return new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
-				inputRowType,
-				typeSerializer,
-				minRetentionTime,
-				generateUpdateBefore,
-				generateInsert,
-				true);
-	}
+    private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
+            boolean generateUpdateBefore, boolean generateInsert, long minRetentionTime) {
 
-	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			ProcTimeMiniBatchDeduplicateKeepLastRowFunction func)
-			throws Exception {
-		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
-		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
-		return new KeyedOneInputStreamOperatorTestHarness<>(op, rowKeySelector, rowKeySelector.getProducedType());
-	}
+        return new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
+                inputRowType,
+                typeSerializer,
+                minRetentionTime,
+                generateUpdateBefore,
+                generateInsert,
+                true,
+                generatedEqualiser);
+    }
 
-	@Test
-	public void testWithoutGenerateUpdateBefore() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, true, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 10));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            ProcTimeMiniBatchDeduplicateKeepLastRowFunction func) throws Exception {
+        CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
+        KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                op, rowKeySelector, rowKeySelector.getProducedType());
+    }
 
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testWithoutGenerateUpdateBefore() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
+                createFunction(false, true, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 10));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 3L, 11));
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("book", 1L, 13));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
-		expectedOutput.add(updateAfterRecord("book", 1L, 12));
-		expectedOutput.add(updateAfterRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 3L, 11));
-		testHarness.close();
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 3L, 11));
 
-	@Test
-	public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, false, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 10));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(updateAfterRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("book", 3L, 11));
+        testHarness.close();
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
+                createFunction(false, false, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 10));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(updateAfterRecord("book", 2L, 11));
-		expectedOutput.add(updateAfterRecord("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 3L, 11));
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(updateAfterRecord("book", 2L, 11));
+        expectedOutput.add(updateAfterRecord("book", 1L, 13));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
-		expectedOutput.add(updateAfterRecord("book", 1L, 12));
-		expectedOutput.add(updateAfterRecord("book", 2L, 11));
-		expectedOutput.add(updateAfterRecord("book", 3L, 11));
-		testHarness.close();
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 3L, 11));
 
-	@Test
-	public void testWithGenerateUpdateBefore() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 10));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(updateAfterRecord("book", 2L, 11));
+        expectedOutput.add(updateAfterRecord("book", 3L, 11));
+        testHarness.close();
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testWithGenerateUpdateBefore() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
+                createFunction(true, true, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 10));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 3L, 11));
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("book", 1L, 13));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 
-		// this will send UPDATE_BEFORE message to downstream
-		expectedOutput.add(updateBeforeRecord("book", 1L, 13));
-		expectedOutput.add(updateAfterRecord("book", 1L, 12));
-		expectedOutput.add(updateBeforeRecord("book", 2L, 11));
-		expectedOutput.add(updateAfterRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 3L, 11));
-		testHarness.close();
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 3L, 11));
 
-	@Test
-	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.setup();
-		testHarness.open();
+        // this will send UPDATE_BEFORE message to downstream
+        expectedOutput.add(updateBeforeRecord("book", 1L, 13));
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(updateBeforeRecord("book", 2L, 11));
+        expectedOutput.add(updateAfterRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("book", 3L, 11));
+        testHarness.close();
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		testHarness.processElement(insertRecord("book", 1L, 10));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
+                createFunction(true, true, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.setup();
+        testHarness.open();
 
-		testHarness.setStateTtlProcessingTime(30);
-		testHarness.processElement(insertRecord("book", 1L, 17));
-		testHarness.processElement(insertRecord("book", 2L, 18));
-		testHarness.processElement(insertRecord("book", 1L, 19));
+        testHarness.processElement(insertRecord("book", 1L, 10));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(insertRecord("book", 1L, 13));
-		// because (2L,11), (1L,13) retired, so no UPDATE_BEFORE message send to downstream
-		expectedOutput.add(insertRecord("book", 1L, 19));
-		expectedOutput.add(insertRecord("book", 2L, 18));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        testHarness.setStateTtlProcessingTime(30);
+        testHarness.processElement(insertRecord("book", 1L, 17));
+        testHarness.processElement(insertRecord("book", 2L, 18));
+        testHarness.processElement(insertRecord("book", 1L, 19));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        expectedOutput.add(insertRecord("book", 1L, 13));
+        // because (2L,11), (1L,13) retired, so no UPDATE_BEFORE message send to downstream
+        expectedOutput.add(insertRecord("book", 1L, 19));
+        expectedOutput.add(insertRecord("book", 2L, 18));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 }

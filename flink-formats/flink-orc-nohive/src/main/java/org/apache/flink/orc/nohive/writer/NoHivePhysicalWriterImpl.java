@@ -28,38 +28,38 @@ import org.apache.orc.OrcProto;
 import java.io.IOException;
 
 /**
- * Protobuf is relocated in orc-core-nohive, therefore method calls involving PB classes need to use the relocated
- * class names here.
+ * Protobuf is relocated in orc-core-nohive, therefore method calls involving PB classes need to use
+ * the relocated class names here.
  */
 public class NoHivePhysicalWriterImpl extends PhysicalWriterImpl {
 
-	// relocated PB class in orc-core-nohive
-	private final CodedOutputStream noHiveProtobufWriter;
+    // relocated PB class in orc-core-nohive
+    private final CodedOutputStream noHiveProtobufWriter;
 
-	public NoHivePhysicalWriterImpl(FSDataOutputStream out, OrcFile.WriterOptions opts) throws IOException {
-		super(out, opts);
-		noHiveProtobufWriter = CodedOutputStream.newInstance(writer);
-	}
+    public NoHivePhysicalWriterImpl(FSDataOutputStream out, OrcFile.WriterOptions opts)
+            throws IOException {
+        super(out, opts);
+        noHiveProtobufWriter = CodedOutputStream.newInstance(writer);
+    }
 
-	@Override
-	protected void writeMetadata(OrcProto.Metadata metadata) throws IOException {
-		metadata.writeTo(noHiveProtobufWriter);
-		noHiveProtobufWriter.flush();
-		writer.flush();
-	}
+    @Override
+    protected void writeMetadata(OrcProto.Metadata metadata) throws IOException {
+        metadata.writeTo(noHiveProtobufWriter);
+        noHiveProtobufWriter.flush();
+        writer.flush();
+    }
 
-	@Override
-	protected void writeFileFooter(OrcProto.Footer footer) throws IOException {
-		footer.writeTo(noHiveProtobufWriter);
-		noHiveProtobufWriter.flush();
-		writer.flush();
-	}
+    @Override
+    protected void writeFileFooter(OrcProto.Footer footer) throws IOException {
+        footer.writeTo(noHiveProtobufWriter);
+        noHiveProtobufWriter.flush();
+        writer.flush();
+    }
 
-	@Override
-	protected void writeStripeFooter(OrcProto.StripeFooter footer) throws IOException {
-		footer.writeTo(noHiveProtobufWriter);
-		noHiveProtobufWriter.flush();
-		writer.flush();
-	}
-
+    @Override
+    protected void writeStripeFooter(OrcProto.StripeFooter footer) throws IOException {
+        footer.writeTo(noHiveProtobufWriter);
+        noHiveProtobufWriter.flush();
+        writer.flush();
+    }
 }

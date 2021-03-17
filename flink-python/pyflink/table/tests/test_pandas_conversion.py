@@ -24,7 +24,7 @@ from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -128,17 +128,21 @@ class PandasConversionITTests(PandasConversionTestBase):
         table.execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"
-                            "1000000000000000000.010000000000000000,2014-09-13,01:00:01,"
-                            "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
-                            "1970-01-01 00:00:00.123,[1, 2]"])
+                           ["+I[1, 1, 1, 1, true, 1.1, 1.2, hello, [97, 97, 97], "
+                            "1000000000000000000.010000000000000000, 2014-09-13, 01:00:01, "
+                            "1970-01-01 00:00:00.123, [hello, 中文], +I[1, hello, "
+                            "1970-01-01 00:00:00.123, [1, 2]]]"])
 
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
         result_pdf.index = self.pdf.index
         self.assertEqual(2, len(result_pdf))
-        assert_frame_equal(self.pdf, result_pdf)
+        expected_arrow = self.pdf.to_records(index=False)
+        result_arrow = result_pdf.to_records(index=False)
+        for r in range(len(expected_arrow)):
+            for e in range(len(expected_arrow[r])):
+                self.assert_equal_field(expected_arrow[r][e], result_arrow[r][e])
 
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
@@ -155,9 +159,21 @@ class PandasConversionITTests(PandasConversionTestBase):
         result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
+    def assert_equal_field(self, expected_field, result_field):
+        import numpy as np
+        result_type = type(result_field)
+        if result_type == dict:
+            self.assertEqual(expected_field.keys(), result_field.keys())
+            for key in expected_field:
+                self.assert_equal_field(expected_field[key], result_field[key])
+        elif result_type == np.ndarray:
+            self.assertTrue((expected_field == result_field).all())
+        else:
+            self.assertTrue(expected_field == result_field)
+
 
 class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkStreamTableTestCase):
+                                  PyFlinkOldStreamTableTestCase):
     pass
 
 
@@ -170,10 +186,9 @@ class BlinkBatchPandasConversionTests(PandasConversionTests,
 class BlinkStreamPandasConversionTests(PandasConversionITTests,
                                        PyFlinkBlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path
         import tempfile
-        from pyflink.datastream.time_characteristic import TimeCharacteristic
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
@@ -189,7 +204,8 @@ class BlinkStreamPandasConversionTests(PandasConversionITTests,
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
 
         source_table = """
             create table source_table(

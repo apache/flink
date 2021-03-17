@@ -24,61 +24,57 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 
-/**
- * The {@link CompactWriter} to delegate {@link BucketWriter}.
- */
+/** The {@link CompactWriter} to delegate {@link BucketWriter}. */
 public class CompactBucketWriter<T> implements CompactWriter<T> {
 
-	private final BucketWriter<T, String> bucketWriter;
-	private final InProgressFileWriter<T, String> writer;
+    private final BucketWriter<T, String> bucketWriter;
+    private final InProgressFileWriter<T, String> writer;
 
-	private CompactBucketWriter(
-			BucketWriter<T, String> bucketWriter,
-			InProgressFileWriter<T, String> writer) {
-		this.bucketWriter = bucketWriter;
-		this.writer = writer;
-	}
+    private CompactBucketWriter(
+            BucketWriter<T, String> bucketWriter, InProgressFileWriter<T, String> writer) {
+        this.bucketWriter = bucketWriter;
+        this.writer = writer;
+    }
 
-	@Override
-	public void write(T record) throws IOException {
-		// The currentTime is useless
-		this.writer.write(record, 0);
-	}
+    @Override
+    public void write(T record) throws IOException {
+        // The currentTime is useless
+        this.writer.write(record, 0);
+    }
 
-	@Override
-	public void commit() throws IOException {
-		bucketWriter.recoverPendingFile(writer.closeForCommit()).commit();
-	}
+    @Override
+    public void commit() throws IOException {
+        bucketWriter.recoverPendingFile(writer.closeForCommit()).commit();
+    }
 
-	public static <T> CompactWriter.Factory<T> factory(
-			SupplierWithException<BucketWriter<T, String>, IOException> factory) {
-		return new Factory<>(factory);
-	}
+    public static <T> CompactWriter.Factory<T> factory(
+            SupplierWithException<BucketWriter<T, String>, IOException> factory) {
+        return new Factory<>(factory);
+    }
 
-	/**
-	 * Factory to create {@link CompactBucketWriter}.
-	 */
-	private static class Factory<T> implements CompactWriter.Factory<T> {
+    /** Factory to create {@link CompactBucketWriter}. */
+    private static class Factory<T> implements CompactWriter.Factory<T> {
 
-		private final SupplierWithException<BucketWriter<T, String>, IOException> factory;
+        private final SupplierWithException<BucketWriter<T, String>, IOException> factory;
 
-		private BucketWriter<T, String> bucketWriter;
+        private BucketWriter<T, String> bucketWriter;
 
-		public Factory(SupplierWithException<BucketWriter<T, String>, IOException> factory) {
-			this.factory = factory;
-		}
+        public Factory(SupplierWithException<BucketWriter<T, String>, IOException> factory) {
+            this.factory = factory;
+        }
 
-		@Override
-		public CompactWriter<T> create(CompactContext context) throws IOException {
-			// The writer is not Serializable
-			if (bucketWriter == null) {
-				bucketWriter = factory.get();
-			}
+        @Override
+        public CompactWriter<T> create(CompactContext context) throws IOException {
+            // The writer is not Serializable
+            if (bucketWriter == null) {
+                bucketWriter = factory.get();
+            }
 
-			// creationTime are useless
-			return new CompactBucketWriter<>(
-					bucketWriter, bucketWriter.openNewInProgressFile(
-							context.getPartition(), context.getPath(), 0));
-		}
-	}
+            // creationTime are useless
+            return new CompactBucketWriter<>(
+                    bucketWriter,
+                    bucketWriter.openNewInProgressFile(
+                            context.getPartition(), context.getPath(), 0));
+        }
+    }
 }

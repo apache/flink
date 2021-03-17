@@ -54,7 +54,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       false)
     tableEnv.createTemporaryView("view4", tableEnv.from("view3"))
 
-    tableUtil.verifyPlan("select * from view4")
+    tableUtil.verifyExecPlan("select * from view4")
   }
 
   @Test
@@ -67,7 +67,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
     tableEnv.createTemporaryView("view3", tableEnv.from("view2"))
 
     val query = tableEnv.from("view3")
-    tableUtil.verifyPlan(query)
+    tableUtil.verifyExecPlan(query)
   }
 
   @Test
@@ -90,7 +90,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       false)
 
     val query = "SELECT * FROM view3"
-    tableUtil.verifyPlan(query)
+    tableUtil.verifyExecPlan(query)
   }
 
   @Test
@@ -115,7 +115,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       new ObjectPath(tableEnv.getCurrentDatabase, "view1"),
       aggSqlView,
       false)
-    tableUtil.verifyPlan("select * from view1")
+    tableUtil.verifyExecPlan("select * from view1")
   }
 
   @Test
@@ -132,7 +132,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
         |  FROM source as S, LATERAL TABLE(myFunc(f0)) as T(f1, f2)
         |""".stripMargin
     tableEnv.executeSql(createView)
-    tableUtil.verifyPlan("select * from tmp_view")
+    tableUtil.verifyExecPlan("select * from tmp_view")
   }
 
   @Test

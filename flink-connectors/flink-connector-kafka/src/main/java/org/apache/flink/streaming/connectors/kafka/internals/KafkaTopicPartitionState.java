@@ -20,110 +20,113 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 import org.apache.flink.annotation.Internal;
 
 /**
- * The state that the Flink Kafka Consumer holds for each Kafka partition.
- * Includes the Kafka descriptor for partitions.
+ * The state that the Flink Kafka Consumer holds for each Kafka partition. Includes the Kafka
+ * descriptor for partitions.
  *
- * <p>This class describes the most basic state (only the offset), subclasses
- * define more elaborate state, containing current watermarks and timestamp
- * extractors.
+ * <p>This class describes the most basic state (only the offset), subclasses define more elaborate
+ * state, containing current watermarks and timestamp extractors.
  *
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
 @Internal
 public class KafkaTopicPartitionState<T, KPH> {
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** The Flink description of a Kafka partition. */
-	private final KafkaTopicPartition partition;
+    /** The Flink description of a Kafka partition. */
+    private final KafkaTopicPartition partition;
 
-	/** The Kafka description of a Kafka partition (varies across different Kafka versions). */
-	private final KPH kafkaPartitionHandle;
+    /** The Kafka description of a Kafka partition (varies across different Kafka versions). */
+    private final KPH kafkaPartitionHandle;
 
-	/** The offset within the Kafka partition that we already processed. */
-	private volatile long offset;
+    /** The offset within the Kafka partition that we already processed. */
+    private volatile long offset;
 
-	/** The offset of the Kafka partition that has been committed. */
-	private volatile long committedOffset;
+    /** The offset of the Kafka partition that has been committed. */
+    private volatile long committedOffset;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
-		this.partition = partition;
-		this.kafkaPartitionHandle = kafkaPartitionHandle;
-		this.offset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
-		this.committedOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
-	}
+    public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
+        this.partition = partition;
+        this.kafkaPartitionHandle = kafkaPartitionHandle;
+        this.offset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+        this.committedOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Gets Flink's descriptor for the Kafka Partition.
-	 * @return The Flink partition descriptor.
-	 */
-	public final KafkaTopicPartition getKafkaTopicPartition() {
-		return partition;
-	}
+    /**
+     * Gets Flink's descriptor for the Kafka Partition.
+     *
+     * @return The Flink partition descriptor.
+     */
+    public final KafkaTopicPartition getKafkaTopicPartition() {
+        return partition;
+    }
 
-	/**
-	 * Gets Kafka's descriptor for the Kafka Partition.
-	 * @return The Kafka partition descriptor.
-	 */
-	public final KPH getKafkaPartitionHandle() {
-		return kafkaPartitionHandle;
-	}
+    /**
+     * Gets Kafka's descriptor for the Kafka Partition.
+     *
+     * @return The Kafka partition descriptor.
+     */
+    public final KPH getKafkaPartitionHandle() {
+        return kafkaPartitionHandle;
+    }
 
-	public final String getTopic() {
-		return partition.getTopic();
-	}
+    public final String getTopic() {
+        return partition.getTopic();
+    }
 
-	public final int getPartition() {
-		return partition.getPartition();
-	}
+    public final int getPartition() {
+        return partition.getPartition();
+    }
 
-	/**
-	 * The current offset in the partition. This refers to the offset last element that
-	 * we retrieved and emitted successfully. It is the offset that should be stored in
-	 * a checkpoint.
-	 */
-	public final long getOffset() {
-		return offset;
-	}
+    /**
+     * The current offset in the partition. This refers to the offset last element that we retrieved
+     * and emitted successfully. It is the offset that should be stored in a checkpoint.
+     */
+    public final long getOffset() {
+        return offset;
+    }
 
-	public final void setOffset(long offset) {
-		this.offset = offset;
-	}
+    public final void setOffset(long offset) {
+        this.offset = offset;
+    }
 
-	public final boolean isOffsetDefined() {
-		return offset != KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
-	}
+    public final boolean isOffsetDefined() {
+        return offset != KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+    }
 
-	public final void setCommittedOffset(long offset) {
-		this.committedOffset = offset;
-	}
+    public final void setCommittedOffset(long offset) {
+        this.committedOffset = offset;
+    }
 
-	public final long getCommittedOffset() {
-		return committedOffset;
-	}
+    public final long getCommittedOffset() {
+        return committedOffset;
+    }
 
-	public long extractTimestamp(T record, long kafkaEventTimestamp) {
-		return kafkaEventTimestamp;
-	}
+    public long extractTimestamp(T record, long kafkaEventTimestamp) {
+        return kafkaEventTimestamp;
+    }
 
-	public void onEvent(T event, long timestamp) {
-		// do nothing
-	}
+    public void onEvent(T event, long timestamp) {
+        // do nothing
+    }
 
-	public void onPeriodicEmit() {
-		// do nothing
-	}
+    public void onPeriodicEmit() {
+        // do nothing
+    }
 
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return "Partition: " + partition + ", KafkaPartitionHandle=" + kafkaPartitionHandle
-				+ ", offset=" + (isOffsetDefined() ? String.valueOf(offset) : "(not set)");
-	}
+    @Override
+    public String toString() {
+        return "Partition: "
+                + partition
+                + ", KafkaPartitionHandle="
+                + kafkaPartitionHandle
+                + ", offset="
+                + (isOffsetDefined() ? String.valueOf(offset) : "(not set)");
+    }
 }

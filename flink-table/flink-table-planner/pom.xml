@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -32,7 +32,8 @@ under the License.
 	<description>
 		This module bridges Table/SQL API and runtime. It contains
 		all resources that are required during pre-flight and runtime
-		phase.
+		phase. NOTE: This module is deprecated and will be removed in Flink 1.14.
+		Please upgrade to the new planner.
 	</description>
 
 	<packaging>jar</packaging>
@@ -129,12 +130,12 @@ under the License.
 
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.12.1:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
 				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.12.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.12.1:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
@@ -312,6 +313,8 @@ under the License.
 										<exclude>META-INF/services/java.sql.Driver</exclude>
 										<!-- not relocated for now, because it is needed by Calcite -->
 										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
+										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+										<exclude>LICENSE</exclude>
 									</excludes>
 								</filter>
 							</filters>

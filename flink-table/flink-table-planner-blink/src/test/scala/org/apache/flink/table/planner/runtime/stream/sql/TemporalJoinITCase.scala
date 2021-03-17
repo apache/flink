@@ -19,26 +19,30 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.getRawResults
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.registerData
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase
-import org.junit._
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import java.time.LocalDateTime
-import java.time.format.DateTimeParseException
-
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{getResults, registerData}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
+
+import org.junit.Assert.assertEquals
+import org.junit._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+
+import java.time.LocalDateTime
+import java.time.format.DateTimeParseException
 
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
 class TemporalJoinITCase(state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   // test data for Processing-Time temporal table join
   val procTimeOrderData = List(
@@ -196,7 +200,8 @@ class TemporalJoinITCase(state: StateBackendMode)
          |  currency_no STRING,
          |  amount BIGINT,
          |  order_time TIMESTAMP(3),
-         |  WATERMARK FOR order_time AS order_time
+         |  WATERMARK FOR order_time AS order_time,
+         |  PRIMARY KEY (order_id) NOT ENFORCED
          |) WITH (
          |  'connector' = 'values',
          |  'changelog-mode' = 'I,UA,UB,D',
@@ -455,15 +460,12 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -475,15 +477,12 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency AND o.currency_no = r.currency_no"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -496,13 +495,10 @@ class TemporalJoinITCase(state: StateBackendMode)
       " JOIN v1 FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency"
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -514,18 +510,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
     tEnv.executeSql(sql).await()
 
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,null,null)",
-      "+I(6,RMB,40,2020-08-16T00:04,null,null)",
-      "-D(6,RMB,40,2020-08-16T00:04,null,null)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,null,null")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -537,30 +528,19 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
     tEnv.executeSql(sql).await()
 
-    val rawResult = getRawResults("rowtime_default_sink")
     // Note: the event time semantics in delete event is when the delete event happened,
     // records "+I(2,US Dollar)" and "+I(3,RMB)" would not correlate the deleted events
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,null,null)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,null,null)",
-      "+I(3,RMB,40,2020-08-15T00:03,null,null)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,null,null)",
-      "+I(6,RMB,40,2020-08-16T00:04,null,null)",
-      "-D(6,RMB,40,2020-08-16T00:04,null,null)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,null,null",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,null,null")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
   def testEventTimeLeftTemporalJoinUpsertSource(): Unit = {
-    // Note: The WatermarkAssigner of upsertSource is followed after ChangelogNormalize,
-    // when the parallelism > 1 and test data doesn't cover all parallelisms, it returns
-    // Long.MaxValue as final watermark until all parallelism finished.
-    // This may leads the test failed because the test data doesn't cover every parallelism.
-    // TODO: Remove the single parallelism once FLINK-19878 has been fixed.
-    env.setParallelism(1)
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o LEFT JOIN upsert_currency " +
@@ -568,20 +548,15 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency "
     tEnv.executeSql(sql).await()
 
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_default_sink")
     // Note: the event time semantics in delete event is when the delete event happened,
     // record "+I(3,RMB)" would not correlate the deleted event
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,null,null)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,104,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,104,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,null,null)",
-      "+I(6,RMB,40,2020-08-16T00:04,null,null)",
-      "-D(6,RMB,40,2020-08-16T00:04,null,null)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,104,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,null,null",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,null,null")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -593,15 +568,12 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency_no = r.currency_no AND o.currency = r.currency"
     tEnv.executeSql(sql).await()
 
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -613,11 +585,10 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
       " and o.order_id < 5 and r.rate > 114"
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -632,7 +603,7 @@ class TemporalJoinITCase(state: StateBackendMode)
          |  r_time TIMESTAMP(3),
          |  r1_rate BIGINT,
          |  r1_time TIMESTAMP(3),
-         |  PRIMARY KEY(currency) NOT ENFORCED
+         |  PRIMARY KEY(order_id) NOT ENFORCED
          |""".stripMargin
     ))
     val sql = "INSERT INTO rowtime_sink1 " +
@@ -645,18 +616,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r1.currency"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_sink1")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02,106,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,null,null,null,null)",
-      "+I(6,RMB,40,2020-08-16T00:04,null,null,null,null)",
-      "-D(6,RMB,40,2020-08-16T00:04,null,null,null,null)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,null,null,null,null")
+    assertEquals(expected.sorted, getResults("rowtime_sink1").sorted)
   }
 
   @Test
@@ -669,18 +635,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,114,2020-08-15T00:00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,102,2020-08-15T00:00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,102,2020-08-15T00:00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04)",
-      "+I(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)",
-      "-D(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,102,2020-08-15T00:00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,114,2020-08-15T00:00:01",
+      "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -693,18 +654,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04)",
-      "+I(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)",
-      "-D(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -717,18 +673,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency AND substr(o.currency, 1, 2) = 'US' "
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,null,null)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,null,null)",
-      "+I(4,Euro,14,2020-08-16T00:04,null,null)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "+I(5,RMB,40,2020-08-16T00:03,null,null)",
-      "+I(6,RMB,40,2020-08-16T00:04,null,null)",
-      "-D(6,RMB,40,2020-08-16T00:04,null,null)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,null,null",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,null,null",
+      "4,Euro,14,2020-08-16T00:04,null,null",
+      "5,RMB,40,2020-08-16T00:03,null,null")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -748,18 +699,13 @@ class TemporalJoinITCase(state: StateBackendMode)
       " ON o.currency = r.currency"
 
     tEnv.executeSql(sql).await()
-    val rawResult = getRawResults("rowtime_default_sink")
     val expected = List(
-      "+I(1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01)",
-      "+I(2,US Dollar,1,2020-08-15T00:02,102,2020-08-15T00:00:02)",
-      "+I(3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04)",
-      "+I(4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01)",
-      "+I(5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04)",
-      "+I(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)",
-      "+U(2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02)",
-      "-D(6,RMB,40,2020-08-16T00:04,702,2020-08-15T00:00:04)",
-      "-U(2,US Dollar,1,2020-08-16T00:03,106,2020-08-16T00:02)")
-    assertEquals(expected.sorted, rawResult.sorted)
+      "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
+      "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
+      "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
+      "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
+      "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04")
+    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
   }
 
   private def createSinkTable(tableName: String, columns: Option[String]): Unit = {

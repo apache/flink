@@ -55,246 +55,243 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests that validate correct handling of watermark generation in the {@link ReaderOutput} as created
- * by the {@link ProgressiveTimestampsAndWatermarks}.
+ * Tests that validate correct handling of watermark generation in the {@link ReaderOutput} as
+ * created by the {@link ProgressiveTimestampsAndWatermarks}.
  */
 @RunWith(Parameterized.class)
 public class SourceOperatorEventTimeTest {
 
-	@Parameterized.Parameters(name = "Emit progressive watermarks: {0}")
-	public static Collection<Boolean> parameters () {
-		return Arrays.asList(true, false);
-	}
+    @Parameterized.Parameters(name = "Emit progressive watermarks: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
 
-	private final boolean emitProgressiveWatermarks;
+    private final boolean emitProgressiveWatermarks;
 
-	public SourceOperatorEventTimeTest(boolean emitProgressiveWatermarks) {
-		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
-	}
+    public SourceOperatorEventTimeTest(boolean emitProgressiveWatermarks) {
+        this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+    }
 
-	@Test
-	public void testMainOutputPeriodicWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy =
-				WatermarkStrategy
-						.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
+    @Test
+    public void testMainOutputPeriodicWatermarks() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
-		final List<Watermark> result = testSequenceOfWatermarks(
-			emitProgressiveWatermarks,
-			watermarkStrategy,
-			(output) -> output.collect(0, 100L),
-			(output) -> output.collect(0, 120L),
-			(output) -> output.collect(0, 110L)
-		);
+        final List<Watermark> result =
+                testSequenceOfWatermarks(
+                        emitProgressiveWatermarks,
+                        watermarkStrategy,
+                        (output) -> output.collect(0, 100L),
+                        (output) -> output.collect(0, 120L),
+                        (output) -> output.collect(0, 110L));
 
-		assertWatermarksOrEmpty(
-				result,
-				new Watermark(100L),
-				new Watermark(120L));
-	}
+        assertWatermarksOrEmpty(result, new Watermark(100L), new Watermark(120L));
+    }
 
-	@Test
-	public void testMainOutputEventWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy =
-				WatermarkStrategy
-						.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
+    @Test
+    public void testMainOutputEventWatermarks() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
-		final List<Watermark> result = testSequenceOfWatermarks(
-			emitProgressiveWatermarks,
-			watermarkStrategy,
-			(output) -> output.collect(0, 100L),
-			(output) -> output.collect(0, 120L),
-			(output) -> output.collect(0, 110L)
-		);
+        final List<Watermark> result =
+                testSequenceOfWatermarks(
+                        emitProgressiveWatermarks,
+                        watermarkStrategy,
+                        (output) -> output.collect(0, 100L),
+                        (output) -> output.collect(0, 120L),
+                        (output) -> output.collect(0, 110L));
 
-		assertWatermarksOrEmpty(
-				result,
-				new Watermark(100L),
-				new Watermark(120L));
-	}
+        assertWatermarksOrEmpty(result, new Watermark(100L), new Watermark(120L));
+    }
 
-	@Test
-	public void testPerSplitOutputPeriodicWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy =
-				WatermarkStrategy
-						.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
+    @Test
+    public void testPerSplitOutputPeriodicWatermarks() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
-		final List<Watermark> result = testSequenceOfWatermarks(
-			emitProgressiveWatermarks,
-			watermarkStrategy,
-			(output) -> {
-				output.createOutputForSplit("A");
-				output.createOutputForSplit("B");
-			},
-			(output) -> output.createOutputForSplit("A").collect(0, 100L),
-			(output) -> output.createOutputForSplit("B").collect(0, 200L),
-			(output) -> output.createOutputForSplit("A").collect(0, 150L),
-			(output) -> output.releaseOutputForSplit("A"),
-			(output) -> output.createOutputForSplit("B").collect(0, 200L)
-		);
+        final List<Watermark> result =
+                testSequenceOfWatermarks(
+                        emitProgressiveWatermarks,
+                        watermarkStrategy,
+                        (output) -> {
+                            output.createOutputForSplit("A");
+                            output.createOutputForSplit("B");
+                        },
+                        (output) -> output.createOutputForSplit("A").collect(0, 100L),
+                        (output) -> output.createOutputForSplit("B").collect(0, 200L),
+                        (output) -> output.createOutputForSplit("A").collect(0, 150L),
+                        (output) -> output.releaseOutputForSplit("A"),
+                        (output) -> output.createOutputForSplit("B").collect(0, 200L));
 
-		assertWatermarksOrEmpty(
-				result,
-				new Watermark(100L),
-				new Watermark(150L),
-				new Watermark(200L));
-	}
+        assertWatermarksOrEmpty(
+                result, new Watermark(100L), new Watermark(150L), new Watermark(200L));
+    }
 
-	@Test
-	public void testPerSplitOutputEventWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy =
-				WatermarkStrategy
-						.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
+    @Test
+    public void testPerSplitOutputEventWatermarks() throws Exception {
+        final WatermarkStrategy<Integer> watermarkStrategy =
+                WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
-		final List<Watermark> result = testSequenceOfWatermarks(
-			emitProgressiveWatermarks,
-			watermarkStrategy,
-			(output) -> {
-				output.createOutputForSplit("one");
-				output.createOutputForSplit("two");
-			},
-			(output) -> output.createOutputForSplit("one").collect(0, 100L),
-			(output) -> output.createOutputForSplit("two").collect(0, 200L),
-			(output) -> output.createOutputForSplit("one").collect(0, 150L),
-			(output) -> output.releaseOutputForSplit("one"),
-			(output) -> output.createOutputForSplit("two").collect(0, 200L)
-		);
+        final List<Watermark> result =
+                testSequenceOfWatermarks(
+                        emitProgressiveWatermarks,
+                        watermarkStrategy,
+                        (output) -> {
+                            output.createOutputForSplit("one");
+                            output.createOutputForSplit("two");
+                        },
+                        (output) -> output.createOutputForSplit("one").collect(0, 100L),
+                        (output) -> output.createOutputForSplit("two").collect(0, 200L),
+                        (output) -> output.createOutputForSplit("one").collect(0, 150L),
+                        (output) -> output.releaseOutputForSplit("one"),
+                        (output) -> output.createOutputForSplit("two").collect(0, 200L));
 
-		assertWatermarksOrEmpty(
-				result,
-				new Watermark(100L),
-				new Watermark(150L),
-				new Watermark(200L));
-	}
+        assertWatermarksOrEmpty(
+                result, new Watermark(100L), new Watermark(150L), new Watermark(200L));
+    }
 
-	// ------------------------------------------------------------------------
-	//   test execution helpers
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //   test execution helpers
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Asserts that the given expected watermarks are present in the actual watermarks in STREAMING
-	 * mode. Otherwise, asserts that the list of actual watermarks is empty in BATCH mode.
-	 */
-	private void assertWatermarksOrEmpty(List<Watermark> actualWatermarks, Watermark... expectedWatermarks) {
-		// We add the expected Long.MAX_VALUE watermark to the end. We expect that for both
-		// "STREAMING" and "BATCH" mode.
-		if (emitProgressiveWatermarks) {
-			ArrayList<Watermark> watermarks = Lists.newArrayList(expectedWatermarks);
-			assertThat(actualWatermarks, contains(watermarks.toArray()));
-		} else {
-			assertThat(actualWatermarks, hasSize(0));
-		}
-	}
+    /**
+     * Asserts that the given expected watermarks are present in the actual watermarks in STREAMING
+     * mode. Otherwise, asserts that the list of actual watermarks is empty in BATCH mode.
+     */
+    private void assertWatermarksOrEmpty(
+            List<Watermark> actualWatermarks, Watermark... expectedWatermarks) {
+        // We add the expected Long.MAX_VALUE watermark to the end. We expect that for both
+        // "STREAMING" and "BATCH" mode.
+        if (emitProgressiveWatermarks) {
+            ArrayList<Watermark> watermarks = Lists.newArrayList(expectedWatermarks);
+            assertThat(actualWatermarks, contains(watermarks.toArray()));
+        } else {
+            assertThat(actualWatermarks, hasSize(0));
+        }
+    }
 
-	@SuppressWarnings("FinalPrivateMethod")
-	@SafeVarargs
-	private final List<Watermark> testSequenceOfWatermarks(
-			final boolean emitProgressiveWatermarks,
-			final WatermarkStrategy<Integer> watermarkStrategy,
-			final Consumer<ReaderOutput<Integer>>... actions) throws Exception {
+    @SuppressWarnings("FinalPrivateMethod")
+    @SafeVarargs
+    private final List<Watermark> testSequenceOfWatermarks(
+            final boolean emitProgressiveWatermarks,
+            final WatermarkStrategy<Integer> watermarkStrategy,
+            final Consumer<ReaderOutput<Integer>>... actions)
+            throws Exception {
 
-		final List<Object> allEvents = testSequenceOfEvents(emitProgressiveWatermarks, watermarkStrategy, actions);
+        final List<Object> allEvents =
+                testSequenceOfEvents(emitProgressiveWatermarks, watermarkStrategy, actions);
 
-		return allEvents.stream()
-				.filter((evt) -> evt instanceof org.apache.flink.streaming.api.watermark.Watermark)
-				.map((evt) -> new Watermark(((org.apache.flink.streaming.api.watermark.Watermark) evt).getTimestamp()))
-				.collect(Collectors.toList());
-	}
+        return allEvents.stream()
+                .filter((evt) -> evt instanceof org.apache.flink.streaming.api.watermark.Watermark)
+                .map(
+                        (evt) ->
+                                new Watermark(
+                                        ((org.apache.flink.streaming.api.watermark.Watermark) evt)
+                                                .getTimestamp()))
+                .collect(Collectors.toList());
+    }
 
-	@SuppressWarnings("FinalPrivateMethod")
-	@SafeVarargs
-	private final List<Object> testSequenceOfEvents(
-			final boolean emitProgressiveWatermarks,
-			final WatermarkStrategy<Integer> watermarkStrategy,
-			final Consumer<ReaderOutput<Integer>>... actions) throws Exception {
+    @SuppressWarnings("FinalPrivateMethod")
+    @SafeVarargs
+    private final List<Object> testSequenceOfEvents(
+            final boolean emitProgressiveWatermarks,
+            final WatermarkStrategy<Integer> watermarkStrategy,
+            final Consumer<ReaderOutput<Integer>>... actions)
+            throws Exception {
 
-		final CollectingDataOutput<Integer> out = new CollectingDataOutput<>();
+        final CollectingDataOutput<Integer> out = new CollectingDataOutput<>();
 
-		final TestProcessingTimeService timeService = new TestProcessingTimeService();
-		timeService.setCurrentTime(Integer.MAX_VALUE); // start somewhere that is not zero
+        final TestProcessingTimeService timeService = new TestProcessingTimeService();
+        timeService.setCurrentTime(Integer.MAX_VALUE); // start somewhere that is not zero
 
-		final SourceReader<Integer, MockSourceSplit> reader = new InterpretingSourceReader(actions);
+        final SourceReader<Integer, MockSourceSplit> reader = new InterpretingSourceReader(actions);
 
-		final SourceOperator<Integer, MockSourceSplit> sourceOperator =
-				createTestOperator(reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
+        final SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(
+                        reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
 
-		while (sourceOperator.emitNext(out) != InputStatus.END_OF_INPUT) {
-			timeService.setCurrentTime(timeService.getCurrentProcessingTime() + 100);
-		}
+        while (sourceOperator.emitNext(out) != InputStatus.END_OF_INPUT) {
+            timeService.setCurrentTime(timeService.getCurrentProcessingTime() + 100);
+        }
 
-		return out.events;
-	}
+        return out.events;
+    }
 
-	// ------------------------------------------------------------------------
-	//   test setup helpers
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //   test setup helpers
+    // ------------------------------------------------------------------------
 
-	private static <T> SourceOperator<T, MockSourceSplit> createTestOperator(
-			SourceReader<T, MockSourceSplit> reader,
-			WatermarkStrategy<T> watermarkStrategy,
-			ProcessingTimeService timeService,
-			boolean emitProgressiveWatermarks) throws Exception {
+    private static <T> SourceOperator<T, MockSourceSplit> createTestOperator(
+            SourceReader<T, MockSourceSplit> reader,
+            WatermarkStrategy<T> watermarkStrategy,
+            ProcessingTimeService timeService,
+            boolean emitProgressiveWatermarks)
+            throws Exception {
 
-		final OperatorStateStore operatorStateStore =
-				new MemoryStateBackend().createOperatorStateBackend(
-						new MockEnvironmentBuilder().build(),
-						"test-operator",
-						Collections.emptyList(),
-						new CloseableRegistry());
+        final OperatorStateStore operatorStateStore =
+                new MemoryStateBackend()
+                        .createOperatorStateBackend(
+                                new MockEnvironmentBuilder().build(),
+                                "test-operator",
+                                Collections.emptyList(),
+                                new CloseableRegistry());
 
-		final StateInitializationContext stateContext = new StateInitializationContextImpl(
-			false, operatorStateStore, null, null, null);
+        final StateInitializationContext stateContext =
+                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
 
-		final SourceOperator<T, MockSourceSplit> sourceOperator =
-				new TestingSourceOperator<>(reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
-		sourceOperator.initializeState(stateContext);
-		sourceOperator.open();
+        final SourceOperator<T, MockSourceSplit> sourceOperator =
+                new TestingSourceOperator<>(
+                        reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
+        sourceOperator.initializeState(stateContext);
+        sourceOperator.open();
 
-		return sourceOperator;
-	}
+        return sourceOperator;
+    }
 
-	// ------------------------------------------------------------------------
-	//   test mocks
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //   test mocks
+    // ------------------------------------------------------------------------
 
-	private static final class InterpretingSourceReader implements SourceReader<Integer, MockSourceSplit> {
+    private static final class InterpretingSourceReader
+            implements SourceReader<Integer, MockSourceSplit> {
 
-		private final Iterator<Consumer<ReaderOutput<Integer>>> actions;
+        private final Iterator<Consumer<ReaderOutput<Integer>>> actions;
 
-		@SafeVarargs
-		private InterpretingSourceReader(Consumer<ReaderOutput<Integer>>... actions) {
-			this.actions = Arrays.asList(actions).iterator();
-		}
+        @SafeVarargs
+        private InterpretingSourceReader(Consumer<ReaderOutput<Integer>>... actions) {
+            this.actions = Arrays.asList(actions).iterator();
+        }
 
-		@Override
-		public void start() {}
+        @Override
+        public void start() {}
 
-		@Override
-		public InputStatus pollNext(ReaderOutput<Integer> output) {
-			if (actions.hasNext()) {
-				actions.next().accept(output);
-				return InputStatus.MORE_AVAILABLE;
-			} else {
-				return InputStatus.END_OF_INPUT;
-			}
-		}
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> output) {
+            if (actions.hasNext()) {
+                actions.next().accept(output);
+                return InputStatus.MORE_AVAILABLE;
+            } else {
+                return InputStatus.END_OF_INPUT;
+            }
+        }
 
-		@Override
-		public List<MockSourceSplit> snapshotState(long checkpointId) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public List<MockSourceSplit> snapshotState(long checkpointId) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CompletableFuture<Void> isAvailable() {
-			return CompletableFuture.completedFuture(null);
-		}
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return CompletableFuture.completedFuture(null);
+        }
 
-		@Override
-		public void addSplits(List<MockSourceSplit> splits) {}
+        @Override
+        public void addSplits(List<MockSourceSplit> splits) {}
 
-		@Override
-		public void notifyNoMoreSplits() {}
+        @Override
+        public void notifyNoMoreSplits() {}
 
-		@Override
-		public void close() {}
-	}
+        @Override
+        public void close() {}
+    }
 }

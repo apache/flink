@@ -79,7 +79,8 @@ from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, 
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
-from pyflink.datastream.functions import ProcessFunction, Collector, TimerService
+from pyflink.datastream.functions import ProcessFunction
+from pyflink.datastream.timerservice import TimerService
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -107,6 +108,5 @@ __all__ = [
     'TimeCharacteristic',
     'TimeDomain',
     'ProcessFunction',
-    'Collector',
     'TimerService'
 ]

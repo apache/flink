@@ -36,74 +36,76 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/**
- * Tests for {@link StreamSortOperator}.
- */
+/** Tests for {@link StreamSortOperator}. */
 public class StreamSortOperatorTest {
 
-	private InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new IntType());
+    private InternalTypeInfo<RowData> inputRowType =
+            InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType());
 
-	private GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
+    private GeneratedRecordComparator sortKeyComparator =
+            new GeneratedRecordComparator("", "", new Object[0]) {
 
-		private static final long serialVersionUID = -6067266199060901331L;
+                private static final long serialVersionUID = -6067266199060901331L;
 
-		@Override
-		public RecordComparator newInstance(ClassLoader classLoader) {
+                @Override
+                public RecordComparator newInstance(ClassLoader classLoader) {
 
-			return new StringRecordComparator();
-		}
-	};
+                    return new StringRecordComparator();
+                }
+            };
 
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
+    private RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
-	@Test
-	public void test() throws Exception {
-		StreamSortOperator operator = createSortOperator();
-		OneInputStreamOperatorTestHarness<RowData, BinaryRowData> testHarness = createTestHarness(operator);
-		testHarness.open();
-		testHarness.processElement(insertRecord("hi", 1));
-		testHarness.processElement(insertRecord("hello", 2));
-		testHarness.processElement(insertRecord("world", 3));
-		testHarness.processElement(insertRecord("word", 4));
+    @Test
+    public void test() throws Exception {
+        StreamSortOperator operator = createSortOperator();
+        OneInputStreamOperatorTestHarness<RowData, BinaryRowData> testHarness =
+                createTestHarness(operator);
+        testHarness.open();
+        testHarness.processElement(insertRecord("hi", 1));
+        testHarness.processElement(insertRecord("hello", 2));
+        testHarness.processElement(insertRecord("world", 3));
+        testHarness.processElement(insertRecord("word", 4));
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("hello", 2));
-		expectedOutput.add(insertRecord("hi", 1));
-		expectedOutput.add(insertRecord("word", 4));
-		expectedOutput.add(insertRecord("world", 3));
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("hello", 2));
+        expectedOutput.add(insertRecord("hi", 1));
+        expectedOutput.add(insertRecord("word", 4));
+        expectedOutput.add(insertRecord("world", 3));
 
-		// do a snapshot, data could be recovered from state
-		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
-		testHarness.close();
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        // do a snapshot, data could be recovered from state
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+        testHarness.close();
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-		expectedOutput.clear();
+        expectedOutput.clear();
 
-		operator = createSortOperator();
-		testHarness = createTestHarness(operator);
-		testHarness.initializeState(snapshot);
-		testHarness.open();
-		testHarness.processElement(insertRecord("abc", 1));
-		testHarness.processElement(insertRecord("aa", 1));
-		testHarness.close();
+        operator = createSortOperator();
+        testHarness = createTestHarness(operator);
+        testHarness.initializeState(snapshot);
+        testHarness.open();
+        testHarness.processElement(insertRecord("abc", 1));
+        testHarness.processElement(insertRecord("aa", 1));
+        testHarness.close();
 
-		expectedOutput.add(insertRecord("aa", 1));
-		expectedOutput.add(insertRecord("abc", 1));
-		expectedOutput.add(insertRecord("hello", 2));
-		expectedOutput.add(insertRecord("hi", 1));
-		expectedOutput.add(insertRecord("word", 4));
-		expectedOutput.add(insertRecord("world", 3));
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        expectedOutput.add(insertRecord("aa", 1));
+        expectedOutput.add(insertRecord("abc", 1));
+        expectedOutput.add(insertRecord("hello", 2));
+        expectedOutput.add(insertRecord("hi", 1));
+        expectedOutput.add(insertRecord("word", 4));
+        expectedOutput.add(insertRecord("world", 3));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-	private StreamSortOperator createSortOperator() {
-		return new StreamSortOperator(inputRowType, sortKeyComparator);
-	}
+    private StreamSortOperator createSortOperator() {
+        return new StreamSortOperator(inputRowType, sortKeyComparator);
+    }
 
-	private OneInputStreamOperatorTestHarness createTestHarness(StreamSortOperator operator) throws Exception {
-		OneInputStreamOperatorTestHarness testHarness = new OneInputStreamOperatorTestHarness(operator);
-		return testHarness;
-	}
+    private OneInputStreamOperatorTestHarness createTestHarness(StreamSortOperator operator)
+            throws Exception {
+        OneInputStreamOperatorTestHarness testHarness =
+                new OneInputStreamOperatorTestHarness(operator);
+        return testHarness;
+    }
 }

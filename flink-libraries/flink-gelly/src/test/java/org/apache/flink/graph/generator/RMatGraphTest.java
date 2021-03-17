@@ -31,39 +31,36 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link RMatGraph}.
- */
+/** Tests for {@link RMatGraph}. */
 public class RMatGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		long vertexCount = 100;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        long vertexCount = 100;
 
-		long edgeCount = 1000;
+        long edgeCount = 1000;
 
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+        RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new RMatGraph<>(env, rnd, vertexCount, edgeCount).generate();
 
-		assertTrue(vertexCount >= graph.numberOfVertices());
-		assertEquals(edgeCount, graph.numberOfEdges());
-	}
+        assertTrue(vertexCount >= graph.numberOfVertices());
+        assertEquals(edgeCount, graph.numberOfEdges());
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+        RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, 100, 1000)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new RMatGraph<>(env, rnd, 100, 1000).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

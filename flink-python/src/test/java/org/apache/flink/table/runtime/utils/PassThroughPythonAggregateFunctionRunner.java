@@ -40,107 +40,115 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link PassThroughPythonAggregateFunctionRunner} runner that just return the first input element
- * with the same key as the execution results.
+ * A {@link PassThroughPythonAggregateFunctionRunner} runner that just return the first input
+ * element with the same key as the execution results.
  */
-public class PassThroughPythonAggregateFunctionRunner extends BeamTableStatelessPythonFunctionRunner {
+public class PassThroughPythonAggregateFunctionRunner
+        extends BeamTableStatelessPythonFunctionRunner {
 
-	private static final IntSerializer windowBoundarySerializer = IntSerializer.INSTANCE;
+    private static final IntSerializer windowBoundarySerializer = IntSerializer.INSTANCE;
 
-	private final List<byte[]> buffer;
+    private final List<byte[]> buffer;
 
-	private final RowDataArrowSerializer arrowSerializer;
+    private final RowDataArrowSerializer arrowSerializer;
 
-	/**
-	 * Whether it is batch over window.
-	 */
-	private final boolean isBatchOverWindow;
+    /** Whether it is batch over window. */
+    private final boolean isBatchOverWindow;
 
-	/**
-	 * Reusable InputStream used to holding the execution results to be deserialized.
-	 */
-	private transient ByteArrayInputStreamWithPos bais;
+    /** Reusable InputStream used to holding the execution results to be deserialized. */
+    private transient ByteArrayInputStreamWithPos bais;
 
-	/**
-	 * InputStream Wrapper.
-	 */
-	private transient DataInputViewStreamWrapper baisWrapper;
+    /** InputStream Wrapper. */
+    private transient DataInputViewStreamWrapper baisWrapper;
 
-	/**
-	 * Reusable OutputStream used to holding the serialized input elements.
-	 */
-	private transient ByteArrayOutputStreamWithPos baos;
+    /** Reusable OutputStream used to holding the serialized input elements. */
+    private transient ByteArrayOutputStreamWithPos baos;
 
-	public PassThroughPythonAggregateFunctionRunner(
-		String taskName,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		String functionUrn,
-		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-		String coderUrn,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer,
-		boolean isBatchOverWindow) {
-		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
-			coderUrn, jobOptions, flinkMetricContainer, null, 0.0);
-		this.buffer = new LinkedList<>();
-		this.isBatchOverWindow = isBatchOverWindow;
-		arrowSerializer = new RowDataArrowSerializer(inputType, outputType);
-	}
+    public PassThroughPythonAggregateFunctionRunner(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
+            String coderUrn,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer,
+            boolean isBatchOverWindow) {
+        super(
+                taskName,
+                environmentManager,
+                inputType,
+                outputType,
+                functionUrn,
+                userDefinedFunctions,
+                coderUrn,
+                jobOptions,
+                flinkMetricContainer,
+                null,
+                0.0);
+        this.buffer = new LinkedList<>();
+        this.isBatchOverWindow = isBatchOverWindow;
+        arrowSerializer = new RowDataArrowSerializer(inputType, outputType);
+    }
 
-	@Override
-	public void open(PythonConfig config) throws Exception {
-		super.open(config);
-		bais = new ByteArrayInputStreamWithPos();
-		baisWrapper = new DataInputViewStreamWrapper(bais);
-		baos = new ByteArrayOutputStreamWithPos();
-		arrowSerializer.open(bais, baos);
-	}
+    @Override
+    public void open(PythonConfig config) throws Exception {
+        super.open(config);
+        bais = new ByteArrayInputStreamWithPos();
+        baisWrapper = new DataInputViewStreamWrapper(bais);
+        baos = new ByteArrayOutputStreamWithPos();
+        arrowSerializer.open(bais, baos);
+    }
 
-	@Override
-	protected void startBundle() {
-		super.startBundle();
-		this.mainInputReceiver = input -> {
-			byte[] data = input.getValue();
-			bais.setBuffer(data, 0, data.length);
-			if (isBatchOverWindow) {
-				int windowSize = windowBoundarySerializer.deserialize(baisWrapper);
-				List<Integer> lowerBoundarys = new ArrayList<>();
-				for (int i = 0; i < windowSize; i++) {
-					int windowLength = windowBoundarySerializer.deserialize(baisWrapper);
-					for (int j = 0; j < windowLength; j++) {
-						if (j % 2 == 0) {
-							lowerBoundarys.add(windowBoundarySerializer.deserialize(baisWrapper));
-						} else {
-							windowBoundarySerializer.deserialize(baisWrapper);
-						}
-					}
-				}
-				arrowSerializer.load();
-				for (Integer lowerBoundary : lowerBoundarys) {
-					RowData firstData = arrowSerializer.read(lowerBoundary);
-					arrowSerializer.write(firstData);
-				}
-			} else {
-				arrowSerializer.load();
-				arrowSerializer.write(arrowSerializer.read(0));
-			}
-			arrowSerializer.finishCurrentBatch();
-			buffer.add(baos.toByteArray());
-			baos.reset();
-		};
-	}
+    @Override
+    protected void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver =
+                input -> {
+                    byte[] data = input.getValue();
+                    bais.setBuffer(data, 0, data.length);
+                    if (isBatchOverWindow) {
+                        int windowSize = windowBoundarySerializer.deserialize(baisWrapper);
+                        List<Integer> lowerBoundarys = new ArrayList<>();
+                        for (int i = 0; i < windowSize; i++) {
+                            int windowLength = windowBoundarySerializer.deserialize(baisWrapper);
+                            for (int j = 0; j < windowLength; j++) {
+                                if (j % 2 == 0) {
+                                    lowerBoundarys.add(
+                                            windowBoundarySerializer.deserialize(baisWrapper));
+                                } else {
+                                    windowBoundarySerializer.deserialize(baisWrapper);
+                                }
+                            }
+                        }
+                        arrowSerializer.load();
+                        for (Integer lowerBoundary : lowerBoundarys) {
+                            RowData firstData = arrowSerializer.read(lowerBoundary);
+                            arrowSerializer.write(firstData);
+                        }
+                        arrowSerializer.resetReader();
+                    } else {
+                        arrowSerializer.load();
+                        arrowSerializer.write(arrowSerializer.read(0));
+                        arrowSerializer.resetReader();
+                    }
+                    arrowSerializer.finishCurrentBatch();
+                    buffer.add(baos.toByteArray());
+                    baos.reset();
+                    arrowSerializer.resetWriter();
+                };
+    }
 
-	@Override
-	public void flush() throws Exception {
-		super.flush();
-		resultBuffer.addAll(buffer);
-		buffer.clear();
-	}
+    @Override
+    public void flush() throws Exception {
+        super.flush();
+        resultBuffer.addAll(buffer);
+        buffer.clear();
+    }
 
-	@Override
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-		return PythonTestUtils.createMockJobBundleFactory();
-	}
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return PythonTestUtils.createMockJobBundleFactory();
+    }
 }

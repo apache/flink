@@ -20,115 +20,107 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class IntermediateResultPartition {
 
-	private final IntermediateResult totalResult;
+    private final IntermediateResult totalResult;
 
-	private final ExecutionVertex producer;
+    private final ExecutionVertex producer;
 
-	private final int partitionNumber;
+    private final IntermediateResultPartitionID partitionId;
 
-	private final IntermediateResultPartitionID partitionId;
+    private final EdgeManager edgeManager;
 
-	private List<List<ExecutionEdge>> consumers;
+    /** Whether this partition has produced some data. */
+    private boolean hasDataProduced = false;
 
-	/**
-	 * Whether this partition has produced some data.
-	 */
-	private boolean hasDataProduced = false;
+    public IntermediateResultPartition(
+            IntermediateResult totalResult,
+            ExecutionVertex producer,
+            int partitionNumber,
+            EdgeManager edgeManager) {
+        this.totalResult = totalResult;
+        this.producer = producer;
+        this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
+        this.edgeManager = edgeManager;
+    }
 
-	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
-		this.totalResult = totalResult;
-		this.producer = producer;
-		this.partitionNumber = partitionNumber;
-		this.consumers = new ArrayList<List<ExecutionEdge>>(0);
-		this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
-	}
+    public ExecutionVertex getProducer() {
+        return producer;
+    }
 
-	public ExecutionVertex getProducer() {
-		return producer;
-	}
+    public int getPartitionNumber() {
+        return partitionId.getPartitionNumber();
+    }
 
-	public int getPartitionNumber() {
-		return partitionNumber;
-	}
+    public IntermediateResult getIntermediateResult() {
+        return totalResult;
+    }
 
-	public IntermediateResult getIntermediateResult() {
-		return totalResult;
-	}
+    public IntermediateResultPartitionID getPartitionId() {
+        return partitionId;
+    }
 
-	public IntermediateResultPartitionID getPartitionId() {
-		return partitionId;
-	}
+    public ResultPartitionType getResultType() {
+        return totalResult.getResultType();
+    }
 
-	public ResultPartitionType getResultType() {
-		return totalResult.getResultType();
-	}
+    public List<ConsumerVertexGroup> getConsumers() {
+        return getEdgeManager().getConsumerVertexGroupsForPartition(partitionId);
+    }
 
-	public List<List<ExecutionEdge>> getConsumers() {
-		return consumers;
-	}
+    public void markDataProduced() {
+        hasDataProduced = true;
+    }
 
-	public void markDataProduced() {
-		hasDataProduced = true;
-	}
+    public boolean isConsumable() {
+        if (getResultType().isPipelined()) {
+            return hasDataProduced;
+        } else {
+            return totalResult.areAllPartitionsFinished();
+        }
+    }
 
-	public boolean isConsumable() {
-		if (getResultType().isPipelined()) {
-			return hasDataProduced;
-		} else {
-			return totalResult.areAllPartitionsFinished();
-		}
-	}
+    void resetForNewExecution() {
+        if (getResultType().isBlocking() && hasDataProduced) {
+            // A BLOCKING result partition with data produced means it is finished
+            // Need to add the running producer count of the result on resetting it
+            totalResult.incrementNumberOfRunningProducersAndGetRemaining();
+        }
+        hasDataProduced = false;
+    }
 
-	void resetForNewExecution() {
-		if (getResultType().isBlocking() && hasDataProduced) {
-			// A BLOCKING result partition with data produced means it is finished
-			// Need to add the running producer count of the result on resetting it
-			totalResult.incrementNumberOfRunningProducersAndGetRemaining();
-		}
-		hasDataProduced = false;
-	}
+    public void addConsumers(ConsumerVertexGroup consumers) {
+        getEdgeManager().connectPartitionWithConsumerVertexGroup(partitionId, consumers);
+    }
 
-	int addConsumerGroup() {
-		int pos = consumers.size();
+    private EdgeManager getEdgeManager() {
+        return edgeManager;
+    }
 
-		// NOTE: currently we support only one consumer per result!!!
-		if (pos != 0) {
-			throw new RuntimeException("Currently, each intermediate result can only have one consumer.");
-		}
+    boolean markFinished() {
+        // Sanity check that this is only called on blocking partitions.
+        if (!getResultType().isBlocking()) {
+            throw new IllegalStateException(
+                    "Tried to mark a non-blocking result partition as finished");
+        }
 
-		consumers.add(new ArrayList<ExecutionEdge>());
-		return pos;
-	}
+        hasDataProduced = true;
 
-	void addConsumer(ExecutionEdge edge, int consumerNumber) {
-		consumers.get(consumerNumber).add(edge);
-	}
+        final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
 
-	boolean markFinished() {
-		// Sanity check that this is only called on blocking partitions.
-		if (!getResultType().isBlocking()) {
-			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
-		}
+        if (refCnt == 0) {
+            return true;
+        } else if (refCnt < 0) {
+            throw new IllegalStateException(
+                    "Decremented number of unfinished producers below 0. "
+                            + "This is most likely a bug in the execution state/intermediate result "
+                            + "partition management.");
+        }
 
-		hasDataProduced = true;
-
-		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
-
-		if (refCnt == 0) {
-			return true;
-		}
-		else if (refCnt  < 0) {
-			throw new IllegalStateException("Decremented number of unfinished producers below 0. "
-					+ "This is most likely a bug in the execution state/intermediate result "
-					+ "partition management.");
-		}
-
-		return false;
-	}
+        return false;
+    }
 }

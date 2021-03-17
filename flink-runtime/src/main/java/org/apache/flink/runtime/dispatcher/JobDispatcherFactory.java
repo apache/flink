@@ -27,33 +27,36 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
-import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
+import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE;
 
-/**
- * {@link DispatcherFactory} which creates a {@link MiniDispatcher}.
- */
+/** {@link DispatcherFactory} which creates a {@link MiniDispatcher}. */
 public enum JobDispatcherFactory implements DispatcherFactory {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public MiniDispatcher createDispatcher(
-			RpcService rpcService,
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			DispatcherBootstrapFactory dispatcherBootstrapFactory,
-			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
-		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
+    @Override
+    public MiniDispatcher createDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            throws Exception {
+        final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
-		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
-		final String executionModeValue = configuration.getString(EXECUTION_MODE);
-		final ClusterEntrypoint.ExecutionMode executionMode = ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
+        final Configuration configuration =
+                partialDispatcherServicesWithJobGraphStore.getConfiguration();
+        final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
+        final ClusterEntrypoint.ExecutionMode executionMode =
+                ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 
-		return new MiniDispatcher(
-			rpcService,
-			fencingToken,
-			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
-			jobGraph,
-			dispatcherBootstrapFactory,
-			executionMode);
-	}
+        return new MiniDispatcher(
+                rpcService,
+                fencingToken,
+                DispatcherServices.from(
+                        partialDispatcherServicesWithJobGraphStore,
+                        DefaultJobManagerRunnerFactory.INSTANCE),
+                jobGraph,
+                dispatcherBootstrapFactory,
+                executionMode);
+    }
 }

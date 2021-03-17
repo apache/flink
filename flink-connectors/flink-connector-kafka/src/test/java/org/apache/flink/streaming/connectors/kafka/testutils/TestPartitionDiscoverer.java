@@ -35,91 +35,104 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Utility {@link AbstractPartitionDiscoverer} for tests that allows
- * mocking the sequence of consecutive metadata fetch calls to Kafka.
+ * Utility {@link AbstractPartitionDiscoverer} for tests that allows mocking the sequence of
+ * consecutive metadata fetch calls to Kafka.
  */
 public class TestPartitionDiscoverer extends AbstractPartitionDiscoverer {
 
-	private final KafkaTopicsDescriptor topicsDescriptor;
+    private final KafkaTopicsDescriptor topicsDescriptor;
 
-	private final List<List<String>> mockGetAllTopicsReturnSequence;
-	private final List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence;
+    private final List<List<String>> mockGetAllTopicsReturnSequence;
+    private final List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence;
 
-	private int getAllTopicsInvokeCount = 0;
-	private int getAllPartitionsForTopicsInvokeCount = 0;
+    private int getAllTopicsInvokeCount = 0;
+    private int getAllPartitionsForTopicsInvokeCount = 0;
 
-	public TestPartitionDiscoverer(
-			KafkaTopicsDescriptor topicsDescriptor,
-			int indexOfThisSubtask,
-			int numParallelSubtasks,
-			List<List<String>> mockGetAllTopicsReturnSequence,
-			List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence) {
+    public TestPartitionDiscoverer(
+            KafkaTopicsDescriptor topicsDescriptor,
+            int indexOfThisSubtask,
+            int numParallelSubtasks,
+            List<List<String>> mockGetAllTopicsReturnSequence,
+            List<List<KafkaTopicPartition>> mockGetAllPartitionsForTopicsReturnSequence) {
 
-		super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
+        super(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks);
 
-		this.topicsDescriptor = topicsDescriptor;
-		this.mockGetAllTopicsReturnSequence = mockGetAllTopicsReturnSequence;
-		this.mockGetAllPartitionsForTopicsReturnSequence = mockGetAllPartitionsForTopicsReturnSequence;
-	}
+        this.topicsDescriptor = topicsDescriptor;
+        this.mockGetAllTopicsReturnSequence = mockGetAllTopicsReturnSequence;
+        this.mockGetAllPartitionsForTopicsReturnSequence =
+                mockGetAllPartitionsForTopicsReturnSequence;
+    }
 
-	@Override
-	protected List<String> getAllTopics() {
-		assertTrue(topicsDescriptor.isTopicPattern());
-		return mockGetAllTopicsReturnSequence.get(getAllTopicsInvokeCount++);
-	}
+    @Override
+    protected List<String> getAllTopics() {
+        assertTrue(topicsDescriptor.isTopicPattern());
+        return mockGetAllTopicsReturnSequence.get(getAllTopicsInvokeCount++);
+    }
 
-	@Override
-	protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) {
-		if (topicsDescriptor.isFixedTopics()) {
-			assertEquals(topicsDescriptor.getFixedTopics(), topics);
-		} else {
-			assertEquals(mockGetAllTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount - 1), topics);
-		}
-		return mockGetAllPartitionsForTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount++);
-	}
+    @Override
+    protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) {
+        if (topicsDescriptor.isFixedTopics()) {
+            assertEquals(topicsDescriptor.getFixedTopics(), topics);
+        } else {
+            assertEquals(
+                    mockGetAllTopicsReturnSequence.get(getAllPartitionsForTopicsInvokeCount - 1),
+                    topics);
+        }
+        return mockGetAllPartitionsForTopicsReturnSequence.get(
+                getAllPartitionsForTopicsInvokeCount++);
+    }
 
-	@Override
-	protected void initializeConnections() {
-		// nothing to do
-	}
+    @Override
+    protected void initializeConnections() {
+        // nothing to do
+    }
 
-	@Override
-	protected void wakeupConnections() {
-		// nothing to do
-	}
+    @Override
+    protected void wakeupConnections() {
+        // nothing to do
+    }
 
-	@Override
-	protected void closeConnections() {
-		// nothing to do
-	}
+    @Override
+    protected void closeConnections() {
+        // nothing to do
+    }
 
-	// ---------------------------------------------------------------------------------
-	//  Utilities to create mocked, fixed results for a sequences of metadata fetches
-	// ---------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------
+    //  Utilities to create mocked, fixed results for a sequences of metadata fetches
+    // ---------------------------------------------------------------------------------
 
-	public static List<List<String>> createMockGetAllTopicsSequenceFromFixedReturn(final List<String> fixed) {
-		@SuppressWarnings("unchecked")
-		List<List<String>> mockSequence = mock(List.class);
-		when(mockSequence.get(anyInt())).thenAnswer(new Answer<List<String>>() {
-			@Override
-			public List<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return new ArrayList<>(fixed);
-			}
-		});
+    public static List<List<String>> createMockGetAllTopicsSequenceFromFixedReturn(
+            final List<String> fixed) {
+        @SuppressWarnings("unchecked")
+        List<List<String>> mockSequence = mock(List.class);
+        when(mockSequence.get(anyInt()))
+                .thenAnswer(
+                        new Answer<List<String>>() {
+                            @Override
+                            public List<String> answer(InvocationOnMock invocationOnMock)
+                                    throws Throwable {
+                                return new ArrayList<>(fixed);
+                            }
+                        });
 
-		return mockSequence;
-	}
+        return mockSequence;
+    }
 
-	public static List<List<KafkaTopicPartition>> createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(final List<KafkaTopicPartition> fixed) {
-		@SuppressWarnings("unchecked")
-		List<List<KafkaTopicPartition>> mockSequence = mock(List.class);
-		when(mockSequence.get(anyInt())).thenAnswer(new Answer<List<KafkaTopicPartition>>() {
-			@Override
-			public List<KafkaTopicPartition> answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return new ArrayList<>(fixed);
-			}
-		});
+    public static List<List<KafkaTopicPartition>>
+            createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(
+                    final List<KafkaTopicPartition> fixed) {
+        @SuppressWarnings("unchecked")
+        List<List<KafkaTopicPartition>> mockSequence = mock(List.class);
+        when(mockSequence.get(anyInt()))
+                .thenAnswer(
+                        new Answer<List<KafkaTopicPartition>>() {
+                            @Override
+                            public List<KafkaTopicPartition> answer(
+                                    InvocationOnMock invocationOnMock) throws Throwable {
+                                return new ArrayList<>(fixed);
+                            }
+                        });
 
-		return mockSequence;
-	}
+        return mockSequence;
+    }
 }

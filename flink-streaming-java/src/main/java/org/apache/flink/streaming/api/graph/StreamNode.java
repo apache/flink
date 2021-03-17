@@ -46,330 +46,339 @@ import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Class representing the operators in the streaming programs, with all their properties.
- */
+/** Class representing the operators in the streaming programs, with all their properties. */
 @Internal
 public class StreamNode {
 
-	private final int id;
-	private int parallelism;
-	/**
-	 * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
-	 * dynamic scaling and the number of key groups used for partitioned state.
-	 */
-	private int maxParallelism;
-	private ResourceSpec minResources = ResourceSpec.DEFAULT;
-	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
-	private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights = new HashMap<>();
-	private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
-	private long bufferTimeout;
-	private final String operatorName;
-	private @Nullable String slotSharingGroup;
-	private @Nullable String coLocationGroup;
-	private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
-	private TypeSerializer<?> stateKeySerializer;
+    private final int id;
+    private int parallelism;
+    /**
+     * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
+     * dynamic scaling and the number of key groups used for partitioned state.
+     */
+    private int maxParallelism;
 
-	private StreamOperatorFactory<?> operatorFactory;
-	private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
-	private TypeSerializer<?> typeSerializerOut;
+    private ResourceSpec minResources = ResourceSpec.DEFAULT;
+    private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
+    private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights =
+            new HashMap<>();
+    private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
+    private long bufferTimeout;
+    private final String operatorName;
+    private @Nullable String slotSharingGroup;
+    private @Nullable String coLocationGroup;
+    private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
+    private TypeSerializer<?> stateKeySerializer;
 
-	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
-	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
+    private StreamOperatorFactory<?> operatorFactory;
+    private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
+    private TypeSerializer<?> typeSerializerOut;
 
-	private final Class<? extends AbstractInvokable> jobVertexClass;
+    private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
+    private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
 
-	private InputFormat<?, ?> inputFormat;
-	private OutputFormat<?> outputFormat;
+    private final Class<? extends AbstractInvokable> jobVertexClass;
 
-	private String transformationUID;
-	private String userHash;
-	private boolean sortedInputs = false;
+    private InputFormat<?, ?> inputFormat;
+    private OutputFormat<?> outputFormat;
 
-	@VisibleForTesting
-	public StreamNode(
-			Integer id,
-			@Nullable String slotSharingGroup,
-			@Nullable String coLocationGroup,
-			StreamOperator<?> operator,
-			String operatorName,
-			Class<? extends AbstractInvokable> jobVertexClass) {
-		this(id, slotSharingGroup, coLocationGroup, SimpleOperatorFactory.of(operator),
-				operatorName, jobVertexClass);
-	}
+    private String transformationUID;
+    private String userHash;
 
-	public StreamNode(
-			Integer id,
-			@Nullable String slotSharingGroup,
-			@Nullable String coLocationGroup,
-			StreamOperatorFactory<?> operatorFactory,
-			String operatorName,
-			Class<? extends AbstractInvokable> jobVertexClass) {
-		this.id = id;
-		this.operatorName = operatorName;
-		this.operatorFactory = operatorFactory;
-		this.jobVertexClass = jobVertexClass;
-		this.slotSharingGroup = slotSharingGroup;
-		this.coLocationGroup = coLocationGroup;
-	}
+    private final Map<Integer, StreamConfig.InputRequirement> inputRequirements = new HashMap<>();
 
-	public void addInEdge(StreamEdge inEdge) {
-		if (inEdge.getTargetId() != getId()) {
-			throw new IllegalArgumentException("Destination id doesn't match the StreamNode id");
-		} else {
-			inEdges.add(inEdge);
-		}
-	}
+    @VisibleForTesting
+    public StreamNode(
+            Integer id,
+            @Nullable String slotSharingGroup,
+            @Nullable String coLocationGroup,
+            StreamOperator<?> operator,
+            String operatorName,
+            Class<? extends AbstractInvokable> jobVertexClass) {
+        this(
+                id,
+                slotSharingGroup,
+                coLocationGroup,
+                SimpleOperatorFactory.of(operator),
+                operatorName,
+                jobVertexClass);
+    }
 
-	public void addOutEdge(StreamEdge outEdge) {
-		if (outEdge.getSourceId() != getId()) {
-			throw new IllegalArgumentException("Source id doesn't match the StreamNode id");
-		} else {
-			outEdges.add(outEdge);
-		}
-	}
+    public StreamNode(
+            Integer id,
+            @Nullable String slotSharingGroup,
+            @Nullable String coLocationGroup,
+            StreamOperatorFactory<?> operatorFactory,
+            String operatorName,
+            Class<? extends AbstractInvokable> jobVertexClass) {
+        this.id = id;
+        this.operatorName = operatorName;
+        this.operatorFactory = operatorFactory;
+        this.jobVertexClass = jobVertexClass;
+        this.slotSharingGroup = slotSharingGroup;
+        this.coLocationGroup = coLocationGroup;
+    }
 
-	public List<StreamEdge> getOutEdges() {
-		return outEdges;
-	}
+    public void addInEdge(StreamEdge inEdge) {
+        if (inEdge.getTargetId() != getId()) {
+            throw new IllegalArgumentException("Destination id doesn't match the StreamNode id");
+        } else {
+            inEdges.add(inEdge);
+        }
+    }
 
-	public List<StreamEdge> getInEdges() {
-		return inEdges;
-	}
+    public void addOutEdge(StreamEdge outEdge) {
+        if (outEdge.getSourceId() != getId()) {
+            throw new IllegalArgumentException("Source id doesn't match the StreamNode id");
+        } else {
+            outEdges.add(outEdge);
+        }
+    }
 
-	public List<Integer> getOutEdgeIndices() {
-		List<Integer> outEdgeIndices = new ArrayList<Integer>();
+    public List<StreamEdge> getOutEdges() {
+        return outEdges;
+    }
 
-		for (StreamEdge edge : outEdges) {
-			outEdgeIndices.add(edge.getTargetId());
-		}
+    public List<StreamEdge> getInEdges() {
+        return inEdges;
+    }
 
-		return outEdgeIndices;
-	}
+    public List<Integer> getOutEdgeIndices() {
+        List<Integer> outEdgeIndices = new ArrayList<Integer>();
 
-	public List<Integer> getInEdgeIndices() {
-		List<Integer> inEdgeIndices = new ArrayList<Integer>();
+        for (StreamEdge edge : outEdges) {
+            outEdgeIndices.add(edge.getTargetId());
+        }
 
-		for (StreamEdge edge : inEdges) {
-			inEdgeIndices.add(edge.getSourceId());
-		}
+        return outEdgeIndices;
+    }
 
-		return inEdgeIndices;
-	}
+    public List<Integer> getInEdgeIndices() {
+        List<Integer> inEdgeIndices = new ArrayList<Integer>();
 
-	public int getId() {
-		return id;
-	}
+        for (StreamEdge edge : inEdges) {
+            inEdgeIndices.add(edge.getSourceId());
+        }
 
-	public int getParallelism() {
-		return parallelism;
-	}
+        return inEdgeIndices;
+    }
 
-	public void setParallelism(Integer parallelism) {
-		this.parallelism = parallelism;
-	}
+    public int getId() {
+        return id;
+    }
 
-	/**
-	 * Get the maximum parallelism for this stream node.
-	 *
-	 * @return Maximum parallelism
-	 */
-	int getMaxParallelism() {
-		return maxParallelism;
-	}
+    public int getParallelism() {
+        return parallelism;
+    }
 
-	/**
-	 * Set the maximum parallelism for this stream node.
-	 *
-	 * @param maxParallelism Maximum parallelism to be set
-	 */
-	void setMaxParallelism(int maxParallelism) {
-		this.maxParallelism = maxParallelism;
-	}
+    public void setParallelism(Integer parallelism) {
+        this.parallelism = parallelism;
+    }
 
-	public ResourceSpec getMinResources() {
-		return minResources;
-	}
+    /**
+     * Get the maximum parallelism for this stream node.
+     *
+     * @return Maximum parallelism
+     */
+    int getMaxParallelism() {
+        return maxParallelism;
+    }
 
-	public ResourceSpec getPreferredResources() {
-		return preferredResources;
-	}
+    /**
+     * Set the maximum parallelism for this stream node.
+     *
+     * @param maxParallelism Maximum parallelism to be set
+     */
+    void setMaxParallelism(int maxParallelism) {
+        this.maxParallelism = maxParallelism;
+    }
 
-	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		this.minResources = minResources;
-		this.preferredResources = preferredResources;
-	}
+    public ResourceSpec getMinResources() {
+        return minResources;
+    }
 
-	public void setManagedMemoryUseCaseWeights(
-			Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights, Set<ManagedMemoryUseCase> slotScopeUseCases) {
-		managedMemoryOperatorScopeUseCaseWeights.putAll(operatorScopeUseCaseWeights);
-		managedMemorySlotScopeUseCases.addAll(slotScopeUseCases);
-	}
+    public ResourceSpec getPreferredResources() {
+        return preferredResources;
+    }
 
-	public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
-		return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);
-	}
+    public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+        this.minResources = minResources;
+        this.preferredResources = preferredResources;
+    }
 
-	public Set<ManagedMemoryUseCase> getManagedMemorySlotScopeUseCases() {
-		return Collections.unmodifiableSet(managedMemorySlotScopeUseCases);
-	}
+    public void setManagedMemoryUseCaseWeights(
+            Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+            Set<ManagedMemoryUseCase> slotScopeUseCases) {
+        managedMemoryOperatorScopeUseCaseWeights.putAll(operatorScopeUseCaseWeights);
+        managedMemorySlotScopeUseCases.addAll(slotScopeUseCases);
+    }
 
-	public long getBufferTimeout() {
-		return bufferTimeout;
-	}
+    public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
+        return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);
+    }
 
-	public void setBufferTimeout(Long bufferTimeout) {
-		this.bufferTimeout = bufferTimeout;
-	}
+    public Set<ManagedMemoryUseCase> getManagedMemorySlotScopeUseCases() {
+        return Collections.unmodifiableSet(managedMemorySlotScopeUseCases);
+    }
 
-	@VisibleForTesting
-	public StreamOperator<?> getOperator() {
-		return (StreamOperator<?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    public long getBufferTimeout() {
+        return bufferTimeout;
+    }
 
-	public StreamOperatorFactory<?> getOperatorFactory() {
-		return operatorFactory;
-	}
+    public void setBufferTimeout(Long bufferTimeout) {
+        this.bufferTimeout = bufferTimeout;
+    }
 
-	public String getOperatorName() {
-		return operatorName;
-	}
+    @VisibleForTesting
+    public StreamOperator<?> getOperator() {
+        return (StreamOperator<?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+    }
 
-	public void setSerializersIn(TypeSerializer<?> ...typeSerializersIn) {
-		checkArgument(typeSerializersIn.length > 0);
-		this.typeSerializersIn = typeSerializersIn;
-	}
+    public StreamOperatorFactory<?> getOperatorFactory() {
+        return operatorFactory;
+    }
 
-	public TypeSerializer<?>[] getTypeSerializersIn() {
-		return typeSerializersIn;
-	}
+    public String getOperatorName() {
+        return operatorName;
+    }
 
-	public TypeSerializer<?> getTypeSerializerIn(int index) {
-		return typeSerializersIn[index];
-	}
+    public void setSerializersIn(TypeSerializer<?>... typeSerializersIn) {
+        checkArgument(typeSerializersIn.length > 0);
+        this.typeSerializersIn = typeSerializersIn;
+    }
 
-	public TypeSerializer<?> getTypeSerializerOut() {
-		return typeSerializerOut;
-	}
+    public TypeSerializer<?>[] getTypeSerializersIn() {
+        return typeSerializersIn;
+    }
 
-	public void setSerializerOut(TypeSerializer<?> typeSerializerOut) {
-		this.typeSerializerOut = typeSerializerOut;
-	}
+    public TypeSerializer<?> getTypeSerializerIn(int index) {
+        return typeSerializersIn[index];
+    }
 
-	public Class<? extends AbstractInvokable> getJobVertexClass() {
-		return jobVertexClass;
-	}
+    public TypeSerializer<?> getTypeSerializerOut() {
+        return typeSerializerOut;
+    }
 
-	public InputFormat<?, ?> getInputFormat() {
-		return inputFormat;
-	}
+    public void setSerializerOut(TypeSerializer<?> typeSerializerOut) {
+        this.typeSerializerOut = typeSerializerOut;
+    }
 
-	public void setInputFormat(InputFormat<?, ?> inputFormat) {
-		this.inputFormat = inputFormat;
-	}
+    public Class<? extends AbstractInvokable> getJobVertexClass() {
+        return jobVertexClass;
+    }
 
-	public OutputFormat<?> getOutputFormat() {
-		return outputFormat;
-	}
+    public InputFormat<?, ?> getInputFormat() {
+        return inputFormat;
+    }
 
-	public void setOutputFormat(OutputFormat<?> outputFormat) {
-		this.outputFormat = outputFormat;
-	}
+    public void setInputFormat(InputFormat<?, ?> inputFormat) {
+        this.inputFormat = inputFormat;
+    }
 
-	public void setSlotSharingGroup(@Nullable String slotSharingGroup) {
-		this.slotSharingGroup = slotSharingGroup;
-	}
+    public OutputFormat<?> getOutputFormat() {
+        return outputFormat;
+    }
 
-	@Nullable
-	public String getSlotSharingGroup() {
-		return slotSharingGroup;
-	}
+    public void setOutputFormat(OutputFormat<?> outputFormat) {
+        this.outputFormat = outputFormat;
+    }
 
-	public void setCoLocationGroup(@Nullable String coLocationGroup) {
-		this.coLocationGroup = coLocationGroup;
-	}
+    public void setSlotSharingGroup(@Nullable String slotSharingGroup) {
+        this.slotSharingGroup = slotSharingGroup;
+    }
 
-	public @Nullable String getCoLocationGroup() {
-		return coLocationGroup;
-	}
+    @Nullable
+    public String getSlotSharingGroup() {
+        return slotSharingGroup;
+    }
 
-	public boolean isSameSlotSharingGroup(StreamNode downstreamVertex) {
-		return (slotSharingGroup == null && downstreamVertex.slotSharingGroup == null) ||
-				(slotSharingGroup != null && slotSharingGroup.equals(downstreamVertex.slotSharingGroup));
-	}
+    public void setCoLocationGroup(@Nullable String coLocationGroup) {
+        this.coLocationGroup = coLocationGroup;
+    }
 
-	@Override
-	public String toString() {
-		return operatorName + "-" + id;
-	}
+    public @Nullable String getCoLocationGroup() {
+        return coLocationGroup;
+    }
 
-	public KeySelector<?, ?>[] getStatePartitioners() {
-		return statePartitioners;
-	}
+    public boolean isSameSlotSharingGroup(StreamNode downstreamVertex) {
+        return (slotSharingGroup == null && downstreamVertex.slotSharingGroup == null)
+                || (slotSharingGroup != null
+                        && slotSharingGroup.equals(downstreamVertex.slotSharingGroup));
+    }
 
-	public void setStatePartitioners(KeySelector<?, ?> ...statePartitioners) {
-		checkArgument(statePartitioners.length > 0);
-		this.statePartitioners = statePartitioners;
-	}
+    @Override
+    public String toString() {
+        return operatorName + "-" + id;
+    }
 
-	public TypeSerializer<?> getStateKeySerializer() {
-		return stateKeySerializer;
-	}
+    public KeySelector<?, ?>[] getStatePartitioners() {
+        return statePartitioners;
+    }
 
-	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
-		this.stateKeySerializer = stateKeySerializer;
-	}
+    public void setStatePartitioners(KeySelector<?, ?>... statePartitioners) {
+        checkArgument(statePartitioners.length > 0);
+        this.statePartitioners = statePartitioners;
+    }
 
-	public String getTransformationUID() {
-		return transformationUID;
-	}
+    public TypeSerializer<?> getStateKeySerializer() {
+        return stateKeySerializer;
+    }
 
-	void setTransformationUID(String transformationId) {
-		this.transformationUID = transformationId;
-	}
+    public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
+        this.stateKeySerializer = stateKeySerializer;
+    }
 
-	public String getUserHash() {
-		return userHash;
-	}
+    public String getTransformationUID() {
+        return transformationUID;
+    }
 
-	public void setUserHash(String userHash) {
-		this.userHash = userHash;
-	}
+    void setTransformationUID(String transformationId) {
+        this.transformationUID = transformationId;
+    }
 
-	public void setSortedInputs(boolean sortedInputs) {
-		this.sortedInputs = sortedInputs;
-	}
+    public String getUserHash() {
+        return userHash;
+    }
 
-	public boolean getSortedInputs() {
-		return sortedInputs;
-	}
+    public void setUserHash(String userHash) {
+        this.userHash = userHash;
+    }
 
-	public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
-			String operatorName,
-			OperatorID operatorID) {
-		if (operatorFactory instanceof CoordinatedOperatorFactory) {
-			return Optional.of(((CoordinatedOperatorFactory) operatorFactory)
-					.getCoordinatorProvider(operatorName, operatorID));
-		} else {
-			return Optional.empty();
-		}
-	}
+    public void addInputRequirement(
+            int inputIndex, StreamConfig.InputRequirement inputRequirement) {
+        inputRequirements.put(inputIndex, inputRequirement);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    public Map<Integer, StreamConfig.InputRequirement> getInputRequirements() {
+        return inputRequirements;
+    }
 
-		StreamNode that = (StreamNode) o;
-		return id == that.id;
-	}
+    public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
+            String operatorName, OperatorID operatorID) {
+        if (operatorFactory instanceof CoordinatedOperatorFactory) {
+            return Optional.of(
+                    ((CoordinatedOperatorFactory) operatorFactory)
+                            .getCoordinatorProvider(operatorName, operatorID));
+        } else {
+            return Optional.empty();
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return id;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        StreamNode that = (StreamNode) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
 }

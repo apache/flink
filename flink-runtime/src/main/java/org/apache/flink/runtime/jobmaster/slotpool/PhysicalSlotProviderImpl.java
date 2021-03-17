@@ -32,73 +32,83 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The provider serves physical slot requests.
- */
+/** The provider serves physical slot requests. */
 public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
-	private static final Logger LOG = LoggerFactory.getLogger(PhysicalSlotProviderImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PhysicalSlotProviderImpl.class);
 
-	private final SlotSelectionStrategy slotSelectionStrategy;
+    private final SlotSelectionStrategy slotSelectionStrategy;
 
-	private final SlotPool slotPool;
+    private final SlotPool slotPool;
 
-	public PhysicalSlotProviderImpl(SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
-		this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
-		this.slotPool = checkNotNull(slotPool);
-		slotPool.disableBatchSlotRequestTimeoutCheck();
-	}
+    public PhysicalSlotProviderImpl(
+            SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
+        this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
+        this.slotPool = checkNotNull(slotPool);
+        slotPool.disableBatchSlotRequestTimeoutCheck();
+    }
 
-	@Override
-	public CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(PhysicalSlotRequest physicalSlotRequest) {
-		SlotRequestId slotRequestId = physicalSlotRequest.getSlotRequestId();
-		SlotProfile slotProfile = physicalSlotRequest.getSlotProfile();
-		ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
+    @Override
+    public CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(
+            PhysicalSlotRequest physicalSlotRequest) {
+        SlotRequestId slotRequestId = physicalSlotRequest.getSlotRequestId();
+        SlotProfile slotProfile = physicalSlotRequest.getSlotProfile();
+        ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
 
-		LOG.debug("Received slot request [{}] with resource requirements: {}", slotRequestId, resourceProfile);
+        LOG.debug(
+                "Received slot request [{}] with resource requirements: {}",
+                slotRequestId,
+                resourceProfile);
 
-		Optional<PhysicalSlot> availablePhysicalSlot = tryAllocateFromAvailable(slotRequestId, slotProfile);
+        Optional<PhysicalSlot> availablePhysicalSlot =
+                tryAllocateFromAvailable(slotRequestId, slotProfile);
 
-		CompletableFuture<PhysicalSlot> slotFuture;
-		slotFuture = availablePhysicalSlot
-			.map(CompletableFuture::completedFuture)
-			.orElseGet(() -> requestNewSlot(
-				slotRequestId,
-				resourceProfile,
-				physicalSlotRequest.willSlotBeOccupiedIndefinitely()));
+        CompletableFuture<PhysicalSlot> slotFuture;
+        slotFuture =
+                availablePhysicalSlot
+                        .map(CompletableFuture::completedFuture)
+                        .orElseGet(
+                                () ->
+                                        requestNewSlot(
+                                                slotRequestId,
+                                                resourceProfile,
+                                                physicalSlotRequest
+                                                        .willSlotBeOccupiedIndefinitely()));
 
-		return slotFuture.thenApply(physicalSlot -> new PhysicalSlotRequest.Result(slotRequestId, physicalSlot));
-	}
+        return slotFuture.thenApply(
+                physicalSlot -> new PhysicalSlotRequest.Result(slotRequestId, physicalSlot));
+    }
 
-	private Optional<PhysicalSlot> tryAllocateFromAvailable(SlotRequestId slotRequestId, SlotProfile slotProfile) {
-		Collection<SlotSelectionStrategy.SlotInfoAndResources> slotInfoList =
-			slotPool.getAvailableSlotsInformation()
-				.stream()
-				.map(SlotSelectionStrategy.SlotInfoAndResources::fromSingleSlot)
-				.collect(Collectors.toList());
+    private Optional<PhysicalSlot> tryAllocateFromAvailable(
+            SlotRequestId slotRequestId, SlotProfile slotProfile) {
+        Collection<SlotSelectionStrategy.SlotInfoAndResources> slotInfoList =
+                slotPool.getAvailableSlotsInformation().stream()
+                        .map(SlotSelectionStrategy.SlotInfoAndResources::fromSingleSlot)
+                        .collect(Collectors.toList());
 
-		Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
-			slotSelectionStrategy.selectBestSlotForProfile(slotInfoList, slotProfile);
+        Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
+                slotSelectionStrategy.selectBestSlotForProfile(slotInfoList, slotProfile);
 
-		return selectedAvailableSlot.flatMap(
-			slotInfoAndLocality -> slotPool.allocateAvailableSlot(
-				slotRequestId,
-				slotInfoAndLocality.getSlotInfo().getAllocationId())
-		);
-	}
+        return selectedAvailableSlot.flatMap(
+                slotInfoAndLocality ->
+                        slotPool.allocateAvailableSlot(
+                                slotRequestId,
+                                slotInfoAndLocality.getSlotInfo().getAllocationId(),
+                                slotProfile.getPhysicalSlotResourceProfile()));
+    }
 
-	private CompletableFuture<PhysicalSlot> requestNewSlot(
-			SlotRequestId slotRequestId,
-			ResourceProfile resourceProfile,
-			boolean willSlotBeOccupiedIndefinitely) {
-		if (willSlotBeOccupiedIndefinitely) {
-			return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
-		} else {
-			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
-		}
-	}
+    private CompletableFuture<PhysicalSlot> requestNewSlot(
+            SlotRequestId slotRequestId,
+            ResourceProfile resourceProfile,
+            boolean willSlotBeOccupiedIndefinitely) {
+        if (willSlotBeOccupiedIndefinitely) {
+            return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
+        } else {
+            return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+        }
+    }
 
-	@Override
-	public void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause) {
-		slotPool.releaseSlot(slotRequestId, cause);
-	}
+    @Override
+    public void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause) {
+        slotPool.releaseSlot(slotRequestId, cause);
+    }
 }

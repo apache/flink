@@ -28,15 +28,15 @@ import java.util.List;
  * <p>Only consider rate of the meter, due to Datadog HTTP API's limited support of meter
  */
 public class DMeter extends DMetric {
-	private final Meter meter;
+    private final Meter meter;
 
-	public DMeter(Meter m, String metricName, String host, List<String> tags, Clock clock) {
-		super(MetricType.gauge, metricName, host, tags, clock);
-		meter = m;
-	}
+    public DMeter(Meter m, String metricName, String host, List<String> tags, Clock clock) {
+        super(new MetricMetaData(MetricType.gauge, metricName, host, tags, clock));
+        meter = m;
+    }
 
-	@Override
-	public Number getMetricValue() {
-		return meter.getRate();
-	}
+    @Override
+    public Number getMetricValue() {
+        return meter.getRate();
+    }
 }

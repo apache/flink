@@ -32,29 +32,31 @@ import java.util.Properties;
 
 import static java.util.Collections.emptyList;
 
-/**
- * Creates instances of {@link KinesisProxyV2}.
- */
+/** Creates instances of {@link KinesisProxyV2}. */
 @Internal
 public class KinesisProxyV2Factory {
 
-	private static final FullJitterBackoff BACKOFF = new FullJitterBackoff();
+    private static final FullJitterBackoff BACKOFF = new FullJitterBackoff();
 
-	/**
-	 * Uses the given properties to instantiate a new instance of {@link KinesisProxyV2}.
-	 *
-	 * @param configProps the properties used to parse configuration
-	 * @return the Kinesis proxy
-	 */
-	public static KinesisProxyV2Interface createKinesisProxyV2(final Properties configProps) {
-		Preconditions.checkNotNull(configProps);
+    /**
+     * Uses the given properties to instantiate a new instance of {@link KinesisProxyV2}.
+     *
+     * @param configProps the properties used to parse configuration
+     * @return the Kinesis proxy
+     */
+    public static KinesisProxyV2Interface createKinesisProxyV2(final Properties configProps) {
+        Preconditions.checkNotNull(configProps);
 
-		final ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		final SdkAsyncHttpClient httpClient = AwsV2Util.createHttpClient(clientConfiguration, NettyNioAsyncHttpClient.builder(), configProps);
-		final FanOutRecordPublisherConfiguration configuration = new FanOutRecordPublisherConfiguration(configProps, emptyList());
-		final KinesisAsyncClient client = AwsV2Util.createKinesisAsyncClient(configProps, clientConfiguration, httpClient);
+        final ClientConfiguration clientConfiguration =
+                new ClientConfigurationFactory().getConfig();
+        final SdkAsyncHttpClient httpClient =
+                AwsV2Util.createHttpClient(
+                        clientConfiguration, NettyNioAsyncHttpClient.builder(), configProps);
+        final FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(configProps, emptyList());
+        final KinesisAsyncClient client =
+                AwsV2Util.createKinesisAsyncClient(configProps, clientConfiguration, httpClient);
 
-		return new KinesisProxyV2(client, httpClient, configuration, BACKOFF);
-	}
-
+        return new KinesisProxyV2(client, httpClient, configuration, BACKOFF);
+    }
 }

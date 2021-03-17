@@ -47,7 +47,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -63,7 +63,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |WITH r AS (SELECT a FROM x LIMIT 10)
         |SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -79,7 +79,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |WITH r AS (SELECT a FROM x LIMIT 10)
         |SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -99,7 +99,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |
         |select * from v2, v3 where v2.c = v3.c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -119,7 +119,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |(SELECT a, b FROM r WHERE a in (select a from x where b > 5)) r2
         |WHERE r1.a = r2.a and r1.b = 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -136,7 +136,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |
         |SELECT * FROM r2, r3 WHERE r2.c = r3.c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -152,7 +152,7 @@ class DeadlockBreakupTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
         |    SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -162,7 +162,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery = "SELECT * FROM t t1, t t2 WHERE t1.a = t2.a AND t1.b > 10 AND t2.c LIKE 'Test%'"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -170,7 +170,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     val sqlQuery = "SELECT * FROM t t1, t t2 WHERE t1.a = t2.b"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -178,7 +178,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     val sqlQuery = "SELECT * FROM t INTERSECT SELECT * FROM t"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -197,7 +197,7 @@ class DeadlockBreakupTest extends TableTestBase {
          |  UNION ALL
          |  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
          |""".stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -214,7 +214,7 @@ class DeadlockBreakupTest extends TableTestBase {
          |  T3 AS (SELECT cnt FROM T1 WHERE cnt < 5)
          |SELECT * FROM T2 FULL JOIN T3 ON T2.cnt <> T3.cnt
          |""".stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -229,6 +229,24 @@ class DeadlockBreakupTest extends TableTestBase {
          |SELECT * FROM T1
          |  INNER JOIN T1 AS T2 ON T1.a = T2.a
          |""".stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testSubplanReuse_DeadlockCausedByReusingExchangeInAncestor(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sqlQuery =
+      """
+        |WITH T1 AS (
+        |  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+        |  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+        |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
   }
 }

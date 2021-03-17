@@ -26,43 +26,43 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /**
  * Base class for deduplicate function.
- * @param <T>   Type of the value in the state.
- * @param <K>   Type of the key.
- * @param <IN>  Type of the input elements.
+ *
+ * @param <T> Type of the value in the state.
+ * @param <K> Type of the key.
+ * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
 abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFunction<K, IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// the TypeInformation of the values in the state.
-	protected final TypeInformation<T> typeInfo;
-	protected final long stateRetentionTime;
-	protected final TypeSerializer<OUT> serializer;
-	// state stores previous message under the key.
-	protected ValueState<T> state;
+    // the TypeInformation of the values in the state.
+    protected final TypeInformation<T> typeInfo;
+    protected final long stateRetentionTime;
+    protected final TypeSerializer<OUT> serializer;
+    // state stores previous message under the key.
+    protected ValueState<T> state;
 
-	public DeduplicateFunctionBase(
-			TypeInformation<T> typeInfo,
-			TypeSerializer<OUT> serializer,
-			long stateRetentionTime) {
-		this.typeInfo = typeInfo;
-		this.stateRetentionTime = stateRetentionTime;
-		this.serializer = serializer;
-	}
+    public DeduplicateFunctionBase(
+            TypeInformation<T> typeInfo, TypeSerializer<OUT> serializer, long stateRetentionTime) {
+        this.typeInfo = typeInfo;
+        this.stateRetentionTime = stateRetentionTime;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void open(Configuration configure) throws Exception {
-		super.open(configure);
-		ValueStateDescriptor<T> stateDesc = new ValueStateDescriptor<>("deduplicate-state", typeInfo);
-		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
-		if (ttlConfig.isEnabled()) {
-			stateDesc.enableTimeToLive(ttlConfig);
-		}
-		state = getRuntimeContext().getState(stateDesc);
-	}
+    @Override
+    public void open(Configuration configure) throws Exception {
+        super.open(configure);
+        ValueStateDescriptor<T> stateDesc =
+                new ValueStateDescriptor<>("deduplicate-state", typeInfo);
+        StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
+        if (ttlConfig.isEnabled()) {
+            stateDesc.enableTimeToLive(ttlConfig);
+        }
+        state = getRuntimeContext().getState(stateDesc);
+    }
 }

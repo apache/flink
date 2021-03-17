@@ -23,7 +23,7 @@
 # a different parallelism than the original execution.
 #
 # Using the general purpose DataStream job, the test covers savepointing and
-# resuming when using different state backends (file, RocksDB), as well as the
+# resuming when using different state backends (HashMap, RocksDB), as well as the
 # following types of states:
 #  - Operator re-partitionable list state
 #  - Broadcast state
@@ -46,7 +46,7 @@ source "$(dirname "$0")"/common.sh
 
 ORIGINAL_DOP=$1
 NEW_DOP=$2
-STATE_BACKEND_TYPE=${3:-file}
+STATE_BACKEND_TYPE=${3:-hashmap}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
 STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-rocks}
 

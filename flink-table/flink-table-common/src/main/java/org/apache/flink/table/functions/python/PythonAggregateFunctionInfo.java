@@ -21,30 +21,28 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.annotation.Internal;
 
 /**
- * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function, such as:
- * the actual Python aggregation function, the input arguments, the filter arg, the distinct flag, etc.
+ * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function,
+ * such as: the actual Python aggregation function, the input arguments, the filter arg, the
+ * distinct flag, etc.
  */
 @Internal
 public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
 
-	private final int filterArg;
-	private final boolean distinct;
+    private final int filterArg;
+    private final boolean distinct;
 
-	public PythonAggregateFunctionInfo(
-			PythonFunction pythonFunction,
-			Object[] inputs,
-			int filterArg,
-			boolean isDistinct) {
-		super(pythonFunction, inputs);
-		this.filterArg = filterArg;
-		this.distinct = isDistinct;
-	}
+    public PythonAggregateFunctionInfo(
+            PythonFunction pythonFunction, Object[] inputs, int filterArg, boolean isDistinct) {
+        super(pythonFunction, inputs);
+        this.filterArg = filterArg;
+        this.distinct = isDistinct;
+    }
 
-	public boolean isDistinct() {
-		return distinct;
-	}
+    public boolean isDistinct() {
+        return distinct;
+    }
 
-	public int getFilterArg() {
-		return filterArg;
-	}
+    public int getFilterArg() {
+        return filterArg;
+    }
 }

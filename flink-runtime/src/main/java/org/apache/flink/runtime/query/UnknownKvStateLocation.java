@@ -19,17 +19,18 @@
 package org.apache.flink.runtime.query;
 
 /**
- * Thrown if there is no {@link KvStateLocation} found for the requested
- * registration name.
+ * Thrown if there is no {@link KvStateLocation} found for the requested registration name.
  *
- * <p>This indicates that the requested KvState instance is not registered
- * under this name (yet).
+ * <p>This indicates that the requested KvState instance is not registered under this name (yet).
  */
 public class UnknownKvStateLocation extends Exception {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public UnknownKvStateLocation(String registrationName) {
-		super("No KvStateLocation found for KvState instance with name '" + registrationName + "'.");
-	}
+    public UnknownKvStateLocation(String registrationName) {
+        super(
+                "No KvStateLocation found for KvState instance with name '"
+                        + registrationName
+                        + "'.");
+    }
 }

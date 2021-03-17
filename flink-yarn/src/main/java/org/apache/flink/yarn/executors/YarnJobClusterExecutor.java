@@ -27,16 +27,17 @@ import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 /**
- * The {@link PipelineExecutor} to be used when executing a job in isolation.
- * This executor will start a cluster specifically for the job at hand and
- * tear it down when the job is finished either successfully or due to an error.
+ * The {@link PipelineExecutor} to be used when executing a job in isolation. This executor will
+ * start a cluster specifically for the job at hand and tear it down when the job is finished either
+ * successfully or due to an error.
  */
 @Internal
-public class YarnJobClusterExecutor extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
+public class YarnJobClusterExecutor
+        extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = YarnDeploymentTarget.PER_JOB.getName();
+    public static final String NAME = YarnDeploymentTarget.PER_JOB.getName();
 
-	public YarnJobClusterExecutor() {
-		super(new YarnClusterClientFactory());
-	}
+    public YarnJobClusterExecutor() {
+        super(new YarnClusterClientFactory());
+    }
 }

@@ -31,8 +31,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -50,102 +50,108 @@ import javax.management.ObjectName;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests to verify JMX reporter functionality on the JobManager.
- */
+/** Tests to verify JMX reporter functionality on the JobManager. */
 public class JMXJobManagerMetricTest extends TestLogger {
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberSlotsPerTaskManager(1)
-			.setNumberTaskManagers(1)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberSlotsPerTaskManager(1)
+                            .setNumberTaskManagers(1)
+                            .build());
 
-	private static Configuration getConfiguration() {
-		Configuration flinkConfiguration = new Configuration();
+    private static Configuration getConfiguration() {
+        Configuration flinkConfiguration = new Configuration();
 
-		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+        flinkConfiguration.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX
+                        + "test."
+                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                JMXReporter.class.getName());
+        flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 
-		return flinkConfiguration;
-	}
+        return flinkConfiguration;
+    }
 
-	/**
-	 * Tests that metrics registered on the JobManager are actually accessible via JMX.
-	 */
-	@Test
-	public void testJobManagerJMXMetricAccess() throws Exception {
-		Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
+    /** Tests that metrics registered on the JobManager are actually accessible via JMX. */
+    @Test
+    public void testJobManagerJMXMetricAccess() throws Exception {
+        Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
-		try {
-			JobVertex sourceJobVertex = new JobVertex("Source");
-			sourceJobVertex.setInvokableClass(BlockingInvokable.class);
+        try {
+            JobVertex sourceJobVertex = new JobVertex("Source");
+            sourceJobVertex.setInvokableClass(BlockingInvokable.class);
 
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
-			jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
-				Collections.<JobVertexID>emptyList(),
-				Collections.<JobVertexID>emptyList(),
-				Collections.<JobVertexID>emptyList(),
-				new CheckpointCoordinatorConfiguration(
-					500,
-					500,
-					50,
-					5,
-					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true,
-					false,
-					false,
-					0),
-				null));
+            final JobCheckpointingSettings jobCheckpointingSettings =
+                    new JobCheckpointingSettings(
+                            new CheckpointCoordinatorConfiguration(
+                                    500,
+                                    500,
+                                    50,
+                                    5,
+                                    CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+                                    true,
+                                    false,
+                                    false,
+                                    0),
+                            null);
 
-			ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
-			client.submitJob(jobGraph).get();
+            final JobGraph jobGraph =
+                    JobGraphBuilder.newStreamingJobGraphBuilder()
+                            .setJobName("TestingJob")
+                            .addJobVertex(sourceJobVertex)
+                            .setJobCheckpointingSettings(jobCheckpointingSettings)
+                            .build();
 
-			FutureUtils.retrySuccessfulWithDelay(
-				() -> client.getJobStatus(jobGraph.getJobID()),
-				Time.milliseconds(10),
-				deadline,
-				status -> status == JobStatus.RUNNING,
-				TestingUtils.defaultScheduledExecutor()
-			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+            client.submitJob(jobGraph).get();
 
-			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-			Set<ObjectName> nameSet = mBeanServer.queryNames(new ObjectName("org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"), null);
-			Assert.assertEquals(1, nameSet.size());
-			assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
+            FutureUtils.retrySuccessfulWithDelay(
+                            () -> client.getJobStatus(jobGraph.getJobID()),
+                            Time.milliseconds(10),
+                            deadline,
+                            status -> status == JobStatus.RUNNING,
+                            TestingUtils.defaultScheduledExecutor())
+                    .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			BlockingInvokable.unblock();
-		} finally {
-			BlockingInvokable.unblock();
-		}
-	}
+            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+            Set<ObjectName> nameSet =
+                    mBeanServer.queryNames(
+                            new ObjectName(
+                                    "org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"),
+                            null);
+            Assert.assertEquals(1, nameSet.size());
+            assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
 
-	/**
-	 * Utility to block/unblock a task.
-	 */
-	public static class BlockingInvokable extends AbstractInvokable {
+            BlockingInvokable.unblock();
+        } finally {
+            BlockingInvokable.unblock();
+        }
+    }
 
-		private static final OneShotLatch LATCH = new OneShotLatch();
+    /** Utility to block/unblock a task. */
+    public static class BlockingInvokable extends AbstractInvokable {
 
-		public BlockingInvokable(Environment environment) {
-			super(environment);
-		}
+        private static final OneShotLatch LATCH = new OneShotLatch();
 
-		@Override
-		public void invoke() throws Exception {
-			LATCH.await();
-		}
+        public BlockingInvokable(Environment environment) {
+            super(environment);
+        }
 
-		public static void unblock() {
-			LATCH.trigger();
-		}
-	}
+        @Override
+        public void invoke() throws Exception {
+            LATCH.await();
+        }
+
+        public static void unblock() {
+            LATCH.trigger();
+        }
+    }
 }

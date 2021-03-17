@@ -25,63 +25,61 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * The {@link CompactReader} to delegate {@link CompactBulkReader}.
- */
+/** The {@link CompactReader} to delegate {@link CompactBulkReader}. */
 public class CompactBulkReader<T> implements CompactReader<T> {
 
-	private final BulkFormat.Reader<T> reader;
-	private BulkFormat.RecordIterator<T> iterator;
+    private final BulkFormat.Reader<T> reader;
+    private BulkFormat.RecordIterator<T> iterator;
 
-	public CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
-		this.reader = reader;
-		this.iterator = reader.readBatch();
-	}
+    public CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
+        this.reader = reader;
+        this.iterator = reader.readBatch();
+    }
 
-	@Override
-	public T read() throws IOException {
-		if (iterator == null) {
-			return null;
-		}
+    @Override
+    public T read() throws IOException {
+        if (iterator == null) {
+            return null;
+        }
 
-		RecordAndPosition<T> record = iterator.next();
-		if (record != null) {
-			return record.getRecord();
-		} else {
-			iterator.releaseBatch();
-			iterator = reader.readBatch();
-			return read();
-		}
-	}
+        RecordAndPosition<T> record = iterator.next();
+        if (record != null) {
+            return record.getRecord();
+        } else {
+            iterator.releaseBatch();
+            iterator = reader.readBatch();
+            return read();
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		reader.close();
-	}
+    @Override
+    public void close() throws IOException {
+        reader.close();
+    }
 
-	public static <T> CompactReader.Factory<T> factory(BulkFormat<T, FileSourceSplit> format) {
-		return new Factory<>(format);
-	}
+    public static <T> CompactReader.Factory<T> factory(BulkFormat<T, FileSourceSplit> format) {
+        return new Factory<>(format);
+    }
 
-	/**
-	 * Factory to create {@link CompactBulkReader}.
-	 */
-	private static class Factory<T> implements CompactReader.Factory<T> {
+    /** Factory to create {@link CompactBulkReader}. */
+    private static class Factory<T> implements CompactReader.Factory<T> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final BulkFormat<T, FileSourceSplit> format;
+        private final BulkFormat<T, FileSourceSplit> format;
 
-		public Factory(BulkFormat<T, FileSourceSplit> format) {
-			this.format = format;
-		}
+        public Factory(BulkFormat<T, FileSourceSplit> format) {
+            this.format = format;
+        }
 
-		@Override
-		public CompactReader<T> create(CompactContext context) throws IOException {
-			final String splitId = UUID.randomUUID().toString();
-			final long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
-			return new CompactBulkReader<>(format.createReader(
-					context.getConfig(), new FileSourceSplit(splitId, context.getPath(), 0, len)));
-		}
-	}
+        @Override
+        public CompactReader<T> create(CompactContext context) throws IOException {
+            final String splitId = UUID.randomUUID().toString();
+            final long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
+            return new CompactBulkReader<>(
+                    format.createReader(
+                            context.getConfig(),
+                            new FileSourceSplit(splitId, context.getPath(), 0, len)));
+        }
+    }
 }

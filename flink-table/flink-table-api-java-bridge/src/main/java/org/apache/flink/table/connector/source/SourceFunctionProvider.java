@@ -23,30 +23,27 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Provider of a {@link SourceFunction} instance as a runtime implementation for {@link ScanTableSource}.
+ * Provider of a {@link SourceFunction} instance as a runtime implementation for {@link
+ * ScanTableSource}.
  */
 @PublicEvolving
 public interface SourceFunctionProvider extends ScanTableSource.ScanRuntimeProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static SourceFunctionProvider of(SourceFunction<RowData> sourceFunction, boolean isBounded) {
-		return new SourceFunctionProvider() {
-			@Override
-			public SourceFunction<RowData> createSourceFunction() {
-				return sourceFunction;
-			}
+    /** Helper method for creating a static provider. */
+    static SourceFunctionProvider of(SourceFunction<RowData> sourceFunction, boolean isBounded) {
+        return new SourceFunctionProvider() {
+            @Override
+            public SourceFunction<RowData> createSourceFunction() {
+                return sourceFunction;
+            }
 
-			@Override
-			public boolean isBounded() {
-				return isBounded;
-			}
-		};
-	}
+            @Override
+            public boolean isBounded() {
+                return isBounded;
+            }
+        };
+    }
 
-	/**
-	 * Creates a {@link SourceFunction} instance.
-	 */
-	SourceFunction<RowData> createSourceFunction();
+    /** Creates a {@link SourceFunction} instance. */
+    SourceFunction<RowData> createSourceFunction();
 }

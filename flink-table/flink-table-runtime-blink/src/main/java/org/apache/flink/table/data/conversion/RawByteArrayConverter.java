@@ -27,45 +27,43 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 
-/**
- * Converter for {@link RawType} of {@code byte[]} external type.
- */
+/** Converter for {@link RawType} of {@code byte[]} external type. */
 @Internal
 public class RawByteArrayConverter<T> implements DataStructureConverter<RawValueData<T>, byte[]> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TypeSerializer<T> serializer;
+    private final TypeSerializer<T> serializer;
 
-	private RawByteArrayConverter(TypeSerializer<T> serializer) {
-		this.serializer = serializer;
-	}
+    private RawByteArrayConverter(TypeSerializer<T> serializer) {
+        this.serializer = serializer;
+    }
 
-	@Override
-	public RawValueData<T> toInternal(byte[] external) {
-		return RawValueData.fromBytes(external);
-	}
+    @Override
+    public RawValueData<T> toInternal(byte[] external) {
+        return RawValueData.fromBytes(external);
+    }
 
-	@Override
-	public byte[] toExternal(RawValueData<T> internal) {
-		return internal.toBytes(serializer);
-	}
+    @Override
+    public byte[] toExternal(RawValueData<T> internal) {
+        return internal.toBytes(serializer);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Factory method
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Factory method
+    // --------------------------------------------------------------------------------------------
 
-	public static RawByteArrayConverter<?> create(DataType dataType) {
-		final LogicalType logicalType = dataType.getLogicalType();
-		final TypeSerializer<?> serializer;
-		if (logicalType instanceof TypeInformationRawType) {
-			serializer = ((TypeInformationRawType<?>) logicalType)
-				.getTypeInformation()
-				.createSerializer(new ExecutionConfig());
-		} else {
-			serializer = ((RawType<?>) dataType.getLogicalType())
-				.getTypeSerializer();
-		}
-		return new RawByteArrayConverter<>(serializer);
-	}
+    public static RawByteArrayConverter<?> create(DataType dataType) {
+        final LogicalType logicalType = dataType.getLogicalType();
+        final TypeSerializer<?> serializer;
+        if (logicalType instanceof TypeInformationRawType) {
+            serializer =
+                    ((TypeInformationRawType<?>) logicalType)
+                            .getTypeInformation()
+                            .createSerializer(new ExecutionConfig());
+        } else {
+            serializer = ((RawType<?>) dataType.getLogicalType()).getTypeSerializer();
+        }
+        return new RawByteArrayConverter<>(serializer);
+    }
 }

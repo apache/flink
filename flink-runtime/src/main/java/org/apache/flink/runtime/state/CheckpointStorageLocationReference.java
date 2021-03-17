@@ -27,103 +27,101 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A reference to a storage location. This is a wrapper around an array of bytes that
- * are subject to interpretation by the state backend's storage locations (similar as
- * a serializer needs to interpret byte streams). There is special handling for a
- * 'default location', which can be used as an optimization by state backends, when no
- * extra information is needed to determine where the checkpoints should be stored
- * (all information can be derived from the configuration and the checkpoint id).
+ * A reference to a storage location. This is a wrapper around an array of bytes that are subject to
+ * interpretation by the state backend's storage locations (similar as a serializer needs to
+ * interpret byte streams). There is special handling for a 'default location', which can be used as
+ * an optimization by state backends, when no extra information is needed to determine where the
+ * checkpoints should be stored (all information can be derived from the configuration and the
+ * checkpoint id).
  *
  * <h3>Why is this simply a byte array?</h3>
  *
- * <p>The reference is represented via raw bytes, which are subject to interpretation
- * by the state backends. We did not add any more typing and serialization abstraction
- * in between, because these types need to serialize/deserialize fast in between
- * network streams (byte buffers) and barriers. We may ultimately add some more typing
- * if we simply keep the byte buffers for the checkpoint barriers and forward them,
- * thus saving decoding and re-encoding these references repeatedly.
+ * <p>The reference is represented via raw bytes, which are subject to interpretation by the state
+ * backends. We did not add any more typing and serialization abstraction in between, because these
+ * types need to serialize/deserialize fast in between network streams (byte buffers) and barriers.
+ * We may ultimately add some more typing if we simply keep the byte buffers for the checkpoint
+ * barriers and forward them, thus saving decoding and re-encoding these references repeatedly.
  */
 public class CheckpointStorageLocationReference implements java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The encoded location reference. null indicates the default location. */
-	private final byte[] encodedReference;
+    /** The encoded location reference. null indicates the default location. */
+    private final byte[] encodedReference;
 
-	/**
-	 * Creates a new location reference.
-	 *
-	 * @param encodedReference The location reference, represented as bytes (non null)
-	 */
-	public CheckpointStorageLocationReference(byte[] encodedReference) {
-		checkNotNull(encodedReference);
-		checkArgument(encodedReference.length > 0);
+    /**
+     * Creates a new location reference.
+     *
+     * @param encodedReference The location reference, represented as bytes (non null)
+     */
+    public CheckpointStorageLocationReference(byte[] encodedReference) {
+        checkNotNull(encodedReference);
+        checkArgument(encodedReference.length > 0);
 
-		this.encodedReference = encodedReference;
-	}
+        this.encodedReference = encodedReference;
+    }
 
-	/**
-	 * Private constructor for singleton only.
-	 */
-	private CheckpointStorageLocationReference() {
-		this.encodedReference = null;
-	}
+    /** Private constructor for singleton only. */
+    private CheckpointStorageLocationReference() {
+        this.encodedReference = null;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Gets the reference bytes.
-	 *
-	 * <p><b>Important:</b> For efficiency, this method does not make a defensive copy,
-	 * so the caller must not modify the bytes in the array.
-	 */
-	public byte[] getReferenceBytes() {
-		// return a non null object always
-		return encodedReference != null ? encodedReference : new byte[0];
-	}
+    /**
+     * Gets the reference bytes.
+     *
+     * <p><b>Important:</b> For efficiency, this method does not make a defensive copy, so the
+     * caller must not modify the bytes in the array.
+     */
+    public byte[] getReferenceBytes() {
+        // return a non null object always
+        return encodedReference != null ? encodedReference : new byte[0];
+    }
 
-	/**
-	 * Returns true, if this object is the default reference.
-	 */
-	public boolean isDefaultReference() {
-		return encodedReference == null;
-	}
+    /** Returns true, if this object is the default reference. */
+    public boolean isDefaultReference() {
+        return encodedReference == null;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return encodedReference == null ? 2059243550 : Arrays.hashCode(encodedReference);
-	}
+    @Override
+    public int hashCode() {
+        return encodedReference == null ? 2059243550 : Arrays.hashCode(encodedReference);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this ||
-				obj != null && obj.getClass() == CheckpointStorageLocationReference.class &&
-						Arrays.equals(encodedReference, ((CheckpointStorageLocationReference) obj).encodedReference);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this
+                || obj != null
+                        && obj.getClass() == CheckpointStorageLocationReference.class
+                        && Arrays.equals(
+                                encodedReference,
+                                ((CheckpointStorageLocationReference) obj).encodedReference);
+    }
 
-	@Override
-	public String toString() {
-		return encodedReference == null ? "(default)"
-				: StringUtils.byteToHexString(encodedReference, 0, encodedReference.length);
-	}
+    @Override
+    public String toString() {
+        return encodedReference == null
+                ? "(default)"
+                : StringUtils.byteToHexString(encodedReference, 0, encodedReference.length);
+    }
 
-	/**
-	 * readResolve() preserves the singleton property of the default value.
- 	 */
-	protected final Object readResolve() throws ObjectStreamException {
-		return encodedReference == null ? DEFAULT : this;
-	}
+    /** readResolve() preserves the singleton property of the default value. */
+    protected final Object readResolve() throws ObjectStreamException {
+        return encodedReference == null ? DEFAULT : this;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Default Location Reference
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Default Location Reference
+    // ------------------------------------------------------------------------
 
-	/** The singleton object for the default reference. */
-	private static final CheckpointStorageLocationReference DEFAULT = new CheckpointStorageLocationReference();
+    /** The singleton object for the default reference. */
+    private static final CheckpointStorageLocationReference DEFAULT =
+            new CheckpointStorageLocationReference();
 
-	public static CheckpointStorageLocationReference getDefault() {
-		return DEFAULT;
-	}
+    public static CheckpointStorageLocationReference getDefault() {
+        return DEFAULT;
+    }
 }

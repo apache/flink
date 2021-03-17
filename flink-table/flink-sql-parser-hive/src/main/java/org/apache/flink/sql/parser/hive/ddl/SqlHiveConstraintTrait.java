@@ -21,39 +21,35 @@ package org.apache.flink.sql.parser.hive.ddl;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlWriter;
 
-/**
- * To describe a Hive constraint, i.e. ENABLE/DISABLE, VALIDATE/NOVALIDATE, RELY/NORELY.
- */
+/** To describe a Hive constraint, i.e. ENABLE/DISABLE, VALIDATE/NOVALIDATE, RELY/NORELY. */
 public class SqlHiveConstraintTrait {
 
-	private final SqlLiteral enable;
-	private final SqlLiteral validate;
-	private final SqlLiteral rely;
+    private final SqlLiteral enable;
+    private final SqlLiteral validate;
+    private final SqlLiteral rely;
 
-	public SqlHiveConstraintTrait(
-			SqlLiteral enable,
-			SqlLiteral validate,
-			SqlLiteral rely) {
-		this.enable = enable;
-		this.validate = validate;
-		this.rely = rely;
-	}
+    public SqlHiveConstraintTrait(SqlLiteral enable, SqlLiteral validate, SqlLiteral rely) {
+        this.enable = enable;
+        this.validate = validate;
+        this.rely = rely;
+    }
 
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		enable.unparse(writer, leftPrec, rightPrec);
-		validate.unparse(writer, leftPrec, rightPrec);
-		rely.unparse(writer, leftPrec, rightPrec);
-	}
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        enable.unparse(writer, leftPrec, rightPrec);
+        validate.unparse(writer, leftPrec, rightPrec);
+        rely.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public boolean isEnable() {
-		return enable.getValueAs(SqlHiveConstraintEnable.class) == SqlHiveConstraintEnable.ENABLE;
-	}
+    public boolean isEnable() {
+        return enable.getValueAs(SqlHiveConstraintEnable.class) == SqlHiveConstraintEnable.ENABLE;
+    }
 
-	public boolean isValidate() {
-		return validate.getValueAs(SqlHiveConstraintValidate.class) == SqlHiveConstraintValidate.VALIDATE;
-	}
+    public boolean isValidate() {
+        return validate.getValueAs(SqlHiveConstraintValidate.class)
+                == SqlHiveConstraintValidate.VALIDATE;
+    }
 
-	public boolean isRely() {
-		return rely.getValueAs(SqlHiveConstraintRely.class) == SqlHiveConstraintRely.RELY;
-	}
+    public boolean isRely() {
+        return rely.getValueAs(SqlHiveConstraintRely.class) == SqlHiveConstraintRely.RELY;
+    }
 }

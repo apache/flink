@@ -18,35 +18,24 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-/**
- * The Mesos environment variables used for settings of the containers.
- */
+/** The Mesos environment variables used for settings of the containers. */
 public class MesosConfigKeys {
-	// ------------------------------------------------------------------------
-	//  Environment variable names
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Environment variable names
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Reserved for future enhancement.
-	 */
-	public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
+    /** Reserved for future enhancement. */
+    public static final String ENV_FLINK_TMP_DIR = "_FLINK_TMP_DIR";
 
-	/**
-	 * JVM arguments, used by the JM and TM.
-	 */
-	public static final String ENV_JVM_ARGS = "JVM_ARGS";
+    /** JVM arguments, used by the JM and TM. */
+    public static final String ENV_JVM_ARGS = "JVM_ARGS";
 
-	/**
-	 * Standard environment variables used in DCOS environment.
-	 */
-	public static final String ENV_TASK_NAME = "TASK_NAME";
+    /** Standard environment variables used in DCOS environment. */
+    public static final String ENV_TASK_NAME = "TASK_NAME";
 
-	/**
-	 * Standard environment variables used in DCOS environment.
-	 */
-	public static final String ENV_FRAMEWORK_NAME = "FRAMEWORK_NAME";
+    /** Standard environment variables used in DCOS environment. */
+    public static final String ENV_FRAMEWORK_NAME = "FRAMEWORK_NAME";
 
-	/** Private constructor to prevent instantiation. */
-	private MesosConfigKeys() {
-	}
+    /** Private constructor to prevent instantiation. */
+    private MesosConfigKeys() {}
 }

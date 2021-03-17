@@ -27,33 +27,31 @@ import java.math.BigDecimal;
 
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.fromBigDecimal;
 
-/**
- * {@link ArrowFieldWriter} for Decimal.
- */
+/** {@link ArrowFieldWriter} for Decimal. */
 @Internal
 public final class RowDecimalWriter extends ArrowFieldWriter<Row> {
 
-	private final int precision;
-	private final int scale;
+    private final int precision;
+    private final int scale;
 
-	public RowDecimalWriter(DecimalVector decimalVector, int precision, int scale) {
-		super(decimalVector);
-		this.precision = precision;
-		this.scale = scale;
-	}
+    public RowDecimalWriter(DecimalVector decimalVector, int precision, int scale) {
+        super(decimalVector);
+        this.precision = precision;
+        this.scale = scale;
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((DecimalVector) getValueVector()).setNull(getCount());
-		} else {
-			BigDecimal bigDecimal = (BigDecimal) value.getField(ordinal);
-			bigDecimal = fromBigDecimal(bigDecimal, precision, scale);
-			if (bigDecimal == null) {
-				((DecimalVector) getValueVector()).setNull(getCount());
-			} else {
-				((DecimalVector) getValueVector()).setSafe(getCount(), bigDecimal);
-			}
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((DecimalVector) getValueVector()).setNull(getCount());
+        } else {
+            BigDecimal bigDecimal = (BigDecimal) value.getField(ordinal);
+            bigDecimal = fromBigDecimal(bigDecimal, precision, scale);
+            if (bigDecimal == null) {
+                ((DecimalVector) getValueVector()).setNull(getCount());
+            } else {
+                ((DecimalVector) getValueVector()).setSafe(getCount(), bigDecimal);
+            }
+        }
+    }
 }

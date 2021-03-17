@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -49,188 +50,186 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 /**
- * The Environment gives the code executed in a task access to the task's properties
- * (such as name, parallelism), the configurations, the data stream readers and writers,
- * as well as the various components that are provided by the TaskManager, such as
- * memory manager, I/O manager, ...
+ * The Environment gives the code executed in a task access to the task's properties (such as name,
+ * parallelism), the configurations, the data stream readers and writers, as well as the various
+ * components that are provided by the TaskManager, such as memory manager, I/O manager, ...
  */
 public interface Environment {
 
-	/**
-	 * Returns the job specific {@link ExecutionConfig}.
-	 *
-	 * @return The execution configuration associated with the current job.
-	 * */
-	ExecutionConfig getExecutionConfig();
-
-	/**
-	 * Returns the ID of the job that the task belongs to.
-	 *
-	 * @return the ID of the job from the original job graph
-	 */
-	JobID getJobID();
-
-	/**
-	 * Gets the ID of the JobVertex for which this task executes a parallel subtask.
-	 *
-	 * @return The JobVertexID of this task.
-	 */
-	JobVertexID getJobVertexId();
-
-	/**
-	 * Gets the ID of the task execution attempt.
-	 *
-	 * @return The ID of the task execution attempt.
-	 */
-	ExecutionAttemptID getExecutionId();
-
-	/**
-	 * Returns the task-wide configuration object, originally attached to the job vertex.
-	 *
-	 * @return The task-wide configuration
-	 */
-	Configuration getTaskConfiguration();
-
-	/**
-	 * Gets the task manager info, with configuration and hostname.
-	 * 
-	 * @return The task manager info, with configuration and hostname. 
-	 */
-	TaskManagerRuntimeInfo getTaskManagerInfo();
-
-	/**
-	 * Returns the task specific metric group.
-	 * 
-	 * @return The MetricGroup of this task.
+    /**
+     * Returns the job specific {@link ExecutionConfig}.
+     *
+     * @return The execution configuration associated with the current job.
      */
-	TaskMetricGroup getMetricGroup();
+    ExecutionConfig getExecutionConfig();
 
-	/**
-	 * Returns the job-wide configuration object that was attached to the JobGraph.
-	 *
-	 * @return The job-wide configuration
-	 */
-	Configuration getJobConfiguration();
+    /**
+     * Returns the ID of the job that the task belongs to.
+     *
+     * @return the ID of the job from the original job graph
+     */
+    JobID getJobID();
 
-	/**
-	 * Returns the {@link TaskInfo} object associated with this subtask
-	 *
-	 * @return TaskInfo for this subtask
-	 */
-	TaskInfo getTaskInfo();
+    /**
+     * Gets the ID of the JobVertex for which this task executes a parallel subtask.
+     *
+     * @return The JobVertexID of this task.
+     */
+    JobVertexID getJobVertexId();
 
-	/**
-	 * Returns the input split provider assigned to this environment.
-	 *
-	 * @return The input split provider or {@code null} if no such
-	 *         provider has been assigned to this environment.
-	 */
-	InputSplitProvider getInputSplitProvider();
+    /**
+     * Gets the ID of the task execution attempt.
+     *
+     * @return The ID of the task execution attempt.
+     */
+    ExecutionAttemptID getExecutionId();
 
-	/**
-	 * Gets the gateway through which operators can send events to the operator coordinators.
-	 */
-	TaskOperatorEventGateway getOperatorCoordinatorEventGateway();
+    /**
+     * Returns the task-wide configuration object, originally attached to the job vertex.
+     *
+     * @return The task-wide configuration
+     */
+    Configuration getTaskConfiguration();
 
-	/**
-	 * Returns the current {@link IOManager}.
-	 *
-	 * @return the current {@link IOManager}.
-	 */
-	IOManager getIOManager();
+    /**
+     * Gets the task manager info, with configuration and hostname.
+     *
+     * @return The task manager info, with configuration and hostname.
+     */
+    TaskManagerRuntimeInfo getTaskManagerInfo();
 
-	/**
-	 * Returns the current {@link MemoryManager}.
-	 *
-	 * @return the current {@link MemoryManager}.
-	 */
-	MemoryManager getMemoryManager();
+    /**
+     * Returns the task specific metric group.
+     *
+     * @return The MetricGroup of this task.
+     */
+    TaskMetricGroup getMetricGroup();
 
-	/**
-	 * Returns the user code class loader
-	 */
-	UserCodeClassLoader getUserCodeClassLoader();
+    /**
+     * Returns the job-wide configuration object that was attached to the JobGraph.
+     *
+     * @return The job-wide configuration
+     */
+    Configuration getJobConfiguration();
 
-	Map<String, Future<Path>> getDistributedCacheEntries();
+    /**
+     * Returns the {@link TaskInfo} object associated with this subtask
+     *
+     * @return TaskInfo for this subtask
+     */
+    TaskInfo getTaskInfo();
 
-	BroadcastVariableManager getBroadcastVariableManager();
+    /**
+     * Returns the input split provider assigned to this environment.
+     *
+     * @return The input split provider or {@code null} if no such provider has been assigned to
+     *     this environment.
+     */
+    InputSplitProvider getInputSplitProvider();
 
-	TaskStateManager getTaskStateManager();
+    /** Gets the gateway through which operators can send events to the operator coordinators. */
+    TaskOperatorEventGateway getOperatorCoordinatorEventGateway();
 
-	GlobalAggregateManager getGlobalAggregateManager();
+    /**
+     * Returns the current {@link IOManager}.
+     *
+     * @return the current {@link IOManager}.
+     */
+    IOManager getIOManager();
 
-	/**
-	 * Get the {@link ExternalResourceInfoProvider} which contains infos of available external resources.
-	 *
-	 * @return {@link ExternalResourceInfoProvider} which contains infos of available external resources
-	 */
-	ExternalResourceInfoProvider getExternalResourceInfoProvider();
+    /**
+     * Returns the current {@link MemoryManager}.
+     *
+     * @return the current {@link MemoryManager}.
+     */
+    MemoryManager getMemoryManager();
 
-	/**
-	 * Return the registry for accumulators which are periodically sent to the job manager.
-	 * @return the registry
-	 */
-	AccumulatorRegistry getAccumulatorRegistry();
+    /** Returns the user code class loader */
+    UserCodeClassLoader getUserCodeClassLoader();
 
-	/**
-	 * Returns the registry for {@link InternalKvState} instances.
-	 *
-	 * @return KvState registry
-	 */
-	TaskKvStateRegistry getTaskKvStateRegistry();
+    Map<String, Future<Path>> getDistributedCacheEntries();
 
-	/**
-	 * Confirms that the invokable has successfully completed all steps it needed to
-	 * to for the checkpoint with the give checkpoint-ID. This method does not include
-	 * any state in the checkpoint.
-	 * 
-	 * @param checkpointId ID of this checkpoint
-	 * @param checkpointMetrics metrics for this checkpoint
-	 */
-	void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics);
+    BroadcastVariableManager getBroadcastVariableManager();
 
-	/**
-	 * Confirms that the invokable has successfully completed all required steps for
-	 * the checkpoint with the give checkpoint-ID. This method does include
-	 * the given state in the checkpoint.
-	 *
-	 * @param checkpointId ID of this checkpoint
-	 * @param checkpointMetrics metrics for this checkpoint
-	 * @param subtaskState All state handles for the checkpointed state
-	 */
-	void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState);
+    TaskStateManager getTaskStateManager();
 
-	/**
-	 * Declines a checkpoint. This tells the checkpoint coordinator that this task will
-	 * not be able to successfully complete a certain checkpoint.
-	 * 
-	 * @param checkpointId The ID of the declined checkpoint.
-	 * @param cause An optional reason why the checkpoint was declined.
-	 */
-	void declineCheckpoint(long checkpointId, Throwable cause);
+    GlobalAggregateManager getGlobalAggregateManager();
 
-	/**
-	 * Marks task execution failed for an external reason (a reason other than the task code itself
-	 * throwing an exception). If the task is already in a terminal state
-	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
-	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
-	 * starts an asynchronous thread that aborts that code.
-	 *
-	 * <p>This method never blocks.
-	 */
-	void failExternally(Throwable cause);
+    /**
+     * Get the {@link ExternalResourceInfoProvider} which contains infos of available external
+     * resources.
+     *
+     * @return {@link ExternalResourceInfoProvider} which contains infos of available external
+     *     resources
+     */
+    ExternalResourceInfoProvider getExternalResourceInfoProvider();
 
-	// --------------------------------------------------------------------------------------------
-	//  Fields relevant to the I/O system. Should go into Task
-	// --------------------------------------------------------------------------------------------
+    /**
+     * Return the registry for accumulators which are periodically sent to the job manager.
+     *
+     * @return the registry
+     */
+    AccumulatorRegistry getAccumulatorRegistry();
 
-	ResultPartitionWriter getWriter(int index);
+    /**
+     * Returns the registry for {@link InternalKvState} instances.
+     *
+     * @return KvState registry
+     */
+    TaskKvStateRegistry getTaskKvStateRegistry();
 
-	ResultPartitionWriter[] getAllWriters();
+    /**
+     * Confirms that the invokable has successfully completed all steps it needed to to for the
+     * checkpoint with the give checkpoint-ID. This method does not include any state in the
+     * checkpoint.
+     *
+     * @param checkpointId ID of this checkpoint
+     * @param checkpointMetrics metrics for this checkpoint
+     */
+    void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics);
 
-	IndexedInputGate getInputGate(int index);
+    /**
+     * Confirms that the invokable has successfully completed all required steps for the checkpoint
+     * with the give checkpoint-ID. This method does include the given state in the checkpoint.
+     *
+     * @param checkpointId ID of this checkpoint
+     * @param checkpointMetrics metrics for this checkpoint
+     * @param subtaskState All state handles for the checkpointed state
+     */
+    void acknowledgeCheckpoint(
+            long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState);
 
-	IndexedInputGate[] getAllInputGates();
+    /**
+     * Declines a checkpoint. This tells the checkpoint coordinator that this task will not be able
+     * to successfully complete a certain checkpoint.
+     *
+     * @param checkpointId The ID of the declined checkpoint.
+     * @param checkpointException The exception why the checkpoint was declined.
+     */
+    void declineCheckpoint(long checkpointId, CheckpointException checkpointException);
 
-	TaskEventDispatcher getTaskEventDispatcher();
+    /**
+     * Marks task execution failed for an external reason (a reason other than the task code itself
+     * throwing an exception). If the task is already in a terminal state (such as FINISHED,
+     * CANCELED, FAILED), or if the task is already canceling this does nothing. Otherwise it sets
+     * the state to FAILED, and, if the invokable code is running, starts an asynchronous thread
+     * that aborts that code.
+     *
+     * <p>This method never blocks.
+     */
+    void failExternally(Throwable cause);
+
+    // --------------------------------------------------------------------------------------------
+    //  Fields relevant to the I/O system. Should go into Task
+    // --------------------------------------------------------------------------------------------
+
+    ResultPartitionWriter getWriter(int index);
+
+    ResultPartitionWriter[] getAllWriters();
+
+    IndexedInputGate getInputGate(int index);
+
+    IndexedInputGate[] getAllInputGates();
+
+    TaskEventDispatcher getTaskEventDispatcher();
 }

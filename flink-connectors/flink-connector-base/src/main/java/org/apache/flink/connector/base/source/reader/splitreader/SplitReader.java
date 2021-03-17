@@ -24,44 +24,41 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import java.io.IOException;
 
 /**
- * An interface used to read from splits. The implementation could either read from a single split or from
- * multiple splits.
+ * An interface used to read from splits. The implementation could either read from a single split
+ * or from multiple splits.
  *
  * @param <E> the element type.
  * @param <SplitT> the split type.
  */
 public interface SplitReader<E, SplitT extends SourceSplit> {
 
-	/**
-	 * Fetch elements into the blocking queue for the given splits. The fetch call could be blocking
-	 * but it should get unblocked when {@link #wakeUp()} is invoked. In that case, the implementation
-	 * may either decide to return without throwing an exception, or it can just throw an interrupted
-	 * exception. In either case, this method should be reentrant, meaning that the next fetch call
-	 * should just resume from where the last fetch call was waken up or interrupted.
-	 *
-	 * @return the Ids of the finished splits.
-	 *
-	 * @throws IOException when encountered IO errors, such as deserialization failures.
-	 */
-	RecordsWithSplitIds<E> fetch() throws IOException;
+    /**
+     * Fetch elements into the blocking queue for the given splits. The fetch call could be blocking
+     * but it should get unblocked when {@link #wakeUp()} is invoked. In that case, the
+     * implementation may either decide to return without throwing an exception, or it can just
+     * throw an interrupted exception. In either case, this method should be reentrant, meaning that
+     * the next fetch call should just resume from where the last fetch call was waken up or
+     * interrupted.
+     *
+     * @return the Ids of the finished splits.
+     * @throws IOException when encountered IO errors, such as deserialization failures.
+     */
+    RecordsWithSplitIds<E> fetch() throws IOException;
 
-	/**
-	 * Handle the split changes. This call should be non-blocking.
-	 *
-	 * @param splitsChanges the split changes that the SplitReader needs to handle.
-	 */
-	void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
+    /**
+     * Handle the split changes. This call should be non-blocking.
+     *
+     * @param splitsChanges the split changes that the SplitReader needs to handle.
+     */
+    void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
 
-	/**
-	 * Wake up the split reader in case the fetcher thread is blocking in
-	 * {@link #fetch()}.
-	 */
-	void wakeUp();
+    /** Wake up the split reader in case the fetcher thread is blocking in {@link #fetch()}. */
+    void wakeUp();
 
-	/**
-	 * Close the split reader.
-	 *
-	 * @throws Exception if closing the split reader failed.
-	 */
-	void close() throws Exception;
+    /**
+     * Close the split reader.
+     *
+     * @throws Exception if closing the split reader failed.
+     */
+    void close() throws Exception;
 }

@@ -347,6 +347,36 @@ object BuiltInMethods {
     "toTimestamp",
     classOf[DecimalData])
 
+  val LONG_TO_TIMESTAMP_LTZ = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[Long])
+
+  val LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[Long], classOf[Int])
+
+  val DOUBLE_TO_TIMESTAMP_LTZ = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[Double])
+
+  val DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[Double], classOf[Int])
+
+  val DECIMAL_TO_TIMESTAMP_LTZ = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[DecimalData])
+
+  val DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "toTimestampData",
+    classOf[DecimalData], classOf[Int])
+
   val STRING_TO_TIMESTAMP = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
     "toTimestampData",

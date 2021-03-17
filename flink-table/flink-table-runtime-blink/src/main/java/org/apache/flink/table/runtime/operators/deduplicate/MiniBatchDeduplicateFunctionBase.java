@@ -25,39 +25,40 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 
-import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /**
  * Base class for miniBatch deduplicate function.
- * @param <T>   The type of the value in the state.
- * @param <K>   The type of the key in the bundle map.
- * @param <V>   The type of the value in the bundle map.
- * @param <IN>  Type of the input elements.
+ *
+ * @param <T> The type of the value in the state.
+ * @param <K> The type of the key in the bundle map.
+ * @param <V> The type of the value in the bundle map.
+ * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-abstract class MiniBatchDeduplicateFunctionBase<T, K, V, IN, OUT> extends MapBundleFunction<K, V, IN, OUT> {
+abstract class MiniBatchDeduplicateFunctionBase<T, K, V, IN, OUT>
+        extends MapBundleFunction<K, V, IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
-	protected final TypeInformation<T> stateType;
-	protected final long minRetentionTime;
-	// state stores previous message under the key.
-	protected ValueState<T> state;
+    private static final long serialVersionUID = 1L;
+    protected final TypeInformation<T> stateType;
+    protected final long minRetentionTime;
+    // state stores previous message under the key.
+    protected ValueState<T> state;
 
-	public MiniBatchDeduplicateFunctionBase(
-			TypeInformation<T> stateType,
-			long minRetentionTime) {
-		this.stateType = stateType;
-		this.minRetentionTime = minRetentionTime;
-	}
+    public MiniBatchDeduplicateFunctionBase(TypeInformation<T> stateType, long minRetentionTime) {
+        this.stateType = stateType;
+        this.minRetentionTime = minRetentionTime;
+    }
 
-	@Override
-	public void open(ExecutionContext ctx) throws Exception {
-		super.open(ctx);
-		ValueStateDescriptor<T> stateDesc = new ValueStateDescriptor<>("deduplicate-state", stateType);
-		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
-		if (ttlConfig.isEnabled()) {
-			stateDesc.enableTimeToLive(ttlConfig);
-		}
-		state = ctx.getRuntimeContext().getState(stateDesc);
-	}
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        ValueStateDescriptor<T> stateDesc =
+                new ValueStateDescriptor<>("deduplicate-state", stateType);
+        StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+        if (ttlConfig.isEnabled()) {
+            stateDesc.enableTimeToLive(ttlConfig);
+        }
+        state = ctx.getRuntimeContext().getState(stateDesc);
+    }
 }

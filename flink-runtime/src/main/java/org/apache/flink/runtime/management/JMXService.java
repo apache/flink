@@ -27,77 +27,73 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Optional;
 
-/**
- * Provide a JVM-wide singleton JMX Service.
- */
+/** Provide a JVM-wide singleton JMX Service. */
 public class JMXService {
-	private static final Logger LOG = LoggerFactory.getLogger(JMXService.class);
-	private static JMXServer jmxServer = null;
+    private static final Logger LOG = LoggerFactory.getLogger(JMXService.class);
+    private static JMXServer jmxServer = null;
 
-	/**
-	 * Acquire the global singleton JMXServer instance.
-	 */
-	public static Optional<JMXServer> getInstance() {
-		return Optional.ofNullable(jmxServer);
-	}
+    /** Acquire the global singleton JMXServer instance. */
+    public static Optional<JMXServer> getInstance() {
+        return Optional.ofNullable(jmxServer);
+    }
 
-	/**
-	 * Start the JMV-wide singleton JMX server.
-	 *
-	 * <p>If JMXServer static instance is already started, it will not be
-	 * started again. Instead a warning will be logged indicating which port
-	 * the existing JMXServer static instance is exposing.
-	 *
-	 * @param portsConfig port configuration of the JMX server.
-	 */
-	public static synchronized void startInstance(String portsConfig) {
-		if (jmxServer == null) {
-			if (portsConfig != null) {
-				Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-				if (ports.hasNext()) {
-					jmxServer = startJMXServerWithPortRanges(ports);
-				}
-				if (jmxServer == null) {
-					LOG.error("Could not start JMX server on any configured port(s) in: " + portsConfig);
-				}
-			}
-		} else {
-			LOG.warn("JVM-wide JMXServer already started at port: " + jmxServer.getPort());
-		}
-	}
+    /**
+     * Start the JMV-wide singleton JMX server.
+     *
+     * <p>If JMXServer static instance is already started, it will not be started again. Instead a
+     * warning will be logged indicating which port the existing JMXServer static instance is
+     * exposing.
+     *
+     * @param portsConfig port configuration of the JMX server.
+     */
+    public static synchronized void startInstance(String portsConfig) {
+        if (jmxServer == null) {
+            if (portsConfig != null) {
+                Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
+                if (ports.hasNext()) {
+                    jmxServer = startJMXServerWithPortRanges(ports);
+                }
+                if (jmxServer == null) {
+                    LOG.error(
+                            "Could not start JMX server on any configured port(s) in: "
+                                    + portsConfig);
+                }
+            }
+        } else {
+            LOG.warn("JVM-wide JMXServer already started at port: " + jmxServer.getPort());
+        }
+    }
 
-	/**
-	 * Stop the JMX server.
-	 */
-	public static synchronized void stopInstance() throws IOException {
-		if (jmxServer != null) {
-			jmxServer.stop();
-			jmxServer = null;
-		}
-	}
+    /** Stop the JMX server. */
+    public static synchronized void stopInstance() throws IOException {
+        if (jmxServer != null) {
+            jmxServer.stop();
+            jmxServer = null;
+        }
+    }
 
-	public static synchronized Optional<Integer> getPort() {
-		return Optional.ofNullable(jmxServer).map(JMXServer::getPort);
-	}
+    public static synchronized Optional<Integer> getPort() {
+        return Optional.ofNullable(jmxServer).map(JMXServer::getPort);
+    }
 
-	private static JMXServer startJMXServerWithPortRanges(Iterator<Integer> ports) {
-		JMXServer successfullyStartedServer = null;
-		while (ports.hasNext() && successfullyStartedServer == null) {
-			JMXServer server = new JMXServer();
-			int port = ports.next();
-			try {
-				server.start(port);
-				LOG.info("Started JMX server on port " + port + ".");
-				successfullyStartedServer = server;
-			} catch (IOException ioe) { //assume port conflict
-				LOG.debug("Could not start JMX server on port " + port + ".", ioe);
-				try {
-					server.stop();
-				} catch (Exception e) {
-					LOG.debug("Could not stop JMX server.", e);
-				}
-			}
-		}
-		return successfullyStartedServer;
-	}
+    private static JMXServer startJMXServerWithPortRanges(Iterator<Integer> ports) {
+        JMXServer successfullyStartedServer = null;
+        while (ports.hasNext() && successfullyStartedServer == null) {
+            JMXServer server = new JMXServer();
+            int port = ports.next();
+            try {
+                server.start(port);
+                LOG.info("Started JMX server on port " + port + ".");
+                successfullyStartedServer = server;
+            } catch (IOException ioe) { // assume port conflict
+                LOG.debug("Could not start JMX server on port " + port + ".", ioe);
+                try {
+                    server.stop();
+                } catch (Exception e) {
+                    LOG.debug("Could not stop JMX server.", e);
+                }
+            }
+        }
+        return successfullyStartedServer;
+    }
 }

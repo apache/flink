@@ -26,30 +26,30 @@ import org.apache.flink.annotation.PublicEvolving;
  */
 @PublicEvolving
 public enum Boundedness {
-	/**
-	 * A BOUNDED stream is a stream with finite records.
-	 *
-	 * <p>In the context of sources, a BOUNDED stream expects the source to put a boundary of the
-	 * records it emits. Such boundaries could be number of records, number of bytes, elapsed time,
-	 * and so on. Such indication of how to bound a stream is typically passed to the sources via
-	 * configurations. When the sources emit a BOUNDED stream, Flink may leverage this property to
-	 * do specific optimizations in the execution.
-	 *
-	 * <p>Unlike unbounded streams, the bounded streams are usually order insensitive. That means
-	 * the source implementations may not have to keep track of the event times or watermarks.
-	 * Instead, a higher throughput would be preferred.
-	 */
-	BOUNDED,
+    /**
+     * A BOUNDED stream is a stream with finite records.
+     *
+     * <p>In the context of sources, a BOUNDED stream expects the source to put a boundary of the
+     * records it emits. Such boundaries could be number of records, number of bytes, elapsed time,
+     * and so on. Such indication of how to bound a stream is typically passed to the sources via
+     * configurations. When the sources emit a BOUNDED stream, Flink may leverage this property to
+     * do specific optimizations in the execution.
+     *
+     * <p>Unlike unbounded streams, the bounded streams are usually order insensitive. That means
+     * the source implementations may not have to keep track of the event times or watermarks.
+     * Instead, a higher throughput would be preferred.
+     */
+    BOUNDED,
 
-	/**
-	 * A CONTINUOUS_UNBOUNDED stream is a stream with infinite records.
-	 *
-	 * <p>In the context of sources, an infinite stream expects the source implementation to run
-	 * without an upfront indication to Flink that they will eventually stop. The sources may
-	 * eventually be terminated when users cancel the jobs or some source-specific condition is met.
-	 *
-	 * <p>A CONTINUOUS_UNBOUNDED stream may also eventually stop at some point. But before that
-	 * happens, Flink always assumes the sources are going to run forever.
-	 */
-	CONTINUOUS_UNBOUNDED
+    /**
+     * A CONTINUOUS_UNBOUNDED stream is a stream with infinite records.
+     *
+     * <p>In the context of sources, an infinite stream expects the source implementation to run
+     * without an upfront indication to Flink that they will eventually stop. The sources may
+     * eventually be terminated when users cancel the jobs or some source-specific condition is met.
+     *
+     * <p>A CONTINUOUS_UNBOUNDED stream may also eventually stop at some point. But before that
+     * happens, Flink always assumes the sources are going to run forever.
+     */
+    CONTINUOUS_UNBOUNDED
 }

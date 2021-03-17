@@ -48,95 +48,89 @@ import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link DebeziumAvroFormatFactory}.
- */
+/** Tests for {@link DebeziumAvroFormatFactory}. */
 public class DebeziumAvroFormatFactoryTest extends TestLogger {
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	private static final TableSchema SCHEMA = TableSchema.builder()
-		.field("a", DataTypes.STRING())
-		.field("b", DataTypes.INT())
-		.field("c", DataTypes.BOOLEAN())
-		.build();
+    private static final TableSchema SCHEMA =
+            TableSchema.builder()
+                    .field("a", DataTypes.STRING())
+                    .field("b", DataTypes.INT())
+                    .field("c", DataTypes.BOOLEAN())
+                    .build();
 
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
-	private static final String SUBJECT = "test-debezium-avro";
-	private static final String REGISTRY_URL = "http://localhost:8081";
+    private static final String SUBJECT = "test-debezium-avro";
+    private static final String REGISTRY_URL = "http://localhost:8081";
 
-	@Test
-	public void testSeDeSchema() {
-		final Map<String, String> options = getAllOptions();
+    @Test
+    public void testSeDeSchema() {
+        final Map<String, String> options = getAllOptions();
 
-		DebeziumAvroDeserializationSchema expectedDeser = new DebeziumAvroDeserializationSchema(
-			ROW_TYPE,
-			InternalTypeInfo.of(ROW_TYPE),
-			REGISTRY_URL);
-		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-		assertEquals(expectedDeser, actualDeser);
+        DebeziumAvroDeserializationSchema expectedDeser =
+                new DebeziumAvroDeserializationSchema(
+                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL);
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+        assertEquals(expectedDeser, actualDeser);
 
-		DebeziumAvroSerializationSchema expectedSer = new DebeziumAvroSerializationSchema(
-			ROW_TYPE,
-			REGISTRY_URL,
-			SUBJECT
-		);
-		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-		Assert.assertEquals(expectedSer, actualSer);
-	}
+        DebeziumAvroSerializationSchema expectedSer =
+                new DebeziumAvroSerializationSchema(ROW_TYPE, REGISTRY_URL, SUBJECT);
+        SerializationSchema<RowData> actualSer = createSerializationSchema(options);
+        Assert.assertEquals(expectedSer, actualSer);
+    }
 
-	private Map<String, String> getAllOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
+    private Map<String, String> getAllOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-		options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
-		options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
-		options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
-		return options;
-	}
+        options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
+        options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
+        options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
+        return options;
+    }
 
-	private static DeserializationSchema<RowData> createDeserializationSchema(Map<String, String> options) {
-		final DynamicTableSource actualSource = createTableSource(options);
-		assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+    private static DeserializationSchema<RowData> createDeserializationSchema(
+            Map<String, String> options) {
+        final DynamicTableSource actualSource = createTableSource(options);
+        assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		return scanSourceMock.valueFormat
-			.createRuntimeDecoder(
-				ScanRuntimeProviderContext.INSTANCE,
-				SCHEMA.toRowDataType());
-	}
+        return scanSourceMock.valueFormat.createRuntimeDecoder(
+                ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+    }
 
-	private static SerializationSchema<RowData> createSerializationSchema(Map<String, String> options) {
-		final DynamicTableSink actualSink = createTableSink(options);
-		assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+    private static SerializationSchema<RowData> createSerializationSchema(
+            Map<String, String> options) {
+        final DynamicTableSink actualSink = createTableSink(options);
+        assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-		return sinkMock.valueFormat
-			.createRuntimeEncoder(
-				new SinkRuntimeProviderContext(false),
-				SCHEMA.toRowDataType());
-	}
+        return sinkMock.valueFormat.createRuntimeEncoder(
+                new SinkRuntimeProviderContext(false), SCHEMA.toRowDataType());
+    }
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-			null,
-			ObjectIdentifier.of("default", "default", "t1"),
-			new CatalogTableImpl(SCHEMA, options, "mock source"),
-			new Configuration(),
-			DebeziumAvroFormatFactoryTest.class.getClassLoader(), false);
-	}
+    private static DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock source"),
+                new Configuration(),
+                DebeziumAvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-			null,
-			ObjectIdentifier.of("default", "default", "t1"),
-			new CatalogTableImpl(SCHEMA, options, "mock sink"),
-			new Configuration(),
-			DebeziumAvroFormatFactoryTest.class.getClassLoader(), false);
-	}
+    private static DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock sink"),
+                new Configuration(),
+                DebeziumAvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 }

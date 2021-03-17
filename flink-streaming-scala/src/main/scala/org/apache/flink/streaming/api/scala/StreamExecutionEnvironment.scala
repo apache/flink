@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
+import java.net.URI
+
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.RuntimeExecutionMode
@@ -32,6 +34,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener}
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
@@ -255,24 +258,29 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
 
   /**
-   * Sets the state backend that describes how to store and checkpoint operator state. It defines
-   * both which data structures hold state during execution (for example hash tables, RockDB,
-   * or other data stores) as well as where checkpointed data will be persisted.
+   * Sets the state backend that describes how to store operator. It defines the data structures
+   * that hold state during execution (for example hash tables, RocksDB, or other data stores).
    *
    * State managed by the state backend includes both keyed state that is accessible on
-   * [[org.apache.flink.streaming.api.datastream.KeyedStream keyed streams]], as well as
-   * state maintained directly by the user code that implements
-   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction]].
+   * [[org.apache.flink.streaming.api.scala.KeyedStream]], as well as state
+   * maintained directly by the user code that implements
+   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction]].
    *
-   * The [[org.apache.flink.runtime.state.memory.MemoryStateBackend]], for example,
-   * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
-   * but can checkpoint only small states (some counters).
+   * The [[org.apache.flink.runtime.state.hashmap.HashMapStateBackend]] maintains state in
+   * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
+   * heap memory.
    *
-   * In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
-   * stores checkpoints of the state (also maintained as heap objects) in files.
-   * When using a replicated file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee
-   * that state is not lost upon failures of individual nodes and that streaming program can be
-   * executed highly available and strongly consistent.
+   * In contrast, the '''EmbeddedRocksDBStateBackend''' stores its state in an embedded
+   * '''RocksDB''' instance. This state backend can store very large state that exceeds memory
+   * and spills to local disk. All key/value state (including windows) is stored in the key/value
+   * index of RocksDB.
+   *
+   * In both cases, fault tolerance is managed via the jobs
+   * [[org.apache.flink.runtime.state.CheckpointStorage]] which configures how and where state
+   * backends persist during a checkpoint.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getStateBackend()
    */
   @PublicEvolving
   def setStateBackend(backend: StateBackend): StreamExecutionEnvironment = {
@@ -285,6 +293,53 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: String): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: URI): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: Path): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Gets the default savepoint directory for this Job.
+   *
+   * @see #setDefaultSavepointDirectory(Path)
+   */
+  @PublicEvolving
+  def getDefaultSavepointDirectory: Path = javaEnv.getDefaultSavepointDirectory
 
   /**
     * Sets the restart strategy configuration. The configuration specifies which restart strategy

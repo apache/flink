@@ -38,51 +38,55 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link JdbcCatalogFactory}.
- */
+/** Test for {@link JdbcCatalogFactory}. */
 public class JdbcCatalogFactoryTest {
-	@ClassRule
-	public static SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance();
+    @ClassRule public static SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance();
 
-	protected static String baseUrl;
-	protected static JdbcCatalog catalog;
+    protected static String baseUrl;
+    protected static JdbcCatalog catalog;
 
-	protected static final String TEST_CATALOG_NAME = "mypg";
-	protected static final String TEST_USERNAME = "postgres";
-	protected static final String TEST_PWD = "postgres";
+    protected static final String TEST_CATALOG_NAME = "mypg";
+    protected static final String TEST_USERNAME = "postgres";
+    protected static final String TEST_PWD = "postgres";
 
-	@BeforeClass
-	public static void setup() throws SQLException {
-		// jdbc:postgresql://localhost:50807/postgres?user=postgres
-		String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
-		// jdbc:postgresql://localhost:50807/
-		baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
+    @BeforeClass
+    public static void setup() throws SQLException {
+        // jdbc:postgresql://localhost:50807/postgres?user=postgres
+        String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
+        // jdbc:postgresql://localhost:50807/
+        baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
 
-		catalog = new JdbcCatalog(
-			TEST_CATALOG_NAME, PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
-	}
+        catalog =
+                new JdbcCatalog(
+                        TEST_CATALOG_NAME,
+                        PostgresCatalog.DEFAULT_DATABASE,
+                        TEST_USERNAME,
+                        TEST_PWD,
+                        baseUrl);
+    }
 
-	@Test
-	public void test() {
-		final CatalogDescriptor catalogDescriptor =
-			new JdbcCatalogDescriptor(PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
+    @Test
+    public void test() {
+        final CatalogDescriptor catalogDescriptor =
+                new JdbcCatalogDescriptor(
+                        PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
 
-		final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Map<String, String> properties = catalogDescriptor.toProperties();
 
-		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
-			.createCatalog(TEST_CATALOG_NAME, properties);
+        final Catalog actualCatalog =
+                TableFactoryService.find(CatalogFactory.class, properties)
+                        .createCatalog(TEST_CATALOG_NAME, properties);
 
-		checkEquals(catalog, (JdbcCatalog) actualCatalog);
+        checkEquals(catalog, (JdbcCatalog) actualCatalog);
 
-		assertTrue(((JdbcCatalog) actualCatalog).getInternal() instanceof PostgresCatalog);
-	}
+        assertTrue(((JdbcCatalog) actualCatalog).getInternal() instanceof PostgresCatalog);
+    }
 
-	private static void checkEquals(JdbcCatalog c1, JdbcCatalog c2) {
-		assertEquals(c1.getName(), c2.getName());
-		assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-		assertEquals(c1.getUsername(), c2.getUsername());
-		assertEquals(c1.getPassword(), c2.getPassword());
-		assertEquals(c1.getBaseUrl(), c2.getBaseUrl());
-	}
+    private static void checkEquals(JdbcCatalog c1, JdbcCatalog c2) {
+        assertEquals(c1.getName(), c2.getName());
+        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
+        assertEquals(c1.getUsername(), c2.getUsername());
+        assertEquals(c1.getPassword(), c2.getPassword());
+        assertEquals(c1.getBaseUrl(), c2.getBaseUrl());
+    }
 }

@@ -26,37 +26,45 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Delegate class responsible for checkpoints cleaning and counting the number of checkpoints yet
- * to clean.
+ * Delegate class responsible for checkpoints cleaning and counting the number of checkpoints yet to
+ * clean.
  */
 public class CheckpointsCleaner implements Serializable {
-	private static final Logger LOG = LoggerFactory.getLogger(CheckpointsCleaner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CheckpointsCleaner.class);
 
-	private final AtomicInteger numberOfCheckpointsToClean;
+    private final AtomicInteger numberOfCheckpointsToClean;
 
-	public CheckpointsCleaner() {
-		this.numberOfCheckpointsToClean = new AtomicInteger(0);
-	}
+    public CheckpointsCleaner() {
+        this.numberOfCheckpointsToClean = new AtomicInteger(0);
+    }
 
-	int getNumberOfCheckpointsToClean() {
-		return numberOfCheckpointsToClean.get();
-	}
+    int getNumberOfCheckpointsToClean() {
+        return numberOfCheckpointsToClean.get();
+    }
 
-	public void cleanCheckpoint(Checkpoint checkpoint, boolean shouldDiscard, Runnable postCleanAction, Executor executor) {
-		numberOfCheckpointsToClean.incrementAndGet();
-		executor.execute(() -> {
-			try {
-				if (shouldDiscard) {
-					try {
-						checkpoint.discard();
-					} catch (Exception e) {
-						LOG.warn("Could not discard completed checkpoint {}.", checkpoint.getCheckpointID(), e);
-					}
-				}
-			} finally {
-				numberOfCheckpointsToClean.decrementAndGet();
-				postCleanAction.run();
-			}
-		});
-	}
+    public void cleanCheckpoint(
+            Checkpoint checkpoint,
+            boolean shouldDiscard,
+            Runnable postCleanAction,
+            Executor executor) {
+        numberOfCheckpointsToClean.incrementAndGet();
+        executor.execute(
+                () -> {
+                    try {
+                        if (shouldDiscard) {
+                            try {
+                                checkpoint.discard();
+                            } catch (Exception e) {
+                                LOG.warn(
+                                        "Could not discard completed checkpoint {}.",
+                                        checkpoint.getCheckpointID(),
+                                        e);
+                            }
+                        }
+                    } finally {
+                        numberOfCheckpointsToClean.decrementAndGet();
+                        postCleanAction.run();
+                    }
+                });
+    }
 }

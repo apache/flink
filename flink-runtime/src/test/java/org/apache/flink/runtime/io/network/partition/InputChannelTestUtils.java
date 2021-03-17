@@ -44,202 +44,203 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Some utility methods used for testing InputChannels and InputGates.
- */
+/** Some utility methods used for testing InputChannels and InputGates. */
 public class InputChannelTestUtils {
-	/**
-	 * Creates a result partition manager that ignores all IDs, and simply returns the given
-	 * subpartitions in sequence.
-	 */
-	public static ResultPartitionManager createResultPartitionManager(final ResultSubpartition[] sources) throws Exception {
+    /**
+     * Creates a result partition manager that ignores all IDs, and simply returns the given
+     * subpartitions in sequence.
+     */
+    public static ResultPartitionManager createResultPartitionManager(
+            final ResultSubpartition[] sources) throws Exception {
 
-		final Answer<ResultSubpartitionView> viewCreator = new Answer<ResultSubpartitionView>() {
+        final Answer<ResultSubpartitionView> viewCreator =
+                new Answer<ResultSubpartitionView>() {
 
-			private int num = 0;
+                    private int num = 0;
 
-			@Override
-			public ResultSubpartitionView answer(InvocationOnMock invocation) throws Throwable {
-				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[2];
-				return sources[num++].createReadView(channel);
-			}
-		};
+                    @Override
+                    public ResultSubpartitionView answer(InvocationOnMock invocation)
+                            throws Throwable {
+                        BufferAvailabilityListener channel =
+                                (BufferAvailabilityListener) invocation.getArguments()[2];
+                        return sources[num++].createReadView(channel);
+                    }
+                };
 
-		ResultPartitionManager manager = mock(ResultPartitionManager.class);
-		when(manager.createSubpartitionView(
-				any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class)))
-				.thenAnswer(viewCreator);
+        ResultPartitionManager manager = mock(ResultPartitionManager.class);
+        when(manager.createSubpartitionView(
+                        any(ResultPartitionID.class),
+                        anyInt(),
+                        any(BufferAvailabilityListener.class)))
+                .thenAnswer(viewCreator);
 
-		return manager;
-	}
+        return manager;
+    }
 
-	public static SingleInputGate createSingleInputGate(int numberOfChannels) {
-		return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
-	}
+    public static SingleInputGate createSingleInputGate(int numberOfChannels) {
+        return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
+    }
 
-	public static SingleInputGate createSingleInputGate(int numberOfChannels, MemorySegmentProvider segmentProvider) {
-		return new SingleInputGateBuilder()
-			.setNumberOfChannels(numberOfChannels)
-			.setSegmentProvider(segmentProvider)
-			.build();
-	}
+    public static SingleInputGate createSingleInputGate(
+            int numberOfChannels, MemorySegmentProvider segmentProvider) {
+        return new SingleInputGateBuilder()
+                .setNumberOfChannels(numberOfChannels)
+                .setSegmentProvider(segmentProvider)
+                .build();
+    }
 
-	public static ConnectionManager createDummyConnectionManager() throws Exception {
-		final PartitionRequestClient mockClient = mock(PartitionRequestClient.class);
+    public static ConnectionManager createDummyConnectionManager() throws Exception {
+        final PartitionRequestClient mockClient = mock(PartitionRequestClient.class);
 
-		final ConnectionManager connManager = mock(ConnectionManager.class);
-		when(connManager.createPartitionRequestClient(any(ConnectionID.class))).thenReturn(mockClient);
+        final ConnectionManager connManager = mock(ConnectionManager.class);
+        when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+                .thenReturn(mockClient);
 
-		return connManager;
-	}
+        return connManager;
+    }
 
-	public static LocalInputChannel createLocalInputChannel(
-		SingleInputGate inputGate,
-		ResultPartitionManager partitionManager) {
+    public static LocalInputChannel createLocalInputChannel(
+            SingleInputGate inputGate, ResultPartitionManager partitionManager) {
 
-		return createLocalInputChannel(inputGate, partitionManager, 0, 0);
-	}
+        return createLocalInputChannel(inputGate, partitionManager, 0, 0);
+    }
 
-	public static LocalInputChannel createLocalInputChannel(
-		SingleInputGate inputGate,
-		ResultPartitionManager partitionManager,
-		int initialBackoff,
-		int maxBackoff) {
+    public static LocalInputChannel createLocalInputChannel(
+            SingleInputGate inputGate,
+            ResultPartitionManager partitionManager,
+            int initialBackoff,
+            int maxBackoff) {
 
-		return createLocalInputChannel(inputGate, partitionManager, initialBackoff, maxBackoff, unused -> { /* no op */ });
-	}
+        return createLocalInputChannel(
+                inputGate,
+                partitionManager,
+                initialBackoff,
+                maxBackoff,
+                unused -> {
+                    /* no op */
+                });
+    }
 
-	public static LocalInputChannel createLocalInputChannel(
-			SingleInputGate inputGate,
-			ResultPartitionManager partitionManager,
-			int initialBackoff,
-			int maxBackoff,
-			Consumer<InputChannelBuilder> setter) {
+    public static LocalInputChannel createLocalInputChannel(
+            SingleInputGate inputGate,
+            ResultPartitionManager partitionManager,
+            int initialBackoff,
+            int maxBackoff,
+            Consumer<InputChannelBuilder> setter) {
 
-		InputChannelBuilder inputChannelBuilder = InputChannelBuilder.newBuilder()
-			.setPartitionManager(partitionManager)
-			.setInitialBackoff(initialBackoff)
-			.setMaxBackoff(maxBackoff);
-		setter.accept(inputChannelBuilder);
-		return inputChannelBuilder.buildLocalChannel(inputGate);
-	}
+        InputChannelBuilder inputChannelBuilder =
+                InputChannelBuilder.newBuilder()
+                        .setPartitionManager(partitionManager)
+                        .setInitialBackoff(initialBackoff)
+                        .setMaxBackoff(maxBackoff);
+        setter.accept(inputChannelBuilder);
+        return inputChannelBuilder.buildLocalChannel(inputGate);
+    }
 
-	public static RemoteInputChannel createRemoteInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ConnectionManager connectionManager) {
+    public static RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, int channelIndex, ConnectionManager connectionManager) {
 
-		return InputChannelBuilder.newBuilder()
-			.setChannelIndex(channelIndex)
-			.setConnectionManager(connectionManager)
-			.buildRemoteChannel(inputGate);
-	}
+        return InputChannelBuilder.newBuilder()
+                .setChannelIndex(channelIndex)
+                .setConnectionManager(connectionManager)
+                .buildRemoteChannel(inputGate);
+    }
 
-	public static RemoteInputChannel createRemoteInputChannel(
-		SingleInputGate inputGate,
-		PartitionRequestClient client) {
+    public static RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, PartitionRequestClient client) {
 
-		return InputChannelBuilder.newBuilder()
-			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
-			.buildRemoteChannel(inputGate);
-	}
+        return InputChannelBuilder.newBuilder()
+                .setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
+                .buildRemoteChannel(inputGate);
+    }
 
-	public static RemoteInputChannel createRemoteInputChannel(
-		SingleInputGate inputGate,
-		int numExclusiveSegments) {
+    public static RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, int numExclusiveSegments) {
 
-		return InputChannelBuilder.newBuilder()
-			.setNetworkBuffersPerChannel(numExclusiveSegments)
-			.buildRemoteChannel(inputGate);
-	}
+        return InputChannelBuilder.newBuilder()
+                .setNetworkBuffersPerChannel(numExclusiveSegments)
+                .buildRemoteChannel(inputGate);
+    }
 
-	public static RemoteInputChannel createRemoteInputChannel(
-		SingleInputGate inputGate,
-		PartitionRequestClient client,
-		int numExclusiveSegments) {
+    public static RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, PartitionRequestClient client, int numExclusiveSegments) {
 
-		return InputChannelBuilder.newBuilder()
-			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
-			.setNetworkBuffersPerChannel(numExclusiveSegments)
-			.buildRemoteChannel(inputGate);
-	}
+        return InputChannelBuilder.newBuilder()
+                .setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
+                .setNetworkBuffersPerChannel(numExclusiveSegments)
+                .buildRemoteChannel(inputGate);
+    }
 
-	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {
-		return new ConnectionManager() {
-			@Override
-			public int start() {
-				return -1;
-			}
+    public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(
+            PartitionRequestClient client) {
+        return new ConnectionManager() {
+            @Override
+            public int start() {
+                return -1;
+            }
 
-			@Override
-			public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
-				return client;
-			}
+            @Override
+            public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+                return client;
+            }
 
-			@Override
-			public void closeOpenChannelConnections(ConnectionID connectionId) {
-			}
+            @Override
+            public void closeOpenChannelConnections(ConnectionID connectionId) {}
 
-			@Override
-			public int getNumberOfActiveConnections() {
-				return 0;
-			}
+            @Override
+            public int getNumberOfActiveConnections() {
+                return 0;
+            }
 
-			@Override
-			public void shutdown() {
-			}
-		};
-	}
+            @Override
+            public void shutdown() {}
+        };
+    }
 
-	public static InputChannelMetrics newUnregisteredInputChannelMetrics() {
-		return new InputChannelMetrics(UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-	}
+    public static InputChannelMetrics newUnregisteredInputChannelMetrics() {
+        return new InputChannelMetrics(
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated. */
-	private InputChannelTestUtils() {}
+    /** This class is not meant to be instantiated. */
+    private InputChannelTestUtils() {}
 
-	/**
-	 * Test stub for {@link MemorySegmentProvider}.
-	 */
-	public static class StubMemorySegmentProvider implements MemorySegmentProvider {
-		private static final MemorySegmentProvider INSTANCE = new StubMemorySegmentProvider();
+    /** Test stub for {@link MemorySegmentProvider}. */
+    public static class StubMemorySegmentProvider implements MemorySegmentProvider {
+        private static final MemorySegmentProvider INSTANCE = new StubMemorySegmentProvider();
 
-		public static MemorySegmentProvider getInstance() {
-			return INSTANCE;
-		}
+        public static MemorySegmentProvider getInstance() {
+            return INSTANCE;
+        }
 
-		private StubMemorySegmentProvider() {
-		}
+        private StubMemorySegmentProvider() {}
 
-		@Override
-		public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
-			return Collections.emptyList();
-		}
+        @Override
+        public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
+            return Collections.emptyList();
+        }
 
-		@Override
-		public void recycleMemorySegments(Collection<MemorySegment> segments) {
-		}
-	}
+        @Override
+        public void recycleMemorySegments(Collection<MemorySegment> segments) {}
+    }
 
-	/**
-	 * {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s.
-	 */
-	public static class UnpooledMemorySegmentProvider implements MemorySegmentProvider {
-		private final int pageSize;
+    /** {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s. */
+    public static class UnpooledMemorySegmentProvider implements MemorySegmentProvider {
+        private final int pageSize;
 
-		public UnpooledMemorySegmentProvider(int pageSize) {
-			this.pageSize = pageSize;
-		}
+        public UnpooledMemorySegmentProvider(int pageSize) {
+            this.pageSize = pageSize;
+        }
 
-		@Override
-		public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
-			return Collections.singletonList(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
-		}
+        @Override
+        public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
+            return Collections.singletonList(
+                    MemorySegmentFactory.allocateUnpooledSegment(pageSize));
+        }
 
-		@Override
-		public void recycleMemorySegments(Collection<MemorySegment> segments) {
-		}
-	}
+        @Override
+        public void recycleMemorySegments(Collection<MemorySegment> segments) {}
+    }
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.ProgramOptionsUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -28,8 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
@@ -47,60 +47,79 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for cluster entry points targeting executing applications in "Application Mode".
- * The lifecycle of the enrtypoint is bound to that of the specific application being executed,
- * and the {@code main()} method of the application is run on the cluster.
+ * Base class for cluster entry points targeting executing applications in "Application Mode". The
+ * lifecycle of the entry point is bound to that of the specific application being executed, and the
+ * {@code main()} method of the application is run on the cluster.
  */
 public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
 
-	private final PackagedProgram program;
+    private final PackagedProgram program;
 
-	private final ResourceManagerFactory<?> resourceManagerFactory;
+    private final ResourceManagerFactory<?> resourceManagerFactory;
 
-	protected ApplicationClusterEntryPoint(
-			final Configuration configuration,
-			final PackagedProgram program,
-			final ResourceManagerFactory<?> resourceManagerFactory) {
-		super(configuration);
-		this.program = checkNotNull(program);
-		this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
-	}
+    protected ApplicationClusterEntryPoint(
+            final Configuration configuration,
+            final PackagedProgram program,
+            final ResourceManagerFactory<?> resourceManagerFactory) {
+        super(configuration);
+        this.program = checkNotNull(program);
+        this.resourceManagerFactory = checkNotNull(resourceManagerFactory);
+    }
 
-	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(final Configuration configuration) {
-		return new DefaultDispatcherResourceManagerComponentFactory(
-				new DefaultDispatcherRunnerFactory(
-						ApplicationDispatcherLeaderProcessFactoryFactory
-								.create(configuration, SessionDispatcherFactory.INSTANCE, program)),
-				resourceManagerFactory,
-				JobRestEndpointFactory.INSTANCE);
-	}
+    @Override
+    protected DispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(final Configuration configuration) {
+        return new DefaultDispatcherResourceManagerComponentFactory(
+                new DefaultDispatcherRunnerFactory(
+                        ApplicationDispatcherLeaderProcessFactoryFactory.create(
+                                configuration, SessionDispatcherFactory.INSTANCE, program)),
+                resourceManagerFactory,
+                JobRestEndpointFactory.INSTANCE);
+    }
 
-	@Override
-	protected ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
-			final Configuration configuration,
-			final ScheduledExecutor scheduledExecutor) {
-		return new MemoryArchivedExecutionGraphStore();
-	}
+    @Override
+    protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
+            final Configuration configuration, final ScheduledExecutor scheduledExecutor) {
+        return new MemoryExecutionGraphInfoStore();
+    }
 
-	protected static void configureExecution(final Configuration configuration, final PackagedProgram program) throws MalformedURLException, IllegalAccessException, NoSuchFieldException, CliArgsException {
-		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, getClasspath(configuration, program), URL::toString);
+    protected static void configureExecution(
+            final Configuration configuration, final PackagedProgram program) throws Exception {
+        configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.JARS,
+                program.getJobJarAndDependencies(),
+                URL::toString);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.CLASSPATHS,
+                getClasspath(configuration, program),
+                URL::toString);
 
-		// If it is a PyFlink Application, we need to extract Python dependencies from the program arguments, and
-		// configure to execution configurations.
-		if (PackagedProgramUtils.isPython(program.getMainClassName())){
-			ProgramOptionsUtils.configurePythonExecution(configuration, program);
-		}
-	}
+        // If it is a PyFlink Application, we need to extract Python dependencies from the program
+        // arguments, and
+        // configure to execution configurations.
+        if (PackagedProgramUtils.isPython(program.getMainClassName())) {
+            ProgramOptionsUtils.configurePythonExecution(configuration, program);
+        }
+    }
 
-	private static List<URL> getClasspath(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {
-		final List<URL> classpath = ConfigUtils.decodeListFromConfig(
-			configuration,
-			PipelineOptions.CLASSPATHS,
-			URL::new);
-		classpath.addAll(program.getClasspaths());
-		return Collections.unmodifiableList(classpath.stream().distinct().collect(Collectors.toList()));
-	}
+    private static List<URL> getClasspath(
+            final Configuration configuration, final PackagedProgram program)
+            throws MalformedURLException {
+        final List<URL> classpath =
+                ConfigUtils.decodeListFromConfig(
+                        configuration, PipelineOptions.CLASSPATHS, URL::new);
+        classpath.addAll(program.getClasspaths());
+        return Collections.unmodifiableList(
+                classpath.stream().distinct().collect(Collectors.toList()));
+    }
+
+    @Override
+    protected void cleanupDirectories() throws IOException {
+        // Close the packaged program explicitly to clean up temporary jars.
+        program.close();
+        super.cleanupDirectories();
+    }
 }

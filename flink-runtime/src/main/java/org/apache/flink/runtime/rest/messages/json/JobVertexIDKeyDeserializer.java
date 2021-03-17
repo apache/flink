@@ -25,13 +25,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.KeyDeseri
 
 import java.io.IOException;
 
-/**
- * Jackson deserializer for {@link JobVertexID}.
- */
+/** Jackson deserializer for {@link JobVertexID}. */
 public class JobVertexIDKeyDeserializer extends KeyDeserializer {
 
-	@Override
-	public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException {
-		return JobVertexID.fromHexString(key);
-	}
+    @Override
+    public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException {
+        return JobVertexID.fromHexString(key);
+    }
 }

@@ -21,22 +21,24 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 import org.apache.flink.annotation.Internal;
 
 /**
- * A callback interface that the source operator can implement to trigger custom actions when a commit request completes,
- * which should normally be triggered from checkpoint complete event.
+ * A callback interface that the source operator can implement to trigger custom actions when a
+ * commit request completes, which should normally be triggered from checkpoint complete event.
  */
 @Internal
 public interface KafkaCommitCallback {
 
-	/**
-	 * A callback method the user can implement to provide asynchronous handling of commit request completion.
-	 * This method will be called when the commit request sent to the server has been acknowledged without error.
-	 */
-	void onSuccess();
+    /**
+     * A callback method the user can implement to provide asynchronous handling of commit request
+     * completion. This method will be called when the commit request sent to the server has been
+     * acknowledged without error.
+     */
+    void onSuccess();
 
-	/**
-	 * A callback method the user can implement to provide asynchronous handling of commit request failure.
-	 * This method will be called when the commit request failed.
-	 * @param cause Kafka commit failure cause returned by kafka client
-	 */
-	void onException(Throwable cause);
+    /**
+     * A callback method the user can implement to provide asynchronous handling of commit request
+     * failure. This method will be called when the commit request failed.
+     *
+     * @param cause Kafka commit failure cause returned by kafka client
+     */
+    void onException(Throwable cause);
 }

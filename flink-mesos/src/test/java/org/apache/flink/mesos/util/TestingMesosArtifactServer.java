@@ -27,72 +27,65 @@ import java.util.function.Function;
 
 import scala.Option;
 
-/**
- * Testing implementation of {@link MesosArtifactServer}.
- */
+/** Testing implementation of {@link MesosArtifactServer}. */
 public class TestingMesosArtifactServer implements MesosArtifactServer {
-	private final BiFunction<Path, Path, URL> addPathFunction;
-	private final Runnable stopRunnable;
-	private final Function<Path, Option<URL>> resolveFunction;
+    private final BiFunction<Path, Path, URL> addPathFunction;
+    private final Runnable stopRunnable;
+    private final Function<Path, Option<URL>> resolveFunction;
 
-	private TestingMesosArtifactServer(
-			final BiFunction<Path, Path, URL> addPathFunction,
-			final Runnable stopRunnable,
-			final Function<Path, Option<URL>> resolveFunction) {
-		this.addPathFunction = addPathFunction;
-		this.stopRunnable = stopRunnable;
-		this.resolveFunction = resolveFunction;
-	}
+    private TestingMesosArtifactServer(
+            final BiFunction<Path, Path, URL> addPathFunction,
+            final Runnable stopRunnable,
+            final Function<Path, Option<URL>> resolveFunction) {
+        this.addPathFunction = addPathFunction;
+        this.stopRunnable = stopRunnable;
+        this.resolveFunction = resolveFunction;
+    }
 
-	@Override
-	public URL addPath(Path path, Path remoteFile) {
-		return addPathFunction.apply(path, remoteFile);
-	}
+    @Override
+    public URL addPath(Path path, Path remoteFile) {
+        return addPathFunction.apply(path, remoteFile);
+    }
 
-	@Override
-	public void stop() {
-		stopRunnable.run();
-	}
+    @Override
+    public void stop() {
+        stopRunnable.run();
+    }
 
-	@Override
-	public Option<URL> resolve(Path remoteFile) {
-		return resolveFunction.apply(remoteFile);
-	}
+    @Override
+    public Option<URL> resolve(Path remoteFile) {
+        return resolveFunction.apply(remoteFile);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for {@link TestingMesosArtifactServer}.
-	 */
-	public static class Builder {
-		private BiFunction<Path, Path, URL> addPathFunction = (ignore1, ignore2) -> null;
-		private Runnable stopRunnable = () -> {};
-		private Function<Path, Option<URL>> resolveFunction = (ignore) -> null;
+    /** Builder for {@link TestingMesosArtifactServer}. */
+    public static class Builder {
+        private BiFunction<Path, Path, URL> addPathFunction = (ignore1, ignore2) -> null;
+        private Runnable stopRunnable = () -> {};
+        private Function<Path, Option<URL>> resolveFunction = (ignore) -> null;
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setAddPathFunction(BiFunction<Path, Path, URL> addPathFunction) {
-			this.addPathFunction = Preconditions.checkNotNull(addPathFunction);
-			return this;
-		}
+        public Builder setAddPathFunction(BiFunction<Path, Path, URL> addPathFunction) {
+            this.addPathFunction = Preconditions.checkNotNull(addPathFunction);
+            return this;
+        }
 
-		public Builder setStopRunnable(Runnable stopRunnable) {
-			this.stopRunnable = Preconditions.checkNotNull(stopRunnable);
-			return this;
-		}
+        public Builder setStopRunnable(Runnable stopRunnable) {
+            this.stopRunnable = Preconditions.checkNotNull(stopRunnable);
+            return this;
+        }
 
-		public Builder setResolveFunction(Function<Path, Option<URL>> resolveFunction) {
-			this.resolveFunction = Preconditions.checkNotNull(resolveFunction);
-			return this;
-		}
+        public Builder setResolveFunction(Function<Path, Option<URL>> resolveFunction) {
+            this.resolveFunction = Preconditions.checkNotNull(resolveFunction);
+            return this;
+        }
 
-		public TestingMesosArtifactServer build() {
-			return new TestingMesosArtifactServer(
-					addPathFunction,
-					stopRunnable,
-					resolveFunction);
-		}
-	}
+        public TestingMesosArtifactServer build() {
+            return new TestingMesosArtifactServer(addPathFunction, stopRunnable, resolveFunction);
+        }
+    }
 }

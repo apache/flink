@@ -21,6 +21,16 @@ cimport libc.stdint
 
 from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream
 
+cdef enum InternalRowKind:
+    INSERT = 0
+    UPDATE_BEFORE = 1
+    UPDATE_AFTER = 2
+    DELETE = 3
+
+cdef class InternalRow:
+    cdef readonly list values
+    cdef readonly InternalRowKind row_kind
+
 cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
@@ -91,20 +101,19 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef float _decode_float(self) except? -1
     cdef double _decode_double(self) except? -1
     cdef bytes _decode_bytes(self)
+    cdef object _decode_field_row(self, RowCoderImpl field_coder)
 
 cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
-    pass
+    cdef bint _is_row_data
+    cdef bint _is_first_row
+    cdef void _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
+    cdef void _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream)
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
 
 cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef readonly FieldCoder _single_field_coder
-    cdef object _decode_data_stream_field_simple(self, TypeName field_type)
-    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder)
-    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item)
-    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
-                                                item)
 
 cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
@@ -112,6 +121,19 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
 
 cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
+
+cdef class WindowCoderImpl(BaseCoderImpl):
+    cdef size_t _tmp_output_pos
+    cdef char*_tmp_output_data
+
+    cpdef bytes encode_nested(self, value)
+    cdef void _encode_bigint(self, libc.stdint.int64_t v)
+
+cdef class TimeWindowCoderImpl(WindowCoderImpl):
+    pass
+
+cdef class CountWindowCoderImpl(WindowCoderImpl):
+    pass
 
 cdef enum CoderType:
     UNDEFINED = -1
@@ -207,6 +229,8 @@ cdef class MapCoderImpl(FieldCoder):
 
 cdef class RowCoderImpl(FieldCoder):
     cdef readonly list field_coders
+    cdef readonly list field_names
+    cdef readonly size_t field_count
 
 cdef class TupleCoderImpl(FieldCoder):
     cdef readonly list field_coders

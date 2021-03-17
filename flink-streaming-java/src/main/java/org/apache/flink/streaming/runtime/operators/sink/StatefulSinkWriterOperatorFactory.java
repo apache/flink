@@ -23,6 +23,8 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
  * StatefulSinkWriterOperator}.
@@ -31,21 +33,35 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
-public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT> extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
+public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT>
+        extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
 
-	private final Sink<InputT, CommT, WriterStateT, ?> sink;
+    private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
-	public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
-		this.sink = sink;
-	}
+    @Nullable private final String previousSinkStateName;
 
-	@Override
-	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService) {
-		return new StatefulSinkWriterOperator<>(processingTimeService, sink, sink.getWriterStateSerializer().get());
-	}
+    public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
+        this(sink, null);
+    }
 
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StatefulSinkWriterOperator.class;
-	}
+    public StatefulSinkWriterOperatorFactory(
+            Sink<InputT, CommT, WriterStateT, ?> sink, @Nullable String previousSinkStateName) {
+        this.sink = sink;
+        this.previousSinkStateName = previousSinkStateName;
+    }
+
+    @Override
+    AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+            ProcessingTimeService processingTimeService) {
+        return new StatefulSinkWriterOperator<>(
+                previousSinkStateName,
+                processingTimeService,
+                sink,
+                sink.getWriterStateSerializer().get());
+    }
+
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return StatefulSinkWriterOperator.class;
+    }
 }

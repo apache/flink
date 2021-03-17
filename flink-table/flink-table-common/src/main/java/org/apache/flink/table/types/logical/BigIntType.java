@@ -33,62 +33,60 @@ import java.util.Set;
 @PublicEvolving
 public final class BigIntType extends LogicalType {
 
-	public static final int PRECISION = 19;
+    public static final int PRECISION = 19;
 
-	private static final String FORMAT = "BIGINT";
+    private static final String FORMAT = "BIGINT";
 
-	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		Long.class.getName());
+    private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(Long.class.getName());
 
-	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
-		Long.class.getName(),
-		long.class.getName());
+    private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION =
+            conversionSet(Long.class.getName(), long.class.getName());
 
-	private static final Class<?> DEFAULT_CONVERSION = Long.class;
+    private static final Class<?> DEFAULT_CONVERSION = Long.class;
 
-	public BigIntType(boolean isNullable) {
-		super(isNullable, LogicalTypeRoot.BIGINT);
-	}
+    public BigIntType(boolean isNullable) {
+        super(isNullable, LogicalTypeRoot.BIGINT);
+    }
 
-	public BigIntType() {
-		this(true);
-	}
+    public BigIntType() {
+        this(true);
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new BigIntType(isNullable);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new BigIntType(isNullable);
+    }
 
-	@Override
-	public String asSerializableString() {
-		return withNullability(FORMAT);
-	}
+    @Override
+    public String asSerializableString() {
+        return withNullability(FORMAT);
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		if (isNullable()) {
-			return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
-		}
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        if (isNullable()) {
+            return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
+        }
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return DEFAULT_CONVERSION;
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return DEFAULT_CONVERSION;
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

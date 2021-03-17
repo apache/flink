@@ -32,44 +32,38 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link DefaultSyncPreferredLocationsRetriever}.
- */
+/** Tests for {@link DefaultSyncPreferredLocationsRetriever}. */
 public class DefaultSyncPreferredLocationsRetrieverTest extends TestLogger {
-	private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
-	private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
-	private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
-	private static final ExecutionVertexID EV4 = createRandomExecutionVertexId();
-	private static final ExecutionVertexID EV5 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV4 = createRandomExecutionVertexId();
+    private static final ExecutionVertexID EV5 = createRandomExecutionVertexId();
 
-	@Test
-	public void testAvailableInputLocationRetrieval() {
-		TestingInputsLocationsRetriever originalLocationRetriever =
-				new TestingInputsLocationsRetriever
-						.Builder()
-						.connectConsumerToProducer(EV5, EV1)
-						.connectConsumerToProducer(EV5, EV2)
-						.connectConsumerToProducer(EV5, EV3)
-						.connectConsumerToProducer(EV5, EV4)
-						.build();
+    @Test
+    public void testAvailableInputLocationRetrieval() {
+        TestingInputsLocationsRetriever originalLocationRetriever =
+                new TestingInputsLocationsRetriever.Builder()
+                        .connectConsumerToProducer(EV5, EV1)
+                        .connectConsumerToProducer(EV5, EV2)
+                        .connectConsumerToProducer(EV5, EV3)
+                        .connectConsumerToProducer(EV5, EV4)
+                        .build();
 
-		originalLocationRetriever.assignTaskManagerLocation(EV1);
-		originalLocationRetriever.markScheduled(EV2);
-		originalLocationRetriever.failTaskManagerLocation(EV3, new Throwable());
-		originalLocationRetriever.cancelTaskManagerLocation(EV4);
+        originalLocationRetriever.assignTaskManagerLocation(EV1);
+        originalLocationRetriever.markScheduled(EV2);
+        originalLocationRetriever.failTaskManagerLocation(EV3, new Throwable());
+        originalLocationRetriever.cancelTaskManagerLocation(EV4);
 
-		SyncPreferredLocationsRetriever locationsRetriever =
-				new DefaultSyncPreferredLocationsRetriever(
-						executionVertexId -> Optional.empty(),
-						originalLocationRetriever);
+        SyncPreferredLocationsRetriever locationsRetriever =
+                new DefaultSyncPreferredLocationsRetriever(
+                        executionVertexId -> Optional.empty(), originalLocationRetriever);
 
-		Collection<TaskManagerLocation> preferredLocations = locationsRetriever
-				.getPreferredLocations(EV5, Collections.emptySet());
-		TaskManagerLocation expectedLocation = originalLocationRetriever
-				.getTaskManagerLocation(EV1)
-				.get()
-				.join();
+        Collection<TaskManagerLocation> preferredLocations =
+                locationsRetriever.getPreferredLocations(EV5, Collections.emptySet());
+        TaskManagerLocation expectedLocation =
+                originalLocationRetriever.getTaskManagerLocation(EV1).get().join();
 
-		assertThat(preferredLocations, contains(expectedLocation));
-	}
+        assertThat(preferredLocations, contains(expectedLocation));
+    }
 }

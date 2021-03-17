@@ -23,20 +23,22 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import java.util.function.BiConsumer;
 
 class TestingHeartbeatTargetBuilder<T> {
-	private BiConsumer<ResourceID, T> receiveHeartbeatConsumer = (ignoredA, ignoredB) -> {};
-	private BiConsumer<ResourceID, T> requestHeartbeatConsumer = (ignoredA, ignoredB) -> {};
+    private BiConsumer<ResourceID, T> receiveHeartbeatConsumer = (ignoredA, ignoredB) -> {};
+    private BiConsumer<ResourceID, T> requestHeartbeatConsumer = (ignoredA, ignoredB) -> {};
 
-	public TestingHeartbeatTargetBuilder<T> setReceiveHeartbeatConsumer(BiConsumer<ResourceID, T> receiveHeartbeatConsumer) {
-		this.receiveHeartbeatConsumer = receiveHeartbeatConsumer;
-		return this;
-	}
+    public TestingHeartbeatTargetBuilder<T> setReceiveHeartbeatConsumer(
+            BiConsumer<ResourceID, T> receiveHeartbeatConsumer) {
+        this.receiveHeartbeatConsumer = receiveHeartbeatConsumer;
+        return this;
+    }
 
-	public TestingHeartbeatTargetBuilder<T> setRequestHeartbeatConsumer(BiConsumer<ResourceID, T> requestHeartbeatConsumer) {
-		this.requestHeartbeatConsumer = requestHeartbeatConsumer;
-		return this;
-	}
+    public TestingHeartbeatTargetBuilder<T> setRequestHeartbeatConsumer(
+            BiConsumer<ResourceID, T> requestHeartbeatConsumer) {
+        this.requestHeartbeatConsumer = requestHeartbeatConsumer;
+        return this;
+    }
 
-	public TestingHeartbeatTarget<T> createTestingHeartbeatTarget() {
-		return new TestingHeartbeatTarget<>(receiveHeartbeatConsumer, requestHeartbeatConsumer);
-	}
+    public TestingHeartbeatTarget<T> createTestingHeartbeatTarget() {
+        return new TestingHeartbeatTarget<>(receiveHeartbeatConsumer, requestHeartbeatConsumer);
+    }
 }

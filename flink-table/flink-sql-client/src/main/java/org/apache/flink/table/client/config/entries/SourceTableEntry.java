@@ -20,17 +20,15 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
-/**
- * Configuration of a table source.
- */
+/** Configuration of a table source. */
 public class SourceTableEntry extends TableEntry {
 
-	SourceTableEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
-	}
+    SourceTableEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		// validation is performed by the discovered factory
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        // validation is performed by the discovered factory
+    }
 }

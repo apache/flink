@@ -24,18 +24,16 @@ import org.apache.arrow.vector.DecimalVector;
 
 import java.math.BigDecimal;
 
-/**
- * {@link ArrowFieldReader} for Decimal.
- */
+/** {@link ArrowFieldReader} for Decimal. */
 @Internal
 public final class DecimalFieldReader extends ArrowFieldReader<BigDecimal> {
 
-	public DecimalFieldReader(DecimalVector decimalVector) {
-		super(decimalVector);
-	}
+    public DecimalFieldReader(DecimalVector decimalVector) {
+        super(decimalVector);
+    }
 
-	@Override
-	public BigDecimal read(int index) {
-		return ((DecimalVector) getValueVector()).getObject(index);
-	}
+    @Override
+    public BigDecimal read(int index) {
+        return ((DecimalVector) getValueVector()).getObject(index);
+    }
 }

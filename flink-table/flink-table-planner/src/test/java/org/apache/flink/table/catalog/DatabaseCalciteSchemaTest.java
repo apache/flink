@@ -20,13 +20,12 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.TestExternalTableSourceFactory.TestExternalTableSource;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ParserMock;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.schema.Table;
 import org.junit.Test;
@@ -40,58 +39,55 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link DatabaseCalciteSchema}.
- */
+/** Tests for {@link DatabaseCalciteSchema}. */
 public class DatabaseCalciteSchemaTest {
 
-	private static final String catalogName = "cat";
-	private static final String databaseName = "db";
-	private static final String tableName = "tab";
+    private static final String catalogName = "cat";
+    private static final String databaseName = "db";
+    private static final String tableName = "tab";
 
-	@Test
-	public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
-		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
-		CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
-			.defaultCatalog(catalogName, catalog)
-			.build();
-		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(new ParserMock(), true));
+    @Test
+    public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
+        GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
+        CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .defaultCatalog(catalogName, catalog)
+                        .build();
+        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
 
-		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(
-			true,
-			databaseName,
-			catalogName,
-			catalogManager,
-			new TableConfig());
+        DatabaseCalciteSchema calciteSchema =
+                new DatabaseCalciteSchema(
+                        true, databaseName, catalogName, catalogManager, new TableConfig());
 
-		catalog.createTable(new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
-		Table table = calciteSchema.getTable(tableName);
+        catalog.createTable(
+                new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
+        Table table = calciteSchema.getTable(tableName);
 
-		assertThat(table, instanceOf(TableSourceTable.class));
-		TableSourceTable tableSourceTable = (TableSourceTable) table;
-		assertThat(tableSourceTable.tableSource(), instanceOf(TestExternalTableSource.class));
-		assertThat(tableSourceTable.isStreamingMode(), is(true));
-	}
+        assertThat(table, instanceOf(TableSourceTable.class));
+        TableSourceTable tableSourceTable = (TableSourceTable) table;
+        assertThat(tableSourceTable.tableSource(), instanceOf(TestExternalTableSource.class));
+        assertThat(tableSourceTable.isStreamingMode(), is(true));
+    }
 
-	private static final class TestCatalogBaseTable extends CatalogTableImpl {
-		private TestCatalogBaseTable() {
-			super(TableSchema.builder().build(), new HashMap<>(), "");
-		}
+    private static final class TestCatalogBaseTable extends CatalogTableImpl {
+        private TestCatalogBaseTable() {
+            super(TableSchema.builder().build(), new HashMap<>(), "");
+        }
 
-		@Override
-		public CatalogTable copy() {
-			return this;
-		}
+        @Override
+        public CatalogTable copy() {
+            return this;
+        }
 
-		public CatalogTable copy(TableSchema tableSchema) {
-			return this;
-		}
+        public CatalogTable copy(TableSchema tableSchema) {
+            return this;
+        }
 
-		@Override
-		public Map<String, String> toProperties() {
-			Map<String, String> properties = new HashMap<>();
-			properties.put(CONNECTOR_TYPE, TEST_EXTERNAL_CONNECTOR_TYPE);
-			return properties;
-		}
-	}
+        @Override
+        public Map<String, String> toProperties() {
+            Map<String, String> properties = new HashMap<>();
+            properties.put(CONNECTOR_TYPE, TEST_EXTERNAL_CONNECTOR_TYPE);
+            return properties;
+        }
+    }
 }

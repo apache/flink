@@ -39,87 +39,94 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests verifying that the FsStateBackend passes the entropy injection option
- * to the FileSystem for state payload files, but not for metadata files.
+ * Tests verifying that the FsStateBackend passes the entropy injection option to the FileSystem for
+ * state payload files, but not for metadata files.
  */
 public class FsStateBackendEntropyTest {
 
-	static final String ENTROPY_MARKER = "__ENTROPY__";
-	static final String RESOLVED_MARKER = "+RESOLVED+";
+    static final String ENTROPY_MARKER = "__ENTROPY__";
+    static final String RESOLVED_MARKER = "+RESOLVED+";
 
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
-	@Test
-	public void testEntropyInjection() throws Exception {
-		final int fileSizeThreshold = 1024;
-		final FileSystem fs = new TestEntropyAwareFs();
+    @Test
+    public void testEntropyInjection() throws Exception {
+        final int fileSizeThreshold = 1024;
+        final FileSystem fs = new TestEntropyAwareFs();
 
-		final Path checkpointDir = new Path(Path.fromLocalFile(tmp.newFolder()), ENTROPY_MARKER + "/checkpoints");
-		final String checkpointDirStr = checkpointDir.toString();
+        final Path checkpointDir =
+                new Path(Path.fromLocalFile(tmp.newFolder()), ENTROPY_MARKER + "/checkpoints");
+        final String checkpointDirStr = checkpointDir.toString();
 
-		final FsCheckpointStorageAccess storage = new FsCheckpointStorageAccess(
-				fs, checkpointDir, null, new JobID(), fileSizeThreshold, 4096);
-		storage.initializeBaseLocations();
+        final FsCheckpointStorageAccess storage =
+                new FsCheckpointStorageAccess(
+                        fs, checkpointDir, null, new JobID(), fileSizeThreshold, 4096);
+        storage.initializeBaseLocations();
 
-		final FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
-				storage.initializeLocationForCheckpoint(96562);
+        final FsCheckpointStorageLocation location =
+                (FsCheckpointStorageLocation) storage.initializeLocationForCheckpoint(96562);
 
-		assertThat(location.getCheckpointDirectory().toString(), startsWith(checkpointDirStr));
-		assertThat(location.getSharedStateDirectory().toString(), startsWith(checkpointDirStr));
-		assertThat(location.getTaskOwnedStateDirectory().toString(), startsWith(checkpointDirStr));
-		assertThat(location.getMetadataFilePath().toString(), not(containsString(ENTROPY_MARKER)));
+        assertThat(location.getCheckpointDirectory().toString(), startsWith(checkpointDirStr));
+        assertThat(location.getSharedStateDirectory().toString(), startsWith(checkpointDirStr));
+        assertThat(location.getTaskOwnedStateDirectory().toString(), startsWith(checkpointDirStr));
+        assertThat(location.getMetadataFilePath().toString(), not(containsString(ENTROPY_MARKER)));
 
-		// check entropy in task-owned state
-		try (CheckpointStateOutputStream stream = storage.createTaskOwnedStateStream()) {
-			stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
-			FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
+        // check entropy in task-owned state
+        try (CheckpointStateOutputStream stream = storage.createTaskOwnedStateStream()) {
+            stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
+            FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
 
-			assertNotNull(handle);
-			assertThat(handle.getFilePath().toString(), not(containsString(ENTROPY_MARKER)));
-			assertThat(handle.getFilePath().toString(), containsString(RESOLVED_MARKER));
-		}
+            assertNotNull(handle);
+            assertThat(handle.getFilePath().toString(), not(containsString(ENTROPY_MARKER)));
+            assertThat(handle.getFilePath().toString(), containsString(RESOLVED_MARKER));
+        }
 
-		// check entropy in the exclusive/shared state
-		try (CheckpointStateOutputStream stream =
-				location.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)) {
-			stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
+        // check entropy in the exclusive/shared state
+        try (CheckpointStateOutputStream stream =
+                location.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)) {
+            stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
 
-			FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
+            FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
 
-			assertNotNull(handle);
-			assertThat(handle.getFilePath().toString(), not(containsString(ENTROPY_MARKER)));
-			assertThat(handle.getFilePath().toString(), containsString(RESOLVED_MARKER));
-		}
+            assertNotNull(handle);
+            assertThat(handle.getFilePath().toString(), not(containsString(ENTROPY_MARKER)));
+            assertThat(handle.getFilePath().toString(), containsString(RESOLVED_MARKER));
+        }
 
-		// check that there is no entropy in the metadata
-		// check entropy in the exclusive/shared state
-		try (CheckpointMetadataOutputStream stream = location.createMetadataOutputStream()) {
-			stream.flush();
-			FsCompletedCheckpointStorageLocation handle =
-					(FsCompletedCheckpointStorageLocation) stream.closeAndFinalizeCheckpoint();
+        // check that there is no entropy in the metadata
+        // check entropy in the exclusive/shared state
+        try (CheckpointMetadataOutputStream stream = location.createMetadataOutputStream()) {
+            stream.flush();
+            FsCompletedCheckpointStorageLocation handle =
+                    (FsCompletedCheckpointStorageLocation) stream.closeAndFinalizeCheckpoint();
 
-			assertNotNull(handle);
+            assertNotNull(handle);
 
-			// metadata files have no entropy
-			assertThat(handle.getMetadataHandle().getFilePath().toString(), not(containsString(ENTROPY_MARKER)));
-			assertThat(handle.getMetadataHandle().getFilePath().toString(), not(containsString(RESOLVED_MARKER)));
+            // metadata files have no entropy
+            assertThat(
+                    handle.getMetadataHandle().getFilePath().toString(),
+                    not(containsString(ENTROPY_MARKER)));
+            assertThat(
+                    handle.getMetadataHandle().getFilePath().toString(),
+                    not(containsString(RESOLVED_MARKER)));
 
-			// external location is the same as metadata, without the file name
-			assertEquals(handle.getMetadataHandle().getFilePath().getParent().toString(), handle.getExternalPointer());
-		}
-	}
+            // external location is the same as metadata, without the file name
+            assertEquals(
+                    handle.getMetadataHandle().getFilePath().getParent().toString(),
+                    handle.getExternalPointer());
+        }
+    }
 
-	static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
+    static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
 
-		@Override
-		public String getEntropyInjectionKey() {
-			return ENTROPY_MARKER;
-		}
+        @Override
+        public String getEntropyInjectionKey() {
+            return ENTROPY_MARKER;
+        }
 
-		@Override
-		public String generateEntropy() {
-			return RESOLVED_MARKER;
-		}
-	}
+        @Override
+        public String generateEntropy() {
+            return RESOLVED_MARKER;
+        }
+    }
 }

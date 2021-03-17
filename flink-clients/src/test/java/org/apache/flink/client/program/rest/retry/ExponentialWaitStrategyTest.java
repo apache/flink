@@ -27,65 +27,69 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link ExponentialWaitStrategy}.
- */
+/** Tests for {@link ExponentialWaitStrategy}. */
 public class ExponentialWaitStrategyTest extends TestLogger {
 
-	@Test
-	public void testNegativeInitialWait() {
-		try {
-			new ExponentialWaitStrategy(0, 1);
-			fail("Expected exception not thrown.");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("initialWait must be positive"));
-		}
-	}
+    @Test
+    public void testNegativeInitialWait() {
+        try {
+            new ExponentialWaitStrategy(0, 1);
+            fail("Expected exception not thrown.");
+        } catch (final IllegalArgumentException e) {
+            assertThat(e.getMessage(), containsString("initialWait must be positive"));
+        }
+    }
 
-	@Test
-	public void testNegativeMaxWait() {
-		try {
-			new ExponentialWaitStrategy(1, -1);
-			fail("Expected exception not thrown.");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("maxWait must be positive"));
-		}
-	}
+    @Test
+    public void testNegativeMaxWait() {
+        try {
+            new ExponentialWaitStrategy(1, -1);
+            fail("Expected exception not thrown.");
+        } catch (final IllegalArgumentException e) {
+            assertThat(e.getMessage(), containsString("maxWait must be positive"));
+        }
+    }
 
-	@Test
-	public void testInitialWaitGreaterThanMaxWait() {
-		try {
-			new ExponentialWaitStrategy(2, 1);
-			fail("Expected exception not thrown.");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("initialWait must be lower than or equal to maxWait"));
-		}
-	}
+    @Test
+    public void testInitialWaitGreaterThanMaxWait() {
+        try {
+            new ExponentialWaitStrategy(2, 1);
+            fail("Expected exception not thrown.");
+        } catch (final IllegalArgumentException e) {
+            assertThat(
+                    e.getMessage(),
+                    containsString("initialWait must be lower than or equal to maxWait"));
+        }
+    }
 
-	@Test
-	public void testMaxSleepTime() {
-		final long sleepTime = new ExponentialWaitStrategy(1, 1).sleepTime(100);
-		assertThat(sleepTime, equalTo(1L));
-	}
+    @Test
+    public void testMaxSleepTime() {
+        final long sleepTime = new ExponentialWaitStrategy(1, 1).sleepTime(100);
+        assertThat(sleepTime, equalTo(1L));
+    }
 
-	@Test
-	public void testExponentialGrowth() {
-		final ExponentialWaitStrategy exponentialWaitStrategy = new ExponentialWaitStrategy(1, 1000);
-		assertThat(exponentialWaitStrategy.sleepTime(3) / exponentialWaitStrategy.sleepTime(2), equalTo(2L));
-	}
+    @Test
+    public void testExponentialGrowth() {
+        final ExponentialWaitStrategy exponentialWaitStrategy =
+                new ExponentialWaitStrategy(1, 1000);
+        assertThat(
+                exponentialWaitStrategy.sleepTime(3) / exponentialWaitStrategy.sleepTime(2),
+                equalTo(2L));
+    }
 
-	@Test
-	public void testMaxAttempts() {
-		final long maxWait = 1000;
-		final ExponentialWaitStrategy exponentialWaitStrategy = new ExponentialWaitStrategy(1, maxWait);
-		assertThat(exponentialWaitStrategy.sleepTime(Long.MAX_VALUE), equalTo(maxWait));
-	}
+    @Test
+    public void testMaxAttempts() {
+        final long maxWait = 1000;
+        final ExponentialWaitStrategy exponentialWaitStrategy =
+                new ExponentialWaitStrategy(1, maxWait);
+        assertThat(exponentialWaitStrategy.sleepTime(Long.MAX_VALUE), equalTo(maxWait));
+    }
 
-	@Test
-	public void test64Attempts() {
-		final long maxWait = 1000;
-		final ExponentialWaitStrategy exponentialWaitStrategy = new ExponentialWaitStrategy(1, maxWait);
-		assertThat(exponentialWaitStrategy.sleepTime(64), equalTo(maxWait));
-	}
-
+    @Test
+    public void test64Attempts() {
+        final long maxWait = 1000;
+        final ExponentialWaitStrategy exponentialWaitStrategy =
+                new ExponentialWaitStrategy(1, maxWait);
+        assertThat(exponentialWaitStrategy.sleepTime(64), equalTo(maxWait));
+    }
 }

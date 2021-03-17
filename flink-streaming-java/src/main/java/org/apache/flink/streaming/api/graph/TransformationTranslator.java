@@ -34,65 +34,55 @@ import java.util.Collection;
 @Internal
 public interface TransformationTranslator<OUT, T extends Transformation<OUT>> {
 
-	/**
-	 * Translates a given {@link Transformation} to its runtime implementation for BATCH-style execution.
-	 *
-	 * @param transformation The transformation to be translated.
-	 * @param context The translation context.
-	 * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph corresponding
-	 * to this transformation. These will be the nodes that a potential following transformation will need to
-	 * connect to.
-	 */
-	Collection<Integer> translateForBatch(
-			final T transformation,
-			final Context context);
+    /**
+     * Translates a given {@link Transformation} to its runtime implementation for BATCH-style
+     * execution.
+     *
+     * @param transformation The transformation to be translated.
+     * @param context The translation context.
+     * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph
+     *     corresponding to this transformation. These will be the nodes that a potential following
+     *     transformation will need to connect to.
+     */
+    Collection<Integer> translateForBatch(final T transformation, final Context context);
 
-	/**
-	 * Translates a given {@link Transformation} to its runtime implementation for STREAMING-style execution.
-	 *
-	 * @param transformation The transformation to be translated.
-	 * @param context The translation context.
-	 * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph corresponding
-	 * to this transformation. These will be the nodes that a potential following transformation will need to
-	 * connect to.
-	 */
-	Collection<Integer> translateForStreaming(
-			final T transformation,
-			final Context context);
+    /**
+     * Translates a given {@link Transformation} to its runtime implementation for STREAMING-style
+     * execution.
+     *
+     * @param transformation The transformation to be translated.
+     * @param context The translation context.
+     * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph
+     *     corresponding to this transformation. These will be the nodes that a potential following
+     *     transformation will need to connect to.
+     */
+    Collection<Integer> translateForStreaming(final T transformation, final Context context);
 
-	/**
-	 * A context giving the necessary information for the translation of a given transformation.
-	 */
-	interface Context {
+    /** A context giving the necessary information for the translation of a given transformation. */
+    interface Context {
 
-		/**
-		 * Returns the {@link StreamGraph} being created as the transformations
-		 * of a pipeline are translated to their runtime implementations.
-		 */
-		StreamGraph getStreamGraph();
+        /**
+         * Returns the {@link StreamGraph} being created as the transformations of a pipeline are
+         * translated to their runtime implementations.
+         */
+        StreamGraph getStreamGraph();
 
-		/**
-		 * Returns the ids of the nodes in the {@link StreamGraph} corresponding to the
-		 * provided transformation.
-		 *
-		 * @param transformation the transformation whose nodes' ids we want.
-		 * @return The requested ids.
-		 */
-		Collection<Integer> getStreamNodeIds(final Transformation<?> transformation);
+        /**
+         * Returns the ids of the nodes in the {@link StreamGraph} corresponding to the provided
+         * transformation.
+         *
+         * @param transformation the transformation whose nodes' ids we want.
+         * @return The requested ids.
+         */
+        Collection<Integer> getStreamNodeIds(final Transformation<?> transformation);
 
-		/**
-		 * Returns the slot sharing group for the given transformation.
-		 */
-		String getSlotSharingGroup();
+        /** Returns the slot sharing group for the given transformation. */
+        String getSlotSharingGroup();
 
-		/**
-		 * Returns the default buffer timeout to be used.
-		 */
-		long getDefaultBufferTimeout();
+        /** Returns the default buffer timeout to be used. */
+        long getDefaultBufferTimeout();
 
-		/**
-		 * Retrieves additional configuration for the graph generation process.
-		 */
-		ReadableConfig getGraphGeneratorConfig();
-	}
+        /** Retrieves additional configuration for the graph generation process. */
+        ReadableConfig getGraphGeneratorConfig();
+    }
 }

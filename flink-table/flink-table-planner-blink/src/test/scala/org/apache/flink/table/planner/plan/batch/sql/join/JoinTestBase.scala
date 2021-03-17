@@ -33,154 +33,154 @@ abstract class JoinTestBase extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testJoinNonExistingKey(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
   }
 
   @Test(expected = classOf[TableException])
   def testJoinNonMatchingKeyTypes(): Unit = {
     // INTEGER and VARCHAR(65536) does not have common type now
-    util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g")
   }
 
   @Test(expected = classOf[ValidationException])
   def testJoinWithAmbiguousFields(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable0", 'a0, 'b0, 'c)
-    util.verifyPlan("SELECT a, c FROM MyTable1, MyTable0 WHERE a = a0")
+    util.verifyExecPlan("SELECT a, c FROM MyTable1, MyTable0 WHERE a = a0")
   }
 
   @Test
   def testInnerJoinWithEquiPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = d")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = d")
   }
 
   @Test
   def testInnerJoinWithFilter(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2, MyTable1 WHERE a = d AND d < 2")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2, MyTable1 WHERE a = d AND d < 2")
   }
 
   @Test
   def testInnerJoinWithEquiAndLocalPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2")
   }
 
   @Test
   def testInnerJoinWithEquiAndNonEquiPred(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2 AND b < h")
+    util.verifyExecPlan("SELECT * FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2 AND b < h")
   }
 
   @Test
   def testInnerJoinWithoutJoinPred(): Unit = {
     val query = "SELECT a, d FROM MyTable1, MyTable2"
-    util.verifyPlan(query)
+    util.verifyExecPlan(query)
   }
 
   @Test
   def testInnerJoinWithNonEquiPred(): Unit = {
     val query = "SELECT a, d FROM MyTable1, MyTable2 WHERE a + 1 = d"
-    util.verifyPlan(query)
+    util.verifyExecPlan(query)
   }
 
   @Test
   def testInnerJoinWithMultipleKeys(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2 INNER JOIN MyTable1 ON a = d AND b = e")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2 INNER JOIN MyTable1 ON a = d AND b = e")
   }
 
   @Test
   def testInnerJoinWithInvertedField(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE b = e AND a = d")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE b = e AND a = d")
   }
 
   @Test
   def testLeftOuterJoinWithEquiPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1 LEFT OUTER JOIN MyTable2 ON b = e")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1 LEFT OUTER JOIN MyTable2 ON b = e")
   }
 
   @Test
   def testLeftOuterJoinWithEquiAndLocalPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2")
   }
 
   @Test
   def testLeftOuterJoinWithEquiAndNonEquiPred(): Unit = {
     val sql = "SELECT * FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testLeftOuterJoinNoEquiPred(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON a <> d")
+    util.verifyExecPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON a <> d")
   }
 
   @Test
   def testLeftOuterJoinOnTrue(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON true")
+    util.verifyExecPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON true")
   }
 
   @Test
   def testLeftOuterJoinOnFalse(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON false")
+    util.verifyExecPlan("SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON false")
   }
 
   @Test
   def testRightOuterJoinWithEquiPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e")
   }
 
   @Test
   def testRightOuterJoinWithEquiAndLocalPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2")
   }
 
   @Test
   def testRightOuterJoinWithEquiAndNonEquiPred(): Unit = {
     val sql = "SELECT * FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testRightOuterJoinWithNonEquiPred(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON a <> d")
+    util.verifyExecPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON a <> d")
   }
 
   @Test
   def testRightOuterJoinOnTrue(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON true")
+    util.verifyExecPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON true")
   }
 
   @Test
   def testRightOuterJoinOnFalse(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON false")
+    util.verifyExecPlan("SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON false")
   }
 
   @Test
   def testFullOuterJoinWithEquiPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable1 FULL OUTER JOIN MyTable2 ON b = e")
+    util.verifyExecPlan("SELECT c, g FROM MyTable1 FULL OUTER JOIN MyTable2 ON b = e")
   }
 
   @Test
   def testFullOuterJoinWithEquiAndLocalPred(): Unit = {
-    util.verifyPlan("SELECT c, g FROM MyTable2 FULL OUTER JOIN  MyTable1 ON a = d AND d < 2")
+    util.verifyExecPlan("SELECT c, g FROM MyTable2 FULL OUTER JOIN  MyTable1 ON a = d AND d < 2")
   }
 
   @Test
   def testFullOuterJoinWithEquiAndNonEquiPred(): Unit = {
     val sql = "SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON a = d AND d < 2 AND b < h"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testFullOuterJoinWithNonEquiPred(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON a <> d")
+    util.verifyExecPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON a <> d")
   }
 
   @Test
   def testFullOuterJoinOnTrue(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON true")
+    util.verifyExecPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON true")
   }
 
   @Test
   def testFullOuterJoinOnFalse(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON false")
+    util.verifyExecPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON false")
   }
 
   @Test
@@ -190,12 +190,12 @@ abstract class JoinTestBase extends TableTestBase {
       """
         |SELECT * FROM (SELECT * FROM MyTable1) FULL JOIN (SELECT * FROM MyTable3) USING (a)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testCrossJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable2 CROSS JOIN MyTable1")
+    util.verifyExecPlan("SELECT * FROM MyTable2 CROSS JOIN MyTable1")
   }
 
   @Test
@@ -208,6 +208,6 @@ abstract class JoinTestBase extends TableTestBase {
          |  (SELECT * from src WHERE k = 0) src2
          |ON (src1.k = src2.k AND src2.k > 10)
          """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }

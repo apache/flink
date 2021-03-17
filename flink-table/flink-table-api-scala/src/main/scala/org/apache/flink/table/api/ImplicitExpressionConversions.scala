@@ -359,6 +359,17 @@ trait ImplicitExpressionConversions {
       function,
       params: _*)
 
+  /**
+   * A call to a SQL expression.
+   *
+   * The given string is parsed and translated into an [[Expression]] during planning. Only the
+   * translated expression is evaluated during runtime.
+   *
+   * Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+   * table-valued functions are not supported. Sub-queries are also not allowed.
+   */
+  def callSql(sqlExpression: String): Expression = Expressions.callSql(sqlExpression)
+
   // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------
@@ -442,6 +453,27 @@ trait ImplicitExpressionConversions {
     */
   def localTimestamp(): Expression = {
     Expressions.localTimestamp()
+  }
+
+  /**
+   * Converts a numeric type epoch seconds to {@link DataTypes#TIMESTAMP_LTZ()}.
+   */
+  def toTimestampLtz(numericEpochTime: Expression): Expression = {
+    Expressions.toTimestampLtz(numericEpochTime, lit(0))
+  }
+
+  /**
+   * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ()}.
+   *
+   * <p>The supported precision is 0 or 3:
+   *
+   * <ul>
+   *   <li>0 means the numericEpochTime is in second.
+   *   <li>3 means the numericEpochTime is in millisecond.
+   * </ul>
+   */
+  def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
+    Expressions.toTimestampLtz(numericEpochTime, precision)
   }
 
   /**

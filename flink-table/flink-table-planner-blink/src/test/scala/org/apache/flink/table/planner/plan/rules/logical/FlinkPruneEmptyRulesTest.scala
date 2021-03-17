@@ -60,12 +60,12 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
 
   @Test
   def testSemiJoinRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)")
+    util.verifyRelPlan("SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)")
   }
 
   @Test
   def testAntiJoinRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)")
+    util.verifyRelPlan("SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)")
   }
 
 }

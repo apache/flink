@@ -23,54 +23,61 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 /**
  * Partitioner that selects the channel with a user defined partitioner function on a key.
  *
- * @param <K>
- *            Type of the key
- * @param <T>
- *            Type of the data
+ * @param <K> Type of the key
+ * @param <T> Type of the data
  */
 @Internal
 public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	Partitioner<K> partitioner;
-	KeySelector<T, K> keySelector;
+    Partitioner<K> partitioner;
+    KeySelector<T, K> keySelector;
 
-	public CustomPartitionerWrapper(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
-		this.partitioner = partitioner;
-		this.keySelector = keySelector;
-	}
+    public CustomPartitionerWrapper(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
+        this.partitioner = partitioner;
+        this.keySelector = keySelector;
+    }
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
-		K key;
-		try {
-			key = keySelector.getKey(record.getInstance().getValue());
-		} catch (Exception e) {
-			throw new RuntimeException("Could not extract key from " + record.getInstance(), e);
-		}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        K key;
+        try {
+            key = keySelector.getKey(record.getInstance().getValue());
+        } catch (Exception e) {
+            throw new RuntimeException("Could not extract key from " + record.getInstance(), e);
+        }
 
-		return partitioner.partition(key, numberOfChannels);
-	}
+        return partitioner.partition(key, numberOfChannels);
+    }
 
-	@Override
-	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-		// fully rely on filtering downstream
-		// note that custom partitioners are not officially supported - the user has to force rescaling
-		// in that case, we assume that the custom partitioner is deterministic
-		return SubtaskStateMapper.FULL;
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        // fully rely on filtering downstream
+        // note that custom partitioners are not officially supported - the user has to force
+        // rescaling in that case, we assume that the custom partitioner is deterministic
+        return SubtaskStateMapper.FULL;
+    }
 
-	@Override
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<T> copy() {
+        try {
+            // clone partitioner to ensure that any internal state is also replicated
+            return new CustomPartitionerWrapper<>(
+                    InstantiationUtil.clone(partitioner), keySelector);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new IllegalStateException("Cannot clone custom partitioner", e);
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "CUSTOM";
-	}
+    @Override
+    public String toString() {
+        return "CUSTOM";
+    }
 }

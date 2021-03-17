@@ -24,9 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -39,48 +37,38 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 
-/**
- * A simple {@link StateBackend} which is used in a BATCH style execution.
- */
+/** A simple {@link StateBackend} which is used in a BATCH style execution. */
 public class BatchExecutionStateBackend implements StateBackend {
-	@Override
-	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
-		throw new UnsupportedOperationException("Checkpoints are not supported in a single key state backend");
-	}
 
-	@Override
-	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
-		return new NonCheckpointingStorageAccess();
-	}
+    @Override
+    public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) {
+        return new BatchExecutionKeyedStateBackend<>(keySerializer, keyGroupRange);
+    }
 
-	@Override
-	public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup,
-			@Nonnull Collection<KeyedStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) {
-		return new BatchExecutionKeyedStateBackend<>(keySerializer, keyGroupRange);
-	}
-
-	@Override
-	public OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier,
-			@Nonnull Collection<OperatorStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws Exception {
-		return new DefaultOperatorStateBackendBuilder(
-			env.getUserCodeClassLoader().asClassLoader(),
-			env.getExecutionConfig(),
-			false,
-			stateHandles,
-			cancelStreamRegistry
-		).build();
-	}
+    @Override
+    public OperatorStateBackend createOperatorStateBackend(
+            Environment env,
+            String operatorIdentifier,
+            @Nonnull Collection<OperatorStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws Exception {
+        return new DefaultOperatorStateBackendBuilder(
+                        env.getUserCodeClassLoader().asClassLoader(),
+                        env.getExecutionConfig(),
+                        false,
+                        stateHandles,
+                        cancelStreamRegistry)
+                .build();
+    }
 }

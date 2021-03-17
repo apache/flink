@@ -35,62 +35,74 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to execute user
- * defined python function.
+ * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
+ * execute user defined python function.
  */
 @Internal
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
-	private final TypeInformation inputType;
-	private final TypeInformation outputTupe;
-	private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
-	private final String coderUrn;
+    private final TypeInformation inputType;
+    private final TypeInformation outputTupe;
+    private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
+    private final String coderUrn;
 
-	public BeamDataStreamPythonFunctionRunner(
-		String taskName,
-		PythonEnvironmentManager environmentManager,
-		TypeInformation inputType,
-		TypeInformation outputType,
-		String functionUrn,
-		FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
-		String coderUrn,
-		Map<String, String> jobOptions,
-		@Nullable FlinkMetricContainer flinkMetricContainer,
-		KeyedStateBackend stateBackend,
-		TypeSerializer keySerializer,
-		MemoryManager memoryManager,
-		double managedMemoryFraction) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, stateBackend, keySerializer, memoryManager, managedMemoryFraction);
-		this.inputType = inputType;
-		this.outputTupe = outputType;
-		this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
-		this.coderUrn = coderUrn;
-	}
+    public BeamDataStreamPythonFunctionRunner(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            TypeInformation inputType,
+            TypeInformation outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
+            String coderUrn,
+            Map<String, String> jobOptions,
+            @Nullable FlinkMetricContainer flinkMetricContainer,
+            KeyedStateBackend stateBackend,
+            TypeSerializer keySerializer,
+            MemoryManager memoryManager,
+            double managedMemoryFraction) {
+        super(
+                taskName,
+                environmentManager,
+                functionUrn,
+                jobOptions,
+                flinkMetricContainer,
+                stateBackend,
+                keySerializer,
+                memoryManager,
+                managedMemoryFraction);
+        this.inputType = inputType;
+        this.outputTupe = outputType;
+        this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
+        this.coderUrn = coderUrn;
+    }
 
-	@Override
-	protected byte[] getUserDefinedFunctionsProtoBytes() {
-		return this.userDefinedDataStreamFunction.toByteArray();
-	}
+    @Override
+    protected byte[] getUserDefinedFunctionsProtoBytes() {
+        return this.userDefinedDataStreamFunction.toByteArray();
+    }
 
-	@Override
-	protected RunnerApi.Coder getInputCoderProto() {
-		return getInputOutputCoderProto(inputType);
-	}
+    @Override
+    protected RunnerApi.Coder getInputCoderProto() {
+        return getInputOutputCoderProto(inputType);
+    }
 
-	@Override
-	protected RunnerApi.Coder getOutputCoderProto() {
-		return getInputOutputCoderProto(outputTupe);
-	}
+    @Override
+    protected RunnerApi.Coder getOutputCoderProto() {
+        return getInputOutputCoderProto(outputTupe);
+    }
 
-	private RunnerApi.Coder getInputOutputCoderProto(TypeInformation typeInformation) {
-		FlinkFnApi.TypeInfo.FieldType builtFieldType = PythonTypeUtils.TypeInfoToProtoConverter
-			.getFieldType(typeInformation);
-		return RunnerApi.Coder.newBuilder()
-			.setSpec(RunnerApi.FunctionSpec.newBuilder()
-						.setUrn(this.coderUrn)
-						.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
-							PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(builtFieldType).toByteArray()
-						)).build()
-			).build();
-	}
+    private RunnerApi.Coder getInputOutputCoderProto(TypeInformation typeInformation) {
+        return RunnerApi.Coder.newBuilder()
+                .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                                .setUrn(this.coderUrn)
+                                .setPayload(
+                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
+                                                .ByteString.copyFrom(
+                                                PythonTypeUtils.TypeInfoToProtoConverter
+                                                        .toTypeInfoProto(typeInformation)
+                                                        .toByteArray()))
+                                .build())
+                .build();
+    }
 }

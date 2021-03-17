@@ -33,16 +33,20 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import akka.actor.ActorSystem;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -54,174 +58,240 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link MetricUtils} class.
- */
+/** Tests for the {@link MetricUtils} class. */
 public class MetricUtilsTest extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MetricUtilsTest.class);
+    /** Container for local objects to keep them from gc runs. */
+    private final List<Object> referencedObjects = new ArrayList<>();
 
-	/**
-	 * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)} respects
-	 * the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
-	 */
-	@Test
-	public void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
-		final Configuration configuration = new Configuration();
-		final int expectedThreadPriority = 3;
-		configuration.setInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
+    @After
+    public void cleanupReferencedObjects() {
+        referencedObjects.clear();
+    }
 
-		final RpcService rpcService = MetricUtils.startRemoteMetricsRpcService(configuration, "localhost");
-		assertThat(rpcService, instanceOf(AkkaRpcService.class));
+    /**
+     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)}
+     * respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
+     */
+    @Test
+    public void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int expectedThreadPriority = 3;
+        configuration.setInteger(
+                MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
-		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+        final RpcService rpcService =
+                MetricUtils.startRemoteMetricsRpcService(configuration, "localhost");
+        assertThat(rpcService, instanceOf(AkkaRpcService.class));
 
-		try {
-			final int threadPriority = actorSystem.settings().config().getInt("akka.actor.default-dispatcher.thread-priority");
+        final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
 
-			assertThat(threadPriority, is(expectedThreadPriority));
-		} finally {
-			AkkaUtils.terminateActorSystem(actorSystem).get();
-		}
-	}
+        try {
+            final int threadPriority =
+                    actorSystem
+                            .settings()
+                            .config()
+                            .getInt("akka.actor.default-dispatcher.thread-priority");
 
-	@Test
-	public void testNonHeapMetricsCompleteness() {
-		final InterceptingOperatorMetricGroup nonHeapMetrics = new InterceptingOperatorMetricGroup();
+            assertThat(threadPriority, is(expectedThreadPriority));
+        } finally {
+            AkkaUtils.terminateActorSystem(actorSystem).get();
+        }
+    }
 
-		MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
+    @Test
+    public void testNonHeapMetricsCompleteness() {
+        final InterceptingOperatorMetricGroup nonHeapMetrics =
+                new InterceptingOperatorMetricGroup();
 
-		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
-		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
-		Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
-	}
+        MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
 
-	@Test
-	public void testMetaspaceCompleteness() {
-		final InterceptingOperatorMetricGroup metaspaceMetrics = new InterceptingOperatorMetricGroup() {
-			@Override
-			public MetricGroup addGroup(String name) {
-				return this;
-			}
-		};
+        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
+        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
+    }
 
-		MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
+    @Test
+    public void testMetaspaceCompleteness() {
+        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
 
-		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
-		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
-		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
-	}
+        final InterceptingOperatorMetricGroup metaspaceMetrics =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        return this;
+                    }
+                };
 
-	@Test
-	public void testHeapMetricsCompleteness() {
-		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+        MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
 
-		MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
+        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
+        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
+    }
 
-		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
-		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
-		Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
-	}
+    @Test
+    public void testHeapMetricsCompleteness() {
+        final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
-	/**
-	 * Tests that heap/non-heap metrics do not rely on a static MemoryUsage instance.
-	 *
-	 * <p>We can only check this easily for the currently used heap memory, so we use it this as a proxy for testing
-	 * the functionality in general.
-	 */
-	@Test
-	public void testHeapMetricUsageNotStatic() throws Exception {
-		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+        MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
 
-		MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
+        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
+        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
+    }
 
-		@SuppressWarnings("unchecked")
-		final Gauge<Long> used = (Gauge<Long>) heapMetrics.get(MetricNames.MEMORY_USED);
+    /**
+     * Tests that heap/non-heap metrics do not rely on a static MemoryUsage instance.
+     *
+     * <p>We can only check this easily for the currently used heap memory, so we use it this as a
+     * proxy for testing the functionality in general.
+     */
+    @Test
+    public void testHeapMetricUsageNotStatic() throws Exception {
+        final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
-		final long usedHeapInitially = used.getValue();
+        MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
 
-		// check memory usage difference multiple times since other tests may affect memory usage as well
-		for (int x = 0; x < 10; x++) {
-			final byte[] array = new byte[1024 * 1024 * 8];
-			final long usedHeapAfterAllocation = used.getValue();
+        @SuppressWarnings("unchecked")
+        final Gauge<Long> used = (Gauge<Long>) heapMetrics.get(MetricNames.MEMORY_USED);
 
-			if (usedHeapInitially != usedHeapAfterAllocation) {
-				return;
-			}
-			Thread.sleep(50);
-		}
-		Assert.fail("Heap usage metric never changed it's value.");
-	}
+        runUntilMetricChanged("Heap", 10, () -> new byte[1024 * 1024 * 8], used);
+    }
 
-	@Test
-	public void testMetaspaceMetricUsageNotStatic() throws InterruptedException {
-		final InterceptingOperatorMetricGroup metaspaceMetrics = new InterceptingOperatorMetricGroup() {
-			@Override
-			public MetricGroup addGroup(String name) {
-				return this;
-			}
-		};
+    @Test
+    public void testMetaspaceMetricUsageNotStatic() throws Exception {
+        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
 
-		MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
+        final InterceptingOperatorMetricGroup metaspaceMetrics =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        return this;
+                    }
+                };
 
-		@SuppressWarnings("unchecked")
-		final Gauge<Long> used = (Gauge<Long>) metaspaceMetrics.get(MetricNames.MEMORY_USED);
+        MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
 
-		final long usedMetaspaceInitially = used.getValue();
+        @SuppressWarnings("unchecked")
+        final Gauge<Long> used = (Gauge<Long>) metaspaceMetrics.get(MetricNames.MEMORY_USED);
 
-		// check memory usage difference multiple times since other tests may affect memory usage as well
-		for (int x = 0; x < 10; x++) {
-			List<Runnable> consumerList = new ArrayList<>();
-			for (int i = 0; i < 10; i++) {
-				consumerList.add(() -> {});
-			}
+        runUntilMetricChanged("Metaspace", 10, MetricUtilsTest::redefineDummyClass, used);
+    }
 
-			final long usedMetaspaceAfterAllocation = used.getValue();
+    @Test
+    public void testNonHeapMetricUsageNotStatic() throws Exception {
+        final InterceptingOperatorMetricGroup nonHeapMetrics =
+                new InterceptingOperatorMetricGroup();
 
-			if (usedMetaspaceInitially != usedMetaspaceAfterAllocation) {
-				return;
-			}
-			Thread.sleep(50);
-		}
-		Assert.fail("Metaspace usage metric never changed it's value.");
-	}
+        MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
 
-	@Test
-	public void testManagedMemoryMetricsInitialization() throws MemoryAllocationException {
-		final int maxMemorySize = 16284;
-		final int numberOfAllocatedPages = 2;
-		final int pageSize = 4096;
-		final Object owner = new Object();
+        @SuppressWarnings("unchecked")
+        final Gauge<Long> used = (Gauge<Long>) nonHeapMetrics.get(MetricNames.MEMORY_USED);
 
-		final MemoryManager memoryManager = MemoryManager.create(maxMemorySize, pageSize);
-		memoryManager.allocatePages(owner, numberOfAllocatedPages);
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setTaskSlotTable(new TestingTaskSlotTable.TestingTaskSlotTableBuilder<Task>()
-				.memoryManagerGetterReturns(memoryManager)
-				.allActiveSlotAllocationIds(() -> Sets.newHashSet(new AllocationID()))
-				.build())
-			.setManagedMemorySize(maxMemorySize)
-			.build();
+        runUntilMetricChanged("Non-heap", 10, MetricUtilsTest::redefineDummyClass, used);
+    }
 
-		List<String> actualSubGroupPath = new ArrayList<>();
-		final InterceptingOperatorMetricGroup metricGroup = new InterceptingOperatorMetricGroup() {
-			@Override
-			public MetricGroup addGroup(String name) {
-				actualSubGroupPath.add(name);
-				return this;
-			}
-		};
-		MetricUtils.instantiateFlinkMemoryMetricGroup(
-			metricGroup,
-			taskManagerServices.getTaskSlotTable(),
-			taskManagerServices::getManagedMemorySize);
+    @Test
+    public void testManagedMemoryMetricsInitialization() throws MemoryAllocationException {
+        final int maxMemorySize = 16284;
+        final int numberOfAllocatedPages = 2;
+        final int pageSize = 4096;
+        final Object owner = new Object();
 
-		Gauge<Number> usedMetric = (Gauge<Number>) metricGroup.get("Used");
-		Gauge<Number> maxMetric = (Gauge<Number>) metricGroup.get("Total");
+        final MemoryManager memoryManager = MemoryManager.create(maxMemorySize, pageSize);
+        memoryManager.allocatePages(owner, numberOfAllocatedPages);
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setTaskSlotTable(
+                                new TestingTaskSlotTable.TestingTaskSlotTableBuilder<Task>()
+                                        .memoryManagerGetterReturns(memoryManager)
+                                        .allActiveSlotAllocationIds(
+                                                () -> Sets.newHashSet(new AllocationID()))
+                                        .build())
+                        .setManagedMemorySize(maxMemorySize)
+                        .build();
 
-		assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
-		assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
+        List<String> actualSubGroupPath = new ArrayList<>();
+        final InterceptingOperatorMetricGroup metricGroup =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        actualSubGroupPath.add(name);
+                        return this;
+                    }
+                };
+        MetricUtils.instantiateFlinkMemoryMetricGroup(
+                metricGroup,
+                taskManagerServices.getTaskSlotTable(),
+                taskManagerServices::getManagedMemorySize);
 
-		assertThat(actualSubGroupPath, is(Arrays.asList(METRIC_GROUP_FLINK, METRIC_GROUP_MEMORY, METRIC_GROUP_MANAGED_MEMORY)));
-	}
+        Gauge<Number> usedMetric = (Gauge<Number>) metricGroup.get("Used");
+        Gauge<Number> maxMetric = (Gauge<Number>) metricGroup.get("Total");
+
+        assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
+        assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
+
+        assertThat(
+                actualSubGroupPath,
+                is(
+                        Arrays.asList(
+                                METRIC_GROUP_FLINK,
+                                METRIC_GROUP_MEMORY,
+                                METRIC_GROUP_MANAGED_MEMORY)));
+    }
+
+    // --------------- utility methods and classes ---------------
+
+    /**
+     * An extreme simple class with no dependencies outside "java" package to ease re-defining from
+     * its bytecode.
+     */
+    private static class Dummy {}
+
+    /**
+     * Define an new class using {@link Dummy} class's name and bytecode to consume Metaspace and
+     * NonHeap memory.
+     */
+    private static Class<?> redefineDummyClass() throws ClassNotFoundException {
+        Class<?> clazz = Dummy.class;
+        ChildFirstClassLoader classLoader =
+                new ChildFirstClassLoader(
+                        ClassLoaderUtils.getClasspathURLs(),
+                        clazz.getClassLoader(),
+                        new String[] {"java."},
+                        ignored -> {});
+
+        Class<?> newClass = classLoader.loadClass(clazz.getName());
+
+        Assert.assertNotSame(clazz, newClass);
+        Assert.assertEquals(clazz.getName(), newClass.getName());
+        return newClass;
+    }
+
+    private static boolean hasMetaspaceMemoryPool() {
+        return ManagementFactory.getMemoryPoolMXBeans().stream()
+                .anyMatch(bean -> "Metaspace".equals(bean.getName()));
+    }
+
+    /** Caller may choose to run multiple times for possible interference with other tests. */
+    private void runUntilMetricChanged(
+            String name, int maxRuns, CheckedSupplier<Object> objectCreator, Gauge<Long> metric)
+            throws Exception {
+        maxRuns = Math.max(1, maxRuns);
+        long initialValue = metric.getValue();
+        for (int i = 0; i < maxRuns; i++) {
+            Object object = objectCreator.get();
+            long currentValue = metric.getValue();
+            if (currentValue != initialValue) {
+                return;
+            }
+            referencedObjects.add(object);
+            Thread.sleep(50);
+        }
+        String msg =
+                String.format(
+                        "%s usage metric never changed its value after %d runs.", name, maxRuns);
+        Assert.fail(msg);
+    }
 }

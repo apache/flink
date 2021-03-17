@@ -68,204 +68,252 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 final class PojoSerializerSnapshotData<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PojoSerializerSnapshotData.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PojoSerializerSnapshotData.class);
 
-	// ---------------------------------------------------------------------------------------------
-	//  Factory methods
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
+    //  Factory methods
+    // ---------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a {@link PojoSerializerSnapshotData} from configuration of a {@link PojoSerializer}.
-	 *
-	 * <p>This factory method is meant to be used in regular write paths, i.e. when taking a snapshot
-	 * of the {@link PojoSerializer}. All registered subclass classes, and non-registered
-	 * subclass classes are all present. Some POJO fields may be absent, if the originating
-	 * {@link PojoSerializer} was a restored one with already missing fields, and was never replaced
-	 * by a new {@link PojoSerializer} (i.e. because the serialized old data was never accessed).
-	 */
-	static <T> PojoSerializerSnapshotData<T> createFrom(
-			Class<T> pojoClass,
-			Field[] fields,
-			TypeSerializer<?>[] fieldSerializers,
-			LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers,
-			Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
+    /**
+     * Creates a {@link PojoSerializerSnapshotData} from configuration of a {@link PojoSerializer}.
+     *
+     * <p>This factory method is meant to be used in regular write paths, i.e. when taking a
+     * snapshot of the {@link PojoSerializer}. All registered subclass classes, and non-registered
+     * subclass classes are all present. Some POJO fields may be absent, if the originating {@link
+     * PojoSerializer} was a restored one with already missing fields, and was never replaced by a
+     * new {@link PojoSerializer} (i.e. because the serialized old data was never accessed).
+     */
+    static <T> PojoSerializerSnapshotData<T> createFrom(
+            Class<T> pojoClass,
+            Field[] fields,
+            TypeSerializer<?>[] fieldSerializers,
+            LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers,
+            Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
 
-		final LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new LinkedOptionalMap<>(fields.length);
+        final LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots =
+                new LinkedOptionalMap<>(fields.length);
 
-		for (int i = 0; i < fields.length; i++) {
-			Field field = fields[i];
-			String fieldName = (field == null) ? getDummyNameForMissingField(i) : field.getName();
-			fieldSerializerSnapshots.put(fieldName, field, TypeSerializerUtils.snapshotBackwardsCompatible(fieldSerializers[i]));
-		}
+        for (int i = 0; i < fields.length; i++) {
+            Field field = fields[i];
+            String fieldName = (field == null) ? getDummyNameForMissingField(i) : field.getName();
+            fieldSerializerSnapshots.put(
+                    fieldName,
+                    field,
+                    TypeSerializerUtils.snapshotBackwardsCompatible(fieldSerializers[i]));
+        }
 
-		LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots = new LinkedHashMap<>(registeredSubclassSerializers.size());
-		registeredSubclassSerializers.forEach((k, v) -> registeredSubclassSerializerSnapshots.put(k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
+        LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots =
+                new LinkedHashMap<>(registeredSubclassSerializers.size());
+        registeredSubclassSerializers.forEach(
+                (k, v) ->
+                        registeredSubclassSerializerSnapshots.put(
+                                k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
 
-		Map<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots = new HashMap<>(nonRegisteredSubclassSerializers.size());
-		nonRegisteredSubclassSerializers.forEach((k, v) -> nonRegisteredSubclassSerializerSnapshots.put(k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
+        Map<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots =
+                new HashMap<>(nonRegisteredSubclassSerializers.size());
+        nonRegisteredSubclassSerializers.forEach(
+                (k, v) ->
+                        nonRegisteredSubclassSerializerSnapshots.put(
+                                k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
 
-		return new PojoSerializerSnapshotData<>(
-			pojoClass,
-			fieldSerializerSnapshots,
-			optionalMapOf(registeredSubclassSerializerSnapshots, Class::getName),
-			optionalMapOf(nonRegisteredSubclassSerializerSnapshots, Class::getName));
-	}
+        return new PojoSerializerSnapshotData<>(
+                pojoClass,
+                fieldSerializerSnapshots,
+                optionalMapOf(registeredSubclassSerializerSnapshots, Class::getName),
+                optionalMapOf(nonRegisteredSubclassSerializerSnapshots, Class::getName));
+    }
 
-	/**
-	 * Creates a {@link PojoSerializerSnapshotData} from serialized data stream.
-	 *
-	 * <p>This factory method is meant to be used in regular read paths, i.e. when reading back a snapshot
-	 * of the {@link PojoSerializer}. POJO fields, registered subclass classes, and non-registered subclass
-	 * classes may no longer be present anymore.
-	 */
-	static <T> PojoSerializerSnapshotData<T> createFrom(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		return PojoSerializerSnapshotData.readSnapshotData(in, userCodeClassLoader);
-	}
+    /**
+     * Creates a {@link PojoSerializerSnapshotData} from serialized data stream.
+     *
+     * <p>This factory method is meant to be used in regular read paths, i.e. when reading back a
+     * snapshot of the {@link PojoSerializer}. POJO fields, registered subclass classes, and
+     * non-registered subclass classes may no longer be present anymore.
+     */
+    static <T> PojoSerializerSnapshotData<T> createFrom(
+            DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        return PojoSerializerSnapshotData.readSnapshotData(in, userCodeClassLoader);
+    }
 
-	/**
-	 * Creates a {@link PojoSerializerSnapshotData} from existing snapshotted configuration of a {@link PojoSerializer}.
-	 */
-	static <T> PojoSerializerSnapshotData<T> createFrom(
-			Class<T> pojoClass,
-			Field[] fields,
-			TypeSerializerSnapshot<?>[] existingFieldSerializerSnapshots,
-			LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> existingRegisteredSubclassSerializerSnapshots,
-			Map<Class<?>, TypeSerializerSnapshot<?>> existingNonRegisteredSubclassSerializerSnapshots) {
+    /**
+     * Creates a {@link PojoSerializerSnapshotData} from existing snapshotted configuration of a
+     * {@link PojoSerializer}.
+     */
+    static <T> PojoSerializerSnapshotData<T> createFrom(
+            Class<T> pojoClass,
+            Field[] fields,
+            TypeSerializerSnapshot<?>[] existingFieldSerializerSnapshots,
+            LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>>
+                    existingRegisteredSubclassSerializerSnapshots,
+            Map<Class<?>, TypeSerializerSnapshot<?>>
+                    existingNonRegisteredSubclassSerializerSnapshots) {
 
-		final LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new LinkedOptionalMap<>(fields.length);
-		for (int i = 0; i < fields.length; i++) {
-			Field field = fields[i];
-			String fieldName = (field == null) ? getDummyNameForMissingField(i) : field.getName();
-			fieldSerializerSnapshots.put(fieldName, field, existingFieldSerializerSnapshots[i]);
-		}
+        final LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots =
+                new LinkedOptionalMap<>(fields.length);
+        for (int i = 0; i < fields.length; i++) {
+            Field field = fields[i];
+            String fieldName = (field == null) ? getDummyNameForMissingField(i) : field.getName();
+            fieldSerializerSnapshots.put(fieldName, field, existingFieldSerializerSnapshots[i]);
+        }
 
-		return new PojoSerializerSnapshotData<>(
-			pojoClass,
-			fieldSerializerSnapshots,
-			optionalMapOf(existingRegisteredSubclassSerializerSnapshots, Class::getName),
-			optionalMapOf(existingNonRegisteredSubclassSerializerSnapshots, Class::getName));
-	}
+        return new PojoSerializerSnapshotData<>(
+                pojoClass,
+                fieldSerializerSnapshots,
+                optionalMapOf(existingRegisteredSubclassSerializerSnapshots, Class::getName),
+                optionalMapOf(existingNonRegisteredSubclassSerializerSnapshots, Class::getName));
+    }
 
-	private Class<T> pojoClass;
-	private LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots;
-	private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots;
-	private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots;
+    private Class<T> pojoClass;
+    private LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots;
+    private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+            registeredSubclassSerializerSnapshots;
+    private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+            nonRegisteredSubclassSerializerSnapshots;
 
-	private PojoSerializerSnapshotData(
-			Class<T> typeClass,
-			LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots,
-			LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots,
-			LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots) {
+    private PojoSerializerSnapshotData(
+            Class<T> typeClass,
+            LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots,
+            LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+                    registeredSubclassSerializerSnapshots,
+            LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+                    nonRegisteredSubclassSerializerSnapshots) {
 
-		this.pojoClass = checkNotNull(typeClass);
-		this.fieldSerializerSnapshots = checkNotNull(fieldSerializerSnapshots);
-		this.registeredSubclassSerializerSnapshots = checkNotNull(registeredSubclassSerializerSnapshots);
-		this.nonRegisteredSubclassSerializerSnapshots = checkNotNull(nonRegisteredSubclassSerializerSnapshots);
-	}
+        this.pojoClass = checkNotNull(typeClass);
+        this.fieldSerializerSnapshots = checkNotNull(fieldSerializerSnapshots);
+        this.registeredSubclassSerializerSnapshots =
+                checkNotNull(registeredSubclassSerializerSnapshots);
+        this.nonRegisteredSubclassSerializerSnapshots =
+                checkNotNull(nonRegisteredSubclassSerializerSnapshots);
+    }
 
-	// ---------------------------------------------------------------------------------------------
-	//  Snapshot data read / write methods
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
+    //  Snapshot data read / write methods
+    // ---------------------------------------------------------------------------------------------
 
-	void writeSnapshotData(DataOutputView out) throws IOException {
-		out.writeUTF(pojoClass.getName());
-		writeOptionalMap(out, fieldSerializerSnapshots, PojoFieldUtils::writeField, TypeSerializerSnapshot::writeVersionedSnapshot);
-		writeOptionalMap(out, registeredSubclassSerializerSnapshots, NoOpWriter.noopWriter(), TypeSerializerSnapshot::writeVersionedSnapshot);
-		writeOptionalMap(out, nonRegisteredSubclassSerializerSnapshots, NoOpWriter.noopWriter(), TypeSerializerSnapshot::writeVersionedSnapshot);
-	}
+    void writeSnapshotData(DataOutputView out) throws IOException {
+        out.writeUTF(pojoClass.getName());
+        writeOptionalMap(
+                out,
+                fieldSerializerSnapshots,
+                PojoFieldUtils::writeField,
+                TypeSerializerSnapshot::writeVersionedSnapshot);
+        writeOptionalMap(
+                out,
+                registeredSubclassSerializerSnapshots,
+                NoOpWriter.noopWriter(),
+                TypeSerializerSnapshot::writeVersionedSnapshot);
+        writeOptionalMap(
+                out,
+                nonRegisteredSubclassSerializerSnapshots,
+                NoOpWriter.noopWriter(),
+                TypeSerializerSnapshot::writeVersionedSnapshot);
+    }
 
-	private static <T> PojoSerializerSnapshotData<T> readSnapshotData(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		Class<T> pojoClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+    private static <T> PojoSerializerSnapshotData<T> readSnapshotData(
+            DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        Class<T> pojoClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 
-		LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots = readOptionalMap(
-			in,
-			fieldReader(userCodeClassLoader),
-			snapshotReader(userCodeClassLoader));
-		LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots = readOptionalMap(
-			in,
-			classReader(userCodeClassLoader),
-			snapshotReader(userCodeClassLoader));
-		LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots = readOptionalMap(
-			in,
-			classReader(userCodeClassLoader),
-			snapshotReader(userCodeClassLoader));
+        LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots =
+                readOptionalMap(
+                        in, fieldReader(userCodeClassLoader), snapshotReader(userCodeClassLoader));
+        LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+                registeredSubclassSerializerSnapshots =
+                        readOptionalMap(
+                                in,
+                                classReader(userCodeClassLoader),
+                                snapshotReader(userCodeClassLoader));
+        LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+                nonRegisteredSubclassSerializerSnapshots =
+                        readOptionalMap(
+                                in,
+                                classReader(userCodeClassLoader),
+                                snapshotReader(userCodeClassLoader));
 
-		return new PojoSerializerSnapshotData<>(pojoClass, fieldSerializerSnapshots, registeredSubclassSerializerSnapshots, nonRegisteredSubclassSerializerSnapshots);
-	}
+        return new PojoSerializerSnapshotData<>(
+                pojoClass,
+                fieldSerializerSnapshots,
+                registeredSubclassSerializerSnapshots,
+                nonRegisteredSubclassSerializerSnapshots);
+    }
 
-	// ---------------------------------------------------------------------------------------------
-	//  Snapshot data accessors
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
+    //  Snapshot data accessors
+    // ---------------------------------------------------------------------------------------------
 
-	Class<T> getPojoClass() {
-		return pojoClass;
-	}
+    Class<T> getPojoClass() {
+        return pojoClass;
+    }
 
-	LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> getFieldSerializerSnapshots() {
-		return fieldSerializerSnapshots;
-	}
+    LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> getFieldSerializerSnapshots() {
+        return fieldSerializerSnapshots;
+    }
 
-	LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> getRegisteredSubclassSerializerSnapshots() {
-		return registeredSubclassSerializerSnapshots;
-	}
+    LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+            getRegisteredSubclassSerializerSnapshots() {
+        return registeredSubclassSerializerSnapshots;
+    }
 
-	LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> getNonRegisteredSubclassSerializerSnapshots() {
-		return nonRegisteredSubclassSerializerSnapshots;
-	}
+    LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
+            getNonRegisteredSubclassSerializerSnapshots() {
+        return nonRegisteredSubclassSerializerSnapshots;
+    }
 
-	// ---------------------------------------------------------------------------------------------
-	//  Utilities
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
+    //  Utilities
+    // ---------------------------------------------------------------------------------------------
 
-	private static String getDummyNameForMissingField(int fieldIndex) {
-		return String.format("missing-field-at-%d", fieldIndex);
-	}
+    private static String getDummyNameForMissingField(int fieldIndex) {
+        return String.format("missing-field-at-%d", fieldIndex);
+    }
 
-	private enum NoOpWriter implements BiConsumerWithException<DataOutputView, Object, IOException> {
-		INSTANCE;
+    private enum NoOpWriter
+            implements BiConsumerWithException<DataOutputView, Object, IOException> {
+        INSTANCE;
 
-		@Override
-		public void accept(DataOutputView dataOutputView, Object o) {}
+        @Override
+        public void accept(DataOutputView dataOutputView, Object o) {}
 
-		@SuppressWarnings("unchecked")
-		static <K> BiConsumerWithException<DataOutputView, K, IOException> noopWriter() {
-			return (BiConsumerWithException<DataOutputView, K, IOException>) INSTANCE;
-		}
-	}
+        @SuppressWarnings("unchecked")
+        static <K> BiConsumerWithException<DataOutputView, K, IOException> noopWriter() {
+            return (BiConsumerWithException<DataOutputView, K, IOException>) INSTANCE;
+        }
+    }
 
-	private static BiFunctionWithException<DataInputView, String, Field, IOException> fieldReader(ClassLoader cl) {
-		return (input, fieldName) -> {
-			try {
-				return PojoFieldUtils.readField(input, cl);
-			}
-			catch (Throwable t) {
-				LOG.warn(String.format("Exception while reading field %s", fieldName), t);
-				return null;
-			}
-		};
-	}
+    private static BiFunctionWithException<DataInputView, String, Field, IOException> fieldReader(
+            ClassLoader cl) {
+        return (input, fieldName) -> {
+            try {
+                return PojoFieldUtils.readField(input, cl);
+            } catch (Throwable t) {
+                LOG.warn(String.format("Exception while reading field %s", fieldName), t);
+                return null;
+            }
+        };
+    }
 
-	private static BiFunctionWithException<DataInputView, String, TypeSerializerSnapshot<?>, IOException> snapshotReader(ClassLoader cl) {
-		return (input, unused) -> {
-			try {
-				return TypeSerializerSnapshot.readVersionedSnapshot(input, cl);
-			}
-			catch (Throwable t) {
-				LOG.warn("Exception while reading serializer snapshot.", t);
-				return null;
-			}
-		};
-	}
+    private static BiFunctionWithException<
+                    DataInputView, String, TypeSerializerSnapshot<?>, IOException>
+            snapshotReader(ClassLoader cl) {
+        return (input, unused) -> {
+            try {
+                return TypeSerializerSnapshot.readVersionedSnapshot(input, cl);
+            } catch (Throwable t) {
+                LOG.warn("Exception while reading serializer snapshot.", t);
+                return null;
+            }
+        };
+    }
 
-	private static BiFunctionWithException<DataInputView, String, Class<?>, IOException> classReader(ClassLoader cl) {
-		return (input, className) -> {
-			try {
-				// input is ignored because we don't write the actual class as value.
-				return Class.forName(className, false, cl);
-			} catch (Throwable t) {
-				LOG.warn(String.format("Exception while reading class %s", className), t);
-				return null;
-			}
-		};
-	}
+    private static BiFunctionWithException<DataInputView, String, Class<?>, IOException>
+            classReader(ClassLoader cl) {
+        return (input, className) -> {
+            try {
+                // input is ignored because we don't write the actual class as value.
+                return Class.forName(className, false, cl);
+            } catch (Throwable t) {
+                LOG.warn(String.format("Exception while reading class %s", className), t);
+                return null;
+            }
+        };
+    }
 }

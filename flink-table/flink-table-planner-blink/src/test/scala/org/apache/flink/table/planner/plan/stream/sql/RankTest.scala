@@ -43,7 +43,7 @@ class RankTest extends TableTestBase {
 
     thrown.expectMessage("Rank end is not specified.")
     thrown.expect(classOf[TableException])
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -60,7 +60,7 @@ class RankTest extends TableTestBase {
 
     thrown.expectMessage("Rank end should not less than zero")
     thrown.expect(classOf[TableException])
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -75,7 +75,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -86,7 +86,7 @@ class RankTest extends TableTestBase {
         | SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -102,7 +102,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -118,7 +118,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -133,7 +133,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -148,7 +148,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -164,7 +164,7 @@ class RankTest extends TableTestBase {
         |WHERE rk <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -180,7 +180,7 @@ class RankTest extends TableTestBase {
         |WHERE rk <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -193,7 +193,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -206,7 +206,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -219,7 +219,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -233,7 +233,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -247,7 +247,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -261,7 +261,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -276,7 +276,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -292,7 +292,7 @@ class RankTest extends TableTestBase {
         |WHERE 10 >= row_num
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -307,7 +307,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num = 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -323,7 +323,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10 AND b IS NOT NULL
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -345,7 +345,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -367,7 +367,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -387,7 +387,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 3
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -414,7 +414,7 @@ class RankTest extends TableTestBase {
          |SELECT max(a) FROM ($sql)
        """.stripMargin
 
-    util.verifyPlan(sql2, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql2, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -437,7 +437,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -459,7 +459,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -481,7 +481,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -503,7 +503,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -525,7 +525,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -547,7 +547,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -572,7 +572,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -607,7 +607,7 @@ class RankTest extends TableTestBase {
          |WHERE rank_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -633,7 +633,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= a
       """.stripMargin
 
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -666,8 +666,26 @@ class RankTest extends TableTestBase {
          |)
          |""".stripMargin
     )
-    util.verifyPlanInsert("insert into sink select name, eat, cnt\n"
+    util.verifyExecPlanInsert("insert into sink select name, eat, cnt\n"
       + "from view2 where row_num <= 3")
+  }
+
+  @Test
+  def testCorrelateSortToRank(): Unit = {
+    val query =
+      s"""
+         |SELECT a, b
+         |FROM
+         |  (SELECT DISTINCT a FROM MyTable) T1,
+         |  LATERAL (
+         |    SELECT b, c
+         |    FROM MyTable
+         |    WHERE a = T1.a
+         |    ORDER BY c
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyExecPlan(query)
   }
 
   // TODO add tests about multi-sinks and udf

@@ -345,5 +345,12 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
       mq.getRelModifiedMonotonicity(streamChangelogNormalize))
   }
 
+  @Test
+  def testGetRelMonotonicityOnDropUpdateBefore(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array.fill(7)(CONSTANT)),
+      mq.getRelModifiedMonotonicity(streamDropUpdateBefore))
+  }
+
 }
 

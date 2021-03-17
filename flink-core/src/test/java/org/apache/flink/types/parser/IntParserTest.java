@@ -16,46 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class IntParserTest extends ParserTestBase<Integer> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE), "1239"
-		};
-	}
-	
-	@Override
-	public Integer[] getValidTestResults() {
-		return new Integer[] {
-			0, 1, 576, -877678, Integer.MAX_VALUE, Integer.MIN_VALUE, 1239
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "0",
+            "1",
+            "576",
+            "-877678",
+            String.valueOf(Integer.MAX_VALUE),
+            String.valueOf(Integer.MIN_VALUE),
+            "1239"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"a", "1569a86", "-57-6", "7-877678", String.valueOf(Integer.MAX_VALUE) + "0", String.valueOf(Long.MIN_VALUE),
-			String.valueOf(((long) Integer.MAX_VALUE) + 1), String.valueOf(((long) Integer.MIN_VALUE) - 1), " 1", "2 ", " ", "\t"
-		};
-	}
+    @Override
+    public Integer[] getValidTestResults() {
+        return new Integer[] {0, 1, 576, -877678, Integer.MAX_VALUE, Integer.MIN_VALUE, 1239};
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {
+            "a",
+            "1569a86",
+            "-57-6",
+            "7-877678",
+            String.valueOf(Integer.MAX_VALUE) + "0",
+            String.valueOf(Long.MIN_VALUE),
+            String.valueOf(((long) Integer.MAX_VALUE) + 1),
+            String.valueOf(((long) Integer.MIN_VALUE) - 1),
+            " 1",
+            "2 ",
+            " ",
+            "\t"
+        };
+    }
 
-	@Override
-	public FieldParser<Integer> getParser() {
-		return new IntParser();
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public Class<Integer> getTypeClass() {
-		return Integer.class;
-	}
+    @Override
+    public FieldParser<Integer> getParser() {
+        return new IntParser();
+    }
+
+    @Override
+    public Class<Integer> getTypeClass() {
+        return Integer.class;
+    }
 }

@@ -37,150 +37,124 @@ import java.util.Objects;
 
 import static java.util.Arrays.asList;
 
-/**
- * Tests for {@link ExternalSerializer}.
- */
+/** Tests for {@link ExternalSerializer}. */
 @RunWith(Parameterized.class)
 public class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
 
-	@Parameters(name = "{index}: {0}")
-	public static List<TestSpec<?>> testData() {
-		return asList(
+    @Parameters(name = "{index}: {0}")
+    public static List<TestSpec<?>> testData() {
+        return asList(
+                TestSpec.forDataType(DataTypes.INT()).withLength(4).addInstance(18).addInstance(42),
+                TestSpec.forDataType(
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("age", DataTypes.INT()),
+                                        DataTypes.FIELD("name", DataTypes.STRING())))
+                        .addInstance(Row.of(12, "Bob"))
+                        .addInstance(Row.of(42, null)),
+                TestSpec.forDataType(
+                                DataTypes.STRUCTURED(
+                                        ImmutableTestPojo.class,
+                                        DataTypes.FIELD("age", DataTypes.INT()),
+                                        DataTypes.FIELD("name", DataTypes.STRING())))
+                        .addInstance(new ImmutableTestPojo(12, "Bob"))
+                        .addInstance(new ImmutableTestPojo(42, null)),
+                TestSpec.forDataType(
+                                DataTypes.ARRAY(
+                                                DataTypes.STRUCTURED(
+                                                        ImmutableTestPojo.class,
+                                                        DataTypes.FIELD("age", DataTypes.INT()),
+                                                        DataTypes.FIELD(
+                                                                "name", DataTypes.STRING())))
+                                        .bridgedTo(List.class))
+                        .addInstance(Collections.singletonList(new ImmutableTestPojo(12, "Bob")))
+                        .addInstance(
+                                Arrays.asList(
+                                        new ImmutableTestPojo(42, "Alice"),
+                                        null,
+                                        null,
+                                        new ImmutableTestPojo(42, null))),
+                TestSpec.forDataType(DataTypes.ARRAY(DataTypes.INT()))
+                        .addInstance(new Integer[] {0, 1, null, 3})
+                        .addInstance(new Integer[0]));
+    }
 
-			TestSpec
-				.forDataType(
-					DataTypes.INT()
-				)
-				.withLength(4)
-				.addInstance(18)
-				.addInstance(42),
+    @SuppressWarnings("unchecked")
+    public ExternalSerializerTest(TestSpec<T> testSpec) {
+        super(
+                ExternalSerializer.of(testSpec.dataType),
+                (Class<T>) testSpec.dataType.getConversionClass(),
+                testSpec.length,
+                testSpec.instances.toArray(
+                        (T[]) Array.newInstance(testSpec.dataType.getConversionClass(), 0)));
+    }
 
-			TestSpec
-				.forDataType(
-					DataTypes.ROW(
-						DataTypes.FIELD("age", DataTypes.INT()),
-						DataTypes.FIELD("name", DataTypes.STRING())
-					)
-				)
-				.addInstance(Row.of(12, "Bob"))
-				.addInstance(Row.of(42, null)),
+    @Override
+    protected boolean allowNullInstances(TypeSerializer<T> serializer) {
+        return true;
+    }
 
-			TestSpec
-				.forDataType(
-					DataTypes.STRUCTURED(
-							ImmutableTestPojo.class,
-							DataTypes.FIELD("age", DataTypes.INT()),
-							DataTypes.FIELD("name", DataTypes.STRING())
-						)
-				)
-				.addInstance(new ImmutableTestPojo(12, "Bob"))
-				.addInstance(new ImmutableTestPojo(42, null)),
+    // --------------------------------------------------------------------------------------------
 
-			TestSpec
-				.forDataType(
-					DataTypes
-						.ARRAY(
-							DataTypes.STRUCTURED(
-								ImmutableTestPojo.class,
-								DataTypes.FIELD("age", DataTypes.INT()),
-								DataTypes.FIELD("name", DataTypes.STRING())
-							)
-						)
-						.bridgedTo(List.class)
-				)
-				.addInstance(Collections.singletonList(new ImmutableTestPojo(12, "Bob")))
-				.addInstance(
-					Arrays.asList(
-						new ImmutableTestPojo(42, "Alice"), null, null, new ImmutableTestPojo(42, null))),
+    private static class TestSpec<T> {
 
-			TestSpec
-				.forDataType(
-					DataTypes.ARRAY(DataTypes.INT())
-				)
-				.addInstance(new Integer[]{0, 1, null, 3})
-				.addInstance(new Integer[0])
-		);
-	}
+        private final DataType dataType;
 
-	@SuppressWarnings("unchecked")
-	public ExternalSerializerTest(TestSpec<T> testSpec) {
-		super(
-			ExternalSerializer.of(testSpec.dataType),
-			(Class<T>) testSpec.dataType.getConversionClass(),
-			testSpec.length,
-			testSpec.instances.toArray((T[]) Array.newInstance(testSpec.dataType.getConversionClass(), 0))
-		);
-	}
+        private int length = -1;
 
-	@Override
-	protected boolean allowNullInstances(TypeSerializer<T> serializer) {
-		return true;
-	}
+        private List<T> instances = new ArrayList<>();
 
-	// --------------------------------------------------------------------------------------------
+        private TestSpec(DataType dataType) {
+            this.dataType = dataType;
+        }
 
-	private static class TestSpec<T> {
+        static <T> TestSpec<T> forDataType(DataType dataType) {
+            return new TestSpec<>(dataType);
+        }
 
-		private final DataType dataType;
+        TestSpec<T> withLength(int length) {
+            this.length = length;
+            return this;
+        }
 
-		private int length = -1;
+        TestSpec<T> addInstance(T instance) {
+            instances.add(instance);
+            return this;
+        }
 
-		private List<T> instances = new ArrayList<>();
+        @Override
+        public String toString() {
+            return dataType.toString();
+        }
+    }
 
-		private TestSpec(DataType dataType) {
-			this.dataType = dataType;
-		}
+    // --------------------------------------------------------------------------------------------
 
-		static <T> TestSpec<T> forDataType(DataType dataType) {
-			return new TestSpec<>(dataType);
-		}
+    /** Immutable POJO for testing. */
+    public static class ImmutableTestPojo {
 
-		TestSpec<T> withLength(int length) {
-			this.length = length;
-			return this;
-		}
+        public final int age;
+        public final String name;
 
-		TestSpec<T> addInstance(T instance) {
-			instances.add(instance);
-			return this;
-		}
+        public ImmutableTestPojo(int age, String name) {
+            this.age = age;
+            this.name = name;
+        }
 
-		@Override
-		public String toString() {
-			return dataType.toString();
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ImmutableTestPojo that = (ImmutableTestPojo) o;
+            return age == that.age && Objects.equals(name, that.name);
+        }
 
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Immutable POJO for testing.
-	 */
-	public static class ImmutableTestPojo {
-
-		public final int age;
-		public final String name;
-
-		public ImmutableTestPojo(int age, String name) {
-			this.age = age;
-			this.name = name;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ImmutableTestPojo that = (ImmutableTestPojo) o;
-			return age == that.age && Objects.equals(name, that.name);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(age, name);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(age, name);
+        }
+    }
 }

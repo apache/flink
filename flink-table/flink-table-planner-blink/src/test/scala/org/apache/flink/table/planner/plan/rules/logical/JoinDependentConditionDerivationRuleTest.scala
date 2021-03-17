@@ -60,49 +60,49 @@ class JoinDependentConditionDerivationRuleTest extends TableTestBase {
   def testSimple(): Unit = {
     val sqlQuery =
       "SELECT a, d FROM MyTable1, MyTable2 WHERE (a = 1 AND d = 2) OR (a = 2 AND d = 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testAnd(): Unit = {
     val sqlQuery =
       "SELECT a, d FROM MyTable1, MyTable2 WHERE b = e AND ((a = 1 AND d = 2) OR (a = 2 AND d = 1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testCanNotMatchThisRule(): Unit = {
     val sqlQuery =
       "SELECT a, d FROM MyTable1, MyTable2 WHERE b = e OR ((a = 1 AND d = 2) OR (a = 2 AND d = 1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testThreeOr(): Unit = {
     val sqlQuery = "SELECT a, d FROM MyTable1, MyTable2 WHERE " +
       "(b = e AND a = 0) OR ((a = 1 AND d = 2) OR (a = 2 AND d = 1))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testAndOr(): Unit = {
     val sqlQuery = "SELECT a, d FROM MyTable1, MyTable2 WHERE " +
       "((a = 1 AND d = 2) OR (a = 2 AND d = 1)) AND ((a = 3 AND d = 4) OR (a = 4 AND d = 3))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiFields(): Unit = {
     val sqlQuery = "SELECT a, d FROM MyTable1, MyTable2 WHERE " +
       "(a = 1 AND b = 1 AND d = 2 AND e = 2) OR (a = 2 AND b = 2 AND d = 1 AND e = 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiSingleSideFields(): Unit = {
     val sqlQuery = "SELECT a, d FROM MyTable1, MyTable2 WHERE " +
       "(a = 1 AND b = 1 AND d = 2 AND e = 2) OR (d = 1 AND e = 1)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -115,7 +115,7 @@ class JoinDependentConditionDerivationRuleTest extends TableTestBase {
         |OR
         |(T1.a = 2 AND T2.b = 2 AND T2.d = 1 AND T2.e = 1)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

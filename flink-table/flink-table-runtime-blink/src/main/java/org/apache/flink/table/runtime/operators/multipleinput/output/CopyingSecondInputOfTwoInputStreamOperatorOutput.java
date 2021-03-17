@@ -28,61 +28,61 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 
 /**
- * An {@link Output} that can be used to emit copying elements and other messages
- * for the second input of {@link TwoInputStreamOperator}.
+ * An {@link Output} that can be used to emit copying elements and other messages for the second
+ * input of {@link TwoInputStreamOperator}.
  */
 public class CopyingSecondInputOfTwoInputStreamOperatorOutput extends OutputBase {
 
-	private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
-	private final TypeSerializer<RowData> serializer;
+    private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
+    private final TypeSerializer<RowData> serializer;
 
-	public CopyingSecondInputOfTwoInputStreamOperatorOutput(
-			TwoInputStreamOperator<RowData, RowData, RowData> operator,
-			TypeSerializer<RowData> serializer) {
-		super(operator);
-		this.operator = operator;
-		this.serializer = serializer;
-	}
+    public CopyingSecondInputOfTwoInputStreamOperatorOutput(
+            TwoInputStreamOperator<RowData, RowData, RowData> operator,
+            TypeSerializer<RowData> serializer) {
+        super(operator);
+        this.operator = operator;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		try {
-			operator.processWatermark2(mark);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        try {
+            operator.processWatermark2(mark);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		try {
-			operator.processLatencyMarker2(latencyMarker);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        try {
+            operator.processLatencyMarker2(latencyMarker);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 
-	@Override
-	public void collect(StreamRecord<RowData> record) {
-		pushToOperator(record);
-	}
+    @Override
+    public void collect(StreamRecord<RowData> record) {
+        pushToOperator(record);
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		pushToOperator(record);
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        pushToOperator(record);
+    }
 
-	protected <X> void pushToOperator(StreamRecord<X> record) {
-		try {
-			// we know that the given outputTag matches our OutputTag so the record
-			// must be of the type that our operator expects.
-			@SuppressWarnings("unchecked")
-			StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
-			StreamRecord<RowData> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
+    protected <X> void pushToOperator(StreamRecord<X> record) {
+        try {
+            // we know that the given outputTag matches our OutputTag so the record
+            // must be of the type that our operator expects.
+            @SuppressWarnings("unchecked")
+            StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
+            StreamRecord<RowData> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 
-			operator.processElement2(copy);
-		} catch (Exception e) {
-			throw new ExceptionInMultipleInputOperatorException(e);
-		}
-	}
+            operator.processElement2(copy);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
 }

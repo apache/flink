@@ -27,25 +27,23 @@ import org.apache.flink.util.Preconditions;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Type strategy that returns the n-th input argument.
- */
+/** Type strategy that returns the n-th input argument. */
 @Internal
 public final class UseArgumentTypeStrategy implements TypeStrategy {
 
-	private final int pos;
+    private final int pos;
 
-	public UseArgumentTypeStrategy(int pos) {
-		Preconditions.checkArgument(pos >= 0);
-		this.pos = pos;
-	}
+    public UseArgumentTypeStrategy(int pos) {
+        Preconditions.checkArgument(pos >= 0);
+        this.pos = pos;
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		if (pos >= argumentDataTypes.size()) {
-			return Optional.empty();
-		}
-		return Optional.of(argumentDataTypes.get(pos));
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        if (pos >= argumentDataTypes.size()) {
+            return Optional.empty();
+        }
+        return Optional.of(argumentDataTypes.get(pos));
+    }
 }

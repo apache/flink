@@ -21,17 +21,16 @@ package org.apache.flink.streaming.api.operators.sorted.state;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
 
-/**
- * Tests for {@link BatchExecutionInternalPriorityQueueSet}.
- */
+/** Tests for {@link BatchExecutionInternalPriorityQueueSet}. */
 public class BatchExecutionInternalPriorityQueueSetTest extends InternalPriorityQueueTestBase {
-	@Override
-	protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
-		return new BatchExecutionInternalPriorityQueueSet<>(TEST_ELEMENT_PRIORITY_COMPARATOR, initialCapacity);
-	}
+    @Override
+    protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
+        return new BatchExecutionInternalPriorityQueueSet<>(
+                TEST_ELEMENT_PRIORITY_COMPARATOR, initialCapacity);
+    }
 
-	@Override
-	protected boolean testSetSemanticsAgainstDuplicateElements() {
-		return true;
-	}
+    @Override
+    protected boolean testSetSemanticsAgainstDuplicateElements() {
+        return true;
+    }
 }

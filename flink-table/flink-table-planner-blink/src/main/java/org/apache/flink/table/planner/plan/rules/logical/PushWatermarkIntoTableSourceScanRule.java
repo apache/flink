@@ -18,40 +18,47 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 
-
 /**
- * Rule to push the {@link FlinkLogicalWatermarkAssigner} into the {@link FlinkLogicalTableSourceScan}.
+ * Rule to push the {@link FlinkLogicalWatermarkAssigner} into the {@link
+ * FlinkLogicalTableSourceScan}.
  */
 public class PushWatermarkIntoTableSourceScanRule extends PushWatermarkIntoTableSourceScanRuleBase {
-	public static final PushWatermarkIntoTableSourceScanRule INSTANCE = new PushWatermarkIntoTableSourceScanRule();
+    public static final PushWatermarkIntoTableSourceScanRule INSTANCE =
+            new PushWatermarkIntoTableSourceScanRule();
 
-	public PushWatermarkIntoTableSourceScanRule() {
-		super(operand(FlinkLogicalWatermarkAssigner.class,
-				operand(FlinkLogicalTableSourceScan.class, none())),
-				"PushWatermarkIntoTableSourceScanRule");
-	}
+    public PushWatermarkIntoTableSourceScanRule() {
+        super(
+                operand(
+                        FlinkLogicalWatermarkAssigner.class,
+                        operand(FlinkLogicalTableSourceScan.class, none())),
+                "PushWatermarkIntoTableSourceScanRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		FlinkLogicalTableSourceScan scan = call.rel(1);
-		return supportsWatermarkPushDown(scan);
-	}
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        FlinkLogicalTableSourceScan scan = call.rel(1);
+        return supportsWatermarkPushDown(scan);
+    }
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		FlinkLogicalWatermarkAssigner watermarkAssigner = call.rel(0);
-		FlinkLogicalTableSourceScan scan = call.rel(1);
-		FlinkContext context = (FlinkContext) call.getPlanner().getContext();
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        FlinkLogicalWatermarkAssigner watermarkAssigner = call.rel(0);
+        FlinkLogicalTableSourceScan scan = call.rel(1);
 
-		FlinkLogicalTableSourceScan newScan =
-				getNewScan(watermarkAssigner, watermarkAssigner.watermarkExpr(), scan, context.getTableConfig(), true);
+        FlinkLogicalTableSourceScan newScan =
+                getNewScan(
+                        watermarkAssigner,
+                        watermarkAssigner.watermarkExpr(),
+                        scan,
+                        ShortcutUtils.unwrapContext(scan).getTableConfig(),
+                        true); // useWatermarkAssignerRowType
 
-		call.transformTo(newScan);
-	}
+        call.transformTo(newScan);
+    }
 }

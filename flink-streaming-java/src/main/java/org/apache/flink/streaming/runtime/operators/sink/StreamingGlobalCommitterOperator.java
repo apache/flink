@@ -30,75 +30,80 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
- * {@link GlobalCommitter} in the streaming execution mode.
+ * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * GlobalCommitter} in the streaming execution mode.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}.
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
 @Internal
-public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamingCommitterOperator<CommT, GlobalCommT>
-		implements BoundedOneInput {
+public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
+        extends AbstractStreamingCommitterOperator<CommT, GlobalCommT> implements BoundedOneInput {
 
-	/** Aggregate committables to global committables and commit the global committables to the external system. */
-	private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
+    /**
+     * Aggregate committables to global committables and commit the global committables to the
+     * external system.
+     */
+    private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
-	/** The global committables that might need to be committed again after recovering from a failover. */
-	private final List<GlobalCommT> recoveredGlobalCommittables;
+    /**
+     * The global committables that might need to be committed again after recovering from a
+     * failover.
+     */
+    private final List<GlobalCommT> recoveredGlobalCommittables;
 
-	private boolean endOfInput;
+    private boolean endOfInput;
 
-	StreamingGlobalCommitterOperator(
-			GlobalCommitter<CommT, GlobalCommT> globalCommitter,
-			SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
-		super(committableSerializer);
-		this.globalCommitter = checkNotNull(globalCommitter);
+    StreamingGlobalCommitterOperator(
+            GlobalCommitter<CommT, GlobalCommT> globalCommitter,
+            SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
+        super(committableSerializer);
+        this.globalCommitter = checkNotNull(globalCommitter);
 
-		this.recoveredGlobalCommittables = new ArrayList<>();
-		this.endOfInput = false;
-	}
+        this.recoveredGlobalCommittables = new ArrayList<>();
+        this.endOfInput = false;
+    }
 
-	@Override
-	void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
-		final List<GlobalCommT> recovered = globalCommitter.
-				filterRecoveredCommittables(checkNotNull(committables));
-		recoveredGlobalCommittables.addAll(recovered);
-	}
+    @Override
+    void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
+        final List<GlobalCommT> recovered =
+                globalCommitter.filterRecoveredCommittables(checkNotNull(committables));
+        recoveredGlobalCommittables.addAll(recovered);
+    }
 
-	@Override
-	List<GlobalCommT> prepareCommit(List<CommT> input) throws IOException {
-		checkNotNull(input);
-		final List<GlobalCommT> result =
-				new ArrayList<>(recoveredGlobalCommittables);
-		recoveredGlobalCommittables.clear();
+    @Override
+    List<GlobalCommT> prepareCommit(List<CommT> input) throws IOException {
+        checkNotNull(input);
+        final List<GlobalCommT> result = new ArrayList<>(recoveredGlobalCommittables);
+        recoveredGlobalCommittables.clear();
 
-		if (!input.isEmpty()) {
-			result.add(globalCommitter.combine(input));
-		}
-		return result;
-	}
+        if (!input.isEmpty()) {
+            result.add(globalCommitter.combine(input));
+        }
+        return result;
+    }
 
-	@Override
-	List<GlobalCommT> commit(List<GlobalCommT> committables) throws Exception {
-		return globalCommitter.commit(checkNotNull(committables));
-	}
+    @Override
+    List<GlobalCommT> commit(List<GlobalCommT> committables) throws Exception {
+        return globalCommitter.commit(checkNotNull(committables));
+    }
 
-	@Override
-	public void endInput() {
-		endOfInput = true;
-	}
+    @Override
+    public void endInput() {
+        endOfInput = true;
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		globalCommitter.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        globalCommitter.close();
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		super.notifyCheckpointComplete(checkpointId);
-		if (endOfInput) {
-			globalCommitter.endOfInput();
-		}
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        super.notifyCheckpointComplete(checkpointId);
+        if (endOfInput) {
+            globalCommitter.endOfInput();
+        }
+    }
 }

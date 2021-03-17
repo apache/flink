@@ -32,32 +32,29 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * {@link ResultPartitionWriter} that collects output on the List.
- */
+/** {@link ResultPartitionWriter} that collects output on the List. */
 @ThreadSafe
 public abstract class AbstractCollectingResultPartitionWriter extends MockResultPartitionWriter {
 
-	@Override
-	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-		checkArgument(targetSubpartition < getNumberOfSubpartitions());
-		deserializeRecord(record);
-	}
+    @Override
+    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        checkArgument(targetSubpartition < getNumberOfSubpartitions());
+        deserializeRecord(record);
+    }
 
-	@Override
-	public void broadcastRecord(ByteBuffer record) throws IOException {
-		deserializeRecord(record);
-	}
+    @Override
+    public void broadcastRecord(ByteBuffer record) throws IOException {
+        deserializeRecord(record);
+    }
 
-	private void deserializeRecord(ByteBuffer serializedRecord) throws IOException {
-		checkArgument(serializedRecord.hasArray());
+    private void deserializeRecord(ByteBuffer serializedRecord) throws IOException {
+        checkArgument(serializedRecord.hasArray());
 
-		MemorySegment segment = MemorySegmentFactory.wrap(serializedRecord.array());
-		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
-		buffer.setSize(serializedRecord.remaining());
-		deserializeBuffer(buffer);
-		buffer.recycleBuffer();
-	}
+        MemorySegment segment = MemorySegmentFactory.wrap(serializedRecord.array());
+        NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+        buffer.setSize(serializedRecord.remaining());
+        deserializeBuffer(buffer);
+    }
 
-	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;
+    protected abstract void deserializeBuffer(Buffer buffer) throws IOException;
 }

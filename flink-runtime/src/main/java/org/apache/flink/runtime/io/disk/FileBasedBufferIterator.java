@@ -35,56 +35,58 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * {@link CloseableIterator} of {@link Buffer buffers} over file content.
- */
+/** {@link CloseableIterator} of {@link Buffer buffers} over file content. */
 @Internal
 public class FileBasedBufferIterator implements CloseableIterator<Buffer> {
 
-	private final RefCountedFile file;
-	private final FileInputStream stream;
-	private final int bufferSize;
+    private final RefCountedFile file;
+    private final FileInputStream stream;
+    private final int bufferSize;
 
-	private int offset;
-	private int bytesToRead;
+    private int offset;
+    private int bytesToRead;
 
-	public FileBasedBufferIterator(RefCountedFile file, int bytesToRead, int bufferSize) throws FileNotFoundException {
-		checkNotNull(file);
-		checkArgument(bytesToRead >= 0);
-		checkArgument(bufferSize > 0);
-		this.stream = new FileInputStream(file.getFile());
-		this.file = file;
-		this.bufferSize = bufferSize;
-		this.bytesToRead = bytesToRead;
-		file.retain();
-	}
+    public FileBasedBufferIterator(RefCountedFile file, int bytesToRead, int bufferSize)
+            throws FileNotFoundException {
+        checkNotNull(file);
+        checkArgument(bytesToRead >= 0);
+        checkArgument(bufferSize > 0);
+        this.stream = new FileInputStream(file.getFile());
+        this.file = file;
+        this.bufferSize = bufferSize;
+        this.bytesToRead = bytesToRead;
+        file.retain();
+    }
 
-	@Override
-	public boolean hasNext() {
-		return bytesToRead > 0;
-	}
+    @Override
+    public boolean hasNext() {
+        return bytesToRead > 0;
+    }
 
-	@Override
-	public Buffer next() {
-		byte[] buffer = new byte[bufferSize];
-		int bytesRead = read(buffer);
-		checkState(bytesRead >= 0, "unexpected end of file, file = " + file.getFile() + ", offset=" + offset);
-		offset += bytesRead;
-		bytesToRead -= bytesRead;
-		return new NetworkBuffer(wrap(buffer), FreeingBufferRecycler.INSTANCE, DATA_BUFFER, bytesRead);
-	}
+    @Override
+    public Buffer next() {
+        byte[] buffer = new byte[bufferSize];
+        int bytesRead = read(buffer);
+        checkState(
+                bytesRead >= 0,
+                "unexpected end of file, file = " + file.getFile() + ", offset=" + offset);
+        offset += bytesRead;
+        bytesToRead -= bytesRead;
+        return new NetworkBuffer(
+                wrap(buffer), FreeingBufferRecycler.INSTANCE, DATA_BUFFER, bytesRead);
+    }
 
-	private int read(byte[] buffer) {
-		int limit = Math.min(buffer.length, bytesToRead);
-		try {
-			return stream.read(buffer, 0, limit);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private int read(byte[] buffer) {
+        int limit = Math.min(buffer.length, bytesToRead);
+        try {
+            return stream.read(buffer, 0, limit);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		closeAll(stream, file::release);
-	}
+    @Override
+    public void close() throws Exception {
+        closeAll(stream, file::release);
+    }
 }

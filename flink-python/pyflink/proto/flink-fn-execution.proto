@@ -47,6 +47,9 @@ message UserDefinedFunction {
 
   // The index of the over window used in pandas batch over window aggregation
   int32 window_index = 3;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 4;
 }
 
 // A list of user-defined functions to be executed in a batch.
@@ -78,12 +81,11 @@ message UserDefinedDataStreamFunction {
   enum FunctionType {
     MAP = 0;
     FLAT_MAP = 1;
-    REDUCE = 2;
-    CO_MAP = 3;
-    CO_FLAT_MAP = 4;
-    PROCESS = 5;
-    KEYED_PROCESS = 6;
-    TIMESTAMP_ASSIGNER = 7;
+    CO_MAP = 2;
+    CO_FLAT_MAP = 3;
+    PROCESS = 4;
+    KEYED_PROCESS = 5;
+    TIMESTAMP_ASSIGNER = 6;
   }
 
   message JobParameter {
@@ -139,6 +141,42 @@ message UserDefinedAggregateFunction {
   int32 filter_arg = 4;
 
   bool distinct = 5;
+
+  // Whether the UDF takes row as input instead of each columns of a row
+  bool takes_row_as_input = 6;
+}
+
+message GroupWindow {
+  enum WindowType {
+    TUMBLING_GROUP_WINDOW = 0;
+    SLIDING_GROUP_WINDOW = 1;
+    SESSION_GROUP_WINDOW = 2;
+  }
+
+  enum WindowProperty {
+    WINDOW_START = 0;
+    WINDOW_END = 1;
+    ROW_TIME_ATTRIBUTE = 2;
+    PROC_TIME_ATTRIBUTE = 3;
+  }
+
+  WindowType window_type = 1;
+
+  bool is_time_window = 2;
+
+  int64 window_slide = 3;
+
+  int64 window_size = 4;
+
+  int64 window_gap = 5;
+
+  bool is_row_time = 6;
+
+  int32 time_field_index = 7;
+
+  int64 allowedLateness = 8;
+
+  repeated WindowProperty namedProperties = 9;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
@@ -163,6 +201,9 @@ message UserDefinedAggregateFunctions {
   int32 map_state_write_cache_size = 10;
   // True if the count(*) agg is inserted by the planner.
   bool count_star_inserted = 11;
+
+  // Group Window.
+  GroupWindow group_window = 12;
 }
 
 // A representation of the data schema.
@@ -280,26 +321,35 @@ message TypeInfo {
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
     BASIC_ARRAY = 15;
-    PICKLED_BYTES = 16;
+    PRIMITIVE_ARRAY = 16;
     TUPLE = 17;
-    PRIMITIVE_ARRAY = 18;
+    LIST = 18;
+    MAP = 19;
+    PICKLED_BYTES = 20;
   }
 
+  message MapTypeInfo {
+    TypeInfo key_type = 1;
+    TypeInfo value_type = 2;
+  }
 
-  message FieldType {
-    TypeName type_name = 1;
-    oneof type_info {
-      FieldType collection_element_type = 2;
-      TypeInfo row_type_info = 3;
-      TypeInfo tuple_type_info = 4;
+  message RowTypeInfo {
+    message Field {
+      string field_name = 1;
+      TypeInfo field_type = 2;
     }
+    repeated Field fields = 1;
   }
 
-  message Field {
-    string name = 1;
-    //description is used in Table schema, no need in DataStream.
-    string description = 2;
-    FieldType type = 3;
+  message TupleTypeInfo {
+    repeated TypeInfo field_types = 1;
   }
-  repeated Field field = 1;
+
+  TypeName type_name = 1;
+  oneof type_info {
+    TypeInfo collection_element_type = 2;
+    RowTypeInfo row_type_info = 3;
+    TupleTypeInfo tuple_type_info = 4;
+    MapTypeInfo map_type_info = 5;
+  }
 }

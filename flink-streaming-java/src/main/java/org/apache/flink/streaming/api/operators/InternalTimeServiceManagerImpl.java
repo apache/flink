@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -45,215 +44,210 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An entity keeping all the time-related services. Right now, this is only a
- * {@link InternalTimerServiceImpl timer services}.
+ * An entity keeping all the time-related services. Right now, this is only a {@link
+ * InternalTimerServiceImpl timer services}.
  *
- * <b>NOTE:</b> These services are only available to keyed operators.
+ * <p><b>NOTE:</b> These services are only available to keyed operators.
  *
  * @param <K> The type of keys used for the timers and the registry.
  */
 @Internal
 public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceManager<K> {
-	protected static final Logger LOG = LoggerFactory.getLogger(InternalTimeServiceManagerImpl.class);
+    protected static final Logger LOG =
+            LoggerFactory.getLogger(InternalTimeServiceManagerImpl.class);
 
-	@VisibleForTesting
-	static final String TIMER_STATE_PREFIX = "_timer_state";
-	@VisibleForTesting
-	static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
-	@VisibleForTesting
-	static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
+    @VisibleForTesting static final String TIMER_STATE_PREFIX = "_timer_state";
 
-	private final KeyGroupRange localKeyGroupRange;
-	private final KeyContext keyContext;
+    @VisibleForTesting
+    static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
 
-	private final PriorityQueueSetFactory priorityQueueSetFactory;
-	private final ProcessingTimeService processingTimeService;
+    @VisibleForTesting static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
-	private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
+    private final KeyGroupRange localKeyGroupRange;
+    private final KeyContext keyContext;
 
-	private final boolean useLegacySynchronousSnapshots;
+    private final PriorityQueueSetFactory priorityQueueSetFactory;
+    private final ProcessingTimeService processingTimeService;
 
-	private InternalTimeServiceManagerImpl(
-		KeyGroupRange localKeyGroupRange,
-		KeyContext keyContext,
-		PriorityQueueSetFactory priorityQueueSetFactory,
-		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
+    private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
-		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
-		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
-		this.keyContext = Preconditions.checkNotNull(keyContext);
-		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
-		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
+    private InternalTimeServiceManagerImpl(
+            KeyGroupRange localKeyGroupRange,
+            KeyContext keyContext,
+            PriorityQueueSetFactory priorityQueueSetFactory,
+            ProcessingTimeService processingTimeService) {
 
-		this.timerServices = new HashMap<>();
-	}
+        this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
+        this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
+        this.keyContext = Preconditions.checkNotNull(keyContext);
+        this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
-	/**
-	 * A factory method for creating the {@link InternalTimeServiceManagerImpl}.
-	 *
-	 * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
-	 */
-	public static <K> InternalTimeServiceManagerImpl<K> create(
-			CheckpointableKeyedStateBackend<K> keyedStatedBackend,
-			ClassLoader userClassloader,
-			KeyContext keyContext,
-			ProcessingTimeService processingTimeService,
-			Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
-		final boolean requiresSnapshotLegacyTimers = keyedStatedBackend instanceof AbstractKeyedStateBackend &&
-			((AbstractKeyedStateBackend<K>) keyedStatedBackend).requiresLegacySynchronousTimerSnapshots();
+        this.timerServices = new HashMap<>();
+    }
 
-		final InternalTimeServiceManagerImpl<K> timeServiceManager = new InternalTimeServiceManagerImpl<>(
-			keyGroupRange,
-			keyContext,
-			keyedStatedBackend,
-			processingTimeService,
-			requiresSnapshotLegacyTimers);
+    /**
+     * A factory method for creating the {@link InternalTimeServiceManagerImpl}.
+     *
+     * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
+     */
+    public static <K> InternalTimeServiceManagerImpl<K> create(
+            CheckpointableKeyedStateBackend<K> keyedStateBackend,
+            ClassLoader userClassloader,
+            KeyContext keyContext,
+            ProcessingTimeService processingTimeService,
+            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+            throws Exception {
+        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
-		// and then initialize the timer services
-		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
-			int keyGroupIdx = streamProvider.getKeyGroupId();
+        final InternalTimeServiceManagerImpl<K> timeServiceManager =
+                new InternalTimeServiceManagerImpl<>(
+                        keyGroupRange, keyContext, keyedStateBackend, processingTimeService);
 
-			Preconditions.checkArgument(keyGroupRange.contains(keyGroupIdx),
-				"Key Group " + keyGroupIdx + " does not belong to the local range.");
+        // and then initialize the timer services
+        for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
+            int keyGroupIdx = streamProvider.getKeyGroupId();
 
-			timeServiceManager.restoreStateForKeyGroup(
-				streamProvider.getStream(),
-				keyGroupIdx,
-				userClassloader);
-		}
+            Preconditions.checkArgument(
+                    keyGroupRange.contains(keyGroupIdx),
+                    "Key Group " + keyGroupIdx + " does not belong to the local range.");
 
-		return timeServiceManager;
-	}
+            timeServiceManager.restoreStateForKeyGroup(
+                    streamProvider.getStream(), keyGroupIdx, userClassloader);
+        }
 
-	@Override
-	public <N> InternalTimerService<N> getInternalTimerService(
-			String name,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			Triggerable<K, N> triggerable) {
-		checkNotNull(keySerializer, "Timers can only be used on keyed operators.");
+        return timeServiceManager;
+    }
 
-		// the following casting is to overcome type restrictions.
-		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
+    @Override
+    public <N> InternalTimerService<N> getInternalTimerService(
+            String name,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            Triggerable<K, N> triggerable) {
+        checkNotNull(keySerializer, "Timers can only be used on keyed operators.");
 
-		InternalTimerServiceImpl<K, N> timerService = registerOrGetTimerService(name, timerSerializer);
+        // the following casting is to overcome type restrictions.
+        TimerSerializer<K, N> timerSerializer =
+                new TimerSerializer<>(keySerializer, namespaceSerializer);
 
-		timerService.startTimerService(
-			timerSerializer.getKeySerializer(),
-			timerSerializer.getNamespaceSerializer(),
-			triggerable);
+        InternalTimerServiceImpl<K, N> timerService =
+                registerOrGetTimerService(name, timerSerializer);
 
-		return timerService;
-	}
+        timerService.startTimerService(
+                timerSerializer.getKeySerializer(),
+                timerSerializer.getNamespaceSerializer(),
+                triggerable);
 
-	@SuppressWarnings("unchecked")
-	<N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(String name, TimerSerializer<K, N> timerSerializer) {
-		InternalTimerServiceImpl<K, N> timerService = (InternalTimerServiceImpl<K, N>) timerServices.get(name);
-		if (timerService == null) {
+        return timerService;
+    }
 
-			timerService = new InternalTimerServiceImpl<>(
-				localKeyGroupRange,
-				keyContext,
-				processingTimeService,
-				createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
-				createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
+    @SuppressWarnings("unchecked")
+    <N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
+            String name, TimerSerializer<K, N> timerSerializer) {
+        InternalTimerServiceImpl<K, N> timerService =
+                (InternalTimerServiceImpl<K, N>) timerServices.get(name);
+        if (timerService == null) {
 
-			timerServices.put(name, timerService);
-		}
-		return timerService;
-	}
+            timerService =
+                    new InternalTimerServiceImpl<>(
+                            localKeyGroupRange,
+                            keyContext,
+                            processingTimeService,
+                            createTimerPriorityQueue(
+                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
 
-	Map<String, InternalTimerServiceImpl<K, ?>> getRegisteredTimerServices() {
-		return Collections.unmodifiableMap(timerServices);
-	}
+            timerServices.put(name, timerService);
+        }
+        return timerService;
+    }
 
-	private <N> KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerPriorityQueue(
-			String name,
-			TimerSerializer<K, N> timerSerializer) {
-		return priorityQueueSetFactory.create(name, timerSerializer);
-	}
+    Map<String, InternalTimerServiceImpl<K, ?>> getRegisteredTimerServices() {
+        return Collections.unmodifiableMap(timerServices);
+    }
 
-	@Override
-	public void advanceWatermark(Watermark watermark) throws Exception {
-		for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-			service.advanceWatermark(watermark.getTimestamp());
-		}
-	}
+    private <N>
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerPriorityQueue(
+                    String name, TimerSerializer<K, N> timerSerializer) {
+        return priorityQueueSetFactory.create(name, timerSerializer);
+    }
 
-	//////////////////				Fault Tolerance Methods				///////////////////
+    @Override
+    public void advanceWatermark(Watermark watermark) throws Exception {
+        for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
+            service.advanceWatermark(watermark.getTimestamp());
+        }
+    }
 
-	@Override
-	public boolean isUsingLegacyRawKeyedStateSnapshots() {
-		return useLegacySynchronousSnapshots;
-	}
+    //////////////////				Fault Tolerance Methods				///////////////////
 
-	@Override
-	public void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream out, String operatorName) throws Exception {
-		checkState(useLegacySynchronousSnapshots);
+    @Override
+    public void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream out, String operatorName)
+            throws Exception {
+        try {
+            KeyGroupsList allKeyGroups = out.getKeyGroupList();
+            for (int keyGroupIdx : allKeyGroups) {
+                out.startNewKeyGroup(keyGroupIdx);
 
-		try {
-			KeyGroupsList allKeyGroups = out.getKeyGroupList();
-			for (int keyGroupIdx : allKeyGroups) {
-				out.startNewKeyGroup(keyGroupIdx);
+                snapshotStateForKeyGroup(new DataOutputViewStreamWrapper(out), keyGroupIdx);
+            }
+        } catch (Exception exception) {
+            throw new Exception(
+                    "Could not write timer service of "
+                            + operatorName
+                            + " to checkpoint state stream.",
+                    exception);
+        } finally {
+            try {
+                out.close();
+            } catch (Exception closeException) {
+                LOG.warn(
+                        "Could not close raw keyed operator state stream for {}. This "
+                                + "might have prevented deleting some state data.",
+                        operatorName,
+                        closeException);
+            }
+        }
+    }
 
-				snapshotStateForKeyGroup(
-					new DataOutputViewStreamWrapper(out), keyGroupIdx);
-			}
-		} catch (Exception exception) {
-			throw new Exception("Could not write timer service of " + operatorName +
-				" to checkpoint state stream.", exception);
-		} finally {
-			try {
-				out.close();
-			} catch (Exception closeException) {
-				LOG.warn("Could not close raw keyed operator state stream for {}. This " +
-					"might have prevented deleting some state data.", operatorName, closeException);
-			}
-		}
-	}
+    private void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx)
+            throws IOException {
+        InternalTimerServiceSerializationProxy<K> serializationProxy =
+                new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
-	private void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
-		InternalTimerServiceSerializationProxy<K> serializationProxy =
-			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
+        serializationProxy.write(stream);
+    }
 
-		serializationProxy.write(stream);
-	}
+    private void restoreStateForKeyGroup(
+            InputStream stream, int keyGroupIdx, ClassLoader userCodeClassLoader)
+            throws IOException {
 
-	private void restoreStateForKeyGroup(
-			InputStream stream,
-			int keyGroupIdx,
-			ClassLoader userCodeClassLoader) throws IOException {
+        InternalTimerServiceSerializationProxy<K> serializationProxy =
+                new InternalTimerServiceSerializationProxy<>(
+                        this, userCodeClassLoader, keyGroupIdx);
 
-		InternalTimerServiceSerializationProxy<K> serializationProxy =
-			new InternalTimerServiceSerializationProxy<>(
-				this,
-				userCodeClassLoader,
-				keyGroupIdx);
+        serializationProxy.read(stream);
+    }
 
-		serializationProxy.read(stream);
-	}
+    ////////////////////			Methods used ONLY IN TESTS				////////////////////
 
-	////////////////////			Methods used ONLY IN TESTS				////////////////////
+    @VisibleForTesting
+    public int numProcessingTimeTimers() {
+        int count = 0;
+        for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
+            count += timerService.numProcessingTimeTimers();
+        }
+        return count;
+    }
 
-	@VisibleForTesting
-	public int numProcessingTimeTimers() {
-		int count = 0;
-		for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
-			count += timerService.numProcessingTimeTimers();
-		}
-		return count;
-	}
-
-	@VisibleForTesting
-	public int numEventTimeTimers() {
-		int count = 0;
-		for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
-			count += timerService.numEventTimeTimers();
-		}
-		return count;
-	}
+    @VisibleForTesting
+    public int numEventTimeTimers() {
+        int count = 0;
+        for (InternalTimerServiceImpl<?, ?> timerService : timerServices.values()) {
+            count += timerService.numEventTimeTimers();
+        }
+        return count;
+    }
 }

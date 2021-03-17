@@ -25,35 +25,39 @@ import org.apache.flink.table.filesystem.stream.AbstractStreamingWriter;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCheckpoint;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.InputFile;
 
-/**
- * Writer for emitting {@link InputFile} and {@link EndCheckpoint} to downstream.
- */
-public class CompactFileWriter<T> extends AbstractStreamingWriter<T, CompactMessages.CoordinatorInput> {
+/** Writer for emitting {@link InputFile} and {@link EndCheckpoint} to downstream. */
+public class CompactFileWriter<T>
+        extends AbstractStreamingWriter<T, CompactMessages.CoordinatorInput> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public CompactFileWriter(
-			long bucketCheckInterval,
-			StreamingFileSink.BucketsBuilder<T, String,
-					? extends StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder) {
-		super(bucketCheckInterval, bucketsBuilder);
-	}
+    public CompactFileWriter(
+            long bucketCheckInterval,
+            StreamingFileSink.BucketsBuilder<
+                            T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
+                    bucketsBuilder) {
+        super(bucketCheckInterval, bucketsBuilder);
+    }
 
-	@Override
-	protected void partitionInactive(String partition) {
-	}
+    @Override
+    protected void partitionCreated(String partition) {}
 
-	@Override
-	protected void onPartFileOpened(String partition, Path newPath) {
-		output.collect(new StreamRecord<>(new InputFile(partition, newPath)));
-	}
+    @Override
+    protected void partitionInactive(String partition) {}
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		super.notifyCheckpointComplete(checkpointId);
-		output.collect(new StreamRecord<>(new EndCheckpoint(
-				checkpointId,
-				getRuntimeContext().getIndexOfThisSubtask(),
-				getRuntimeContext().getNumberOfParallelSubtasks())));
-	}
+    @Override
+    protected void onPartFileOpened(String partition, Path newPath) {
+        output.collect(new StreamRecord<>(new InputFile(partition, newPath)));
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        super.notifyCheckpointComplete(checkpointId);
+        output.collect(
+                new StreamRecord<>(
+                        new EndCheckpoint(
+                                checkpointId,
+                                getRuntimeContext().getIndexOfThisSubtask(),
+                                getRuntimeContext().getNumberOfParallelSubtasks())));
+    }
 }

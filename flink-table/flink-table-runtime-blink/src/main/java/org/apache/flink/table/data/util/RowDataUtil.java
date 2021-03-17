@@ -21,26 +21,24 @@ package org.apache.flink.table.data.util;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
-/**
- * Utilities for {@link RowData}.
- */
+/** Utilities for {@link RowData}. */
 public final class RowDataUtil {
 
-	/**
-	 * Returns true if the message is either {@link RowKind#INSERT} or {@link RowKind#UPDATE_AFTER},
-	 * which refers to an accumulate operation of aggregation.
-	 */
-	public static boolean isAccumulateMsg(RowData row) {
-		RowKind kind = row.getRowKind();
-		return kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER;
-	}
+    /**
+     * Returns true if the message is either {@link RowKind#INSERT} or {@link RowKind#UPDATE_AFTER},
+     * which refers to an accumulate operation of aggregation.
+     */
+    public static boolean isAccumulateMsg(RowData row) {
+        RowKind kind = row.getRowKind();
+        return kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER;
+    }
 
-	/**
-	 * Returns true if the message is either {@link RowKind#DELETE} or {@link RowKind#UPDATE_BEFORE},
-	 * which refers to a retract operation of aggregation.
-	 */
-	public static boolean isRetractMsg(RowData row) {
-		RowKind kind = row.getRowKind();
-		return kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE;
-	}
+    /**
+     * Returns true if the message is either {@link RowKind#DELETE} or {@link
+     * RowKind#UPDATE_BEFORE}, which refers to a retract operation of aggregation.
+     */
+    public static boolean isRetractMsg(RowData row) {
+        RowKind kind = row.getRowKind();
+        return kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE;
+    }
 }

@@ -35,68 +35,63 @@ import java.util.Objects;
  * Test for {@link org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer}.
  */
 public class RowDataSerializerTest extends SerializerTestBase<RowData> {
-	public RowDataSerializerTest() {
-		super(
-			new DeeplyEqualsChecker()
-				.withCustomCheck(
-					(o1, o2) -> o1 instanceof RowData && o2 instanceof RowData,
-					(o1, o2, checker) -> {
-						LogicalType[] fieldTypes = new LogicalType[] {
-							new BigIntType(),
-							new BigIntType()
-						};
-						RowDataSerializer serializer = new RowDataSerializer(fieldTypes);
-						return deepEqualsRowData(
-							(RowData) o1,
-							(RowData) o2,
-							(RowDataSerializer) serializer.duplicate(),
-							(RowDataSerializer) serializer.duplicate());
-					}
-				));
-	}
+    public RowDataSerializerTest() {
+        super(
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o1, o2) -> o1 instanceof RowData && o2 instanceof RowData,
+                                (o1, o2, checker) -> {
+                                    LogicalType[] fieldTypes =
+                                            new LogicalType[] {new BigIntType(), new BigIntType()};
+                                    RowDataSerializer serializer =
+                                            new RowDataSerializer(fieldTypes);
+                                    return deepEqualsRowData(
+                                            (RowData) o1,
+                                            (RowData) o2,
+                                            (RowDataSerializer) serializer.duplicate(),
+                                            (RowDataSerializer) serializer.duplicate());
+                                }));
+    }
 
-	@Override
-	protected TypeSerializer<RowData> createSerializer() {
-		TypeSerializer<?>[] fieldTypeSerializers = {
-			LongSerializer.INSTANCE,
-			LongSerializer.INSTANCE
-		};
+    @Override
+    protected TypeSerializer<RowData> createSerializer() {
+        TypeSerializer<?>[] fieldTypeSerializers = {
+            LongSerializer.INSTANCE, LongSerializer.INSTANCE
+        };
 
-		LogicalType[] fieldTypes = {
-			new BigIntType(),
-			new BigIntType()
-		};
-		return new org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer(
-			fieldTypes,
-			fieldTypeSerializers);
-	}
+        LogicalType[] fieldTypes = {new BigIntType(), new BigIntType()};
+        return new org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer(
+                fieldTypes, fieldTypeSerializers);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<RowData> getTypeClass() {
-		return RowData.class;
-	}
+    @Override
+    protected Class<RowData> getTypeClass() {
+        return RowData.class;
+    }
 
-	private static boolean deepEqualsRowData(
-		RowData should, RowData is,
-		RowDataSerializer serializer1, RowDataSerializer serializer2) {
-		if (should.getArity() != is.getArity()) {
-			return false;
-		}
-		BinaryRowData row1 = serializer1.toBinaryRow(should);
-		BinaryRowData row2 = serializer2.toBinaryRow(is);
+    private static boolean deepEqualsRowData(
+            RowData should,
+            RowData is,
+            RowDataSerializer serializer1,
+            RowDataSerializer serializer2) {
+        if (should.getArity() != is.getArity()) {
+            return false;
+        }
+        BinaryRowData row1 = serializer1.toBinaryRow(should);
+        BinaryRowData row2 = serializer2.toBinaryRow(is);
 
-		return Objects.equals(row1, row2);
-	}
+        return Objects.equals(row1, row2);
+    }
 
-	@Override
-	protected RowData[] getTestData() {
-		RowData row1 = StreamRecordUtils.row(null, 1L);
-		BinaryRowData row2 = StreamRecordUtils.binaryrow(1L, null);
-		return new RowData[]{row1, row2};
-	}
+    @Override
+    protected RowData[] getTestData() {
+        RowData row1 = StreamRecordUtils.row(null, 1L);
+        BinaryRowData row2 = StreamRecordUtils.binaryrow(1L, null);
+        return new RowData[] {row1, row2};
+    }
 }

@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.JsonOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_MODE;
@@ -51,102 +52,103 @@ import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateD
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateEncodingFormatOptions;
 
 /**
- * Format factory for providing configured instances of Maxwell JSON to RowData {@link DeserializationSchema}.
+ * Format factory for providing configured instances of Maxwell JSON to RowData {@link
+ * DeserializationSchema}.
  */
-public class MaxwellJsonFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class MaxwellJsonFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "maxwell-json";
+    public static final String IDENTIFIER = "maxwell-json";
 
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
-		validateDecodingFormatOptions(formatOptions);
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+        validateDecodingFormatOptions(formatOptions);
 
-		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+        final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+        TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context, DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-						context.createTypeInformation(producedDataType);
-				return new MaxwellJsonDeserializationSchema(
-					rowType,
-					rowDataTypeInfo,
-					ignoreParseErrors,
-					timestampFormatOption);
-			}
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        context.createTypeInformation(producedDataType);
+                return new MaxwellJsonDeserializationSchema(
+                        rowType, rowDataTypeInfo, ignoreParseErrors, timestampFormatOption);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.newBuilder()
-					.addContainedKind(RowKind.INSERT)
-					.addContainedKind(RowKind.UPDATE_BEFORE)
-					.addContainedKind(RowKind.UPDATE_AFTER)
-					.addContainedKind(RowKind.DELETE)
-					.build();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
-		validateEncodingFormatOptions(formatOptions);
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+        validateEncodingFormatOptions(formatOptions);
 
-		TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
-		JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
-		String mapNullKeyLiteral = formatOptions.get(JSON_MAP_NULL_KEY_LITERAL);
+        TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
+        JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
+        String mapNullKeyLiteral = formatOptions.get(JSON_MAP_NULL_KEY_LITERAL);
 
-		return new EncodingFormat<SerializationSchema<RowData>>() {
+        final boolean encodeDecimalAsPlainNumber =
+                formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.newBuilder()
-					.addContainedKind(RowKind.INSERT)
-					.addContainedKind(RowKind.UPDATE_BEFORE)
-					.addContainedKind(RowKind.UPDATE_AFTER)
-					.addContainedKind(RowKind.DELETE)
-					.build();
-			}
+        return new EncodingFormat<SerializationSchema<RowData>>() {
 
-			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context, DataType consumedDataType) {
-				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new MaxwellJsonSerializationSchema(
-						rowType,
-						timestampFormat,
-						mapNullKeyMode,
-						mapNullKeyLiteral
-				);
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new MaxwellJsonSerializationSchema(
+                        rowType,
+                        timestampFormat,
+                        mapNullKeyMode,
+                        mapNullKeyLiteral,
+                        encodeDecimalAsPlainNumber);
+            }
+        };
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return Collections.emptySet();
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(IGNORE_PARSE_ERRORS);
-		options.add(TIMESTAMP_FORMAT);
-		options.add(JSON_MAP_NULL_KEY_MODE);
-		options.add(JSON_MAP_NULL_KEY_LITERAL);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(IGNORE_PARSE_ERRORS);
+        options.add(TIMESTAMP_FORMAT);
+        options.add(JSON_MAP_NULL_KEY_MODE);
+        options.add(JSON_MAP_NULL_KEY_LITERAL);
+        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        return options;
+    }
 }

@@ -29,32 +29,28 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import java.util.Collections;
 import java.util.List;
 
-/**
-* Show current database.
- */
+/** Show current database. */
 public class SqlShowCurrentDatabase extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW CURRENT DATABASE", SqlKind.OTHER);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW CURRENT DATABASE", SqlKind.OTHER);
 
-	public SqlShowCurrentDatabase(SqlParserPos pos) {
-		super(pos);
-	}
+    public SqlShowCurrentDatabase(SqlParserPos pos) {
+        super(pos);
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return Collections.EMPTY_LIST;
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return Collections.EMPTY_LIST;
+    }
 
-	@Override
-	public void unparse(
-			SqlWriter writer,
-			int leftPrec,
-			int rightPrec) {
-		writer.keyword("SHOW CURRENT DATABASE");
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("SHOW CURRENT DATABASE");
+    }
 }

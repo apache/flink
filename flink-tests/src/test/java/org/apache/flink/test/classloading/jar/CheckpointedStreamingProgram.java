@@ -31,109 +31,108 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A simple streaming program, which is using the state checkpointing of Flink.
- * It is using a user defined class as the state.
+ * A simple streaming program, which is using the state checkpointing of Flink. It is using a user
+ * defined class as the state.
  */
 @SuppressWarnings("serial")
 public class CheckpointedStreamingProgram {
 
-	private static final int CHECKPOINT_INTERVALL = 100;
+    private static final int CHECKPOINT_INTERVALL = 100;
 
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-				env.enableCheckpointing(CHECKPOINT_INTERVALL);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 100L));
-		env.disableOperatorChaining();
+        env.enableCheckpointing(CHECKPOINT_INTERVALL);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 100L));
+        env.disableOperatorChaining();
 
-		DataStream<String> text = env.addSource(new SimpleStringGenerator());
-		text.map(new StatefulMapper()).addSink(new DiscardingSink<>());
-		env.setParallelism(1);
-		env.execute("Checkpointed Streaming Program");
-	}
+        DataStream<String> text = env.addSource(new SimpleStringGenerator());
+        text.map(new StatefulMapper()).addSink(new DiscardingSink<>());
+        env.setParallelism(1);
+        env.execute("Checkpointed Streaming Program");
+    }
 
-	// with Checkpointing
-	private static class SimpleStringGenerator implements SourceFunction<String>, ListCheckpointed<Integer> {
-		public boolean running = true;
+    // with Checkpointing
+    private static class SimpleStringGenerator
+            implements SourceFunction<String>, ListCheckpointed<Integer> {
+        public boolean running = true;
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			while (running) {
-				Thread.sleep(1);
-				ctx.collect("someString");
-			}
-		}
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            while (running) {
+                Thread.sleep(1);
+                ctx.collect("someString");
+            }
+        }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
+        @Override
+        public void cancel() {
+            running = false;
+        }
 
-		@Override
-		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.emptyList();
-		}
+        @Override
+        public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+            return Collections.emptyList();
+        }
 
-		@Override
-		public void restoreState(List<Integer> state) throws Exception {
+        @Override
+        public void restoreState(List<Integer> state) throws Exception {}
+    }
 
-		}
-	}
+    private static class StatefulMapper
+            implements MapFunction<String, String>,
+                    ListCheckpointed<StatefulMapper>,
+                    CheckpointListener {
 
-	private static class StatefulMapper implements MapFunction<String, String>, ListCheckpointed<StatefulMapper>, CheckpointListener {
+        private String someState;
+        private boolean atLeastOneSnapshotComplete = false;
+        private boolean restored = false;
 
-		private String someState;
-		private boolean atLeastOneSnapshotComplete = false;
-		private boolean restored = false;
+        @Override
+        public List<StatefulMapper> snapshotState(long checkpointId, long timestamp)
+                throws Exception {
+            return Collections.singletonList(this);
+        }
 
-		@Override
-		public List<StatefulMapper> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(this);
-		}
+        @Override
+        public void restoreState(List<StatefulMapper> state) throws Exception {
+            if (state.isEmpty() || state.size() > 1) {
+                throw new RuntimeException(
+                        "Test failed due to unexpected recovered state size " + state.size());
+            }
+            restored = true;
+            StatefulMapper s = state.get(0);
+            this.someState = s.someState;
+            this.atLeastOneSnapshotComplete = s.atLeastOneSnapshotComplete;
+        }
 
-		@Override
-		public void restoreState(List<StatefulMapper> state) throws Exception {
-			if (state.isEmpty() || state.size() > 1) {
-				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
-			}
-			restored = true;
-			StatefulMapper s = state.get(0);
-			this.someState = s.someState;
-			this.atLeastOneSnapshotComplete = s.atLeastOneSnapshotComplete;
-		}
+        @Override
+        public String map(String value) throws Exception {
+            if (!atLeastOneSnapshotComplete) {
+                // throttle consumption by the checkpoint interval until we have one snapshot.
+                Thread.sleep(CHECKPOINT_INTERVALL);
+            }
+            if (atLeastOneSnapshotComplete && !restored) {
+                throw new RuntimeException("Intended failure, to trigger restore");
+            }
+            if (restored) {
+                throw new SuccessException();
+                // throw new RuntimeException("All good");
+            }
+            someState = value; // update our state
+            return value;
+        }
 
-		@Override
-		public String map(String value) throws Exception {
-			if (!atLeastOneSnapshotComplete) {
-				// throttle consumption by the checkpoint interval until we have one snapshot.
-				Thread.sleep(CHECKPOINT_INTERVALL);
-			}
-			if (atLeastOneSnapshotComplete && !restored) {
-				throw new RuntimeException("Intended failure, to trigger restore");
-			}
-			if (restored) {
-				throw new SuccessException();
-				//throw new RuntimeException("All good");
-			}
-			someState = value; // update our state
-			return value;
-		}
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            atLeastOneSnapshotComplete = true;
+        }
 
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			atLeastOneSnapshotComplete = true;
-		}
+        @Override
+        public void notifyCheckpointAborted(long checkpointId) {}
+    }
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		public void notifyCheckpointAborted(long checkpointId) {
-		}
-	}
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * We intentionally use a user specified failure exception.
-	 */
-	private static class SuccessException extends Exception {
-
-	}
+    /** We intentionally use a user specified failure exception. */
+    private static class SuccessException extends Exception {}
 }

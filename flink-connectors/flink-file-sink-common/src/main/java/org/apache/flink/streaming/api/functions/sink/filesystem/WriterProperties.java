@@ -23,45 +23,47 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * This class describes the property of the {@link BucketWriter}.
- */
+/** This class describes the property of the {@link BucketWriter}. */
 @Internal
 public class WriterProperties {
 
-	private final SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer;
+    private final SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable>
+            inProgressFileRecoverableSerializer;
 
-	private final SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer;
+    private final SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable>
+            pendingFileRecoverableSerializer;
 
-	private final boolean supportsResume;
+    private final boolean supportsResume;
 
-	public WriterProperties(
-			SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer,
-			SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer,
-			boolean supportsResume) {
-		this.inProgressFileRecoverableSerializer = checkNotNull(inProgressFileRecoverableSerializer);
-		this.pendingFileRecoverableSerializer = checkNotNull(pendingFileRecoverableSerializer);
-		this.supportsResume = supportsResume;
-	}
+    public WriterProperties(
+            SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable>
+                    inProgressFileRecoverableSerializer,
+            SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable>
+                    pendingFileRecoverableSerializer,
+            boolean supportsResume) {
+        this.inProgressFileRecoverableSerializer =
+                checkNotNull(inProgressFileRecoverableSerializer);
+        this.pendingFileRecoverableSerializer = checkNotNull(pendingFileRecoverableSerializer);
+        this.supportsResume = supportsResume;
+    }
 
-	/**
-	 * @return Whether the {@link BucketWriter} support appending data to the restored the in-progress file or not.
-	 */
-	public boolean supportsResume() {
-		return supportsResume;
-	}
+    /**
+     * @return Whether the {@link BucketWriter} support appending data to the restored the
+     *     in-progress file or not.
+     */
+    public boolean supportsResume() {
+        return supportsResume;
+    }
 
-	/**
-	 * @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}.
-	 */
-	public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getPendingFileRecoverableSerializer() {
-		return pendingFileRecoverableSerializer;
-	}
+    /** @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}. */
+    public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable>
+            getPendingFileRecoverableSerializer() {
+        return pendingFileRecoverableSerializer;
+    }
 
-	/**
-	 * @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}.
-	 */
-	public SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
-		return inProgressFileRecoverableSerializer;
-	}
+    /** @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}. */
+    public SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable>
+            getInProgressFileRecoverableSerializer() {
+        return inProgressFileRecoverableSerializer;
+    }
 }

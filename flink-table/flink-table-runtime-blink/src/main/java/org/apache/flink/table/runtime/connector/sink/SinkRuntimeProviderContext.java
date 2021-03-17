@@ -27,32 +27,32 @@ import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDataType;
 
-/**
- * Implementation of {@link DynamicTableSink.Context}.
- */
+/** Implementation of {@link DynamicTableSink.Context}. */
 @Internal
 public final class SinkRuntimeProviderContext implements DynamicTableSink.Context {
 
-	private final boolean isBounded;
+    private final boolean isBounded;
 
-	public SinkRuntimeProviderContext(boolean isBounded) {
-		this.isBounded = isBounded;
-	}
+    public SinkRuntimeProviderContext(boolean isBounded) {
+        this.isBounded = isBounded;
+    }
 
-	@Override
-	public boolean isBounded() {
-		return isBounded;
-	}
+    @Override
+    public boolean isBounded() {
+        return isBounded;
+    }
 
-	@Override
-	public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
-		validateOutputDataType(consumedDataType);
-		return InternalTypeInfo.of(consumedDataType.getLogicalType());
-	}
+    @Override
+    public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+        validateOutputDataType(consumedDataType);
+        return InternalTypeInfo.of(consumedDataType.getLogicalType());
+    }
 
-	@Override
-	public DynamicTableSink.DataStructureConverter createDataStructureConverter(DataType consumedDataType) {
-		validateOutputDataType(consumedDataType);
-		return new DataStructureConverterWrapper(DataStructureConverters.getConverter(consumedDataType));
-	}
+    @Override
+    public DynamicTableSink.DataStructureConverter createDataStructureConverter(
+            DataType consumedDataType) {
+        validateOutputDataType(consumedDataType);
+        return new DataStructureConverterWrapper(
+                DataStructureConverters.getConverter(consumedDataType));
+    }
 }

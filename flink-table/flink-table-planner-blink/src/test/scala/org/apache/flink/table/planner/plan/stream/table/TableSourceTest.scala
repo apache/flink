@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.table
 
+import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -45,7 +46,7 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     val t = util.tableEnv.from("rowTimeT").select($"rowtime", $"id", $"name", $"val")
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -70,7 +71,7 @@ class TableSourceTest extends TableTestBase {
       .window(Tumble over 10.minutes on 'rowtime as 'w)
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -95,7 +96,7 @@ class TableSourceTest extends TableTestBase {
       .window(Tumble over 10.minutes on 'rowtime as 'w)
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -118,7 +119,7 @@ class TableSourceTest extends TableTestBase {
       .window(Over partitionBy 'id orderBy 'proctime preceding 2.hours as 'w)
       .select('id, 'name, 'val.sum over 'w as 'valSum)
       .filter('valSum > 100)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -140,7 +141,7 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     val t = util.tableEnv.from("T").select('ptime, 'name, 'val, 'id)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -162,13 +163,14 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     val t = util.tableEnv.from("T").select('name, 'val, 'rtime, 'id)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
   def testProctimeOnWatermarkSpec(): Unit = {
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Watermark can not be defined for a processing time attribute column.")
+    thrown.expect(
+      containsMessage("A watermark can not be defined for a processing-time attribute."))
 
     val ddl =
       s"""
@@ -187,7 +189,7 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     val t = util.tableEnv.from("T").select('ptime)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -209,7 +211,7 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     val t = util.tableEnv.from("T").select('rtime)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -237,7 +239,7 @@ class TableSourceTest extends TableTestBase {
         'nested.get("value") as 'nestedValue,
         'deepNested.get("nested2").get("flag") as 'nestedFlag,
         'deepNested.get("nested2").get("num") as 'nestedNum)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
 }

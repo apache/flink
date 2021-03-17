@@ -24,7 +24,9 @@ import unittest
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder
+    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
+    CountWindowCoder
+from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -157,8 +159,9 @@ class CodersTest(PyFlinkTestCase):
         from pyflink.common import Row, RowKind
         field_coder = BigIntCoder()
         field_count = 10
-        coder = RowCoder([field_coder for _ in range(field_count)])
-        v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        field_names = ['f{}'.format(i) for i in range(field_count)]
+        coder = RowCoder([field_coder for _ in range(field_count)], field_names)
+        v = Row(**{field_names[i]: None if i % 2 == 0 else i for i in range(field_count)})
         v.set_row_kind(RowKind.INSERT)
         self.check_coder(coder, v)
         v.set_row_kind(RowKind.UPDATE_BEFORE)
@@ -178,6 +181,12 @@ class CodersTest(PyFlinkTestCase):
         tuple_coder = TupleCoder(field_coders=field_coders)
         data = (1, "Hello", "Hi")
         self.check_coder(tuple_coder, data)
+
+    def test_window_coder(self):
+        coder = TimeWindowCoder()
+        self.check_coder(coder, TimeWindow(100, 1000))
+        coder = CountWindowCoder()
+        self.check_coder(coder, CountWindow(100))
 
 
 if __name__ == '__main__':

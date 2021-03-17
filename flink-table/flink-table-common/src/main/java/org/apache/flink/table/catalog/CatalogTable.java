@@ -18,39 +18,93 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.factories.DynamicTableFactory;
+
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a table in a catalog.
+ * Represents the unresolved metadata of a table in a {@link Catalog}.
+ *
+ * <p>It contains all characteristics that can be expressed in a SQL {@code CREATE TABLE} statement.
+ * The framework will resolve instances of this interface to a {@link ResolvedCatalogTable} before
+ * passing it to a {@link DynamicTableFactory} for creating a connector to an external system.
+ *
+ * <p>A catalog implementer can either use {@link #of(Schema, String, List, Map)} for a basic
+ * implementation of this interface or create a custom class that allows passing catalog-specific
+ * objects all the way down to the connector creation (if necessary).
  */
+@PublicEvolving
 public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Check if the table is partitioned or not.
-	 *
-	 * @return true if the table is partitioned; otherwise, false
-	 */
-	boolean isPartitioned();
 
-	/**
-	 * Get the partition keys of the table. This will be an empty set if the table is not partitioned.
-	 *
-	 * @return partition keys of the table
-	 */
-	List<String> getPartitionKeys();
+    /**
+     * Creates a basic implementation of this interface.
+     *
+     * <p>The signature is similar to a SQL {@code CREATE TABLE} statement.
+     *
+     * @param schema unresolved schema
+     * @param comment optional comment
+     * @param partitionKeys list of partition keys or an empty list if not partitioned
+     * @param options options to configure the connector
+     */
+    static CatalogTable of(
+            Schema schema,
+            @Nullable String comment,
+            List<String> partitionKeys,
+            Map<String, String> options) {
+        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
+    }
 
-	/**
-	 * Returns a copy of this {@code CatalogTable} with given table options {@code options}.
-	 *
-	 * @return a new copy of this table with replaced table options
-	 */
-	CatalogTable copy(Map<String, String> options);
+    /**
+     * Creates an instance of {@link CatalogTable} from a map of string properties that were
+     * previously created with {@link ResolvedCatalogTable#toProperties()}.
+     *
+     * @param properties serialized version of a {@link CatalogTable} that includes schema,
+     *     partition keys, and connector options
+     */
+    static CatalogTable fromProperties(Map<String, String> properties) {
+        return CatalogPropertiesUtil.deserializeCatalogTable(properties);
+    }
 
-	/**
-	 * Serializes this instance into a map of string-based properties.
-	 *
-	 * <p>Compared to the pure table options in {@link #getOptions()}, the map includes schema,
-	 * partitioning, and other characteristics in a serialized form.
-	 */
-	Map<String, String> toProperties();
+    @Override
+    default TableKind getTableKind() {
+        return TableKind.TABLE;
+    }
+
+    /**
+     * Check if the table is partitioned or not.
+     *
+     * @return true if the table is partitioned; otherwise, false
+     */
+    boolean isPartitioned();
+
+    /**
+     * Get the partition keys of the table. This will be an empty set if the table is not
+     * partitioned.
+     *
+     * @return partition keys of the table
+     */
+    List<String> getPartitionKeys();
+
+    /**
+     * Returns a copy of this {@code CatalogTable} with given table options {@code options}.
+     *
+     * @return a new copy of this table with replaced table options
+     */
+    CatalogTable copy(Map<String, String> options);
+
+    /**
+     * Serializes this instance into a map of string-based properties.
+     *
+     * <p>Compared to the pure table options in {@link #getOptions()}, the map includes schema,
+     * partitioning, and other characteristics in a serialized form.
+     *
+     * @deprecated Only a {@link ResolvedCatalogTable} is serializable to properties.
+     */
+    @Deprecated
+    Map<String, String> toProperties();
 }

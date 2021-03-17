@@ -18,39 +18,40 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.BooleanValue;
 
-/**
- * A test for the {@link BooleanValueSerializer}.
- */
+import java.util.Random;
+
+/** A test for the {@link BooleanValueSerializer}. */
 public class BooleanValueSerializerTest extends SerializerTestBase<BooleanValue> {
-	
-	@Override
-	protected TypeSerializer<BooleanValue> createSerializer() {
-		return new BooleanValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 1;
-	}
-	
-	@Override
-	protected Class<BooleanValue> getTypeClass() {
-		return BooleanValue.class;
-	}
-	
-	@Override
-	protected BooleanValue[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		
-		return new BooleanValue[] {new BooleanValue(true), new BooleanValue(false),
-								new BooleanValue(rnd.nextBoolean()),
-								new BooleanValue(rnd.nextBoolean()),
-								new BooleanValue(rnd.nextBoolean())};
-	}
+
+    @Override
+    protected TypeSerializer<BooleanValue> createSerializer() {
+        return new BooleanValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 1;
+    }
+
+    @Override
+    protected Class<BooleanValue> getTypeClass() {
+        return BooleanValue.class;
+    }
+
+    @Override
+    protected BooleanValue[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+
+        return new BooleanValue[] {
+            new BooleanValue(true),
+            new BooleanValue(false),
+            new BooleanValue(rnd.nextBoolean()),
+            new BooleanValue(rnd.nextBoolean()),
+            new BooleanValue(rnd.nextBoolean())
+        };
+    }
 }

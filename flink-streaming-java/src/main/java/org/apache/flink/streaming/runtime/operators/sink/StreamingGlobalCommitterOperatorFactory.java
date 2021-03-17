@@ -28,37 +28,43 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link StreamingGlobalCommitterOperator}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
+ * StreamingGlobalCommitterOperator}.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}.
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
-public class StreamingGlobalCommitterOperatorFactory<CommT, GlobalCommT> extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
+public class StreamingGlobalCommitterOperatorFactory<CommT, GlobalCommT>
+        extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
 
-	private final Sink<?, CommT, ?, GlobalCommT> sink;
+    private final Sink<?, CommT, ?, GlobalCommT> sink;
 
-	public StreamingGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
-		this.sink = checkNotNull(sink);
-	}
+    public StreamingGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
+        this.sink = checkNotNull(sink);
+    }
 
-	@Override
-	AbstractStreamingCommitterOperator<CommT, GlobalCommT> createStreamingCommitterOperator() {
-		try {
-			return new StreamingGlobalCommitterOperator<>(
-					sink.createGlobalCommitter()
-							.orElseThrow(() -> new IllegalStateException(
-									"Could not create global committer from the sink")),
-					sink.getGlobalCommittableSerializer()
-							.orElseThrow(() -> new IllegalStateException(
-									"Could not create global committable serializer from the sink")));
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Could not create the GlobalCommitter.", e);
-		}
-	}
+    @Override
+    AbstractStreamingCommitterOperator<CommT, GlobalCommT> createStreamingCommitterOperator() {
+        try {
+            return new StreamingGlobalCommitterOperator<>(
+                    sink.createGlobalCommitter()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Could not create global committer from the sink")),
+                    sink.getGlobalCommittableSerializer()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Could not create global committable serializer from the sink")));
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not create the GlobalCommitter.", e);
+        }
+    }
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StreamingGlobalCommitterOperator.class;
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return StreamingGlobalCommitterOperator.class;
+    }
 }

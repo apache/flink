@@ -16,31 +16,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testInWithFilter">
-    <Resource name="planAfter">
-      <![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(c, a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
-:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
-+- Exchange(distribution=[hash[a1]])
-   +- LocalHashAggregate(groupBy=[a1], select=[a1])
-      +- Calc(select=[a AS a1], where=[=(b, _UTF-16LE'two')])
-         +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-
   <TestCase name="testInWithProject">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b2=[AS(=($1, 1972-02-22 07:12:00.333), _UTF-16LE'b2')])
 +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[=(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
+Calc(select=[(b = 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithFilter">
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[IN($2, {
+LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
+  LogicalFilter(condition=[=($1, _UTF-16LE'two')])
+    LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+})])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[LeftSemiJoin], where=[(c = a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
+:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
++- Exchange(distribution=[hash[a1]])
+   +- LocalHashAggregate(groupBy=[a1], select=[a1])
+      +- Calc(select=[a AS a1], where=[(b = _UTF-16LE'two')])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

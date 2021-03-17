@@ -24,29 +24,30 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-final class TestMemoryCheckpointOutputStream extends MemCheckpointStreamFactory.MemoryCheckpointOutputStream {
+final class TestMemoryCheckpointOutputStream
+        extends MemCheckpointStreamFactory.MemoryCheckpointOutputStream {
 
-	private boolean closed;
+    private boolean closed;
 
-	public TestMemoryCheckpointOutputStream(int maxSize) {
-		super(maxSize);
-		this.closed = false;
-	}
+    public TestMemoryCheckpointOutputStream(int maxSize) {
+        super(maxSize);
+        this.closed = false;
+    }
 
-	@Override
-	public void close() {
-		this.closed = true;
-		super.close();
-	}
+    @Override
+    public void close() {
+        this.closed = true;
+        super.close();
+    }
 
-	public boolean isClosed() {
-		return this.closed;
-	}
+    public boolean isClosed() {
+        return this.closed;
+    }
 
-	@Nullable
-	@Override
-	public StreamStateHandle closeAndGetHandle() throws IOException {
-		this.closed = true;
-		return super.closeAndGetHandle();
-	}
+    @Nullable
+    @Override
+    public StreamStateHandle closeAndGetHandle() throws IOException {
+        this.closed = true;
+        return super.closeAndGetHandle();
+    }
 }

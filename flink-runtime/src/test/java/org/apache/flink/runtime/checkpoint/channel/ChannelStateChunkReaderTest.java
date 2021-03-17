@@ -38,123 +38,133 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * {@link ChannelStateChunkReader} test.
- */
+/** {@link ChannelStateChunkReader} test. */
 public class ChannelStateChunkReaderTest {
 
-	@Test(expected = TestException.class)
-	public void testBufferRecycledOnFailure() throws IOException, InterruptedException {
-		FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
-		TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
+    @Test(expected = TestException.class)
+    public void testBufferRecycledOnFailure() throws IOException, InterruptedException {
+        FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
+        TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
-		try (FSDataInputStream stream = getStream(serializer, 10)) {
-			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
-		} finally {
-			checkState(serializer.failed);
-			checkState(!handler.requestedBuffers.isEmpty());
-			assertTrue(handler.requestedBuffers.stream().allMatch(TestChannelStateByteBuffer::isRecycled));
-		}
-	}
+        try (FSDataInputStream stream = getStream(serializer, 10)) {
+            new ChannelStateChunkReader(serializer)
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
+        } finally {
+            checkState(serializer.failed);
+            checkState(!handler.requestedBuffers.isEmpty());
+            assertTrue(
+                    handler.requestedBuffers.stream()
+                            .allMatch(TestChannelStateByteBuffer::isRecycled));
+        }
+    }
 
-	@Test
-	public void testBuffersNotRequestedForEmptyStream() throws IOException, InterruptedException {
-		ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
-		TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
+    @Test
+    public void testBuffersNotRequestedForEmptyStream() throws IOException, InterruptedException {
+        ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
+        TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
-		try (FSDataInputStream stream = getStream(serializer, 0)) {
-			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
-		} finally {
-			assertTrue(handler.requestedBuffers.isEmpty());
-		}
-	}
+        try (FSDataInputStream stream = getStream(serializer, 0)) {
+            new ChannelStateChunkReader(serializer)
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
+        } finally {
+            assertTrue(handler.requestedBuffers.isEmpty());
+        }
+    }
 
-	@Test
-	public void testNoSeekUnnecessarily() throws IOException, InterruptedException {
-		final int offset = 123;
-		final FSDataInputStream stream = new FSDataInputStream() {
-			@Override
-			public long getPos() {
-				return offset;
-			}
+    @Test
+    public void testNoSeekUnnecessarily() throws IOException, InterruptedException {
+        final int offset = 123;
+        final FSDataInputStream stream =
+                new FSDataInputStream() {
+                    @Override
+                    public long getPos() {
+                        return offset;
+                    }
 
-			@Override
-			public void seek(long ignored) {
-				fail();
-			}
+                    @Override
+                    public void seek(long ignored) {
+                        fail();
+                    }
 
-			@Override
-			public int read() {
-				return 0;
-			}
-		};
+                    @Override
+                    public int read() {
+                        return 0;
+                    }
+                };
 
-		new ChannelStateChunkReader(new ChannelStateSerializerImpl())
-			.readChunk(stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo");
-	}
+        new ChannelStateChunkReader(new ChannelStateSerializerImpl())
+                .readChunk(
+                        stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo", 0);
+    }
 
-	private static class TestRecoveredChannelStateHandler implements RecoveredChannelStateHandler<Object, Object> {
-		private final List<TestChannelStateByteBuffer> requestedBuffers = new ArrayList<>();
+    private static class TestRecoveredChannelStateHandler
+            implements RecoveredChannelStateHandler<Object, Object> {
+        private final List<TestChannelStateByteBuffer> requestedBuffers = new ArrayList<>();
 
-		@Override
-		public BufferWithContext<Object> getBuffer(Object o) {
-			TestChannelStateByteBuffer buffer = new TestChannelStateByteBuffer();
-			requestedBuffers.add(buffer);
-			return new BufferWithContext<>(buffer, null);
-		}
+        @Override
+        public BufferWithContext<Object> getBuffer(Object o) {
+            TestChannelStateByteBuffer buffer = new TestChannelStateByteBuffer();
+            requestedBuffers.add(buffer);
+            return new BufferWithContext<>(buffer, null);
+        }
 
-		@Override
-		public void recover(Object o, Object o2) {
-		}
+        @Override
+        public void recover(Object o, int oldSubtaskIndex, Object o2) {}
 
-		@Override
-		public void close() throws Exception {
-		}
-	}
+        @Override
+        public void close() throws Exception {}
+    }
 
-	private static class FailingChannelStateSerializer extends ChannelStateSerializerImpl {
-		private boolean failed;
+    private static class FailingChannelStateSerializer extends ChannelStateSerializerImpl {
+        private boolean failed;
 
-		@Override
-		public int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) {
-			failed = true;
-			throw new TestException();
-		}
-	}
+        @Override
+        public int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) {
+            failed = true;
+            throw new TestException();
+        }
+    }
 
-	private static FSDataInputStream getStream(ChannelStateSerializer serializer, int size) throws IOException {
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			DataOutputStream dataStream = new DataOutputStream(out);
-			serializer.writeHeader(dataStream);
-			serializer.writeData(dataStream, new NetworkBuffer(MemorySegmentFactory.wrap(new byte[size]), FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, size));
-			dataStream.flush();
-			return new ByteStreamStateHandle("", out.toByteArray()).openInputStream();
-		}
-	}
+    private static FSDataInputStream getStream(ChannelStateSerializer serializer, int size)
+            throws IOException {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            DataOutputStream dataStream = new DataOutputStream(out);
+            serializer.writeHeader(dataStream);
+            serializer.writeData(
+                    dataStream,
+                    new NetworkBuffer(
+                            MemorySegmentFactory.wrap(new byte[size]),
+                            FreeingBufferRecycler.INSTANCE,
+                            Buffer.DataType.DATA_BUFFER,
+                            size));
+            dataStream.flush();
+            return new ByteStreamStateHandle("", out.toByteArray()).openInputStream();
+        }
+    }
 
-	private static class TestChannelStateByteBuffer implements ChannelStateByteBuffer {
-		private boolean recycled;
+    private static class TestChannelStateByteBuffer implements ChannelStateByteBuffer {
+        private boolean recycled;
 
-		@Override
-		public boolean isWritable() {
-			return true;
-		}
+        @Override
+        public boolean isWritable() {
+            return true;
+        }
 
-		@Override
-		public void recycle() {
-			checkArgument(!recycled);
-			recycled = true;
-		}
+        @Override
+        public void recycle() {
+            checkArgument(!recycled);
+            recycled = true;
+        }
 
-		public boolean isRecycled() {
-			return recycled;
-		}
+        public boolean isRecycled() {
+            return recycled;
+        }
 
-		@Override
-		public int writeBytes(InputStream input, int bytesToRead) throws IOException {
-			checkArgument(!recycled);
-			input.skip(bytesToRead);
-			return bytesToRead;
-		}
-	}
+        @Override
+        public int writeBytes(InputStream input, int bytesToRead) throws IOException {
+            checkArgument(!recycled);
+            input.skip(bytesToRead);
+            return bytesToRead;
+        }
+    }
 }

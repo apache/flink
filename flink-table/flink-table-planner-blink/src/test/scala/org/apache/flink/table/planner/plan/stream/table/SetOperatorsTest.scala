@@ -36,7 +36,7 @@ class SetOperatorsTest extends TableTestBase {
       .where('a > 0)
       .groupBy('b)
       .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -49,7 +49,7 @@ class SetOperatorsTest extends TableTestBase {
       .unionAll(right.select('a, 'b, 'c))
       .select('b, 'c)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -59,7 +59,7 @@ class SetOperatorsTest extends TableTestBase {
     val tableB = util.addTableSource[(Int, String)]('x, 'y)
 
     val result = tableA.where('a.in(tableB.select('x)))
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -70,7 +70,7 @@ class SetOperatorsTest extends TableTestBase {
 
     val result = tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -82,6 +82,6 @@ class SetOperatorsTest extends TableTestBase {
 
     val result = tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

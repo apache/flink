@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.internal
 
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{JobExecutionResult, RuntimeExecutionMode}
 import org.apache.flink.api.common.cache.DistributedCache
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -29,9 +29,10 @@ import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.utils.PlanGenerator
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.configuration.DeploymentOptions
+import org.apache.flink.configuration.{DeploymentOptions, ExecutionOptions}
 import org.apache.flink.core.execution.{DetachedJobExecutionResult, JobClient}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, ObjectIdentifier}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectTableDescriptor, ConnectorDescriptor}
@@ -77,6 +78,9 @@ abstract class BatchTableEnvImpl(
     catalogManager: CatalogManager,
     moduleManager: ModuleManager)
   extends TableEnvImpl(config, catalogManager, moduleManager, execEnv.getUserCodeClassLoader) {
+
+  config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+  config.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
 
   private val bufferedModifyOperations = new JArrayList[ModifyOperation]()
 
@@ -258,7 +262,7 @@ abstract class BatchTableEnvImpl(
       case o => throw new TableException(s"Unsupported operation: ${o.asSummaryString()}")
     }
 
-    val optimizedNodes = astList.map(optimizer.optimize)
+    val optimizedNodes = astList.map(optimize)
 
      val batchTableEnv = createDummyBatchTableEnv()
      val dataSinks = optimizedNodes.zip(operations.asScala).map {
@@ -297,7 +301,7 @@ abstract class BatchTableEnvImpl(
     val extended = extraDetails.contains(ExplainDetail.ESTIMATED_COST)
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
-    s"== Abstract Syntax Tree ==" +
+    val explanation = s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
       s"$astPlan" +
       System.lineSeparator +
@@ -306,8 +310,15 @@ abstract class BatchTableEnvImpl(
       s"$optimizedPlan" +
       System.lineSeparator +
       s"== Physical Execution Plan ==" +
-      System.lineSeparator +
+      System.lineSeparator
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      s"$explanation" +
+      s"$jasonSqlPlan"
+    } else {
+      s"$explanation" +
       s"$sqlPlan"
+    }
   }
 
   override def execute(jobName: String): JobExecutionResult = {
@@ -462,7 +473,7 @@ abstract class BatchTableEnvImpl(
     */
   private def translate[T](modifyOperations: JList[ModifyOperation]): JList[DataSink[_]] = {
     val relNodes = modifyOperations.asScala.map(o => translateToRel(o, addLogicalSink = false))
-    val optimizedNodes = relNodes.map(optimizer.optimize)
+    val optimizedNodes = relNodes.map(optimize)
 
     val batchTableEnv = createDummyBatchTableEnv()
     modifyOperations.asScala.zip(optimizedNodes).map {
@@ -551,7 +562,7 @@ abstract class BatchTableEnvImpl(
   protected def translate[A](
       queryOperation: QueryOperation)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val relNode = getRelBuilder.tableOperation(queryOperation).build()
-    val dataSetPlan = optimizer.optimize(relNode)
+    val dataSetPlan = optimize(relNode)
     translate(
       dataSetPlan,
       getTableSchema(queryOperation.getTableSchema.getFieldNames, dataSetPlan))
@@ -621,4 +632,19 @@ abstract class BatchTableEnvImpl(
 
   protected def createDummyBatchTableEnv(): BatchTableEnvImpl
 
+  private def optimize(relNode: RelNode): RelNode = {
+    // different planner in different mode differs in optimization
+    val configuration = config.getConfiguration;
+    if (!configuration.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH) ||
+      !configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
+      throw new IllegalArgumentException(
+        "Mismatch between configured planner and actual planner. " +
+          "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+          "when instantiating the table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary."
+      )
+    }
+
+    optimizer.optimize(relNode)
+  }
 }

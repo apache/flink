@@ -54,173 +54,183 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Handler returning the details for the specified job.
- */
-public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters> implements JsonArchivist {
+/** Handler returning the details for the specified job. */
+public class JobDetailsHandler
+        extends AbstractAccessExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
+        implements JsonArchivist {
 
-	private final MetricFetcher metricFetcher;
+    private final MetricFetcher metricFetcher;
 
-	public JobDetailsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			MetricFetcher metricFetcher) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
+    public JobDetailsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            MetricFetcher metricFetcher) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
 
-		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
-	}
+        this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
+    }
 
-	@Override
-	protected JobDetailsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-			AccessExecutionGraph executionGraph) throws RestHandlerException {
-		return createJobDetailsInfo(executionGraph, metricFetcher);
-	}
+    @Override
+    protected JobDetailsInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+            AccessExecutionGraph executionGraph)
+            throws RestHandlerException {
+        return createJobDetailsInfo(executionGraph, metricFetcher);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		ResponseBody json = createJobDetailsInfo(graph, null);
-		String path = getMessageHeaders().getTargetRestEndpointURL()
-			.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
-		return Collections.singleton(new ArchivedJson(path, json));
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        ResponseBody json = createJobDetailsInfo(graph, null);
+        String path =
+                getMessageHeaders()
+                        .getTargetRestEndpointURL()
+                        .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
+        return Collections.singleton(new ArchivedJson(path, json));
+    }
 
-	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher metricFetcher) {
-		final long now = System.currentTimeMillis();
-		final long startTime = executionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
-		final long endTime = executionGraph.getState().isGloballyTerminalState() ?
-			executionGraph.getStatusTimestamp(executionGraph.getState()) : -1L;
-		final long duration = (endTime > 0L ? endTime : now) - startTime;
+    private static JobDetailsInfo createJobDetailsInfo(
+            AccessExecutionGraph executionGraph, @Nullable MetricFetcher metricFetcher) {
+        final long now = System.currentTimeMillis();
+        final long startTime = executionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
+        final long endTime =
+                executionGraph.getState().isGloballyTerminalState()
+                        ? executionGraph.getStatusTimestamp(executionGraph.getState())
+                        : -1L;
+        final long duration = (endTime > 0L ? endTime : now) - startTime;
 
-		final Map<JobStatus, Long> timestamps = new HashMap<>(JobStatus.values().length);
+        final Map<JobStatus, Long> timestamps = new HashMap<>(JobStatus.values().length);
 
-		for (JobStatus jobStatus : JobStatus.values()) {
-			timestamps.put(jobStatus, executionGraph.getStatusTimestamp(jobStatus));
-		}
+        for (JobStatus jobStatus : JobStatus.values()) {
+            timestamps.put(jobStatus, executionGraph.getStatusTimestamp(jobStatus));
+        }
 
-		Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexInfos = new ArrayList<>(executionGraph.getAllVertices().size());
-		int[] jobVerticesPerState = new int[ExecutionState.values().length];
+        Collection<JobDetailsInfo.JobVertexDetailsInfo> jobVertexInfos =
+                new ArrayList<>(executionGraph.getAllVertices().size());
+        int[] jobVerticesPerState = new int[ExecutionState.values().length];
 
-		for (AccessExecutionJobVertex accessExecutionJobVertex : executionGraph.getVerticesTopologically()) {
-			final JobDetailsInfo.JobVertexDetailsInfo vertexDetailsInfo = createJobVertexDetailsInfo(
-				accessExecutionJobVertex,
-				now,
-				executionGraph.getJobID(),
-				metricFetcher);
+        for (AccessExecutionJobVertex accessExecutionJobVertex :
+                executionGraph.getVerticesTopologically()) {
+            final JobDetailsInfo.JobVertexDetailsInfo vertexDetailsInfo =
+                    createJobVertexDetailsInfo(
+                            accessExecutionJobVertex,
+                            now,
+                            executionGraph.getJobID(),
+                            metricFetcher);
 
-			jobVertexInfos.add(vertexDetailsInfo);
-			jobVerticesPerState[vertexDetailsInfo.getExecutionState().ordinal()]++;
-		}
+            jobVertexInfos.add(vertexDetailsInfo);
+            jobVerticesPerState[vertexDetailsInfo.getExecutionState().ordinal()]++;
+        }
 
-		Map<ExecutionState, Integer> jobVerticesPerStateMap = new HashMap<>(ExecutionState.values().length);
+        Map<ExecutionState, Integer> jobVerticesPerStateMap =
+                new HashMap<>(ExecutionState.values().length);
 
-		for (ExecutionState executionState : ExecutionState.values()) {
-			jobVerticesPerStateMap.put(executionState, jobVerticesPerState[executionState.ordinal()]);
-		}
+        for (ExecutionState executionState : ExecutionState.values()) {
+            jobVerticesPerStateMap.put(
+                    executionState, jobVerticesPerState[executionState.ordinal()]);
+        }
 
-		return new JobDetailsInfo(
-			executionGraph.getJobID(),
-			executionGraph.getJobName(),
-			executionGraph.isStoppable(),
-			executionGraph.getState(),
-			startTime,
-			endTime,
-			duration,
-			now,
-			timestamps,
-			jobVertexInfos,
-			jobVerticesPerStateMap,
-			executionGraph.getJsonPlan());
-	}
+        return new JobDetailsInfo(
+                executionGraph.getJobID(),
+                executionGraph.getJobName(),
+                executionGraph.isStoppable(),
+                executionGraph.getState(),
+                startTime,
+                endTime,
+                duration,
+                executionGraph.getArchivedExecutionConfig().getMaxParallelism(),
+                now,
+                timestamps,
+                jobVertexInfos,
+                jobVerticesPerStateMap,
+                executionGraph.getJsonPlan());
+    }
 
-	private static JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(
-			AccessExecutionJobVertex ejv,
-			long now,
-			JobID jobId,
-			MetricFetcher metricFetcher) {
-		int[] tasksPerState = new int[ExecutionState.values().length];
-		long startTime = Long.MAX_VALUE;
-		long endTime = 0;
-		boolean allFinished = true;
+    private static JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(
+            AccessExecutionJobVertex ejv, long now, JobID jobId, MetricFetcher metricFetcher) {
+        int[] tasksPerState = new int[ExecutionState.values().length];
+        long startTime = Long.MAX_VALUE;
+        long endTime = 0;
+        boolean allFinished = true;
 
-		for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
-			final ExecutionState state = vertex.getExecutionState();
-			tasksPerState[state.ordinal()]++;
+        for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
+            final ExecutionState state = vertex.getExecutionState();
+            tasksPerState[state.ordinal()]++;
 
-			// take the earliest start time
-			long started = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
-			if (started > 0L) {
-				startTime = Math.min(startTime, started);
-			}
+            // take the earliest start time
+            long started = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
+            if (started > 0L) {
+                startTime = Math.min(startTime, started);
+            }
 
-			allFinished &= state.isTerminal();
-			endTime = Math.max(endTime, vertex.getStateTimestamp(state));
-		}
+            allFinished &= state.isTerminal();
+            endTime = Math.max(endTime, vertex.getStateTimestamp(state));
+        }
 
-		long duration;
-		if (startTime < Long.MAX_VALUE) {
-			if (allFinished) {
-				duration = endTime - startTime;
-			}
-			else {
-				endTime = -1L;
-				duration = now - startTime;
-			}
-		}
-		else {
-			startTime = -1L;
-			endTime = -1L;
-			duration = -1L;
-		}
+        long duration;
+        if (startTime < Long.MAX_VALUE) {
+            if (allFinished) {
+                duration = endTime - startTime;
+            } else {
+                endTime = -1L;
+                duration = now - startTime;
+            }
+        } else {
+            startTime = -1L;
+            endTime = -1L;
+            duration = -1L;
+        }
 
-		ExecutionState jobVertexState =
-			ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
+        ExecutionState jobVertexState =
+                ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
 
-		Map<ExecutionState, Integer> tasksPerStateMap = new HashMap<>(tasksPerState.length);
+        Map<ExecutionState, Integer> tasksPerStateMap = new HashMap<>(tasksPerState.length);
 
-		for (ExecutionState executionState : ExecutionState.values()) {
-			tasksPerStateMap.put(executionState, tasksPerState[executionState.ordinal()]);
-		}
+        for (ExecutionState executionState : ExecutionState.values()) {
+            tasksPerStateMap.put(executionState, tasksPerState[executionState.ordinal()]);
+        }
 
-		MutableIOMetrics counts = new MutableIOMetrics();
+        MutableIOMetrics counts = new MutableIOMetrics();
 
-		for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
-			counts.addIOMetrics(
-				vertex.getCurrentExecutionAttempt(),
-				metricFetcher,
-				jobId.toString(),
-				ejv.getJobVertexId().toString());
-		}
+        for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
+            counts.addIOMetrics(
+                    vertex.getCurrentExecutionAttempt(),
+                    metricFetcher,
+                    jobId.toString(),
+                    ejv.getJobVertexId().toString());
+        }
 
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			counts.getNumBytesIn(),
-			counts.isNumBytesInComplete(),
-			counts.getNumBytesOut(),
-			counts.isNumBytesOutComplete(),
-			counts.getNumRecordsIn(),
-			counts.isNumRecordsInComplete(),
-			counts.getNumRecordsOut(),
-			counts.isNumRecordsOutComplete());
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(
+                        counts.getNumBytesIn(),
+                        counts.isNumBytesInComplete(),
+                        counts.getNumBytesOut(),
+                        counts.isNumBytesOutComplete(),
+                        counts.getNumRecordsIn(),
+                        counts.isNumRecordsInComplete(),
+                        counts.getNumRecordsOut(),
+                        counts.isNumRecordsOutComplete());
 
-		return new JobDetailsInfo.JobVertexDetailsInfo(
-			ejv.getJobVertexId(),
-			ejv.getName(),
-			ejv.getParallelism(),
-			jobVertexState,
-			startTime,
-			endTime,
-			duration,
-			tasksPerStateMap,
-			jobVertexMetrics);
-	}
+        return new JobDetailsInfo.JobVertexDetailsInfo(
+                ejv.getJobVertexId(),
+                ejv.getName(),
+                ejv.getMaxParallelism(),
+                ejv.getParallelism(),
+                jobVertexState,
+                startTime,
+                endTime,
+                duration,
+                tasksPerStateMap,
+                jobVertexMetrics);
+    }
 }

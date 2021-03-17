@@ -21,24 +21,23 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 import org.apache.flink.api.common.functions.MapFunction;
 
 /**
- * An identity map function that sleeps between elements, throttling the
- * processing speed.
+ * An identity map function that sleeps between elements, throttling the processing speed.
  *
  * @param <T> The type mapped.
  */
 public class ThrottledMapper<T> implements MapFunction<T, T> {
 
-	private static final long serialVersionUID = 467008933767159126L;
+    private static final long serialVersionUID = 467008933767159126L;
 
-	private final int sleep;
+    private final int sleep;
 
-	public ThrottledMapper(int sleep) {
-		this.sleep = sleep;
-	}
+    public ThrottledMapper(int sleep) {
+        this.sleep = sleep;
+    }
 
-	@Override
-	public T map(T value) throws Exception {
-		Thread.sleep(this.sleep);
-		return value;
-	}
+    @Override
+    public T map(T value) throws Exception {
+        Thread.sleep(this.sleep);
+        return value;
+    }
 }

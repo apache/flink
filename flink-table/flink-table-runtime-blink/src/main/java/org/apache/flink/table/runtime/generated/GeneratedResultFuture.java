@@ -27,16 +27,16 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
  */
 public class GeneratedResultFuture<T extends ResultFuture<?>> extends GeneratedClass<T> {
 
-	private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = -7355875544905245676L;
 
-	/**
-	 * Creates a GeneratedResultFuture.
-	 *
-	 * @param className class name of the generated ResultFuture.
-	 * @param code code of the generated ResultFuture.
-	 * @param references referenced objects of the generated ResultFuture.
-	 */
-	public GeneratedResultFuture(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    /**
+     * Creates a GeneratedResultFuture.
+     *
+     * @param className class name of the generated ResultFuture.
+     * @param code code of the generated ResultFuture.
+     * @param references referenced objects of the generated ResultFuture.
+     */
+    public GeneratedResultFuture(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

@@ -50,210 +50,234 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link MultipleInputStreamTask} combined with {@link org.apache.flink.streaming.api.operators.SourceOperator} chaining.
+ * Tests for {@link MultipleInputStreamTask} combined with {@link
+ * org.apache.flink.streaming.api.operators.SourceOperator} chaining.
  */
 public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
-	private static final int MAX_STEPS = 100;
+    private static final int MAX_STEPS = 100;
 
-	private final CheckpointMetaData metaData = new CheckpointMetaData(1L, System.currentTimeMillis());
+    private final CheckpointMetaData metaData =
+            new CheckpointMetaData(1L, System.currentTimeMillis());
 
-	/**
-	 * In this scenario:
-	 * 1. checkpoint is triggered via RPC and source is blocked
-	 * 2. network inputs are processed until CheckpointBarriers are processed
-	 * 3. aligned checkpoint is performed
-	 */
-	@Test
-	public void testSourceCheckpointFirst() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
-			testHarness.setAutoProcess(false);
-			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-			CheckpointBarrier barrier = createBarrier(testHarness);
-			addRecordsAndBarriers(testHarness, barrier);
+    /**
+     * In this scenario: 1. checkpoint is triggered via RPC and source is blocked 2. network inputs
+     * are processed until CheckpointBarriers are processed 3. aligned checkpoint is performed
+     */
+    @Test
+    public void testSourceCheckpointFirst() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            CheckpointBarrier barrier = createBarrier(testHarness);
+            addRecordsAndBarriers(testHarness, barrier);
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
-			processSingleStepUntil(testHarness, checkpointFuture::isDone);
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
 
-			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
-			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
-		}
-	}
+            assertThat(
+                    actualOutput.subList(0, expectedOutput.size()),
+                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+        }
+    }
 
-	/**
-	 * In this scenario:
-	 * 1. checkpoint is triggered via RPC and source is blocked
-	 * 2. unaligned checkpoint is performed
-	 * 3. all data from network inputs are processed
-	 */
-	@Test
-	public void testSourceCheckpointFirstUnaligned() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(true)) {
-			testHarness.setAutoProcess(false);
-			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-			addRecords(testHarness);
+    /**
+     * In this scenario: 1. checkpoint is triggered via RPC and source is blocked 2. unaligned
+     * checkpoint is performed 3. all data from network inputs are processed
+     */
+    @Test
+    public void testSourceCheckpointFirstUnaligned() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(true)) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            addRecords(testHarness);
 
-			CheckpointBarrier barrier = createBarrier(testHarness);
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
-			processSingleStepUntil(testHarness, checkpointFuture::isDone);
+            CheckpointBarrier barrier = createBarrier(testHarness);
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-			assertThat(testHarness.getOutput(), contains(barrier));
+            assertThat(testHarness.getOutput(), contains(barrier));
 
-			testHarness.processAll();
+            testHarness.processAll();
 
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
 
-			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
-			assertThat(actualOutput.subList(1, expectedOutput.size() + 1), containsInAnyOrder(expectedOutput.toArray()));
-		}
-	}
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            assertThat(
+                    actualOutput.subList(1, expectedOutput.size() + 1),
+                    containsInAnyOrder(expectedOutput.toArray()));
+        }
+    }
 
-	/**
-	 * In this scenario:
-	 * 1a. network inputs are processed until CheckpointBarriers are processed
-	 * 1b. source records are processed at the same time
-	 * 2. checkpoint is triggered via RPC
-	 * 3. aligned checkpoint is performed
-	 */
-	@Test
-	public void testSourceCheckpointLast() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
-			testHarness.setAutoProcess(false);
-			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-			CheckpointBarrier barrier = createBarrier(testHarness);
-			addRecordsAndBarriers(testHarness, barrier);
+    /**
+     * In this scenario: 1a. network inputs are processed until CheckpointBarriers are processed 1b.
+     * source records are processed at the same time 2. checkpoint is triggered via RPC 3. aligned
+     * checkpoint is performed
+     */
+    @Test
+    public void testSourceCheckpointLast() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            CheckpointBarrier barrier = createBarrier(testHarness);
+            addRecordsAndBarriers(testHarness, barrier);
 
-			testHarness.processAll();
+            testHarness.processAll();
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
-			processSingleStepUntil(testHarness, checkpointFuture::isDone);
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
 
-			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
-			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
-		}
-	}
+            assertThat(
+                    actualOutput.subList(0, expectedOutput.size()),
+                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+        }
+    }
 
-	/**
-	 * In this scenario:
-	 * 1. network inputs are processed until CheckpointBarriers are processed
-	 * 2. there are no source records to be processed
-	 * 3. checkpoint is triggered on first received CheckpointBarrier
-	 * 4. unaligned checkpoint is performed at some point of time blocking the source
-	 * 5. more source records are added, that shouldn't be processed
-	 */
-	@Test
-	public void testSourceCheckpointLastUnaligned() throws Exception {
-		boolean unaligned = true;
-		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(unaligned)) {
-			testHarness.setAutoProcess(false);
-			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+    /**
+     * In this scenario: 1. network inputs are processed until CheckpointBarriers are processed 2.
+     * there are no source records to be processed 3. checkpoint is triggered on first received
+     * CheckpointBarrier 4. unaligned checkpoint is performed at some point of time blocking the
+     * source 5. more source records are added, that shouldn't be processed
+     */
+    @Test
+    public void testSourceCheckpointLastUnaligned() throws Exception {
+        boolean unaligned = true;
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(unaligned)) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
-			addNetworkRecords(testHarness);
-			CheckpointBarrier barrier = createBarrier(testHarness);
-			addBarriers(testHarness, barrier);
+            addNetworkRecords(testHarness);
+            CheckpointBarrier barrier = createBarrier(testHarness);
+            addBarriers(testHarness, barrier);
 
-			testHarness.processAll();
-			addSourceRecords(testHarness, 1, 1337, 1337, 1337);
-			testHarness.processAll();
+            testHarness.processAll();
+            addSourceRecords(testHarness, 1, 1337, 1337, 1337);
+            testHarness.processAll();
 
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(barrier);
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(barrier);
 
-			assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
-		}
-	}
+            assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+        }
+    }
 
-	@Test
-	public void testOnlyOneSource() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness =
-				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-					.modifyExecutionConfig(config -> config.enableObjectReuse())
-					.addSourceInput(
-						new SourceOperatorFactory<>(
-							new MockSource(Boundedness.BOUNDED, 1),
-							WatermarkStrategy.noWatermarks()))
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(1))
-					.build()) {
-			testHarness.setAutoProcess(false);
+    @Test
+    public void testOnlyOneSource() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.BOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(1))
+                        .build()) {
+            testHarness.setAutoProcess(false);
 
-			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
-			addSourceRecords(testHarness, 0, 42, 43, 44);
-			processSingleStepUntil(testHarness, () -> !testHarness.getOutput().isEmpty());
-			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
+            addSourceRecords(testHarness, 0, 42, 43, 44);
+            processSingleStepUntil(testHarness, () -> !testHarness.getOutput().isEmpty());
+            expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
 
-			CheckpointBarrier barrier = createBarrier(testHarness);
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
-			processSingleStepUntil(testHarness, checkpointFuture::isDone);
+            CheckpointBarrier barrier = createBarrier(testHarness);
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
-			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
-		}
-	}
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            assertThat(
+                    actualOutput.subList(0, expectedOutput.size()),
+                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+        }
+    }
 
-	private void addRecordsAndBarriers(StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier) throws Exception {
-		addRecords(testHarness);
-		addBarriers(testHarness, checkpointBarrier);
-	}
+    private void addRecordsAndBarriers(
+            StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier)
+            throws Exception {
+        addRecords(testHarness);
+        addBarriers(testHarness, checkpointBarrier);
+    }
 
-	private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
-		StreamConfig config = testHarness.getStreamTask().getConfiguration();
-		CheckpointOptions checkpointOptions = CheckpointOptions.create(
-				CheckpointType.CHECKPOINT,
-				CheckpointStorageLocationReference.getDefault(),
-				config.isExactlyOnceCheckpointMode(),
-				config.isUnalignedCheckpointsEnabled(),
-				config.getAlignmentTimeout());
+    private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
+        StreamConfig config = testHarness.getStreamTask().getConfiguration();
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.forConfig(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        config.isExactlyOnceCheckpointMode(),
+                        config.isUnalignedCheckpointsEnabled(),
+                        config.getAlignmentTimeout());
 
-		return new CheckpointBarrier(metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
-	}
+        return new CheckpointBarrier(
+                metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
+    }
 
-	private void addBarriers(StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier) throws Exception {
-		testHarness.processEvent(checkpointBarrier, 0);
-		testHarness.processEvent(checkpointBarrier, 1);
-	}
+    private void addBarriers(
+            StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier)
+            throws Exception {
+        testHarness.processEvent(checkpointBarrier, 0);
+        testHarness.processEvent(checkpointBarrier, 1);
+    }
 
-	private void addRecords(StreamTaskMailboxTestHarness<String> testHarness) throws Exception {
-		addSourceRecords(testHarness, 1, 42, 42, 42);
-		addNetworkRecords(testHarness);
-	}
+    private void addRecords(StreamTaskMailboxTestHarness<String> testHarness) throws Exception {
+        addSourceRecords(testHarness, 1, 42, 42, 42);
+        addNetworkRecords(testHarness);
+    }
 
-	private void addNetworkRecords(StreamTaskMailboxTestHarness<String> testHarness) throws Exception {
-		testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
-		testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
-		testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
-		testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
-	}
+    private void addNetworkRecords(StreamTaskMailboxTestHarness<String> testHarness)
+            throws Exception {
+        testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
+        testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
+        testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
+        testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
+    }
 
-	private void processSingleStepUntil(StreamTaskMailboxTestHarness<String> testHarness, Supplier<Boolean> condition) throws Exception {
-		assertFalse(condition.get());
-		for (int i = 0; i < MAX_STEPS && !condition.get(); i++) {
-			testHarness.processSingleStep();
-		}
-		assertTrue(condition.get());
-	}
+    private void processSingleStepUntil(
+            StreamTaskMailboxTestHarness<String> testHarness, Supplier<Boolean> condition)
+            throws Exception {
+        assertFalse(condition.get());
+        for (int i = 0; i < MAX_STEPS && !condition.get(); i++) {
+            testHarness.processSingleStep();
+        }
+        assertTrue(condition.get());
+    }
 }
-

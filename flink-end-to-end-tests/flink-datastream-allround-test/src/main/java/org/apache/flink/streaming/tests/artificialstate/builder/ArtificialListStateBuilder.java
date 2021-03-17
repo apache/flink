@@ -26,39 +26,39 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 
-/**
- * An {@link ArtificialListStateBuilder} for user operator and keyed state.
- */
+/** An {@link ArtificialListStateBuilder} for user operator and keyed state. */
 public class ArtificialListStateBuilder<IN, STATE> extends ArtificialStateBuilder<IN> {
 
-	private static final long serialVersionUID = -1205814329756790916L;
+    private static final long serialVersionUID = -1205814329756790916L;
 
-	private transient ListState<STATE> listOperatorState;
-	private transient ListState<STATE> listKeyedState;
-	private final ListStateDescriptor<STATE> listStateDescriptor;
-	private final JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator;
-	private final JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator;
+    private transient ListState<STATE> listOperatorState;
+    private transient ListState<STATE> listKeyedState;
+    private final ListStateDescriptor<STATE> listStateDescriptor;
+    private final JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator;
+    private final JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator;
 
-	public ArtificialListStateBuilder(
-		String stateName,
-		JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator,
-		JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator,
-		ListStateDescriptor<STATE> listStateDescriptor) {
-		super(stateName);
-		this.listStateDescriptor = Preconditions.checkNotNull(listStateDescriptor);
-		this.keyedStateGenerator = Preconditions.checkNotNull(keyedStateGenerator);
-		this.operatorStateGenerator = Preconditions.checkNotNull(operatorStateGenerator);
-	}
+    public ArtificialListStateBuilder(
+            String stateName,
+            JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator,
+            JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator,
+            ListStateDescriptor<STATE> listStateDescriptor) {
+        super(stateName);
+        this.listStateDescriptor = Preconditions.checkNotNull(listStateDescriptor);
+        this.keyedStateGenerator = Preconditions.checkNotNull(keyedStateGenerator);
+        this.operatorStateGenerator = Preconditions.checkNotNull(operatorStateGenerator);
+    }
 
-	@Override
-	public void artificialStateForElement(IN event) throws Exception {
-		listOperatorState.update(keyedStateGenerator.join(event, listOperatorState.get()));
-		listKeyedState.update(operatorStateGenerator.join(event, listKeyedState.get()));
-	}
+    @Override
+    public void artificialStateForElement(IN event) throws Exception {
+        listOperatorState.update(keyedStateGenerator.join(event, listOperatorState.get()));
+        listKeyedState.update(operatorStateGenerator.join(event, listKeyedState.get()));
+    }
 
-	@Override
-	public void initialize(FunctionInitializationContext initializationContext) throws Exception {
-		listOperatorState = initializationContext.getOperatorStateStore().getListState(listStateDescriptor);
-		listKeyedState = initializationContext.getKeyedStateStore().getListState(listStateDescriptor);
-	}
+    @Override
+    public void initialize(FunctionInitializationContext initializationContext) throws Exception {
+        listOperatorState =
+                initializationContext.getOperatorStateStore().getListState(listStateDescriptor);
+        listKeyedState =
+                initializationContext.getKeyedStateStore().getListState(listStateDescriptor);
+    }
 }

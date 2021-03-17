@@ -30,13 +30,15 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
-import org.apache.flink.table.module.{Module, ModuleManager}
+import org.apache.flink.table.module.{Module, ModuleEntry, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
-import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.{CatalogQueryOperation, ShowFunctionsOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
@@ -44,7 +46,6 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
@@ -52,7 +53,6 @@ import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
-
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.util.Try
@@ -107,6 +107,13 @@ abstract class TableEnvImpl(
     }),
     catalogManager.getDataTypeFactory,
     tableLookup,
+    new SqlExpressionResolver {
+      override def resolveExpression(sqlExpression: String, inputSchema: TableSchema)
+        : ResolvedExpression = {
+            throw new UnsupportedOperationException(
+              "SQL expression parsing is only supported in the Blink planner.")
+      }
+    },
     isStreamingMode)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =
@@ -129,7 +136,9 @@ abstract class TableEnvImpl(
     }
   )
 
-  catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, false))
+  catalogManager.initSchemaResolver(
+    isStreamingMode,
+    operationTreeBuilder.expressionResolverBuilder())
 
   def getConfig: TableConfig = config
 
@@ -273,6 +282,10 @@ abstract class TableEnvImpl(
 
   override def loadModule(moduleName: String, module: Module): Unit = {
     moduleManager.loadModule(moduleName, module)
+  }
+
+  override def useModules(moduleNames: String*): Unit = {
+    moduleManager.useModules(moduleNames: _*)
   }
 
   override def unloadModule(moduleName: String): Unit = {
@@ -446,11 +459,18 @@ abstract class TableEnvImpl(
     val objectIdentifier: ObjectIdentifier = catalogManager.qualifyIdentifier(identifier)
 
     JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
-      .map(t => new CatalogQueryOperation(objectIdentifier, t.getResolvedSchema))
+      .map(t =>
+        new CatalogQueryOperation(
+          objectIdentifier,
+          TableSchema.fromResolvedSchema(t.getResolvedSchema)))
   }
 
   override def listModules(): Array[String] = {
     moduleManager.listModules().asScala.toArray
+  }
+
+  override def listFullModules(): Array[ModuleEntry] = {
+    moduleManager.listFullModules().asScala.toArray
   }
 
   override def listCatalogs(): Array[String] = {
@@ -673,11 +693,11 @@ abstract class TableEnvImpl(
                 alterTableRenameOp.getTableIdentifier.toObjectPath,
                 alterTableRenameOp.getNewTableIdentifier.getObjectName,
                 false)
-            case alterTablePropertiesOp: AlterTablePropertiesOperation =>
-              catalog.alterTable(
-                alterTablePropertiesOp.getTableIdentifier.toObjectPath,
+            case alterTablePropertiesOp: AlterTableOptionsOperation =>
+              catalogManager.alterTable(
                 alterTablePropertiesOp.getCatalogTable,
-                false)
+                alterTablePropertiesOp.getTableIdentifier,
+                false);
           }
           TableResultImpl.TABLE_RESULT_OK
         } catch {
@@ -751,8 +771,16 @@ abstract class TableEnvImpl(
         buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
-      case _: ShowFunctionsOperation =>
-        buildShowResult("function name", listFunctions())
+      case showFunctionsOperation: ShowFunctionsOperation =>
+        val functionScope = showFunctionsOperation.getFunctionScope()
+        val functionNames = functionScope match {
+          case FunctionScope.USER => listUserDefinedFunctions()
+          case FunctionScope.ALL => listFunctions()
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"SHOW FUNCTIONS with $functionScope scope is not supported.")
+        }
+        buildShowResult("function name", functionNames)
       case createViewOperation: CreateViewOperation =>
         if (createViewOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -1194,8 +1222,7 @@ abstract class TableEnvImpl(
       if (!exist) {
         functionCatalog.registerTemporarySystemFunction(
           createFunctionOperation.getFunctionName,
-          createFunctionOperation.getFunctionClass,
-          createFunctionOperation.getFunctionLanguage,
+          createFunctionOperation.getCatalogFunction,
           false)
       } else if (!createFunctionOperation.isIgnoreIfExists) {
         throw new ValidationException(
@@ -1284,5 +1311,25 @@ abstract class TableEnvImpl(
     val currentDatabase = catalogManager.getCurrentDatabase
 
     planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
+  }
+
+  override def getJsonPlan(stmt: String): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def getJsonPlan(operations: JList[ModifyOperation]): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  override def executeJsonPlan(jsonPlan: String): TableResult = {
+    throw new TableException(
+      "This method is not supported for legacy planner, please use Blink planner.")
   }
 }

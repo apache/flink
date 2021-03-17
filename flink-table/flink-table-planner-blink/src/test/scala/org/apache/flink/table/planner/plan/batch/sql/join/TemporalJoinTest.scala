@@ -114,7 +114,7 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.o_rowtime as r " +
       "on o.o_currency = r.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -126,7 +126,7 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_rowtime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -138,7 +138,7 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -151,6 +151,6 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

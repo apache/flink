@@ -31,6 +31,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -54,92 +55,92 @@ import java.util.Collection;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Integration tests for {@link OperatorStateBackend}.
- */
+/** Integration tests for {@link OperatorStateBackend}. */
 public class StateBackendITCase extends AbstractTestBase {
 
-	/**
-	 * Verify that the user-specified state backend is used even if checkpointing is disabled.
-	 */
-	@Test
-	public void testStateBackendWithoutCheckpointing() throws Exception {
+    /** Verify that the user-specified state backend is used even if checkpointing is disabled. */
+    @Test
+    public void testStateBackendWithoutCheckpointing() throws Exception {
 
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.setParallelism(1);
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.setParallelism(1);
 
-		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		see.setStateBackend(new FailingStateBackend());
+        see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        see.setStateBackend(new FailingStateBackend());
 
-		see.fromElements(new Tuple2<>("Hello", 1))
-			.keyBy(0)
-			.map(new RichMapFunction<Tuple2<String, Integer>, String>() {
-				private static final long serialVersionUID = 1L;
+        see.fromElements(new Tuple2<>("Hello", 1))
+                .keyBy(0)
+                .map(
+                        new RichMapFunction<Tuple2<String, Integer>, String>() {
+                            private static final long serialVersionUID = 1L;
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					super.open(parameters);
-					getRuntimeContext().getState(new ValueStateDescriptor<>("Test", Integer.class));
-				}
+                            @Override
+                            public void open(Configuration parameters) throws Exception {
+                                super.open(parameters);
+                                getRuntimeContext()
+                                        .getState(
+                                                new ValueStateDescriptor<>("Test", Integer.class));
+                            }
 
-				@Override
-				public String map(Tuple2<String, Integer> value) throws Exception {
-					return value.f0;
-				}
-			})
-			.print();
+                            @Override
+                            public String map(Tuple2<String, Integer> value) throws Exception {
+                                return value.f0;
+                            }
+                        })
+                .print();
 
-		try {
-			see.execute();
-			fail();
-		}
-		catch (JobExecutionException e) {
-			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
-		}
-	}
+        try {
+            see.execute();
+            fail();
+        } catch (JobExecutionException e) {
+            assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
+        }
+    }
 
-	private static class FailingStateBackend implements StateBackend {
-		private static final long serialVersionUID = 1L;
+    private static class FailingStateBackend implements StateBackend, CheckpointStorage {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
+                throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 1_000_000);
-		}
+        @Override
+        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 1_000_000);
+        }
 
-		@Override
-		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup,
-			@Nonnull Collection<KeyedStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws IOException {
-			throw new SuccessException();
-		}
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @Nonnull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws IOException {
+            throw new SuccessException();
+        }
 
-		@Override
-		public OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier,
-			@Nonnull Collection<OperatorStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws Exception {
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                Environment env,
+                String operatorIdentifier,
+                @Nonnull Collection<OperatorStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
 
-			throw new SuccessException();
-		}
-	}
+            throw new SuccessException();
+        }
+    }
 
-	static final class SuccessException extends IOException {
-		private static final long serialVersionUID = -9218191172606739598L;
-	}
-
+    static final class SuccessException extends IOException {
+        private static final long serialVersionUID = -9218191172606739598L;
+    }
 }

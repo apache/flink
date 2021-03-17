@@ -23,16 +23,14 @@ import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Checkpoint ITCase for {@link OrcFileFormatFactory}.
- */
+/** Checkpoint ITCase for {@link OrcFileFormatFactory}. */
 public class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 
-	@Override
-	public String[] additionalProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='orc'");
-		ret.add("'orc.compress'='snappy'");
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] additionalProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='orc'");
+        ret.add("'orc.compress'='snappy'");
+        return ret.toArray(new String[0]);
+    }
 }

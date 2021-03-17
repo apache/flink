@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.rel.core.JoinInfo
@@ -277,8 +278,8 @@ object TemporalJoinUtil {
     hasTemporalJoinCondition
   }
 
-  def isRowTimeJoin(rexBuilder: RexBuilder, joinInfo: JoinInfo): Boolean = {
-    val nonEquiJoinRex = joinInfo.getRemaining(rexBuilder)
+  def isRowTimeJoin(joinSpec: JoinSpec): Boolean = {
+    val nonEquiJoinRex = joinSpec.getNonEquiCondition().orElse(null)
 
     var rowtimeJoin: Boolean = false
     val visitor = new RexVisitorImpl[Unit](true) {
@@ -329,20 +330,20 @@ object TemporalJoinUtil {
   }
 
   def validateTemporalFunctionCondition(
-      call: RexCall,
-      leftTimeAttribute: RexNode,
-      rightTimeAttribute: Option[RexNode],
-      rightPrimaryKey: Option[Array[RexNode]],
-      rightKeysStartingOffset: Int,
-      joinInfo: JoinInfo,
-      textualRepresentation: String): Unit = {
+        call: RexCall,
+        leftTimeAttribute: RexNode,
+        rightTimeAttribute: Option[RexNode],
+        rightPrimaryKey: Option[Array[RexNode]],
+        rightKeysStartingOffset: Int,
+        joinSpec: JoinSpec,
+        textualRepresentation: String): Unit = {
 
     if (TemporalJoinUtil.isRowTimeTemporalFunctionJoinCon(call)) {
 
       validateTemporalFunctionPrimaryKey(
         rightKeysStartingOffset,
         rightPrimaryKey,
-        joinInfo,
+        joinSpec,
         textualRepresentation)
 
       if (!isRowtimeIndicatorType(rightTimeAttribute.get.getType)) {
@@ -360,7 +361,7 @@ object TemporalJoinUtil {
       validateTemporalFunctionPrimaryKey(
         rightKeysStartingOffset,
         rightPrimaryKey,
-        joinInfo,
+        joinSpec,
         textualRepresentation)
 
       if (!isProctimeIndicatorType(leftTimeAttribute.getType)) {
@@ -372,14 +373,14 @@ object TemporalJoinUtil {
   }
 
   private def validateTemporalFunctionPrimaryKey(
-      rightKeysStartingOffset: Int,
-      rightPrimaryKey: Option[Array[RexNode]],
-      joinInfo: JoinInfo,
-      textualRepresentation: String): Unit = {
-    if (joinInfo.rightKeys.size() != 1) {
+        rightKeysStartingOffset: Int,
+        rightPrimaryKey: Option[Array[RexNode]],
+        joinInfo: JoinSpec,
+        textualRepresentation: String): Unit = {
+    if (joinInfo.getRightKeys.length != 1) {
       throw new ValidationException(
         s"Only single column join key is supported. " +
-          s"Found ${joinInfo.rightKeys} in [$textualRepresentation]")
+          s"Found ${joinInfo.getRightKeys} in [$textualRepresentation]")
     }
 
     if (rightPrimaryKey.isEmpty || rightPrimaryKey.get.length != 1) {
@@ -389,7 +390,7 @@ object TemporalJoinUtil {
     }
     val pk = rightPrimaryKey.get(0)
 
-    val rightJoinKeyInputReference = joinInfo.rightKeys.get(0) + rightKeysStartingOffset
+    val rightJoinKeyInputReference = joinInfo.getRightKeys()(0) + rightKeysStartingOffset
 
     val rightPrimaryKeyInputReference = extractInputRef(
       pk,

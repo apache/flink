@@ -45,144 +45,144 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Integration test for {@link BlobLibraryCacheManager}.
- */
+/** Integration test for {@link BlobLibraryCacheManager}. */
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
-	/**
-	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
-	 * participating BlobLibraryCacheManager.
-	 */
-	@Test
-	public void testRecoveryRegisterAndDownload() throws Exception {
-		Random rand = new Random();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    /**
+     * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
+     * any participating BlobLibraryCacheManager.
+     */
+    @Test
+    public void testRecoveryRegisterAndDownload() throws Exception {
+        Random rand = new Random();
 
-		BlobServer[] server = new BlobServer[2];
-		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
-		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
-		PermanentBlobCache cache = null;
-		BlobStoreService blobStoreService = null;
+        BlobServer[] server = new BlobServer[2];
+        InetSocketAddress[] serverAddress = new InetSocketAddress[2];
+        BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
+        PermanentBlobCache cache = null;
+        BlobStoreService blobStoreService = null;
 
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-			temporaryFolder.newFolder().getAbsolutePath());
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-			temporaryFolder.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
+        Configuration config = new Configuration();
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(
+                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH,
+                temporaryFolder.newFolder().getAbsolutePath());
+        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
-		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+        try {
+            blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			final BlobLibraryCacheManager.ClassLoaderFactory classLoaderFactory = BlobLibraryCacheManager.defaultClassLoaderFactory(
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0],
-				null,
-				true);
+            final BlobLibraryCacheManager.ClassLoaderFactory classLoaderFactory =
+                    BlobLibraryCacheManager.defaultClassLoaderFactory(
+                            FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+                            new String[0],
+                            null,
+                            true);
 
-			for (int i = 0; i < server.length; i++) {
-				server[i] = new BlobServer(config, blobStoreService);
-				server[i].start();
-				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(
-					server[i],
-					classLoaderFactory);
-			}
+            for (int i = 0; i < server.length; i++) {
+                server[i] = new BlobServer(config, blobStoreService);
+                server[i].start();
+                serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
+                libServer[i] = new BlobLibraryCacheManager(server[i], classLoaderFactory);
+            }
 
-			// Random data
-			byte[] expected = new byte[1024];
-			rand.nextBytes(expected);
+            // Random data
+            byte[] expected = new byte[1024];
+            rand.nextBytes(expected);
 
-			ArrayList<PermanentBlobKey> keys = new ArrayList<>(2);
+            ArrayList<PermanentBlobKey> keys = new ArrayList<>(2);
 
-			JobID jobId = new JobID();
+            JobID jobId = new JobID();
 
-			// Upload some data (libraries)
-			keys.add(server[0].putPermanent(jobId, expected)); // Request 1
-			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
-			keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
+            // Upload some data (libraries)
+            keys.add(server[0].putPermanent(jobId, expected)); // Request 1
+            byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
+            keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
-			// The cache
-			cache = new PermanentBlobCache(config, blobStoreService, serverAddress[0]);
+            // The cache
+            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[0]);
 
-			// Register uploaded libraries
-			final LibraryCacheManager.ClassLoaderLease classLoaderLease = libServer[0].registerClassLoaderLease(jobId);
-			classLoaderLease.getOrResolveClassLoader(keys, Collections.emptyList());
+            // Register uploaded libraries
+            final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                    libServer[0].registerClassLoaderLease(jobId);
+            classLoaderLease.getOrResolveClassLoader(keys, Collections.emptyList());
 
-			// Verify key 1
-			File f = cache.getFile(jobId, keys.get(0));
-			assertEquals(expected.length, f.length());
+            // Verify key 1
+            File f = cache.getFile(jobId, keys.get(0));
+            assertEquals(expected.length, f.length());
 
-			try (FileInputStream fis = new FileInputStream(f)) {
-				for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-					assertEquals(expected[i], (byte) fis.read());
-				}
+            try (FileInputStream fis = new FileInputStream(f)) {
+                for (int i = 0; i < expected.length && fis.available() > 0; i++) {
+                    assertEquals(expected[i], (byte) fis.read());
+                }
 
-				assertEquals(0, fis.available());
-			}
+                assertEquals(0, fis.available());
+            }
 
-			// Shutdown cache and start with other server
-			cache.close();
+            // Shutdown cache and start with other server
+            cache.close();
 
-			cache = new PermanentBlobCache(config, blobStoreService, serverAddress[1]);
+            cache = new PermanentBlobCache(config, blobStoreService, serverAddress[1]);
 
-			// Verify key 1
-			f = cache.getFile(jobId, keys.get(0));
-			assertEquals(expected.length, f.length());
+            // Verify key 1
+            f = cache.getFile(jobId, keys.get(0));
+            assertEquals(expected.length, f.length());
 
-			try (FileInputStream fis = new FileInputStream(f)) {
-				for (int i = 0; i < expected.length && fis.available() > 0; i++) {
-					assertEquals(expected[i], (byte) fis.read());
-				}
+            try (FileInputStream fis = new FileInputStream(f)) {
+                for (int i = 0; i < expected.length && fis.available() > 0; i++) {
+                    assertEquals(expected[i], (byte) fis.read());
+                }
 
-				assertEquals(0, fis.available());
-			}
+                assertEquals(0, fis.available());
+            }
 
-			// Verify key 2
-			f = cache.getFile(jobId, keys.get(1));
-			assertEquals(expected2.length, f.length());
+            // Verify key 2
+            f = cache.getFile(jobId, keys.get(1));
+            assertEquals(expected2.length, f.length());
 
-			try (FileInputStream fis = new FileInputStream(f)) {
-				for (int i = 0; i < 256 && fis.available() > 0; i++) {
-					assertEquals(expected2[i], (byte) fis.read());
-				}
+            try (FileInputStream fis = new FileInputStream(f)) {
+                for (int i = 0; i < 256 && fis.available() > 0; i++) {
+                    assertEquals(expected2[i], (byte) fis.read());
+                }
 
-				assertEquals(0, fis.available());
-			}
+                assertEquals(0, fis.available());
+            }
 
-			// Remove blobs again
-			server[1].cleanupJob(jobId, true);
+            // Remove blobs again
+            server[1].cleanupJob(jobId, true);
 
-			// Verify everything is clean below recoveryDir/<cluster_id>
-			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-			String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
-			File haBlobStoreDir = new File(haBlobStorePath, clusterId);
-			File[] recoveryFiles = haBlobStoreDir.listFiles();
-			assertNotNull("HA storage directory does not exist", recoveryFiles);
-			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
-		}
-		finally {
-			for (BlobLibraryCacheManager s : libServer) {
-				if (s != null) {
-					s.shutdown();
-				}
-			}
-			for (BlobServer s : server) {
-				if (s != null) {
-					s.close();
-				}
-			}
+            // Verify everything is clean below recoveryDir/<cluster_id>
+            final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+            String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+            File haBlobStoreDir = new File(haBlobStorePath, clusterId);
+            File[] recoveryFiles = haBlobStoreDir.listFiles();
+            assertNotNull("HA storage directory does not exist", recoveryFiles);
+            assertEquals(
+                    "Unclean state backend: " + Arrays.toString(recoveryFiles),
+                    0,
+                    recoveryFiles.length);
+        } finally {
+            for (BlobLibraryCacheManager s : libServer) {
+                if (s != null) {
+                    s.shutdown();
+                }
+            }
+            for (BlobServer s : server) {
+                if (s != null) {
+                    s.close();
+                }
+            }
 
-			if (cache != null) {
-				cache.close();
-			}
+            if (cache != null) {
+                cache.close();
+            }
 
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
-		}
-	}
+            if (blobStoreService != null) {
+                blobStoreService.closeAndCleanupAllData();
+            }
+        }
+    }
 }

@@ -80,33 +80,33 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable")
+    util.verifyRelPlan("SELECT a, c FROM MyTable")
   }
 
   @Test
   def testSimpleProjectWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT a, d FROM VirtualTable")
+    util.verifyRelPlan("SELECT a, d FROM VirtualTable")
   }
 
   @Test
   def testCannotProject(): Unit = {
-    util.verifyPlan("SELECT a, c, b + 1 FROM MyTable")
+    util.verifyRelPlan("SELECT a, c, b + 1 FROM MyTable")
   }
 
   @Test
   def testCannotProjectWithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT a, c, d, b + 1 FROM VirtualTable")
+    util.verifyRelPlan("SELECT a, c, d, b + 1 FROM VirtualTable")
   }
 
   @Test
   def testProjectWithUdf(): Unit = {
-    util.verifyPlan("SELECT a, TRIM(c) FROM MyTable")
+    util.verifyRelPlan("SELECT a, TRIM(c) FROM MyTable")
   }
 
   @Test
   def testProjectWithUdfWithVirtualColumn(): Unit = {
     util.tableEnv.registerFunction("my_udf", Func0)
-    util.verifyPlan("SELECT a, my_udf(d) FROM VirtualTable")
+    util.verifyRelPlan("SELECT a, my_udf(d) FROM VirtualTable")
   }
 
   @Test
@@ -114,7 +114,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
     // Regression by: CALCITE-4220,
     // the constant project was removed,
     // so that the rule can not be matched.
-    util.verifyPlan("SELECT COUNT(1) FROM MyTable")
+    util.verifyRelPlan("SELECT COUNT(1) FROM MyTable")
   }
 
   @Test
@@ -155,7 +155,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

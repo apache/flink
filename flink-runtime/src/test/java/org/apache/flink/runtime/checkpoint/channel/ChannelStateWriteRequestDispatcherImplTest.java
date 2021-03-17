@@ -33,40 +33,51 @@ import java.util.function.Function;
 import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.junit.Assert.assertTrue;
 
-/**
- * {@link ChannelStateWriteRequestDispatcherImpl} test.
- */
+/** {@link ChannelStateWriteRequestDispatcherImpl} test. */
 public class ChannelStateWriteRequestDispatcherImplTest {
 
-	@Test
-	public void testPartialInputChannelStateWrite() throws Exception {
-		testBuffersRecycled(buffers -> ChannelStateWriteRequest.write(1L, new InputChannelInfo(1, 2), ofElements(Buffer::recycleBuffer, buffers)));
-	}
+    @Test
+    public void testPartialInputChannelStateWrite() throws Exception {
+        testBuffersRecycled(
+                buffers ->
+                        ChannelStateWriteRequest.write(
+                                1L,
+                                new InputChannelInfo(1, 2),
+                                ofElements(Buffer::recycleBuffer, buffers)));
+    }
 
-	@Test
-	public void testPartialResultSubpartitionStateWrite() throws Exception {
-		testBuffersRecycled(buffers -> ChannelStateWriteRequest.write(1L, new ResultSubpartitionInfo(1, 2), buffers));
-	}
+    @Test
+    public void testPartialResultSubpartitionStateWrite() throws Exception {
+        testBuffersRecycled(
+                buffers ->
+                        ChannelStateWriteRequest.write(
+                                1L, new ResultSubpartitionInfo(1, 2), buffers));
+    }
 
-	private void testBuffersRecycled(Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
-		ChannelStateWriteRequestDispatcher dispatcher = new ChannelStateWriteRequestDispatcherImpl(
-			0,
-			new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1),
-			new ChannelStateSerializerImpl());
-		ChannelStateWriteResult result = new ChannelStateWriteResult();
-		dispatcher.dispatch(ChannelStateWriteRequest.start(1L, result, CheckpointStorageLocationReference.getDefault()));
+    private void testBuffersRecycled(
+            Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
+        ChannelStateWriteRequestDispatcher dispatcher =
+                new ChannelStateWriteRequestDispatcherImpl(
+                        0,
+                        new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1),
+                        new ChannelStateSerializerImpl());
+        ChannelStateWriteResult result = new ChannelStateWriteResult();
+        dispatcher.dispatch(
+                ChannelStateWriteRequest.start(
+                        1L, result, CheckpointStorageLocationReference.getDefault()));
 
-		result.getResultSubpartitionStateHandles().completeExceptionally(new TestException());
-		result.getInputChannelStateHandles().completeExceptionally(new TestException());
+        result.getResultSubpartitionStateHandles().completeExceptionally(new TestException());
+        result.getInputChannelStateHandles().completeExceptionally(new TestException());
 
-		NetworkBuffer[] buffers = new NetworkBuffer[]{buffer(), buffer()};
-		dispatcher.dispatch(requestBuilder.apply(buffers));
-		for (NetworkBuffer buffer : buffers) {
-			assertTrue(buffer.isRecycled());
-		}
-	}
+        NetworkBuffer[] buffers = new NetworkBuffer[] {buffer(), buffer()};
+        dispatcher.dispatch(requestBuilder.apply(buffers));
+        for (NetworkBuffer buffer : buffers) {
+            assertTrue(buffer.isRecycled());
+        }
+    }
 
-	private NetworkBuffer buffer() {
-		return new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(10), FreeingBufferRecycler.INSTANCE);
-	}
+    private NetworkBuffer buffer() {
+        return new NetworkBuffer(
+                MemorySegmentFactory.allocateUnpooledSegment(10), FreeingBufferRecycler.INSTANCE);
+    }
 }

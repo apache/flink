@@ -28,24 +28,22 @@ import org.apache.flink.table.functions.python.PythonFunction;
  */
 @Internal
 public class DataStreamPythonFunction implements PythonFunction {
-	private static final long serialVersionUID = 1L;
-	private final byte[] serializedPythonFunction;
-	private final PythonEnv pythonEnv;
+    private static final long serialVersionUID = 1L;
+    private final byte[] serializedPythonFunction;
+    private final PythonEnv pythonEnv;
 
-	public DataStreamPythonFunction(
-		byte[] serializedPythonFunction,
-		PythonEnv pythonEnv) {
-		this.serializedPythonFunction = serializedPythonFunction;
-		this.pythonEnv = pythonEnv;
-	}
+    public DataStreamPythonFunction(byte[] serializedPythonFunction, PythonEnv pythonEnv) {
+        this.serializedPythonFunction = serializedPythonFunction;
+        this.pythonEnv = pythonEnv;
+    }
 
-	@Override
-	public byte[] getSerializedPythonFunction() {
-		return this.serializedPythonFunction;
-	}
+    @Override
+    public byte[] getSerializedPythonFunction() {
+        return this.serializedPythonFunction;
+    }
 
-	@Override
-	public PythonEnv getPythonEnv() {
-		return this.pythonEnv;
-	}
+    @Override
+    public PythonEnv getPythonEnv() {
+        return this.pythonEnv;
+    }
 }

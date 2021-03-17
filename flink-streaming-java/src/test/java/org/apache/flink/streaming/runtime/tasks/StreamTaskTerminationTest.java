@@ -52,6 +52,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -104,211 +105,223 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the StreamTask termination.
- */
+/** Tests for the StreamTask termination. */
 public class StreamTaskTerminationTest extends TestLogger {
 
-	private static final OneShotLatch RUN_LATCH = new OneShotLatch();
-	private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
-	private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
+    private static final OneShotLatch RUN_LATCH = new OneShotLatch();
+    private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
+    private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
 
-	@Rule
-	public final Timeout timeoutPerTest = Timeout.seconds(10);
+    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
 
-	/**
-	 * FLINK-6833
-	 *
-	 * <p>Tests that a finished stream task cannot be failed by an asynchronous checkpointing operation after
-	 * the stream task has stopped running.
-	 */
-	@Test
-	public void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
-		final Configuration taskConfiguration = new Configuration();
-		final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-		final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
+    /**
+     * FLINK-6833
+     *
+     * <p>Tests that a finished stream task cannot be failed by an asynchronous checkpointing
+     * operation after the stream task has stopped running.
+     */
+    @Test
+    public void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
+        final Configuration taskConfiguration = new Configuration();
+        final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+        final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
 
-		final StateBackend blockingStateBackend = new BlockingStateBackend();
+        final StateBackend blockingStateBackend = new BlockingStateBackend();
 
-		streamConfig.setStreamOperator(noOpStreamOperator);
-		streamConfig.setOperatorID(new OperatorID());
-		streamConfig.setStateBackend(blockingStateBackend);
+        streamConfig.setStreamOperator(noOpStreamOperator);
+        streamConfig.setOperatorID(new OperatorID());
+        streamConfig.setStateBackend(blockingStateBackend);
 
-		final long checkpointId = 0L;
-		final long checkpointTimestamp = 0L;
+        final long checkpointId = 0L;
+        final long checkpointTimestamp = 0L;
 
-		final JobInformation jobInformation = new JobInformation(
-			new JobID(),
-			"Test Job",
-			new SerializedValue<>(new ExecutionConfig()),
-			new Configuration(),
-			Collections.emptyList(),
-			Collections.emptyList());
+        final JobInformation jobInformation =
+                new JobInformation(
+                        new JobID(),
+                        "Test Job",
+                        new SerializedValue<>(new ExecutionConfig()),
+                        new Configuration(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
 
-		final TaskInformation taskInformation = new TaskInformation(
-			new JobVertexID(),
-			"Test Task",
-			1,
-			1,
-			BlockingStreamTask.class.getName(),
-			taskConfiguration);
+        final TaskInformation taskInformation =
+                new TaskInformation(
+                        new JobVertexID(),
+                        "Test Task",
+                        1,
+                        1,
+                        BlockingStreamTask.class.getName(),
+                        taskConfiguration);
 
-		final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+        final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
-		final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+        final ShuffleEnvironment<?, ?> shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder().build();
 
-		final Task task = new Task(
-			jobInformation,
-			taskInformation,
-			new ExecutionAttemptID(),
-			new AllocationID(),
-			0,
-			0,
-			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-			Collections.<InputGateDeploymentDescriptor>emptyList(),
-			0,
-			MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
-			new IOManagerAsync(),
-			shuffleEnvironment,
-			new KvStateService(new KvStateRegistry(), null, null),
-			mock(BroadcastVariableManager.class),
-			new TaskEventDispatcher(),
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			new TestTaskStateManager(),
-			mock(TaskManagerActions.class),
-			mock(InputSplitProvider.class),
-			mock(CheckpointResponder.class),
-			new NoOpTaskOperatorEventGateway(),
-			new TestGlobalAggregateManager(),
-			TestingClassLoaderLease.newBuilder().build(),
-			mock(FileCache.class),
-			taskManagerRuntimeInfo,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			new NoOpResultPartitionConsumableNotifier(),
-			mock(PartitionProducerStateChecker.class),
-			Executors.directExecutor());
+        final Task task =
+                new Task(
+                        jobInformation,
+                        taskInformation,
+                        new ExecutionAttemptID(),
+                        new AllocationID(),
+                        0,
+                        0,
+                        Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+                        Collections.<InputGateDeploymentDescriptor>emptyList(),
+                        MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
+                        new IOManagerAsync(),
+                        shuffleEnvironment,
+                        new KvStateService(new KvStateRegistry(), null, null),
+                        mock(BroadcastVariableManager.class),
+                        new TaskEventDispatcher(),
+                        ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                        new TestTaskStateManager(),
+                        mock(TaskManagerActions.class),
+                        mock(InputSplitProvider.class),
+                        mock(CheckpointResponder.class),
+                        new NoOpTaskOperatorEventGateway(),
+                        new TestGlobalAggregateManager(),
+                        TestingClassLoaderLease.newBuilder().build(),
+                        mock(FileCache.class),
+                        taskManagerRuntimeInfo,
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                        new NoOpResultPartitionConsumableNotifier(),
+                        mock(PartitionProducerStateChecker.class),
+                        Executors.directExecutor());
 
-		CompletableFuture<Void> taskRun = CompletableFuture.runAsync(
-			() -> task.run(),
-			TestingUtils.defaultExecutor());
+        CompletableFuture<Void> taskRun =
+                CompletableFuture.runAsync(() -> task.run(), TestingUtils.defaultExecutor());
 
-		// wait until the stream task started running
-		RUN_LATCH.await();
+        // wait until the stream task started running
+        RUN_LATCH.await();
 
-		// trigger a checkpoint
-		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+        // trigger a checkpoint
+        task.triggerCheckpointBarrier(
+                checkpointId,
+                checkpointTimestamp,
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		// wait until the task has completed execution
-		taskRun.get();
+        // wait until the task has completed execution
+        taskRun.get();
 
-		// check that no failure occurred
-		if (task.getFailureCause() != null) {
-			throw new Exception("Task failed", task.getFailureCause());
-		}
+        // check that no failure occurred
+        if (task.getFailureCause() != null) {
+            throw new Exception("Task failed", task.getFailureCause());
+        }
 
-		// check that we have entered the finished state
-		assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-	}
+        // check that we have entered the finished state
+        assertEquals(ExecutionState.FINISHED, task.getExecutionState());
+    }
 
-	/**
-	 * Blocking stream task which waits on and triggers a set of one shot latches to establish a certain
-	 * interleaving with a concurrently running checkpoint operation.
-	 */
-	public static class BlockingStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
+    /**
+     * Blocking stream task which waits on and triggers a set of one shot latches to establish a
+     * certain interleaving with a concurrently running checkpoint operation.
+     */
+    public static class BlockingStreamTask<T, OP extends StreamOperator<T>>
+            extends StreamTask<T, OP> {
 
-		private boolean isRunning;
+        private boolean isRunning;
 
-		public BlockingStreamTask(Environment env) throws Exception {
-			super(env);
-		}
+        public BlockingStreamTask(Environment env) throws Exception {
+            super(env);
+        }
 
-		@Override
-		protected void init() {
-		}
+        @Override
+        protected void init() {}
 
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			if (!isRunning) {
-				isRunning = true;
-				RUN_LATCH.trigger();
-			}
-			// wait until we have started an asynchronous checkpoint
-			if (isCanceled() || SNAPSHOT_HAS_STARTED.get()) {
-				controller.allActionsCompleted();
-			}
-		}
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            if (!isRunning) {
+                isRunning = true;
+                RUN_LATCH.trigger();
+            }
+            // wait until we have started an asynchronous checkpoint
+            if (isCanceled() || SNAPSHOT_HAS_STARTED.get()) {
+                controller.allActionsCompleted();
+            }
+        }
 
-		@Override
-		protected void cleanup() throws Exception {
-			// notify the asynchronous checkpoint operation that we have reached the cleanup stage --> the task
-			// has been stopped
-			CLEANUP_LATCH.trigger();
+        @Override
+        protected void cleanup() throws Exception {
+            // notify the asynchronous checkpoint operation that we have reached the cleanup stage
+            // --> the task
+            // has been stopped
+            CLEANUP_LATCH.trigger();
 
-			// wait until all async checkpoint threads are terminated, so that no more exceptions can be reported
-			Assert.assertTrue(getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
-		}
-	}
+            // wait until all async checkpoint threads are terminated, so that no more exceptions
+            // can be reported
+            Assert.assertTrue(
+                    getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
+        }
+    }
 
-	private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
-		private static final long serialVersionUID = 4517845269225218312L;
-	}
+    private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
+        private static final long serialVersionUID = 4517845269225218312L;
+    }
 
-	static class BlockingStateBackend implements StateBackend {
+    static class BlockingStateBackend implements StateBackend, CheckpointStorage {
 
-		private static final long serialVersionUID = -5053068148933314100L;
+        private static final long serialVersionUID = -5053068148933314100L;
 
-		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorageAccess(jobId, null, null, Integer.MAX_VALUE);
-		}
+        @Override
+        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, Integer.MAX_VALUE);
+        }
 
-		@Override
-		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup,
-			@Nonnull Collection<KeyedStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) {
-			return null;
-		}
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @Nonnull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) {
+            return null;
+        }
 
-		@Override
-		public OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier,
-			@Nonnull Collection<OperatorStateHandle> stateHandles,
-			CloseableRegistry cancelStreamRegistry) throws Exception {
-			OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
-			when(operatorStateBackend.snapshot(anyLong(), anyLong(), any(CheckpointStreamFactory.class), any(CheckpointOptions.class)))
-				.thenReturn(new FutureTask<>(new BlockingCallable()));
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                Environment env,
+                String operatorIdentifier,
+                @Nonnull Collection<OperatorStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
+            OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
+            when(operatorStateBackend.snapshot(
+                            anyLong(),
+                            anyLong(),
+                            any(CheckpointStreamFactory.class),
+                            any(CheckpointOptions.class)))
+                    .thenReturn(new FutureTask<>(new BlockingCallable()));
 
-			return operatorStateBackend;
-		}
-	}
+            return operatorStateBackend;
+        }
+    }
 
-	static class BlockingCallable implements Callable<SnapshotResult<OperatorStateHandle>> {
+    static class BlockingCallable implements Callable<SnapshotResult<OperatorStateHandle>> {
 
-		@Override
-		public SnapshotResult<OperatorStateHandle> call() throws Exception {
-			// notify that we have started the asynchronous checkpointed operation
-			SNAPSHOT_HAS_STARTED.set(true);
-			// wait until we have reached the StreamTask#cleanup --> This will already cancel this FutureTask
-			CLEANUP_LATCH.await();
+        @Override
+        public SnapshotResult<OperatorStateHandle> call() throws Exception {
+            // notify that we have started the asynchronous checkpointed operation
+            SNAPSHOT_HAS_STARTED.set(true);
+            // wait until we have reached the StreamTask#cleanup --> This will already cancel this
+            // FutureTask
+            CLEANUP_LATCH.await();
 
-			// now throw exception to fail the async checkpointing operation if it has not already been cancelled
-			// by the StreamTask in the meantime
-			throw new FlinkException("Checkpointing operation failed");
-		}
-	}
+            // now throw exception to fail the async checkpointing operation if it has not already
+            // been cancelled
+            // by the StreamTask in the meantime
+            throw new FlinkException("Checkpointing operation failed");
+        }
+    }
 }

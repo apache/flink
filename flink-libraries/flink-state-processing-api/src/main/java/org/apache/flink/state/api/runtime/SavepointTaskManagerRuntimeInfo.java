@@ -28,30 +28,30 @@ import org.apache.flink.util.Preconditions;
  * to run the {@code state-processor-api}.
  */
 class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
-	private final IOManager ioManager;
+    private final IOManager ioManager;
 
-	SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
-		this.ioManager = Preconditions.checkNotNull(ioManager);
-	}
+    SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
+        this.ioManager = Preconditions.checkNotNull(ioManager);
+    }
 
-	@Override
-	public Configuration getConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    public Configuration getConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	public String[] getTmpDirectories() {
-		return ioManager.getSpillingDirectoriesPaths();
-	}
+    @Override
+    public String[] getTmpDirectories() {
+        return ioManager.getSpillingDirectoriesPaths();
+    }
 
-	@Override
-	public boolean shouldExitJvmOnOutOfMemoryError() {
-		return false;
-	}
+    @Override
+    public boolean shouldExitJvmOnOutOfMemoryError() {
+        return false;
+    }
 
-	@Override
-	public String getTaskManagerExternalAddress() {
-		throw new UnsupportedOperationException(
-			"Getting external address of task manager is not supported in SavepointTaskManagerRuntimeInfo");
-	}
+    @Override
+    public String getTaskManagerExternalAddress() {
+        throw new UnsupportedOperationException(
+                "Getting external address of task manager is not supported in SavepointTaskManagerRuntimeInfo");
+    }
 }

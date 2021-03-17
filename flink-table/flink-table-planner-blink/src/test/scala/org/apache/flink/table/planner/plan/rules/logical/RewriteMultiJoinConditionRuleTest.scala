@@ -72,80 +72,80 @@ class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   @Test
   def testMultiJoin_InnerJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A, B WHERE a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C, D WHERE a1 = b1 AND b1 = c1 AND c1 = d1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin4(): Unit = {
     // non-equi join condition
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 = b1 AND a1 > c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_InnerJoin5(): Unit = {
     val sqlQuery = "SELECT * FROM A, B, C WHERE a1 + 1 = b1 AND a1 + 1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A LEFT JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A JOIN B ON a1 = b1 LEFT JOIN C ON b1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_LeftJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A LEFT JOIN B ON a1 = b1 JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A RIGHT JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A JOIN B ON a1 = b1 RIGHT JOIN C ON b1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_RightJoin3(): Unit = {
     val sqlQuery = "SELECT * FROM A RIGHT JOIN B ON a1 = b1 JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_FullJoin1(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultiJoin_FullJoin2(): Unit = {
     val sqlQuery = "SELECT * FROM A FULL OUTER JOIN B ON a1 = b1 FULL OUTER JOIN C ON a1 = c1"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

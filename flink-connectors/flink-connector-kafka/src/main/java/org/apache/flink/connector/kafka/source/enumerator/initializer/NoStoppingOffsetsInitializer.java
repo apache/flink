@@ -34,19 +34,19 @@ import java.util.Map;
  */
 @Internal
 public class NoStoppingOffsetsInitializer implements OffsetsInitializer {
-	private static final long serialVersionUID = 4186323669290142732L;
+    private static final long serialVersionUID = 4186323669290142732L;
 
-	@Override
-	public Map<TopicPartition, Long> getPartitionOffsets(
-			Collection<TopicPartition> partitions,
-			PartitionOffsetsRetriever partitionOffsetsRetriever) {
-		return Collections.emptyMap();
-	}
+    @Override
+    public Map<TopicPartition, Long> getPartitionOffsets(
+            Collection<TopicPartition> partitions,
+            PartitionOffsetsRetriever partitionOffsetsRetriever) {
+        return Collections.emptyMap();
+    }
 
-	@Override
-	public OffsetResetStrategy getAutoOffsetResetStrategy() {
-		throw new UnsupportedOperationException(
-			"The NoStoppingOffsetsInitializer does not have an OffsetResetStrategy. It should only be used " +
-				"to end offset.");
-	}
+    @Override
+    public OffsetResetStrategy getAutoOffsetResetStrategy() {
+        throw new UnsupportedOperationException(
+                "The NoStoppingOffsetsInitializer does not have an OffsetResetStrategy. It should only be used "
+                        + "to end offset.");
+    }
 }

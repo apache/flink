@@ -20,23 +20,25 @@ package org.apache.flink.api.common.resources;
 
 import java.math.BigDecimal;
 
-/**
- * Test implementation for {@link Resource}.
- */
+/** Test implementation for {@link Resource}. */
 public class TestResource extends Resource {
 
-	public static final String NAME = "TestResource";
+    public static final String NAME = "TestResource";
 
-	public TestResource(final double value) {
-		super(NAME, value);
-	}
+    public TestResource(final double value) {
+        super(NAME, value);
+    }
 
-	public TestResource(final BigDecimal value) {
-		super(NAME, value);
-	}
+    public TestResource(final BigDecimal value) {
+        super(NAME, value);
+    }
 
-	@Override
-	public Resource create(BigDecimal value) {
-		return new TestResource(value);
-	}
+    public TestResource(final String name, final double value) {
+        super(name, value);
+    }
+
+    @Override
+    public Resource create(BigDecimal value) {
+        return new TestResource(value);
+    }
 }

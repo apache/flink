@@ -21,33 +21,32 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Set;
 
-/**
- * Encapsulates all settings that are defined per reporter.
- */
+/** Encapsulates all settings that are defined per reporter. */
 public class ReporterScopedSettings {
 
-	private final int reporterIndex;
+    private final int reporterIndex;
 
-	private final char delimiter;
+    private final char delimiter;
 
-	private Set<String> excludedVariables;
+    private Set<String> excludedVariables;
 
-	public ReporterScopedSettings(int reporterIndex, char delimiter, Set<String> excludedVariables) {
-		this.excludedVariables = excludedVariables;
-		Preconditions.checkArgument(reporterIndex >= 0);
-		this.reporterIndex = reporterIndex;
-		this.delimiter = delimiter;
-	}
+    public ReporterScopedSettings(
+            int reporterIndex, char delimiter, Set<String> excludedVariables) {
+        this.excludedVariables = excludedVariables;
+        Preconditions.checkArgument(reporterIndex >= 0);
+        this.reporterIndex = reporterIndex;
+        this.delimiter = delimiter;
+    }
 
-	public int getReporterIndex() {
-		return reporterIndex;
-	}
+    public int getReporterIndex() {
+        return reporterIndex;
+    }
 
-	public char getDelimiter() {
-		return delimiter;
-	}
+    public char getDelimiter() {
+        return delimiter;
+    }
 
-	public Set<String> getExcludedVariables() {
-		return excludedVariables;
-	}
+    public Set<String> getExcludedVariables() {
+        return excludedVariables;
+    }
 }

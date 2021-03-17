@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM testCatalog.`default`.testTable GROUP BY TUMBLE(proctime, INTERVAL '10' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
@@ -30,19 +30,19 @@ LogicalProject(EXPR$0=[$1])
             +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, proctime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[proctime])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
          +- Calc(select=[PROCTIME() AS proctime, rowtime])
             +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = true]">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
@@ -52,19 +52,19 @@ LogicalProject(EXPR$0=[$0])
             +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[COUNT($f3) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[count, rowtime, proctime, 1 AS $f3])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
          +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
             +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testResolvingProctimeOfCustomTableTableApi[streamingMode = true]">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, proctime, 600000)], properties=[])
@@ -74,12 +74,12 @@ LogicalProject(EXPR$0=[$0])
             +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=[COUNT($f3) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[count, rowtime, proctime, 1 AS $f3])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
          +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
             +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
 ]]>
@@ -89,7 +89,7 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 600000)], select=
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
@@ -97,7 +97,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
@@ -110,7 +110,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
@@ -120,17 +120,17 @@ LogicalProject(EXPR$0=[$1])
             +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
       +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = false]">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($3)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
@@ -138,7 +138,7 @@ LogicalProject(EXPR$0=[$0])
       +- LogicalTableScan(table=[[testCatalog, default, testTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])

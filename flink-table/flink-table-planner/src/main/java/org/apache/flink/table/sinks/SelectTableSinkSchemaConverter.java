@@ -24,33 +24,31 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
-/**
- * An utility class that provides abilities to change {@link TableSchema}.
- */
+/** An utility class that provides abilities to change {@link TableSchema}. */
 class SelectTableSinkSchemaConverter {
 
-	/**
-	 * Convert time attributes (proc time / event time) to normal timestamps,
-	 * and return a new {@link TableSchema}.
-	 */
-	static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
-		DataType[] oldTypes = tableSchema.getFieldDataTypes();
-		String[] oldNames = tableSchema.getFieldNames();
+    /**
+     * Convert time attributes (proc time / event time) to normal timestamps, and return a new
+     * {@link TableSchema}.
+     */
+    static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
+        DataType[] oldTypes = tableSchema.getFieldDataTypes();
+        String[] oldNames = tableSchema.getFieldNames();
 
-		TableSchema.Builder builder = TableSchema.builder();
-		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
-			DataType fieldType = oldTypes[i];
-			String fieldName = oldNames[i];
-			if (fieldType.getLogicalType() instanceof TimestampType) {
-				TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
-				if (!timestampType.getKind().equals(TimestampKind.REGULAR)) {
-					// converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP`
-					builder.field(fieldName, Types.SQL_TIMESTAMP);
-					continue;
-				}
-			}
-			builder.field(fieldName, fieldType);
-		}
-		return builder.build();
-	}
+        TableSchema.Builder builder = TableSchema.builder();
+        for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+            DataType fieldType = oldTypes[i];
+            String fieldName = oldNames[i];
+            if (fieldType.getLogicalType() instanceof TimestampType) {
+                TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
+                if (!timestampType.getKind().equals(TimestampKind.REGULAR)) {
+                    // converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP`
+                    builder.field(fieldName, Types.SQL_TIMESTAMP);
+                    continue;
+                }
+            }
+            builder.field(fieldName, fieldType);
+        }
+        return builder.build();
+    }
 }

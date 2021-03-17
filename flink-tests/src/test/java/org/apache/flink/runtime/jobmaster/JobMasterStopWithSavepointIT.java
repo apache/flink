@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -44,6 +45,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -73,351 +75,372 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * ITCases testing the stop with savepoint functionality.
- * This includes checking both SUSPEND and TERMINATE.
+ * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
+ * TERMINATE.
  */
+@Ignore("broken test; see FLINK-21031")
 public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	private static final long CHECKPOINT_INTERVAL = 10;
-	private static final int PARALLELISM = 2;
-
-	private static OneShotLatch finishingLatch;
-
-	private static CountDownLatch invokeLatch;
-
-	private static CountDownLatch numberOfRestarts;
-	private static AtomicLong syncSavepointId = new AtomicLong();
-	private static volatile CountDownLatch checkpointsToWaitFor;
-
-
-	private Path savepointDirectory;
-	private MiniClusterClient clusterClient;
-
-	private JobGraph jobGraph;
-
-	@Test(timeout = 5000)
-	public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished() throws Exception {
-		stopWithSavepointNormalExecutionHelper(false);
-	}
-
-	@Test(timeout = 5000)
-	public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished() throws Exception {
-		stopWithSavepointNormalExecutionHelper(true);
-	}
-
-	private void stopWithSavepointNormalExecutionHelper(final boolean terminate) throws Exception {
-		setUpJobGraph(NoOpBlockingStreamTask.class, RestartStrategies.noRestart());
-
-		final CompletableFuture<String> savepointLocationFuture = stopWithSavepoint(terminate);
-
-		assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
-
-		finishingLatch.trigger();
-
-		final String savepointLocation = savepointLocationFuture.get();
-		assertThat(getJobStatus(), equalTo(JobStatus.FINISHED));
-
-		final List<Path> savepoints;
-		try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
-			savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
-		}
-		assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
-	}
-
-	@Test(timeout = 5000)
-	public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
-		throwingExceptionOnCallbackWithoutRestartsHelper(false);
-	}
-
-	@Test(timeout = 5000)
-	public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheTerminate() throws Exception {
-		throwingExceptionOnCallbackWithoutRestartsHelper(true);
-	}
-
-	private void throwingExceptionOnCallbackWithoutRestartsHelper(final boolean terminate) throws Exception {
-		setUpJobGraph(ExceptionOnCallbackStreamTask.class, RestartStrategies.noRestart());
-
-		assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
-
-		try {
-			stopWithSavepoint(terminate).get();
-			fail();
-		} catch (Exception e) {
-			// expected
-		}
-
-		// verifying that we actually received a synchronous checkpoint
-		assertTrue(syncSavepointId.get() > 0);
-		assertThat(getJobStatus(), equalTo(JobStatus.FAILED));
-	}
-
-	@Test(timeout = 5000)
-	public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInSuspend() throws Exception {
-		throwingExceptionOnCallbackWithRestartsHelper(false);
-	}
-
-	@Test(timeout = 5000)
-	public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInTerminate() throws Exception {
-		throwingExceptionOnCallbackWithRestartsHelper(true);
-	}
-
-	private void throwingExceptionOnCallbackWithRestartsHelper(final boolean terminate) throws Exception {
-		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
-		final int numberOfCheckpointsToExpect = 10;
-
-		numberOfRestarts = new CountDownLatch(2);
-		checkpointsToWaitFor = new CountDownLatch(numberOfCheckpointsToExpect);
-
-		setUpJobGraph(ExceptionOnCallbackStreamTask.class, RestartStrategies.fixedDelayRestart(15, Time.milliseconds(10)));
-		assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
-		try {
-			stopWithSavepoint(terminate).get(50, TimeUnit.MILLISECONDS);
-			fail();
-		} catch (Exception e) {
-			// expected
-		}
-
-		// wait until we restart at least 2 times and until we see at least 10 checkpoints.
-		assertTrue(numberOfRestarts.await(deadline.timeLeft().toMillis(),
-			TimeUnit.MILLISECONDS));
-		assertTrue(checkpointsToWaitFor.await(deadline.timeLeft().toMillis(),
-			TimeUnit.MILLISECONDS));
-
-		// verifying that we actually received a synchronous checkpoint
-		assertTrue(syncSavepointId.get() > 0);
-
-		assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
-
-		// make sure that we saw the synchronous savepoint and
-		// that after that we saw more checkpoints due to restarts.
-		final long syncSavepoint = syncSavepointId.get();
-		assertTrue(syncSavepoint > 0 && syncSavepoint < numberOfCheckpointsToExpect);
-
-		clusterClient.cancel(jobGraph.getJobID()).get();
-		assertThat(getJobStatus(), either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
-	}
-
-	@Test
-	public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
-		setUpJobGraph(CheckpointCountingTask.class, RestartStrategies.noRestart());
-
-		try {
-			Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
-		} catch (IOException e) {
-			Assume.assumeNoException(e);
-		}
-
-		try {
-			stopWithSavepoint(true).get();
-			fail();
-		} catch (Exception e) {
-			Optional<CheckpointException> checkpointExceptionOptional = ExceptionUtils.findThrowable(e, CheckpointException.class);
-			if (!checkpointExceptionOptional.isPresent()) {
-				throw e;
-			}
-			String exceptionMessage = checkpointExceptionOptional.get().getMessage();
-			assertTrue("Stop with savepoint failed because of another cause " + exceptionMessage, exceptionMessage.contains("Failed to trigger savepoint") && exceptionMessage.contains(CheckpointFailureReason.EXCEPTION.message()));
-		}
-
-		final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-		assertThat(jobStatus, equalTo(JobStatus.RUNNING));
-		// assert that checkpoints are continued to be triggered
-		checkpointsToWaitFor = new CountDownLatch(1);
-		assertTrue(checkpointsToWaitFor.await(60L, TimeUnit.SECONDS));
-	}
-
-	private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
-		return miniClusterResource.getMiniCluster().stopWithSavepoint(
-				jobGraph.getJobID(),
-				savepointDirectory.toAbsolutePath().toString(),
-				terminate);
-	}
-
-	private JobStatus getJobStatus() throws InterruptedException, ExecutionException {
-		return clusterClient.getJobStatus(jobGraph.getJobID()).get();
-	}
-
-	private void setUpJobGraph(
-			final Class<? extends AbstractInvokable> invokable,
-			final RestartStrategies.RestartStrategyConfiguration restartStrategy) throws Exception {
-
-		finishingLatch = new OneShotLatch();
-
-		invokeLatch = new CountDownLatch(PARALLELISM);
-
-		numberOfRestarts = new CountDownLatch(2);
-		checkpointsToWaitFor = new CountDownLatch(10);
-
-		syncSavepointId.set(-1);
-
-		savepointDirectory = temporaryFolder.newFolder().toPath();
-
-		Assume.assumeTrue(
-				"ClusterClient is not an instance of MiniClusterClient",
-				miniClusterResource.getClusterClient() instanceof MiniClusterClient);
-
-		clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
-
-		jobGraph = new JobGraph();
-
-		final ExecutionConfig config = new ExecutionConfig();
-		config.setRestartStrategy(restartStrategy);
-		jobGraph.setExecutionConfig(config);
-
-		final JobVertex vertex = new JobVertex("testVertex");
-		vertex.setInvokableClass(invokable);
-		vertex.setParallelism(PARALLELISM);
-		jobGraph.addVertex(vertex);
-
-		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
-				Collections.singletonList(vertex.getID()),
-				Collections.singletonList(vertex.getID()),
-				Collections.singletonList(vertex.getID()),
-				new CheckpointCoordinatorConfiguration(
-						CHECKPOINT_INTERVAL,
-						60_000,
-						10,
-						1,
-						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-						true,
-						false,
-						false,
-						0),
-				null));
-
-		clusterClient.submitJob(jobGraph).get();
-		assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
-		waitForJob();
-	}
-
-	private void waitForJob() throws Exception {
-		for (int i = 0; i < 60; i++) {
-			try {
-				final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-				assertThat(jobStatus.isGloballyTerminalState(), equalTo(false));
-				if (jobStatus == JobStatus.RUNNING) {
-					return;
-				}
-			} catch (ExecutionException ignored) {
-				// JobManagerRunner is not yet registered in Dispatcher
-			}
-			Thread.sleep(1000);
-		}
-		throw new AssertionError("Job did not become running within timeout.");
-	}
-
-	/**
-	 * A {@link StreamTask} which throws an exception in the {@code notifyCheckpointComplete()} for subtask 0.
-	 */
-	public static class ExceptionOnCallbackStreamTask extends CheckpointCountingTask {
-
-		private long synchronousSavepointId = Long.MIN_VALUE;
-
-		public ExceptionOnCallbackStreamTask(final Environment environment) throws Exception {
-			super(environment);
-		}
-
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-			if (taskIndex == 0) {
-				numberOfRestarts.countDown();
-			}
-			super.processInput(controller);
-		}
-
-		@Override
-		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
-			final long checkpointId = checkpointMetaData.getCheckpointId();
-			final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-
-			if (checkpointType == CheckpointType.SYNC_SAVEPOINT) {
-				synchronousSavepointId = checkpointId;
-				syncSavepointId.compareAndSet(-1, synchronousSavepointId);
-			}
-
-			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
-		}
-
-		@Override
-		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-			if (checkpointId == synchronousSavepointId && taskIndex == 0) {
-				throw new RuntimeException("Expected Exception");
-			}
-
-			return super.notifyCheckpointCompleteAsync(checkpointId);
-		}
-
-		@Override
-		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
-			return CompletableFuture.completedFuture(null);
-		}
-	}
-
-	/**
-	 * A {@link StreamTask} that simply waits to be terminated normally.
-	 */
-	public static class NoOpBlockingStreamTask extends NoOpStreamTask {
-
-		private final transient OneShotLatch finishLatch;
-
-		public NoOpBlockingStreamTask(final Environment environment) throws Exception {
-			super(environment);
-			this.finishLatch = new OneShotLatch();
-		}
-
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			invokeLatch.countDown();
-			finishLatch.await();
-			controller.allActionsCompleted();
-		}
-
-		@Override
-		public void finishTask() throws Exception {
-			finishingLatch.await();
-			finishLatch.trigger();
-		}
-	}
-
-	/**
-	 * A {@link StreamTask} that simply calls {@link CountDownLatch#countDown()} when
-	 * invoking {@link #triggerCheckpointAsync}.
-	 */
-	public static class CheckpointCountingTask extends NoOpStreamTask {
-
-		private final transient OneShotLatch finishLatch;
-
-		public CheckpointCountingTask(final Environment environment) throws Exception {
-			super(environment);
-			this.finishLatch = new OneShotLatch();
-		}
-
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			invokeLatch.countDown();
-			finishLatch.await();
-			controller.allActionsCompleted();
-		}
-
-		@Override
-		protected void cancelTask() throws Exception {
-			super.cancelTask();
-			finishLatch.trigger();
-		}
-
-		@Override
-		public Future<Boolean> triggerCheckpointAsync(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions, final boolean advanceToEndOfEventTime) {
-			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-			if (taskIndex == 0) {
-				checkpointsToWaitFor.countDown();
-			}
-
-			return CompletableFuture.completedFuture(true);
-		}
-	}
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    private static final long CHECKPOINT_INTERVAL = 10;
+    private static final int PARALLELISM = 2;
+
+    private static OneShotLatch finishingLatch;
+
+    private static CountDownLatch invokeLatch;
+
+    private static CountDownLatch numberOfRestarts;
+    private static AtomicLong syncSavepointId = new AtomicLong();
+    private static volatile CountDownLatch checkpointsToWaitFor;
+
+    private Path savepointDirectory;
+    private MiniClusterClient clusterClient;
+
+    private JobGraph jobGraph;
+
+    @Test(timeout = 5000)
+    public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
+            throws Exception {
+        stopWithSavepointNormalExecutionHelper(false);
+    }
+
+    @Test(timeout = 5000)
+    public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
+            throws Exception {
+        stopWithSavepointNormalExecutionHelper(true);
+    }
+
+    private void stopWithSavepointNormalExecutionHelper(final boolean terminate) throws Exception {
+        setUpJobGraph(NoOpBlockingStreamTask.class, RestartStrategies.noRestart());
+
+        final CompletableFuture<String> savepointLocationFuture = stopWithSavepoint(terminate);
+
+        assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
+
+        finishingLatch.trigger();
+
+        final String savepointLocation = savepointLocationFuture.get();
+        assertThat(getJobStatus(), equalTo(JobStatus.FINISHED));
+
+        final List<Path> savepoints;
+        try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
+            savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
+        }
+        assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
+    }
+
+    @Test(timeout = 5000)
+    public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
+        throwingExceptionOnCallbackWithoutRestartsHelper(false);
+    }
+
+    @Test(timeout = 5000)
+    public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheTerminate() throws Exception {
+        throwingExceptionOnCallbackWithoutRestartsHelper(true);
+    }
+
+    private void throwingExceptionOnCallbackWithoutRestartsHelper(final boolean terminate)
+            throws Exception {
+        setUpJobGraph(ExceptionOnCallbackStreamTask.class, RestartStrategies.noRestart());
+
+        assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
+
+        try {
+            stopWithSavepoint(terminate).get();
+            fail();
+        } catch (Exception e) {
+            // expected
+        }
+
+        // verifying that we actually received a synchronous checkpoint
+        assertTrue(syncSavepointId.get() > 0);
+        assertThat(getJobStatus(), equalTo(JobStatus.FAILED));
+    }
+
+    @Test(timeout = 5000)
+    public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInSuspend()
+            throws Exception {
+        throwingExceptionOnCallbackWithRestartsHelper(false);
+    }
+
+    @Test(timeout = 5000)
+    public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInTerminate()
+            throws Exception {
+        throwingExceptionOnCallbackWithRestartsHelper(true);
+    }
+
+    private void throwingExceptionOnCallbackWithRestartsHelper(final boolean terminate)
+            throws Exception {
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+        final int numberOfCheckpointsToExpect = 10;
+
+        numberOfRestarts = new CountDownLatch(2);
+        checkpointsToWaitFor = new CountDownLatch(numberOfCheckpointsToExpect);
+
+        setUpJobGraph(
+                ExceptionOnCallbackStreamTask.class,
+                RestartStrategies.fixedDelayRestart(15, Time.milliseconds(10)));
+        assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
+        try {
+            stopWithSavepoint(terminate).get(50, TimeUnit.MILLISECONDS);
+            fail();
+        } catch (Exception e) {
+            // expected
+        }
+
+        // wait until we restart at least 2 times and until we see at least 10 checkpoints.
+        assertTrue(numberOfRestarts.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        assertTrue(
+                checkpointsToWaitFor.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+
+        // verifying that we actually received a synchronous checkpoint
+        assertTrue(syncSavepointId.get() > 0);
+
+        assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
+
+        // make sure that we saw the synchronous savepoint and
+        // that after that we saw more checkpoints due to restarts.
+        final long syncSavepoint = syncSavepointId.get();
+        assertTrue(syncSavepoint > 0 && syncSavepoint < numberOfCheckpointsToExpect);
+
+        clusterClient.cancel(jobGraph.getJobID()).get();
+        assertThat(
+                getJobStatus(),
+                either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
+    }
+
+    @Test
+    public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
+        setUpJobGraph(CheckpointCountingTask.class, RestartStrategies.noRestart());
+
+        try {
+            Files.setPosixFilePermissions(savepointDirectory, Collections.emptySet());
+        } catch (IOException e) {
+            Assume.assumeNoException(e);
+        }
+
+        try {
+            stopWithSavepoint(true).get();
+            fail();
+        } catch (Exception e) {
+            Optional<CheckpointException> checkpointExceptionOptional =
+                    ExceptionUtils.findThrowable(e, CheckpointException.class);
+            if (!checkpointExceptionOptional.isPresent()) {
+                throw e;
+            }
+            String exceptionMessage = checkpointExceptionOptional.get().getMessage();
+            assertTrue(
+                    "Stop with savepoint failed because of another cause " + exceptionMessage,
+                    exceptionMessage.contains("Failed to trigger savepoint")
+                            && exceptionMessage.contains(
+                                    CheckpointFailureReason.EXCEPTION.message()));
+        }
+
+        final JobStatus jobStatus =
+                clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
+        assertThat(jobStatus, equalTo(JobStatus.RUNNING));
+        // assert that checkpoints are continued to be triggered
+        checkpointsToWaitFor = new CountDownLatch(1);
+        assertTrue(checkpointsToWaitFor.await(60L, TimeUnit.SECONDS));
+    }
+
+    private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
+        return miniClusterResource
+                .getMiniCluster()
+                .stopWithSavepoint(
+                        jobGraph.getJobID(),
+                        savepointDirectory.toAbsolutePath().toString(),
+                        terminate);
+    }
+
+    private JobStatus getJobStatus() throws InterruptedException, ExecutionException {
+        return clusterClient.getJobStatus(jobGraph.getJobID()).get();
+    }
+
+    private void setUpJobGraph(
+            final Class<? extends AbstractInvokable> invokable,
+            final RestartStrategies.RestartStrategyConfiguration restartStrategy)
+            throws Exception {
+
+        finishingLatch = new OneShotLatch();
+
+        invokeLatch = new CountDownLatch(PARALLELISM);
+
+        numberOfRestarts = new CountDownLatch(2);
+        checkpointsToWaitFor = new CountDownLatch(10);
+
+        syncSavepointId.set(-1);
+
+        savepointDirectory = temporaryFolder.newFolder().toPath();
+
+        Assume.assumeTrue(
+                "ClusterClient is not an instance of MiniClusterClient",
+                miniClusterResource.getClusterClient() instanceof MiniClusterClient);
+
+        clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
+
+        final ExecutionConfig config = new ExecutionConfig();
+        config.setRestartStrategy(restartStrategy);
+
+        final JobVertex vertex = new JobVertex("testVertex");
+        vertex.setInvokableClass(invokable);
+        vertex.setParallelism(PARALLELISM);
+
+        final JobCheckpointingSettings jobCheckpointingSettings =
+                new JobCheckpointingSettings(
+                        new CheckpointCoordinatorConfiguration(
+                                CHECKPOINT_INTERVAL,
+                                60_000,
+                                10,
+                                1,
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+                                true,
+                                false,
+                                false,
+                                0),
+                        null);
+
+        jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setExecutionConfig(config)
+                        .addJobVertex(vertex)
+                        .setJobCheckpointingSettings(jobCheckpointingSettings)
+                        .build();
+
+        clusterClient.submitJob(jobGraph).get();
+        assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
+        waitForJob();
+    }
+
+    private void waitForJob() throws Exception {
+        for (int i = 0; i < 60; i++) {
+            try {
+                final JobStatus jobStatus =
+                        clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
+                assertThat(jobStatus.isGloballyTerminalState(), equalTo(false));
+                if (jobStatus == JobStatus.RUNNING) {
+                    return;
+                }
+            } catch (ExecutionException ignored) {
+                // JobManagerRunner is not yet registered in Dispatcher
+            }
+            Thread.sleep(1000);
+        }
+        throw new AssertionError("Job did not become running within timeout.");
+    }
+
+    /**
+     * A {@link StreamTask} which throws an exception in the {@code notifyCheckpointComplete()} for
+     * subtask 0.
+     */
+    public static class ExceptionOnCallbackStreamTask extends CheckpointCountingTask {
+
+        private long synchronousSavepointId = Long.MIN_VALUE;
+
+        public ExceptionOnCallbackStreamTask(final Environment environment) throws Exception {
+            super(environment);
+        }
+
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+            if (taskIndex == 0) {
+                numberOfRestarts.countDown();
+            }
+            super.processInput(controller);
+        }
+
+        @Override
+        public Future<Boolean> triggerCheckpointAsync(
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+            final long checkpointId = checkpointMetaData.getCheckpointId();
+            final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+
+            if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
+                synchronousSavepointId = checkpointId;
+                syncSavepointId.compareAndSet(-1, synchronousSavepointId);
+            }
+
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
+        }
+
+        @Override
+        public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+            final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+            if (checkpointId == synchronousSavepointId && taskIndex == 0) {
+                throw new RuntimeException("Expected Exception");
+            }
+
+            return super.notifyCheckpointCompleteAsync(checkpointId);
+        }
+
+        @Override
+        public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** A {@link StreamTask} that simply waits to be terminated normally. */
+    public static class NoOpBlockingStreamTask extends NoOpStreamTask {
+
+        private final transient OneShotLatch finishLatch;
+
+        public NoOpBlockingStreamTask(final Environment environment) throws Exception {
+            super(environment);
+            this.finishLatch = new OneShotLatch();
+        }
+
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            invokeLatch.countDown();
+            finishLatch.await();
+            controller.allActionsCompleted();
+        }
+
+        @Override
+        public void finishTask() throws Exception {
+            finishingLatch.await();
+            finishLatch.trigger();
+        }
+    }
+
+    /**
+     * A {@link StreamTask} that simply calls {@link CountDownLatch#countDown()} when invoking
+     * {@link #triggerCheckpointAsync}.
+     */
+    public static class CheckpointCountingTask extends NoOpStreamTask {
+
+        private final transient OneShotLatch finishLatch;
+
+        public CheckpointCountingTask(final Environment environment) throws Exception {
+            super(environment);
+            this.finishLatch = new OneShotLatch();
+        }
+
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            invokeLatch.countDown();
+            finishLatch.await();
+            controller.allActionsCompleted();
+        }
+
+        @Override
+        protected void cancelTask() throws Exception {
+            super.cancelTask();
+            finishLatch.trigger();
+        }
+
+        @Override
+        public Future<Boolean> triggerCheckpointAsync(
+                final CheckpointMetaData checkpointMetaData,
+                final CheckpointOptions checkpointOptions) {
+            final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+            if (taskIndex == 0) {
+                checkpointsToWaitFor.countDown();
+            }
+
+            return CompletableFuture.completedFuture(true);
+        }
+    }
 }

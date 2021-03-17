@@ -20,22 +20,20 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link PrimitiveArrayTypeInfoTest}.
- */
+/** Test for {@link PrimitiveArrayTypeInfoTest}. */
 public class PrimitiveArrayTypeInfoTest extends TypeInformationTestBase<PrimitiveArrayTypeInfo<?>> {
 
-	@Override
-	protected PrimitiveArrayTypeInfo<?>[] getTestData() {
-		return new PrimitiveArrayTypeInfo<?>[] {
-			PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-			PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO
-		};
-	}
+    @Override
+    protected PrimitiveArrayTypeInfo<?>[] getTestData() {
+        return new PrimitiveArrayTypeInfo<?>[] {
+            PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+            PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO
+        };
+    }
 }

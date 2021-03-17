@@ -40,198 +40,204 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Fix for {@link LongValue#hashCode()}.
- */
+/** Fix for {@link LongValue#hashCode()}. */
 @TypeInfo(LongValueWithProperHashCode.LongValueWithProperHashCodeTypeInfoFactory.class)
-public class LongValueWithProperHashCode
-extends LongValue {
+public class LongValueWithProperHashCode extends LongValue {
 
-	@Override
-	public int hashCode() {
-		return (int) (this.getValue() ^ this.getValue() >>> 32);
-	}
+    @Override
+    public int hashCode() {
+        return (int) (this.getValue() ^ this.getValue() >>> 32);
+    }
 
-	/**
-	 * Initializes the encapsulated long with 0.
-	 */
-	public LongValueWithProperHashCode() {
-		super();
-	}
+    /** Initializes the encapsulated long with 0. */
+    public LongValueWithProperHashCode() {
+        super();
+    }
 
-	/**
-	 * Initializes the encapsulated long with the specified value.
-	 *
-	 * @param value Initial value of the encapsulated long.
-	 */
-	public LongValueWithProperHashCode(final long value) {
-		super(value);
-	}
+    /**
+     * Initializes the encapsulated long with the specified value.
+     *
+     * @param value Initial value of the encapsulated long.
+     */
+    public LongValueWithProperHashCode(final long value) {
+        super(value);
+    }
 
-	/**
-	 * Used by {@link TypeExtractor} to create a {@link TypeInformation} for
-	 * {@link LongValueWithProperHashCode}.
-	 */
-	public static class LongValueWithProperHashCodeTypeInfoFactory extends TypeInfoFactory<LongValueWithProperHashCode> {
-		@Override
-		public TypeInformation<LongValueWithProperHashCode> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-			@SuppressWarnings("unchecked")
-			TypeInformation<LongValueWithProperHashCode> typeInfo = new LongValueWithProperHashCodeTypeInfo();
+    /**
+     * Used by {@link TypeExtractor} to create a {@link TypeInformation} for {@link
+     * LongValueWithProperHashCode}.
+     */
+    public static class LongValueWithProperHashCodeTypeInfoFactory
+            extends TypeInfoFactory<LongValueWithProperHashCode> {
+        @Override
+        public TypeInformation<LongValueWithProperHashCode> createTypeInfo(
+                Type t, Map<String, TypeInformation<?>> genericParameters) {
+            @SuppressWarnings("unchecked")
+            TypeInformation<LongValueWithProperHashCode> typeInfo =
+                    new LongValueWithProperHashCodeTypeInfo();
 
-			return typeInfo;
-		}
-	}
+            return typeInfo;
+        }
+    }
 
-	/**
-	 * A {@link TypeInformation} for the {@link LongValueWithProperHashCode} type.
-	 *
-	 * @see org.apache.flink.api.java.typeutils.ValueTypeInfo#LONG_VALUE_TYPE_INFO
-	 */
-	public static class LongValueWithProperHashCodeTypeInfo extends TypeInformation<LongValueWithProperHashCode> implements AtomicType<LongValueWithProperHashCode> {
-		private static final long serialVersionUID = 1L;
+    /**
+     * A {@link TypeInformation} for the {@link LongValueWithProperHashCode} type.
+     *
+     * @see org.apache.flink.api.java.typeutils.ValueTypeInfo#LONG_VALUE_TYPE_INFO
+     */
+    public static class LongValueWithProperHashCodeTypeInfo
+            extends TypeInformation<LongValueWithProperHashCode>
+            implements AtomicType<LongValueWithProperHashCode> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public int getArity() {
-			return 1;
-		}
+        @Override
+        public int getArity() {
+            return 1;
+        }
 
-		@Override
-		public int getTotalFields() {
-			return 1;
-		}
+        @Override
+        public int getTotalFields() {
+            return 1;
+        }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		public Class<LongValueWithProperHashCode> getTypeClass() {
-			return LongValueWithProperHashCode.class;
-		}
+        @SuppressWarnings("unchecked")
+        @Override
+        public Class<LongValueWithProperHashCode> getTypeClass() {
+            return LongValueWithProperHashCode.class;
+        }
 
-		@Override
-		public boolean isBasicType() {
-			return false;
-		}
+        @Override
+        public boolean isBasicType() {
+            return false;
+        }
 
-		@Override
-		public boolean isTupleType() {
-			return false;
-		}
+        @Override
+        public boolean isTupleType() {
+            return false;
+        }
 
-		@Override
-		public boolean isKeyType() {
-			return Comparable.class.isAssignableFrom(LongValueWithProperHashCode.class);
-		}
+        @Override
+        public boolean isKeyType() {
+            return Comparable.class.isAssignableFrom(LongValueWithProperHashCode.class);
+        }
 
-		@Override
-		@SuppressWarnings("unchecked")
-		public TypeSerializer<LongValueWithProperHashCode> createSerializer(ExecutionConfig executionConfig) {
-			return new LongValueWithProperHashCodeSerializer();
-		}
+        @Override
+        @SuppressWarnings("unchecked")
+        public TypeSerializer<LongValueWithProperHashCode> createSerializer(
+                ExecutionConfig executionConfig) {
+            return new LongValueWithProperHashCodeSerializer();
+        }
 
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		@Override
-		public TypeComparator<LongValueWithProperHashCode> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
-			return (TypeComparator<LongValueWithProperHashCode>) (TypeComparator<?>) new LongValueComparator(sortOrderAscending);
-		}
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        @Override
+        public TypeComparator<LongValueWithProperHashCode> createComparator(
+                boolean sortOrderAscending, ExecutionConfig executionConfig) {
+            return (TypeComparator<LongValueWithProperHashCode>)
+                    (TypeComparator<?>) new LongValueComparator(sortOrderAscending);
+        }
 
-		@Override
-		public Map<String, TypeInformation<?>> getGenericParameters() {
-			return Collections.emptyMap();
-		}
+        @Override
+        public Map<String, TypeInformation<?>> getGenericParameters() {
+            return Collections.emptyMap();
+        }
 
-		// --------------------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------------------
 
-		@Override
-		public int hashCode() {
-			return 0;
-		}
+        @Override
+        public int hashCode() {
+            return 0;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof LongValueWithProperHashCodeTypeInfo;
-		}
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof LongValueWithProperHashCodeTypeInfo;
+        }
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof LongValueWithProperHashCodeTypeInfo;
-		}
+        @Override
+        public boolean canEqual(Object obj) {
+            return obj instanceof LongValueWithProperHashCodeTypeInfo;
+        }
 
-		@Override
-		public String toString() {
-			return LongValueWithProperHashCodeTypeInfo.class.getSimpleName();
-		}
-	}
+        @Override
+        public String toString() {
+            return LongValueWithProperHashCodeTypeInfo.class.getSimpleName();
+        }
+    }
 
-	/**
-	 * Serializer for {@link LongValueWithProperHashCode}.
-	 *
-	 * @see org.apache.flink.api.common.typeutils.base.LongValueSerializer
-	 */
-	public static final class LongValueWithProperHashCodeSerializer extends TypeSerializerSingleton<LongValueWithProperHashCode> {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Serializer for {@link LongValueWithProperHashCode}.
+     *
+     * @see org.apache.flink.api.common.typeutils.base.LongValueSerializer
+     */
+    public static final class LongValueWithProperHashCodeSerializer
+            extends TypeSerializerSingleton<LongValueWithProperHashCode> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
+        @Override
+        public boolean isImmutableType() {
+            return false;
+        }
 
-		@Override
-		public LongValueWithProperHashCode createInstance() {
-			return new LongValueWithProperHashCode();
-		}
+        @Override
+        public LongValueWithProperHashCode createInstance() {
+            return new LongValueWithProperHashCode();
+        }
 
-		@Override
-		public LongValueWithProperHashCode copy(LongValueWithProperHashCode from) {
-			return copy(from, new LongValueWithProperHashCode());
-		}
+        @Override
+        public LongValueWithProperHashCode copy(LongValueWithProperHashCode from) {
+            return copy(from, new LongValueWithProperHashCode());
+        }
 
-		@Override
-		public LongValueWithProperHashCode copy(LongValueWithProperHashCode from, LongValueWithProperHashCode reuse) {
-			reuse.setValue(from.getValue());
-			return reuse;
-		}
+        @Override
+        public LongValueWithProperHashCode copy(
+                LongValueWithProperHashCode from, LongValueWithProperHashCode reuse) {
+            reuse.setValue(from.getValue());
+            return reuse;
+        }
 
-		@Override
-		public int getLength() {
-			return 8;
-		}
+        @Override
+        public int getLength() {
+            return 8;
+        }
 
-		@Override
-		public void serialize(LongValueWithProperHashCode record, DataOutputView target) throws IOException {
-			record.write(target);
-		}
+        @Override
+        public void serialize(LongValueWithProperHashCode record, DataOutputView target)
+                throws IOException {
+            record.write(target);
+        }
 
-		@Override
-		public LongValueWithProperHashCode deserialize(DataInputView source) throws IOException {
-			return deserialize(new LongValueWithProperHashCode(), source);
-		}
+        @Override
+        public LongValueWithProperHashCode deserialize(DataInputView source) throws IOException {
+            return deserialize(new LongValueWithProperHashCode(), source);
+        }
 
-		@Override
-		public LongValueWithProperHashCode deserialize(LongValueWithProperHashCode reuse, DataInputView source) throws IOException {
-			reuse.read(source);
-			return reuse;
-		}
+        @Override
+        public LongValueWithProperHashCode deserialize(
+                LongValueWithProperHashCode reuse, DataInputView source) throws IOException {
+            reuse.read(source);
+            return reuse;
+        }
 
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			target.writeLong(source.readLong());
-		}
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            target.writeLong(source.readLong());
+        }
 
-		// -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------
 
-		@Override
-		public TypeSerializerSnapshot<LongValueWithProperHashCode> snapshotConfiguration() {
-			return new LongValueWithProperHashCodeSerializerSnapshot();
-		}
+        @Override
+        public TypeSerializerSnapshot<LongValueWithProperHashCode> snapshotConfiguration() {
+            return new LongValueWithProperHashCodeSerializerSnapshot();
+        }
 
-		/**
-		 * Serializer configuration snapshot for compatibility and format evolution.
-		 */
-		@SuppressWarnings("WeakerAccess")
-		public static final class LongValueWithProperHashCodeSerializerSnapshot extends SimpleTypeSerializerSnapshot<LongValueWithProperHashCode> {
+        /** Serializer configuration snapshot for compatibility and format evolution. */
+        @SuppressWarnings("WeakerAccess")
+        public static final class LongValueWithProperHashCodeSerializerSnapshot
+                extends SimpleTypeSerializerSnapshot<LongValueWithProperHashCode> {
 
-			public LongValueWithProperHashCodeSerializerSnapshot() {
-				super(LongValueWithProperHashCodeSerializer::new);
-			}
-		}
-	}
+            public LongValueWithProperHashCodeSerializerSnapshot() {
+                super(LongValueWithProperHashCodeSerializer::new);
+            }
+        }
+    }
 }

@@ -30,57 +30,59 @@ import javax.annotation.Nullable;
 import java.util.function.Supplier;
 
 /**
- * Helper  class to construct {@link AbstractStreamOperatorV2}. Wraps couple of internal parameters
+ * Helper class to construct {@link AbstractStreamOperatorV2}. Wraps couple of internal parameters
  * to simplify for users construction of classes extending {@link AbstractStreamOperatorV2} and to
  * allow for backward compatible changes in the {@link AbstractStreamOperatorV2}'s constructor.
  *
- * @param <OUT> The output type of an operator that will be constructed using {@link StreamOperatorParameters}.
+ * @param <OUT> The output type of an operator that will be constructed using {@link
+ *     StreamOperatorParameters}.
  */
 @Experimental
 public class StreamOperatorParameters<OUT> {
-	private final StreamTask<?, ?> containingTask;
-	private final StreamConfig config;
-	private final Output<StreamRecord<OUT>> output;
-	private final Supplier<ProcessingTimeService> processingTimeServiceFactory;
-	private final OperatorEventDispatcher operatorEventDispatcher;
+    private final StreamTask<?, ?> containingTask;
+    private final StreamConfig config;
+    private final Output<StreamRecord<OUT>> output;
+    private final Supplier<ProcessingTimeService> processingTimeServiceFactory;
+    private final OperatorEventDispatcher operatorEventDispatcher;
 
-	/** The ProcessingTimeService, lazily created, but cached so that we don't create more than one. */
-	@Nullable
-	private ProcessingTimeService processingTimeService;
+    /**
+     * The ProcessingTimeService, lazily created, but cached so that we don't create more than one.
+     */
+    @Nullable private ProcessingTimeService processingTimeService;
 
-	public StreamOperatorParameters(
-			StreamTask<?, ?> containingTask,
-			StreamConfig config,
-			Output<StreamRecord<OUT>> output,
-			Supplier<ProcessingTimeService> processingTimeServiceFactory,
-			OperatorEventDispatcher operatorEventDispatcher) {
-		this.containingTask = containingTask;
-		this.config = config;
-		this.output = output;
-		this.processingTimeServiceFactory = processingTimeServiceFactory;
-		this.operatorEventDispatcher = operatorEventDispatcher;
-	}
+    public StreamOperatorParameters(
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<OUT>> output,
+            Supplier<ProcessingTimeService> processingTimeServiceFactory,
+            OperatorEventDispatcher operatorEventDispatcher) {
+        this.containingTask = containingTask;
+        this.config = config;
+        this.output = output;
+        this.processingTimeServiceFactory = processingTimeServiceFactory;
+        this.operatorEventDispatcher = operatorEventDispatcher;
+    }
 
-	public StreamTask<?, ?> getContainingTask() {
-		return containingTask;
-	}
+    public StreamTask<?, ?> getContainingTask() {
+        return containingTask;
+    }
 
-	public StreamConfig getStreamConfig() {
-		return config;
-	}
+    public StreamConfig getStreamConfig() {
+        return config;
+    }
 
-	public Output<StreamRecord<OUT>> getOutput() {
-		return output;
-	}
+    public Output<StreamRecord<OUT>> getOutput() {
+        return output;
+    }
 
-	public ProcessingTimeService getProcessingTimeService() {
-		if (processingTimeService == null) {
-			processingTimeService = processingTimeServiceFactory.get();
-		}
-		return processingTimeService;
-	}
+    public ProcessingTimeService getProcessingTimeService() {
+        if (processingTimeService == null) {
+            processingTimeService = processingTimeServiceFactory.get();
+        }
+        return processingTimeService;
+    }
 
-	public OperatorEventDispatcher getOperatorEventDispatcher() {
-		return operatorEventDispatcher;
-	}
+    public OperatorEventDispatcher getOperatorEventDispatcher() {
+        return operatorEventDispatcher;
+    }
 }

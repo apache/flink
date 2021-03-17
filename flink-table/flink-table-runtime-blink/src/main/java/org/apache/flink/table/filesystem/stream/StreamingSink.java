@@ -48,102 +48,109 @@ import java.util.List;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 
-/**
- * Helper for creating streaming file sink.
- */
+/** Helper for creating streaming file sink. */
 public class StreamingSink {
-	private StreamingSink() {
-	}
+    private StreamingSink() {}
 
-	/**
-	 * Create a file writer by input stream. This is similar to {@link StreamingFileSink},
-	 * in addition, it can emit {@link PartitionCommitInfo} to down stream.
-	 */
-	public static <T> DataStream<PartitionCommitInfo> writer(
-			DataStream<T> inputStream,
-			long bucketCheckInterval,
-			StreamingFileSink.BucketsBuilder<T, String, ? extends
-					StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder) {
-		StreamingFileWriter<T> fileWriter = new StreamingFileWriter<>(
-				bucketCheckInterval,
-				bucketsBuilder);
-		return inputStream.transform(
-				StreamingFileWriter.class.getSimpleName(),
-				TypeInformation.of(PartitionCommitInfo.class),
-				fileWriter).setParallelism(inputStream.getParallelism());
-	}
+    /**
+     * Create a file writer by input stream. This is similar to {@link StreamingFileSink}, in
+     * addition, it can emit {@link PartitionCommitInfo} to down stream.
+     */
+    public static <T> DataStream<PartitionCommitInfo> writer(
+            DataStream<T> inputStream,
+            long bucketCheckInterval,
+            StreamingFileSink.BucketsBuilder<
+                            T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
+                    bucketsBuilder,
+            int parallelism) {
+        StreamingFileWriter<T> fileWriter =
+                new StreamingFileWriter<>(bucketCheckInterval, bucketsBuilder);
+        return inputStream
+                .transform(
+                        StreamingFileWriter.class.getSimpleName(),
+                        TypeInformation.of(PartitionCommitInfo.class),
+                        fileWriter)
+                .setParallelism(parallelism);
+    }
 
-	/**
-	 * Create a file writer with compaction operators by input stream.
-	 * In addition, it can emit {@link PartitionCommitInfo} to down stream.
-	 */
-	public static <T> DataStream<PartitionCommitInfo> compactionWriter(
-			DataStream<T> inputStream,
-			long bucketCheckInterval,
-			StreamingFileSink.BucketsBuilder<T, String, ? extends
-					StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder,
-			FileSystemFactory fsFactory,
-			Path path,
-			CompactReader.Factory<T> readFactory,
-			long targetFileSize) {
-		CompactFileWriter<T> writer = new CompactFileWriter<>(bucketCheckInterval, bucketsBuilder);
+    /**
+     * Create a file writer with compaction operators by input stream. In addition, it can emit
+     * {@link PartitionCommitInfo} to down stream.
+     */
+    public static <T> DataStream<PartitionCommitInfo> compactionWriter(
+            DataStream<T> inputStream,
+            long bucketCheckInterval,
+            StreamingFileSink.BucketsBuilder<
+                            T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
+                    bucketsBuilder,
+            FileSystemFactory fsFactory,
+            Path path,
+            CompactReader.Factory<T> readFactory,
+            long targetFileSize,
+            int parallelism) {
+        CompactFileWriter<T> writer = new CompactFileWriter<>(bucketCheckInterval, bucketsBuilder);
 
-		SupplierWithException<FileSystem, IOException> fsSupplier =
-				(SupplierWithException<FileSystem, IOException> & Serializable)
-						() -> fsFactory.create(path.toUri());
+        SupplierWithException<FileSystem, IOException> fsSupplier =
+                (SupplierWithException<FileSystem, IOException> & Serializable)
+                        () -> fsFactory.create(path.toUri());
 
-		CompactCoordinator coordinator = new CompactCoordinator(fsSupplier, targetFileSize);
+        CompactCoordinator coordinator = new CompactCoordinator(fsSupplier, targetFileSize);
 
-		SingleOutputStreamOperator<CoordinatorOutput> coordinatorOp = inputStream
-				.transform(
-						"streaming-writer",
-						TypeInformation.of(CoordinatorInput.class),
-						writer)
-				.setParallelism(inputStream.getParallelism())
-				.transform(
-						"compact-coordinator",
-						TypeInformation.of(CoordinatorOutput.class),
-						coordinator)
-				.setParallelism(1)
-				.setMaxParallelism(1);
+        SingleOutputStreamOperator<CoordinatorOutput> coordinatorOp =
+                inputStream
+                        .transform(
+                                "streaming-writer",
+                                TypeInformation.of(CoordinatorInput.class),
+                                writer)
+                        .setParallelism(parallelism)
+                        .transform(
+                                "compact-coordinator",
+                                TypeInformation.of(CoordinatorOutput.class),
+                                coordinator)
+                        .setParallelism(1)
+                        .setMaxParallelism(1);
 
-		CompactWriter.Factory<T> writerFactory = CompactBucketWriter.factory(
-				(SupplierWithException<BucketWriter<T, String>, IOException> & Serializable)
-						bucketsBuilder::createBucketWriter);
+        CompactWriter.Factory<T> writerFactory =
+                CompactBucketWriter.factory(
+                        (SupplierWithException<BucketWriter<T, String>, IOException> & Serializable)
+                                bucketsBuilder::createBucketWriter);
 
-		CompactOperator<T> compacter = new CompactOperator<>(fsSupplier, readFactory, writerFactory);
+        CompactOperator<T> compacter =
+                new CompactOperator<>(fsSupplier, readFactory, writerFactory);
 
-		return coordinatorOp
-				.broadcast()
-				.transform(
-						"compact-operator",
-						TypeInformation.of(PartitionCommitInfo.class),
-						compacter)
-				.setParallelism(inputStream.getParallelism());
-	}
+        return coordinatorOp
+                .broadcast()
+                .transform(
+                        "compact-operator",
+                        TypeInformation.of(PartitionCommitInfo.class),
+                        compacter)
+                .setParallelism(parallelism);
+    }
 
-	/**
-	 * Create a sink from file writer. Decide whether to add the node to commit partitions
-	 * according to options.
-	 */
-	public static DataStreamSink<?> sink(
-			DataStream<PartitionCommitInfo> writer,
-			Path locationPath,
-			ObjectIdentifier identifier,
-			List<String> partitionKeys,
-			TableMetaStoreFactory msFactory,
-			FileSystemFactory fsFactory,
-			Configuration options) {
-		DataStream<?> stream = writer;
-		if (partitionKeys.size() > 0 && options.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
-			PartitionCommitter committer = new PartitionCommitter(
-					locationPath, identifier, partitionKeys, msFactory, fsFactory, options);
-			stream = writer
-					.transform(PartitionCommitter.class.getSimpleName(), Types.VOID, committer)
-					.setParallelism(1)
-					.setMaxParallelism(1);
-		}
+    /**
+     * Create a sink from file writer. Decide whether to add the node to commit partitions according
+     * to options.
+     */
+    public static DataStreamSink<?> sink(
+            DataStream<PartitionCommitInfo> writer,
+            Path locationPath,
+            ObjectIdentifier identifier,
+            List<String> partitionKeys,
+            TableMetaStoreFactory msFactory,
+            FileSystemFactory fsFactory,
+            Configuration options) {
+        DataStream<?> stream = writer;
+        if (partitionKeys.size() > 0 && options.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
+            PartitionCommitter committer =
+                    new PartitionCommitter(
+                            locationPath, identifier, partitionKeys, msFactory, fsFactory, options);
+            stream =
+                    writer.transform(
+                                    PartitionCommitter.class.getSimpleName(), Types.VOID, committer)
+                            .setParallelism(1)
+                            .setMaxParallelism(1);
+        }
 
-		return stream.addSink(new DiscardingSink<>()).name("end").setParallelism(1);
-	}
+        return stream.addSink(new DiscardingSink<>()).name("end").setParallelism(1);
+    }
 }

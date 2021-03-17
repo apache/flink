@@ -32,31 +32,33 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Map;
 
-/**
- * Rest handler which serves the custom log file from JobManager.
- */
-public class JobManagerCustomLogHandler extends AbstractJobManagerFileHandler<FileMessageParameters> {
+/** Rest handler which serves the custom log file from JobManager. */
+public class JobManagerCustomLogHandler
+        extends AbstractJobManagerFileHandler<FileMessageParameters> {
 
-	private File logDir;
+    private File logDir;
 
-	public JobManagerCustomLogHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout, Map<String, String> responseHeaders,
-			UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> messageHeaders,
-			@Nullable File logDir) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    public JobManagerCustomLogHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> messageHeaders,
+            @Nullable File logDir) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.logDir = logDir;
-	}
+        this.logDir = logDir;
+    }
 
-	@Override
-	protected File getFile(HandlerRequest<EmptyRequestBody, FileMessageParameters> handlerRequest) {
-		if (logDir == null) {
-			return null;
-		}
-		// wrapping around another File instantiation is a simple way to remove any path information - we're
-		// solely interested in the filename
-		String filename = new File(handlerRequest.getPathParameter(LogFileNamePathParameter.class)).getName();
-		return new File(logDir, filename);
-	}
+    @Override
+    protected File getFile(HandlerRequest<EmptyRequestBody, FileMessageParameters> handlerRequest) {
+        if (logDir == null) {
+            return null;
+        }
+        // wrapping around another File instantiation is a simple way to remove any path information
+        // - we're
+        // solely interested in the filename
+        String filename =
+                new File(handlerRequest.getPathParameter(LogFileNamePathParameter.class)).getName();
+        return new File(logDir, filename);
+    }
 }

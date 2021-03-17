@@ -49,13 +49,13 @@ class LegacyTableSourceTest extends TableTestBase {
   @Test
   def testBoundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = true, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testUnboundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
@@ -72,7 +72,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
+    util.verifyExecPlan("SELECT rowtime, id, name, val FROM rowTimeT")
   }
 
   @Test
@@ -89,7 +89,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
+    util.verifyExecPlan("SELECT rowtime, id, name, val FROM rowTimeT")
   }
 
   @Test
@@ -115,7 +115,7 @@ class LegacyTableSourceTest extends TableTestBase {
         |   GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
 
@@ -141,7 +141,7 @@ class LegacyTableSourceTest extends TableTestBase {
         |    GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -165,7 +165,7 @@ class LegacyTableSourceTest extends TableTestBase {
         |    GROUP BY name, TUMBLE(proctime, INTERVAL '10' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -181,7 +181,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "procTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), proctime = "pTime"))
 
-    util.verifyPlan("SELECT pTime, id, name, val FROM procTimeT")
+    util.verifyExecPlan("SELECT pTime, id, name, val FROM procTimeT")
   }
 
   @Test
@@ -198,7 +198,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    util.verifyPlan("SELECT name, val, id FROM T")
+    util.verifyExecPlan("SELECT name, val, id FROM T")
   }
 
   @Test
@@ -215,7 +215,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    util.verifyPlan("SELECT ptime, name, val, id FROM T")
+    util.verifyExecPlan("SELECT ptime, name, val, id FROM T")
   }
 
   def testProjectWithoutProctime(): Unit = {
@@ -232,7 +232,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    util.verifyPlan("select name, val, rtime, id from T")
+    util.verifyExecPlan("select name, val, rtime, id from T")
   }
 
   def testProjectOnlyProctime(): Unit = {
@@ -248,7 +248,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    util.verifyPlan("SELECT ptime FROM T")
+    util.verifyExecPlan("SELECT ptime FROM T")
   }
 
   def testProjectOnlyRowtime(): Unit = {
@@ -264,7 +264,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    util.verifyPlan("SELECT rtime FROM T")
+    util.verifyExecPlan("SELECT rtime FROM T")
   }
 
   @Test
@@ -283,7 +283,7 @@ class LegacyTableSourceTest extends TableTestBase {
       new TestLegacyProjectableTableSource(
         false, tableSchema, returnType, Seq(), "rtime", "ptime", mapping))
 
-    util.verifyPlan("SELECT name, rtime, val FROM T")
+    util.verifyExecPlan("SELECT name, rtime, val FROM T")
   }
 
   @Test
@@ -324,7 +324,7 @@ class LegacyTableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -338,38 +338,38 @@ class LegacyTableSourceTest extends TableTestBase {
       "T",
       new TestLegacyProjectableTableSource(false, tableSchema, returnType, Seq(), null, null))
 
-    util.verifyPlan("SELECT COUNT(1) FROM T")
+    util.verifyExecPlan("SELECT COUNT(1) FROM T")
   }
 
   @Test
   def testFilterCanPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2")
   }
 
   @Test
   def testFilterCannotPushDown(): Unit = {
     // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE price > 10")
   }
 
   @Test
   def testFilterPartialPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
   def testFilterFullyPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
   }
 
   @Test
   def testFilterCannotPushDown2(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
   def testFilterCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
@@ -379,24 +379,25 @@ class LegacyTableSourceTest extends TableTestBase {
         |SELECT * FROM FilterableTable WHERE
         |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFilterPushDownWithUdf(): Unit = {
     util.addFunction("myUdf", Func1)
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
   @Test
   def testPartitionTableSource(): Unit = {
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+    util.verifyExecPlan(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
   }
 
   @Test
   def testPartitionTableSourceWithUdf(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
@@ -429,6 +430,6 @@ class LegacyTableSourceTest extends TableTestBase {
          |  dv > DATE '2017-02-03' AND
          |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

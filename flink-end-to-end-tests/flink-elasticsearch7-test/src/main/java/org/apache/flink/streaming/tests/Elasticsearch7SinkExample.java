@@ -39,112 +39,116 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * End to end test for Elasticsearch6Sink.
- */
+/** End to end test for Elasticsearch6Sink. */
 public class Elasticsearch7SinkExample {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 2) {
-			System.out.println("Missing parameters!\n" +
-				"Usage: --numRecords <numRecords> --index <index>");
-			return;
-		}
+        if (parameterTool.getNumberOfParameters() < 2) {
+            System.out.println(
+                    "Missing parameters!\n" + "Usage: --numRecords <numRecords> --index <index>");
+            return;
+        }
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				env.enableCheckpointing(5000);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(5000);
 
-		DataStream<Tuple2<String, String>> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
-			.flatMap(new FlatMapFunction<Long, Tuple2<String, String>>() {
-				@Override
-				public void flatMap(Long value, Collector<Tuple2<String, String>> out) {
-					final String key = String.valueOf(value);
-					final String message = "message #" + value;
-					out.collect(Tuple2.of(key, message + "update #1"));
-					out.collect(Tuple2.of(key, message + "update #2"));
-				}
-			});
+        DataStream<Tuple2<String, String>> source =
+                env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
+                        .flatMap(
+                                new FlatMapFunction<Long, Tuple2<String, String>>() {
+                                    @Override
+                                    public void flatMap(
+                                            Long value, Collector<Tuple2<String, String>> out) {
+                                        final String key = String.valueOf(value);
+                                        final String message = "message #" + value;
+                                        out.collect(Tuple2.of(key, message + "update #1"));
+                                        out.collect(Tuple2.of(key, message + "update #2"));
+                                    }
+                                });
 
-		List<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+        List<HttpHost> httpHosts = new ArrayList<>();
+        httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 
-		ElasticsearchSink.Builder<Tuple2<String, String>> esSinkBuilder = new ElasticsearchSink.Builder<>(
-			httpHosts,
-			(Tuple2<String, String> element, RuntimeContext ctx, RequestIndexer indexer) -> {
-				indexer.add(createIndexRequest(element.f1, parameterTool));
-				indexer.add(createUpdateRequest(element, parameterTool));
-			});
+        ElasticsearchSink.Builder<Tuple2<String, String>> esSinkBuilder =
+                new ElasticsearchSink.Builder<>(
+                        httpHosts,
+                        (Tuple2<String, String> element,
+                                RuntimeContext ctx,
+                                RequestIndexer indexer) -> {
+                            indexer.add(createIndexRequest(element.f1, parameterTool));
+                            indexer.add(createUpdateRequest(element, parameterTool));
+                        });
 
-		esSinkBuilder.setFailureHandler(
-			new CustomFailureHandler(parameterTool.getRequired("index")));
+        esSinkBuilder.setFailureHandler(
+                new CustomFailureHandler(parameterTool.getRequired("index")));
 
-		// this instructs the sink to emit after every element, otherwise they would be buffered
-		esSinkBuilder.setBulkFlushMaxActions(1);
+        // this instructs the sink to emit after every element, otherwise they would be buffered
+        esSinkBuilder.setBulkFlushMaxActions(1);
 
-		source.addSink(esSinkBuilder.build());
+        source.addSink(esSinkBuilder.build());
 
-		env.execute("Elasticsearch 7.x end to end sink test example");
-	}
+        env.execute("Elasticsearch 7.x end to end sink test example");
+    }
 
-	private static class CustomFailureHandler implements ActionRequestFailureHandler {
+    private static class CustomFailureHandler implements ActionRequestFailureHandler {
 
-		private static final long serialVersionUID = 942269087742453482L;
+        private static final long serialVersionUID = 942269087742453482L;
 
-		private final String index;
+        private final String index;
 
-		CustomFailureHandler(String index) {
-			this.index = index;
-		}
+        CustomFailureHandler(String index) {
+            this.index = index;
+        }
 
-		@Override
-		public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
-			if (action instanceof IndexRequest) {
-				Map<String, Object> json = new HashMap<>();
-				json.put("data", ((IndexRequest) action).source());
+        @Override
+        public void onFailure(
+                ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer)
+                throws Throwable {
+            if (action instanceof IndexRequest) {
+                Map<String, Object> json = new HashMap<>();
+                json.put("data", ((IndexRequest) action).source());
 
-				indexer.add(
-					Requests.indexRequest()
-						.index(index)
-						.id(((IndexRequest) action).id())
-						.source(json));
-			} else {
-				throw new IllegalStateException("unexpected");
-			}
-		}
-	}
+                indexer.add(
+                        Requests.indexRequest()
+                                .index(index)
+                                .id(((IndexRequest) action).id())
+                                .source(json));
+            } else {
+                throw new IllegalStateException("unexpected");
+            }
+        }
+    }
 
-	private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
-		Map<String, Object> json = new HashMap<>();
-		json.put("data", element);
+    private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
+        Map<String, Object> json = new HashMap<>();
+        json.put("data", element);
 
-		String index;
-		String type;
+        String index;
+        String type;
 
-		if (element.startsWith("message #15")) {
-			index = ":intentional invalid index:";
-			type = ":intentional invalid type:";
-		} else {
-			index = parameterTool.getRequired("index");
-		}
+        if (element.startsWith("message #15")) {
+            index = ":intentional invalid index:";
+            type = ":intentional invalid type:";
+        } else {
+            index = parameterTool.getRequired("index");
+        }
 
-		return Requests.indexRequest()
-			.index(index)
-			.id(element)
-			.source(json);
-	}
+        return Requests.indexRequest().index(index).id(element).source(json);
+    }
 
-	private static UpdateRequest createUpdateRequest(Tuple2<String, String> element, ParameterTool parameterTool) {
-		Map<String, Object> json = new HashMap<>();
-		json.put("data", element.f1);
+    private static UpdateRequest createUpdateRequest(
+            Tuple2<String, String> element, ParameterTool parameterTool) {
+        Map<String, Object> json = new HashMap<>();
+        json.put("data", element.f1);
 
-		return new UpdateRequest(
-				parameterTool.getRequired("index"),
-				parameterTool.getRequired("type"),
-				element.f0)
-			.doc(json)
-			.upsert(json);
-	}
+        return new UpdateRequest(
+                        parameterTool.getRequired("index"),
+                        parameterTool.getRequired("type"),
+                        element.f0)
+                .doc(json)
+                .upsert(json);
+    }
 }

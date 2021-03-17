@@ -32,54 +32,52 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * Namespace whose contents are defined by the result of a call to a user-defined procedure.
  *
- * <p>Note: Compared to Calcite, this class implements custom logic for dealing with collection tables
- * like {@code TABLE(function(...))} procedures. Compared to the SQL standard, Flink's table functions
- * can return arbitrary types that are wrapped into a ROW type if necessary. We don't interpret ARRAY
- * or MULTISET types as it would be standard.
+ * <p>Note: Compared to Calcite, this class implements custom logic for dealing with collection
+ * tables like {@code TABLE(function(...))} procedures. Compared to the SQL standard, Flink's table
+ * functions can return arbitrary types that are wrapped into a ROW type if necessary. We don't
+ * interpret ARRAY or MULTISET types as it would be standard.
  */
 @Internal
 public final class ProcedureNamespace extends AbstractNamespace {
 
-	private final SqlValidatorScope scope;
+    private final SqlValidatorScope scope;
 
-	private final SqlCall call;
+    private final SqlCall call;
 
-	ProcedureNamespace(
-		SqlValidatorImpl validator,
-		SqlValidatorScope scope,
-		SqlCall call,
-		SqlNode enclosingNode) {
-		super(validator, enclosingNode);
-		this.scope = scope;
-		this.call = call;
-	}
+    ProcedureNamespace(
+            SqlValidatorImpl validator,
+            SqlValidatorScope scope,
+            SqlCall call,
+            SqlNode enclosingNode) {
+        super(validator, enclosingNode);
+        this.scope = scope;
+        this.call = call;
+    }
 
-	public RelDataType validateImpl(RelDataType targetRowType) {
-		validator.inferUnknownTypes(validator.unknownType, scope, call);
-		final RelDataType type = validator.deriveTypeImpl(scope, call);
-		final SqlOperator operator = call.getOperator();
-		final SqlCallBinding callBinding =
-			new SqlCallBinding(validator, scope, call);
-		if (operator instanceof SqlTableFunction) {
-			final SqlTableFunction tableFunction = (SqlTableFunction) operator;
-			if (type.getSqlTypeName() != SqlTypeName.CURSOR) {
-				throw new IllegalArgumentException("Table function should have CURSOR "
-						+ "type, not " + type);
-			}
-			final SqlReturnTypeInference rowTypeInference =
-					tableFunction.getRowTypeInference();
-			RelDataType retType = rowTypeInference.inferReturnType(callBinding);
-			return validator.getTypeFactory().createTypeWithNullability(retType, false);
-		}
+    public RelDataType validateImpl(RelDataType targetRowType) {
+        validator.inferUnknownTypes(validator.unknownType, scope, call);
+        final RelDataType type = validator.deriveTypeImpl(scope, call);
+        final SqlOperator operator = call.getOperator();
+        final SqlCallBinding callBinding = new SqlCallBinding(validator, scope, call);
+        if (operator instanceof SqlTableFunction) {
+            final SqlTableFunction tableFunction = (SqlTableFunction) operator;
+            if (type.getSqlTypeName() != SqlTypeName.CURSOR) {
+                throw new IllegalArgumentException(
+                        "Table function should have CURSOR " + "type, not " + type);
+            }
+            final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
+            RelDataType retType = rowTypeInference.inferReturnType(callBinding);
+            return validator.getTypeFactory().createTypeWithNullability(retType, false);
+        }
 
-		// special handling of collection tables TABLE(function(...))
-		if (SqlUtil.stripAs(enclosingNode).getKind() == SqlKind.COLLECTION_TABLE) {
-			return toStruct(type, getNode());
-		}
-		return type;
-	}
+        // special handling of collection tables TABLE(function(...))
+        if (SqlUtil.stripAs(enclosingNode).getKind() == SqlKind.COLLECTION_TABLE) {
+            return toStruct(type, getNode());
+        }
+        return type;
+    }
 
-	public SqlNode getNode() {
-		return call;
-	}
+    public SqlNode getNode() {
+        return call;
+    }
 }

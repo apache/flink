@@ -103,6 +103,10 @@ jobs:
         module: tests
       misc:
         module: misc
+      legacy_slot_management:
+        module: legacy_slot_management
+      finegrained_resource_management:
+        module: finegrained_resource_management
   steps:
   # if on Azure, free up disk space
   - script: ./tools/azure-pipelines/free_disk_space.sh
@@ -151,6 +155,8 @@ jobs:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
       IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
       IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+      IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
+      IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
@@ -229,6 +235,8 @@ jobs:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
         IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+        IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
+        IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
       condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
       # upload debug artifacts
     - task: PublishPipelineArtifact@1

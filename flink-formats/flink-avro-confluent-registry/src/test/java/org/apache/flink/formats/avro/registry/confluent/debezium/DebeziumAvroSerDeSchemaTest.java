@@ -61,160 +61,165 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link DebeziumAvroDeserializationSchema}.
- */
+/** Tests for {@link DebeziumAvroDeserializationSchema}. */
 public class DebeziumAvroSerDeSchemaTest {
 
-	private static final String SUBJECT = "testDebeziumAvro";
+    private static final String SUBJECT = "testDebeziumAvro";
 
-	private static final RowType rowType = (RowType) ROW(
-		FIELD("id", BIGINT()),
-		FIELD("name", STRING()),
-		FIELD("description", STRING()),
-		FIELD("weight", DOUBLE())
-	).getLogicalType();
+    private static final RowType rowType =
+            (RowType)
+                    ROW(
+                                    FIELD("id", BIGINT()),
+                                    FIELD("name", STRING()),
+                                    FIELD("description", STRING()),
+                                    FIELD("weight", DOUBLE()))
+                            .getLogicalType();
 
-	private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST = new Schema.Parser().parse(
-		new String(readBytesFromFile("debezium-test-schema.json"))
-	);
+    private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST =
+            new Schema.Parser().parse(new String(readBytesFromFile("debezium-test-schema.json")));
 
-	private SchemaRegistryClient client = new MockSchemaRegistryClient();
+    private SchemaRegistryClient client = new MockSchemaRegistryClient();
 
-	@Test
-	public void testSerializationDeserialization() throws Exception {
+    @Test
+    public void testSerializationDeserialization() throws Exception {
 
-		RowType rowTypeDe = DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
-		RowType rowTypeSe = DebeziumAvroSerializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
+        RowType rowTypeDe =
+                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
+                        fromLogicalToDataType(rowType));
+        RowType rowTypeSe =
+                DebeziumAvroSerializationSchema.createDebeziumAvroRowType(
+                        fromLogicalToDataType(rowType));
 
-		DebeziumAvroSerializationSchema dbzSerializer = new DebeziumAvroSerializationSchema(getSerializationSchema(rowTypeSe));
-		dbzSerializer.open(mock(SerializationSchema.InitializationContext.class));
+        DebeziumAvroSerializationSchema dbzSerializer =
+                new DebeziumAvroSerializationSchema(getSerializationSchema(rowTypeSe));
+        dbzSerializer.open(mock(SerializationSchema.InitializationContext.class));
 
-		byte[] serialize = dbzSerializer.serialize(debeziumRow2RowData());
+        byte[] serialize = dbzSerializer.serialize(debeziumRow2RowData());
 
-		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
-		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
-			InternalTypeInfo.of(rowType),
-			getDeserializationSchema(rowTypeDe));
-		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+        client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
+        DebeziumAvroDeserializationSchema dbzDeserializer =
+                new DebeziumAvroDeserializationSchema(
+                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
+        dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
 
-		SimpleCollector collector = new SimpleCollector();
-		dbzDeserializer.deserialize(serialize, collector);
+        SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(serialize, collector);
 
-		List<String> actual = collector.list.stream()
-			.map(Object::toString)
-			.collect(Collectors.toList());
+        List<String> actual =
+                collector.list.stream().map(Object::toString).collect(Collectors.toList());
 
-		List<String> expected = Collections.singletonList(
-			"+I(107,rocks,box of assorted rocks,5.3)");
-		assertEquals(expected, actual);
-	}
+        List<String> expected =
+                Collections.singletonList("+I(107,rocks,box of assorted rocks,5.3)");
+        assertEquals(expected, actual);
+    }
 
-	@Test
-	public void testInsertDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-insert.avro");
+    @Test
+    public void testInsertDataDeserialization() throws Exception {
+        List<String> actual = testDeserialization("debezium-avro-insert.avro");
 
-		List<String> expected = Collections.singletonList(
-			"+I(1,lisi,test debezium avro data,21.799999237060547)");
-		assertEquals(expected, actual);
-	}
+        List<String> expected =
+                Collections.singletonList("+I(1,lisi,test debezium avro data,21.799999237060547)");
+        assertEquals(expected, actual);
+    }
 
-	@Test
-	public void testUpdateDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-update.avro");
+    @Test
+    public void testUpdateDataDeserialization() throws Exception {
+        List<String> actual = testDeserialization("debezium-avro-update.avro");
 
-		List<String> expected = Arrays.asList(
-			"-U(1,lisi,test debezium avro data,21.799999237060547)",
-			"+U(1,zhangsan,test debezium avro data,21.799999237060547)");
-		assertEquals(expected, actual);
-	}
+        List<String> expected =
+                Arrays.asList(
+                        "-U(1,lisi,test debezium avro data,21.799999237060547)",
+                        "+U(1,zhangsan,test debezium avro data,21.799999237060547)");
+        assertEquals(expected, actual);
+    }
 
-	@Test
-	public void testDeleteDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization("debezium-avro-delete.avro");
+    @Test
+    public void testDeleteDataDeserialization() throws Exception {
+        List<String> actual = testDeserialization("debezium-avro-delete.avro");
 
-		List<String> expected = Collections.singletonList(
-			"-D(1,zhangsan,test debezium avro data,21.799999237060547)");
-		assertEquals(expected, actual);
-	}
+        List<String> expected =
+                Collections.singletonList(
+                        "-D(1,zhangsan,test debezium avro data,21.799999237060547)");
+        assertEquals(expected, actual);
+    }
 
-	public List<String> testDeserialization(String dataPath) throws Exception {
-		RowType rowTypeDe = DebeziumAvroDeserializationSchema
-			.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
+    public List<String> testDeserialization(String dataPath) throws Exception {
+        RowType rowTypeDe =
+                DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
+                        fromLogicalToDataType(rowType));
 
-		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
+        client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
-		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
-			InternalTypeInfo.of(rowType),
-			getDeserializationSchema(rowTypeDe));
-		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+        DebeziumAvroDeserializationSchema dbzDeserializer =
+                new DebeziumAvroDeserializationSchema(
+                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
+        dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
 
-		SimpleCollector collector = new SimpleCollector();
-		dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
+        SimpleCollector collector = new SimpleCollector();
+        dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
 
-		return collector.list.stream()
-			.map(Object::toString)
-			.collect(Collectors.toList());
-	}
+        return collector.list.stream().map(Object::toString).collect(Collectors.toList());
+    }
 
-	private AvroRowDataDeserializationSchema getDeserializationSchema(RowType rowType) {
+    private AvroRowDataDeserializationSchema getDeserializationSchema(RowType rowType) {
 
-		final ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
+        final ConfluentSchemaRegistryCoder registryCoder =
+                new ConfluentSchemaRegistryCoder(SUBJECT, client);
 
-		return new AvroRowDataDeserializationSchema(
-			new RegistryAvroDeserializationSchema<>(
-				GenericRecord.class,
-				AvroSchemaConverter.convertToSchema(rowType),
-				() -> registryCoder
-			),
-			AvroToRowDataConverters.createRowConverter(rowType),
-			InternalTypeInfo.of(rowType));
-	}
+        return new AvroRowDataDeserializationSchema(
+                new RegistryAvroDeserializationSchema<>(
+                        GenericRecord.class,
+                        AvroSchemaConverter.convertToSchema(rowType),
+                        () -> registryCoder),
+                AvroToRowDataConverters.createRowConverter(rowType),
+                InternalTypeInfo.of(rowType));
+    }
 
-	private AvroRowDataSerializationSchema getSerializationSchema(RowType rowType) {
+    private AvroRowDataSerializationSchema getSerializationSchema(RowType rowType) {
 
-		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
-		return new AvroRowDataSerializationSchema(
-			rowType,
-			new RegistryAvroSerializationSchema<>(
-				GenericRecord.class,
-				AvroSchemaConverter.convertToSchema(rowType),
-				() -> registryCoder),
-			RowDataToAvroConverters.createConverter(rowType));
-	}
+        ConfluentSchemaRegistryCoder registryCoder =
+                new ConfluentSchemaRegistryCoder(SUBJECT, client);
+        return new AvroRowDataSerializationSchema(
+                rowType,
+                new RegistryAvroSerializationSchema<>(
+                        GenericRecord.class,
+                        AvroSchemaConverter.convertToSchema(rowType),
+                        () -> registryCoder),
+                RowDataToAvroConverters.createConverter(rowType));
+    }
 
-	private static RowData debeziumRow2RowData() {
-		GenericRowData rowData = new GenericRowData(4);
-		rowData.setField(0, 107L);
-		rowData.setField(1, StringData.fromString("rocks"));
-		rowData.setField(2, StringData.fromString("box of assorted rocks"));
-		rowData.setField(3, 5.3D);
-		return rowData;
-	}
+    private static RowData debeziumRow2RowData() {
+        GenericRowData rowData = new GenericRowData(4);
+        rowData.setField(0, 107L);
+        rowData.setField(1, StringData.fromString("rocks"));
+        rowData.setField(2, StringData.fromString("box of assorted rocks"));
+        rowData.setField(3, 5.3D);
+        return rowData;
+    }
 
-	private static byte[] readBytesFromFile(String filePath) {
-		try {
-			URL url = DebeziumAvroSerDeSchemaTest.class.getClassLoader().getResource(filePath);
-			assert url != null;
-			Path path = new File(url.getFile()).toPath();
-			return FileUtils.readAllBytes(path);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private static byte[] readBytesFromFile(String filePath) {
+        try {
+            URL url = DebeziumAvroSerDeSchemaTest.class.getClassLoader().getResource(filePath);
+            assert url != null;
+            Path path = new File(url.getFile()).toPath();
+            return FileUtils.readAllBytes(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private static class SimpleCollector implements Collector<RowData> {
+    private static class SimpleCollector implements Collector<RowData> {
 
-		private List<RowData> list = new ArrayList<>();
+        private List<RowData> list = new ArrayList<>();
 
-		@Override
-		public void collect(RowData record) {
-			list.add(record);
-		}
+        @Override
+        public void collect(RowData record) {
+            list.add(record);
+        }
 
-		@Override
-		public void close() {
-			// do nothing
-		}
-	}
+        @Override
+        public void close() {
+            // do nothing
+        }
+    }
 }

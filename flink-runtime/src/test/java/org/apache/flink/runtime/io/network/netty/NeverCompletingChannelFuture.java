@@ -29,126 +29,131 @@ import java.util.concurrent.TimeoutException;
 @SuppressWarnings({"InfiniteLoopStatement", "BusyWait"})
 class NeverCompletingChannelFuture implements ChannelFuture {
 
-	@Override
-	public Channel channel() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Channel channel() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isSuccess() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isSuccess() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isCancellable() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isCancellable() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Throwable cause() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Throwable cause() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture addListener(GenericFutureListener<? extends Future<? super Void>> genericFutureListener) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture addListener(
+            GenericFutureListener<? extends Future<? super Void>> genericFutureListener) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture addListeners(GenericFutureListener<? extends Future<? super Void>>... genericFutureListeners) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture addListeners(
+            GenericFutureListener<? extends Future<? super Void>>... genericFutureListeners) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture removeListener(GenericFutureListener<? extends Future<? super Void>> genericFutureListener) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture removeListener(
+            GenericFutureListener<? extends Future<? super Void>> genericFutureListener) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture removeListeners(GenericFutureListener<? extends Future<? super Void>>... genericFutureListeners) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture removeListeners(
+            GenericFutureListener<? extends Future<? super Void>>... genericFutureListeners) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture sync() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture sync() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture syncUninterruptibly() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ChannelFuture syncUninterruptibly() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public ChannelFuture await() throws InterruptedException {
-		while (true) {
-			Thread.sleep(50);
-		}
-	}
+    @Override
+    public ChannelFuture await() throws InterruptedException {
+        while (true) {
+            Thread.sleep(50);
+        }
+    }
 
-	@Override
-	public ChannelFuture awaitUninterruptibly() {
-		while (true) {
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				// ignore
-			}
-		}
-	}
+    @Override
+    public ChannelFuture awaitUninterruptibly() {
+        while (true) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
 
-	@Override
-	public boolean await(long l, TimeUnit timeUnit) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean await(long l, TimeUnit timeUnit) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean await(long l) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean await(long l) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean awaitUninterruptibly(long l, TimeUnit timeUnit) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean awaitUninterruptibly(long l, TimeUnit timeUnit) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean awaitUninterruptibly(long l) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean awaitUninterruptibly(long l) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Void getNow() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Void getNow() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean cancel(boolean b) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean cancel(boolean b) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isCancelled() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isCancelled() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isDone() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isDone() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Void get() throws InterruptedException, ExecutionException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Void get() throws InterruptedException, ExecutionException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Void get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public Void get(long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean isVoid() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isVoid() {
+        throw new UnsupportedOperationException();
+    }
 }

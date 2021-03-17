@@ -44,126 +44,127 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests the synchronous checkpoint execution at the {@link StreamTask}.
- */
+/** Tests the synchronous checkpoint execution at the {@link StreamTask}. */
 public class SynchronousCheckpointTest {
 
-	private enum Event {
-		TASK_INITIALIZED,
-	}
+    private enum Event {
+        TASK_INITIALIZED,
+    }
 
-	private StreamTaskUnderTest streamTaskUnderTest;
-	private CompletableFuture<Void> taskInvocation;
-	private LinkedBlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
+    private StreamTaskUnderTest streamTaskUnderTest;
+    private CompletableFuture<Void> taskInvocation;
+    private LinkedBlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
 
-	@Before
-	public void setupTestEnvironment() throws InterruptedException {
+    @Before
+    public void setupTestEnvironment() throws InterruptedException {
 
-		taskInvocation = CompletableFuture.runAsync(
-			() -> {
-				try {
-					streamTaskUnderTest = createTask(eventQueue);
-					streamTaskUnderTest.invoke();
-				} catch (RuntimeException e) {
-					throw e;
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			},
-			Executors.newSingleThreadExecutor());
+        taskInvocation =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                streamTaskUnderTest = createTask(eventQueue);
+                                streamTaskUnderTest.invoke();
+                            } catch (RuntimeException e) {
+                                throw e;
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        },
+                        Executors.newSingleThreadExecutor());
 
-		// Wait until task has been initialized.
-		assertThat(eventQueue.take(), is(Event.TASK_INITIALIZED));
-	}
+        // Wait until task has been initialized.
+        assertThat(eventQueue.take(), is(Event.TASK_INITIALIZED));
+    }
 
-	@Test(timeout = 20_000)
-	public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes() throws Exception {
-		launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
-		assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
+    @Test(timeout = 20_000)
+    public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes()
+            throws Exception {
+        launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
+        assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
 
-		streamTaskUnderTest.notifyCheckpointCompleteAsync(41).get();
-		assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
+        streamTaskUnderTest.notifyCheckpointCompleteAsync(41).get();
+        assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
 
-		streamTaskUnderTest.notifyCheckpointCompleteAsync(42).get();
-		assertFalse(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
+        streamTaskUnderTest.notifyCheckpointCompleteAsync(42).get();
+        assertFalse(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
 
-		streamTaskUnderTest.stopTask();
-		waitUntilMainExecutionThreadIsFinished();
+        streamTaskUnderTest.stopTask();
+        waitUntilMainExecutionThreadIsFinished();
 
-		assertFalse(streamTaskUnderTest.isCanceled());
-	}
+        assertFalse(streamTaskUnderTest.isCanceled());
+    }
 
-	@Test(timeout = 10_000)
-	public void cancelShouldAlsoCancelPendingSynchronousCheckpoint() throws Throwable {
-		launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
-		assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
+    @Test(timeout = 10_000)
+    public void cancelShouldAlsoCancelPendingSynchronousCheckpoint() throws Throwable {
+        launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
+        assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());
 
-		streamTaskUnderTest.cancel();
+        streamTaskUnderTest.cancel();
 
-		waitUntilMainExecutionThreadIsFinished();
+        waitUntilMainExecutionThreadIsFinished();
 
-		assertTrue(streamTaskUnderTest.isCanceled());
-	}
+        assertTrue(streamTaskUnderTest.isCanceled());
+    }
 
-	private void launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet() throws InterruptedException {
-		streamTaskUnderTest.triggerCheckpointAsync(
-			new CheckpointMetaData(42, System.currentTimeMillis()),
-			new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-			false);
-		waitForSyncSavepointIdToBeSet(streamTaskUnderTest);
-	}
+    private void launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet()
+            throws InterruptedException {
+        streamTaskUnderTest.triggerCheckpointAsync(
+                new CheckpointMetaData(42, System.currentTimeMillis()),
+                new CheckpointOptions(
+                        CheckpointType.SAVEPOINT_SUSPEND,
+                        CheckpointStorageLocationReference.getDefault()));
+        waitForSyncSavepointIdToBeSet(streamTaskUnderTest);
+    }
 
-	private void waitUntilMainExecutionThreadIsFinished() {
-		try {
-			taskInvocation.get();
-		} catch (Exception e) {
-			assertThat(e.getCause(), is(instanceOf(CancelTaskException.class)));
-		}
-	}
+    private void waitUntilMainExecutionThreadIsFinished() {
+        try {
+            taskInvocation.get();
+        } catch (Exception e) {
+            assertThat(e.getCause(), is(instanceOf(CancelTaskException.class)));
+        }
+    }
 
-	private void waitForSyncSavepointIdToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
+    private void waitForSyncSavepointIdToBeSet(final StreamTask streamTaskUnderTest)
+            throws InterruptedException {
 
-		while (!streamTaskUnderTest.getSynchronousSavepointId().isPresent()) {
-			Thread.sleep(10L);
+        while (!streamTaskUnderTest.getSynchronousSavepointId().isPresent()) {
+            Thread.sleep(10L);
 
-			if (taskInvocation.isDone()) {
-				fail("Task has been terminated too early");
-			}
-		}
-	}
+            if (taskInvocation.isDone()) {
+                fail("Task has been terminated too early");
+            }
+        }
+    }
 
-	private static StreamTaskUnderTest createTask(Queue<Event> eventQueue) throws Exception {
-		final DummyEnvironment environment = new DummyEnvironment("test", 1, 0);
-		return new StreamTaskUnderTest(environment, eventQueue);
-	}
+    private static StreamTaskUnderTest createTask(Queue<Event> eventQueue) throws Exception {
+        final DummyEnvironment environment = new DummyEnvironment("test", 1, 0);
+        return new StreamTaskUnderTest(environment, eventQueue);
+    }
 
-	private static class StreamTaskUnderTest extends NoOpStreamTask {
+    private static class StreamTaskUnderTest extends NoOpStreamTask {
 
-		private Queue<Event> eventQueue;
-		private volatile boolean stopped;
+        private Queue<Event> eventQueue;
+        private volatile boolean stopped;
 
-		StreamTaskUnderTest(
-				final Environment env,
-				Queue<Event> eventQueue) throws Exception {
-			super(env);
-			this.eventQueue = checkNotNull(eventQueue);
-		}
+        StreamTaskUnderTest(final Environment env, Queue<Event> eventQueue) throws Exception {
+            super(env);
+            this.eventQueue = checkNotNull(eventQueue);
+        }
 
-		@Override
-		protected void init() {
-			eventQueue.add(Event.TASK_INITIALIZED);
-		}
+        @Override
+        protected void init() {
+            eventQueue.add(Event.TASK_INITIALIZED);
+        }
 
-		@Override
-		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-			if (stopped || isCanceled()) {
-				controller.allActionsCompleted();
-			}
-		}
+        @Override
+        protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+            if (stopped || isCanceled()) {
+                controller.allActionsCompleted();
+            }
+        }
 
-		void stopTask() {
-			stopped = true;
-		}
-	}
+        void stopTask() {
+            stopped = true;
+        }
+    }
 }

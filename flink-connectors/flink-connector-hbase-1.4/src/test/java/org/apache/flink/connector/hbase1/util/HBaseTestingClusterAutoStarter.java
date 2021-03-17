@@ -49,14 +49,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * By using this class as the super class of a set of tests you will have a HBase testing
- * cluster available that is very suitable for writing tests for scanning and filtering against.
- * This is usable by any downstream application because the HBase cluster is 'injected' because
- * a dynamically generated hbase-site.xml is added to the classpath.
- * Because of this classpath manipulation it is not possible to start a second testing cluster in the same JVM.
- * So if you have this you should either put all hbase related tests in a single class or force surefire to
- * setup a new JVM for each testclass.
- * See: http://maven.apache.org/surefire/maven-surefire-plugin/examples/fork-options-and-parallel-execution.html
+ * By using this class as the super class of a set of tests you will have a HBase testing cluster
+ * available that is very suitable for writing tests for scanning and filtering against. This is
+ * usable by any downstream application because the HBase cluster is 'injected' because a
+ * dynamically generated hbase-site.xml is added to the classpath. Because of this classpath
+ * manipulation it is not possible to start a second testing cluster in the same JVM. So if you have
+ * this you should either put all hbase related tests in a single class or force surefire to setup a
+ * new JVM for each testclass. See:
+ * http://maven.apache.org/surefire/maven-surefire-plugin/examples/fork-options-and-parallel-execution.html
  */
 //
 // NOTE: The code in this file is based on code from the
@@ -66,112 +66,116 @@ import static org.junit.Assert.assertTrue;
 //
 public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 
-	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutoStarter.class);
+    private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutoStarter.class);
 
-	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
-	private static HBaseAdmin admin = null;
-	private static List<TableName> createdTables = new ArrayList<>();
+    private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+    private static HBaseAdmin admin = null;
+    private static List<TableName> createdTables = new ArrayList<>();
 
-	private static Configuration conf;
+    private static Configuration conf;
 
-	protected static void createTable(TableName tableName, byte[][] columnFamilyName, byte[][] splitKeys) {
-		LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
+    protected static void createTable(
+            TableName tableName, byte[][] columnFamilyName, byte[][] splitKeys) {
+        LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
 
-		assertNotNull("HBaseAdmin is not initialized successfully.", admin);
-		HTableDescriptor desc = new HTableDescriptor(tableName);
-		for (byte[] fam : columnFamilyName) {
-			HColumnDescriptor colDef = new HColumnDescriptor(fam);
-			desc.addFamily(colDef);
-		}
+        assertNotNull("HBaseAdmin is not initialized successfully.", admin);
+        HTableDescriptor desc = new HTableDescriptor(tableName);
+        for (byte[] fam : columnFamilyName) {
+            HColumnDescriptor colDef = new HColumnDescriptor(fam);
+            desc.addFamily(colDef);
+        }
 
-		try {
-			admin.createTable(desc, splitKeys);
-			createdTables.add(tableName);
-			assertTrue("Fail to create the table", admin.tableExists(tableName));
-		} catch (IOException e) {
-			assertNull("Exception found while creating table", e);
-		}
-	}
+        try {
+            admin.createTable(desc, splitKeys);
+            createdTables.add(tableName);
+            assertTrue("Fail to create the table", admin.tableExists(tableName));
+        } catch (IOException e) {
+            assertNull("Exception found while creating table", e);
+        }
+    }
 
-	protected static HTable openTable(TableName tableName) throws IOException {
-		HTable table = (HTable) admin.getConnection().getTable(tableName);
-		assertTrue("Fail to create the table", admin.tableExists(tableName));
-		return table;
-	}
+    protected static HTable openTable(TableName tableName) throws IOException {
+        HTable table = (HTable) admin.getConnection().getTable(tableName);
+        assertTrue("Fail to create the table", admin.tableExists(tableName));
+        return table;
+    }
 
-	private static void deleteTables() {
-		if (admin != null) {
-			for (TableName tableName : createdTables) {
-				try {
-					if (admin.tableExists(tableName)) {
-						admin.disableTable(tableName);
-						admin.deleteTable(tableName);
-					}
-				} catch (IOException e) {
-					assertNull("Exception found deleting the table", e);
-				}
-			}
-		}
-	}
+    private static void deleteTables() {
+        if (admin != null) {
+            for (TableName tableName : createdTables) {
+                try {
+                    if (admin.tableExists(tableName)) {
+                        admin.disableTable(tableName);
+                        admin.deleteTable(tableName);
+                    }
+                } catch (IOException e) {
+                    assertNull("Exception found deleting the table", e);
+                }
+            }
+        }
+    }
 
-	private static void initialize(Configuration c) {
-		conf = HBaseConfiguration.create(c);
-		// the default retry number is 35 in hbase-1.4, set 5 for test
-		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 5);
-		try {
-			admin = TEST_UTIL.getHBaseAdmin();
-		} catch (MasterNotRunningException e) {
-			assertNull("Master is not running", e);
-		} catch (ZooKeeperConnectionException e) {
-			assertNull("Cannot connect to ZooKeeper", e);
-		} catch (IOException e) {
-			assertNull("IOException", e);
-		}
-	}
+    private static void initialize(Configuration c) {
+        conf = HBaseConfiguration.create(c);
+        // the default retry number is 35 in hbase-1.4, set 35 for test
+        conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 35);
+        try {
+            admin = TEST_UTIL.getHBaseAdmin();
+        } catch (MasterNotRunningException e) {
+            assertNull("Master is not running", e);
+        } catch (ZooKeeperConnectionException e) {
+            assertNull("Cannot connect to ZooKeeper", e);
+        } catch (IOException e) {
+            assertNull("IOException", e);
+        }
+    }
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		// HBase 1.4 does not work with Hadoop 3
-		// because it uses Guava 12.0.1, Hadoop 3 uses Guava 27.0-jre.
-		// There is no Guava version in between that works with both.
-		Assume.assumeTrue("This test is skipped for Hadoop versions above 3", VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0);
+    @BeforeClass
+    public static void setUp() throws Exception {
+        // HBase 1.4 does not work with Hadoop 3
+        // because it uses Guava 12.0.1, Hadoop 3 uses Guava 27.0-jre.
+        // There is no Guava version in between that works with both.
+        Assume.assumeTrue(
+                "This test is skipped for Hadoop versions above 3",
+                VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0);
 
-		LOG.info("HBase minicluster: Starting");
+        LOG.info("HBase minicluster: Starting");
 
-		TEST_UTIL.startMiniCluster(1);
+        TEST_UTIL.startMiniCluster(1);
 
-		// https://issues.apache.org/jira/browse/HBASE-11711
-		TEST_UTIL.getConfiguration().setInt("hbase.master.info.port", -1);
+        // https://issues.apache.org/jira/browse/HBASE-11711
+        TEST_UTIL.getConfiguration().setInt("hbase.master.info.port", -1);
 
-		// Make sure the zookeeper quorum value contains the right port number (varies per run).
-		LOG.info("Hbase minicluster client port: " + TEST_UTIL.getZkCluster().getClientPort());
-		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
+        // Make sure the zookeeper quorum value contains the right port number (varies per run).
+        LOG.info("Hbase minicluster client port: " + TEST_UTIL.getZkCluster().getClientPort());
+        TEST_UTIL
+                .getConfiguration()
+                .set(
+                        "hbase.zookeeper.quorum",
+                        "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
 
-		initialize(TEST_UTIL.getConfiguration());
-		LOG.info("HBase minicluster: Running");
-	}
+        initialize(TEST_UTIL.getConfiguration());
+        LOG.info("HBase minicluster: Running");
+    }
 
-	/**
-	 * Returns zookeeper quorum value contains the right port number (varies per run).
-	 */
-	protected static String getZookeeperQuorum() {
-		return "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
-	}
+    /** Returns zookeeper quorum value contains the right port number (varies per run). */
+    protected static String getZookeeperQuorum() {
+        return "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
+    }
 
-	public static Configuration getConf() {
-		return conf;
-	}
+    public static Configuration getConf() {
+        return conf;
+    }
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (conf == null) {
-			LOG.info("Skipping Hbase tear down. It was never started");
-			return;
-		}
-		LOG.info("HBase minicluster: Shutting down");
-		deleteTables();
-		TEST_UTIL.shutdownMiniCluster();
-		LOG.info("HBase minicluster: Down");
-	}
-
+    @AfterClass
+    public static void tearDown() throws Exception {
+        if (conf == null) {
+            LOG.info("Skipping Hbase tear down. It was never started");
+            return;
+        }
+        LOG.info("HBase minicluster: Shutting down");
+        deleteTables();
+        TEST_UTIL.shutdownMiniCluster();
+        LOG.info("HBase minicluster: Down");
+    }
 }

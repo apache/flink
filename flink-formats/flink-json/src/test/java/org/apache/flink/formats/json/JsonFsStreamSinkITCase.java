@@ -23,17 +23,15 @@ import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Test checkpoint for file system table factory with json format.
- */
+/** Test checkpoint for file system table factory with json format. */
 public class JsonFsStreamSinkITCase extends FsStreamingSinkITCaseBase {
 
-	@Override
-	public String[] additionalProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='json'");
-		// for test purpose
-		ret.add("'sink.rolling-policy.file-size'='1b'");
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] additionalProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='json'");
+        // for test purpose
+        ret.add("'sink.rolling-policy.file-size'='1b'");
+        return ret.toArray(new String[0]);
+    }
 }

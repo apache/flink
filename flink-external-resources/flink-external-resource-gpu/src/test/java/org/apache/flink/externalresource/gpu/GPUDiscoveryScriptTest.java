@@ -28,49 +28,57 @@ import java.io.InputStreamReader;
 
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Tests for the gpu-discovery-common.sh.
- */
+/** Tests for the gpu-discovery-common.sh. */
 public class GPUDiscoveryScriptTest extends TestLogger {
 
-	private static final String TEST_SCRIPT_PATH = "src/test/resources/test-coordination-mode.sh";
+    private static final String TEST_SCRIPT_PATH = "src/test/resources/test-coordination-mode.sh";
 
-	@Test
-	public void testNonCoordinationMode() throws Exception {
-		assumeTrue(OperatingSystem.isLinux());
-		testExistWithNonZero("test_non_coordination_mode");
-	}
+    @Test
+    public void testNonCoordinationMode() throws Exception {
+        assumeTrue(OperatingSystem.isLinux());
+        testExistWithNonZero("test_non_coordination_mode");
+    }
 
-	@Test
-	public void testCoordinateIndexes() throws Exception {
-		assumeTrue(OperatingSystem.isLinux());
-		testExistWithNonZero("test_coordinate_indexes");
-	}
+    @Test
+    public void testCoordinateIndexes() throws Exception {
+        assumeTrue(OperatingSystem.isLinux());
+        testExistWithNonZero("test_coordinate_indexes");
+    }
 
-	@Test
-	public void testPreemptFromDeadProcesses() throws Exception {
-		assumeTrue(OperatingSystem.isLinux());
-		testExistWithNonZero("test_preempt_from_dead_processes");
-	}
+    @Test
+    public void testPreemptFromDeadProcesses() throws Exception {
+        assumeTrue(OperatingSystem.isLinux());
+        testExistWithNonZero("test_preempt_from_dead_processes");
+    }
 
-	@Test
-	public void testSetCoordinationFile() throws Exception {
-		assumeTrue(OperatingSystem.isLinux());
-		testExistWithNonZero("test_coordination_file");
-	}
+    @Test
+    public void testSetCoordinationFile() throws Exception {
+        assumeTrue(OperatingSystem.isLinux());
+        testExistWithNonZero("test_coordination_file");
+    }
 
-	private void testExistWithNonZero(String cmd) throws Exception {
-		final ProcessBuilder processBuilder = new ProcessBuilder(TEST_SCRIPT_PATH, cmd);
-		processBuilder.redirectErrorStream(true);
-		final Process process = processBuilder.start();
-		try (final BufferedReader stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-			final int exitValue = process.waitFor();
-			if (exitValue != 0) {
-				final String stdout = stdoutReader.lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-				throw new Exception(String.format("Script exist with non-zero %d.\\n OUTPUT: %s", exitValue, stdout));
-			}
-		} finally {
-			process.destroyForcibly();
-		}
-	}
+    private void testExistWithNonZero(String cmd) throws Exception {
+        final ProcessBuilder processBuilder = new ProcessBuilder(TEST_SCRIPT_PATH, cmd);
+        processBuilder.redirectErrorStream(true);
+        final Process process = processBuilder.start();
+        try (final BufferedReader stdoutReader =
+                new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            final int exitValue = process.waitFor();
+            if (exitValue != 0) {
+                final String stdout =
+                        stdoutReader
+                                .lines()
+                                .collect(
+                                        StringBuilder::new,
+                                        StringBuilder::append,
+                                        StringBuilder::append)
+                                .toString();
+                throw new Exception(
+                        String.format(
+                                "Script exist with non-zero %d.\\n OUTPUT: %s", exitValue, stdout));
+            }
+        } finally {
+            process.destroyForcibly();
+        }
+    }
 }

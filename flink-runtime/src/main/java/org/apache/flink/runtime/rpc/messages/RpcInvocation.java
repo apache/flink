@@ -26,33 +26,36 @@ import java.io.IOException;
  */
 public interface RpcInvocation {
 
-	/**
-	 * Returns the method's name.
-	 *
-	 * @return Method name
-	 * @throws IOException if the rpc invocation message is a remote message and could not be deserialized
-	 * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-	 * serialized classes which cannot be found on the receiving side
-	 */
-	String getMethodName() throws IOException, ClassNotFoundException;
+    /**
+     * Returns the method's name.
+     *
+     * @return Method name
+     * @throws IOException if the rpc invocation message is a remote message and could not be
+     *     deserialized
+     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
+     *     serialized classes which cannot be found on the receiving side
+     */
+    String getMethodName() throws IOException, ClassNotFoundException;
 
-	/**
-	 * Returns the method's parameter types
-	 *
-	 * @return Method's parameter types
-	 * @throws IOException if the rpc invocation message is a remote message and could not be deserialized
-	 * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-	 * serialized classes which cannot be found on the receiving side
-	 */
-	Class<?>[] getParameterTypes() throws IOException, ClassNotFoundException;
+    /**
+     * Returns the method's parameter types
+     *
+     * @return Method's parameter types
+     * @throws IOException if the rpc invocation message is a remote message and could not be
+     *     deserialized
+     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
+     *     serialized classes which cannot be found on the receiving side
+     */
+    Class<?>[] getParameterTypes() throws IOException, ClassNotFoundException;
 
-	/**
-	 * Returns the arguments of the remote procedure call
-	 *
-	 * @return Arguments of the remote procedure call
-	 * @throws IOException if the rpc invocation message is a remote message and could not be deserialized
-	 * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
-	 * serialized classes which cannot be found on the receiving side
-	 */
-	Object[] getArgs() throws IOException, ClassNotFoundException;
+    /**
+     * Returns the arguments of the remote procedure call
+     *
+     * @return Arguments of the remote procedure call
+     * @throws IOException if the rpc invocation message is a remote message and could not be
+     *     deserialized
+     * @throws ClassNotFoundException if the rpc invocation message is a remote message and contains
+     *     serialized classes which cannot be found on the receiving side
+     */
+    Object[] getArgs() throws IOException, ClassNotFoundException;
 }

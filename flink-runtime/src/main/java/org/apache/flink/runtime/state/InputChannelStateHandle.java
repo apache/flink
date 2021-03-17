@@ -24,23 +24,34 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import java.util.List;
 
 /**
- * {@link StateObject Handle} to an {@link org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel} state.
+ * {@link StateObject Handle} to an {@link
+ * org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel} state.
  */
 @Internal
 public class InputChannelStateHandle extends AbstractChannelStateHandle<InputChannelInfo> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public InputChannelStateHandle(int subtaskIndex, InputChannelInfo info, StreamStateHandle delegate, StateContentMetaInfo contentMetaInfo) {
-		this(subtaskIndex, info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
-	}
+    public InputChannelStateHandle(
+            int subtaskIndex,
+            InputChannelInfo info,
+            StreamStateHandle delegate,
+            StateContentMetaInfo contentMetaInfo) {
+        this(subtaskIndex, info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+    }
 
-	@VisibleForTesting
-	public InputChannelStateHandle(InputChannelInfo info, StreamStateHandle delegate, List<Long> offset) {
-		this(0, info, delegate, offset, delegate.getStateSize());
-	}
+    @VisibleForTesting
+    public InputChannelStateHandle(
+            InputChannelInfo info, StreamStateHandle delegate, List<Long> offset) {
+        this(0, info, delegate, offset, delegate.getStateSize());
+    }
 
-	public InputChannelStateHandle(int subtaskIndex, InputChannelInfo info, StreamStateHandle delegate, List<Long> offset, long size) {
-		super(delegate, offset, subtaskIndex, info, size);
-	}
+    public InputChannelStateHandle(
+            int subtaskIndex,
+            InputChannelInfo info,
+            StreamStateHandle delegate,
+            List<Long> offset,
+            long size) {
+        super(delegate, offset, subtaskIndex, info, size);
+    }
 }

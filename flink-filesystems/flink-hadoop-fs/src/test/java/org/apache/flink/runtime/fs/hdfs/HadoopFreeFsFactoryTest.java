@@ -29,59 +29,54 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-/**
- * Tests that validate the behavior of the Hadoop File System Factory.
- */
+/** Tests that validate the behavior of the Hadoop File System Factory. */
 public class HadoopFreeFsFactoryTest extends TestLogger {
 
-	/**
-	 * This test validates that the factory can be instantiated and configured even
-	 * when Hadoop classes are missing from the classpath.
-	 */
-	@Test
-	public void testHadoopFactoryInstantiationWithoutHadoop() throws Exception {
-		// we do reflection magic here to instantiate the test in another class
-		// loader, to make sure no hadoop classes are in the classpath
+    /**
+     * This test validates that the factory can be instantiated and configured even when Hadoop
+     * classes are missing from the classpath.
+     */
+    @Test
+    public void testHadoopFactoryInstantiationWithoutHadoop() throws Exception {
+        // we do reflection magic here to instantiate the test in another class
+        // loader, to make sure no hadoop classes are in the classpath
 
-		final String testClassName = "org.apache.flink.runtime.fs.hdfs.HadoopFreeTests";
+        final String testClassName = "org.apache.flink.runtime.fs.hdfs.HadoopFreeTests";
 
-		final URL[] urls = ClassLoaderUtils.getClasspathURLs();
+        final URL[] urls = ClassLoaderUtils.getClasspathURLs();
 
-		ClassLoader parent = getClass().getClassLoader();
-		ClassLoader hadoopFreeClassLoader = new HadoopFreeClassLoader(urls, parent);
-		Class<?> testClass = Class.forName(testClassName, false, hadoopFreeClassLoader);
-		Method m = testClass.getDeclaredMethod("test");
+        ClassLoader parent = getClass().getClassLoader();
+        ClassLoader hadoopFreeClassLoader = new HadoopFreeClassLoader(urls, parent);
+        Class<?> testClass = Class.forName(testClassName, false, hadoopFreeClassLoader);
+        Method m = testClass.getDeclaredMethod("test");
 
-		try {
-			m.invoke(null);
-		}
-		catch (InvocationTargetException e) {
-			ExceptionUtils.rethrowException(e.getTargetException(), "exception in method");
-		}
-	}
+        try {
+            m.invoke(null);
+        } catch (InvocationTargetException e) {
+            ExceptionUtils.rethrowException(e.getTargetException(), "exception in method");
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class HadoopFreeClassLoader extends URLClassLoader {
+    private static final class HadoopFreeClassLoader extends URLClassLoader {
 
-		private final ClassLoader properParent;
+        private final ClassLoader properParent;
 
-		HadoopFreeClassLoader(URL[] urls, ClassLoader parent) {
-			super(urls, null);
-			properParent = parent;
-		}
+        HadoopFreeClassLoader(URL[] urls, ClassLoader parent) {
+            super(urls, null);
+            properParent = parent;
+        }
 
-		@Override
-		public Class<?> loadClass(String name) throws ClassNotFoundException {
-			if (name.startsWith("org.apache.hadoop")) {
-				throw new ClassNotFoundException(name);
-			}
-			else if (name.startsWith("org.apache.log4j")) {
-				return properParent.loadClass(name);
-			}
-			else {
-				return super.loadClass(name);
-			}
-		}
-	}
+        @Override
+        public Class<?> loadClass(String name) throws ClassNotFoundException {
+            if (name.startsWith("org.apache.hadoop")) {
+                throw new ClassNotFoundException(name);
+            } else if (name.startsWith("org.apache.log4j")) {
+                return properParent.loadClass(name);
+            } else {
+                return super.loadClass(name);
+            }
+        }
+    }
 }

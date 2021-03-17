@@ -25,78 +25,73 @@ import org.apache.flink.table.data.StringData;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * {@link ArrowFieldWriter} for VarChar.
- */
+/** {@link ArrowFieldWriter} for VarChar. */
 @Internal
 public abstract class VarCharWriter<T> extends ArrowFieldWriter<T> {
 
-	public static VarCharWriter<RowData> forRow(VarCharVector varCharVector) {
-		return new VarCharWriterForRow(varCharVector);
-	}
+    public static VarCharWriter<RowData> forRow(VarCharVector varCharVector) {
+        return new VarCharWriterForRow(varCharVector);
+    }
 
-	public static VarCharWriter<ArrayData> forArray(VarCharVector varCharVector) {
-		return new VarCharWriterForArray(varCharVector);
-	}
+    public static VarCharWriter<ArrayData> forArray(VarCharVector varCharVector) {
+        return new VarCharWriterForArray(varCharVector);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	private VarCharWriter(VarCharVector varCharVector) {
-		super(varCharVector);
-	}
+    private VarCharWriter(VarCharVector varCharVector) {
+        super(varCharVector);
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract StringData readString(T in, int ordinal);
+    abstract StringData readString(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (isNullAt(in, ordinal)) {
-			((VarCharVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarCharVector) getValueVector()).setSafe(getCount(), readString(in, ordinal).toBytes());
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((VarCharVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarCharVector) getValueVector())
+                    .setSafe(getCount(), readString(in, ordinal).toBytes());
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link VarCharWriter} for {@link RowData} input.
-	 */
-	public static final class VarCharWriterForRow extends VarCharWriter<RowData> {
+    /** {@link VarCharWriter} for {@link RowData} input. */
+    public static final class VarCharWriterForRow extends VarCharWriter<RowData> {
 
-		private VarCharWriterForRow(VarCharVector varCharVector) {
-			super(varCharVector);
-		}
+        private VarCharWriterForRow(VarCharVector varCharVector) {
+            super(varCharVector);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		StringData readString(RowData in, int ordinal) {
-			return in.getString(ordinal);
-		}
-	}
+        @Override
+        StringData readString(RowData in, int ordinal) {
+            return in.getString(ordinal);
+        }
+    }
 
-	/**
-	 * {@link VarCharWriter} for {@link ArrayData} input.
-	 */
-	public static final class VarCharWriterForArray extends VarCharWriter<ArrayData> {
+    /** {@link VarCharWriter} for {@link ArrayData} input. */
+    public static final class VarCharWriterForArray extends VarCharWriter<ArrayData> {
 
-		private VarCharWriterForArray(VarCharVector varCharVector) {
-			super(varCharVector);
-		}
+        private VarCharWriterForArray(VarCharVector varCharVector) {
+            super(varCharVector);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		StringData readString(ArrayData in, int ordinal) {
-			return in.getString(ordinal);
-		}
-	}
+        @Override
+        StringData readString(ArrayData in, int ordinal) {
+            return in.getString(ordinal);
+        }
+    }
 }

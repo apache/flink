@@ -34,9 +34,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -62,7 +60,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -75,229 +72,246 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-/**
- * Test for {@link StreamTaskStateInitializerImpl}.
- */
+/** Test for {@link StreamTaskStateInitializerImpl}. */
 public class StreamTaskStateInitializerImplTest {
 
-	@Test
-	public void testNoRestore() throws Exception {
+    @Test
+    public void testNoRestore() throws Exception {
 
-		MemoryStateBackend stateBackend = spy(new MemoryStateBackend(1024));
+        MemoryStateBackend stateBackend = spy(new MemoryStateBackend(1024));
 
-		// No job manager provided state to restore
-		StreamTaskStateInitializer streamTaskStateManager = streamTaskStateManager(stateBackend, null, true);
+        // No job manager provided state to restore
+        StreamTaskStateInitializer streamTaskStateManager =
+                streamTaskStateManager(stateBackend, null, true);
 
-		OperatorID operatorID = new OperatorID(47L, 11L);
-		AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
-		when(streamOperator.getOperatorID()).thenReturn(operatorID);
+        OperatorID operatorID = new OperatorID(47L, 11L);
+        AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
+        when(streamOperator.getOperatorID()).thenReturn(operatorID);
 
-		TypeSerializer<?> typeSerializer = new IntSerializer();
-		CloseableRegistry closeableRegistry = new CloseableRegistry();
+        TypeSerializer<?> typeSerializer = new IntSerializer();
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
 
-		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
-			streamOperator.getOperatorID(),
-			streamOperator.getClass().getSimpleName(),
-			new TestProcessingTimeService(),
-			streamOperator,
-			typeSerializer,
-			closeableRegistry,
-			new UnregisteredMetricsGroup(),
-			1.0,
-			false);
+        StreamOperatorStateContext stateContext =
+                streamTaskStateManager.streamOperatorStateContext(
+                        streamOperator.getOperatorID(),
+                        streamOperator.getClass().getSimpleName(),
+                        new TestProcessingTimeService(),
+                        streamOperator,
+                        typeSerializer,
+                        closeableRegistry,
+                        new UnregisteredMetricsGroup(),
+                        1.0,
+                        false);
 
-		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
-		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
-		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
+        OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
+        CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+        InternalTimeServiceManager<?> timeServiceManager =
+                stateContext.internalTimerServiceManager();
+        CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs =
+                stateContext.rawKeyedStateInputs();
+        CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
+                stateContext.rawOperatorStateInputs();
 
-		Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
-		Assert.assertNotNull(operatorStateBackend);
-		Assert.assertNotNull(keyedStateBackend);
-		Assert.assertNotNull(timeServiceManager);
-		Assert.assertNotNull(keyedStateInputs);
-		Assert.assertNotNull(operatorStateInputs);
+        Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
+        Assert.assertNotNull(operatorStateBackend);
+        Assert.assertNotNull(keyedStateBackend);
+        Assert.assertNotNull(timeServiceManager);
+        Assert.assertNotNull(keyedStateInputs);
+        Assert.assertNotNull(operatorStateInputs);
 
-		checkCloseablesRegistered(
-			closeableRegistry,
-			operatorStateBackend,
-			keyedStateBackend,
-			keyedStateInputs,
-			operatorStateInputs);
+        checkCloseablesRegistered(
+                closeableRegistry,
+                operatorStateBackend,
+                keyedStateBackend,
+                keyedStateInputs,
+                operatorStateInputs);
 
-		Assert.assertFalse(keyedStateInputs.iterator().hasNext());
-		Assert.assertFalse(operatorStateInputs.iterator().hasNext());
-	}
+        Assert.assertFalse(keyedStateInputs.iterator().hasNext());
+        Assert.assertFalse(operatorStateInputs.iterator().hasNext());
+    }
 
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testWithRestore() throws Exception {
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testWithRestore() throws Exception {
 
-		StateBackend mockingBackend = spy(new StateBackend() {
-			@Override
-			public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
-				throw new UnsupportedOperationException();
-			}
+        StateBackend mockingBackend =
+                spy(
+                        new StateBackend() {
 
-			@Override
-			public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-				throw new UnsupportedOperationException();
-			}
+                            @Override
+                            public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+                                    Environment env,
+                                    JobID jobID,
+                                    String operatorIdentifier,
+                                    TypeSerializer<K> keySerializer,
+                                    int numberOfKeyGroups,
+                                    KeyGroupRange keyGroupRange,
+                                    TaskKvStateRegistry kvStateRegistry,
+                                    TtlTimeProvider ttlTimeProvider,
+                                    MetricGroup metricGroup,
+                                    @Nonnull Collection<KeyedStateHandle> stateHandles,
+                                    CloseableRegistry cancelStreamRegistry)
+                                    throws Exception {
+                                return mock(AbstractKeyedStateBackend.class);
+                            }
 
-			@Override
-			public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry,
-				TtlTimeProvider ttlTimeProvider,
-				MetricGroup metricGroup,
-				@Nonnull Collection<KeyedStateHandle> stateHandles,
-				CloseableRegistry cancelStreamRegistry) throws Exception {
-				return mock(AbstractKeyedStateBackend.class);
-			}
+                            @Override
+                            public OperatorStateBackend createOperatorStateBackend(
+                                    Environment env,
+                                    String operatorIdentifier,
+                                    @Nonnull Collection<OperatorStateHandle> stateHandles,
+                                    CloseableRegistry cancelStreamRegistry)
+                                    throws Exception {
+                                return mock(OperatorStateBackend.class);
+                            }
+                        });
 
-			@Override
-			public OperatorStateBackend createOperatorStateBackend(
-				Environment env,
-				String operatorIdentifier,
-				@Nonnull Collection<OperatorStateHandle> stateHandles,
-				CloseableRegistry cancelStreamRegistry) throws Exception {
-				return mock(OperatorStateBackend.class);
-			}
-		});
+        OperatorID operatorID = new OperatorID(47L, 11L);
+        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
 
-		OperatorID operatorID = new OperatorID(47L, 11L);
-		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
+        Random random = new Random(0x42);
 
-		Random random = new Random(0x42);
+        OperatorSubtaskState operatorSubtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                new OperatorStreamStateHandle(
+                                        Collections.singletonMap(
+                                                "a",
+                                                new OperatorStateHandle.StateMetaInfo(
+                                                        new long[] {0, 10}, SPLIT_DISTRIBUTE)),
+                                        CheckpointTestUtils.createDummyStreamStateHandle(
+                                                random, null)))
+                        .setRawOperatorState(
+                                new OperatorStreamStateHandle(
+                                        Collections.singletonMap(
+                                                "_default_",
+                                                new OperatorStateHandle.StateMetaInfo(
+                                                        new long[] {0, 20, 30}, SPLIT_DISTRIBUTE)),
+                                        CheckpointTestUtils.createDummyStreamStateHandle(
+                                                random, null)))
+                        .setManagedKeyedState(
+                                CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+                        .setRawKeyedState(
+                                CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+                        .setInputChannelState(
+                                singleton(createNewInputChannelStateHandle(10, random)))
+                        .setResultSubpartitionState(
+                                singleton(createNewResultSubpartitionStateHandle(10, random)))
+                        .build();
 
-		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
-			.setManagedOperatorState(new OperatorStreamStateHandle(
-				Collections.singletonMap(
-					"a",
-					new OperatorStateHandle.StateMetaInfo(new long[]{0, 10}, SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
-			.setRawOperatorState(new OperatorStreamStateHandle(
-				Collections.singletonMap(
-					"_default_",
-					new OperatorStateHandle.StateMetaInfo(new long[]{0, 20, 30}, SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
-			.setManagedKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
-			.setRawKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
-			.setInputChannelState(singleton(createNewInputChannelStateHandle(10, random)))
-			.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, random)))
-			.build();
+        taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
-		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+        JobManagerTaskRestore jobManagerTaskRestore =
+                new JobManagerTaskRestore(0L, taskStateSnapshot);
 
-		JobManagerTaskRestore jobManagerTaskRestore = new JobManagerTaskRestore(0L, taskStateSnapshot);
+        StreamTaskStateInitializer streamTaskStateManager =
+                streamTaskStateManager(mockingBackend, jobManagerTaskRestore, false);
 
-		StreamTaskStateInitializer streamTaskStateManager =
-			streamTaskStateManager(mockingBackend, jobManagerTaskRestore, false);
+        AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
+        when(streamOperator.getOperatorID()).thenReturn(operatorID);
 
-		AbstractStreamOperator<?> streamOperator = mock(AbstractStreamOperator.class);
-		when(streamOperator.getOperatorID()).thenReturn(operatorID);
+        TypeSerializer<?> typeSerializer = new IntSerializer();
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
 
-		TypeSerializer<?> typeSerializer = new IntSerializer();
-		CloseableRegistry closeableRegistry = new CloseableRegistry();
+        StreamOperatorStateContext stateContext =
+                streamTaskStateManager.streamOperatorStateContext(
+                        streamOperator.getOperatorID(),
+                        streamOperator.getClass().getSimpleName(),
+                        new TestProcessingTimeService(),
+                        streamOperator,
+                        typeSerializer,
+                        closeableRegistry,
+                        new UnregisteredMetricsGroup(),
+                        1.0,
+                        false);
 
-		StreamOperatorStateContext stateContext = streamTaskStateManager.streamOperatorStateContext(
-			streamOperator.getOperatorID(),
-			streamOperator.getClass().getSimpleName(),
-			new TestProcessingTimeService(),
-			streamOperator,
-			typeSerializer,
-			closeableRegistry,
-			new UnregisteredMetricsGroup(),
-			1.0,
-			false);
+        OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
+        CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+        InternalTimeServiceManager<?> timeServiceManager =
+                stateContext.internalTimerServiceManager();
+        CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs =
+                stateContext.rawKeyedStateInputs();
+        CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
+                stateContext.rawOperatorStateInputs();
 
-		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
-		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
-		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
+        Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
 
-		Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
+        Assert.assertNotNull(operatorStateBackend);
+        Assert.assertNotNull(keyedStateBackend);
+        // this is deactivated on purpose so that it does not attempt to consume the raw keyed
+        // state.
+        Assert.assertNull(timeServiceManager);
+        Assert.assertNotNull(keyedStateInputs);
+        Assert.assertNotNull(operatorStateInputs);
 
-		Assert.assertNotNull(operatorStateBackend);
-		Assert.assertNotNull(keyedStateBackend);
-		// this is deactivated on purpose so that it does not attempt to consume the raw keyed state.
-		Assert.assertNull(timeServiceManager);
-		Assert.assertNotNull(keyedStateInputs);
-		Assert.assertNotNull(operatorStateInputs);
+        int count = 0;
+        for (KeyGroupStatePartitionStreamProvider keyedStateInput : keyedStateInputs) {
+            ++count;
+        }
+        Assert.assertEquals(1, count);
 
-		int count = 0;
-		for (KeyGroupStatePartitionStreamProvider keyedStateInput : keyedStateInputs) {
-			++count;
-		}
-		Assert.assertEquals(1, count);
+        count = 0;
+        for (StatePartitionStreamProvider operatorStateInput : operatorStateInputs) {
+            ++count;
+        }
+        Assert.assertEquals(3, count);
 
-		count = 0;
-		for (StatePartitionStreamProvider operatorStateInput : operatorStateInputs) {
-			++count;
-		}
-		Assert.assertEquals(3, count);
+        checkCloseablesRegistered(
+                closeableRegistry,
+                operatorStateBackend,
+                keyedStateBackend,
+                keyedStateInputs,
+                operatorStateInputs);
+    }
 
-		checkCloseablesRegistered(
-			closeableRegistry,
-			operatorStateBackend,
-			keyedStateBackend,
-			keyedStateInputs,
-			operatorStateInputs);
-	}
+    private static void checkCloseablesRegistered(
+            CloseableRegistry closeableRegistry, Closeable... closeables) {
+        for (Closeable closeable : closeables) {
+            Assert.assertTrue(closeableRegistry.unregisterCloseable(closeable));
+        }
+    }
 
-	private static void checkCloseablesRegistered(CloseableRegistry closeableRegistry, Closeable... closeables) {
-		for (Closeable closeable : closeables) {
-			Assert.assertTrue(closeableRegistry.unregisterCloseable(closeable));
-		}
-	}
+    private StreamTaskStateInitializer streamTaskStateManager(
+            StateBackend stateBackend,
+            JobManagerTaskRestore jobManagerTaskRestore,
+            boolean createTimerServiceManager) {
 
-	private StreamTaskStateInitializer streamTaskStateManager(
-		StateBackend stateBackend,
-		JobManagerTaskRestore jobManagerTaskRestore,
-		boolean createTimerServiceManager) {
+        JobID jobID = new JobID(42L, 43L);
+        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
-		JobID jobID = new JobID(42L, 43L);
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
-		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
+        TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
 
-		TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
+        TaskStateManager taskStateManager =
+                TaskStateManagerImplTest.taskStateManager(
+                        jobID,
+                        executionAttemptID,
+                        checkpointResponderMock,
+                        jobManagerTaskRestore,
+                        taskLocalStateStore);
 
-		TaskStateManager taskStateManager = TaskStateManagerImplTest.taskStateManager(
-			jobID,
-			executionAttemptID,
-			checkpointResponderMock,
-			jobManagerTaskRestore,
-			taskLocalStateStore);
+        DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
+        dummyEnvironment.setTaskStateManager(taskStateManager);
 
-		DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
-		dummyEnvironment.setTaskStateManager(taskStateManager);
-
-		if (createTimerServiceManager) {
-			return new StreamTaskStateInitializerImpl(
-				dummyEnvironment,
-				stateBackend);
-		} else {
-			return new StreamTaskStateInitializerImpl(
-				dummyEnvironment,
-				stateBackend,
-				TtlTimeProvider.DEFAULT,
-				new InternalTimeServiceManager.Provider() {
-					@Override
-					public <K> InternalTimeServiceManager<K> create(
-							CheckpointableKeyedStateBackend<K> keyedStatedBackend,
-							ClassLoader userClassloader,
-							KeyContext keyContext,
-							ProcessingTimeService processingTimeService,
-							Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-						return null;
-					}
-				});
-		}
-	}
+        if (createTimerServiceManager) {
+            return new StreamTaskStateInitializerImpl(dummyEnvironment, stateBackend);
+        } else {
+            return new StreamTaskStateInitializerImpl(
+                    dummyEnvironment,
+                    stateBackend,
+                    TtlTimeProvider.DEFAULT,
+                    new InternalTimeServiceManager.Provider() {
+                        @Override
+                        public <K> InternalTimeServiceManager<K> create(
+                                CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                                ClassLoader userClassloader,
+                                KeyContext keyContext,
+                                ProcessingTimeService processingTimeService,
+                                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                                throws Exception {
+                            return null;
+                        }
+                    });
+        }
+    }
 }

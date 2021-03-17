@@ -23,21 +23,36 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
+import java.util.Optional;
+
 /**
- * Provider of an {@link OutputFormat} instance as a runtime implementation for {@link DynamicTableSink}.
+ * Provider of an {@link OutputFormat} instance as a runtime implementation for {@link
+ * DynamicTableSink}.
  */
 @PublicEvolving
-public interface OutputFormatProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
+public interface OutputFormatProvider
+        extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static OutputFormatProvider of(OutputFormat<RowData> outputFormat) {
-		return () -> outputFormat;
-	}
+    /** Helper method for creating a static provider. */
+    static OutputFormatProvider of(OutputFormat<RowData> outputFormat) {
+        return () -> outputFormat;
+    }
 
-	/**
-	 * Creates an {@link OutputFormat} instance.
-	 */
-	OutputFormat<RowData> createOutputFormat();
+    /** Helper method for creating a static provider with a provided sink parallelism. */
+    static OutputFormatProvider of(OutputFormat<RowData> outputFormat, Integer sinkParallelism) {
+        return new OutputFormatProvider() {
+            @Override
+            public OutputFormat<RowData> createOutputFormat() {
+                return outputFormat;
+            }
+
+            @Override
+            public Optional<Integer> getParallelism() {
+                return Optional.ofNullable(sinkParallelism);
+            }
+        };
+    }
+
+    /** Creates an {@link OutputFormat} instance. */
+    OutputFormat<RowData> createOutputFormat();
 }

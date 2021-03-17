@@ -32,13 +32,13 @@ import org.apache.flink.annotation.PublicEvolving;
 @FunctionalInterface
 public interface QuadConsumer<S, T, U, V> {
 
-	/**
-	 * Performs this operation on the given arguments.
-	 *
-	 * @param s first argument
-	 * @param t second argument
-	 * @param u third argument
-	 * @param v fourth argument
-	 */
-	void accept(S s, T t, U u, V v);
+    /**
+     * Performs this operation on the given arguments.
+     *
+     * @param s first argument
+     * @param t second argument
+     * @param u third argument
+     * @param v fourth argument
+     */
+    void accept(S s, T t, U u, V v);
 }

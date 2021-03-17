@@ -32,32 +32,32 @@ import java.util.Collections;
  * when the window state is a single value.
  */
 public final class InternalSingleValueAllWindowFunction<IN, OUT, W extends Window>
-		extends WrappingFunction<AllWindowFunction<IN, OUT, W>>
-		implements InternalWindowFunction<IN, OUT, Byte, W> {
+        extends WrappingFunction<AllWindowFunction<IN, OUT, W>>
+        implements InternalWindowFunction<IN, OUT, Byte, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public InternalSingleValueAllWindowFunction(AllWindowFunction<IN, OUT, W> wrappedFunction) {
-		super(wrappedFunction);
-	}
+    public InternalSingleValueAllWindowFunction(AllWindowFunction<IN, OUT, W> wrappedFunction) {
+        super(wrappedFunction);
+    }
 
-	@Override
-	public void process(Byte key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
-		wrappedFunction.apply(window, Collections.singletonList(input), out);
-	}
+    @Override
+    public void process(
+            Byte key, W window, InternalWindowContext context, IN input, Collector<OUT> out)
+            throws Exception {
+        wrappedFunction.apply(window, Collections.singletonList(input), out);
+    }
 
-	@Override
-	public void clear(W window, InternalWindowContext context) throws Exception {
+    @Override
+    public void clear(W window, InternalWindowContext context) throws Exception {}
 
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
-
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 }

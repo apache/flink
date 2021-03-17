@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -36,11 +35,11 @@ import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
+import org.apache.flink.sql.parser.ddl.SqlUseModules
 
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
@@ -127,15 +126,19 @@ class FlinkPlannerImpl(
         || sqlNode.getKind == SqlKind.CREATE_FUNCTION
         || sqlNode.getKind == SqlKind.DROP_FUNCTION
         || sqlNode.getKind == SqlKind.OTHER_DDL
+        || sqlNode.isInstanceOf[SqlLoadModule]
         || sqlNode.isInstanceOf[SqlShowCatalogs]
         || sqlNode.isInstanceOf[SqlShowCurrentCatalog]
         || sqlNode.isInstanceOf[SqlShowDatabases]
         || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
         || sqlNode.isInstanceOf[SqlShowTables]
         || sqlNode.isInstanceOf[SqlShowFunctions]
+        || sqlNode.isInstanceOf[SqlShowModules]
         || sqlNode.isInstanceOf[SqlShowViews]
         || sqlNode.isInstanceOf[SqlShowPartitions]
-        || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
+        || sqlNode.isInstanceOf[SqlRichDescribeTable]
+        || sqlNode.isInstanceOf[SqlUnloadModule]
+        || sqlNode.isInstanceOf[SqlUseModules]) {
         return sqlNode
       }
       sqlNode match {
@@ -176,6 +179,25 @@ class FlinkPlannerImpl(
     }
   }
 
+  def validateExpression(sqlNode: SqlNode, inputRowType: RelDataType): SqlNode = {
+    validateExpression(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  }
+
+  private def validateExpression(
+      sqlNode: SqlNode,
+      sqlValidator: FlinkCalciteSqlValidator,
+      inputRowType: RelDataType): SqlNode = {
+      val nameToTypeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, field.getType)
+        }
+        .toMap[String, RelDataType]
+        .asJava
+      sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
+  }
+
   def rex(sqlNode: SqlNode, inputRowType: RelDataType): RexNode = {
     rex(sqlNode, getOrCreateSqlValidator(), inputRowType)
   }
@@ -185,16 +207,8 @@ class FlinkPlannerImpl(
       sqlValidator: FlinkCalciteSqlValidator,
       inputRowType: RelDataType) = {
     try {
+      val validatedSqlNode = validateExpression(sqlNode, sqlValidator, inputRowType)
       val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
-      val nameToTypeMap = inputRowType
-        .getFieldList
-        .asScala
-        .map { field =>
-          (field.getName, field.getType)
-        }
-        .toMap[String, RelDataType]
-        .asJava
-      val validatedSqlNode = sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
       val nameToNodeMap = inputRowType
         .getFieldList
         .asScala

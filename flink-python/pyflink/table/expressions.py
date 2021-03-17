@@ -29,7 +29,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW
            'current_timestamp', 'local_time', 'local_timestamp', 'temporal_overlaps',
            'date_format', 'timestamp_diff', 'array', 'row', 'map_', 'row_interval', 'pi', 'e',
            'rand', 'rand_integer', 'atan2', 'negative', 'concat', 'concat_ws', 'uuid', 'null_of',
-           'log', 'with_columns', 'without_columns', 'call']
+           'log', 'with_columns', 'without_columns', 'call', 'call_sql']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -214,6 +214,21 @@ def local_timestamp() -> Expression:
     Returns the current SQL timestamp in local time zone.
     """
     return _leaf_op("localTimestamp")
+
+
+def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
+    """
+    Converts a numeric type epoch time to TIMESTAMP_LTZ.
+
+    The supported precision is 0 or 3:
+    0 means the numericEpochTime is in second.
+    3 means the numericEpochTime is in millisecond.
+
+    :param numeric_epoch_time: The epoch time with numeric type
+    :param precision: The precision to indicate the epoch time is in second or millisecond
+    :return: The timestamp value with TIMESTAMP_LTZ type.
+    """
+    return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
 
 
 def temporal_overlaps(left_time_point,
@@ -492,7 +507,7 @@ def with_columns(head, *tails) -> Expression:
     return _binary_op("withColumns", head, tails)
 
 
-def without_columns(head, tails) -> Expression:
+def without_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects all columns except for the given range of columns. It can
     be used wherever an array of expression is accepted such as function calls, projections, or
@@ -553,9 +568,9 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
             j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
                 j_result_types)
             return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f.java_user_defined_function(), j_result_type)
+                'f', f._java_user_defined_function(), j_result_type)
         else:
-            return f.java_user_defined_function()
+            return f._java_user_defined_function()
 
     expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
     function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
@@ -571,6 +586,21 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         to_jarray(gateway.jvm.Object,
                   [get_function_definition(f),
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
+
+
+def call_sql(sql_expression: str) -> Expression:
+    """
+    A call to a SQL expression.
+
+    The given string is parsed and translated into a Table API expression during planning. Only
+    the translated expression is evaluated during runtime.
+
+    Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+    table-valued functions are not supported. Sub-queries are also not allowed.
+
+    :param sql_expression: SQL expression to be translated
+    """
+    return _unary_op("callSql", sql_expression)
 
 
 _add_version_doc()

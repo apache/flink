@@ -30,99 +30,101 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-/**
- * Unit tests for the {@link FileSourceSplitSerializer}.
- */
+/** Unit tests for the {@link FileSourceSplitSerializer}. */
 public class FileSourceSplitSerializerTest {
 
-	@Test
-	public void serializeSplitWithHosts() throws Exception {
-		final FileSourceSplit split = new FileSourceSplit(
-			"random-id",
-			new Path("hdfs://namenode:14565/some/path/to/a/file"),
-			100_000_000,
-			64_000_000,
-			"host1", "host2", "host3");
+    @Test
+    public void serializeSplitWithHosts() throws Exception {
+        final FileSourceSplit split =
+                new FileSourceSplit(
+                        "random-id",
+                        new Path("hdfs://namenode:14565/some/path/to/a/file"),
+                        100_000_000,
+                        64_000_000,
+                        "host1",
+                        "host2",
+                        "host3");
 
-		final FileSourceSplit deSerialized = serializeAndDeserialize(split);
+        final FileSourceSplit deSerialized = serializeAndDeserialize(split);
 
-		assertSplitsEqual(split, deSerialized);
-	}
+        assertSplitsEqual(split, deSerialized);
+    }
 
-	@Test
-	public void serializeSplitWithoutHosts() throws Exception {
-		final FileSourceSplit split = new FileSourceSplit(
-			"some-id",
-			new Path("file:/some/path/to/a/file"),
-			0,
-			0);
+    @Test
+    public void serializeSplitWithoutHosts() throws Exception {
+        final FileSourceSplit split =
+                new FileSourceSplit("some-id", new Path("file:/some/path/to/a/file"), 0, 0);
 
-		final FileSourceSplit deSerialized = serializeAndDeserialize(split);
+        final FileSourceSplit deSerialized = serializeAndDeserialize(split);
 
-		assertSplitsEqual(split, deSerialized);
-	}
+        assertSplitsEqual(split, deSerialized);
+    }
 
-	@Test
-	public void serializeSplitWithReaderPosition() throws Exception {
-		final FileSourceSplit split = new FileSourceSplit(
-			"random-id",
-			new Path("hdfs://namenode:14565/some/path/to/a/file"),
-			100_000_000,
-			64_000_000,
-			new String[] {"host1", "host2", "host3"},
-			new CheckpointedPosition(7665391L, 100L));
+    @Test
+    public void serializeSplitWithReaderPosition() throws Exception {
+        final FileSourceSplit split =
+                new FileSourceSplit(
+                        "random-id",
+                        new Path("hdfs://namenode:14565/some/path/to/a/file"),
+                        100_000_000,
+                        64_000_000,
+                        new String[] {"host1", "host2", "host3"},
+                        new CheckpointedPosition(7665391L, 100L));
 
-		final FileSourceSplit deSerialized = serializeAndDeserialize(split);
+        final FileSourceSplit deSerialized = serializeAndDeserialize(split);
 
-		assertSplitsEqual(split, deSerialized);
-	}
+        assertSplitsEqual(split, deSerialized);
+    }
 
-	@Test
-	public void repeatedSerialization() throws Exception {
-		final FileSourceSplit split = new FileSourceSplit(
-			"an-id",
-			new Path("s3://some-bucket/key/to/the/object"),
-			0,
-			1234567);
+    @Test
+    public void repeatedSerialization() throws Exception {
+        final FileSourceSplit split =
+                new FileSourceSplit(
+                        "an-id", new Path("s3://some-bucket/key/to/the/object"), 0, 1234567);
 
-		serializeAndDeserialize(split);
-		serializeAndDeserialize(split);
-		final FileSourceSplit deSerialized = serializeAndDeserialize(split);
+        serializeAndDeserialize(split);
+        serializeAndDeserialize(split);
+        final FileSourceSplit deSerialized = serializeAndDeserialize(split);
 
-		assertSplitsEqual(split, deSerialized);
-	}
+        assertSplitsEqual(split, deSerialized);
+    }
 
-	@Test
-	public void repeatedSerializationCaches() throws Exception {
-		final FileSourceSplit split = new FileSourceSplit(
-			"random-id",
-			new Path("hdfs://namenode:14565/some/path/to/a/file"),
-			100_000_000,
-			64_000_000,
-			"host1", "host2", "host3");
+    @Test
+    public void repeatedSerializationCaches() throws Exception {
+        final FileSourceSplit split =
+                new FileSourceSplit(
+                        "random-id",
+                        new Path("hdfs://namenode:14565/some/path/to/a/file"),
+                        100_000_000,
+                        64_000_000,
+                        "host1",
+                        "host2",
+                        "host3");
 
-		final byte[] ser1 = FileSourceSplitSerializer.INSTANCE.serialize(split);
-		final byte[] ser2 = FileSourceSplitSerializer.INSTANCE.serialize(split);
+        final byte[] ser1 = FileSourceSplitSerializer.INSTANCE.serialize(split);
+        final byte[] ser2 = FileSourceSplitSerializer.INSTANCE.serialize(split);
 
-		assertSame(ser1, ser2);
-	}
+        assertSame(ser1, ser2);
+    }
 
-	// ------------------------------------------------------------------------
-	//  test utils
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test utils
+    // ------------------------------------------------------------------------
 
-	private static FileSourceSplit serializeAndDeserialize(FileSourceSplit split) throws IOException {
-		final FileSourceSplitSerializer serializer = new FileSourceSplitSerializer();
-		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, split);
-		return SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
-	}
+    private static FileSourceSplit serializeAndDeserialize(FileSourceSplit split)
+            throws IOException {
+        final FileSourceSplitSerializer serializer = new FileSourceSplitSerializer();
+        final byte[] bytes =
+                SimpleVersionedSerialization.writeVersionAndSerialize(serializer, split);
+        return SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+    }
 
-	static void assertSplitsEqual(FileSourceSplit expected, FileSourceSplit actual) {
-		assertEquals(expected.splitId(), actual.splitId());
-		assertEquals(expected.path(), actual.path());
-		assertEquals(expected.offset(), actual.offset());
-		assertEquals(expected.length(), actual.length());
-		assertArrayEquals(expected.hostnames(), actual.hostnames());
-		assertEquals(expected.getReaderPosition(), actual.getReaderPosition());
-	}
+    static void assertSplitsEqual(FileSourceSplit expected, FileSourceSplit actual) {
+        assertEquals(expected.splitId(), actual.splitId());
+        assertEquals(expected.path(), actual.path());
+        assertEquals(expected.offset(), actual.offset());
+        assertEquals(expected.length(), actual.length());
+        assertArrayEquals(expected.hostnames(), actual.hostnames());
+        assertEquals(expected.getReaderPosition(), actual.getReaderPosition());
+    }
 }

@@ -30,49 +30,49 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility class to make a {@link Configuration Hadoop Configuration} serializable.
- */
+/** Utility class to make a {@link Configuration Hadoop Configuration} serializable. */
 public final class SerializableHadoopConfigWrapper implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient Configuration hadoopConfig;
+    private transient Configuration hadoopConfig;
 
-	public SerializableHadoopConfigWrapper(Configuration hadoopConfig) {
-		this.hadoopConfig = checkNotNull(hadoopConfig);
-	}
+    public SerializableHadoopConfigWrapper(Configuration hadoopConfig) {
+        this.hadoopConfig = checkNotNull(hadoopConfig);
+    }
 
-	public Configuration getHadoopConfig() {
-		return hadoopConfig;
-	}
+    public Configuration getHadoopConfig() {
+        return hadoopConfig;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
 
-		// we write the Hadoop config through a separate serializer to avoid cryptic exceptions when it
-		// corrupts the serialization stream
-		final DataOutputSerializer ser = new DataOutputSerializer(256);
-		hadoopConfig.write(ser);
-		out.writeInt(ser.length());
-		out.write(ser.getSharedBuffer(), 0, ser.length());
-	}
+        // we write the Hadoop config through a separate serializer to avoid cryptic exceptions when
+        // it
+        // corrupts the serialization stream
+        final DataOutputSerializer ser = new DataOutputSerializer(256);
+        hadoopConfig.write(ser);
+        out.writeInt(ser.length());
+        out.write(ser.getSharedBuffer(), 0, ser.length());
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
 
-		final byte[] data = new byte[in.readInt()];
-		in.readFully(data);
-		final DataInputDeserializer deser = new DataInputDeserializer(data);
-		this.hadoopConfig = new Configuration();
+        final byte[] data = new byte[in.readInt()];
+        in.readFully(data);
+        final DataInputDeserializer deser = new DataInputDeserializer(data);
+        this.hadoopConfig = new Configuration();
 
-		try {
-			this.hadoopConfig.readFields(deser);
-		} catch (IOException e) {
-			throw new IOException(
-				"Could not deserialize Hadoop Configuration, the serialized and de-serialized don't match.", e);
-		}
-	}
+        try {
+            this.hadoopConfig.readFields(deser);
+        } catch (IOException e) {
+            throw new IOException(
+                    "Could not deserialize Hadoop Configuration, the serialized and de-serialized don't match.",
+                    e);
+        }
+    }
 }

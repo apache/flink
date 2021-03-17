@@ -31,65 +31,65 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Utility {@link RestServerEndpoint} for setting up a rest server with a given set of handlers.
- */
+/** Utility {@link RestServerEndpoint} for setting up a rest server with a given set of handlers. */
 public class TestRestServerEndpoint extends RestServerEndpoint {
 
-	public static Builder builder(RestServerEndpointConfiguration configuration) {
-		return new Builder(configuration);
-	}
+    public static Builder builder(RestServerEndpointConfiguration configuration) {
+        return new Builder(configuration);
+    }
 
-	/**
-	 * TestRestServerEndpoint.Builder is a utility class for instantiating a TestRestServerEndPoint.
-	 */
-	public static class Builder {
+    /**
+     * TestRestServerEndpoint.Builder is a utility class for instantiating a TestRestServerEndPoint.
+     */
+    public static class Builder {
 
-		private final RestServerEndpointConfiguration configuration;
-		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+        private final RestServerEndpointConfiguration configuration;
+        private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers =
+                new ArrayList<>();
 
-		private Builder(RestServerEndpointConfiguration configuration) {
-			this.configuration = configuration;
-		}
+        private Builder(RestServerEndpointConfiguration configuration) {
+            this.configuration = configuration;
+        }
 
-		public Builder withHandler(RestHandlerSpecification messageHeaders, ChannelInboundHandler handler) {
-			this.handlers.add(Tuple2.of(messageHeaders, handler));
-			return this;
-		}
+        public Builder withHandler(
+                RestHandlerSpecification messageHeaders, ChannelInboundHandler handler) {
+            this.handlers.add(Tuple2.of(messageHeaders, handler));
+            return this;
+        }
 
-		public Builder withHandler(AbstractRestHandler<?, ?, ?, ?> handler) {
-			this.handlers.add(Tuple2.of(handler.getMessageHeaders(), handler));
-			return this;
-		}
+        public Builder withHandler(AbstractRestHandler<?, ?, ?, ?> handler) {
+            this.handlers.add(Tuple2.of(handler.getMessageHeaders(), handler));
+            return this;
+        }
 
-		public TestRestServerEndpoint build() throws IOException {
-			return new TestRestServerEndpoint(configuration, handlers);
-		}
+        public TestRestServerEndpoint build() throws IOException {
+            return new TestRestServerEndpoint(configuration, handlers);
+        }
 
-		public TestRestServerEndpoint buildAndStart() throws Exception {
-			TestRestServerEndpoint serverEndpoint = build();
-			serverEndpoint.start();
+        public TestRestServerEndpoint buildAndStart() throws Exception {
+            TestRestServerEndpoint serverEndpoint = build();
+            serverEndpoint.start();
 
-			return serverEndpoint;
-		}
-	}
+            return serverEndpoint;
+        }
+    }
 
-	private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
+    private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
-	private TestRestServerEndpoint(
-			final RestServerEndpointConfiguration configuration,
-			final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) throws IOException {
-		super(configuration);
-		this.handlers = handlers;
-	}
+    private TestRestServerEndpoint(
+            final RestServerEndpointConfiguration configuration,
+            final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers)
+            throws IOException {
+        super(configuration);
+        this.handlers = handlers;
+    }
 
-	@Override
-	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
-			final CompletableFuture<String> ignore) {
-		return this.handlers;
-	}
+    @Override
+    protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
+            final CompletableFuture<String> ignore) {
+        return this.handlers;
+    }
 
-	@Override
-	protected void startInternal() {
-	}
+    @Override
+    protected void startInternal() {}
 }

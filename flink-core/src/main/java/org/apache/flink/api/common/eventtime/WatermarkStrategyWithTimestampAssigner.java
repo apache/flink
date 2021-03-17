@@ -24,25 +24,25 @@ package org.apache.flink.api.common.eventtime;
  */
 final class WatermarkStrategyWithTimestampAssigner<T> implements WatermarkStrategy<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final WatermarkStrategy<T> baseStrategy;
-	private final TimestampAssignerSupplier<T> timestampAssigner;
+    private final WatermarkStrategy<T> baseStrategy;
+    private final TimestampAssignerSupplier<T> timestampAssigner;
 
-	WatermarkStrategyWithTimestampAssigner(
-			WatermarkStrategy<T> baseStrategy,
-			TimestampAssignerSupplier<T> timestampAssigner) {
-		this.baseStrategy = baseStrategy;
-		this.timestampAssigner = timestampAssigner;
-	}
+    WatermarkStrategyWithTimestampAssigner(
+            WatermarkStrategy<T> baseStrategy, TimestampAssignerSupplier<T> timestampAssigner) {
+        this.baseStrategy = baseStrategy;
+        this.timestampAssigner = timestampAssigner;
+    }
 
-	@Override
-	public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
-		return timestampAssigner.createTimestampAssigner(context);
-	}
+    @Override
+    public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+        return timestampAssigner.createTimestampAssigner(context);
+    }
 
-	@Override
-	public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
-		return baseStrategy.createWatermarkGenerator(context);
-	}
+    @Override
+    public WatermarkGenerator<T> createWatermarkGenerator(
+            WatermarkGeneratorSupplier.Context context) {
+        return baseStrategy.createWatermarkGenerator(context);
+    }
 }

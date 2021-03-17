@@ -21,19 +21,17 @@ package org.apache.flink.streaming.connectors.kafka.internals.metrics;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
 
-/**
- * Gauge for getting the current value of a Kafka metric.
- */
+/** Gauge for getting the current value of a Kafka metric. */
 @Internal
 public class KafkaMetricWrapper implements Gauge<Double> {
-	private final org.apache.kafka.common.Metric kafkaMetric;
+    private final org.apache.kafka.common.Metric kafkaMetric;
 
-	public KafkaMetricWrapper(org.apache.kafka.common.Metric metric) {
-		this.kafkaMetric = metric;
-	}
+    public KafkaMetricWrapper(org.apache.kafka.common.Metric metric) {
+        this.kafkaMetric = metric;
+    }
 
-	@Override
-	public Double getValue() {
-		return kafkaMetric.value();
-	}
+    @Override
+    public Double getValue() {
+        return kafkaMetric.value();
+    }
 }

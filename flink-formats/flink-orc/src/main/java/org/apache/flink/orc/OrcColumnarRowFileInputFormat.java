@@ -51,121 +51,130 @@ import static org.apache.flink.orc.vector.AbstractOrcColumnVector.createFlinkVec
 /**
  * An ORC reader that produces a stream of {@link ColumnarRowData} records.
  *
- * <p>This class can add extra fields through {@link ColumnBatchFactory}, for example,
- * add partition fields, which can be extracted from path. Therefore, the {@link #getProducedType()}
- * may be different and types of extra fields need to be added.
+ * <p>This class can add extra fields through {@link ColumnBatchFactory}, for example, add partition
+ * fields, which can be extracted from path. Therefore, the {@link #getProducedType()} may be
+ * different and types of extra fields need to be added.
  */
-public class OrcColumnarRowFileInputFormat<BatchT, SplitT extends FileSourceSplit> extends
-		AbstractOrcFileInputFormat<RowData, BatchT, SplitT> {
+public class OrcColumnarRowFileInputFormat<BatchT, SplitT extends FileSourceSplit>
+        extends AbstractOrcFileInputFormat<RowData, BatchT, SplitT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final ColumnBatchFactory<BatchT, SplitT> batchFactory;
-	private final RowType projectedOutputType;
+    private final ColumnBatchFactory<BatchT, SplitT> batchFactory;
+    private final RowType projectedOutputType;
 
-	public OrcColumnarRowFileInputFormat(
-			final OrcShim<BatchT> shim,
-			final Configuration hadoopConfig,
-			final TypeDescription schema,
-			final int[] selectedFields,
-			final List<OrcFilters.Predicate> conjunctPredicates,
-			final int batchSize,
-			final ColumnBatchFactory<BatchT, SplitT> batchFactory,
-			final RowType projectedOutputType) {
-		super(shim, hadoopConfig, schema, selectedFields, conjunctPredicates, batchSize);
-		this.batchFactory = batchFactory;
-		this.projectedOutputType = projectedOutputType;
-	}
+    public OrcColumnarRowFileInputFormat(
+            final OrcShim<BatchT> shim,
+            final Configuration hadoopConfig,
+            final TypeDescription schema,
+            final int[] selectedFields,
+            final List<OrcFilters.Predicate> conjunctPredicates,
+            final int batchSize,
+            final ColumnBatchFactory<BatchT, SplitT> batchFactory,
+            final RowType projectedOutputType) {
+        super(shim, hadoopConfig, schema, selectedFields, conjunctPredicates, batchSize);
+        this.batchFactory = batchFactory;
+        this.projectedOutputType = projectedOutputType;
+    }
 
-	@Override
-	public OrcReaderBatch<RowData, BatchT> createReaderBatch(
-			final SplitT split,
-			final OrcVectorizedBatchWrapper<BatchT> orcBatch,
-			final Pool.Recycler<OrcReaderBatch<RowData, BatchT>> recycler,
-			final int batchSize) {
+    @Override
+    public OrcReaderBatch<RowData, BatchT> createReaderBatch(
+            final SplitT split,
+            final OrcVectorizedBatchWrapper<BatchT> orcBatch,
+            final Pool.Recycler<OrcReaderBatch<RowData, BatchT>> recycler,
+            final int batchSize) {
 
-		final VectorizedColumnBatch flinkColumnBatch = batchFactory.create(split, orcBatch.getBatch());
-		return new VectorizedColumnReaderBatch<>(orcBatch, flinkColumnBatch, recycler);
-	}
+        final VectorizedColumnBatch flinkColumnBatch =
+                batchFactory.create(split, orcBatch.getBatch());
+        return new VectorizedColumnReaderBatch<>(orcBatch, flinkColumnBatch, recycler);
+    }
 
-	@Override
-	public TypeInformation<RowData> getProducedType() {
-		return InternalTypeInfo.of(projectedOutputType);
-	}
+    @Override
+    public TypeInformation<RowData> getProducedType() {
+        return InternalTypeInfo.of(projectedOutputType);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * One batch of ORC columnar vectors and Flink column vectors.
-	 */
-	private static final class VectorizedColumnReaderBatch<BatchT> extends OrcReaderBatch<RowData, BatchT> {
+    /** One batch of ORC columnar vectors and Flink column vectors. */
+    private static final class VectorizedColumnReaderBatch<BatchT>
+            extends OrcReaderBatch<RowData, BatchT> {
 
-		private final VectorizedColumnBatch flinkColumnBatch;
-		private final ColumnarRowIterator result;
+        private final VectorizedColumnBatch flinkColumnBatch;
+        private final ColumnarRowIterator result;
 
-		VectorizedColumnReaderBatch(
-				final OrcVectorizedBatchWrapper<BatchT> orcBatch,
-				final VectorizedColumnBatch flinkColumnBatch,
-				final Pool.Recycler<OrcReaderBatch<RowData, BatchT>> recycler) {
-			super(orcBatch, recycler);
-			this.flinkColumnBatch = flinkColumnBatch;
-			this.result = new ColumnarRowIterator(new ColumnarRowData(flinkColumnBatch), this::recycle);
-		}
+        VectorizedColumnReaderBatch(
+                final OrcVectorizedBatchWrapper<BatchT> orcBatch,
+                final VectorizedColumnBatch flinkColumnBatch,
+                final Pool.Recycler<OrcReaderBatch<RowData, BatchT>> recycler) {
+            super(orcBatch, recycler);
+            this.flinkColumnBatch = flinkColumnBatch;
+            this.result =
+                    new ColumnarRowIterator(new ColumnarRowData(flinkColumnBatch), this::recycle);
+        }
 
-		@Override
-		public RecordIterator<RowData> convertAndGetIterator(
-				final OrcVectorizedBatchWrapper<BatchT> orcBatch,
-				final long startingOffset) {
-			// no copying from the ORC column vectors to the Flink columns vectors necessary,
-			// because they point to the same data arrays internally design
-			int batchSize = orcBatch.size();
-			flinkColumnBatch.setNumRows(batchSize);
-			result.set(batchSize, startingOffset, 0);
-			return result;
-		}
-	}
+        @Override
+        public RecordIterator<RowData> convertAndGetIterator(
+                final OrcVectorizedBatchWrapper<BatchT> orcBatch, final long startingOffset) {
+            // no copying from the ORC column vectors to the Flink columns vectors necessary,
+            // because they point to the same data arrays internally design
+            int batchSize = orcBatch.size();
+            flinkColumnBatch.setNumRows(batchSize);
+            result.set(batchSize, startingOffset, 0);
+            return result;
+        }
+    }
 
-	/**
-	 * Create a partitioned {@link OrcColumnarRowFileInputFormat}, the partition columns can be
-	 * generated by split.
-	 */
-	public static <SplitT extends FileSourceSplit> OrcColumnarRowFileInputFormat<VectorizedRowBatch, SplitT> createPartitionedFormat(
-			OrcShim<VectorizedRowBatch> shim,
-			Configuration hadoopConfig,
-			RowType tableType,
-			List<String> partitionKeys,
-			PartitionFieldExtractor<SplitT> extractor,
-			int[] selectedFields,
-			List<OrcFilters.Predicate> conjunctPredicates,
-			int batchSize) {
-		String[] tableFieldNames = tableType.getFieldNames().toArray(new String[0]);
-		LogicalType[] tableFieldTypes = tableType.getChildren().toArray(new LogicalType[0]);
-		List<String> orcFieldNames = getNonPartNames(tableFieldNames, partitionKeys);
-		int[] orcSelectedFields = getSelectedOrcFields(tableFieldNames, selectedFields, orcFieldNames);
+    /**
+     * Create a partitioned {@link OrcColumnarRowFileInputFormat}, the partition columns can be
+     * generated by split.
+     */
+    public static <SplitT extends FileSourceSplit>
+            OrcColumnarRowFileInputFormat<VectorizedRowBatch, SplitT> createPartitionedFormat(
+                    OrcShim<VectorizedRowBatch> shim,
+                    Configuration hadoopConfig,
+                    RowType tableType,
+                    List<String> partitionKeys,
+                    PartitionFieldExtractor<SplitT> extractor,
+                    int[] selectedFields,
+                    List<OrcFilters.Predicate> conjunctPredicates,
+                    int batchSize) {
+        String[] tableFieldNames = tableType.getFieldNames().toArray(new String[0]);
+        LogicalType[] tableFieldTypes = tableType.getChildren().toArray(new LogicalType[0]);
+        List<String> orcFieldNames = getNonPartNames(tableFieldNames, partitionKeys);
+        int[] orcSelectedFields =
+                getSelectedOrcFields(tableFieldNames, selectedFields, orcFieldNames);
 
-		ColumnBatchFactory<VectorizedRowBatch, SplitT> batchGenerator = (SplitT split, VectorizedRowBatch rowBatch) -> {
-			// create and initialize the row batch
-			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
-			for (int i = 0; i < vectors.length; i++) {
-				String name = tableFieldNames[selectedFields[i]];
-				LogicalType type = tableFieldTypes[selectedFields[i]];
-				vectors[i] = partitionKeys.contains(name) ?
-						createFlinkVectorFromConstant(
-								type, extractor.extract(split, name, type), batchSize) :
-						createFlinkVector(rowBatch.cols[orcFieldNames.indexOf(name)], type);
-			}
-			return new VectorizedColumnBatch(vectors);
-		};
+        ColumnBatchFactory<VectorizedRowBatch, SplitT> batchGenerator =
+                (SplitT split, VectorizedRowBatch rowBatch) -> {
+                    // create and initialize the row batch
+                    ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+                    for (int i = 0; i < vectors.length; i++) {
+                        String name = tableFieldNames[selectedFields[i]];
+                        LogicalType type = tableFieldTypes[selectedFields[i]];
+                        vectors[i] =
+                                partitionKeys.contains(name)
+                                        ? createFlinkVectorFromConstant(
+                                                type,
+                                                extractor.extract(split, name, type),
+                                                batchSize)
+                                        : createFlinkVector(
+                                                rowBatch.cols[orcFieldNames.indexOf(name)], type);
+                    }
+                    return new VectorizedColumnBatch(vectors);
+                };
 
-		return new OrcColumnarRowFileInputFormat<>(
-				shim,
-				hadoopConfig,
-				convertToOrcTypeWithPart(tableFieldNames, tableFieldTypes, partitionKeys),
-				orcSelectedFields,
-				conjunctPredicates,
-				batchSize,
-				batchGenerator,
-				new RowType(Arrays.stream(selectedFields).mapToObj(i ->
-						tableType.getFields().get(i)).collect(Collectors.toList())));
-	}
+        return new OrcColumnarRowFileInputFormat<>(
+                shim,
+                hadoopConfig,
+                convertToOrcTypeWithPart(tableFieldNames, tableFieldTypes, partitionKeys),
+                orcSelectedFields,
+                conjunctPredicates,
+                batchSize,
+                batchGenerator,
+                new RowType(
+                        Arrays.stream(selectedFields)
+                                .mapToObj(i -> tableType.getFields().get(i))
+                                .collect(Collectors.toList())));
+    }
 }

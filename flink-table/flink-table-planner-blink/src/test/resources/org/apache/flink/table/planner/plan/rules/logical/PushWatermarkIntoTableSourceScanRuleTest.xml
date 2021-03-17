@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[select a, c from MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$2])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-($2, 5000:INTERVAL SECOND)]]], fields=[a, b, c])
@@ -38,7 +38,7 @@ FlinkLogicalCalc(select=[a, c])
     <Resource name="sql">
       <![CDATA[SELECT * from MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -46,7 +46,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, d])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(+(c, 5000:INTERVAL SECOND)) AS d])
@@ -58,7 +58,7 @@ FlinkLogicalCalc(select=[a, b, c, d])
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable WHERE d > TO_TIMESTAMP('2020-10-09 12:12:12')]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalFilter(condition=[>($3, TO_TIMESTAMP(_UTF-16LE'2020-10-09 12:12:12'))])
@@ -67,7 +67,7 @@ LogicalProject(a=[$0], b=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b])
 +- FlinkLogicalCalc(select=[a, b, c, d], where=[>(d, TO_TIMESTAMP(_UTF-16LE'2020-10-09 12:12:12'))])
@@ -80,7 +80,7 @@ FlinkLogicalCalc(select=[a, b])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
@@ -88,7 +88,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c])
 +- FlinkLogicalCalc(select=[a, b, Reinterpret(TO_TIMESTAMP(a, b)) AS c])
@@ -100,7 +100,7 @@ FlinkLogicalCalc(select=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, CAST(+($3, $4)):INTERVAL SECOND)])
@@ -108,7 +108,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
 +- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata_2) AS metadata, +(CAST(metadata_2), b) AS computed])
@@ -120,7 +120,7 @@ FlinkLogicalCalc(select=[a, b, c, metadata, computed])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], g=[$3])
 +- LogicalWatermarkAssigner(rowtime=[g], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -128,7 +128,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], g=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, g])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(c.d.f) AS g])
@@ -136,31 +136,11 @@ FlinkLogicalCalc(select=[a, b, c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWatermarkWithMultiInputUdf">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
-+- LogicalWatermarkAssigner(rowtime=[d], watermark=[func(func($3, $0), $0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, b, c, d])
-+- FlinkLogicalCalc(select=[a, b, c, Reinterpret(func(c, a)) AS d])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[func(func(func($2, $0), $0), $0)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testWatermarkOnRow">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], e=[$3])
 +- LogicalWatermarkAssigner(rowtime=[e], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -168,11 +148,49 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, e])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(c.d) AS e])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-($2.d, 5000:INTERVAL SECOND)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkWithIdleSource">
+    <Resource name="sql">
+      <![CDATA[select a, c from MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-($2, 5000:INTERVAL SECOND)], idletimeout=[1000]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkWithMultiInputUdf">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[func(func($3, $0), $0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, d])
++- FlinkLogicalCalc(select=[a, b, c, Reinterpret(func(c, a)) AS d])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[func(func(func($2, $0), $0), $0)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

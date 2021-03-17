@@ -32,92 +32,84 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 
 /**
- * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. This operator
- * also checks writing null values into NOT NULL columns.
+ * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. This operator also
+ * checks writing null values into NOT NULL columns.
  */
 public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction<RowData>>
-	implements OneInputStreamOperator<RowData, Object> {
+        implements OneInputStreamOperator<RowData, Object> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int rowtimeFieldIndex;
-	private final SinkNotNullEnforcer enforcer;
+    private final int rowtimeFieldIndex;
 
-	private transient SimpleContext sinkContext;
+    private transient SimpleContext sinkContext;
 
-	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
-	private long currentWatermark = Long.MIN_VALUE;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    private long currentWatermark = Long.MIN_VALUE;
 
-	public SinkOperator(
-			SinkFunction<RowData> sinkFunction,
-			int rowtimeFieldIndex,
-			SinkNotNullEnforcer enforcer) {
-		super(sinkFunction);
-		this.rowtimeFieldIndex = rowtimeFieldIndex;
-		this.enforcer = enforcer;
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+    public SinkOperator(SinkFunction<RowData> sinkFunction, int rowtimeFieldIndex) {
+        super(sinkFunction);
+        this.rowtimeFieldIndex = rowtimeFieldIndex;
+        chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		this.sinkContext = new SimpleContext(getProcessingTimeService());
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        this.sinkContext = new SimpleContext(getProcessingTimeService());
+    }
 
-	@Override
-	public void processElement(StreamRecord<RowData> element) throws Exception {
-		sinkContext.element = element;
-		RowData row = element.getValue();
-		if (enforcer.filter(row)) {
-			userFunction.invoke(row, sinkContext);
-		}
-	}
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        sinkContext.element = element;
+        userFunction.invoke(element.getValue(), sinkContext);
+    }
 
-	@Override
-	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
-		// all operators are tracking latencies
-		this.latencyStats.reportLatency(marker);
+    @Override
+    protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
+        // all operators are tracking latencies
+        this.latencyStats.reportLatency(marker);
 
-		// sinks don't forward latency markers
-	}
+        // sinks don't forward latency markers
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		this.currentWatermark = mark.getTimestamp();
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        this.currentWatermark = mark.getTimestamp();
+    }
 
-	private class SimpleContext implements SinkFunction.Context {
+    private class SimpleContext implements SinkFunction.Context {
 
-		private StreamRecord<RowData> element;
+        private StreamRecord<RowData> element;
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		public SimpleContext(ProcessingTimeService processingTimeService) {
-			this.processingTimeService = processingTimeService;
-		}
+        public SimpleContext(ProcessingTimeService processingTimeService) {
+            this.processingTimeService = processingTimeService;
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
+        @Override
+        public long currentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
 
-		@Override
-		public Long timestamp() {
-			if (rowtimeFieldIndex >= 0) {
-				TimestampData timestamp = element.getValue().getTimestamp(rowtimeFieldIndex, 3);
-				if (timestamp != null) {
-					return timestamp.getMillisecond();
-				} else {
-					return null;
-				}
-			}
-			return null;
-		}
-	}
+        @Override
+        public Long timestamp() {
+            if (rowtimeFieldIndex >= 0) {
+                TimestampData timestamp = element.getValue().getTimestamp(rowtimeFieldIndex, 3);
+                if (timestamp != null) {
+                    return timestamp.getMillisecond();
+                } else {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
 }

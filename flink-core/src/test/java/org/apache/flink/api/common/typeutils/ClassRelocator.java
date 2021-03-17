@@ -46,151 +46,156 @@ import java.util.stream.Stream;
  */
 public final class ClassRelocator {
 
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface RelocateClass {
-		String value();
-	}
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface RelocateClass {
+        String value();
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <T> Class<? extends T> relocate(
-		Class<?> originalClass) {
+    @SuppressWarnings("unchecked")
+    public static <T> Class<? extends T> relocate(Class<?> originalClass) {
 
-		ClassRegistry remapping = new ClassRegistry(originalClass);
-		ClassRenamer classRenamer = new ClassRenamer(remapping);
-		Map<String, byte[]> newClassBytes = classRenamer.remap();
+        ClassRegistry remapping = new ClassRegistry(originalClass);
+        ClassRenamer classRenamer = new ClassRenamer(remapping);
+        Map<String, byte[]> newClassBytes = classRenamer.remap();
 
-		return (Class<? extends T>) patchClass(newClassBytes, remapping);
-	}
+        return (Class<? extends T>) patchClass(newClassBytes, remapping);
+    }
 
-	private static Class<?> patchClass(Map<String, byte[]> newClasses, ClassRegistry remapping) {
-		final ByteClassLoader renamingClassLoader = new ByteClassLoader(remapping.getRoot().getClassLoader(), newClasses);
-		try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(renamingClassLoader)) {
-			return renamingClassLoader.loadClass(remapping.getRootNewName());
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private static Class<?> patchClass(Map<String, byte[]> newClasses, ClassRegistry remapping) {
+        final ByteClassLoader renamingClassLoader =
+                new ByteClassLoader(remapping.getRoot().getClassLoader(), newClasses);
+        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(renamingClassLoader)) {
+            return renamingClassLoader.loadClass(remapping.getRootNewName());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private static final class ClassRegistry {
-		private static final AtomicInteger GENERATED_ID = new AtomicInteger(0);
+    private static final class ClassRegistry {
+        private static final AtomicInteger GENERATED_ID = new AtomicInteger(0);
 
-		private final Class<?> root;
-		private final Map<Class<?>, String> targetNames;
+        private final Class<?> root;
+        private final Map<Class<?>, String> targetNames;
 
-		ClassRegistry(Class<?> root) {
-			this.root = root;
-			this.targetNames = definedClasses(root)
-				.filter(type -> type.getAnnotation(RelocateClass.class) != null)
-				.collect(Collectors.toMap(
-					Function.identity(),
-					type -> type.getAnnotation(RelocateClass.class).value()
-				));
+        ClassRegistry(Class<?> root) {
+            this.root = root;
+            this.targetNames =
+                    definedClasses(root)
+                            .filter(type -> type.getAnnotation(RelocateClass.class) != null)
+                            .collect(
+                                    Collectors.toMap(
+                                            Function.identity(),
+                                            type ->
+                                                    type.getAnnotation(RelocateClass.class)
+                                                            .value()));
 
-			// it is also important to overwrite the top class since it is already loaded,
-			// and we need to force load it
-			targetNames.put(root, root.getName() + String.format("$generated%d$", GENERATED_ID.incrementAndGet()));
-		}
+            // it is also important to overwrite the top class since it is already loaded,
+            // and we need to force load it
+            targetNames.put(
+                    root,
+                    root.getName()
+                            + String.format("$generated%d$", GENERATED_ID.incrementAndGet()));
+        }
 
-		public Class<?> getRoot() {
-			return root;
-		}
+        public Class<?> getRoot() {
+            return root;
+        }
 
-		String getRootNewName() {
-			return newNameFor(root);
-		}
+        String getRootNewName() {
+            return newNameFor(root);
+        }
 
-		String newNameFor(Class<?> oldClass) {
-			return targetNames.getOrDefault(oldClass, oldClass.getName());
-		}
+        String newNameFor(Class<?> oldClass) {
+            return targetNames.getOrDefault(oldClass, oldClass.getName());
+        }
 
-		Set<Class<?>> getDefinedClassesUnderRoot() {
-			return definedClasses(root)
-				.collect(Collectors.toSet());
-		}
+        Set<Class<?>> getDefinedClassesUnderRoot() {
+            return definedClasses(root).collect(Collectors.toSet());
+        }
 
-		private Map<String, String> remappingAsPathNames() {
-			return targetNames.entrySet()
-				.stream()
-				.collect(Collectors.toMap(
-					e -> pathName(e.getKey()),
-					e -> pathName(e.getValue())));
-		}
+        private Map<String, String> remappingAsPathNames() {
+            return targetNames.entrySet().stream()
+                    .collect(
+                            Collectors.toMap(
+                                    e -> pathName(e.getKey()), e -> pathName(e.getValue())));
+        }
 
-		private static String pathName(String className) {
-			return className.replace('.', '/');
-		}
+        private static String pathName(String className) {
+            return className.replace('.', '/');
+        }
 
-		private static String pathName(Class<?> javaClass) {
-			return javaClass.getName().replace('.', '/');
-		}
+        private static String pathName(Class<?> javaClass) {
+            return javaClass.getName().replace('.', '/');
+        }
 
-		private static Stream<Class<?>> definedClasses(Class<?> klass) {
-			Stream<Class<?>> nestedClass = Arrays.stream(klass.getClasses())
-				.flatMap(ClassRegistry::definedClasses);
+        private static Stream<Class<?>> definedClasses(Class<?> klass) {
+            Stream<Class<?>> nestedClass =
+                    Arrays.stream(klass.getClasses()).flatMap(ClassRegistry::definedClasses);
 
-			return Stream.concat(
-				Stream.of(klass),
-				nestedClass);
-		}
-	}
+            return Stream.concat(Stream.of(klass), nestedClass);
+        }
+    }
 
-	private static final class ClassRenamer {
-		private final ClassRegistry renaming;
+    private static final class ClassRenamer {
+        private final ClassRegistry renaming;
 
-		ClassRenamer(ClassRegistry renaming) {
-			this.renaming = renaming;
-		}
+        ClassRenamer(ClassRegistry renaming) {
+            this.renaming = renaming;
+        }
 
-		Map<String, byte[]> remap() {
-			final Map<String, String> renames = renaming.remappingAsPathNames();
+        Map<String, byte[]> remap() {
+            final Map<String, String> renames = renaming.remappingAsPathNames();
 
-			return renaming.getDefinedClassesUnderRoot()
-				.stream()
-				.filter(klass -> klass.getClassLoader() != null)
-				.collect(Collectors.toMap(renaming::newNameFor, classToTransform -> {
-					ClassReader providerClassReader = classReaderFor(classToTransform);
-					ClassWriter transformedProvider = remap(renames, providerClassReader);
-					return transformedProvider.toByteArray();
-				}));
-		}
+            return renaming.getDefinedClassesUnderRoot().stream()
+                    .filter(klass -> klass.getClassLoader() != null)
+                    .collect(
+                            Collectors.toMap(
+                                    renaming::newNameFor,
+                                    classToTransform -> {
+                                        ClassReader providerClassReader =
+                                                classReaderFor(classToTransform);
+                                        ClassWriter transformedProvider =
+                                                remap(renames, providerClassReader);
+                                        return transformedProvider.toByteArray();
+                                    }));
+        }
 
-		private static ClassWriter remap(Map<String, String> reMapping, ClassReader providerClassReader) {
-			ClassWriter cw = new ClassWriter(0);
-			ClassRemapper remappingClassAdapter = new ClassRemapper(cw, new SimpleRemapper(reMapping));
-			providerClassReader.accept(remappingClassAdapter, ClassReader.EXPAND_FRAMES);
-			return cw;
-		}
+        private static ClassWriter remap(
+                Map<String, String> reMapping, ClassReader providerClassReader) {
+            ClassWriter cw = new ClassWriter(0);
+            ClassRemapper remappingClassAdapter =
+                    new ClassRemapper(cw, new SimpleRemapper(reMapping));
+            providerClassReader.accept(remappingClassAdapter, ClassReader.EXPAND_FRAMES);
+            return cw;
+        }
 
-		private static ClassReader classReaderFor(Class<?> providerClass) {
-			String classAsPath = providerClass.getName().replace('.', '/') + ".class";
-			InputStream in = providerClass.getClassLoader().getResourceAsStream(classAsPath);
-			try {
-				return new ClassReader(in);
-			}
-			catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-	}
+        private static ClassReader classReaderFor(Class<?> providerClass) {
+            String classAsPath = providerClass.getName().replace('.', '/') + ".class";
+            InputStream in = providerClass.getClassLoader().getResourceAsStream(classAsPath);
+            try {
+                return new ClassReader(in);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
-	private static final class ByteClassLoader extends URLClassLoader {
-		private final Map<String, byte[]> remappedClasses;
+    private static final class ByteClassLoader extends URLClassLoader {
+        private final Map<String, byte[]> remappedClasses;
 
-		private ByteClassLoader(ClassLoader parent, Map<String, byte[]> remappedClasses) {
-			super(new URL[0], parent);
-			this.remappedClasses = remappedClasses;
-		}
+        private ByteClassLoader(ClassLoader parent, Map<String, byte[]> remappedClasses) {
+            super(new URL[0], parent);
+            this.remappedClasses = remappedClasses;
+        }
 
-		@Override
-		protected Class<?> findClass(String name) throws ClassNotFoundException {
-			byte[] bytes = remappedClasses.remove(name);
-			if (bytes == null) {
-				return super.findClass(name);
-			}
-			return defineClass(name, bytes, 0, bytes.length);
-		}
-
-	}
+        @Override
+        protected Class<?> findClass(String name) throws ClassNotFoundException {
+            byte[] bytes = remappedClasses.remove(name);
+            if (bytes == null) {
+                return super.findClass(name);
+            }
+            return defineClass(name, bytes, 0, bytes.length);
+        }
+    }
 }

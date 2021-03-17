@@ -26,152 +26,224 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests {@link MappingBasedRepartitioner}.
- */
+/** Tests {@link MappingBasedRepartitioner}. */
 public class MappingBasedRepartitionerTest {
 
-	@Test
-	public void testBroadcastRedistributeOnScaleDown() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+    @Test
+    public void testBroadcastRedistributeOnScaleDown() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-		assertEquals(Arrays.asList(
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.FULL, 3, 2));
-	}
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.FULL, 3, 2));
+    }
 
-	@Test
-	public void testBroadcastRedistributeOnNoScale() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+    @Test
+    public void testBroadcastRedistributeOnNoScale() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-		assertEquals(Arrays.asList(
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.FULL, 3, 3));
-	}
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.FULL, 3, 3));
+    }
 
-	@Test
-	public void testBroadcastRedistributeOnScaleUp() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+    @Test
+    public void testBroadcastRedistributeOnScaleUp() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-		assertEquals(Arrays.asList(
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.FULL, 3, 4));
-	}
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1"),
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.FULL, 3, 4));
+    }
 
+    @Test
+    public void testRangeSelectorRedistributeOnScaleDown() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRangeSelectorRedistributeOnScaleDown() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1", "sub1state0"),
+                        Arrays.asList("sub1state0", "sub2state0", "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.RANGE, 3, 2));
+    }
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1", "sub1state0"),
-			Arrays.asList("sub1state0", "sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.RANGE, 3, 2));
-	}
+    @Test
+    public void testRangeSelectorRedistributeOnNoScale() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRangeSelectorRedistributeOnNoScale() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.RANGE, 3, 3));
+    }
 
-		assertEquals(Arrays.asList(
-				Arrays.asList("sub0state0", "sub0state1"),
-				Arrays.asList("sub1state0"),
-				Arrays.asList("sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.RANGE, 3, 3));
-	}
+    @Test
+    public void testRangeSelectorRedistributeOnScaleUp() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRangeSelectorRedistributeOnScaleUp() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub0state0", "sub0state1", "sub1state0"),
+                        Arrays.asList("sub1state0", "sub2state0", "sub2state1"),
+                        Arrays.asList("sub2state0", "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.RANGE, 3, 4));
+    }
 
-		assertEquals(Arrays.asList(
-				Arrays.asList("sub0state0", "sub0state1"),
-				Arrays.asList("sub0state0", "sub0state1", "sub1state0"),
-				Arrays.asList("sub1state0", "sub2state0", "sub2state1"),
-				Arrays.asList("sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.RANGE, 3, 4));
-	}
+    @Test
+    public void testRoundRobinRedistributeOnScaleDown() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRoundRobinRedistributeOnScaleDown() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1", "sub2state0", "sub2state1"),
+                        Arrays.asList("sub1state0")),
+                repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 2));
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1", "sub2state0", "sub2state1"),
-			Arrays.asList("sub1state0")),
-			repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 2));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList(
+                                "sub0state0",
+                                "sub0state1",
+                                "sub1state0",
+                                "sub2state0",
+                                "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 1));
+    }
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1", "sub1state0", "sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 1));
-	}
+    @Test
+    public void testRoundRobinRedistributeOnNoScale() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRoundRobinRedistributeOnNoScale() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1")),
+                repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 3));
+    }
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1")),
-			repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 3));
-	}
+    @Test
+    public void testRoundRobinRedistributeOnScaleUp() {
+        List<List<String>> oldStates =
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"));
 
-	@Test
-	public void testRoundRobinRedistributeOnScaleUp() {
-		List<List<String>> oldStates = Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"),
+                        Arrays.asList()),
+                repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 4));
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"),
-			Arrays.asList()),
-			repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 4));
+        assertEquals(
+                Arrays.asList(
+                        Arrays.asList("sub0state0", "sub0state1"),
+                        Arrays.asList("sub1state0"),
+                        Arrays.asList("sub2state0", "sub2state1"),
+                        Arrays.asList(),
+                        Arrays.asList()),
+                repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 5));
+    }
 
-		assertEquals(Arrays.asList(
-			Arrays.asList("sub0state0", "sub0state1"),
-			Arrays.asList("sub1state0"),
-			Arrays.asList("sub2state0", "sub2state1"),
-			Arrays.asList(),
-			Arrays.asList()),
-			repartition(oldStates, SubtaskStateMapper.ROUND_ROBIN, 3, 5));
-	}
-
-	private List<List<String>> repartition(List<List<String>> oldStates, SubtaskStateMapper mapper, int oldParalellism, int newParallelism) {
-		return new MappingBasedRepartitioner<String>(mapper.getNewToOldSubtasksMapping(oldParalellism, newParallelism))
-			.repartitionState(oldStates, oldParalellism, newParallelism);
-	}
+    private List<List<String>> repartition(
+            List<List<String>> oldStates,
+            SubtaskStateMapper mapper,
+            int oldParalellism,
+            int newParallelism) {
+        return new MappingBasedRepartitioner<String>(
+                        mapper.getNewToOldSubtasksMapping(oldParalellism, newParallelism))
+                .repartitionState(oldStates, oldParalellism, newParallelism);
+    }
 }

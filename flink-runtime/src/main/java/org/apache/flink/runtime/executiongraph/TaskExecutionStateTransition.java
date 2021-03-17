@@ -18,73 +18,64 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Wraps {@link TaskExecutionState}, along with actions to take
- * if it is FAILED state.
- */
+/** Wraps {@link TaskExecutionState}, along with actions to take if it is FAILED state. */
 public class TaskExecutionStateTransition {
 
-	private final TaskExecutionState taskExecutionState;
+    private final TaskExecutionState taskExecutionState;
 
-	/**
-	 * Indicating whether to send a RPC call to remove task from TaskManager.
-	 * True if the failure is fired by JobManager and the execution is already
-	 * deployed. Otherwise it should be false.
-	 */
-	private final boolean cancelTask;
+    /**
+     * Indicating whether to send a RPC call to remove task from TaskManager. True if the failure is
+     * fired by JobManager and the execution is already deployed. Otherwise it should be false.
+     */
+    private final boolean cancelTask;
 
-	private final boolean releasePartitions;
+    private final boolean releasePartitions;
 
-	public TaskExecutionStateTransition(final TaskExecutionState taskExecutionState) {
-		this(taskExecutionState, false, false);
-	}
+    public TaskExecutionStateTransition(final TaskExecutionState taskExecutionState) {
+        this(taskExecutionState, false, false);
+    }
 
-	public TaskExecutionStateTransition(
-			final TaskExecutionState taskExecutionState,
-			final boolean cancelTask,
-			final boolean releasePartitions) {
+    public TaskExecutionStateTransition(
+            final TaskExecutionState taskExecutionState,
+            final boolean cancelTask,
+            final boolean releasePartitions) {
 
-		this.taskExecutionState = checkNotNull(taskExecutionState);
-		this.cancelTask = cancelTask;
-		this.releasePartitions = releasePartitions;
-	}
+        this.taskExecutionState = checkNotNull(taskExecutionState);
+        this.cancelTask = cancelTask;
+        this.releasePartitions = releasePartitions;
+    }
 
-	public Throwable getError(ClassLoader userCodeClassloader) {
-		return taskExecutionState.getError(userCodeClassloader);
-	}
+    public Throwable getError(ClassLoader userCodeClassloader) {
+        return taskExecutionState.getError(userCodeClassloader);
+    }
 
-	public ExecutionAttemptID getID() {
-		return taskExecutionState.getID();
-	}
+    public ExecutionAttemptID getID() {
+        return taskExecutionState.getID();
+    }
 
-	public ExecutionState getExecutionState() {
-		return taskExecutionState.getExecutionState();
-	}
+    public ExecutionState getExecutionState() {
+        return taskExecutionState.getExecutionState();
+    }
 
-	public JobID getJobID() {
-		return taskExecutionState.getJobID();
-	}
+    public AccumulatorSnapshot getAccumulators() {
+        return taskExecutionState.getAccumulators();
+    }
 
-	public AccumulatorSnapshot getAccumulators() {
-		return taskExecutionState.getAccumulators();
-	}
+    public IOMetrics getIOMetrics() {
+        return taskExecutionState.getIOMetrics();
+    }
 
-	public IOMetrics getIOMetrics() {
-		return taskExecutionState.getIOMetrics();
-	}
+    public boolean getCancelTask() {
+        return cancelTask;
+    }
 
-	public boolean getCancelTask() {
-		return cancelTask;
-	}
-
-	public boolean getReleasePartitions() {
-		return releasePartitions;
-	}
+    public boolean getReleasePartitions() {
+        return releasePartitions;
+    }
 }

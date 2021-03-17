@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.{ExplainDetail, _}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
 import org.junit.{Before, Test}
@@ -96,13 +97,14 @@ class ChangelogModeInferenceTest extends TableTestBase {
 
   @Test
   def testSelect(): Unit = {
-    util.verifyPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testOneLevelGroupBy(): Unit = {
     // one level unbounded groupBy
-    util.verifyPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(
+      "SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -114,7 +116,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -131,7 +133,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -142,7 +144,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         | JOIN DeduplicatedView FOR SYSTEM_TIME AS OF o.rowtime AS r
         | ON o.currency = r.currency
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -153,7 +155,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
         | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
         | ON o.currency = r.currency
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -177,6 +179,6 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |   SELECT word, cnt FROM MyTable2
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

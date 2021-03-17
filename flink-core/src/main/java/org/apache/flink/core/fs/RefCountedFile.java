@@ -31,59 +31,59 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A reference counted file which is deleted as soon as no caller
- * holds a reference to the wrapped {@link File}.
+ * A reference counted file which is deleted as soon as no caller holds a reference to the wrapped
+ * {@link File}.
  */
 @Internal
 public class RefCountedFile implements RefCounted {
 
-	private final File file;
+    private final File file;
 
-	private final AtomicInteger references;
+    private final AtomicInteger references;
 
-	protected boolean closed;
+    protected boolean closed;
 
-	public RefCountedFile(final File file) {
-		this.file = checkNotNull(file);
-		this.references = new AtomicInteger(1);
-		this.closed = false;
-	}
+    public RefCountedFile(final File file) {
+        this.file = checkNotNull(file);
+        this.references = new AtomicInteger(1);
+        this.closed = false;
+    }
 
-	public File getFile() {
-		return file;
-	}
+    public File getFile() {
+        return file;
+    }
 
-	@Override
-	public void retain() {
-		references.incrementAndGet();
-	}
+    @Override
+    public void retain() {
+        references.incrementAndGet();
+    }
 
-	@Override
-	public boolean release() {
-		if (references.decrementAndGet() == 0) {
-			return tryClose();
-		}
-		return false;
-	}
+    @Override
+    public boolean release() {
+        if (references.decrementAndGet() == 0) {
+            return tryClose();
+        }
+        return false;
+    }
 
-	private boolean tryClose() {
-		try {
-			Files.deleteIfExists(file.toPath());
-			return true;
-		} catch (Throwable t) {
-			ExceptionUtils.rethrowIfFatalError(t);
-		}
-		return false;
-	}
+    private boolean tryClose() {
+        try {
+            Files.deleteIfExists(file.toPath());
+            return true;
+        } catch (Throwable t) {
+            ExceptionUtils.rethrowIfFatalError(t);
+        }
+        return false;
+    }
 
-	private void requireOpened() throws IOException {
-		if (closed) {
-			throw new IOException("Stream closed.");
-		}
-	}
+    private void requireOpened() throws IOException {
+        if (closed) {
+            throw new IOException("Stream closed.");
+        }
+    }
 
-	@VisibleForTesting
-	public int getReferenceCounter() {
-		return references.get();
-	}
+    @VisibleForTesting
+    public int getReferenceCounter() {
+        return references.get();
+    }
 }

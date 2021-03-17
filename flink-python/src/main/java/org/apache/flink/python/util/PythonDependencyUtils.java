@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,222 +50,285 @@ import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 
 /**
- * Utility class for Python dependency management. The dependencies will be registered at the distributed
- * cache.
+ * Utility class for Python dependency management. The dependencies will be registered at the
+ * distributed cache.
  */
 @Internal
 public class PythonDependencyUtils {
 
-	public static final String FILE = "file";
-	public static final String CACHE = "cache";
-	public static final String FILE_DELIMITER = ",";
-	public static final String PARAM_DELIMITER = "#";
-	private static final String HASH_ALGORITHM = "SHA-256";
+    public static final String FILE = "file";
+    public static final String CACHE = "cache";
+    public static final String FILE_DELIMITER = ",";
+    public static final String PARAM_DELIMITER = "#";
+    private static final String HASH_ALGORITHM = "SHA-256";
 
-	// Internal Python Config Options.
+    // Internal Python Config Options.
 
-	public static final ConfigOption<Map<String, String>> PYTHON_FILES =
-		ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
-	public static final ConfigOption<Map<String, String>> PYTHON_REQUIREMENTS_FILE =
-		ConfigOptions.key("python.internal.requirements-file-key").mapType().noDefaultValue();
-	public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES =
-		ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
+    public static final ConfigOption<Map<String, String>> PYTHON_FILES =
+            ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
+    public static final ConfigOption<Map<String, String>> PYTHON_REQUIREMENTS_FILE =
+            ConfigOptions.key("python.internal.requirements-file-key").mapType().noDefaultValue();
+    public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES =
+            ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
 
-	/**
-	 * Adds python dependencies to registered cache file list according to given configuration and returns a new
-	 * configuration which contains the metadata of the registered python dependencies.
-	 *
-	 * @param cachedFiles The list used to store registered cached files.
-	 * @param config The configuration which contains python dependency configuration.
-	 * @return A new configuration which contains the metadata of the registered python dependencies.
-	 */
-	public static Configuration configurePythonDependencies(
-			List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
-			Configuration config) {
-		PythonDependencyManager pythonDependencyManager = new PythonDependencyManager(cachedFiles, config);
-		return pythonDependencyManager.getConfigWithPythonDependencyOptions();
-	}
+    /**
+     * Adds python dependencies to registered cache file list according to given configuration and
+     * returns a new configuration which contains the metadata of the registered python
+     * dependencies.
+     *
+     * @param cachedFiles The list used to store registered cached files.
+     * @param config The configuration which contains python dependency configuration.
+     * @return A new configuration which contains the metadata of the registered python
+     *     dependencies.
+     */
+    public static Configuration configurePythonDependencies(
+            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
+            Configuration config) {
+        PythonDependencyManager pythonDependencyManager =
+                new PythonDependencyManager(cachedFiles, config);
+        return pythonDependencyManager.getConfigWithPythonDependencyOptions();
+    }
 
-	public static Configuration parsePythonDependencyConfiguration(CommandLine commandLine) {
-		Configuration config = new Configuration();
-		if (commandLine.hasOption(PYFILES_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_FILES, commandLine.getOptionValue(PYFILES_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYREQUIREMENTS_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_REQUIREMENTS, commandLine.getOptionValue(PYREQUIREMENTS_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYARCHIVE_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_ARCHIVES, commandLine.getOptionValue(PYARCHIVE_OPTION.getOpt()));
-		}
-		if (commandLine.hasOption(PYEXEC_OPTION.getOpt())) {
-			config.set(PythonOptions.PYTHON_EXECUTABLE, commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
-		}
-		return config;
-	}
+    public static Configuration parsePythonDependencyConfiguration(CommandLine commandLine) {
+        Configuration config = new Configuration();
+        if (commandLine.hasOption(PYFILES_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_FILES,
+                    commandLine.getOptionValue(PYFILES_OPTION.getOpt()));
+        }
+        if (commandLine.hasOption(PYREQUIREMENTS_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_REQUIREMENTS,
+                    commandLine.getOptionValue(PYREQUIREMENTS_OPTION.getOpt()));
+        }
+        if (commandLine.hasOption(PYARCHIVE_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_ARCHIVES,
+                    commandLine.getOptionValue(PYARCHIVE_OPTION.getOpt()));
+        }
+        if (commandLine.hasOption(PYEXEC_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_EXECUTABLE,
+                    commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
+        }
+        return config;
+    }
 
-	/**
-	 * Helper class for Python dependency management.
-	 */
-	private static class PythonDependencyManager {
+    public static void merge(Configuration config, Configuration pythonConfiguration) {
+        Configuration toMerge = new Configuration(pythonConfiguration);
+        if (toMerge.contains(PythonOptions.PYTHON_FILES)) {
+            if (config.contains(PythonOptions.PYTHON_FILES)) {
+                config.set(
+                        PythonOptions.PYTHON_FILES,
+                        String.join(
+                                FILE_DELIMITER,
+                                toMerge.get(PythonOptions.PYTHON_FILES),
+                                config.get(PythonOptions.PYTHON_FILES)));
+            } else {
+                config.set(PythonOptions.PYTHON_FILES, toMerge.get(PythonOptions.PYTHON_FILES));
+            }
+            toMerge.removeConfig(PythonOptions.PYTHON_FILES);
+        }
+        if (toMerge.contains(PythonOptions.PYTHON_ARCHIVES)) {
+            if (config.contains(PythonOptions.PYTHON_ARCHIVES)) {
+                config.set(
+                        PythonOptions.PYTHON_ARCHIVES,
+                        String.join(
+                                FILE_DELIMITER,
+                                toMerge.get(PythonOptions.PYTHON_ARCHIVES),
+                                config.get(PythonOptions.PYTHON_ARCHIVES)));
+            } else {
+                config.set(
+                        PythonOptions.PYTHON_ARCHIVES, toMerge.get(PythonOptions.PYTHON_ARCHIVES));
+            }
+            toMerge.removeConfig(PythonOptions.PYTHON_ARCHIVES);
+        }
+        config.addAll(toMerge);
+    }
 
-		private static final String PYTHON_FILE_PREFIX = "python_file";
-		private static final String PYTHON_REQUIREMENTS_FILE_PREFIX = "python_requirements_file";
-		private static final String PYTHON_REQUIREMENTS_CACHE_PREFIX = "python_requirements_cache";
-		private static final String PYTHON_ARCHIVE_PREFIX = "python_archive";
+    /** Helper class for Python dependency management. */
+    private static class PythonDependencyManager {
 
-		private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
-		private final Configuration internalConfig;
+        private static final String PYTHON_FILE_PREFIX = "python_file";
+        private static final String PYTHON_REQUIREMENTS_FILE_PREFIX = "python_requirements_file";
+        private static final String PYTHON_REQUIREMENTS_CACHE_PREFIX = "python_requirements_cache";
+        private static final String PYTHON_ARCHIVE_PREFIX = "python_archive";
 
-		private PythonDependencyManager(
-			List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles, Configuration config) {
-			this.cachedFiles = cachedFiles;
-			this.internalConfig = new Configuration(config);
-			configure(config);
-		}
+        private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
+        private final Configuration internalConfig;
 
-		/**
-		 * Adds a Python dependency which could be .py files, Python packages(.zip, .egg etc.) or
-		 * local directories. The dependencies will be added to the PYTHONPATH of the Python UDF worker
-		 * and the local Py4J python client.
-		 *
-		 * @param filePath The path of the Python dependency.
-		 */
-		private void addPythonFile(String filePath) {
-			Preconditions.checkNotNull(filePath);
-			String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
-			registerCachedFileIfNotExist(filePath, fileKey);
-			if (!internalConfig.contains(PYTHON_FILES)) {
-				internalConfig.set(PYTHON_FILES, new HashMap<>());
-			}
-			internalConfig.get(PYTHON_FILES).put(fileKey, new File(filePath).getName());
-		}
+        private PythonDependencyManager(
+                List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
+                Configuration config) {
+            this.cachedFiles = cachedFiles;
+            this.internalConfig = new Configuration(config);
+            configure(config);
+        }
 
-		/**
-		 * Specifies the third-party dependencies via a requirements file. These dependencies will be
-		 * installed by the command "pip install -r [requirements file]" before launching the Python
-		 * UDF worker.
-		 *
-		 * @param requirementsFilePath The path of the requirements file.
-		 */
-		private void setPythonRequirements(String requirementsFilePath) {
-			setPythonRequirements(requirementsFilePath, null);
-		}
+        /**
+         * Adds a Python dependency which could be .py files, Python packages(.zip, .egg etc.) or
+         * local directories. The dependencies will be added to the PYTHONPATH of the Python UDF
+         * worker and the local Py4J python client.
+         *
+         * @param filePath The path of the Python dependency.
+         */
+        private void addPythonFile(String filePath) {
+            Preconditions.checkNotNull(filePath);
+            String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
+            registerCachedFileIfNotExist(filePath, fileKey);
+            if (!internalConfig.contains(PYTHON_FILES)) {
+                internalConfig.set(PYTHON_FILES, new LinkedHashMap<>());
+            }
+            internalConfig.get(PYTHON_FILES).put(fileKey, new File(filePath).getName());
+        }
 
-		/**
-		 * Specifies the third-party dependencies via a requirements file. The `requirementsCachedDir`
-		 * will be uploaded to support offline installation. These dependencies will be installed by
-		 * the command "pip install -r [requirements file] --find-links [requirements cached dir]"
-		 * before launching the Python UDF worker.
-		 *
-		 * @param requirementsFilePath The path of the requirements file.
-		 * @param requirementsCachedDir The path of the requirements cached directory.
-		 */
-		private void setPythonRequirements(String requirementsFilePath, @Nullable String requirementsCachedDir) {
-			Preconditions.checkNotNull(requirementsFilePath);
-			if (!internalConfig.contains(PYTHON_REQUIREMENTS_FILE)) {
-				internalConfig.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
-			}
-			internalConfig.get(PYTHON_REQUIREMENTS_FILE).clear();
-			removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_FILE_PREFIX);
-			removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_CACHE_PREFIX);
+        /**
+         * Specifies the third-party dependencies via a requirements file. These dependencies will
+         * be installed by the command "pip install -r [requirements file]" before launching the
+         * Python UDF worker.
+         *
+         * @param requirementsFilePath The path of the requirements file.
+         */
+        private void setPythonRequirements(String requirementsFilePath) {
+            setPythonRequirements(requirementsFilePath, null);
+        }
 
-			String fileKey = generateUniqueFileKey(PYTHON_REQUIREMENTS_FILE_PREFIX, requirementsFilePath);
-			registerCachedFileIfNotExist(requirementsFilePath, fileKey);
-			internalConfig.get(PYTHON_REQUIREMENTS_FILE).put(FILE, fileKey);
+        /**
+         * Specifies the third-party dependencies via a requirements file. The
+         * `requirementsCachedDir` will be uploaded to support offline installation. These
+         * dependencies will be installed by the command "pip install -r [requirements file]
+         * --find-links [requirements cached dir]" before launching the Python UDF worker.
+         *
+         * @param requirementsFilePath The path of the requirements file.
+         * @param requirementsCachedDir The path of the requirements cached directory.
+         */
+        private void setPythonRequirements(
+                String requirementsFilePath, @Nullable String requirementsCachedDir) {
+            Preconditions.checkNotNull(requirementsFilePath);
+            if (!internalConfig.contains(PYTHON_REQUIREMENTS_FILE)) {
+                internalConfig.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
+            }
+            internalConfig.get(PYTHON_REQUIREMENTS_FILE).clear();
+            removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_FILE_PREFIX);
+            removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_CACHE_PREFIX);
 
-			if (requirementsCachedDir != null) {
-				String cacheDirKey = generateUniqueFileKey(PYTHON_REQUIREMENTS_CACHE_PREFIX, requirementsCachedDir);
-				registerCachedFileIfNotExist(requirementsCachedDir, cacheDirKey);
-				internalConfig.get(PYTHON_REQUIREMENTS_FILE).put(CACHE, cacheDirKey);
-			}
-		}
+            String fileKey =
+                    generateUniqueFileKey(PYTHON_REQUIREMENTS_FILE_PREFIX, requirementsFilePath);
+            registerCachedFileIfNotExist(requirementsFilePath, fileKey);
+            internalConfig.get(PYTHON_REQUIREMENTS_FILE).put(FILE, fileKey);
 
-		/**
-		 * Adds a Python archive file (zip format). The file will be extracted and moved to a dedicated
-		 * directory under the working directory of the Python UDF workers. The param `targetDir` is the
-		 * name of the dedicated directory. The Python UDFs and the config option "python.executable"
-		 * could access the extracted files via relative path.
-		 *
-		 * @param archivePath The path of the archive file.
-		 * @param targetDir The name of the target directory.
-		 */
-		private void addPythonArchive(String archivePath, @Nullable String targetDir) {
-			Preconditions.checkNotNull(archivePath);
-			if (!internalConfig.contains(PYTHON_ARCHIVES)) {
-				internalConfig.set(PYTHON_ARCHIVES, new HashMap<>());
-			}
-			if (targetDir == null) {
-				targetDir = new File(archivePath).getName();
-			}
-			String fileKey = generateUniqueFileKey(PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
-			registerCachedFileIfNotExist(archivePath, fileKey);
-			internalConfig.get(PYTHON_ARCHIVES).put(fileKey, targetDir);
-		}
+            if (requirementsCachedDir != null) {
+                String cacheDirKey =
+                        generateUniqueFileKey(
+                                PYTHON_REQUIREMENTS_CACHE_PREFIX, requirementsCachedDir);
+                registerCachedFileIfNotExist(requirementsCachedDir, cacheDirKey);
+                internalConfig.get(PYTHON_REQUIREMENTS_FILE).put(CACHE, cacheDirKey);
+            }
+        }
 
-		private void configure(ReadableConfig config) {
-			config.getOptional(PythonOptions.PYTHON_FILES).ifPresent(pyFiles -> {
-				for (String filePath : pyFiles.split(FILE_DELIMITER)) {
-					addPythonFile(filePath);
-				}
-			});
+        /**
+         * Adds a Python archive file (zip format). The file will be extracted and moved to a
+         * dedicated directory under the working directory of the Python UDF workers. The param
+         * `targetDir` is the name of the dedicated directory. The Python UDFs and the config option
+         * "python.executable" could access the extracted files via relative path.
+         *
+         * @param archivePath The path of the archive file.
+         * @param targetDir The name of the target directory.
+         */
+        private void addPythonArchive(String archivePath, @Nullable String targetDir) {
+            Preconditions.checkNotNull(archivePath);
+            if (!internalConfig.contains(PYTHON_ARCHIVES)) {
+                internalConfig.set(PYTHON_ARCHIVES, new HashMap<>());
+            }
+            if (targetDir == null) {
+                targetDir = new File(archivePath).getName();
+            }
+            String fileKey =
+                    generateUniqueFileKey(
+                            PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
+            registerCachedFileIfNotExist(archivePath, fileKey);
+            internalConfig.get(PYTHON_ARCHIVES).put(fileKey, targetDir);
+        }
 
-			config.getOptional(PythonOptions.PYTHON_REQUIREMENTS).ifPresent(pyRequirements -> {
-				if (pyRequirements.contains(PARAM_DELIMITER)) {
-					String[] requirementFileAndCache = pyRequirements.split(PARAM_DELIMITER, 2);
-					setPythonRequirements(requirementFileAndCache[0], requirementFileAndCache[1]);
-				} else {
-					setPythonRequirements(pyRequirements);
-				}
-			});
+        private void configure(ReadableConfig config) {
+            config.getOptional(PythonOptions.PYTHON_FILES)
+                    .ifPresent(
+                            pyFiles -> {
+                                for (String filePath : pyFiles.split(FILE_DELIMITER)) {
+                                    addPythonFile(filePath);
+                                }
+                            });
 
-			config.getOptional(PythonOptions.PYTHON_ARCHIVES).ifPresent(pyArchives -> {
-				for (String archive : pyArchives.split(FILE_DELIMITER)) {
-					String archivePath;
-					String targetDir;
-					if (archive.contains(PARAM_DELIMITER)) {
-						String[] filePathAndTargetDir = archive.split(PARAM_DELIMITER, 2);
-						archivePath = filePathAndTargetDir[0];
-						targetDir = filePathAndTargetDir[1];
-					} else {
-						archivePath = archive;
-						targetDir = null;
-					}
-					addPythonArchive(archivePath, targetDir);
-				}
-			});
+            config.getOptional(PythonOptions.PYTHON_REQUIREMENTS)
+                    .ifPresent(
+                            pyRequirements -> {
+                                if (pyRequirements.contains(PARAM_DELIMITER)) {
+                                    String[] requirementFileAndCache =
+                                            pyRequirements.split(PARAM_DELIMITER, 2);
+                                    setPythonRequirements(
+                                            requirementFileAndCache[0], requirementFileAndCache[1]);
+                                } else {
+                                    setPythonRequirements(pyRequirements);
+                                }
+                            });
 
-			config.getOptional(PYTHON_EXECUTABLE).ifPresent(e -> internalConfig.set(PYTHON_EXECUTABLE, e));
+            config.getOptional(PythonOptions.PYTHON_ARCHIVES)
+                    .ifPresent(
+                            pyArchives -> {
+                                for (String archive : pyArchives.split(FILE_DELIMITER)) {
+                                    String archivePath;
+                                    String targetDir;
+                                    if (archive.contains(PARAM_DELIMITER)) {
+                                        String[] filePathAndTargetDir =
+                                                archive.split(PARAM_DELIMITER, 2);
+                                        archivePath = filePathAndTargetDir[0];
+                                        targetDir = filePathAndTargetDir[1];
+                                    } else {
+                                        archivePath = archive;
+                                        targetDir = null;
+                                    }
+                                    addPythonArchive(archivePath, targetDir);
+                                }
+                            });
 
-			config.getOptional(PYTHON_CLIENT_EXECUTABLE).ifPresent(e -> internalConfig.set(PYTHON_CLIENT_EXECUTABLE, e));
-		}
+            config.getOptional(PYTHON_EXECUTABLE)
+                    .ifPresent(e -> internalConfig.set(PYTHON_EXECUTABLE, e));
 
-		private String generateUniqueFileKey(String prefix, String hashString) {
-			MessageDigest messageDigest;
-			try {
-				messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
-			} catch (NoSuchAlgorithmException e) {
-				throw new RuntimeException(e);
-			}
-			messageDigest.update(hashString.getBytes(StandardCharsets.UTF_8));
+            config.getOptional(PYTHON_CLIENT_EXECUTABLE)
+                    .ifPresent(e -> internalConfig.set(PYTHON_CLIENT_EXECUTABLE, e));
+        }
 
-			return String.format("%s_%s", prefix, StringUtils.byteToHexString(messageDigest.digest()));
-		}
+        private String generateUniqueFileKey(String prefix, String hashString) {
+            MessageDigest messageDigest;
+            try {
+                messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+            messageDigest.update(hashString.getBytes(StandardCharsets.UTF_8));
 
-		private void registerCachedFileIfNotExist(String filePath, String fileKey) {
-			if (cachedFiles.stream().noneMatch(t -> t.f0.equals(fileKey))) {
-				cachedFiles.add(new Tuple2<>(fileKey, new DistributedCache.DistributedCacheEntry(filePath, false)));
-			}
-		}
+            return String.format(
+                    "%s_%s", prefix, StringUtils.byteToHexString(messageDigest.digest()));
+        }
 
-		private void removeCachedFilesByPrefix(String prefix) {
-			cachedFiles.removeAll(
-				cachedFiles.stream()
-					.filter(t -> t.f0.matches("^" + prefix + "_[a-z0-9]{64}$"))
-					.collect(Collectors.toSet()));
-		}
+        private void registerCachedFileIfNotExist(String filePath, String fileKey) {
+            if (cachedFiles.stream().noneMatch(t -> t.f0.equals(fileKey))) {
+                cachedFiles.add(
+                        new Tuple2<>(
+                                fileKey,
+                                new DistributedCache.DistributedCacheEntry(filePath, false)));
+            }
+        }
 
-		private Configuration getConfigWithPythonDependencyOptions() {
-			return internalConfig;
-		}
-	}
+        private void removeCachedFilesByPrefix(String prefix) {
+            cachedFiles.removeAll(
+                    cachedFiles.stream()
+                            .filter(t -> t.f0.matches("^" + prefix + "_[a-z0-9]{64}$"))
+                            .collect(Collectors.toSet()));
+        }
+
+        private Configuration getConfigWithPythonDependencyOptions() {
+            return internalConfig;
+        }
+    }
 }

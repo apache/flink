@@ -20,6 +20,7 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -45,75 +46,79 @@ import java.io.Serializable;
  *
  * <p>A {@link ScanTableSource} can implement the following abilities that might mutate an instance
  * during planning:
+ *
  * <ul>
- *     <li>{@link SupportsWatermarkPushDown}
- *     <li>{@link SupportsFilterPushDown}
- *     <li>{@link SupportsProjectionPushDown}
- *     <li>{@link SupportsPartitionPushDown}
- *     <li>{@link SupportsReadingMetadata}
+ *   <li>{@link SupportsWatermarkPushDown}
+ *   <li>{@link SupportsFilterPushDown}
+ *   <li>{@link SupportsAggregatePushDown}
+ *   <li>{@link SupportsProjectionPushDown}
+ *   <li>{@link SupportsPartitionPushDown}
+ *   <li>{@link SupportsReadingMetadata}
  * </ul>
  *
- * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(ScanContext)} for obtaining a
- * provider of runtime implementation.
+ * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(ScanContext)} for
+ * obtaining a provider of runtime implementation.
  */
 @PublicEvolving
 public interface ScanTableSource extends DynamicTableSource {
 
-	/**
-	 * Returns the set of changes that the planner can expect during runtime.
-	 *
-	 * @see RowKind
-	 */
-	ChangelogMode getChangelogMode();
+    /**
+     * Returns the set of changes that the planner can expect during runtime.
+     *
+     * @see RowKind
+     */
+    ChangelogMode getChangelogMode();
 
-	/**
-	 * Returns a provider of runtime implementation for reading the data.
-	 *
-	 * <p>There might exist different interfaces for runtime implementation which is why {@link ScanRuntimeProvider}
-	 * serves as the base interface. Concrete {@link ScanRuntimeProvider} interfaces might be located
-	 * in other Flink modules.
-	 *
-	 * <p>Independent of the provider interface, the table runtime expects that a source implementation
-	 * emits internal data structures (see {@link org.apache.flink.table.data.RowData} for more information).
-	 *
-	 * <p>The given {@link ScanContext} offers utilities by the planner for creating runtime implementation
-	 * with minimal dependencies to internal data structures.
-	 *
-	 * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code flink-table-api-java-bridge}.
-	 */
-	ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext);
+    /**
+     * Returns a provider of runtime implementation for reading the data.
+     *
+     * <p>There might exist different interfaces for runtime implementation which is why {@link
+     * ScanRuntimeProvider} serves as the base interface. Concrete {@link ScanRuntimeProvider}
+     * interfaces might be located in other Flink modules.
+     *
+     * <p>Independent of the provider interface, the table runtime expects that a source
+     * implementation emits internal data structures (see {@link
+     * org.apache.flink.table.data.RowData} for more information).
+     *
+     * <p>The given {@link ScanContext} offers utilities by the planner for creating runtime
+     * implementation with minimal dependencies to internal data structures.
+     *
+     * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code
+     * flink-table-api-java-bridge}.
+     */
+    ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext);
 
-	// --------------------------------------------------------------------------------------------
-	// Helper interfaces
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Helper interfaces
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Context for creating runtime implementation via a {@link ScanRuntimeProvider}.
-	 *
-	 * <p>It offers utilities by the planner for creating runtime implementation with minimal dependencies
-	 * to internal data structures.
-	 *
-	 * <p>Methods should be called in {@link #getScanRuntimeProvider(ScanContext)}. The returned instances
-	 * are {@link Serializable} and can be directly passed into the runtime implementation class.
-	 */
-	interface ScanContext extends DynamicTableSource.Context {
-		// may introduce scan specific methods in the future
-	}
+    /**
+     * Context for creating runtime implementation via a {@link ScanRuntimeProvider}.
+     *
+     * <p>It offers utilities by the planner for creating runtime implementation with minimal
+     * dependencies to internal data structures.
+     *
+     * <p>Methods should be called in {@link #getScanRuntimeProvider(ScanContext)}. The returned
+     * instances are {@link Serializable} and can be directly passed into the runtime implementation
+     * class.
+     */
+    interface ScanContext extends DynamicTableSource.Context {
+        // may introduce scan specific methods in the future
+    }
 
-	/**
-	 * Provides actual runtime implementation for reading the data.
-	 *
-	 * <p>There might exist different interfaces for runtime implementation which is why {@link ScanRuntimeProvider}
-	 * serves as the base interface. Concrete {@link ScanRuntimeProvider} interfaces might be located
-	 * in other Flink modules.
-	 *
-	 * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code flink-table-api-java-bridge}.
-	 */
-	interface ScanRuntimeProvider {
+    /**
+     * Provides actual runtime implementation for reading the data.
+     *
+     * <p>There might exist different interfaces for runtime implementation which is why {@link
+     * ScanRuntimeProvider} serves as the base interface. Concrete {@link ScanRuntimeProvider}
+     * interfaces might be located in other Flink modules.
+     *
+     * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code
+     * flink-table-api-java-bridge}.
+     */
+    interface ScanRuntimeProvider {
 
-		/**
-		 * Returns whether the data is bounded or not.
-		 */
-		boolean isBounded();
-	}
+        /** Returns whether the data is bounded or not. */
+        boolean isBounded();
+    }
 }

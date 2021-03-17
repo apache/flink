@@ -35,57 +35,63 @@ import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.apache.flink.cep.utils.NFATestHarness.forPattern;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 
-/**
- * Tests for accesing time properties from {@link IterativeCondition}.
- */
+/** Tests for accesing time properties from {@link IterativeCondition}. */
 public class NFAIterativeConditionTimeContextTest extends TestLogger {
 
-	@Test
-	public void testEventTimestamp() throws Exception {
-		final Event event = event().withId(1).build();
-		final long timestamp = 3;
+    @Test
+    public void testEventTimestamp() throws Exception {
+        final Event event = event().withId(1).build();
+        final long timestamp = 3;
 
-		final Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new IterativeCondition<Event>() {
-			@Override
-			public boolean filter(Event value, Context<Event> ctx) throws Exception {
-				return ctx.timestamp() == timestamp;
-			}
-		});
+        final Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new IterativeCondition<Event>() {
+                                    @Override
+                                    public boolean filter(Event value, Context<Event> ctx)
+                                            throws Exception {
+                                        return ctx.timestamp() == timestamp;
+                                    }
+                                });
 
-		final NFATestHarness testHarness = forPattern(pattern).build();
+        final NFATestHarness testHarness = forPattern(pattern).build();
 
-		final List<List<Event>> resultingPattern = testHarness.feedRecord(new StreamRecord<>(event, timestamp));
+        final List<List<Event>> resultingPattern =
+                testHarness.feedRecord(new StreamRecord<>(event, timestamp));
 
-		comparePatterns(resultingPattern, Collections.singletonList(
-			Collections.singletonList(event)
-		));
-	}
+        comparePatterns(
+                resultingPattern, Collections.singletonList(Collections.singletonList(event)));
+    }
 
-	@Test
-	public void testCurrentProcessingTime() throws Exception {
-		final Event event1 = event().withId(1).build();
-		final Event event2 = event().withId(2).build();
+    @Test
+    public void testCurrentProcessingTime() throws Exception {
+        final Event event1 = event().withId(1).build();
+        final Event event2 = event().withId(2).build();
 
-		final Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new IterativeCondition<Event>() {
-			@Override
-			public boolean filter(Event value, Context<Event> ctx) throws Exception {
-				return ctx.currentProcessingTime() == 3;
-			}
-		});
+        final Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new IterativeCondition<Event>() {
+                                    @Override
+                                    public boolean filter(Event value, Context<Event> ctx)
+                                            throws Exception {
+                                        return ctx.currentProcessingTime() == 3;
+                                    }
+                                });
 
-		final TestTimerService cepTimerService = new TestTimerService();
-		final NFATestHarness testHarness = forPattern(pattern)
-			.withTimerService(cepTimerService)
-			.build();
+        final TestTimerService cepTimerService = new TestTimerService();
+        final NFATestHarness testHarness =
+                forPattern(pattern).withTimerService(cepTimerService).build();
 
-		cepTimerService.setCurrentProcessingTime(1);
-		final List<List<Event>> resultingPatterns1 = testHarness.feedRecord(new StreamRecord<>(event1, 7));
-		cepTimerService.setCurrentProcessingTime(3);
-		final List<List<Event>> resultingPatterns2 = testHarness.feedRecord(new StreamRecord<>(event2, 8));
+        cepTimerService.setCurrentProcessingTime(1);
+        final List<List<Event>> resultingPatterns1 =
+                testHarness.feedRecord(new StreamRecord<>(event1, 7));
+        cepTimerService.setCurrentProcessingTime(3);
+        final List<List<Event>> resultingPatterns2 =
+                testHarness.feedRecord(new StreamRecord<>(event2, 8));
 
-		comparePatterns(resultingPatterns1, Collections.emptyList());
-		comparePatterns(resultingPatterns2, Collections.singletonList(
-			Collections.singletonList(event2)
-		));
-	}
+        comparePatterns(resultingPatterns1, Collections.emptyList());
+        comparePatterns(
+                resultingPatterns2, Collections.singletonList(Collections.singletonList(event2)));
+    }
 }

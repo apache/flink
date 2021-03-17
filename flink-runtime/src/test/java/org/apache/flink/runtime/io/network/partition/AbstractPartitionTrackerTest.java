@@ -30,70 +30,78 @@ import java.util.Optional;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Tests for the {@link AbstractPartitionTracker}.
- */
+/** Tests for the {@link AbstractPartitionTracker}. */
 public class AbstractPartitionTrackerTest extends TestLogger {
 
-	@Test
-	public void testStartStopTracking() {
-		final TestPartitionTracker partitionTracker = new TestPartitionTracker();
+    @Test
+    public void testStartStopTracking() {
+        final TestPartitionTracker partitionTracker = new TestPartitionTracker();
 
-		final ResourceID executorWithTrackedPartition = new ResourceID("tracked");
-		final ResourceID executorWithoutTrackedPartition = new ResourceID("untracked");
+        final ResourceID executorWithTrackedPartition = new ResourceID("tracked");
+        final ResourceID executorWithoutTrackedPartition = new ResourceID("untracked");
 
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition),
+                is(false));
 
-		partitionTracker.startTrackingPartition(executorWithTrackedPartition, new ResultPartitionID());
+        partitionTracker.startTrackingPartition(
+                executorWithTrackedPartition, new ResultPartitionID());
 
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(true));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(true));
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition),
+                is(false));
 
-		partitionTracker.stopTrackingPartitionsFor(executorWithTrackedPartition);
+        partitionTracker.stopTrackingPartitionsFor(executorWithTrackedPartition);
 
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
-		assertThat(partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition), is(false));
-	}
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithTrackedPartition), is(false));
+        assertThat(
+                partitionTracker.isTrackingPartitionsFor(executorWithoutTrackedPartition),
+                is(false));
+    }
 
-	static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-			ResultPartitionID resultPartitionId,
-			boolean hasLocalResources) {
-		return createResultPartitionDeploymentDescriptor(resultPartitionId, ResultPartitionType.BLOCKING, hasLocalResources);
-	}
+    static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
+            ResultPartitionID resultPartitionId, boolean hasLocalResources) {
+        return createResultPartitionDeploymentDescriptor(
+                resultPartitionId, ResultPartitionType.BLOCKING, hasLocalResources);
+    }
 
-	static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-		ResultPartitionID resultPartitionId,
-		ResultPartitionType type,
-		boolean hasLocalResources) {
+    static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
+            ResultPartitionID resultPartitionId,
+            ResultPartitionType type,
+            boolean hasLocalResources) {
 
-		return new ResultPartitionDeploymentDescriptor(
-			PartitionDescriptorBuilder
-				.newBuilder()
-				.setPartitionId(resultPartitionId.getPartitionId())
-				.setPartitionType(type)
-				.build(),
-			new ShuffleDescriptor() {
-				@Override
-				public ResultPartitionID getResultPartitionID() {
-					return resultPartitionId;
-				}
+        return new ResultPartitionDeploymentDescriptor(
+                PartitionDescriptorBuilder.newBuilder()
+                        .setPartitionId(resultPartitionId.getPartitionId())
+                        .setPartitionType(type)
+                        .build(),
+                new ShuffleDescriptor() {
+                    @Override
+                    public ResultPartitionID getResultPartitionID() {
+                        return resultPartitionId;
+                    }
 
-				@Override
-				public Optional<ResourceID> storesLocalResourcesOn() {
-					return hasLocalResources
-						? Optional.of(ResourceID.generate())
-						: Optional.empty();
-				}
-			},
-			1,
-			true);
-	}
+                    @Override
+                    public Optional<ResourceID> storesLocalResourcesOn() {
+                        return hasLocalResources
+                                ? Optional.of(ResourceID.generate())
+                                : Optional.empty();
+                    }
+                },
+                1,
+                true);
+    }
 
-	private static class TestPartitionTracker extends AbstractPartitionTracker<ResourceID, Integer> {
+    private static class TestPartitionTracker
+            extends AbstractPartitionTracker<ResourceID, Integer> {
 
-		public void startTrackingPartition(ResourceID key, ResultPartitionID resultPartitionID) {
-			startTrackingPartition(key, resultPartitionID, 0);
-		}
-	}
+        public void startTrackingPartition(ResourceID key, ResultPartitionID resultPartitionID) {
+            startTrackingPartition(key, resultPartitionID, 0);
+        }
+    }
 }

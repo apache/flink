@@ -1,20 +1,20 @@
 /*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
- */
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package org.apache.flink.api.connector.source.mocks;
 
@@ -45,213 +45,250 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
-/**
- * A mock class for {@link SplitEnumeratorContext}.
- */
-public class MockSplitEnumeratorContext<SplitT extends SourceSplit> implements SplitEnumeratorContext<SplitT> {
-	private final Map<Integer, List<SourceEvent>> sentSourceEvent;
-	private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
-	private final List<SplitsAssignment<SplitT>> splitsAssignmentSequence;
-	private final ExecutorService workerExecutor;
-	private final ExecutorService mainExecutor;
-	private final TestingExecutorThreadFactory mainThreadFactory;
-	private final AtomicReference<Throwable> errorInWorkerThread;
-	private final AtomicReference<Throwable> errorInMainThread;
-	private final BlockingQueue<Callable<Future<?>>> oneTimeCallables;
-	private final List<Callable<Future<?>>> periodicCallables;
-	private final AtomicBoolean stoppedAcceptAsyncCalls;
+/** A mock class for {@link SplitEnumeratorContext}. */
+public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
+        implements SplitEnumeratorContext<SplitT> {
+    private final Map<Integer, List<SourceEvent>> sentSourceEvent;
+    private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
+    private final List<SplitsAssignment<SplitT>> splitsAssignmentSequence;
+    private final ExecutorService workerExecutor;
+    private final ExecutorService mainExecutor;
+    private final TestingExecutorThreadFactory mainThreadFactory;
+    private final AtomicReference<Throwable> errorInWorkerThread;
+    private final AtomicReference<Throwable> errorInMainThread;
+    private final BlockingQueue<Callable<Future<?>>> oneTimeCallables;
+    private final List<Callable<Future<?>>> periodicCallables;
+    private final AtomicBoolean stoppedAcceptAsyncCalls;
 
-	private final int parallelism;
+    private final int parallelism;
 
-	public MockSplitEnumeratorContext(int parallelism) {
-		this.sentSourceEvent = new HashMap<>();
-		this.registeredReaders = new ConcurrentHashMap<>();
-		this.splitsAssignmentSequence = new ArrayList<>();
-		this.parallelism = parallelism;
-		this.errorInWorkerThread = new AtomicReference<>();
-		this.errorInMainThread = new AtomicReference<>();
-		this.oneTimeCallables = new ArrayBlockingQueue<>(100);
-		this.periodicCallables = Collections.synchronizedList(new ArrayList<>());
-		this.mainThreadFactory = getThreadFactory("SplitEnumerator-main", errorInMainThread);
-		this.workerExecutor = getExecutor(getThreadFactory("SplitEnumerator-worker", errorInWorkerThread));
-		this.mainExecutor = getExecutor(mainThreadFactory);
-		this.stoppedAcceptAsyncCalls = new AtomicBoolean(false);
-	}
+    public MockSplitEnumeratorContext(int parallelism) {
+        this.sentSourceEvent = new HashMap<>();
+        this.registeredReaders = new ConcurrentHashMap<>();
+        this.splitsAssignmentSequence = new ArrayList<>();
+        this.parallelism = parallelism;
+        this.errorInWorkerThread = new AtomicReference<>();
+        this.errorInMainThread = new AtomicReference<>();
+        this.oneTimeCallables = new ArrayBlockingQueue<>(100);
+        this.periodicCallables = Collections.synchronizedList(new ArrayList<>());
+        this.mainThreadFactory = getThreadFactory("SplitEnumerator-main", errorInMainThread);
+        this.workerExecutor =
+                getExecutor(getThreadFactory("SplitEnumerator-worker", errorInWorkerThread));
+        this.mainExecutor = getExecutor(mainThreadFactory);
+        this.stoppedAcceptAsyncCalls = new AtomicBoolean(false);
+    }
 
-	@Override
-	public MetricGroup metricGroup() {
-		return new UnregisteredMetricsGroup();
-	}
+    @Override
+    public MetricGroup metricGroup() {
+        return new UnregisteredMetricsGroup();
+    }
 
-	@Override
-	public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
-		try {
-			if (!mainThreadFactory.isCurrentThreadMainExecutorThread()) {
-				mainExecutor.submit(() ->
-						sentSourceEvent.computeIfAbsent(subtaskId, id -> new ArrayList<>()).add(event)).get();
-			} else {
-				sentSourceEvent.computeIfAbsent(subtaskId, id -> new ArrayList<>()).add(event);
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to assign splits", e);
-		}
-	}
+    @Override
+    public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
+        try {
+            if (!mainThreadFactory.isCurrentThreadMainExecutorThread()) {
+                mainExecutor
+                        .submit(
+                                () ->
+                                        sentSourceEvent
+                                                .computeIfAbsent(subtaskId, id -> new ArrayList<>())
+                                                .add(event))
+                        .get();
+            } else {
+                sentSourceEvent.computeIfAbsent(subtaskId, id -> new ArrayList<>()).add(event);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to assign splits", e);
+        }
+    }
 
-	@Override
-	public int currentParallelism() {
-		return parallelism;
-	}
+    @Override
+    public int currentParallelism() {
+        return parallelism;
+    }
 
-	@Override
-	public Map<Integer, ReaderInfo> registeredReaders() {
-		return registeredReaders;
-	}
+    @Override
+    public Map<Integer, ReaderInfo> registeredReaders() {
+        return registeredReaders;
+    }
 
-	@Override
-	public void assignSplits(SplitsAssignment<SplitT> newSplitAssignments) {
-		splitsAssignmentSequence.add(newSplitAssignments);
-	}
+    @Override
+    public void assignSplits(SplitsAssignment<SplitT> newSplitAssignments) {
+        splitsAssignmentSequence.add(newSplitAssignments);
+    }
 
-	@Override
-	public void signalNoMoreSplits(int subtask) {}
+    @Override
+    public void signalNoMoreSplits(int subtask) {}
 
-	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
-		if (stoppedAcceptAsyncCalls.get()) {
-			return;
-		}
-		oneTimeCallables.add(() ->
-				workerExecutor.submit(wrap(errorInWorkerThread, () -> {
-					try {
-						T result = callable.call();
-						mainExecutor.submit(wrap(errorInMainThread, () -> handler.accept(result, null))).get();
-					} catch (Throwable t) {
-						handler.accept(null, t);
-					}
-				})));
-	}
+    @Override
+    public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
+        if (stoppedAcceptAsyncCalls.get()) {
+            return;
+        }
+        oneTimeCallables.add(
+                () ->
+                        workerExecutor.submit(
+                                wrap(
+                                        errorInWorkerThread,
+                                        () -> {
+                                            try {
+                                                T result = callable.call();
+                                                mainExecutor
+                                                        .submit(
+                                                                wrap(
+                                                                        errorInMainThread,
+                                                                        () ->
+                                                                                handler.accept(
+                                                                                        result,
+                                                                                        null)))
+                                                        .get();
+                                            } catch (Throwable t) {
+                                                handler.accept(null, t);
+                                            }
+                                        })));
+    }
 
-	@Override
-	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period) {
-		if (stoppedAcceptAsyncCalls.get()) {
-			return;
-		}
-		periodicCallables.add(() ->
-				workerExecutor.submit(wrap(errorInWorkerThread, () -> {
-					try {
-						T result = callable.call();
-						mainExecutor.submit(wrap(errorInMainThread, () -> handler.accept(result, null))).get();
-					} catch (Throwable t) {
-						handler.accept(null, t);
-					}
-				})));
-	}
+    @Override
+    public <T> void callAsync(
+            Callable<T> callable,
+            BiConsumer<T, Throwable> handler,
+            long initialDelay,
+            long period) {
+        if (stoppedAcceptAsyncCalls.get()) {
+            return;
+        }
+        periodicCallables.add(
+                () ->
+                        workerExecutor.submit(
+                                wrap(
+                                        errorInWorkerThread,
+                                        () -> {
+                                            try {
+                                                T result = callable.call();
+                                                mainExecutor
+                                                        .submit(
+                                                                wrap(
+                                                                        errorInMainThread,
+                                                                        () ->
+                                                                                handler.accept(
+                                                                                        result,
+                                                                                        null)))
+                                                        .get();
+                                            } catch (Throwable t) {
+                                                handler.accept(null, t);
+                                            }
+                                        })));
+    }
 
-	@Override
-	public void runInCoordinatorThread(Runnable runnable) {
-		mainExecutor.execute(runnable);
-	}
+    @Override
+    public void runInCoordinatorThread(Runnable runnable) {
+        mainExecutor.execute(runnable);
+    }
 
-	public void close() {
-		stoppedAcceptAsyncCalls.set(true);
-	}
+    public void close() {
+        stoppedAcceptAsyncCalls.set(true);
+    }
 
-	// ------------ helper method to manipulate the context -------------
+    // ------------ helper method to manipulate the context -------------
 
-	public void runNextOneTimeCallable() throws Throwable {
-		oneTimeCallables.take().call().get();
-		checkError();
-	}
+    public void runNextOneTimeCallable() throws Throwable {
+        oneTimeCallables.take().call().get();
+        checkError();
+    }
 
-	public void runPeriodicCallable(int index) throws Throwable {
-		periodicCallables.get(index).call().get();
-		checkError();
-	}
+    public void runPeriodicCallable(int index) throws Throwable {
+        periodicCallables.get(index).call().get();
+        checkError();
+    }
 
-	public Map<Integer, List<SourceEvent>> getSentSourceEvent() throws Exception {
-		return workerExecutor.submit(() -> new HashMap<>(sentSourceEvent)).get();
-	}
+    public Map<Integer, List<SourceEvent>> getSentSourceEvent() throws Exception {
+        return workerExecutor.submit(() -> new HashMap<>(sentSourceEvent)).get();
+    }
 
-	public void registerReader(ReaderInfo readerInfo) {
-		registeredReaders.put(readerInfo.getSubtaskId(), readerInfo);
-	}
+    public void registerReader(ReaderInfo readerInfo) {
+        registeredReaders.put(readerInfo.getSubtaskId(), readerInfo);
+    }
 
-	public void unregisterReader(int readerId) {
-		registeredReaders.remove(readerId);
-	}
+    public void unregisterReader(int readerId) {
+        registeredReaders.remove(readerId);
+    }
 
-	public List<Callable<Future<?>>> getPeriodicCallables() {
-		return periodicCallables;
-	}
+    public List<Callable<Future<?>>> getPeriodicCallables() {
+        return periodicCallables;
+    }
 
-	public BlockingQueue<Callable<Future<?>>> getOneTimeCallables() {
-		return oneTimeCallables;
-	}
+    public BlockingQueue<Callable<Future<?>>> getOneTimeCallables() {
+        return oneTimeCallables;
+    }
 
-	public List<SplitsAssignment<SplitT>> getSplitsAssignmentSequence() {
-		return splitsAssignmentSequence;
-	}
+    public List<SplitsAssignment<SplitT>> getSplitsAssignmentSequence() {
+        return splitsAssignmentSequence;
+    }
 
-	// ------------- private helpers -------------
+    // ------------- private helpers -------------
 
-	private void checkError() throws Throwable {
-		if (errorInMainThread.get() != null) {
-			throw errorInMainThread.get();
-		}
-		if (errorInWorkerThread.get() != null) {
-			throw errorInWorkerThread.get();
-		}
-	}
+    private void checkError() throws Throwable {
+        if (errorInMainThread.get() != null) {
+            throw errorInMainThread.get();
+        }
+        if (errorInWorkerThread.get() != null) {
+            throw errorInWorkerThread.get();
+        }
+    }
 
-	private static TestingExecutorThreadFactory getThreadFactory(String threadName, AtomicReference<Throwable> error) {
-		return new TestingExecutorThreadFactory(threadName, error);
-	}
+    private static TestingExecutorThreadFactory getThreadFactory(
+            String threadName, AtomicReference<Throwable> error) {
+        return new TestingExecutorThreadFactory(threadName, error);
+    }
 
-	private static ExecutorService getExecutor(TestingExecutorThreadFactory threadFactory) {
-		return Executors.newSingleThreadScheduledExecutor(threadFactory);
-	}
+    private static ExecutorService getExecutor(TestingExecutorThreadFactory threadFactory) {
+        return Executors.newSingleThreadScheduledExecutor(threadFactory);
+    }
 
-	private static ThrowableCatchingRunnable wrap(AtomicReference<Throwable> error, Runnable r) {
-		return new ThrowableCatchingRunnable(t -> {
-			if (!error.compareAndSet(null, t)) {
-				error.get().addSuppressed(t);
-			}
-		}, r);
-	}
+    private static ThrowableCatchingRunnable wrap(AtomicReference<Throwable> error, Runnable r) {
+        return new ThrowableCatchingRunnable(
+                t -> {
+                    if (!error.compareAndSet(null, t)) {
+                        error.get().addSuppressed(t);
+                    }
+                },
+                r);
+    }
 
-	// -------- private class -----------
+    // -------- private class -----------
 
-	/**
-	 * A thread factory class that provides some helper methods.
-	 */
-	public static class TestingExecutorThreadFactory implements ThreadFactory {
-		private final String coordinatorThreadName;
-		private final AtomicReference<Throwable> error;
-		private Thread t;
+    /** A thread factory class that provides some helper methods. */
+    public static class TestingExecutorThreadFactory implements ThreadFactory {
+        private final String coordinatorThreadName;
+        private final AtomicReference<Throwable> error;
+        private Thread t;
 
-		TestingExecutorThreadFactory(String coordinatorThreadName, AtomicReference<Throwable> error) {
-			this.coordinatorThreadName = coordinatorThreadName;
-			this.error = error;
-			this.t = null;
-		}
+        TestingExecutorThreadFactory(
+                String coordinatorThreadName, AtomicReference<Throwable> error) {
+            this.coordinatorThreadName = coordinatorThreadName;
+            this.error = error;
+            this.t = null;
+        }
 
-		@Override
-		public Thread newThread(Runnable r) {
-			if (t != null) {
-				throw new IllegalStateException("Should never happen. This factory should only be used by a " +
-						"SingleThreadExecutor.");
-			}
-			t = new Thread(r, coordinatorThreadName);
-			t.setUncaughtExceptionHandler((t1, e) -> {
-				if (!error.compareAndSet(null, e)) {
-					error.get().addSuppressed(e);
-				}
-			});
-			return t;
-		}
+        @Override
+        public Thread newThread(Runnable r) {
+            if (t != null) {
+                throw new IllegalStateException(
+                        "Should never happen. This factory should only be used by a "
+                                + "SingleThreadExecutor.");
+            }
+            t = new Thread(r, coordinatorThreadName);
+            t.setUncaughtExceptionHandler(
+                    (t1, e) -> {
+                        if (!error.compareAndSet(null, e)) {
+                            error.get().addSuppressed(e);
+                        }
+                    });
+            return t;
+        }
 
-		boolean isCurrentThreadMainExecutorThread() {
-			return Thread.currentThread() == t;
-		}
-	}
+        boolean isCurrentThreadMainExecutorThread() {
+            return Thread.currentThread() == t;
+        }
+    }
 }

@@ -31,45 +31,42 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class contains utility methods for the {@link KubernetesSessionClusterEntrypoint}.
- */
+/** This class contains utility methods for the {@link KubernetesSessionClusterEntrypoint}. */
 class KubernetesEntrypointUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesEntrypointUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesEntrypointUtils.class);
 
-	/**
-	 * For non-HA cluster, {@link JobManagerOptions#ADDRESS} has be set to Kubernetes service name on client side. See
-	 * {@link KubernetesClusterDescriptor#deployClusterInternal}. So the TaskManager will use service address to contact
-	 * with JobManager.
-	 * For HA cluster, {@link JobManagerOptions#ADDRESS} will be set to the pod ip address. The TaskManager use Zookeeper
-	 * or other high-availability service to find the address of JobManager.
-	 *
-	 * @return Updated configuration
-	 */
-	static Configuration loadConfiguration(Configuration dynamicParameters) {
-		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Preconditions.checkNotNull(
-			configDir,
-			"Flink configuration directory (%s) in environment should not be null!",
-			ConfigConstants.ENV_FLINK_CONF_DIR);
+    /**
+     * For non-HA cluster, {@link JobManagerOptions#ADDRESS} has be set to Kubernetes service name
+     * on client side. See {@link KubernetesClusterDescriptor#deployClusterInternal}. So the
+     * TaskManager will use service address to contact with JobManager. For HA cluster, {@link
+     * JobManagerOptions#ADDRESS} will be set to the pod ip address. The TaskManager use Zookeeper
+     * or other high-availability service to find the address of JobManager.
+     *
+     * @return Updated configuration
+     */
+    static Configuration loadConfiguration(Configuration dynamicParameters) {
+        final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        Preconditions.checkNotNull(
+                configDir,
+                "Flink configuration directory (%s) in environment should not be null!",
+                ConfigConstants.ENV_FLINK_CONF_DIR);
 
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(
-			configDir,
-			dynamicParameters);
+        final Configuration configuration =
+                GlobalConfiguration.loadConfiguration(configDir, dynamicParameters);
 
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
-			final String ipAddress = System.getenv().get(Constants.ENV_FLINK_POD_IP_ADDRESS);
-			Preconditions.checkState(
-				ipAddress != null,
-				"JobManager ip address environment variable %s not set",
-				Constants.ENV_FLINK_POD_IP_ADDRESS);
-			configuration.setString(JobManagerOptions.ADDRESS, ipAddress);
-			configuration.setString(RestOptions.ADDRESS, ipAddress);
-		}
+        if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+            final String ipAddress = System.getenv().get(Constants.ENV_FLINK_POD_IP_ADDRESS);
+            Preconditions.checkState(
+                    ipAddress != null,
+                    "JobManager ip address environment variable %s not set",
+                    Constants.ENV_FLINK_POD_IP_ADDRESS);
+            configuration.setString(JobManagerOptions.ADDRESS, ipAddress);
+            configuration.setString(RestOptions.ADDRESS, ipAddress);
+        }
 
-		return configuration;
-	}
+        return configuration;
+    }
 
-	private KubernetesEntrypointUtils() {}
+    private KubernetesEntrypointUtils() {}
 }

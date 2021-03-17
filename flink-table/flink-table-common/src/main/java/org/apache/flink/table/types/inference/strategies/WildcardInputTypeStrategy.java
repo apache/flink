@@ -32,45 +32,44 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Strategy that does not perform any modification or validation of the input.
- */
+/** Strategy that does not perform any modification or validation of the input. */
 @Internal
 public final class WildcardInputTypeStrategy implements InputTypeStrategy {
 
-	private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
-	private final ArgumentCount argumentCount;
+    private static final ArgumentCount PASSING_ARGUMENT_COUNT = ConstantArgumentCount.any();
+    private final ArgumentCount argumentCount;
 
-	public WildcardInputTypeStrategy(ArgumentCount argumentCount) {
-		this.argumentCount = argumentCount;
-	}
+    public WildcardInputTypeStrategy(ArgumentCount argumentCount) {
+        this.argumentCount = argumentCount;
+    }
 
-	public WildcardInputTypeStrategy() {
-		this(PASSING_ARGUMENT_COUNT);
-	}
+    public WildcardInputTypeStrategy() {
+        this(PASSING_ARGUMENT_COUNT);
+    }
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return argumentCount;
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return argumentCount;
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		return Optional.of(callContext.getArgumentDataTypes());
-	}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        return Optional.of(callContext.getArgumentDataTypes());
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return Collections.singletonList(Signature.of(Argument.of("*")));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof WildcardInputTypeStrategy;
-	}
+    @Override
+    public boolean equals(Object o) {
+        return this == o || o instanceof WildcardInputTypeStrategy;
+    }
 
-	@Override
-	public int hashCode() {
-		return WildcardInputTypeStrategy.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return WildcardInputTypeStrategy.class.hashCode();
+    }
 }

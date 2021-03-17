@@ -42,35 +42,40 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Utility {@link TestRestHandler} maintaining a queue of CompletableFuture's.
  *
- * @param <G>   The RestfulGateway used by the handler.
+ * @param <G> The RestfulGateway used by the handler.
  * @param <REQ> The RequestBody type the handler is processing.
  * @param <RES> The ResponseBody type the handler is returning.
- * @param <M>   The MessageParameters type utilized by this handler.
+ * @param <M> The MessageParameters type utilized by this handler.
  */
-public class TestRestHandler<G extends RestfulGateway, REQ extends RequestBody, RES extends ResponseBody, M extends MessageParameters>
-		extends AbstractRestHandler<G, REQ, RES, M> {
+public class TestRestHandler<
+                G extends RestfulGateway,
+                REQ extends RequestBody,
+                RES extends ResponseBody,
+                M extends MessageParameters>
+        extends AbstractRestHandler<G, REQ, RES, M> {
 
-	private final Queue<CompletableFuture<RES>> responseQueue;
+    private final Queue<CompletableFuture<RES>> responseQueue;
 
-	public TestRestHandler(GatewayRetriever<G> gatewayRetriever, MessageHeaders<REQ, RES, M> messageHeaders, CompletableFuture<RES>... responses) {
-		super(gatewayRetriever,
-				RpcUtils.INF_TIMEOUT,
-				Collections.emptyMap(),
-				messageHeaders);
+    public TestRestHandler(
+            GatewayRetriever<G> gatewayRetriever,
+            MessageHeaders<REQ, RES, M> messageHeaders,
+            CompletableFuture<RES>... responses) {
+        super(gatewayRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), messageHeaders);
 
-		responseQueue = new ArrayDeque<>(Arrays.asList(responses));
-	}
+        responseQueue = new ArrayDeque<>(Arrays.asList(responses));
+    }
 
-	@Override
-	protected CompletableFuture<RES> handleRequest(
-			@Nullable HandlerRequest<REQ, M> request,
-			@Nullable G gateway) throws RestHandlerException {
-		final CompletableFuture<RES> result = responseQueue.poll();
+    @Override
+    protected CompletableFuture<RES> handleRequest(
+            @Nullable HandlerRequest<REQ, M> request, @Nullable G gateway)
+            throws RestHandlerException {
+        final CompletableFuture<RES> result = responseQueue.poll();
 
-		if (result != null) {
-			return result;
-		} else {
-			return FutureUtils.completedExceptionally(new NoSuchElementException("No pre-defined Futures left."));
-		}
-	}
+        if (result != null) {
+            return result;
+        } else {
+            return FutureUtils.completedExceptionally(
+                    new NoSuchElementException("No pre-defined Futures left."));
+        }
+    }
 }

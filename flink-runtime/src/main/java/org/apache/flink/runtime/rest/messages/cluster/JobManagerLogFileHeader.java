@@ -24,38 +24,37 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
-/**
- * Headers for the {@link JobManagerLogFileHandler}.
- */
-public class JobManagerLogFileHeader implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
+/** Headers for the {@link JobManagerLogFileHandler}. */
+public class JobManagerLogFileHeader
+        implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
 
-	private static final JobManagerLogFileHeader INSTANCE = new JobManagerLogFileHeader();
+    private static final JobManagerLogFileHeader INSTANCE = new JobManagerLogFileHeader();
 
-	private static final String URL = "/jobmanager/log";
+    private static final String URL = "/jobmanager/log";
 
-	private JobManagerLogFileHeader() {}
+    private JobManagerLogFileHeader() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobManagerLogFileHeader getInstance() {
-		return INSTANCE;
-	}
+    public static JobManagerLogFileHeader getInstance() {
+        return INSTANCE;
+    }
 }

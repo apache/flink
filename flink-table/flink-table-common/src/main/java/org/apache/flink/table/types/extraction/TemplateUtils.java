@@ -36,109 +36,93 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnn
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfMethod;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
-/**
- * Utilities for extracting and dealing with templates.
- */
+/** Utilities for extracting and dealing with templates. */
 @Internal
 final class TemplateUtils {
 
-	/**
-	 * Retrieve global templates from function class.
-	 */
-	static Set<FunctionTemplate> extractGlobalFunctionTemplates(
-			DataTypeFactory typeFactory,
-			Class<? extends UserDefinedFunction> function) {
-		return asFunctionTemplates(typeFactory, collectAnnotationsOfClass(FunctionHint.class, function));
-	}
+    /** Retrieve global templates from function class. */
+    static Set<FunctionTemplate> extractGlobalFunctionTemplates(
+            DataTypeFactory typeFactory, Class<? extends UserDefinedFunction> function) {
+        return asFunctionTemplates(
+                typeFactory, collectAnnotationsOfClass(FunctionHint.class, function));
+    }
 
-	/**
-	 * Retrieve local templates from function method.
-	 */
-	static Set<FunctionTemplate> extractLocalFunctionTemplates(DataTypeFactory typeFactory, Method method) {
-		return asFunctionTemplates(typeFactory, collectAnnotationsOfMethod(FunctionHint.class, method));
-	}
+    /** Retrieve local templates from function method. */
+    static Set<FunctionTemplate> extractLocalFunctionTemplates(
+            DataTypeFactory typeFactory, Method method) {
+        return asFunctionTemplates(
+                typeFactory, collectAnnotationsOfMethod(FunctionHint.class, method));
+    }
 
-	/**
-	 * Converts {@link FunctionHint}s to {@link FunctionTemplate}.
-	 */
-	static Set<FunctionTemplate> asFunctionTemplates(DataTypeFactory typeFactory, Set<FunctionHint> hints) {
-		return hints.stream()
-			.map(hint -> {
-				try {
-					return FunctionTemplate.fromAnnotation(typeFactory, hint);
-				} catch (Throwable t) {
-					throw extractionError(t, "Error in function hint annotation.");
-				}
-			})
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
+    /** Converts {@link FunctionHint}s to {@link FunctionTemplate}. */
+    static Set<FunctionTemplate> asFunctionTemplates(
+            DataTypeFactory typeFactory, Set<FunctionHint> hints) {
+        return hints.stream()
+                .map(
+                        hint -> {
+                            try {
+                                return FunctionTemplate.fromAnnotation(typeFactory, hint);
+                            } catch (Throwable t) {
+                                throw extractionError(t, "Error in function hint annotation.");
+                            }
+                        })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
-	/**
-	 * Find a template that only specifies a result.
-	 */
-	static Set<FunctionResultTemplate> findResultOnlyTemplates(
-			Set<FunctionTemplate> functionTemplates,
-			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
-		return functionTemplates.stream()
-			.filter(t -> t.getSignatureTemplate() == null && accessor.apply(t) != null)
-			.map(accessor)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
+    /** Find a template that only specifies a result. */
+    static Set<FunctionResultTemplate> findResultOnlyTemplates(
+            Set<FunctionTemplate> functionTemplates,
+            Function<FunctionTemplate, FunctionResultTemplate> accessor) {
+        return functionTemplates.stream()
+                .filter(t -> t.getSignatureTemplate() == null && accessor.apply(t) != null)
+                .map(accessor)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
-	/**
-	 * Hints that only declare a result (either accumulator or output).
-	 */
-	static @Nullable FunctionResultTemplate findResultOnlyTemplate(
-			Set<FunctionResultTemplate> globalResultOnly,
-			Set<FunctionResultTemplate> localResultOnly,
-			Set<FunctionTemplate> explicitMappings,
-			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
-		final Set<FunctionResultTemplate> resultOnly = Stream.concat(
-				globalResultOnly.stream(),
-				localResultOnly.stream())
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-		final Set<FunctionResultTemplate> allResults = Stream.concat(
-				resultOnly.stream(),
-				explicitMappings.stream().map(accessor))
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-		if (resultOnly.size() == 1 && allResults.size() == 1) {
-			return resultOnly.stream().findFirst().orElse(null);
-		}
-		// different results is only fine as long as those come from a mapping
-		if (resultOnly.size() > 1 || (!resultOnly.isEmpty() && !explicitMappings.isEmpty())) {
-			throw extractionError("Function hints that lead to ambiguous results are not allowed.");
-		}
-		return null;
-	}
+    /** Hints that only declare a result (either accumulator or output). */
+    static @Nullable FunctionResultTemplate findResultOnlyTemplate(
+            Set<FunctionResultTemplate> globalResultOnly,
+            Set<FunctionResultTemplate> localResultOnly,
+            Set<FunctionTemplate> explicitMappings,
+            Function<FunctionTemplate, FunctionResultTemplate> accessor) {
+        final Set<FunctionResultTemplate> resultOnly =
+                Stream.concat(globalResultOnly.stream(), localResultOnly.stream())
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        final Set<FunctionResultTemplate> allResults =
+                Stream.concat(resultOnly.stream(), explicitMappings.stream().map(accessor))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (resultOnly.size() == 1 && allResults.size() == 1) {
+            return resultOnly.stream().findFirst().orElse(null);
+        }
+        // different results is only fine as long as those come from a mapping
+        if (resultOnly.size() > 1 || (!resultOnly.isEmpty() && !explicitMappings.isEmpty())) {
+            throw extractionError("Function hints that lead to ambiguous results are not allowed.");
+        }
+        return null;
+    }
 
-	/**
-	 * Hints that map a signature to a result.
-	 */
-	static Set<FunctionTemplate> findResultMappingTemplates(
-			Set<FunctionTemplate> globalTemplates,
-			Set<FunctionTemplate> localTemplates,
-			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
-		return Stream.concat(globalTemplates.stream(), localTemplates.stream())
-			.filter(t -> t.getSignatureTemplate() != null && accessor.apply(t) != null)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
+    /** Hints that map a signature to a result. */
+    static Set<FunctionTemplate> findResultMappingTemplates(
+            Set<FunctionTemplate> globalTemplates,
+            Set<FunctionTemplate> localTemplates,
+            Function<FunctionTemplate, FunctionResultTemplate> accessor) {
+        return Stream.concat(globalTemplates.stream(), localTemplates.stream())
+                .filter(t -> t.getSignatureTemplate() != null && accessor.apply(t) != null)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
-	/**
-	 * Hints that only declare an input.
-	 */
-	static Set<FunctionSignatureTemplate> findInputOnlyTemplates(
-			Set<FunctionTemplate> global,
-			Set<FunctionTemplate> local,
-			Function<FunctionTemplate, FunctionResultTemplate> accessor) {
-		return Stream.concat(global.stream(), local.stream())
-			.filter(t ->
-				t.getSignatureTemplate() != null &&
-				accessor.apply(t) == null)
-			.map(FunctionTemplate::getSignatureTemplate)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
+    /** Hints that only declare an input. */
+    static Set<FunctionSignatureTemplate> findInputOnlyTemplates(
+            Set<FunctionTemplate> global,
+            Set<FunctionTemplate> local,
+            Function<FunctionTemplate, FunctionResultTemplate> accessor) {
+        return Stream.concat(global.stream(), local.stream())
+                .filter(t -> t.getSignatureTemplate() != null && accessor.apply(t) == null)
+                .map(FunctionTemplate::getSignatureTemplate)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
 
-	private TemplateUtils() {
-		// no instantiation
-	}
+    private TemplateUtils() {
+        // no instantiation
+    }
 }

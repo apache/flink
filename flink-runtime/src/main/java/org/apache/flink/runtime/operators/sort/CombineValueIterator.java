@@ -30,87 +30,88 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * This class implements an iterator over values from a sort buffer. The iterator returns the values of a given
- * interval.
+ * This class implements an iterator over values from a sort buffer. The iterator returns the values
+ * of a given interval.
  */
 final class CombineValueIterator<E> implements Iterator<E>, Iterable<E> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CombineValueIterator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CombineValueIterator.class);
 
-	private final InMemorySorter<E> buffer; // the buffer from which values are returned
+    private final InMemorySorter<E> buffer; // the buffer from which values are returned
 
-	private final E recordReuse;
+    private final E recordReuse;
 
-	private final boolean objectReuseEnabled;
+    private final boolean objectReuseEnabled;
 
-	private int last; // the position of the last value to be returned
+    private int last; // the position of the last value to be returned
 
-	private int position; // the position of the next value to be returned
+    private int position; // the position of the next value to be returned
 
-	private boolean iteratorAvailable;
+    private boolean iteratorAvailable;
 
-	/**
-	 * Creates an iterator over the values in a <tt>BufferSortable</tt>.
-	 *
-	 * @param buffer The buffer to get the values from.
-	 */
-	public CombineValueIterator(InMemorySorter<E> buffer, E instance, boolean objectReuseEnabled) {
-		this.buffer = buffer;
-		this.recordReuse = instance;
-		this.objectReuseEnabled = objectReuseEnabled;
-	}
+    /**
+     * Creates an iterator over the values in a <tt>BufferSortable</tt>.
+     *
+     * @param buffer The buffer to get the values from.
+     */
+    public CombineValueIterator(InMemorySorter<E> buffer, E instance, boolean objectReuseEnabled) {
+        this.buffer = buffer;
+        this.recordReuse = instance;
+        this.objectReuseEnabled = objectReuseEnabled;
+    }
 
-	/**
-	 * Sets the interval for the values that are to be returned by this iterator.
-	 *
-	 * @param first The position of the first value to be returned.
-	 * @param last The position of the last value to be returned.
-	 */
-	public void set(int first, int last) {
-		this.last = last;
-		this.position = first;
-		this.iteratorAvailable = true;
-	}
+    /**
+     * Sets the interval for the values that are to be returned by this iterator.
+     *
+     * @param first The position of the first value to be returned.
+     * @param last The position of the last value to be returned.
+     */
+    public void set(int first, int last) {
+        this.last = last;
+        this.position = first;
+        this.iteratorAvailable = true;
+    }
 
-	@Override
-	public boolean hasNext() {
-		return this.position <= this.last;
-	}
+    @Override
+    public boolean hasNext() {
+        return this.position <= this.last;
+    }
 
-	@Override
-	public E next() {
-		if (this.position <= this.last) {
-			try {
-				E record;
-				if (objectReuseEnabled) {
-					record = this.buffer.getRecord(this.recordReuse, this.position);
-				} else {
-					record = this.buffer.getRecord(this.position);
-				}
-				this.position++;
-				return record;
-			} catch (IOException ioex) {
-				LOG.error("Error retrieving a value from a buffer.", ioex);
-				throw new RuntimeException("Could not load the next value: " + ioex.getMessage(), ioex);
-			}
-		} else {
-			throw new NoSuchElementException();
-		}
-	}
+    @Override
+    public E next() {
+        if (this.position <= this.last) {
+            try {
+                E record;
+                if (objectReuseEnabled) {
+                    record = this.buffer.getRecord(this.recordReuse, this.position);
+                } else {
+                    record = this.buffer.getRecord(this.position);
+                }
+                this.position++;
+                return record;
+            } catch (IOException ioex) {
+                LOG.error("Error retrieving a value from a buffer.", ioex);
+                throw new RuntimeException(
+                        "Could not load the next value: " + ioex.getMessage(), ioex);
+            }
+        } else {
+            throw new NoSuchElementException();
+        }
+    }
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Nonnull
-	@Override
-	public Iterator<E> iterator() {
-		if (iteratorAvailable) {
-			iteratorAvailable = false;
-			return this;
-		} else {
-			throw new TraversableOnceException();
-		}
-	}
+    @Nonnull
+    @Override
+    public Iterator<E> iterator() {
+        if (iteratorAvailable) {
+            iteratorAvailable = false;
+            return this;
+        } else {
+            throw new TraversableOnceException();
+        }
+    }
 }

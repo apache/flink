@@ -368,16 +368,23 @@ SqlAlterFunction SqlAlterFunction() :
     }
 }
 
+/**
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
-    SqlIdentifier database = null;
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
-    [database = CompoundIdentifier()]
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, database);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
@@ -452,7 +459,7 @@ SqlAlterTable SqlAlterTable() :
         <SET>
         propertyList = TableProperties()
         {
-            return new SqlAlterTableProperties(
+            return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
                         propertyList);
@@ -972,6 +979,9 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
+        <PARTITION> PartitionSpecCommaList(partitionList)
+    ]
+    [
         LOOKAHEAD(2)
         { final Pair<SqlNodeList, SqlNodeList> p; }
         p = ParenthesizedCompoundIdentifierList() {
@@ -982,9 +992,6 @@ SqlNode RichSqlInsert() :
                 columnList = p.left;
             }
         }
-    ]
-    [
-        <PARTITION> PartitionSpecCommaList(partitionList)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
@@ -1073,8 +1080,10 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
 *
-* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
-* and BYTES is synonym of VARBINARY(INT_MAX).
+* <p>For example:
+*  1. STRING is synonym of VARCHAR(INT_MAX),
+*  2. BYTES is synonym of VARBINARY(INT_MAX),
+*  3. TIMESTAMP_LTZ(precision) is synonym of TIMESTAMP(precision) WITH LOCAL TIME ZONE.
 */
 SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
@@ -1095,6 +1104,16 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
             typeAlias = token.image;
             precision = Integer.MAX_VALUE;
         }
+    |
+       <TIMESTAMP_LTZ>
+       {
+           typeAlias = token.image;
+       }
+       precision = PrecisionOpt()
+       {
+            typeName = SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+            return new SqlTimestampLtzTypeNameSpec(typeAlias, typeName, precision, getPos());
+       }
     )
     {
         return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
@@ -1429,5 +1448,96 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
     )
     {
         return drop;
+    }
+}
+
+/**
+* Parses a load module statement.
+* LOAD MODULE module_name [WITH (property_name=property_value, ...)];
+*/
+SqlLoadModule SqlLoadModule() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <LOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlLoadModule(startPos.plus(getPos()),
+            moduleName,
+            propertyList);
+    }
+}
+
+/**
+* Parses an unload module statement.
+* UNLOAD MODULE module_name;
+*/
+SqlUnloadModule SqlUnloadModule() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
+}
+{
+    <UNLOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    {
+        return new SqlUnloadModule(startPos.plus(getPos()), moduleName);
+    }
+}
+
+/**
+* Parses an use modules statement.
+* USE MODULES module_name1 [, module_name2, ...];
+*/
+SqlUseModules SqlUseModules() :
+{
+    final Span s;
+    SqlIdentifier moduleName;
+    final List<SqlIdentifier> moduleNames = new ArrayList<SqlIdentifier>();
+}
+{
+    <USE> <MODULES> { s = span(); }
+    moduleName = SimpleIdentifier()
+    {
+        moduleNames.add(moduleName);
+    }
+    [
+        (
+            <COMMA>
+            moduleName = SimpleIdentifier()
+            {
+                moduleNames.add(moduleName);
+            }
+        )+
+    ]
+    {
+        return new SqlUseModules(s.end(this), moduleNames);
+    }
+}
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
     }
 }

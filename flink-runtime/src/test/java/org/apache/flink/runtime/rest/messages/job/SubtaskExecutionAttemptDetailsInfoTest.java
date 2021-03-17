@@ -24,41 +24,39 @@ import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.Random;
 
-/**
- * Tests (un)marshalling of the {@link SubtaskExecutionAttemptDetailsInfo}.
- */
-public class SubtaskExecutionAttemptDetailsInfoTest extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptDetailsInfo> {
+/** Tests (un)marshalling of the {@link SubtaskExecutionAttemptDetailsInfo}. */
+public class SubtaskExecutionAttemptDetailsInfoTest
+        extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptDetailsInfo> {
 
-	@Override
-	protected Class<SubtaskExecutionAttemptDetailsInfo> getTestResponseClass() {
-		return SubtaskExecutionAttemptDetailsInfo.class;
-	}
+    @Override
+    protected Class<SubtaskExecutionAttemptDetailsInfo> getTestResponseClass() {
+        return SubtaskExecutionAttemptDetailsInfo.class;
+    }
 
-	@Override
-	protected SubtaskExecutionAttemptDetailsInfo getTestResponseInstance() throws Exception {
-		final Random random = new Random();
+    @Override
+    protected SubtaskExecutionAttemptDetailsInfo getTestResponseInstance() throws Exception {
+        final Random random = new Random();
 
-		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			Math.abs(random.nextLong()),
-			random.nextBoolean(),
-			Math.abs(random.nextLong()),
-			random.nextBoolean(),
-			Math.abs(random.nextLong()),
-			random.nextBoolean(),
-			Math.abs(random.nextLong()),
-			random.nextBoolean()
-		);
+        final IOMetricsInfo ioMetricsInfo =
+                new IOMetricsInfo(
+                        Math.abs(random.nextLong()),
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        random.nextBoolean());
 
-		return new SubtaskExecutionAttemptDetailsInfo(
-			Math.abs(random.nextInt()),
-			ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
-			Math.abs(random.nextInt()),
-			"localhost:" + random.nextInt(65536),
-			Math.abs(random.nextLong()),
-			Math.abs(random.nextLong()),
-			Math.abs(random.nextLong()),
-			ioMetricsInfo,
-			"taskmanagerId"
-		);
-	}
+        return new SubtaskExecutionAttemptDetailsInfo(
+                Math.abs(random.nextInt()),
+                ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
+                Math.abs(random.nextInt()),
+                "localhost:" + random.nextInt(65536),
+                Math.abs(random.nextLong()),
+                Math.abs(random.nextLong()),
+                Math.abs(random.nextLong()),
+                ioMetricsInfo,
+                "taskmanagerId");
+    }
 }

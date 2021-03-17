@@ -23,23 +23,21 @@ import org.apache.flink.table.runtime.util.StringUtf8Utils;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * {@link ArrowFieldReader} for VarChar.
- */
+/** {@link ArrowFieldReader} for VarChar. */
 @Internal
 public final class VarCharFieldReader extends ArrowFieldReader<String> {
 
-	public VarCharFieldReader(VarCharVector varCharVector) {
-		super(varCharVector);
-	}
+    public VarCharFieldReader(VarCharVector varCharVector) {
+        super(varCharVector);
+    }
 
-	@Override
-	public String read(int index) {
-		if (getValueVector().isNull(index)) {
-			return null;
-		} else {
-			byte[] bytes = ((VarCharVector) getValueVector()).get(index);
-			return StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length);
-		}
-	}
+    @Override
+    public String read(int index) {
+        if (getValueVector().isNull(index)) {
+            return null;
+        } else {
+            byte[] bytes = ((VarCharVector) getValueVector()).get(index);
+            return StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length);
+        }
+    }
 }

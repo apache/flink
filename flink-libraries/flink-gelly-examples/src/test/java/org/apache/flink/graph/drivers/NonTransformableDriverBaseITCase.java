@@ -26,29 +26,38 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Base class for drivers requiring the key ID to hash to the same value
- * without transformation of the algorithm result to a common output type. This
- * class overrides {@link DriverBaseITCase} to restrict the tested ID types.
+ * Base class for drivers requiring the key ID to hash to the same value without transformation of
+ * the algorithm result to a common output type. This class overrides {@link DriverBaseITCase} to
+ * restrict the tested ID types.
  */
-public abstract class NonTransformableDriverBaseITCase
-extends DriverBaseITCase {
+public abstract class NonTransformableDriverBaseITCase extends DriverBaseITCase {
 
-	protected NonTransformableDriverBaseITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    protected NonTransformableDriverBaseITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	// limit tests to types using a proper and consistent hashCode
-	@Parameterized.Parameters(name = "ID type = {0}, Execution mode = {1}")
-	public static Collection<Object[]> executionModes() {
-		List<Object[]> executionModes = new ArrayList<>();
+    // limit tests to types using a proper and consistent hashCode
+    @Parameterized.Parameters(name = "ID type = {0}, Execution mode = {1}")
+    public static Collection<Object[]> executionModes() {
+        List<Object[]> executionModes = new ArrayList<>();
 
-		for (String idType : new String[] {"byte", "nativeByte", "short", "nativeShort", "char", "nativeChar",
-			"integer", "nativeInteger", "nativeLong"}) {
-			for (TestExecutionMode executionMode : TestExecutionMode.values()) {
-				executionModes.add(new Object[] {idType, executionMode});
-			}
-		}
+        for (String idType :
+                new String[] {
+                    "byte",
+                    "nativeByte",
+                    "short",
+                    "nativeShort",
+                    "char",
+                    "nativeChar",
+                    "integer",
+                    "nativeInteger",
+                    "nativeLong"
+                }) {
+            for (TestExecutionMode executionMode : TestExecutionMode.values()) {
+                executionModes.add(new Object[] {idType, executionMode});
+            }
+        }
 
-		return executionModes;
-	}
+        return executionModes;
+    }
 }

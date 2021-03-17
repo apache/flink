@@ -26,31 +26,32 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collections;
 
-/**
- * A wrapper function for reading state from an evicting window operator with a reduce function.
- */
+/** A wrapper function for reading state from an evicting window operator with a reduce function. */
 @Internal
-public class ReduceEvictingWindowReaderFunction<IN, OUT, KEY, W extends Window> extends EvictingWindowReaderFunction<IN, IN, OUT, KEY, W> {
+public class ReduceEvictingWindowReaderFunction<IN, OUT, KEY, W extends Window>
+        extends EvictingWindowReaderFunction<IN, IN, OUT, KEY, W> {
 
-	private final ReduceFunction<IN> reduceFunction;
+    private final ReduceFunction<IN> reduceFunction;
 
-	public ReduceEvictingWindowReaderFunction(WindowReaderFunction<IN, OUT, KEY, W> wrappedFunction, ReduceFunction<IN> reduceFunction) {
-		super(wrappedFunction);
-		this.reduceFunction = reduceFunction;
-	}
+    public ReduceEvictingWindowReaderFunction(
+            WindowReaderFunction<IN, OUT, KEY, W> wrappedFunction,
+            ReduceFunction<IN> reduceFunction) {
+        super(wrappedFunction);
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public Iterable<IN> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
-		IN curr = null;
+    @Override
+    public Iterable<IN> transform(Iterable<StreamRecord<IN>> elements) throws Exception {
+        IN curr = null;
 
-		for (StreamRecord<IN> element : elements) {
-			if (curr == null) {
-				curr = element.getValue();
-			} else {
-				curr = reduceFunction.reduce(curr, element.getValue());
-			}
-		}
+        for (StreamRecord<IN> element : elements) {
+            if (curr == null) {
+                curr = element.getValue();
+            } else {
+                curr = reduceFunction.reduce(curr, element.getValue());
+            }
+        }
 
-		return Collections.singletonList(curr);
-	}
+        return Collections.singletonList(curr);
+    }
 }

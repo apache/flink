@@ -66,7 +66,7 @@ class FloorCeilCallGen(
         terms =>
           unit match {
             // for Timestamp with timezone info
-            case YEAR | QUARTER | MONTH | DAY | HOUR
+            case YEAR | QUARTER | MONTH | WEEK | DAY | HOUR
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
               val timeZone = ctx.addReusableSessionTimeZone()
@@ -79,7 +79,7 @@ class FloorCeilCallGen(
                  |""".stripMargin
 
             // for Unix Date / Unix Time
-            case YEAR | MONTH =>
+            case YEAR | MONTH | WEEK =>
               operand.resultType.getTypeRoot match {
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"

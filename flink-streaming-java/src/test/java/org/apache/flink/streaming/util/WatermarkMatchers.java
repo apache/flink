@@ -25,27 +25,19 @@ import org.hamcrest.Matcher;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 
-/**
- * Matchers for {@link org.apache.flink.streaming.api.watermark.Watermark}.
- */
+/** Matchers for {@link org.apache.flink.streaming.api.watermark.Watermark}. */
 public class WatermarkMatchers {
 
-	/**
-	 * Creates a matcher that matches when the examined watermark has the given timestamp.
-	 */
-	public static Matcher<Watermark> legacyWatermark(long timestamp) {
-		return new FeatureMatcher<Watermark, Long>(
-				equalTo(timestamp),
-				"a watermark with value",
-				"value of watermark"
-		) {
-			@Override
-			protected Long featureValueOf(Watermark actual) {
-				return actual.getTimestamp();
-			}
-		};
-	}
+    /** Creates a matcher that matches when the examined watermark has the given timestamp. */
+    public static Matcher<Watermark> legacyWatermark(long timestamp) {
+        return new FeatureMatcher<Watermark, Long>(
+                equalTo(timestamp), "a watermark with value", "value of watermark") {
+            @Override
+            protected Long featureValueOf(Watermark actual) {
+                return actual.getTimestamp();
+            }
+        };
+    }
 
-	private WatermarkMatchers() {
-	}
+    private WatermarkMatchers() {}
 }

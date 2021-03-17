@@ -23,75 +23,112 @@ import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
 
-import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.InProgressFileRecoverable;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * States for {@link FileWriterBucket}.
- */
+import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.InProgressFileRecoverable;
+import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
+
+/** States for {@link FileWriterBucket}. */
 @Internal
 public class FileWriterBucketState {
 
-	private final String bucketId;
+    private final String bucketId;
 
-	/** The directory where all the part files of the bucket are stored. */
-	private final Path bucketPath;
+    /** The directory where all the part files of the bucket are stored. */
+    private final Path bucketPath;
 
-	/**
-	 * The creation time of the currently open part file,
-	 * or {@code Long.MAX_VALUE} if there is no open part file.
-	 */
-	private final long inProgressFileCreationTime;
+    /**
+     * The creation time of the currently open part file, or {@code Long.MAX_VALUE} if there is no
+     * open part file.
+     */
+    private final long inProgressFileCreationTime;
 
-	/**
-	 * A {@link InProgressFileRecoverable} for the currently open
-	 * part file, or null if there is no currently open part file.
-	 */
-	@Nullable
-	private final InProgressFileRecoverable inProgressFileRecoverable;
+    /**
+     * A {@link InProgressFileRecoverable} for the currently open part file, or null if there is no
+     * currently open part file.
+     */
+    @Nullable private final InProgressFileRecoverable inProgressFileRecoverable;
 
-	public FileWriterBucketState(
-			String bucketId,
-			Path bucketPath,
-			long inProgressFileCreationTime,
-			@Nullable InProgressFileRecoverable inProgressFileRecoverable) {
-		this.bucketId = bucketId;
-		this.bucketPath = bucketPath;
-		this.inProgressFileCreationTime = inProgressFileCreationTime;
-		this.inProgressFileRecoverable = inProgressFileRecoverable;
-	}
+    /**
+     * The {@link PendingFileRecoverable} should be empty unless we are migrating from {@code
+     * StreamingFileSink}.
+     */
+    private final Map<Long, List<PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint;
 
-	public String getBucketId() {
-		return bucketId;
-	}
+    public FileWriterBucketState(
+            String bucketId,
+            Path bucketPath,
+            long inProgressFileCreationTime,
+            @Nullable InProgressFileRecoverable inProgressFileRecoverable) {
+        this(
+                bucketId,
+                bucketPath,
+                inProgressFileCreationTime,
+                inProgressFileRecoverable,
+                new HashMap<>());
+    }
 
-	public Path getBucketPath() {
-		return bucketPath;
-	}
+    public FileWriterBucketState(
+            String bucketId,
+            Path bucketPath,
+            long inProgressFileCreationTime,
+            @Nullable InProgressFileRecoverable inProgressFileRecoverable,
+            Map<Long, List<PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint) {
+        this.bucketId = bucketId;
+        this.bucketPath = bucketPath;
+        this.inProgressFileCreationTime = inProgressFileCreationTime;
+        this.inProgressFileRecoverable = inProgressFileRecoverable;
+        this.pendingFileRecoverablesPerCheckpoint = pendingFileRecoverablesPerCheckpoint;
+    }
 
-	public long getInProgressFileCreationTime() {
-		return inProgressFileCreationTime;
-	}
+    public String getBucketId() {
+        return bucketId;
+    }
 
-	@Nullable
-	InProgressFileRecoverable getInProgressFileRecoverable() {
-		return inProgressFileRecoverable;
-	}
+    public Path getBucketPath() {
+        return bucketPath;
+    }
 
-	boolean hasInProgressFileRecoverable() {
-		return inProgressFileRecoverable != null;
-	}
+    public long getInProgressFileCreationTime() {
+        return inProgressFileCreationTime;
+    }
 
-	@Override
-	public String toString() {
-		final StringBuilder strBuilder = new StringBuilder();
+    @Nullable
+    InProgressFileRecoverable getInProgressFileRecoverable() {
+        return inProgressFileRecoverable;
+    }
 
-		strBuilder
-				.append("BucketState for bucketId=").append(bucketId)
-				.append(" and bucketPath=").append(bucketPath);
+    boolean hasInProgressFileRecoverable() {
+        return inProgressFileRecoverable != null;
+    }
 
-		if (hasInProgressFileRecoverable()) {
-			strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
-		}
-		return strBuilder.toString();
-	}
+    public Map<Long, List<PendingFileRecoverable>> getPendingFileRecoverablesPerCheckpoint() {
+        return pendingFileRecoverablesPerCheckpoint;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder strBuilder = new StringBuilder();
+
+        strBuilder
+                .append("BucketState for bucketId=")
+                .append(bucketId)
+                .append(" and bucketPath=")
+                .append(bucketPath);
+
+        if (hasInProgressFileRecoverable()) {
+            strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
+        }
+
+        if (!pendingFileRecoverablesPerCheckpoint.isEmpty()) {
+            strBuilder.append(", has pending files for checkpoints: {");
+            for (long checkpointId : pendingFileRecoverablesPerCheckpoint.keySet()) {
+                strBuilder.append(checkpointId).append(' ');
+            }
+            strBuilder.append('}');
+        }
+        return strBuilder.toString();
+    }
 }

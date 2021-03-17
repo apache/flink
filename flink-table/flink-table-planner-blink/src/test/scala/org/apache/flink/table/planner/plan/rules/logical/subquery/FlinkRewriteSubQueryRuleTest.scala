@@ -36,118 +36,118 @@ class FlinkRewriteSubQueryRuleTest extends SubQueryTestBase {
 
   @Test
   def testNotCountStarInScalarQuery(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(e) FROM y WHERE d > 10) > 0")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(e) FROM y WHERE d > 10) > 0")
   }
 
   @Test
   def testNotEmptyGroupByInScalarQuery(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10 GROUP BY f) > 0")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10 GROUP BY f) > 0")
   }
 
   @Test
   def testUnsupportedConversionWithUnexpectedComparisonNumber(): Unit = {
     // without correlation
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 1", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > -1", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 0 <= (SELECT COUNT(*) FROM y WHERE d > 10)", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE -1 < (SELECT COUNT(*) FROM y WHERE d > 10)", "joinType=[semi]")
 
     // with correlation
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 1", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 1 < (SELECT COUNT(*) FROM y WHERE a = d)", "joinType=[semi]")
-    util.verifyPlanNotExpected(
+    util.verifyRelPlanNotExpected(
       "SELECT * FROM x WHERE 0 <= (SELECT COUNT(*) FROM y WHERE a = d)", "joinType=[semi]")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation1(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation2(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0.9")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) > 0.9")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation3(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 1")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 1")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0.1")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE d > 10) >= 0.1")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation5(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE d > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE d > 10)")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation6(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE d > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE d > 10)")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation7(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE d > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE d > 10)")
   }
 
   @Test
   def testSupportedConversionWithoutCorrelation8(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE d > 10)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE d > 10)")
   }
 
   @Test
   def testSupportedConversionWithCorrelation1(): Unit = {
     // with correlation
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0")
   }
 
   @Test
   def testSupportedConversionWithCorrelation2(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0.9")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) > 0.9")
   }
 
   @Test
   def testSupportedConversionWithCorrelation3(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 1")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 1")
   }
 
   @Test
   def testSupportedConversionWithCorrelation4(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0.1")
+    util.verifyRelPlan("SELECT * FROM x WHERE (SELECT COUNT(*) FROM y WHERE a = d) >= 0.1")
   }
 
   @Test
   def testSupportedConversionWithCorrelation5(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE a = d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0 < (SELECT COUNT(*) FROM y WHERE a = d)")
   }
 
   @Test
   def testSupportedConversionWithCorrelation6(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE a = d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0.99 < (SELECT COUNT(*) FROM y WHERE a = d)")
   }
 
   @Test
   def testSupportedConversionWithCorrelation7(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE a = d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 1 <= (SELECT COUNT(*) FROM y WHERE a = d)")
   }
 
   @Test
   def testSupportedConversionWithCorrelation8(): Unit = {
-    util.verifyPlan("SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE a = d)")
+    util.verifyRelPlan("SELECT * FROM x WHERE 0.01 <= (SELECT COUNT(*) FROM y WHERE a = d)")
   }
 
   @Test
@@ -206,7 +206,7 @@ class FlinkRewriteSubQueryRuleTest extends SubQueryTestBase {
         |ORDER BY i_product_name
         |LIMIT 100
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

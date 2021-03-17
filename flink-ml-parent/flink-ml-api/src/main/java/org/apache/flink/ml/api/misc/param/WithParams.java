@@ -25,36 +25,36 @@ package org.apache.flink.ml.api.misc.param;
  * @param <T> the actual type of this WithParams, as the return type of setter
  */
 public interface WithParams<T> {
-	/**
-	 * Returns the all the parameters.
-	 *
-	 * @return all the parameters.
-	 */
-	Params getParams();
+    /**
+     * Returns the all the parameters.
+     *
+     * @return all the parameters.
+     */
+    Params getParams();
 
-	/**
-	 * Set the value of a specific parameter.
-	 *
-	 * @param info  the info of the specific param to set
-	 * @param value the value to be set to the specific param
-	 * @param <V>   the type of the specific param
-	 * @return the WithParams itself
-	 */
-	@SuppressWarnings("unchecked")
-	default <V> T set(ParamInfo<V> info, V value) {
-		getParams().set(info, value);
-		return (T) this;
-	}
+    /**
+     * Set the value of a specific parameter.
+     *
+     * @param info the info of the specific param to set
+     * @param value the value to be set to the specific param
+     * @param <V> the type of the specific param
+     * @return the WithParams itself
+     */
+    @SuppressWarnings("unchecked")
+    default <V> T set(ParamInfo<V> info, V value) {
+        getParams().set(info, value);
+        return (T) this;
+    }
 
-	/**
-	 * Returns the value of the specific param.
-	 *
-	 * @param info the info of the specific param, usually with default value
-	 * @param <V>  the type of the specific param
-	 * @return the value of the specific param, or default value defined in the {@code info} if the
-	 * inner Params doesn't contains this param
-	 */
-	default <V> V get(ParamInfo<V> info) {
-		return getParams().get(info);
-	}
+    /**
+     * Returns the value of the specific param.
+     *
+     * @param info the info of the specific param, usually with default value
+     * @param <V> the type of the specific param
+     * @return the value of the specific param, or default value defined in the {@code info} if the
+     *     inner Params doesn't contains this param
+     */
+    default <V> V get(ParamInfo<V> info) {
+        return getParams().get(info);
+    }
 }

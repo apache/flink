@@ -32,108 +32,131 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
-/**
- * Tests for {@link ProcTimeDeduplicateKeepLastRowFunction}.
- */
-public class ProcTimeDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
+/** Tests for {@link ProcTimeDeduplicateKeepLastRowFunction}. */
+public class ProcTimeDeduplicateKeepLastRowFunctionTest
+        extends ProcTimeDeduplicateFunctionTestBase {
+    private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithoutStateTtl(
+            boolean generateUpdateBefore, boolean generateInsert) {
+        return new ProcTimeDeduplicateKeepLastRowFunction(
+                inputRowType, 0, generateUpdateBefore, generateInsert, true, generatedEqualiser);
+    }
 
-	private ProcTimeDeduplicateKeepLastRowFunction createFunction(boolean generateUpdateBefore, boolean generateInsert) {
-		return new ProcTimeDeduplicateKeepLastRowFunction(
-				inputRowType,
-				minTime.toMilliseconds(),
-				generateUpdateBefore,
-				generateInsert,
-				true);
-	}
+    private ProcTimeDeduplicateKeepLastRowFunction createFunction(
+            boolean generateUpdateBefore, boolean generateInsert) {
+        return new ProcTimeDeduplicateKeepLastRowFunction(
+                inputRowType,
+                minTime.toMilliseconds(),
+                generateUpdateBefore,
+                generateInsert,
+                true,
+                generatedEqualiser);
+    }
 
-	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			ProcTimeDeduplicateKeepLastRowFunction func)
-			throws Exception {
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
-		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
-	}
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            ProcTimeDeduplicateKeepLastRowFunction func) throws Exception {
+        KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                operator, rowKeySelector, rowKeySelector.getProducedType());
+    }
 
-	@Test
-	public void testWithoutGenerateUpdateBefore() throws Exception {
-		ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, true);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 1L, 13));
-		testHarness.close();
+    @Test
+    public void testWithoutGenerateUpdateBefore() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, true);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 13));
+        testHarness.close();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		// we do not output INSERT if generateUpdateBefore is false for deduplication last row
-		expectedOutput.add(insertRecord("book", 1L, 12));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		expectedOutput.add(updateAfterRecord("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        List<Object> expectedOutput = new ArrayList<>();
+        // we do not output INSERT if generateUpdateBefore is false for deduplication last row
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        expectedOutput.add(updateAfterRecord("book", 1L, 13));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
-		ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, false);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 1L, 13));
-		testHarness.close();
+    @Test
+    public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, false);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 13));
+        testHarness.close();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		// we always produce UPDATE_AFTER if INSERT is not needed.
-		expectedOutput.add(updateAfterRecord("book", 1L, 12));
-		expectedOutput.add(updateAfterRecord("book", 2L, 11));
-		expectedOutput.add(updateAfterRecord("book", 1L, 13));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        List<Object> expectedOutput = new ArrayList<>();
+        // we always produce UPDATE_AFTER if INSERT is not needed.
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(updateAfterRecord("book", 2L, 11));
+        expectedOutput.add(updateAfterRecord("book", 1L, 13));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testWithGenerateUpdateBefore() throws Exception {
-		ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 1L, 13));
-		testHarness.close();
+    @Test
+    public void testWithGenerateUpdateBefore() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.close();
 
-		// Keep LastRow in deduplicate may send UPDATE_BEFORE
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 1L, 12));
-		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
-		expectedOutput.add(updateAfterRecord("book", 1L, 13));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        // Keep LastRow in deduplicate may send UPDATE_BEFORE
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(updateBeforeRecord("book", 1L, 12));
+        expectedOutput.add(updateAfterRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
-		ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testWithStateTtlDisabled() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunctionWithoutStateTtl(true, true);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.close();
 
-		testHarness.setStateTtlProcessingTime(30);
-		testHarness.processElement(insertRecord("book", 1L, 17));
-		testHarness.processElement(insertRecord("book", 2L, 18));
-		testHarness.processElement(insertRecord("book", 1L, 19));
+        // Keep LastRow in deduplicate may send UPDATE_BEFORE
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		// Keep LastRow in deduplicate may send UPDATE_BEFORE
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 1L, 12));
-		expectedOutput.add(updateBeforeRecord("book", 1L, 12));
-		expectedOutput.add(updateAfterRecord("book", 1L, 13));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		// because (2L,11), (1L,13) retired, so no UPDATE_BEFORE message send to downstream
-		expectedOutput.add(insertRecord("book", 1L, 17));
-		expectedOutput.add(updateBeforeRecord("book", 1L, 17));
-		expectedOutput.add(updateAfterRecord("book", 1L, 19));
-		expectedOutput.add(insertRecord("book", 2L, 18));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-		testHarness.close();
-	}
+    @Test
+    public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        testHarness.processElement(insertRecord("book", 1L, 13));
+
+        testHarness.setStateTtlProcessingTime(30);
+        testHarness.processElement(insertRecord("book", 1L, 17));
+        testHarness.processElement(insertRecord("book", 2L, 18));
+        testHarness.processElement(insertRecord("book", 1L, 19));
+
+        // Keep LastRow in deduplicate may send UPDATE_BEFORE
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(updateBeforeRecord("book", 1L, 12));
+        expectedOutput.add(updateAfterRecord("book", 1L, 13));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        // because (2L,11), (1L,13) retired, so no UPDATE_BEFORE message send to downstream
+        expectedOutput.add(insertRecord("book", 1L, 17));
+        expectedOutput.add(updateBeforeRecord("book", 1L, 17));
+        expectedOutput.add(updateAfterRecord("book", 1L, 19));
+        expectedOutput.add(insertRecord("book", 2L, 18));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
 }

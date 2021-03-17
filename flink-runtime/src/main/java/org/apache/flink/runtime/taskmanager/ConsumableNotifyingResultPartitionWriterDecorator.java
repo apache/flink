@@ -46,196 +46,200 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ConsumableNotifyingResultPartitionWriterDecorator {
 
-	/**
-	 * Optionally decorate the ResultPartitionWriter to call
-	 * {@link ResultPartitionConsumableNotifier#notifyPartitionConsumable(JobID, ResultPartitionID, TaskActions)}
-	 * on the first record, iff {@link ResultPartitionDeploymentDescriptor#sendScheduleOrUpdateConsumersMessage()}
-	 * is true.
-	 */
-	public static ResultPartitionWriter[] decorate(
-			Collection<ResultPartitionDeploymentDescriptor> descs,
-			ResultPartitionWriter[] partitionWriters,
-			TaskActions taskActions,
-			JobID jobId,
-			ResultPartitionConsumableNotifier notifier) {
+    /**
+     * Optionally decorate the ResultPartitionWriter to call {@link
+     * ResultPartitionConsumableNotifier#notifyPartitionConsumable(JobID, ResultPartitionID,
+     * TaskActions)} on the first record, iff {@link
+     * ResultPartitionDeploymentDescriptor#notifyPartitionDataAvailable()} is true.
+     */
+    public static ResultPartitionWriter[] decorate(
+            Collection<ResultPartitionDeploymentDescriptor> descs,
+            ResultPartitionWriter[] partitionWriters,
+            TaskActions taskActions,
+            JobID jobId,
+            ResultPartitionConsumableNotifier notifier) {
 
-		ResultPartitionWriter[] consumableNotifyingPartitionWriters = new ResultPartitionWriter[partitionWriters.length];
-		int counter = 0;
-		for (ResultPartitionDeploymentDescriptor desc : descs) {
-			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
-				consumableNotifyingPartitionWriters[counter] = new ConsumableNotifyingResultPartitionWriter(
-					taskActions,
-					jobId,
-					partitionWriters[counter],
-					notifier);
-			} else {
-				consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
-			}
-			counter++;
-		}
-		return consumableNotifyingPartitionWriters;
-	}
+        ResultPartitionWriter[] consumableNotifyingPartitionWriters =
+                new ResultPartitionWriter[partitionWriters.length];
+        int counter = 0;
+        for (ResultPartitionDeploymentDescriptor desc : descs) {
+            if (desc.notifyPartitionDataAvailable() && desc.getPartitionType().isPipelined()) {
+                consumableNotifyingPartitionWriters[counter] =
+                        new ConsumableNotifyingResultPartitionWriter(
+                                taskActions, jobId, partitionWriters[counter], notifier);
+            } else {
+                consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
+            }
+            counter++;
+        }
+        return consumableNotifyingPartitionWriters;
+    }
 
-	/**
-	* This is a utility class not meant to be instantiated.
-	*/
-	private ConsumableNotifyingResultPartitionWriterDecorator() {}
+    /** This is a utility class not meant to be instantiated. */
+    private ConsumableNotifyingResultPartitionWriterDecorator() {}
 
-	// ------------------------------------------------------------------------
-	//  wrapper class to send notification
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  wrapper class to send notification
+    // ------------------------------------------------------------------------
 
-	private static final class ConsumableNotifyingResultPartitionWriter implements ResultPartitionWriter, CheckpointedResultPartition {
+    private static final class ConsumableNotifyingResultPartitionWriter
+            implements ResultPartitionWriter, CheckpointedResultPartition {
 
-		private final TaskActions taskActions;
+        private final TaskActions taskActions;
 
-		private final JobID jobId;
+        private final JobID jobId;
 
-		private final ResultPartitionWriter partitionWriter;
+        private final ResultPartitionWriter partitionWriter;
 
-		private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
+        private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-		private boolean hasNotifiedPipelinedConsumers;
+        private boolean hasNotifiedPipelinedConsumers;
 
-		public ConsumableNotifyingResultPartitionWriter(
-				TaskActions taskActions,
-				JobID jobId,
-				ResultPartitionWriter partitionWriter,
-				ResultPartitionConsumableNotifier partitionConsumableNotifier) {
-			this.taskActions = checkNotNull(taskActions);
-			this.jobId = checkNotNull(jobId);
-			this.partitionWriter = checkNotNull(partitionWriter);
-			this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
-		}
+        public ConsumableNotifyingResultPartitionWriter(
+                TaskActions taskActions,
+                JobID jobId,
+                ResultPartitionWriter partitionWriter,
+                ResultPartitionConsumableNotifier partitionConsumableNotifier) {
+            this.taskActions = checkNotNull(taskActions);
+            this.jobId = checkNotNull(jobId);
+            this.partitionWriter = checkNotNull(partitionWriter);
+            this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
+        }
 
-		@Override
-		public ResultPartitionID getPartitionId() {
-			return partitionWriter.getPartitionId();
-		}
+        @Override
+        public ResultPartitionID getPartitionId() {
+            return partitionWriter.getPartitionId();
+        }
 
-		@Override
-		public int getNumberOfSubpartitions() {
-			return partitionWriter.getNumberOfSubpartitions();
-		}
+        @Override
+        public int getNumberOfSubpartitions() {
+            return partitionWriter.getNumberOfSubpartitions();
+        }
 
-		@Override
-		public int getNumTargetKeyGroups() {
-			return partitionWriter.getNumTargetKeyGroups();
-		}
+        @Override
+        public int getNumTargetKeyGroups() {
+            return partitionWriter.getNumTargetKeyGroups();
+        }
 
-		@Override
-		public void setup() throws IOException {
-			partitionWriter.setup();
-		}
+        @Override
+        public void setup() throws IOException {
+            partitionWriter.setup();
+        }
 
-		@Override
-		public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-			partitionWriter.emitRecord(record, targetSubpartition);
+        @Override
+        public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+            partitionWriter.emitRecord(record, targetSubpartition);
 
-			notifyPipelinedConsumers();
-		}
+            notifyPipelinedConsumers();
+        }
 
-		@Override
-		public void broadcastRecord(ByteBuffer record) throws IOException {
-			partitionWriter.broadcastRecord(record);
+        @Override
+        public void broadcastRecord(ByteBuffer record) throws IOException {
+            partitionWriter.broadcastRecord(record);
 
-			notifyPipelinedConsumers();
-		}
+            notifyPipelinedConsumers();
+        }
 
-		@Override
-		public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-			partitionWriter.broadcastEvent(event, isPriorityEvent);
+        @Override
+        public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
+                throws IOException {
+            partitionWriter.broadcastEvent(event, isPriorityEvent);
 
-			notifyPipelinedConsumers();
-		}
+            notifyPipelinedConsumers();
+        }
 
-		@Override
-		public void setMetricGroup(TaskIOMetricGroup metrics) {
-			partitionWriter.setMetricGroup(metrics);
-		}
+        @Override
+        public void setMetricGroup(TaskIOMetricGroup metrics) {
+            partitionWriter.setMetricGroup(metrics);
+        }
 
-		@Override
-		public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
-			return partitionWriter.createSubpartitionView(index, availabilityListener);
-		}
+        @Override
+        public ResultSubpartitionView createSubpartitionView(
+                int index, BufferAvailabilityListener availabilityListener) throws IOException {
+            return partitionWriter.createSubpartitionView(index, availabilityListener);
+        }
 
-		@Override
-		public void flushAll() {
-			partitionWriter.flushAll();
-		}
+        @Override
+        public void flushAll() {
+            partitionWriter.flushAll();
+        }
 
-		@Override
-		public void flush(int subpartitionIndex) {
-			partitionWriter.flush(subpartitionIndex);
-		}
+        @Override
+        public void flush(int subpartitionIndex) {
+            partitionWriter.flush(subpartitionIndex);
+        }
 
-		@Override
-		public void finish() throws IOException {
-			partitionWriter.finish();
+        @Override
+        public void finish() throws IOException {
+            partitionWriter.finish();
 
-			notifyPipelinedConsumers();
-		}
+            notifyPipelinedConsumers();
+        }
 
-		@Override
-		public boolean isFinished() {
-			return partitionWriter.isFinished();
-		}
+        @Override
+        public boolean isFinished() {
+            return partitionWriter.isFinished();
+        }
 
-		@Override
-		public void release(Throwable cause) {
-			partitionWriter.release(cause);
-		}
+        @Override
+        public void release(Throwable cause) {
+            partitionWriter.release(cause);
+        }
 
-		@Override
-		public boolean isReleased() {
-			return partitionWriter.isReleased();
-		}
+        @Override
+        public boolean isReleased() {
+            return partitionWriter.isReleased();
+        }
 
-		@Override
-		public void fail(Throwable throwable) {
-			partitionWriter.fail(throwable);
-		}
+        @Override
+        public void fail(Throwable throwable) {
+            partitionWriter.fail(throwable);
+        }
 
-		@Override
-		public CompletableFuture<?> getAvailableFuture() {
-			return partitionWriter.getAvailableFuture();
-		}
+        @Override
+        public CompletableFuture<?> getAvailableFuture() {
+            return partitionWriter.getAvailableFuture();
+        }
 
-		@Override
-		public void close() throws Exception {
-			partitionWriter.close();
-		}
+        @Override
+        public void close() throws Exception {
+            partitionWriter.close();
+        }
 
-		@Override
-		public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
-			getCheckpointablePartition().finishReadRecoveredState(notifyAndBlockOnCompletion);
-		}
+        @Override
+        public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion)
+                throws IOException {
+            getCheckpointablePartition().finishReadRecoveredState(notifyAndBlockOnCompletion);
+        }
 
-		/**
-		 * Notifies pipelined consumers of this result partition once.
-		 *
-		 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-		 * this will trigger the deployment of consuming tasks after the first buffer has been added.
-		 */
-		private void notifyPipelinedConsumers() {
-			if (!hasNotifiedPipelinedConsumers && !partitionWriter.isReleased()) {
-				partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionWriter.getPartitionId(), taskActions);
+        /**
+         * Notifies pipelined consumers of this result partition once.
+         *
+         * <p>For PIPELINED {@link
+         * org.apache.flink.runtime.io.network.partition.ResultPartitionType}s, this will trigger
+         * the deployment of consuming tasks after the first buffer has been added.
+         */
+        private void notifyPipelinedConsumers() {
+            if (!hasNotifiedPipelinedConsumers && !partitionWriter.isReleased()) {
+                partitionConsumableNotifier.notifyPartitionConsumable(
+                        jobId, partitionWriter.getPartitionId(), taskActions);
 
-				hasNotifiedPipelinedConsumers = true;
-			}
-		}
+                hasNotifiedPipelinedConsumers = true;
+            }
+        }
 
-		@Override
-		public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
-			return getCheckpointablePartition().getCheckpointedSubpartition(subpartitionIndex);
-		}
+        @Override
+        public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
+            return getCheckpointablePartition().getCheckpointedSubpartition(subpartitionIndex);
+        }
 
-		private CheckpointedResultPartition getCheckpointablePartition() {
-			if (partitionWriter instanceof CheckpointedResultPartition) {
-				return (CheckpointedResultPartition) partitionWriter;
-			} else {
-				throw new IllegalStateException("This partition is not checkpointable: " + partitionWriter);
-			}
-		}
-	}
+        private CheckpointedResultPartition getCheckpointablePartition() {
+            if (partitionWriter instanceof CheckpointedResultPartition) {
+                return (CheckpointedResultPartition) partitionWriter;
+            } else {
+                throw new IllegalStateException(
+                        "This partition is not checkpointable: " + partitionWriter);
+            }
+        }
+    }
 }

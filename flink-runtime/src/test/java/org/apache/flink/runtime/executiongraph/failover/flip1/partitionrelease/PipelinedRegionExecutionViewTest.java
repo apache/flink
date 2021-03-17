@@ -32,49 +32,54 @@ import java.util.Collections;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for {@link PipelinedRegionExecutionView}.
- */
+/** Test for {@link PipelinedRegionExecutionView}. */
 public class PipelinedRegionExecutionViewTest extends TestLogger {
 
-	private static final ExecutionVertexID TEST_EXECUTION_VERTEX_ID = new ExecutionVertexID(new JobVertexID(), 0);
+    private static final ExecutionVertexID TEST_EXECUTION_VERTEX_ID =
+            new ExecutionVertexID(new JobVertexID(), 0);
 
-	private static final TestingSchedulingPipelinedRegion TEST_PIPELINED_REGION = new TestingSchedulingPipelinedRegion(Collections.singleton(
-		TestingSchedulingExecutionVertex.withExecutionVertexID(
-				TEST_EXECUTION_VERTEX_ID.getJobVertexId(),
-				TEST_EXECUTION_VERTEX_ID.getSubtaskIndex())));
+    private static final TestingSchedulingPipelinedRegion TEST_PIPELINED_REGION =
+            new TestingSchedulingPipelinedRegion(
+                    Collections.singleton(
+                            TestingSchedulingExecutionVertex.withExecutionVertexID(
+                                    TEST_EXECUTION_VERTEX_ID.getJobVertexId(),
+                                    TEST_EXECUTION_VERTEX_ID.getSubtaskIndex())));
 
-	@Test
-	public void regionIsUnfinishedIfNotAllVerticesAreFinished() {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
+    @Test
+    public void regionIsUnfinishedIfNotAllVerticesAreFinished() {
+        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+                new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-		assertFalse(pipelinedRegionExecutionView.isFinished());
-	}
+        assertFalse(pipelinedRegionExecutionView.isFinished());
+    }
 
-	@Test
-	public void regionIsFinishedIfAllVerticesAreFinished() {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
+    @Test
+    public void regionIsFinishedIfAllVerticesAreFinished() {
+        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+                new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-		pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
+        pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
 
-		assertTrue(pipelinedRegionExecutionView.isFinished());
-	}
+        assertTrue(pipelinedRegionExecutionView.isFinished());
+    }
 
-	@Test
-	public void vertexCanBeUnfinished() {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
+    @Test
+    public void vertexCanBeUnfinished() {
+        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+                new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-		pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
-		pipelinedRegionExecutionView.vertexUnfinished(TEST_EXECUTION_VERTEX_ID);
+        pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
+        pipelinedRegionExecutionView.vertexUnfinished(TEST_EXECUTION_VERTEX_ID);
 
-		assertFalse(pipelinedRegionExecutionView.isFinished());
-	}
+        assertFalse(pipelinedRegionExecutionView.isFinished());
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void finishingUnknownVertexThrowsException() {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
+    @Test(expected = IllegalArgumentException.class)
+    public void finishingUnknownVertexThrowsException() {
+        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+                new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-		final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-		pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
-	}
+        final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+        pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
+    }
 }

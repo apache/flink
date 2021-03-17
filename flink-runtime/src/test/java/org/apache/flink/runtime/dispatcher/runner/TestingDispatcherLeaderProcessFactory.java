@@ -26,29 +26,31 @@ import java.util.Queue;
 import java.util.UUID;
 
 class TestingDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
-	private final Queue<TestingDispatcherLeaderProcess> processes;
+    private final Queue<TestingDispatcherLeaderProcess> processes;
 
-	private TestingDispatcherLeaderProcessFactory(Queue<TestingDispatcherLeaderProcess> processes) {
-		this.processes = processes;
-	}
+    private TestingDispatcherLeaderProcessFactory(Queue<TestingDispatcherLeaderProcess> processes) {
+        this.processes = processes;
+    }
 
-	@Override
-	public TestingDispatcherLeaderProcess create(UUID leaderSessionID) {
-		if (processes.isEmpty()) {
-			return TestingDispatcherLeaderProcess.newBuilder(leaderSessionID).build();
-		} else {
-			final TestingDispatcherLeaderProcess nextProcess = processes.poll();
-			Preconditions.checkState(leaderSessionID.equals(nextProcess.getLeaderSessionId()));
+    @Override
+    public TestingDispatcherLeaderProcess create(UUID leaderSessionID) {
+        if (processes.isEmpty()) {
+            return TestingDispatcherLeaderProcess.newBuilder(leaderSessionID).build();
+        } else {
+            final TestingDispatcherLeaderProcess nextProcess = processes.poll();
+            Preconditions.checkState(leaderSessionID.equals(nextProcess.getLeaderSessionId()));
 
-			return nextProcess;
-		}
-	}
+            return nextProcess;
+        }
+    }
 
-	public static TestingDispatcherLeaderProcessFactory from(TestingDispatcherLeaderProcess... processes) {
-		return new TestingDispatcherLeaderProcessFactory(new ArrayDeque<>(Arrays.asList(processes)));
-	}
+    public static TestingDispatcherLeaderProcessFactory from(
+            TestingDispatcherLeaderProcess... processes) {
+        return new TestingDispatcherLeaderProcessFactory(
+                new ArrayDeque<>(Arrays.asList(processes)));
+    }
 
-	public static TestingDispatcherLeaderProcessFactory defaultValue() {
-		return new TestingDispatcherLeaderProcessFactory(new ArrayDeque<>(0));
-	}
+    public static TestingDispatcherLeaderProcessFactory defaultValue() {
+        return new TestingDispatcherLeaderProcessFactory(new ArrayDeque<>(0));
+    }
 }

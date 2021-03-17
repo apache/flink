@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
+
 from typing import Dict, List
 
 from pyflink.common.execution_mode import ExecutionMode
@@ -328,7 +330,14 @@ class ExecutionConfig(object):
         :param input_dependency_constraint: The input dependency constraint. The constraints could
                                             be :data:`InputDependencyConstraint.ANY` or
                                             :data:`InputDependencyConstraint.ALL`.
+
+        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
+                  current scheduler implementations.
         """
+        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
+                      "Therefore, the method call set_default_input_dependency_constraint is "
+                      "obsolete.", DeprecationWarning)
+
         self._j_execution_config.setDefaultInputDependencyConstraint(
             input_dependency_constraint._to_j_input_dependency_constraint())
         return self
@@ -344,7 +353,14 @@ class ExecutionConfig(object):
 
         :return: The input dependency constraint of this job. The possible constraints are
                  :data:`InputDependencyConstraint.ANY` and :data:`InputDependencyConstraint.ALL`.
+
+        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
+                  current scheduler implementations.
         """
+        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
+                      "Therefore, the method call get_default_input_dependency_constraint is "
+                      "obsolete.", DeprecationWarning)
+
         j_input_dependency_constraint = self._j_execution_config\
             .getDefaultInputDependencyConstraint()
         return InputDependencyConstraint._from_j_input_dependency_constraint(

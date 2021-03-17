@@ -26,28 +26,28 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * The checkpoint of current state of continuous hive source reading.
- */
-public class ContinuousHivePendingSplitsCheckpoint extends PendingSplitsCheckpoint<HiveSourceSplit> {
+/** The checkpoint of current state of continuous hive source reading. */
+public class ContinuousHivePendingSplitsCheckpoint
+        extends PendingSplitsCheckpoint<HiveSourceSplit> {
 
-	private final Comparable<?> currentReadOffset;
-	private final Collection<List<String>> seenPartitionsSinceOffset;
+    private final Comparable<?> currentReadOffset;
+    private final Collection<List<String>> seenPartitionsSinceOffset;
 
-	public ContinuousHivePendingSplitsCheckpoint(
-			Collection<HiveSourceSplit> splits,
-			Comparable<?> currentReadOffset,
-			Collection<List<String>> seenPartitionsSinceOffset) {
-		super(new ArrayList<>(splits), Collections.emptyList());
-		this.currentReadOffset = currentReadOffset;
-		this.seenPartitionsSinceOffset = Collections.unmodifiableCollection(new ArrayList<>(seenPartitionsSinceOffset));
-	}
+    public ContinuousHivePendingSplitsCheckpoint(
+            Collection<HiveSourceSplit> splits,
+            Comparable<?> currentReadOffset,
+            Collection<List<String>> seenPartitionsSinceOffset) {
+        super(new ArrayList<>(splits), Collections.emptyList());
+        this.currentReadOffset = currentReadOffset;
+        this.seenPartitionsSinceOffset =
+                Collections.unmodifiableCollection(new ArrayList<>(seenPartitionsSinceOffset));
+    }
 
-	public Comparable<?> getCurrentReadOffset() {
-		return currentReadOffset;
-	}
+    public Comparable<?> getCurrentReadOffset() {
+        return currentReadOffset;
+    }
 
-	public Collection<List<String>> getSeenPartitionsSinceOffset() {
-		return seenPartitionsSinceOffset;
-	}
+    public Collection<List<String>> getSeenPartitionsSinceOffset() {
+        return seenPartitionsSinceOffset;
+    }
 }

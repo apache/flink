@@ -21,24 +21,25 @@ package org.apache.flink.util;
 /**
  * UserCodeClassLoader allows to register release hooks for a user code class loader.
  *
- * <p>These release hooks are being executed just before the user code class loader is
- * being released.
+ * <p>These release hooks are being executed just before the user code class loader is being
+ * released.
  */
 public interface UserCodeClassLoader {
 
-	/**
-	 * Obtains the actual class loader.
-	 *
-	 * @return actual class loader
-	 */
-	ClassLoader asClassLoader();
+    /**
+     * Obtains the actual class loader.
+     *
+     * @return actual class loader
+     */
+    ClassLoader asClassLoader();
 
-	/**
-	 * Registers a release hook which is being executed before the user code class
-	 * loader is being released.
-	 *
-	 * @param releaseHookName
-	 * @param releaseHook releaseHook which is executed before the user code class loader is being released.
-	 */
-	void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook);
+    /**
+     * Registers a release hook which is being executed before the user code class loader is being
+     * released.
+     *
+     * @param releaseHookName
+     * @param releaseHook releaseHook which is executed before the user code class loader is being
+     *     released.
+     */
+    void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook);
 }

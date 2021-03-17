@@ -21,12 +21,9 @@ package org.apache.flink.state.api.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 
-/**
- * Assigns an event time timestamp to the given record. This class
- * does not create watermarks.
- */
+/** Assigns an event time timestamp to the given record. This class does not create watermarks. */
 @PublicEvolving
 @FunctionalInterface
 public interface Timestamper<T> extends Function {
-	long timestamp(T element);
+    long timestamp(T element);
 }

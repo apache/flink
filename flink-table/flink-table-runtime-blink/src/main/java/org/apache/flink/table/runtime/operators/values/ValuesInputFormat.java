@@ -31,48 +31,48 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-/**
- * Generated ValuesInputFormat.
- */
-public class ValuesInputFormat
-		extends GenericInputFormat<RowData>
-		implements NonParallelInput, ResultTypeQueryable<RowData> {
+/** Generated ValuesInputFormat. */
+public class ValuesInputFormat extends GenericInputFormat<RowData>
+        implements NonParallelInput, ResultTypeQueryable<RowData> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
-	private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
+    private static final long serialVersionUID = 1L;
 
-	private GeneratedInput<GenericInputFormat<RowData>> generatedInput;
-	private final InternalTypeInfo<RowData> returnType;
-	private GenericInputFormat<RowData> format;
+    private GeneratedInput<GenericInputFormat<RowData>> generatedInput;
+    private final InternalTypeInfo<RowData> returnType;
+    private GenericInputFormat<RowData> format;
 
-	public ValuesInputFormat(GeneratedInput<GenericInputFormat<RowData>> generatedInput, InternalTypeInfo<RowData> returnType) {
-		this.generatedInput = generatedInput;
-		this.returnType = returnType;
-	}
+    public ValuesInputFormat(
+            GeneratedInput<GenericInputFormat<RowData>> generatedInput,
+            InternalTypeInfo<RowData> returnType) {
+        this.generatedInput = generatedInput;
+        this.returnType = returnType;
+    }
 
-	@Override
-	public void open(GenericInputSplit split) {
-		LOG.debug("Compiling GenericInputFormat: {} \n\n Code:\n{}",
-				generatedInput.getClassName(), generatedInput.getCode());
-		LOG.debug("Instantiating GenericInputFormat.");
+    @Override
+    public void open(GenericInputSplit split) {
+        LOG.debug(
+                "Compiling GenericInputFormat: {} \n\n Code:\n{}",
+                generatedInput.getClassName(),
+                generatedInput.getCode());
+        LOG.debug("Instantiating GenericInputFormat.");
 
-		format = generatedInput.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedInput = null;
-	}
+        format = generatedInput.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        generatedInput = null;
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return format.reachedEnd();
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return format.reachedEnd();
+    }
 
-	@Override
-	public RowData nextRecord(RowData reuse) throws IOException {
-		return format.nextRecord(reuse);
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) throws IOException {
+        return format.nextRecord(reuse);
+    }
 
-	@Override
-	public InternalTypeInfo<RowData> getProducedType() {
-		return returnType;
-	}
-
+    @Override
+    public InternalTypeInfo<RowData> getProducedType() {
+        return returnType;
+    }
 }

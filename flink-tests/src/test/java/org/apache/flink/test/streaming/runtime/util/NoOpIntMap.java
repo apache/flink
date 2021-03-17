@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,11 @@ package org.apache.flink.test.streaming.runtime.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 
-/**
- * Identity mapper.
- */
+/** Identity mapper. */
 public class NoOpIntMap implements MapFunction<Integer, Integer> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public Integer map(Integer value) throws Exception {
-		return value;
-	}
+    public Integer map(Integer value) throws Exception {
+        return value;
+    }
 }

@@ -18,34 +18,32 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public interface TestProducerSource {
 
-	/**
-	 * Returns the next buffer or event instance.
-	 *
-	 * <p> The channel index specifies the subpartition add the data to.
-	 */
-	BufferAndChannel getNextBuffer() throws Exception;
+    /**
+     * Returns the next buffer or event instance.
+     *
+     * <p>The channel index specifies the subpartition add the data to.
+     */
+    BufferAndChannel getNextBuffer() throws Exception;
 
-	class BufferAndChannel {
-		private final byte[] buffer;
-		private final int targetChannel;
+    class BufferAndChannel {
+        private final byte[] buffer;
+        private final int targetChannel;
 
-		public BufferAndChannel(byte[] buffer, int targetChannel) {
-			this.buffer = checkNotNull(buffer);
-			this.targetChannel = targetChannel;
-		}
+        public BufferAndChannel(byte[] buffer, int targetChannel) {
+            this.buffer = checkNotNull(buffer);
+            this.targetChannel = targetChannel;
+        }
 
-		public byte[] getBuffer() {
-			return buffer;
-		}
+        public byte[] getBuffer() {
+            return buffer;
+        }
 
-		public int getTargetChannel() {
-			return targetChannel;
-		}
-	}
+        public int getTargetChannel() {
+            return targetChannel;
+        }
+    }
 }

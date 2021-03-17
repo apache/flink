@@ -18,37 +18,36 @@
 
 package org.apache.flink.connector.kafka.source.split;
 
-/**
- * This class extends KafkaPartitionSplit to track a mutable current offset.
- */
+/** This class extends KafkaPartitionSplit to track a mutable current offset. */
 public class KafkaPartitionSplitState extends KafkaPartitionSplit {
 
-	private long currentOffset;
+    private long currentOffset;
 
-	public KafkaPartitionSplitState(KafkaPartitionSplit partitionSplit) {
-		super(
-				partitionSplit.getTopicPartition(),
-				partitionSplit.getStartingOffset(),
-				partitionSplit.getStoppingOffset().orElse(NO_STOPPING_OFFSET));
-		this.currentOffset = partitionSplit.getStartingOffset();
-	}
+    public KafkaPartitionSplitState(KafkaPartitionSplit partitionSplit) {
+        super(
+                partitionSplit.getTopicPartition(),
+                partitionSplit.getStartingOffset(),
+                partitionSplit.getStoppingOffset().orElse(NO_STOPPING_OFFSET));
+        this.currentOffset = partitionSplit.getStartingOffset();
+    }
 
-	public long getCurrentOffset() {
-		return currentOffset;
-	}
+    public long getCurrentOffset() {
+        return currentOffset;
+    }
 
-	public void setCurrentOffset(long currentOffset) {
-		this.currentOffset = currentOffset;
-	}
+    public void setCurrentOffset(long currentOffset) {
+        this.currentOffset = currentOffset;
+    }
 
-	/**
-	 * Use the current offset as the starting offset to create a new KafkaPartitionSplit.
-	 * @return a new KafkaPartitionSplit which uses the current offset as its starting offset.
-	 */
-	public KafkaPartitionSplit toKafkaPartitionSplit() {
-		return new KafkaPartitionSplit(
-				getTopicPartition(),
-				getCurrentOffset(),
-				getStoppingOffset().orElse(NO_STOPPING_OFFSET));
-	}
+    /**
+     * Use the current offset as the starting offset to create a new KafkaPartitionSplit.
+     *
+     * @return a new KafkaPartitionSplit which uses the current offset as its starting offset.
+     */
+    public KafkaPartitionSplit toKafkaPartitionSplit() {
+        return new KafkaPartitionSplit(
+                getTopicPartition(),
+                getCurrentOffset(),
+                getStoppingOffset().orElse(NO_STOPPING_OFFSET));
+    }
 }

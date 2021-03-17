@@ -26,51 +26,49 @@ import org.junit.Test;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
-/**
- * Tests for {@link PendingWorkerCounter}.
- */
+/** Tests for {@link PendingWorkerCounter}. */
 public class PendingWorkerCounterTest extends TestLogger {
 
-	@Test
-	public void testPendingWorkerCounterIncreaseAndDecrease() {
-		final WorkerResourceSpec spec1 = new WorkerResourceSpec.Builder().setCpuCores(1.0).build();
-		final WorkerResourceSpec spec2 = new WorkerResourceSpec.Builder().setCpuCores(2.0).build();
+    @Test
+    public void testPendingWorkerCounterIncreaseAndDecrease() {
+        final WorkerResourceSpec spec1 = new WorkerResourceSpec.Builder().setCpuCores(1.0).build();
+        final WorkerResourceSpec spec2 = new WorkerResourceSpec.Builder().setCpuCores(2.0).build();
 
-		final PendingWorkerCounter counter = new PendingWorkerCounter();
-		assertThat(counter.getTotalNum(), is(0));
-		assertThat(counter.getNum(spec1), is(0));
-		assertThat(counter.getNum(spec2), is(0));
+        final PendingWorkerCounter counter = new PendingWorkerCounter();
+        assertThat(counter.getTotalNum(), is(0));
+        assertThat(counter.getNum(spec1), is(0));
+        assertThat(counter.getNum(spec2), is(0));
 
-		assertThat(counter.increaseAndGet(spec1), is(1));
-		assertThat(counter.getTotalNum(), is(1));
-		assertThat(counter.getNum(spec1), is(1));
-		assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.increaseAndGet(spec1), is(1));
+        assertThat(counter.getTotalNum(), is(1));
+        assertThat(counter.getNum(spec1), is(1));
+        assertThat(counter.getNum(spec2), is(0));
 
-		assertThat(counter.increaseAndGet(spec1), is(2));
-		assertThat(counter.getTotalNum(), is(2));
-		assertThat(counter.getNum(spec1), is(2));
-		assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.increaseAndGet(spec1), is(2));
+        assertThat(counter.getTotalNum(), is(2));
+        assertThat(counter.getNum(spec1), is(2));
+        assertThat(counter.getNum(spec2), is(0));
 
-		assertThat(counter.increaseAndGet(spec2), is(1));
-		assertThat(counter.getTotalNum(), is(3));
-		assertThat(counter.getNum(spec1), is(2));
-		assertThat(counter.getNum(spec2), is(1));
+        assertThat(counter.increaseAndGet(spec2), is(1));
+        assertThat(counter.getTotalNum(), is(3));
+        assertThat(counter.getNum(spec1), is(2));
+        assertThat(counter.getNum(spec2), is(1));
 
-		assertThat(counter.decreaseAndGet(spec1), is(1));
-		assertThat(counter.getTotalNum(), is(2));
-		assertThat(counter.getNum(spec1), is(1));
-		assertThat(counter.getNum(spec2), is(1));
+        assertThat(counter.decreaseAndGet(spec1), is(1));
+        assertThat(counter.getTotalNum(), is(2));
+        assertThat(counter.getNum(spec1), is(1));
+        assertThat(counter.getNum(spec2), is(1));
 
-		assertThat(counter.decreaseAndGet(spec2), is(0));
-		assertThat(counter.getTotalNum(), is(1));
-		assertThat(counter.getNum(spec1), is(1));
-		assertThat(counter.getNum(spec2), is(0));
-	}
+        assertThat(counter.decreaseAndGet(spec2), is(0));
+        assertThat(counter.getTotalNum(), is(1));
+        assertThat(counter.getNum(spec1), is(1));
+        assertThat(counter.getNum(spec2), is(0));
+    }
 
-	@Test(expected = IllegalStateException.class)
-	public void testPendingWorkerCounterDecreaseOnZero() {
-		final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
-		final PendingWorkerCounter counter = new PendingWorkerCounter();
-		counter.decreaseAndGet(spec);
-	}
+    @Test(expected = IllegalStateException.class)
+    public void testPendingWorkerCounterDecreaseOnZero() {
+        final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
+        final PendingWorkerCounter counter = new PendingWorkerCounter();
+        counter.decreaseAndGet(spec);
+    }
 }

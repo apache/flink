@@ -34,42 +34,42 @@ import org.apache.flink.util.OutputTag;
  */
 @Internal
 public class InternalProcessWindowContext<IN, OUT, KEY, W extends Window>
-	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
+        extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
 
-	W window;
-	InternalWindowFunction.InternalWindowContext internalContext;
+    W window;
+    InternalWindowFunction.InternalWindowContext internalContext;
 
-	InternalProcessWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
-		function.super();
-	}
+    InternalProcessWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
+        function.super();
+    }
 
-	@Override
-	public W window() {
-		return window;
-	}
+    @Override
+    public W window() {
+        return window;
+    }
 
-	@Override
-	public long currentProcessingTime() {
-		return internalContext.currentProcessingTime();
-	}
+    @Override
+    public long currentProcessingTime() {
+        return internalContext.currentProcessingTime();
+    }
 
-	@Override
-	public long currentWatermark() {
-		return internalContext.currentWatermark();
-	}
+    @Override
+    public long currentWatermark() {
+        return internalContext.currentWatermark();
+    }
 
-	@Override
-	public KeyedStateStore windowState() {
-		return internalContext.windowState();
-	}
+    @Override
+    public KeyedStateStore windowState() {
+        return internalContext.windowState();
+    }
 
-	@Override
-	public KeyedStateStore globalState() {
-		return internalContext.globalState();
-	}
+    @Override
+    public KeyedStateStore globalState() {
+        return internalContext.globalState();
+    }
 
-	@Override
-	public <X> void output(OutputTag<X> outputTag, X value) {
-		internalContext.output(outputTag, value);
-	}
+    @Override
+    public <X> void output(OutputTag<X> outputTag, X value) {
+        internalContext.output(outputTag, value);
+    }
 }

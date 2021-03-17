@@ -29,74 +29,83 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Maintains a set of {@link ChannelStateCheckpointWriter writers} per checkpoint and translates incoming
- * {@link ChannelStateWriteRequest requests} to their corresponding methods.
+ * Maintains a set of {@link ChannelStateCheckpointWriter writers} per checkpoint and translates
+ * incoming {@link ChannelStateWriteRequest requests} to their corresponding methods.
  */
 final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteRequestDispatcher {
-	private static final Logger LOG = LoggerFactory.getLogger(ChannelStateWriteRequestDispatcherImpl.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ChannelStateWriteRequestDispatcherImpl.class);
 
-	private final Map<Long, ChannelStateCheckpointWriter> writers; // limited indirectly by results max size
-	private final CheckpointStorageWorkerView streamFactoryResolver;
-	private final ChannelStateSerializer serializer;
-	private final int subtaskIndex;
+    private final Map<Long, ChannelStateCheckpointWriter>
+            writers; // limited indirectly by results max size
+    private final CheckpointStorageWorkerView streamFactoryResolver;
+    private final ChannelStateSerializer serializer;
+    private final int subtaskIndex;
 
-	ChannelStateWriteRequestDispatcherImpl(int subtaskIndex, CheckpointStorageWorkerView streamFactoryResolver, ChannelStateSerializer serializer) {
-		this.subtaskIndex = subtaskIndex;
-		this.writers = new HashMap<>();
-		this.streamFactoryResolver = checkNotNull(streamFactoryResolver);
-		this.serializer = checkNotNull(serializer);
-	}
+    ChannelStateWriteRequestDispatcherImpl(
+            int subtaskIndex,
+            CheckpointStorageWorkerView streamFactoryResolver,
+            ChannelStateSerializer serializer) {
+        this.subtaskIndex = subtaskIndex;
+        this.writers = new HashMap<>();
+        this.streamFactoryResolver = checkNotNull(streamFactoryResolver);
+        this.serializer = checkNotNull(serializer);
+    }
 
-	@Override
-	public void dispatch(ChannelStateWriteRequest request) throws Exception {
-		LOG.debug("process {}", request);
-		try {
-			dispatchInternal(request);
-		} catch (Exception e) {
-			try {
-				request.cancel(e);
-			} catch (Exception ex) {
-				e.addSuppressed(ex);
-			}
-			throw e;
-		}
-	}
+    @Override
+    public void dispatch(ChannelStateWriteRequest request) throws Exception {
+        LOG.debug("process {}", request);
+        try {
+            dispatchInternal(request);
+        } catch (Exception e) {
+            try {
+                request.cancel(e);
+            } catch (Exception ex) {
+                e.addSuppressed(ex);
+            }
+            throw e;
+        }
+    }
 
-	private void dispatchInternal(ChannelStateWriteRequest request) throws Exception {
-		if (request instanceof CheckpointStartRequest) {
-			checkState(!writers.containsKey(request.getCheckpointId()), "writer not found for request " + request);
-			writers.put(request.getCheckpointId(), buildWriter((CheckpointStartRequest) request));
-		} else if (request instanceof CheckpointInProgressRequest) {
-			ChannelStateCheckpointWriter writer = writers.get(request.getCheckpointId());
-			CheckpointInProgressRequest req = (CheckpointInProgressRequest) request;
-			if (writer == null) {
-				req.onWriterMissing();
-			} else {
-				req.execute(writer);
-			}
-		} else {
-			throw new IllegalArgumentException("unknown request type: " + request);
-		}
-	}
+    private void dispatchInternal(ChannelStateWriteRequest request) throws Exception {
+        if (request instanceof CheckpointStartRequest) {
+            checkState(
+                    !writers.containsKey(request.getCheckpointId()),
+                    "writer not found for request " + request);
+            writers.put(request.getCheckpointId(), buildWriter((CheckpointStartRequest) request));
+        } else if (request instanceof CheckpointInProgressRequest) {
+            ChannelStateCheckpointWriter writer = writers.get(request.getCheckpointId());
+            CheckpointInProgressRequest req = (CheckpointInProgressRequest) request;
+            if (writer == null) {
+                req.onWriterMissing();
+            } else {
+                req.execute(writer);
+            }
+        } else {
+            throw new IllegalArgumentException("unknown request type: " + request);
+        }
+    }
 
-	private ChannelStateCheckpointWriter buildWriter(CheckpointStartRequest request) throws Exception {
-		return new ChannelStateCheckpointWriter(
-			subtaskIndex,
-			request,
-			streamFactoryResolver.resolveCheckpointStorageLocation(request.getCheckpointId(), request.getLocationReference()),
-			serializer,
-			() -> writers.remove(request.getCheckpointId()));
-	}
+    private ChannelStateCheckpointWriter buildWriter(CheckpointStartRequest request)
+            throws Exception {
+        return new ChannelStateCheckpointWriter(
+                subtaskIndex,
+                request,
+                streamFactoryResolver.resolveCheckpointStorageLocation(
+                        request.getCheckpointId(), request.getLocationReference()),
+                serializer,
+                () -> writers.remove(request.getCheckpointId()));
+    }
 
-	@Override
-	public void fail(Throwable cause) {
-		for (ChannelStateCheckpointWriter writer : writers.values()) {
-			try {
-				writer.fail(cause);
-			} catch (Exception ex) {
-				LOG.warn("unable to fail write channel state writer", cause);
-			}
-		}
-		writers.clear();
-	}
+    @Override
+    public void fail(Throwable cause) {
+        for (ChannelStateCheckpointWriter writer : writers.values()) {
+            try {
+                writer.fail(cause);
+            } catch (Exception ex) {
+                LOG.warn("unable to fail write channel state writer", cause);
+            }
+        }
+        writers.clear();
+    }
 }

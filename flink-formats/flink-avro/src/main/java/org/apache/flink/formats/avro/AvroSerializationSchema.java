@@ -41,144 +41,135 @@ import java.util.Objects;
 /**
  * Serialization schema that serializes to Avro binary format.
  *
- * @param <T> the type  to be serialized
+ * @param <T> the type to be serialized
  */
 public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 
-	/**
-	 * Creates {@link AvroSerializationSchema} that serializes {@link SpecificRecord} using provided schema.
-	 *
-	 * @param tClass the type to be serialized
-	 * @return serialized record in form of byte array
-	 */
-	public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(Class<T> tClass) {
-		return new AvroSerializationSchema<>(tClass, null);
-	}
+    /**
+     * Creates {@link AvroSerializationSchema} that serializes {@link SpecificRecord} using provided
+     * schema.
+     *
+     * @param tClass the type to be serialized
+     * @return serialized record in form of byte array
+     */
+    public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(
+            Class<T> tClass) {
+        return new AvroSerializationSchema<>(tClass, null);
+    }
 
-	/**
-	 * Creates {@link AvroSerializationSchema} that serializes {@link GenericRecord} using provided schema.
-	 *
-	 * @param schema the schema that will be used for serialization
-	 * @return serialized record in form of byte array
-	 */
-	public static AvroSerializationSchema<GenericRecord> forGeneric(Schema schema) {
-		return new AvroSerializationSchema<>(GenericRecord.class, schema);
-	}
+    /**
+     * Creates {@link AvroSerializationSchema} that serializes {@link GenericRecord} using provided
+     * schema.
+     *
+     * @param schema the schema that will be used for serialization
+     * @return serialized record in form of byte array
+     */
+    public static AvroSerializationSchema<GenericRecord> forGeneric(Schema schema) {
+        return new AvroSerializationSchema<>(GenericRecord.class, schema);
+    }
 
-	private static final long serialVersionUID = -8766681879020862312L;
+    private static final long serialVersionUID = -8766681879020862312L;
 
-	/**
-	 * Class to serialize to.
-	 */
-	private Class<T> recordClazz;
+    /** Class to serialize to. */
+    private Class<T> recordClazz;
 
-	private String schemaString;
-	private transient Schema schema;
-	/**
-	 * Writer that writes the serialized record to {@link ByteArrayOutputStream}.
-	 */
-	private transient GenericDatumWriter<T> datumWriter;
+    private String schemaString;
+    private transient Schema schema;
+    /** Writer that writes the serialized record to {@link ByteArrayOutputStream}. */
+    private transient GenericDatumWriter<T> datumWriter;
 
-	/**
-	 * Output stream to write message to.
-	 */
-	private transient ByteArrayOutputStream arrayOutputStream;
+    /** Output stream to write message to. */
+    private transient ByteArrayOutputStream arrayOutputStream;
 
-	/**
-	 * Avro encoder that encodes binary data.
-	 */
-	private transient BinaryEncoder encoder;
+    /** Avro encoder that encodes binary data. */
+    private transient BinaryEncoder encoder;
 
-	/**
-	 * Creates an Avro deserialization schema.
-	 *
-	 * @param recordClazz class to serialize. Should be one of:
-	 *                    {@link org.apache.avro.specific.SpecificRecord},
-	 *                    {@link org.apache.avro.generic.GenericRecord}.
-	 * @param schema      writer Avro schema. Should be provided if recordClazz is
-	 *                    {@link GenericRecord}
-	 */
-	protected AvroSerializationSchema(Class<T> recordClazz, @Nullable Schema schema) {
-		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
-		this.recordClazz = recordClazz;
-		this.schema = schema;
-		if (schema != null) {
-			this.schemaString = schema.toString();
-		} else {
-			this.schemaString = null;
-		}
-	}
+    /**
+     * Creates an Avro deserialization schema.
+     *
+     * @param recordClazz class to serialize. Should be one of: {@link
+     *     org.apache.avro.specific.SpecificRecord}, {@link org.apache.avro.generic.GenericRecord}.
+     * @param schema writer Avro schema. Should be provided if recordClazz is {@link GenericRecord}
+     */
+    protected AvroSerializationSchema(Class<T> recordClazz, @Nullable Schema schema) {
+        Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
+        this.recordClazz = recordClazz;
+        this.schema = schema;
+        if (schema != null) {
+            this.schemaString = schema.toString();
+        } else {
+            this.schemaString = null;
+        }
+    }
 
-	public Schema getSchema() {
-		return schema;
-	}
+    public Schema getSchema() {
+        return schema;
+    }
 
-	protected BinaryEncoder getEncoder() {
-		return encoder;
-	}
+    protected BinaryEncoder getEncoder() {
+        return encoder;
+    }
 
-	protected GenericDatumWriter<T> getDatumWriter() {
-		return datumWriter;
-	}
+    protected GenericDatumWriter<T> getDatumWriter() {
+        return datumWriter;
+    }
 
-	protected ByteArrayOutputStream getOutputStream() {
-		return arrayOutputStream;
-	}
+    protected ByteArrayOutputStream getOutputStream() {
+        return arrayOutputStream;
+    }
 
-	@Override
-	public byte[] serialize(T object) {
-		checkAvroInitialized();
+    @Override
+    public byte[] serialize(T object) {
+        checkAvroInitialized();
 
-		if (object == null) {
-			return null;
-		} else {
-			try {
-				datumWriter.write(object, encoder);
-				encoder.flush();
-				byte[] bytes = arrayOutputStream.toByteArray();
-				arrayOutputStream.reset();
-				return bytes;
-			} catch (IOException e) {
-				throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
-			}
+        if (object == null) {
+            return null;
+        } else {
+            try {
+                datumWriter.write(object, encoder);
+                encoder.flush();
+                byte[] bytes = arrayOutputStream.toByteArray();
+                arrayOutputStream.reset();
+                return bytes;
+            } catch (IOException e) {
+                throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
+            }
+        }
+    }
 
-		}
-	}
+    protected void checkAvroInitialized() {
+        if (datumWriter != null) {
+            return;
+        }
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
+            Schema schema = SpecificData.get().getSchema(recordClazz);
+            this.datumWriter = new SpecificDatumWriter<>(schema);
+            this.schema = schema;
+        } else {
+            this.schema = new Schema.Parser().parse(this.schemaString);
+            GenericData genericData = new GenericData(cl);
 
-	protected void checkAvroInitialized() {
-		if (datumWriter != null) {
-			return;
-		}
-		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-			if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			Schema schema = SpecificData.get().getSchema(recordClazz);
-			this.datumWriter = new SpecificDatumWriter<>(schema);
-			this.schema = schema;
-		} else {
-			this.schema = new Schema.Parser().parse(this.schemaString);
-			GenericData genericData = new GenericData(cl);
+            this.datumWriter = new GenericDatumWriter<>(schema, genericData);
+        }
+        this.arrayOutputStream = new ByteArrayOutputStream();
+        this.encoder = EncoderFactory.get().directBinaryEncoder(arrayOutputStream, null);
+    }
 
-			this.datumWriter = new GenericDatumWriter<>(schema, genericData);
-		}
-		this.arrayOutputStream = new ByteArrayOutputStream();
-		this.encoder = EncoderFactory.get().directBinaryEncoder(arrayOutputStream, null);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        AvroSerializationSchema<?> that = (AvroSerializationSchema<?>) o;
+        return recordClazz.equals(that.recordClazz) && Objects.equals(schema, that.schema);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		AvroSerializationSchema<?> that = (AvroSerializationSchema<?>) o;
-		return recordClazz.equals(that.recordClazz) &&
-				Objects.equals(schema, that.schema);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(recordClazz, schema);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(recordClazz, schema);
+    }
 }

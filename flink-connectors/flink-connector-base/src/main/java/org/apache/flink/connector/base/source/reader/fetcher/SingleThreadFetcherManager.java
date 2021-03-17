@@ -28,44 +28,46 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * A Fetcher Manager with a single fetching thread (I/O thread) that handles all splits concurrently.
+ * A Fetcher Manager with a single fetching thread (I/O thread) that handles all splits
+ * concurrently.
  *
- * <p>This pattern is, for example, useful for connectors like File Readers, Apache Kafka Readers, etc.
- * In the example of Kafka, there is a single thread that reads all splits (topic partitions) via the
- * same client. In the example of the file source, there is a single thread that reads the files
- * after another.
+ * <p>This pattern is, for example, useful for connectors like File Readers, Apache Kafka Readers,
+ * etc. In the example of Kafka, there is a single thread that reads all splits (topic partitions)
+ * via the same client. In the example of the file source, there is a single thread that reads the
+ * files after another.
  */
 public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
-		extends SplitFetcherManager<E, SplitT> {
+        extends SplitFetcherManager<E, SplitT> {
 
-	/**
-	 * Creates a new SplitFetcherManager with a single I/O threads.
-	 *
-	 * @param elementsQueue The queue that is used to hand over data from the I/O thread (the fetchers)
-	 *                      to the reader (which emits the records and book-keeps the state.
-	 *                      This must be the same queue instance that is also passed to the {@link SourceReaderBase}.
-	 * @param splitReaderSupplier The factory for the split reader that connects to the source system.
-	 */
-	public SingleThreadFetcherManager(
-			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-			Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-		super(elementsQueue, splitReaderSupplier);
-	}
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param elementsQueue The queue that is used to hand over data from the I/O thread (the
+     *     fetchers) to the reader (which emits the records and book-keeps the state. This must be
+     *     the same queue instance that is also passed to the {@link SourceReaderBase}.
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     */
+    public SingleThreadFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
+        super(elementsQueue, splitReaderSupplier);
+    }
 
-	@Override
-	public void addSplits(List<SplitT> splitsToAdd) {
-		SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
-		if (fetcher == null) {
-			fetcher = createSplitFetcher();
-			// Add the splits to the fetchers.
-			fetcher.addSplits(splitsToAdd);
-			startFetcher(fetcher);
-		} else {
-			fetcher.addSplits(splitsToAdd);
-		}
-	}
+    @Override
+    public void addSplits(List<SplitT> splitsToAdd) {
+        SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
+        if (fetcher == null) {
+            fetcher = createSplitFetcher();
+            // Add the splits to the fetchers.
+            fetcher.addSplits(splitsToAdd);
+            startFetcher(fetcher);
+        } else {
+            fetcher.addSplits(splitsToAdd);
+        }
+    }
 
-	protected SplitFetcher<E, SplitT> getRunningFetcher() {
-		return fetchers.isEmpty() ? null : fetchers.values().iterator().next();
-	}
+    protected SplitFetcher<E, SplitT> getRunningFetcher() {
+        return fetchers.isEmpty() ? null : fetchers.values().iterator().next();
+    }
 }

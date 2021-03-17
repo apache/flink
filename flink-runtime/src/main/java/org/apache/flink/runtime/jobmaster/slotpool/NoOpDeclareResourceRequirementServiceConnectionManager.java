@@ -20,21 +20,20 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.slots.ResourceRequirements;
 
-/**
- * No-op implementation of the {@link DeclareResourceRequirementServiceConnectionManager}.
- */
-public enum NoOpDeclareResourceRequirementServiceConnectionManager implements DeclareResourceRequirementServiceConnectionManager {
-	INSTANCE;
+/** No-op implementation of the {@link DeclareResourceRequirementServiceConnectionManager}. */
+public enum NoOpDeclareResourceRequirementServiceConnectionManager
+        implements DeclareResourceRequirementServiceConnectionManager {
+    INSTANCE;
 
-	@Override
-	public void connect(DeclareResourceRequirementsService declareResourceRequirementsService) {}
+    @Override
+    public void connect(DeclareResourceRequirementsService declareResourceRequirementsService) {}
 
-	@Override
-	public void disconnect() {}
+    @Override
+    public void disconnect() {}
 
-	@Override
-	public void declareResourceRequirements(ResourceRequirements resourceRequirements) {}
+    @Override
+    public void declareResourceRequirements(ResourceRequirements resourceRequirements) {}
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

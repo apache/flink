@@ -21,13 +21,13 @@ package org.apache.flink.connector.base.source.reader.mocks;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 
-/**
- * A record emitter that pipes records directly into the source output.
- */
-public final class PassThroughRecordEmitter<E, SplitStateT> implements RecordEmitter<E, E, SplitStateT> {
+/** A record emitter that pipes records directly into the source output. */
+public final class PassThroughRecordEmitter<E, SplitStateT>
+        implements RecordEmitter<E, E, SplitStateT> {
 
-	@Override
-	public void emitRecord(E element, SourceOutput<E> output, SplitStateT splitState) throws Exception {
-		output.collect(element);
-	}
+    @Override
+    public void emitRecord(E element, SourceOutput<E> output, SplitStateT splitState)
+            throws Exception {
+        output.collect(element);
+    }
 }

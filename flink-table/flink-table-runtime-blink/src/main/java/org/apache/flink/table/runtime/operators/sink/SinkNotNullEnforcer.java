@@ -24,46 +24,48 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.data.RowData;
 
-/**
- * Checks writing null values into NOT NULL columns.
- */
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+/** Checks writing null values into NOT NULL columns. */
 public class SinkNotNullEnforcer implements FilterFunction<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final NotNullEnforcer notNullEnforcer;
-	private final int[] notNullFieldIndices;
-	private final boolean notNullCheck;
-	private final String[] allFieldNames;
+    private final NotNullEnforcer notNullEnforcer;
+    private final int[] notNullFieldIndices;
+    private final String[] allFieldNames;
 
-	public SinkNotNullEnforcer(
-			NotNullEnforcer notNullEnforcer, int[] notNullFieldIndices, String[] allFieldNames) {
-		this.notNullFieldIndices = notNullFieldIndices;
-		this.notNullEnforcer = notNullEnforcer;
-		this.notNullCheck = notNullFieldIndices.length > 0;
-		this.allFieldNames = allFieldNames;
-	}
+    public SinkNotNullEnforcer(
+            NotNullEnforcer notNullEnforcer, int[] notNullFieldIndices, String[] allFieldNames) {
+        checkArgument(
+                notNullFieldIndices.length > 0,
+                "SinkNotNullEnforcer requires that there are not-null fields.");
+        this.notNullFieldIndices = notNullFieldIndices;
+        this.notNullEnforcer = notNullEnforcer;
+        this.allFieldNames = allFieldNames;
+    }
 
-	@Override
-	public boolean filter(RowData row) {
-		if (!notNullCheck) {
-			return true;
-		}
-
-		for (int index : notNullFieldIndices) {
-			if (row.isNullAt(index)) {
-				if (notNullEnforcer == NotNullEnforcer.ERROR) {
-					String optionKey = ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key();
-					throw new TableException(
-							String.format("Column '%s' is NOT NULL, however, a null value is being written into it. " +
-									"You can set job configuration '" + optionKey + "'='drop' " +
-									"to suppress this exception and drop such records silently.", allFieldNames[index]));
-				} else {
-					// simply drop the record
-					return false;
-				}
-			}
-		}
-		return true;
-	}
+    @Override
+    public boolean filter(RowData row) {
+        for (int index : notNullFieldIndices) {
+            if (row.isNullAt(index)) {
+                if (notNullEnforcer == NotNullEnforcer.ERROR) {
+                    String optionKey =
+                            ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key();
+                    throw new TableException(
+                            String.format(
+                                    "Column '%s' is NOT NULL, however, a null value is being written into it. "
+                                            + "You can set job configuration '"
+                                            + optionKey
+                                            + "'='drop' "
+                                            + "to suppress this exception and drop such records silently.",
+                                    allFieldNames[index]));
+                } else {
+                    // simply drop the record
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }

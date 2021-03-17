@@ -26,18 +26,17 @@ import javax.annotation.Nullable;
 
 final class OnPeriodicTestWatermarkGenerator<T> implements WatermarkGenerator<T> {
 
-	@Nullable
-	private Long lastTimestamp;
+    @Nullable private Long lastTimestamp;
 
-	@Override
-	public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
-		lastTimestamp = eventTimestamp;
-	}
+    @Override
+    public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
+        lastTimestamp = eventTimestamp;
+    }
 
-	@Override
-	public void onPeriodicEmit(WatermarkOutput output) {
-		if (lastTimestamp != null) {
-			output.emitWatermark(new Watermark(lastTimestamp));
-		}
-	}
+    @Override
+    public void onPeriodicEmit(WatermarkOutput output) {
+        if (lastTimestamp != null) {
+            output.emitWatermark(new Watermark(lastTimestamp));
+        }
+    }
 }

@@ -30,33 +30,33 @@ import java.util.List;
  * A class that adapts a {@link ModelMapper} to a Flink {@link RichMapFunction} so the model can be
  * loaded in a Flink job.
  *
- * <p>This adapter class hold the target {@link ModelMapper} and it's {@link ModelSource}. Upon open(),
- * it will load model rows from {@link ModelSource} into {@link ModelMapper}.
+ * <p>This adapter class hold the target {@link ModelMapper} and it's {@link ModelSource}. Upon
+ * open(), it will load model rows from {@link ModelSource} into {@link ModelMapper}.
  */
 public class ModelMapperAdapter extends RichMapFunction<Row, Row> {
 
-	private final ModelMapper mapper;
-	private final ModelSource modelSource;
+    private final ModelMapper mapper;
+    private final ModelSource modelSource;
 
-	/**
-	 * Construct a ModelMapperAdapter with the given ModelMapper and ModelSource.
-	 *
-	 * @param mapper The {@link ModelMapper} to adapt.
-	 * @param modelSource The {@link ModelSource} to load the model from.
-	 */
-	public ModelMapperAdapter(ModelMapper mapper, ModelSource modelSource) {
-		this.mapper = mapper;
-		this.modelSource = modelSource;
-	}
+    /**
+     * Construct a ModelMapperAdapter with the given ModelMapper and ModelSource.
+     *
+     * @param mapper The {@link ModelMapper} to adapt.
+     * @param modelSource The {@link ModelSource} to load the model from.
+     */
+    public ModelMapperAdapter(ModelMapper mapper, ModelSource modelSource) {
+        this.mapper = mapper;
+        this.modelSource = modelSource;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		List<Row> modelRows = this.modelSource.getModelRows(getRuntimeContext());
-		this.mapper.loadModel(modelRows);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        List<Row> modelRows = this.modelSource.getModelRows(getRuntimeContext());
+        this.mapper.loadModel(modelRows);
+    }
 
-	@Override
-	public Row map(Row row) throws Exception {
-		return this.mapper.map(row);
-	}
+    @Override
+    public Row map(Row row) throws Exception {
+        return this.mapper.map(row);
+    }
 }

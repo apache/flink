@@ -26,33 +26,39 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Default {@link ExecutionDeploymentReconciler} implementation. Detects missing/unknown deployments, and defers
- * to a provided {@link ExecutionDeploymentReconciliationHandler} to resolve them.
+ * Default {@link ExecutionDeploymentReconciler} implementation. Detects missing/unknown
+ * deployments, and defers to a provided {@link ExecutionDeploymentReconciliationHandler} to resolve
+ * them.
  */
 public class DefaultExecutionDeploymentReconciler implements ExecutionDeploymentReconciler {
 
-	private final ExecutionDeploymentReconciliationHandler handler;
+    private final ExecutionDeploymentReconciliationHandler handler;
 
-	public DefaultExecutionDeploymentReconciler(ExecutionDeploymentReconciliationHandler handler) {
-		this.handler = handler;
-	}
+    public DefaultExecutionDeploymentReconciler(ExecutionDeploymentReconciliationHandler handler) {
+        this.handler = handler;
+    }
 
-	@Override
-	public void reconcileExecutionDeployments(ResourceID taskExecutorHost, ExecutionDeploymentReport executionDeploymentReport, Map<ExecutionAttemptID, ExecutionDeploymentState> expectedDeployedExecutions) {
-		final Set<ExecutionAttemptID> unknownExecutions = new HashSet<>(executionDeploymentReport.getExecutions());
-		final Set<ExecutionAttemptID> missingExecutions = new HashSet<>();
+    @Override
+    public void reconcileExecutionDeployments(
+            ResourceID taskExecutorHost,
+            ExecutionDeploymentReport executionDeploymentReport,
+            Map<ExecutionAttemptID, ExecutionDeploymentState> expectedDeployedExecutions) {
+        final Set<ExecutionAttemptID> unknownExecutions =
+                new HashSet<>(executionDeploymentReport.getExecutions());
+        final Set<ExecutionAttemptID> missingExecutions = new HashSet<>();
 
-		for (Map.Entry<ExecutionAttemptID, ExecutionDeploymentState> execution : expectedDeployedExecutions.entrySet()) {
-			boolean deployed = unknownExecutions.remove(execution.getKey());
-			if (!deployed && execution.getValue() != ExecutionDeploymentState.PENDING) {
-				missingExecutions.add(execution.getKey());
-			}
-		}
-		if (!unknownExecutions.isEmpty()) {
-			handler.onUnknownDeploymentsOf(unknownExecutions, taskExecutorHost);
-		}
-		if (!missingExecutions.isEmpty()) {
-			handler.onMissingDeploymentsOf(missingExecutions, taskExecutorHost);
-		}
-	}
+        for (Map.Entry<ExecutionAttemptID, ExecutionDeploymentState> execution :
+                expectedDeployedExecutions.entrySet()) {
+            boolean deployed = unknownExecutions.remove(execution.getKey());
+            if (!deployed && execution.getValue() != ExecutionDeploymentState.PENDING) {
+                missingExecutions.add(execution.getKey());
+            }
+        }
+        if (!unknownExecutions.isEmpty()) {
+            handler.onUnknownDeploymentsOf(unknownExecutions, taskExecutorHost);
+        }
+        if (!missingExecutions.isEmpty()) {
+            handler.onMissingDeploymentsOf(missingExecutions, taskExecutorHost);
+        }
+    }
 }

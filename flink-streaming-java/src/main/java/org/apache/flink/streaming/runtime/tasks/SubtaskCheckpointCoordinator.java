@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -29,60 +30,58 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * Coordinates checkpointing-related work for a subtask (i.e. {@link org.apache.flink.runtime.taskmanager.Task Task} and
- * {@link StreamTask}). Responsibilities:
+ * Coordinates checkpointing-related work for a subtask (i.e. {@link
+ * org.apache.flink.runtime.taskmanager.Task Task} and {@link StreamTask}). Responsibilities:
+ *
  * <ol>
- * <li>build a snapshot (invokable)</li>
- * <li>report snapshot to the JobManager</li>
- * <li>action upon checkpoint notification</li>
- * <li>maintain storage locations</li>
+ *   <li>build a snapshot (invokable)
+ *   <li>report snapshot to the JobManager
+ *   <li>action upon checkpoint notification
+ *   <li>maintain storage locations
  * </ol>
  */
 @Internal
 public interface SubtaskCheckpointCoordinator extends Closeable {
 
-	/**
-	 * Initialize new checkpoint.
-	 */
-	void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws IOException;
+    /** Initialize new checkpoint. */
+    void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws CheckpointException;
 
-	ChannelStateWriter getChannelStateWriter();
+    ChannelStateWriter getChannelStateWriter();
 
-	CheckpointStorageWorkerView getCheckpointStorage();
+    CheckpointStorageWorkerView getCheckpointStorage();
 
-	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException;
+    void abortCheckpointOnBarrier(
+            long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain)
+            throws IOException;
 
-	/**
-	 * Must be called after {@link #initCheckpoint(long, CheckpointOptions)}.
-	 */
-	void checkpointState(
-		CheckpointMetaData checkpointMetaData,
-		CheckpointOptions checkpointOptions,
-		CheckpointMetricsBuilder checkpointMetrics,
-		OperatorChain<?, ?> operatorChain,
-		Supplier<Boolean> isCanceled) throws Exception;
+    /** Must be called after {@link #initCheckpoint(long, CheckpointOptions)}. */
+    void checkpointState(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            CheckpointMetricsBuilder checkpointMetrics,
+            OperatorChain<?, ?> operatorChain,
+            Supplier<Boolean> isRunning)
+            throws Exception;
 
-	/**
-	 * Notified on the task side once a distributed checkpoint has been completed.
-	 *
-	 * @param checkpointId The checkpoint id to notify as been completed.
-	 * @param operatorChain The chain of operators executed by the task.
-	 * @param isRunning Whether the task is running.
-	 */
-	void notifyCheckpointComplete(
-		long checkpointId,
-		OperatorChain<?, ?> operatorChain,
-		Supplier<Boolean> isRunning) throws Exception;
+    /**
+     * Notified on the task side once a distributed checkpoint has been completed.
+     *
+     * @param checkpointId The checkpoint id to notify as been completed.
+     * @param operatorChain The chain of operators executed by the task.
+     * @param isRunning Whether the task is running.
+     */
+    void notifyCheckpointComplete(
+            long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
+            throws Exception;
 
-	/**
-	 * Notified on the task side once a distributed checkpoint has been aborted.
-	 *
-	 * @param checkpointId The checkpoint id to notify as been completed.
-	 * @param operatorChain The chain of operators executed by the task.
-	 * @param isRunning Whether the task is running.
-	 */
-	void notifyCheckpointAborted(
-		long checkpointId,
-		OperatorChain<?, ?> operatorChain,
-		Supplier<Boolean> isRunning) throws Exception;
+    /**
+     * Notified on the task side once a distributed checkpoint has been aborted.
+     *
+     * @param checkpointId The checkpoint id to notify as been completed.
+     * @param operatorChain The chain of operators executed by the task.
+     * @param isRunning Whether the task is running.
+     */
+    void notifyCheckpointAborted(
+            long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
+            throws Exception;
 }

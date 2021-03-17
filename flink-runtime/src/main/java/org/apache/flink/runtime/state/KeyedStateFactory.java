@@ -29,40 +29,41 @@ import javax.annotation.Nonnull;
 /** This factory produces concrete internal state objects. */
 public interface KeyedStateFactory {
 
-	/**
-	 * Creates and returns a new {@link InternalKvState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <SV> The type of the stored state value.
-	 * @param <S> The type of the public API state.
-	 * @param <IS> The type of internal state.
-	 */
-	@Nonnull
-	default <N, SV, S extends State, IS extends S> IS createInternalState(
-		@Nonnull TypeSerializer<N> namespaceSerializer,
-		@Nonnull StateDescriptor<S, SV> stateDesc) throws Exception {
-		return createInternalState(namespaceSerializer, stateDesc, StateSnapshotTransformFactory.noTransform());
-	}
+    /**
+     * Creates and returns a new {@link InternalKvState}.
+     *
+     * @param namespaceSerializer TypeSerializer for the state namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+     * @param <N> The type of the namespace.
+     * @param <SV> The type of the stored state value.
+     * @param <S> The type of the public API state.
+     * @param <IS> The type of internal state.
+     */
+    @Nonnull
+    default <N, SV, S extends State, IS extends S> IS createInternalState(
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<S, SV> stateDesc)
+            throws Exception {
+        return createInternalState(
+                namespaceSerializer, stateDesc, StateSnapshotTransformFactory.noTransform());
+    }
 
-	/**
-	 * Creates and returns a new {@link InternalKvState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 * @param snapshotTransformFactory factory of state snapshot transformer.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <SV> The type of the stored state value.
-	 * @param <SEV> The type of the stored state value or entry for collection types (list or map).
-	 * @param <S> The type of the public API state.
-	 * @param <IS> The type of internal state.
-	 */
-	@Nonnull
-	<N, SV, SEV, S extends State, IS extends S> IS createInternalState(
-		@Nonnull TypeSerializer<N> namespaceSerializer,
-		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception;
+    /**
+     * Creates and returns a new {@link InternalKvState}.
+     *
+     * @param namespaceSerializer TypeSerializer for the state namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+     * @param snapshotTransformFactory factory of state snapshot transformer.
+     * @param <N> The type of the namespace.
+     * @param <SV> The type of the stored state value.
+     * @param <SEV> The type of the stored state value or entry for collection types (list or map).
+     * @param <S> The type of the public API state.
+     * @param <IS> The type of internal state.
+     */
+    @Nonnull
+    <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<S, SV> stateDesc,
+            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
+            throws Exception;
 }

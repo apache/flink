@@ -32,68 +32,65 @@ import org.apache.mesos.SchedulerDriver;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An abstract implementation of {@link MesosServices}.
- */
+/** An abstract implementation of {@link MesosServices}. */
 public abstract class AbstractMesosServices implements MesosServices {
 
-	private final ActorSystem actorSystem;
+    private final ActorSystem actorSystem;
 
-	private final MesosArtifactServer artifactServer;
+    private final MesosArtifactServer artifactServer;
 
-	protected AbstractMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {
-		this.actorSystem = checkNotNull(actorSystem);
-		this.artifactServer = checkNotNull(artifactServer);
-	}
+    protected AbstractMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {
+        this.actorSystem = checkNotNull(actorSystem);
+        this.artifactServer = checkNotNull(artifactServer);
+    }
 
-	@Override
-	public MesosResourceManagerActorFactory createMesosResourceManagerActorFactory() {
-		return new MesosResourceManagerActorFactoryImpl(actorSystem);
-	}
+    @Override
+    public MesosResourceManagerActorFactory createMesosResourceManagerActorFactory() {
+        return new MesosResourceManagerActorFactoryImpl(actorSystem);
+    }
 
-	@Override
-	public MesosArtifactServer getArtifactServer() {
-		return artifactServer;
-	}
+    @Override
+    public MesosArtifactServer getArtifactServer() {
+        return artifactServer;
+    }
 
-	@Override
-	public SchedulerDriver createMesosSchedulerDriver(
-			MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements) {
-		if (mesosConfig.credential().isDefined()) {
-			return new MesosSchedulerDriver(
-				scheduler,
-				mesosConfig.frameworkInfo().build(),
-				mesosConfig.masterUrl(),
-				implicitAcknowledgements,
-				mesosConfig.credential().get().build());
-		}
-		else {
-			return new MesosSchedulerDriver(
-				scheduler,
-				mesosConfig.frameworkInfo().build(),
-				mesosConfig.masterUrl(),
-				implicitAcknowledgements);
-		}
-	}
+    @Override
+    public SchedulerDriver createMesosSchedulerDriver(
+            MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements) {
+        if (mesosConfig.credential().isDefined()) {
+            return new MesosSchedulerDriver(
+                    scheduler,
+                    mesosConfig.frameworkInfo().build(),
+                    mesosConfig.masterUrl(),
+                    implicitAcknowledgements,
+                    mesosConfig.credential().get().build());
+        } else {
+            return new MesosSchedulerDriver(
+                    scheduler,
+                    mesosConfig.frameworkInfo().build(),
+                    mesosConfig.masterUrl(),
+                    implicitAcknowledgements);
+        }
+    }
 
-	@Override
-	public void close(boolean cleanup) throws Exception {
-		Throwable exception = null;
+    @Override
+    public void close(boolean cleanup) throws Exception {
+        Throwable exception = null;
 
-		try {
-			actorSystem.terminate();
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
-		}
+        try {
+            actorSystem.terminate();
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        }
 
-		try {
-			artifactServer.stop();
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
-		}
+        try {
+            artifactServer.stop();
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        }
 
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the Mesos services.", exception);
-		}
-	}
+        if (exception != null) {
+            throw new FlinkException("Could not properly shut down the Mesos services.", exception);
+        }
+    }
 }

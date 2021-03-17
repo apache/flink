@@ -24,7 +24,7 @@ select * from (select * from scott_emp) e left join (
     order by empno limit 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
 +- LogicalProject(deptno=[COALESCE($7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
@@ -35,7 +35,7 @@ LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
 +- LogicalProject($f0=[CASE(IS NOT NULL($7), $7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
@@ -55,7 +55,7 @@ select * from lateral (select * from scott_emp) as e
     where e.deptno = 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[COALESCE($7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
 +- LogicalFilter(condition=[=($7, 10)])
@@ -66,7 +66,7 @@ LogicalProject(deptno=[COALESCE($7, $8)], empno=[$0], ename=[$1], job=[$2], mgr=
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_dept, source: [TestTableSource(deptno, dname, loc)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject($f0=[CAST(10):INTEGER], empno=[$0], ename=[$1], job=[$2], mgr=[$3], hiredate=[$4], sal=[$5], comm=[$6], dname=[$9], loc=[$10])
 +- LogicalFilter(condition=[=($7, 10)])
@@ -86,7 +86,7 @@ SELECT * FROM scott_dept
     order by scott_dept.deptno, scott_emp.deptno
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
@@ -96,7 +96,7 @@ LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
@@ -115,7 +115,7 @@ SELECT * FROM scott_dept
     order by scott_dept.deptno, scott_emp.deptno
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
@@ -125,7 +125,7 @@ LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalSort(sort0=[$10], sort1=[$11], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
@@ -142,7 +142,7 @@ LogicalProject(deptno=[$0], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$
 select * from scott_dept natural join scott_emp where empno = 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(deptno=[COALESCE($0, $10)], dname=[$1], loc=[$2], empno=[$3], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalFilter(condition=[=($3, 1)])
@@ -151,7 +151,7 @@ LogicalProject(deptno=[COALESCE($0, $10)], dname=[$1], loc=[$2], empno=[$3], ena
       +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject($f0=[CASE(IS NOT NULL($0), $0, $10)], dname=[$1], loc=[$2], empno=[CAST(1):INTEGER], ename=[$4], job=[$5], mgr=[$6], hiredate=[$7], sal=[$8], comm=[$9])
 +- LogicalFilter(condition=[=($3, 1)])

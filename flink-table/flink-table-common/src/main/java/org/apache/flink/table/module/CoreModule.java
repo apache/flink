@@ -26,28 +26,24 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Module of default core metadata in Flink.
- */
+/** Module of default core metadata in Flink. */
 public class CoreModule implements Module {
-	public static final CoreModule INSTANCE = new CoreModule();
+    public static final CoreModule INSTANCE = new CoreModule();
 
-	private CoreModule() {
-	}
+    private CoreModule() {}
 
-	@Override
-	public Set<String> listFunctions() {
-		return BuiltInFunctionDefinitions.getDefinitions()
-			.stream()
-			.map(f -> f.getName())
-			.collect(Collectors.toSet());
-	}
+    @Override
+    public Set<String> listFunctions() {
+        return BuiltInFunctionDefinitions.getDefinitions().stream()
+                .map(f -> f.getName())
+                .collect(Collectors.toSet());
+    }
 
-	@Override
-	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-		return BuiltInFunctionDefinitions.getDefinitions().stream()
-				.filter(f -> f.getName().equalsIgnoreCase(name))
-				.findFirst()
-				.map(Function.identity());
-	}
+    @Override
+    public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+        return BuiltInFunctionDefinitions.getDefinitions().stream()
+                .filter(f -> f.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .map(Function.identity());
+    }
 }

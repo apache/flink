@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import org.apache.calcite.rel.metadata.RelMdUtil
@@ -307,7 +307,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
         assertEquals(2.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(5), null))
         assertEquals(null, mq.getDistinctRowCount(rank, ImmutableBitSet.of(6), null))
         rank match {
-          case r: BatchExecRank if !r.isGlobal => // local rank does not output rank func
+          case r: BatchPhysicalRank if !r.isGlobal => // local rank does not output rank func
           case _ =>
             assertEquals(5.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(7), null))
         }

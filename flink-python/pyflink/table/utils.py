@@ -29,6 +29,7 @@ import pickle
 
 def pandas_to_arrow(schema, timezone, field_types, series):
     import pyarrow as pa
+    import pandas as pd
 
     def create_array(s, t):
         try:
@@ -38,16 +39,34 @@ def pandas_to_arrow(schema, timezone, field_types, series):
                         "pyarrow.Array (%s)."
             raise RuntimeError(error_msg % (s.dtype, t), e)
 
-    arrays = [create_array(
-        tz_convert_to_internal(series[i], field_types[i], timezone),
-        schema.types[i]) for i in range(0, len(schema))]
+    arrays = []
+    for i in range(len(schema)):
+        s = series[i]
+        field_type = field_types[i]
+        schema_type = schema.types[i]
+        if type(s) == pd.DataFrame:
+            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
+                           for j, field in enumerate(schema_type)]
+            struct_arrays, struct_names = zip(*array_names)
+            arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
+        else:
+            arrays.append(create_array(
+                tz_convert_to_internal(s, field_type, timezone), schema_type))
     return pa.RecordBatch.from_arrays(arrays, schema)
 
 
 def arrow_to_pandas(timezone, field_types, batches):
+    def arrow_column_to_pandas(arrow_column, t: DataType):
+        if type(t) == RowType:
+            import pandas as pd
+            series = [column.to_pandas(date_as_object=True).rename(field.name)
+                      for column, field in zip(arrow_column.flatten(), arrow_column.type)]
+            return pd.concat(series, axis=1)
+        else:
+            return arrow_column.to_pandas(date_as_object=True)
     import pyarrow as pa
     table = pa.Table.from_batches(batches)
-    return [tz_convert_from_internal(c.to_pandas(date_as_object=True), t, timezone)
+    return [tz_convert_from_internal(arrow_column_to_pandas(c, t), t, timezone)
             for c, t in zip(table.itercolumns(), field_types)]
 
 
@@ -85,13 +104,13 @@ def to_expression_jarray(exprs):
     return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])
 
 
-def java_to_python_converter(data, field_type: DataType):
+def pickled_bytes_to_python_converter(data, field_type: DataType):
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
         data = zip(list(data[1:]), field_type.field_types())
         fields = []
         for d, d_type in data:
-            fields.append(java_to_python_converter(d, d_type))
+            fields.append(pickled_bytes_to_python_converter(d, d_type))
         result_row = Row(fields)
         result_row.set_row_kind(row_kind)
         return result_row
@@ -110,8 +129,8 @@ def java_to_python_converter(data, field_type: DataType):
             key_type = field_type.key_type
             value_type = field_type.value_type
             zip_kv = zip(data[0], data[1])
-            return dict((java_to_python_converter(k, key_type),
-                         java_to_python_converter(v, value_type))
+            return dict((pickled_bytes_to_python_converter(k, key_type),
+                         pickled_bytes_to_python_converter(v, value_type))
                         for k, v in zip_kv)
         elif isinstance(field_type, FloatType):
             return field_type.from_sql_type(ast.literal_eval(data))
@@ -119,7 +138,7 @@ def java_to_python_converter(data, field_type: DataType):
             element_type = field_type.element_type
             elements = []
             for element_bytes in data:
-                elements.append(java_to_python_converter(element_bytes, element_type))
+                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
             return elements
         else:
             return field_type.from_sql_type(data)

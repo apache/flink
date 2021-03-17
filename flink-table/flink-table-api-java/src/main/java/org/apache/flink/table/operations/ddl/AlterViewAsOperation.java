@@ -21,24 +21,24 @@ package org.apache.flink.table.operations.ddl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Operation to describe an ALTER VIEW ... AS ... statement.
- */
+/** Operation to describe an ALTER VIEW ... AS ... statement. */
 public class AlterViewAsOperation extends AlterViewOperation {
 
-	private final CatalogView newView;
+    private final CatalogView newView;
 
-	public AlterViewAsOperation(ObjectIdentifier viewIdentifier, CatalogView newView) {
-		super(viewIdentifier);
-		this.newView = newView;
-	}
+    public AlterViewAsOperation(ObjectIdentifier viewIdentifier, CatalogView newView) {
+        super(viewIdentifier);
+        this.newView = newView;
+    }
 
-	public CatalogView getNewView() {
-		return newView;
-	}
+    public CatalogView getNewView() {
+        return newView;
+    }
 
-	@Override
-	public String asSummaryString() {
-		return String.format("ALTER VIEW %s AS %s", viewIdentifier.asSummaryString(), newView.getOriginalQuery());
-	}
+    @Override
+    public String asSummaryString() {
+        return String.format(
+                "ALTER VIEW %s AS %s",
+                viewIdentifier.asSummaryString(), newView.getOriginalQuery());
+    }
 }

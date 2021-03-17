@@ -23,11 +23,12 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.planner.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
-import org.apache.flink.table.planner.plan.utils.ExpandUtil
-import com.google.common.collect.ImmutableList
+import org.apache.flink.table.planner.plan.utils.{ExpandUtil, WindowUtil}
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.AggregateCall
@@ -36,6 +37,9 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
+
+import com.google.common.collect.ImmutableList
+
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
@@ -65,43 +69,52 @@ import scala.collection.JavaConversions._
   * +-----+-----+-----+
   *
   * SQL:
-  * SELECT SUM(b), COUNT(DISTINCT c), AVG(b) FROM MyTable GROUP BY a
+  * SELECT SUM(DISTINCT b), COUNT(DISTINCT c), AVG(b) FROM MyTable GROUP BY a
   *
   * flink logical plan:
   * {{{
-  * FlinkLogicalCalc(select=[a, $f1, $f2, CAST(IF(=($f4, 0:BIGINT), null:INTEGER, /($f3, $f4))) AS
-  *     $f3])
-  * +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($2)], agg#1=[$SUM0($3)], agg#2=[$SUM0($4)],
-  *        agg#3=[$SUM0($5)])
-  *    +- FlinkLogicalAggregate(group=[{0, 3}], agg#0=[SUM($1) FILTER $4], agg#1=[COUNT(DISTINCT $2)
-  *           FILTER $5], agg#2=[$SUM0($1) FILTER $4], agg#3=[COUNT($1) FILTER $4])
-  *       +- FlinkLogicalCalc(select=[a, b, c, $f3, =($e, 1) AS $g_1, =($e, 0) AS $g_0])
-  *          +- FlinkLogicalExpand(projects=[{a=[$0], b=[$1], c=[$2], $f3=[$3], $e=[0]},
-  *                 {a=[$0], b=[$1], c=[$2], $f3=[null], $e=[1]}])
-  *             +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(c), 1024) AS $f3])
+  * FlinkLogicalCalc(select=[$f1 AS EXPR$0, $f2 AS EXPR$1, CAST(IF(=($f4, 0:BIGINT), null:INTEGER,
+  *  /($f3, $f4))) AS EXPR$2])
+  * +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($3)], agg#1=[$SUM0($4)], agg#2=[$SUM0($5)],
+  * agg#3=[$SUM0($6)])
+  *    +- FlinkLogicalAggregate(group=[{0, 3, 4}], agg#0=[SUM(DISTINCT $1) FILTER $5],
+  *    agg#1=[COUNT(DISTINCT $2) FILTER $6], agg#2=[$SUM0($1) FILTER $7],
+  *    agg#3=[COUNT($1) FILTER $7])
+  *       +- FlinkLogicalCalc(select=[a, b, c, $f3, $f4, =($e, 1) AS $g_1, =($e, 2) AS $g_2,
+  *       =($e, 3) AS $g_3])
+  *          +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
+  *             +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3,
+  *               MOD(HASH_CODE(c), 1024) AS $f4])
   *                +- FlinkLogicalTableSourceScan(table=[[MyTable,
   *                       source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
   * }}}
   *
-  * '$e = 0' is equivalent to 'group by a, hash(c) % 256'
-  * '$e = 1' is equivalent to 'group by a'
+  * '$e = 1' is equivalent to 'group by a, hash(b) % 1024'
+  * '$e = 2' is equivalent to 'group by a, hash(c) % 1024'
+  * '$e = 3' is equivalent to 'group by a
   *
   * Expanded records:
-  * +-----+-----+-----+------------------+-----+
-  * |  a  |  b  |  c  |  hash(c) % 256   | $e  |
-  * +-----+-----+-----+------------------+-----+        ---+---
-  * |  1  |  1  | null|       null       |  1  |           |
-  * +-----+-----+-----+------------------+-----|  records expanded by record1
-  * |  1  |  1  |  c1 |  hash(c1) % 256  |  0  |           |
-  * +-----+-----+-----+------------------+-----+        ---+---
-  * |  1  |  2  | null|       null       |  1  |           |
-  * +-----+-----+-----+------------------+-----+  records expanded by record2
-  * |  1  |  2  |  c1 |  hash(c1) % 256  |  0  |           |
-  * +-----+-----+-----+------------------+-----+        ---+---
-  * |  2  |  1  | null|       null       |  1  |           |
-  * +-----+-----+-----+------------------+-----+  records expanded by record3
-  * |  2  |  1  |  c2 |  hash(c2) % 256  |  0  |           |
-  * +-----+-----+-----+------------------+-----+        ---+---
+  * +-----+-----+-----+------------------+------------------+-----+
+  * |  a  |  b  |  c  |  hash(b) % 1024  |  hash(c) % 1024  | $e  |
+  * +-----+-----+-----+------------------+------------------+-----+               ---+---
+  * |  1  |  1  |  c1 | hash(b) % 1024   |  null            | 1   |                  |
+  * +-----+-----+-----+------------------+------------------+-----+                  |
+  * |  1  |  1  |  c1 | null             |  hash(c) % 1024 |  2   |    records expanded by record1
+  * +-----+-----+-----+------------------+-----------------+------+                  |
+  * |  1  |  1  |  c1 | null             |  null           |  3   |                  |
+  * +-----+-----+-----+------------------+-----------------+------+               ---+---
+  * |  1  |  2  |  c1 | hash(b) % 1024   |  null           |  1   |                  |
+  * +-----+-----+-----+------------------+-----------------+------+                  |
+  * |  1  |  2  |  c1 | null             |  hash(c) % 1024 |  2   |    records expanded by record2
+  * +-----+-----+-----+------------------+-----------------+------+                  |
+  * |  1  |  2  |  c1 | null             |  null           |  3   |                  |
+  * +-----+-----+-----+------------------+-----------------+------+               ---+---
+  * |  2  |  1  |  c2 | hash(b) % 1024   |  null           |  1   |                  |
+  * +-----+-----+-----+------------------+-----------------+------+                  |
+  * |  2  |  1  |  c2 | null             |  hash(c) % 1024 |  2   |    records expanded by record3
+  * +-----+-----+-----+------------------+-----------------+------+                  |
+  * |  2  |  1  |  c2 |  null            |  null           |  3   |                  |
+  * +-----+-----+-----+------------------+-----------------+------+               ---+---
   *
   * NOTES: this rule is only used for Stream now.
   */
@@ -119,8 +132,15 @@ class SplitAggregateRule extends RelOptRule(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
+    // disable distinct split for processing-time window,
+    // because the semantic is not clear to materialize processing-time window in two aggregates
+    val fmq = call.getMetadataQuery.asInstanceOf[FlinkRelMetadataQuery]
+    val windowProps = fmq.getRelWindowProperties(agg.getInput)
+    val isWindowAgg = WindowUtil.groupingContainsWindowStartEnd(agg.getGroupSet, windowProps)
+    val isProctimeWindowAgg = isWindowAgg && !windowProps.isRowtime
+
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
-      splitDistinctAggEnabled && isAllAggSplittable
+      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -166,12 +186,24 @@ class SplitAggregateRule extends RelOptRule(
     // STEP 2: construct partial aggregates
     val groupSetTreeSet = new util.TreeSet[ImmutableBitSet](ImmutableBitSet.ORDERING)
     val aggInfoToGroupSetMap = new util.HashMap[AggregateCall, ImmutableBitSet]()
+    var newGroupSetsNum = 0
     aggCalls.foreach { aggCall =>
       val groupSet = if (SplitAggregateRule.needAddHashFields(aggCall)) {
         val newIndexes = SplitAggregateRule.getArgIndexes(aggCall).map { argIndex =>
           hashFieldsMap.getOrElse(argIndex, argIndex).asInstanceOf[Integer]
         }.toSeq
-        ImmutableBitSet.of(newIndexes).union(ImmutableBitSet.of(aggGroupSet: _*))
+        val newGroupSet = ImmutableBitSet.of(newIndexes).union(ImmutableBitSet.of(aggGroupSet: _*))
+        // Only increment groupSet number if aggregate call needs add new different hash fields
+        // e.g SQL1: SELECT COUNT(DISTINCT a), MAX(a) FROM T group by b
+        // newGroupSetsNum is 1 because two agg function add same hash field
+        // e.g SQL2: SELECT COUNT(DISTINCT a), COUNT(b) FROM T group by c
+        // newGroupSetsNum is 1 because only COUNT(DISTINCT a) adds a new hash field
+        // e.g SQL3: SELECT COUNT(DISTINCT a), COUNT(DISTINCT b) FROM T group by b
+        // newGroupSetsNum is 2 because COUNT(DISTINCT a), COUNT(DISTINCT b) both add hash field
+        if (!groupSetTreeSet.contains(newGroupSet)) {
+          newGroupSetsNum += 1
+        }
+        newGroupSet
       } else {
         ImmutableBitSet.of(aggGroupSet: _*)
       }
@@ -195,7 +227,7 @@ class SplitAggregateRule extends RelOptRule(
       }
     }
 
-    val needExpand = groupSets.size() > 1
+    val needExpand = newGroupSetsNum > 1
     val duplicateFieldMap = if (needExpand) {
       val (duplicateFieldMap, _) = ExpandUtil.buildExpandNode(
         cluster, relBuilder, partialAggCalls, fullGroupSet, groupSets)

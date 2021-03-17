@@ -34,164 +34,172 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import java.io.IOException;
 
 /**
- * A serialization and deserialization schema for Key Value Pairs that uses Flink's serialization stack to
- * transform typed from and to byte arrays.
+ * A serialization and deserialization schema for Key Value Pairs that uses Flink's serialization
+ * stack to transform typed from and to byte arrays.
  *
  * @param <K> The key type to be serialized.
  * @param <V> The value type to be serialized.
  */
 @PublicEvolving
-public class TypeInformationKeyValueSerializationSchema<K, V> implements KafkaDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K, V>> {
+public class TypeInformationKeyValueSerializationSchema<K, V>
+        implements KafkaDeserializationSchema<Tuple2<K, V>>,
+                KeyedSerializationSchema<Tuple2<K, V>> {
 
-	private static final long serialVersionUID = -5359448468131559102L;
+    private static final long serialVersionUID = -5359448468131559102L;
 
-	/** The serializer for the key. */
-	private final TypeSerializer<K> keySerializer;
+    /** The serializer for the key. */
+    private final TypeSerializer<K> keySerializer;
 
-	/** The serializer for the value. */
-	private final TypeSerializer<V> valueSerializer;
+    /** The serializer for the value. */
+    private final TypeSerializer<V> valueSerializer;
 
-	/** reusable input deserialization buffer. */
-	private final DataInputDeserializer inputDeserializer;
+    /** reusable input deserialization buffer. */
+    private final DataInputDeserializer inputDeserializer;
 
-	/** reusable output serialization buffer for the key. */
-	private transient DataOutputSerializer keyOutputSerializer;
+    /** reusable output serialization buffer for the key. */
+    private transient DataOutputSerializer keyOutputSerializer;
 
-	/** reusable output serialization buffer for the value. */
-	private transient DataOutputSerializer valueOutputSerializer;
+    /** reusable output serialization buffer for the value. */
+    private transient DataOutputSerializer valueOutputSerializer;
 
-	/** The type information, to be returned by {@link #getProducedType()}. It is
-	 * transient, because it is not serializable. Note that this means that the type information
-	 * is not available at runtime, but only prior to the first serialization / deserialization */
-	private final transient TypeInformation<Tuple2<K, V>> typeInfo;
+    /**
+     * The type information, to be returned by {@link #getProducedType()}. It is transient, because
+     * it is not serializable. Note that this means that the type information is not available at
+     * runtime, but only prior to the first serialization / deserialization
+     */
+    private final transient TypeInformation<Tuple2<K, V>> typeInfo;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Creates a new de-/serialization schema for the given types.
-	 *
-	 * @param keyTypeInfo The type information for the key type de-/serialized by this schema.
-	 * @param valueTypeInfo The type information for the value type de-/serialized by this schema.
-	 * @param ec The execution config, which is used to parametrize the type serializers.
-	 */
-	public TypeInformationKeyValueSerializationSchema(TypeInformation<K> keyTypeInfo, TypeInformation<V> valueTypeInfo, ExecutionConfig ec) {
-		this.typeInfo = new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo);
-		this.keySerializer = keyTypeInfo.createSerializer(ec);
-		this.valueSerializer = valueTypeInfo.createSerializer(ec);
-		this.inputDeserializer = new DataInputDeserializer();
-	}
+    /**
+     * Creates a new de-/serialization schema for the given types.
+     *
+     * @param keyTypeInfo The type information for the key type de-/serialized by this schema.
+     * @param valueTypeInfo The type information for the value type de-/serialized by this schema.
+     * @param ec The execution config, which is used to parametrize the type serializers.
+     */
+    public TypeInformationKeyValueSerializationSchema(
+            TypeInformation<K> keyTypeInfo, TypeInformation<V> valueTypeInfo, ExecutionConfig ec) {
+        this.typeInfo = new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo);
+        this.keySerializer = keyTypeInfo.createSerializer(ec);
+        this.valueSerializer = valueTypeInfo.createSerializer(ec);
+        this.inputDeserializer = new DataInputDeserializer();
+    }
 
-	/**
-	 * Creates a new de-/serialization schema for the given types. This constructor accepts the types
-	 * as classes and internally constructs the type information from the classes.
-	 *
-	 * <p>If the types are parametrized and cannot be fully defined via classes, use the constructor
-	 * that accepts {@link TypeInformation} instead.
-	 *
-	 * @param keyClass The class of the key de-/serialized by this schema.
-	 * @param valueClass The class of the value de-/serialized by this schema.
-	 * @param config The execution config, which is used to parametrize the type serializers.
-	 */
-	public TypeInformationKeyValueSerializationSchema(Class<K> keyClass, Class<V> valueClass, ExecutionConfig config) {
-		this(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass), config);
-	}
+    /**
+     * Creates a new de-/serialization schema for the given types. This constructor accepts the
+     * types as classes and internally constructs the type information from the classes.
+     *
+     * <p>If the types are parametrized and cannot be fully defined via classes, use the constructor
+     * that accepts {@link TypeInformation} instead.
+     *
+     * @param keyClass The class of the key de-/serialized by this schema.
+     * @param valueClass The class of the value de-/serialized by this schema.
+     * @param config The execution config, which is used to parametrize the type serializers.
+     */
+    public TypeInformationKeyValueSerializationSchema(
+            Class<K> keyClass, Class<V> valueClass, ExecutionConfig config) {
+        this(
+                TypeExtractor.createTypeInfo(keyClass),
+                TypeExtractor.createTypeInfo(valueClass),
+                config);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Tuple2<K, V> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
-		K key = null;
-		V value = null;
+    @Override
+    public Tuple2<K, V> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+        K key = null;
+        V value = null;
 
-		if (record.key() != null) {
-			inputDeserializer.setBuffer(record.key());
-			key = keySerializer.deserialize(inputDeserializer);
-		}
-		if (record.value() != null) {
-			inputDeserializer.setBuffer(record.value());
-			value = valueSerializer.deserialize(inputDeserializer);
-		}
-		return new Tuple2<>(key, value);
-	}
+        if (record.key() != null) {
+            inputDeserializer.setBuffer(record.key());
+            key = keySerializer.deserialize(inputDeserializer);
+        }
+        if (record.value() != null) {
+            inputDeserializer.setBuffer(record.value());
+            value = valueSerializer.deserialize(inputDeserializer);
+        }
+        return new Tuple2<>(key, value);
+    }
 
-	/**
-	 * This schema never considers an element to signal end-of-stream, so this method returns always false.
-	 * @param nextElement The element to test for the end-of-stream signal.
-	 * @return Returns false.
-	 */
-	@Override
-	public boolean isEndOfStream(Tuple2<K, V> nextElement) {
-		return false;
-	}
+    /**
+     * This schema never considers an element to signal end-of-stream, so this method returns always
+     * false.
+     *
+     * @param nextElement The element to test for the end-of-stream signal.
+     * @return Returns false.
+     */
+    @Override
+    public boolean isEndOfStream(Tuple2<K, V> nextElement) {
+        return false;
+    }
 
-	@Override
-	public byte[] serializeKey(Tuple2<K, V> element) {
-		if (element.f0 == null) {
-			return null;
-		} else {
-			// key is not null. serialize it:
-			if (keyOutputSerializer == null) {
-				keyOutputSerializer = new DataOutputSerializer(16);
-			}
-			try {
-				keySerializer.serialize(element.f0, keyOutputSerializer);
-			}
-			catch (IOException e) {
-				throw new RuntimeException("Unable to serialize record", e);
-			}
-			// check if key byte array size changed
-			byte[] res = keyOutputSerializer.getByteArray();
-			if (res.length != keyOutputSerializer.length()) {
-				byte[] n = new byte[keyOutputSerializer.length()];
-				System.arraycopy(res, 0, n, 0, keyOutputSerializer.length());
-				res = n;
-			}
-			keyOutputSerializer.clear();
-			return res;
-		}
-	}
+    @Override
+    public byte[] serializeKey(Tuple2<K, V> element) {
+        if (element.f0 == null) {
+            return null;
+        } else {
+            // key is not null. serialize it:
+            if (keyOutputSerializer == null) {
+                keyOutputSerializer = new DataOutputSerializer(16);
+            }
+            try {
+                keySerializer.serialize(element.f0, keyOutputSerializer);
+            } catch (IOException e) {
+                throw new RuntimeException("Unable to serialize record", e);
+            }
+            // check if key byte array size changed
+            byte[] res = keyOutputSerializer.getByteArray();
+            if (res.length != keyOutputSerializer.length()) {
+                byte[] n = new byte[keyOutputSerializer.length()];
+                System.arraycopy(res, 0, n, 0, keyOutputSerializer.length());
+                res = n;
+            }
+            keyOutputSerializer.clear();
+            return res;
+        }
+    }
 
-	@Override
-	public byte[] serializeValue(Tuple2<K, V> element) {
-		// if the value is null, its serialized value is null as well.
-		if (element.f1 == null) {
-			return null;
-		}
+    @Override
+    public byte[] serializeValue(Tuple2<K, V> element) {
+        // if the value is null, its serialized value is null as well.
+        if (element.f1 == null) {
+            return null;
+        }
 
-		if (valueOutputSerializer == null) {
-			valueOutputSerializer = new DataOutputSerializer(16);
-		}
+        if (valueOutputSerializer == null) {
+            valueOutputSerializer = new DataOutputSerializer(16);
+        }
 
-		try {
-			valueSerializer.serialize(element.f1, valueOutputSerializer);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Unable to serialize record", e);
-		}
+        try {
+            valueSerializer.serialize(element.f1, valueOutputSerializer);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to serialize record", e);
+        }
 
-		byte[] res = valueOutputSerializer.getByteArray();
-		if (res.length != valueOutputSerializer.length()) {
-			byte[] n = new byte[valueOutputSerializer.length()];
-			System.arraycopy(res, 0, n, 0, valueOutputSerializer.length());
-			res = n;
-		}
-		valueOutputSerializer.clear();
-		return res;
-	}
+        byte[] res = valueOutputSerializer.getByteArray();
+        if (res.length != valueOutputSerializer.length()) {
+            byte[] n = new byte[valueOutputSerializer.length()];
+            System.arraycopy(res, 0, n, 0, valueOutputSerializer.length());
+            res = n;
+        }
+        valueOutputSerializer.clear();
+        return res;
+    }
 
-	@Override
-	public String getTargetTopic(Tuple2<K, V> element) {
-		return null; // we are never overriding the topic
-	}
+    @Override
+    public String getTargetTopic(Tuple2<K, V> element) {
+        return null; // we are never overriding the topic
+    }
 
-	@Override
-	public TypeInformation<Tuple2<K, V>> getProducedType() {
-		if (typeInfo != null) {
-			return typeInfo;
-		}
-		else {
-			throw new IllegalStateException(
-					"The type information is not available after this class has been serialized and distributed.");
-		}
-	}
+    @Override
+    public TypeInformation<Tuple2<K, V>> getProducedType() {
+        if (typeInfo != null) {
+            return typeInfo;
+        } else {
+            throw new IllegalStateException(
+                    "The type information is not available after this class has been serialized and distributed.");
+        }
+    }
 }

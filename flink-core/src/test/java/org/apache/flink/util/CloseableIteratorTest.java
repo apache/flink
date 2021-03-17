@@ -26,57 +26,55 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 
-/**
- * {@link CloseableIterator} test.
- */
+/** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
 public class CloseableIteratorTest {
 
-	private static final String[] ELEMENTS = new String[]{"flink", "blink"};
+    private static final String[] ELEMENTS = new String[] {"flink", "blink"};
 
-	@Test
-	public void testFlattenEmpty() throws Exception {
-		List<CloseableIterator<?>> iterators = asList(
-				CloseableIterator.flatten(),
-				CloseableIterator.flatten(CloseableIterator.empty()),
-				CloseableIterator.flatten(CloseableIterator.flatten()));
-		for (CloseableIterator<?> i : iterators) {
-			assertFalse(i.hasNext());
-			i.close();
-		}
-	}
+    @Test
+    public void testFlattenEmpty() throws Exception {
+        List<CloseableIterator<?>> iterators =
+                asList(
+                        CloseableIterator.flatten(),
+                        CloseableIterator.flatten(CloseableIterator.empty()),
+                        CloseableIterator.flatten(CloseableIterator.flatten()));
+        for (CloseableIterator<?> i : iterators) {
+            assertFalse(i.hasNext());
+            i.close();
+        }
+    }
 
-	@Test
-	public void testFlattenIteration() {
-		CloseableIterator<String> iterator = CloseableIterator.flatten(
-				CloseableIterator.ofElement(ELEMENTS[0], unused -> {
-				}),
-				CloseableIterator.ofElement(ELEMENTS[1], unused -> {
-				})
-		);
+    @Test
+    public void testFlattenIteration() {
+        CloseableIterator<String> iterator =
+                CloseableIterator.flatten(
+                        CloseableIterator.ofElement(ELEMENTS[0], unused -> {}),
+                        CloseableIterator.ofElement(ELEMENTS[1], unused -> {}));
 
-		List<String> iterated = new ArrayList<>();
-		iterator.forEachRemaining(iterated::add);
-		assertArrayEquals(ELEMENTS, iterated.toArray());
-	}
+        List<String> iterated = new ArrayList<>();
+        iterator.forEachRemaining(iterated::add);
+        assertArrayEquals(ELEMENTS, iterated.toArray());
+    }
 
-	@Test(expected = TestException.class)
-	public void testFlattenErrorHandling() throws Exception {
-		List<String> closed = new ArrayList<>();
-		CloseableIterator<String> iterator = CloseableIterator.flatten(
-				CloseableIterator.ofElement(ELEMENTS[0], e -> {
-					closed.add(e);
-					throw new TestException();
-				}),
-				CloseableIterator.ofElement(ELEMENTS[1], closed::add)
-		);
-		try {
-			iterator.close();
-		} finally {
-			assertArrayEquals(ELEMENTS, closed.toArray());
-		}
-	}
+    @Test(expected = TestException.class)
+    public void testFlattenErrorHandling() throws Exception {
+        List<String> closed = new ArrayList<>();
+        CloseableIterator<String> iterator =
+                CloseableIterator.flatten(
+                        CloseableIterator.ofElement(
+                                ELEMENTS[0],
+                                e -> {
+                                    closed.add(e);
+                                    throw new TestException();
+                                }),
+                        CloseableIterator.ofElement(ELEMENTS[1], closed::add));
+        try {
+            iterator.close();
+        } finally {
+            assertArrayEquals(ELEMENTS, closed.toArray());
+        }
+    }
 
-	private static class TestException extends RuntimeException {
-	}
+    private static class TestException extends RuntimeException {}
 }

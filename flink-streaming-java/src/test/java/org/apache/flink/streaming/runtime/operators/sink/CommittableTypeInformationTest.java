@@ -23,46 +23,46 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
-/**
- * Test for {@link CommittableTypeInformation}.
- */
+/** Test for {@link CommittableTypeInformation}. */
 public class CommittableTypeInformationTest
-		extends TypeInformationTestBase<CommittableTypeInformation<CommittableTypeInformationTest.Dummy>> {
+        extends TypeInformationTestBase<
+                CommittableTypeInformation<CommittableTypeInformationTest.Dummy>> {
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected CommittableTypeInformation<Dummy>[] getTestData() {
-		return new CommittableTypeInformation[]{
-				new CommittableTypeInformation<>(Dummy.class, SimpleVersionedDummySerializer::new)};
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected CommittableTypeInformation<Dummy>[] getTestData() {
+        return new CommittableTypeInformation[] {
+            new CommittableTypeInformation<>(Dummy.class, SimpleVersionedDummySerializer::new)
+        };
+    }
 
-	static class Dummy {}
+    static class Dummy {}
 
-	static class SimpleVersionedDummySerializer implements SimpleVersionedSerializer<Dummy> {
+    static class SimpleVersionedDummySerializer implements SimpleVersionedSerializer<Dummy> {
 
-		@Override
-		public int getVersion() {
-			return 1;
-		}
+        @Override
+        public int getVersion() {
+            return 1;
+        }
 
-		@Override
-		public byte[] serialize(Dummy obj) throws IOException {
-			return new byte[0];
-		}
+        @Override
+        public byte[] serialize(Dummy obj) throws IOException {
+            return new byte[0];
+        }
 
-		@Override
-		public Dummy deserialize(int version, byte[] serialized) throws IOException {
-			return new Dummy();
-		}
+        @Override
+        public Dummy deserialize(int version, byte[] serialized) throws IOException {
+            return new Dummy();
+        }
 
-		@Override
-		public int hashCode() {
-			return 1;
-		}
+        @Override
+        public int hashCode() {
+            return 1;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof SimpleVersionedDummySerializer;
-		}
-	}
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof SimpleVersionedDummySerializer;
+        }
+    }
 }

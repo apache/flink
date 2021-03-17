@@ -30,83 +30,94 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link KubernetesRunningJobsRegistry} operations.
- */
+/** Tests for {@link KubernetesRunningJobsRegistry} operations. */
 public class KubernetesRunningJobsRegistryTest extends KubernetesHighAvailabilityTestBase {
 
-	private final JobID jobID = JobID.generate();
+    private final JobID jobID = JobID.generate();
 
-	@Test
-	public void testSetAndGetJobStatus() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					leaderCallbackGrantLeadership();
+    @Test
+    public void testSetAndGetJobStatus() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
 
-					final KubernetesRunningJobsRegistry runningJobsRegistry = new KubernetesRunningJobsRegistry(
-						flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
-					runningJobsRegistry.setJobRunning(jobID);
-					assertThat(
-						runningJobsRegistry.getJobSchedulingStatus(jobID),
-						is(RunningJobsRegistry.JobSchedulingStatus.RUNNING));
-				});
-		}};
-	}
+                            final KubernetesRunningJobsRegistry runningJobsRegistry =
+                                    new KubernetesRunningJobsRegistry(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            runningJobsRegistry.setJobRunning(jobID);
+                            assertThat(
+                                    runningJobsRegistry.getJobSchedulingStatus(jobID),
+                                    is(RunningJobsRegistry.JobSchedulingStatus.RUNNING));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testGetJobStatusNonExisting() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					leaderCallbackGrantLeadership();
+    @Test
+    public void testGetJobStatusNonExisting() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
 
-					final KubernetesRunningJobsRegistry runningJobsRegistry = new KubernetesRunningJobsRegistry(
-						flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
-					final JobID jobId = JobID.generate();
-					assertThat(
-						runningJobsRegistry.getJobSchedulingStatus(jobId),
-						is(RunningJobsRegistry.JobSchedulingStatus.PENDING));
-				});
-		}};
-	}
+                            final KubernetesRunningJobsRegistry runningJobsRegistry =
+                                    new KubernetesRunningJobsRegistry(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            final JobID jobId = JobID.generate();
+                            assertThat(
+                                    runningJobsRegistry.getJobSchedulingStatus(jobId),
+                                    is(RunningJobsRegistry.JobSchedulingStatus.PENDING));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testGetJobStatusConfigMapNotExist() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					final KubernetesRunningJobsRegistry runningJobsRegistry = new KubernetesRunningJobsRegistry(
-						flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
-					try {
-						runningJobsRegistry.getJobSchedulingStatus(JobID.generate());
-						fail("Exception should be thrown.");
-					} catch (IOException ex) {
-						final String msg = "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist";
-						assertThat(ex, FlinkMatchers.containsMessage(msg));
-					}
-				});
-		}};
-	}
+    @Test
+    public void testGetJobStatusConfigMapNotExist() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final KubernetesRunningJobsRegistry runningJobsRegistry =
+                                    new KubernetesRunningJobsRegistry(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            try {
+                                runningJobsRegistry.getJobSchedulingStatus(JobID.generate());
+                                fail("Exception should be thrown.");
+                            } catch (IOException ex) {
+                                final String msg =
+                                        "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist";
+                                assertThat(ex, FlinkMatchers.containsMessage(msg));
+                            }
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testClearJob() throws Exception {
-		new Context() {{
-			runTest(
-				() -> {
-					leaderCallbackGrantLeadership();
+    @Test
+    public void testClearJob() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
 
-					final KubernetesRunningJobsRegistry runningJobsRegistry = new KubernetesRunningJobsRegistry(
-						flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
-					runningJobsRegistry.setJobFinished(jobID);
-					assertThat(
-						runningJobsRegistry.getJobSchedulingStatus(jobID),
-						is(RunningJobsRegistry.JobSchedulingStatus.DONE));
-					runningJobsRegistry.clearJob(jobID);
-					assertThat(
-						runningJobsRegistry.getJobSchedulingStatus(jobID),
-						is(RunningJobsRegistry.JobSchedulingStatus.PENDING));
-				});
-		}};
-	}
+                            final KubernetesRunningJobsRegistry runningJobsRegistry =
+                                    new KubernetesRunningJobsRegistry(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            runningJobsRegistry.setJobFinished(jobID);
+                            assertThat(
+                                    runningJobsRegistry.getJobSchedulingStatus(jobID),
+                                    is(RunningJobsRegistry.JobSchedulingStatus.DONE));
+                            runningJobsRegistry.clearJob(jobID);
+                            assertThat(
+                                    runningJobsRegistry.getJobSchedulingStatus(jobID),
+                                    is(RunningJobsRegistry.JobSchedulingStatus.PENDING));
+                        });
+            }
+        };
+    }
 }

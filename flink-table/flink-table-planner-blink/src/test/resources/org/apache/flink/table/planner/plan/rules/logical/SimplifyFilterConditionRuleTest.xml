@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE i = 5 AND j = 6) > 0)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
@@ -35,7 +35,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
@@ -55,7 +55,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
@@ -70,7 +70,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
@@ -90,7 +90,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true AND EXISTS (SELECT * FROM y WHERE x.a = y.d AND 2=2 AND (SELECT count(*) FROM z WHERE (i = 5 AND j = 6) OR (NOT (i <> 5) AND j = 7) AND true) > 0)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true, EXISTS({
@@ -105,7 +105,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($2, 3), EXISTS({
@@ -125,14 +125,14 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT(a <> 1) AND c = 3) AND true]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($2, 3), true))])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), =($2, 3)))])
@@ -144,7 +144,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE (d = 1 AND e = 2) OR (NOT (d <> 1) AND e = 3)) AND true]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
@@ -154,7 +154,7 @@ LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($1, 3
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -169,7 +169,7 @@ LogicalFilter(condition=[AND(SEARCH($0, Sarg[1]), SEARCH($1, Sarg[2L:BIGINT, 3L:
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE (a = 1 AND b = 2) OR (NOT (a <> 1) AND b = 3) AND true AND EXISTS (SELECT * FROM y WHERE d > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($1, 3), true, EXISTS({
@@ -179,7 +179,7 @@ LogicalFilter(condition=[>($0, 10)])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(=($0, 1), OR(=($1, 2), AND(=($1, 3), EXISTS({
@@ -194,7 +194,7 @@ LogicalFilter(condition=[>($0, 10)])
     <Resource name="sql">
       <![CDATA[SELECT * FROM x WHERE EXISTS (SELECT * FROM y WHERE d IN (SELECT i FROM z WHERE (i = 1 AND j = 2) OR (NOT (i <> 1) AND j = 3) AND true) AND e > 10)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
@@ -208,7 +208,7 @@ LogicalProject(i=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({

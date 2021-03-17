@@ -28,47 +28,51 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 
 /**
- * This test starts a cluster with 100 task managers and runs connected components
- * with a parallelism of 100.
+ * This test starts a cluster with 100 task managers and runs connected components with a
+ * parallelism of 100.
  */
 public class HighParallelismIterationsTestProgram {
 
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// read vertex and edge data
-		DataSet<Long> vertices = ConnectedComponentsData.getDefaultVertexDataSet(env)
-				.rebalance();
+        // read vertex and edge data
+        DataSet<Long> vertices = ConnectedComponentsData.getDefaultVertexDataSet(env).rebalance();
 
-		DataSet<Tuple2<Long, Long>> edges = ConnectedComponentsData.getDefaultEdgeDataSet(env)
-				.rebalance()
-				.flatMap(new ConnectedComponents.UndirectEdge());
+        DataSet<Tuple2<Long, Long>> edges =
+                ConnectedComponentsData.getDefaultEdgeDataSet(env)
+                        .rebalance()
+                        .flatMap(new ConnectedComponents.UndirectEdge());
 
-		// assign the initial components (equal to the vertex id)
-		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices
-				.map(new ConnectedComponents.DuplicateValue<>());
+        // assign the initial components (equal to the vertex id)
+        DataSet<Tuple2<Long, Long>> verticesWithInitialId =
+                vertices.map(new ConnectedComponents.DuplicateValue<>());
 
-		// open a delta iteration
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
+        // open a delta iteration
+        DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+                verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
 
-		// apply the step logic: join with the edges, select the minimum neighbor,
-		// update if the component of the candidate is smaller
-		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges)
-				.where(0).equalTo(0)
-				.with(new ConnectedComponents.NeighborWithComponentIDJoin())
+        // apply the step logic: join with the edges, select the minimum neighbor,
+        // update if the component of the candidate is smaller
+        DataSet<Tuple2<Long, Long>> changes =
+                iteration
+                        .getWorkset()
+                        .join(edges)
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.NeighborWithComponentIDJoin())
+                        .groupBy(0)
+                        .aggregate(Aggregations.MIN, 1)
+                        .join(iteration.getSolutionSet())
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.ComponentIdFilter());
 
-				.groupBy(0).aggregate(Aggregations.MIN, 1)
+        // close the delta iteration (delta and new workset are identical)
+        DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-				.join(iteration.getSolutionSet())
-				.where(0).equalTo(0)
-				.with(new ConnectedComponents.ComponentIdFilter());
+        result.output(new DiscardingOutputFormat<>());
 
-		// close the delta iteration (delta and new workset are identical)
-		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
-
-		result.output(new DiscardingOutputFormat<>());
-
-		env.execute();
-	}
+        env.execute();
+    }
 }

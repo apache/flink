@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
+import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
-import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
@@ -95,6 +95,28 @@ object RexNodeExtractor extends Logging {
       functionCatalog: FunctionCatalog,
       catalogManager: CatalogManager,
       timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
+    val inputNames = inputFieldNames.asScala.toArray
+    val converter = new RexNodeToExpressionConverter(
+      rexBuilder, inputNames, functionCatalog, catalogManager, timeZone)
+    val (convertibleRexNodes, unconvertedRexNodes) = extractConjunctiveConditions(
+      expr, maxCnfNodeCount, rexBuilder, converter)
+    val convertedExpressions = convertibleRexNodes.map(_.accept(converter).get)
+    (convertedExpressions.toArray, unconvertedRexNodes)
+  }
+
+  /**
+   * Convert rexNode into independent CNF expressions.
+   *
+   * @param expr            The RexNode to analyze
+   * @param rexBuilder      The factory to build CNF expressions
+   * @param converter The function catalog
+   * @return convertible rex nodes and unconverted rex nodes
+   */
+  def extractConjunctiveConditions(
+      expr: RexNode,
+      maxCnfNodeCount: Int,
+      rexBuilder: RexBuilder,
+      converter: RexNodeToExpressionConverter): (Array[RexNode], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
 
@@ -108,18 +130,15 @@ object RexNodeExtractor extends Logging {
     // converts the cnf condition to a list of AND conditions
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
-    val convertedExpressions = new mutable.ArrayBuffer[Expression]
+    val convertibleRexNodes = new mutable.ArrayBuffer[RexNode]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
-    val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(
-      rexBuilder, inputNames, functionCatalog, catalogManager, timeZone)
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
-        case Some(expression) => convertedExpressions += expression
+        case Some(_) => convertibleRexNodes += rex
         case None => unconvertedRexNodes += rex
       }
     })
-    (convertedExpressions.toArray, unconvertedRexNodes.toArray)
+    (convertibleRexNodes.toArray, unconvertedRexNodes.toArray)
   }
 
   @VisibleForTesting

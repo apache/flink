@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecIntermediateTableScan, StreamPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalIntermediateTableScan, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -64,7 +64,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
-        MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
+        new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
       }  else {
         MiniBatchIntervalTrait.NONE.getMiniBatchInterval
       }
@@ -246,7 +246,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         rel: RelNode,
         miniBatchInterval: MiniBatchInterval): Unit = {
       rel match {
-        case _: StreamExecDataStreamScan | _: StreamExecIntermediateTableScan =>
+        case _: StreamPhysicalDataStreamScan | _: StreamPhysicalIntermediateTableScan =>
           val scan = rel.asInstanceOf[TableScan]
           val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
           val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
@@ -303,12 +303,14 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       modifyKindSet: ModifyKindSet,
       isUpdateBeforeRequired: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
-    val monotonicity = FlinkRelMetadataQuery
+    val fmq = FlinkRelMetadataQuery
       .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
-      .getRelModifiedMonotonicity(relNode)
+    val monotonicity = fmq.getRelModifiedMonotonicity(relNode)
+    val windowProperties = fmq.getRelWindowProperties(relNode)
     val statistic = FlinkStatistic.builder()
       .uniqueKeys(uniqueKeys)
       .relModifiedMonotonicity(monotonicity)
+      .relWindowProperties(windowProperties)
       .build()
     new IntermediateRelTable(
       Collections.singletonList(name),

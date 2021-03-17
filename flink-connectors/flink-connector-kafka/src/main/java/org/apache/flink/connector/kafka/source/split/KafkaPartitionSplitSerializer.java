@@ -29,39 +29,42 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * The {@link org.apache.flink.core.io.SimpleVersionedSerializer serializer} for {@link KafkaPartitionSplit}.
+ * The {@link org.apache.flink.core.io.SimpleVersionedSerializer serializer} for {@link
+ * KafkaPartitionSplit}.
  */
-public class KafkaPartitionSplitSerializer implements SimpleVersionedSerializer<KafkaPartitionSplit> {
+public class KafkaPartitionSplitSerializer
+        implements SimpleVersionedSerializer<KafkaPartitionSplit> {
 
-	private static final int CURRENT_VERSION = 0;
+    private static final int CURRENT_VERSION = 0;
 
-	@Override
-	public int getVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	public byte[] serialize(KafkaPartitionSplit split) throws IOException {
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				DataOutputStream out = new DataOutputStream(baos)) {
-			out.writeUTF(split.getTopic());
-			out.writeInt(split.getPartition());
-			out.writeLong(split.getStartingOffset());
-			out.writeLong(split.getStoppingOffset().orElse(KafkaPartitionSplit.NO_STOPPING_OFFSET));
-			out.flush();
-			return baos.toByteArray();
-		}
-	}
+    @Override
+    public byte[] serialize(KafkaPartitionSplit split) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream out = new DataOutputStream(baos)) {
+            out.writeUTF(split.getTopic());
+            out.writeInt(split.getPartition());
+            out.writeLong(split.getStartingOffset());
+            out.writeLong(split.getStoppingOffset().orElse(KafkaPartitionSplit.NO_STOPPING_OFFSET));
+            out.flush();
+            return baos.toByteArray();
+        }
+    }
 
-	@Override
-	public KafkaPartitionSplit deserialize(int version, byte[] serialized) throws IOException {
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-				DataInputStream in = new DataInputStream(bais)) {
-			String topic = in.readUTF();
-			int partition = in.readInt();
-			long offset = in.readLong();
-			long stoppingOffset = in.readLong();
-			return new KafkaPartitionSplit(new TopicPartition(topic, partition), offset, stoppingOffset);
-		}
-	}
+    @Override
+    public KafkaPartitionSplit deserialize(int version, byte[] serialized) throws IOException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
+                DataInputStream in = new DataInputStream(bais)) {
+            String topic = in.readUTF();
+            int partition = in.readInt();
+            long offset = in.readLong();
+            long stoppingOffset = in.readLong();
+            return new KafkaPartitionSplit(
+                    new TopicPartition(topic, partition), offset, stoppingOffset);
+        }
+    }
 }

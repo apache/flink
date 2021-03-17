@@ -42,118 +42,126 @@ import static org.apache.flink.kubernetes.utils.Constants.NAME_SEPARATOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of the {@link AbstractHaServices} using Apache ZooKeeper.
+ * An implementation of the {@link AbstractHaServices} using Kubernetes.
  *
  * <p>All the HA information relevant for a specific component will be stored in a single ConfigMap.
  * For example, the Dispatcher's ConfigMap would then contain the current leader, the running jobs
- * and the pointers to the persisted JobGraphs.
- * The JobManager's ConfigMap would then contain the current leader, the pointers to the checkpoints
- * and the checkpoint ID counter.
+ * and the pointers to the persisted JobGraphs. The JobManager's ConfigMap would then contain the
+ * current leader, the pointers to the checkpoints and the checkpoint ID counter.
  *
- * <p>The ConfigMap name will be created with the pattern "{clusterId}-{componentName}-leader". Given that the cluster
- * id is configured to "k8s-ha-app1", then we could get the following ConfigMap names.
- * e.g. k8s-ha-app1-restserver-leader, k8s-ha-app1-00000000000000000000000000000000-jobmanager-leader
+ * <p>The ConfigMap name will be created with the pattern "{clusterId}-{componentName}-leader".
+ * Given that the cluster id is configured to "k8s-ha-app1", then we could get the following
+ * ConfigMap names. e.g. k8s-ha-app1-restserver-leader,
+ * k8s-ha-app1-00000000000000000000000000000000-jobmanager-leader
  *
  * <p>Note that underline("_") is not allowed in Kubernetes ConfigMap name.
  */
 public class KubernetesHaServices extends AbstractHaServices {
 
-	private final String clusterId;
+    private final String clusterId;
 
-	/** Kubernetes client. */
-	private final FlinkKubeClient kubeClient;
+    /** Kubernetes client. */
+    private final FlinkKubeClient kubeClient;
 
-	private static final String RESOURCE_MANAGER_NAME = "resourcemanager";
+    private static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
-	private static final String DISPATCHER_NAME = "dispatcher";
+    private static final String DISPATCHER_NAME = "dispatcher";
 
-	private static final String JOB_MANAGER_NAME = "jobmanager";
+    private static final String JOB_MANAGER_NAME = "jobmanager";
 
-	private static final String REST_SERVER_NAME = "restserver";
+    private static final String REST_SERVER_NAME = "restserver";
 
-	private static final String LEADER_SUFFIX = "leader";
+    private static final String LEADER_SUFFIX = "leader";
 
-	/**
-	 * Each {@link KubernetesHaServices} will have a dedicated lock identity for all the components above. Different
-	 * instances will have different identities.
-	 */
-	private final String lockIdentity;
+    /**
+     * Each {@link KubernetesHaServices} will have a dedicated lock identity for all the components
+     * above. Different instances will have different identities.
+     */
+    private final String lockIdentity;
 
-	KubernetesHaServices(
-			FlinkKubeClient kubeClient,
-			Executor executor,
-			Configuration config,
-			BlobStoreService blobStoreService) {
+    KubernetesHaServices(
+            FlinkKubeClient kubeClient,
+            Executor executor,
+            Configuration config,
+            BlobStoreService blobStoreService) {
 
-		super(config, executor, blobStoreService);
-		this.kubeClient = checkNotNull(kubeClient);
-		this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
+        super(config, executor, blobStoreService);
+        this.kubeClient = checkNotNull(kubeClient);
+        this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
 
-		lockIdentity = UUID.randomUUID().toString();
-	}
+        lockIdentity = UUID.randomUUID().toString();
+    }
 
-	@Override
-	public LeaderElectionService createLeaderElectionService(String leaderName) {
-		final KubernetesLeaderElectionConfiguration leaderConfig = new KubernetesLeaderElectionConfiguration(
-			leaderName, lockIdentity, configuration);
-		return new DefaultLeaderElectionService(
-			new KubernetesLeaderElectionDriverFactory(kubeClient, leaderConfig));
-	}
+    @Override
+    public LeaderElectionService createLeaderElectionService(String leaderName) {
+        final KubernetesLeaderElectionConfiguration leaderConfig =
+                new KubernetesLeaderElectionConfiguration(leaderName, lockIdentity, configuration);
+        return new DefaultLeaderElectionService(
+                new KubernetesLeaderElectionDriverFactory(kubeClient, leaderConfig));
+    }
 
-	@Override
-	public LeaderRetrievalService createLeaderRetrievalService(String leaderName) {
-		return new DefaultLeaderRetrievalService(new KubernetesLeaderRetrievalDriverFactory(kubeClient, leaderName));
-	}
+    @Override
+    public LeaderRetrievalService createLeaderRetrievalService(String leaderName) {
+        return new DefaultLeaderRetrievalService(
+                new KubernetesLeaderRetrievalDriverFactory(kubeClient, leaderName));
+    }
 
-	@Override
-	public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-		return new KubernetesCheckpointRecoveryFactory(
-			kubeClient, configuration, ioExecutor, this::getLeaderNameForJobManager, lockIdentity);
-	}
+    @Override
+    public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
+        return new KubernetesCheckpointRecoveryFactory(
+                kubeClient,
+                configuration,
+                ioExecutor,
+                this::getLeaderNameForJobManager,
+                lockIdentity);
+    }
 
-	@Override
-	public JobGraphStore createJobGraphStore() throws Exception {
-		return KubernetesUtils.createJobGraphStore(
-			configuration, kubeClient, getLeaderNameForDispatcher(), lockIdentity);
-	}
+    @Override
+    public JobGraphStore createJobGraphStore() throws Exception {
+        return KubernetesUtils.createJobGraphStore(
+                configuration, kubeClient, getLeaderNameForDispatcher(), lockIdentity);
+    }
 
-	@Override
-	public RunningJobsRegistry createRunningJobsRegistry() {
-		return new KubernetesRunningJobsRegistry(kubeClient, getLeaderNameForDispatcher(), lockIdentity);
-	}
+    @Override
+    public RunningJobsRegistry createRunningJobsRegistry() {
+        return new KubernetesRunningJobsRegistry(
+                kubeClient, getLeaderNameForDispatcher(), lockIdentity);
+    }
 
-	@Override
-	public void internalClose() {
-		kubeClient.close();
-	}
+    @Override
+    public void internalClose() {
+        kubeClient.close();
+    }
 
-	@Override
-	public void internalCleanup() throws Exception {
-		kubeClient.deleteConfigMapsByLabels(
-			KubernetesUtils.getConfigMapLabels(clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY)).get();
-	}
+    @Override
+    public void internalCleanup() throws Exception {
+        kubeClient
+                .deleteConfigMapsByLabels(
+                        KubernetesUtils.getConfigMapLabels(
+                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                .get();
+    }
 
-	@Override
-	protected String getLeaderNameForResourceManager() {
-		return getLeaderName(RESOURCE_MANAGER_NAME);
-	}
+    @Override
+    protected String getLeaderNameForResourceManager() {
+        return getLeaderName(RESOURCE_MANAGER_NAME);
+    }
 
-	@Override
-	protected String getLeaderNameForDispatcher() {
-		return getLeaderName(DISPATCHER_NAME);
-	}
+    @Override
+    protected String getLeaderNameForDispatcher() {
+        return getLeaderName(DISPATCHER_NAME);
+    }
 
-	public String getLeaderNameForJobManager(final JobID jobID) {
-		return getLeaderName(jobID.toString() + NAME_SEPARATOR + JOB_MANAGER_NAME);
-	}
+    public String getLeaderNameForJobManager(final JobID jobID) {
+        return getLeaderName(jobID.toString() + NAME_SEPARATOR + JOB_MANAGER_NAME);
+    }
 
-	@Override
-	protected String getLeaderNameForRestServer() {
-		return getLeaderName(REST_SERVER_NAME);
-	}
+    @Override
+    protected String getLeaderNameForRestServer() {
+        return getLeaderName(REST_SERVER_NAME);
+    }
 
-	private String getLeaderName(String component) {
-		return clusterId + NAME_SEPARATOR + component + NAME_SEPARATOR + LEADER_SUFFIX;
-	}
+    private String getLeaderName(String component) {
+        return clusterId + NAME_SEPARATOR + component + NAME_SEPARATOR + LEADER_SUFFIX;
+    }
 }
-

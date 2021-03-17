@@ -24,39 +24,38 @@ import java.io.Serializable;
 
 /**
  * The serialization schema describes how to turn a data object into a different serialized
- * representation. Most data sinks (for example Apache Kafka) require the data to be handed
- * to them in a specific format (for example as byte strings).
+ * representation. Most data sinks (for example Apache Kafka) require the data to be handed to them
+ * in a specific format (for example as byte strings).
  *
  * @param <T> The type to be serialized.
- *
  * @deprecated Use {@link KafkaSerializationSchema}.
  */
 @Deprecated
 @PublicEvolving
 public interface KeyedSerializationSchema<T> extends Serializable {
 
-	/**
-	 * Serializes the key of the incoming element to a byte array
-	 * This method might return null if no key is available.
-	 *
-	 * @param element The incoming element to be serialized
-	 * @return the key of the element as a byte array
-	 */
-	byte[] serializeKey(T element);
+    /**
+     * Serializes the key of the incoming element to a byte array This method might return null if
+     * no key is available.
+     *
+     * @param element The incoming element to be serialized
+     * @return the key of the element as a byte array
+     */
+    byte[] serializeKey(T element);
 
-	/**
-	 * Serializes the value of the incoming element to a byte array.
-	 *
-	 * @param element The incoming element to be serialized
-	 * @return the value of the element as a byte array
-	 */
-	byte[] serializeValue(T element);
+    /**
+     * Serializes the value of the incoming element to a byte array.
+     *
+     * @param element The incoming element to be serialized
+     * @return the value of the element as a byte array
+     */
+    byte[] serializeValue(T element);
 
-	/**
-	 * Optional method to determine the target topic for the element.
-	 *
-	 * @param element Incoming element to determine the target topic from
-	 * @return null or the target topic
-	 */
-	String getTargetTopic(T element);
+    /**
+     * Optional method to determine the target topic for the element.
+     *
+     * @param element Incoming element to determine the target topic from
+     * @return null or the target topic
+     */
+    String getTargetTopic(T element);
 }

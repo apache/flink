@@ -67,319 +67,399 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link MesosResourceManagerDriver}.
- */
-public class MesosResourceManagerDriverTest extends ResourceManagerDriverTestBase<RegisteredMesosWorkerNode> {
+/** Tests for {@link MesosResourceManagerDriver}. */
+public class MesosResourceManagerDriverTest
+        extends ResourceManagerDriverTestBase<RegisteredMesosWorkerNode> {
 
-	private static final Duration TIMEOUT_DURATION = Duration.create(TIMEOUT_SEC, TimeUnit.SECONDS);
+    private static final Duration TIMEOUT_DURATION = Duration.create(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-	private static final Protos.SlaveID SLAVE_ID = Protos.SlaveID.newBuilder().setValue("slave-id").build();
-	private static final String SLAVE_HOST = "slave-host";
+    private static final Protos.SlaveID SLAVE_ID =
+            Protos.SlaveID.newBuilder().setValue("slave-id").build();
+    private static final String SLAVE_HOST = "slave-host";
 
-	@Test
-	public void testAcceptOffers() throws Exception {
-		final CompletableFuture<RegisteredMesosWorkerNode> requestResourceFuture = new CompletableFuture<>();
-		new Context() {{
-			runTest(() -> {
-				runInMainThread(() -> getDriver()
-						.requestResource(TASK_EXECUTOR_PROCESS_SPEC)
-						.thenAccept(requestResourceFuture::complete));
+    @Test
+    public void testAcceptOffers() throws Exception {
+        final CompletableFuture<RegisteredMesosWorkerNode> requestResourceFuture =
+                new CompletableFuture<>();
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getDriver()
+                                                    .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
+                                                    .thenAccept(requestResourceFuture::complete));
 
-				requestResourceFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS).getResourceID();
-			});
-		}};
-	}
+                            requestResourceFuture
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                    .getResourceID();
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testWorkerFailed() throws Exception {
-		new Context() {{
-			final CompletableFuture<ResourceID> workerTerminatedFuture = new CompletableFuture<>();
-			resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer((resourceId, ignore) -> workerTerminatedFuture.complete(resourceId));
+    @Test
+    public void testWorkerFailed() throws Exception {
+        new Context() {
+            {
+                final CompletableFuture<ResourceID> workerTerminatedFuture =
+                        new CompletableFuture<>();
+                resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(
+                        (resourceId, ignore) -> workerTerminatedFuture.complete(resourceId));
 
-			preparePreviousAttemptWorkers();
-			final TaskMonitor.TaskTerminated taskTerminated = new TaskMonitor.TaskTerminated(
-					previousAttemptLaunchedWorker.taskID(),
-					Protos.TaskStatus.newBuilder()
-							.setTaskId(previousAttemptLaunchedWorker.taskID())
-							.setSlaveId(SLAVE_ID)
-							.setState(Protos.TaskState.TASK_FAILED)
-							.build());
+                preparePreviousAttemptWorkers();
+                final TaskMonitor.TaskTerminated taskTerminated =
+                        new TaskMonitor.TaskTerminated(
+                                previousAttemptLaunchedWorker.taskID(),
+                                Protos.TaskStatus.newBuilder()
+                                        .setTaskId(previousAttemptLaunchedWorker.taskID())
+                                        .setSlaveId(SLAVE_ID)
+                                        .setState(Protos.TaskState.TASK_FAILED)
+                                        .build());
 
-			runTest(() -> {
-				getDriverSelfActor().tell(taskTerminated, null);
-				assertThat(
-						workerTerminatedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS).toString(),
-						is(previousAttemptLaunchedWorker.taskID().getValue()));
-			});
-		}};
-	}
+                runTest(
+                        () -> {
+                            getDriverSelfActor().tell(taskTerminated, null);
+                            assertThat(
+                                    workerTerminatedFuture
+                                            .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                            .toString(),
+                                    is(previousAttemptLaunchedWorker.taskID().getValue()));
+                        });
+            }
+        };
+    }
 
-	@Test
-	public void testClearStateAfterRevokeLeadership() throws Exception {
-		new Context() {{
-			preparePreviousAttemptWorkers();
-			runTest(() -> {
-				runInMainThread(() -> getDriver().onRevokeLeadership());
+    @Test
+    public void testClearStateAfterRevokeLeadership() throws Exception {
+        new Context() {
+            {
+                preparePreviousAttemptWorkers();
+                runTest(
+                        () -> {
+                            runInMainThread(() -> getDriver().onRevokeLeadership());
 
-				assertThat(schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(true));
-				((MesosResourceManagerDriver) getDriver()).assertStateCleared();
-				connectionMonitorStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-				taskRouterStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-				launchCoordinatorStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-				reconciliationCoordinatorStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			});
-		}};
-	}
+                            assertThat(
+                                    schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    is(true));
+                            ((MesosResourceManagerDriver) getDriver()).assertStateCleared();
+                            connectionMonitorStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            taskRouterStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            launchCoordinatorStoppedFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                            reconciliationCoordinatorStoppedFuture.get(
+                                    TIMEOUT_SEC, TimeUnit.SECONDS);
+                        });
+            }
+        };
+    }
 
-	@Override
-	protected Context createContext() {
-		return new Context();
-	}
+    @Override
+    protected Context createContext() {
+        return new Context();
+    }
 
-	private class Context extends ResourceManagerDriverTestBase<RegisteredMesosWorkerNode>.Context {
-		private final MesosWorkerStore.Worker previousAttemptNewWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-new-worker").build());
-		private final MesosWorkerStore.Worker previousAttemptReleasedWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-released-worker").build())
-				.launchWorker(SLAVE_ID, SLAVE_HOST)
-				.releaseWorker();
-		final MesosWorkerStore.Worker previousAttemptLaunchedWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-launched-worker").build())
-				.launchWorker(SLAVE_ID, SLAVE_HOST);
+    private class Context extends ResourceManagerDriverTestBase<RegisteredMesosWorkerNode>.Context {
+        private final MesosWorkerStore.Worker previousAttemptNewWorker =
+                MesosWorkerStore.Worker.newWorker(
+                        Protos.TaskID.newBuilder().setValue("previous-new-worker").build());
+        private final MesosWorkerStore.Worker previousAttemptReleasedWorker =
+                MesosWorkerStore.Worker.newWorker(
+                                Protos.TaskID.newBuilder()
+                                        .setValue("previous-released-worker")
+                                        .build())
+                        .launchWorker(SLAVE_ID, SLAVE_HOST)
+                        .releaseWorker();
+        final MesosWorkerStore.Worker previousAttemptLaunchedWorker =
+                MesosWorkerStore.Worker.newWorker(
+                                Protos.TaskID.newBuilder()
+                                        .setValue("previous-launched-worker")
+                                        .build())
+                        .launchWorker(SLAVE_ID, SLAVE_HOST);
 
-		private final CompletableFuture<Boolean> mesosWorkerStoreStopFuture = new CompletableFuture<>();
-		private final CompletableFuture<MesosWorkerStore.Worker> mesosWorkerStorePutWorkerFuture = new CompletableFuture<>();
+        private final CompletableFuture<Boolean> mesosWorkerStoreStopFuture =
+                new CompletableFuture<>();
+        private final CompletableFuture<MesosWorkerStore.Worker> mesosWorkerStorePutWorkerFuture =
+                new CompletableFuture<>();
 
-		private final CompletableFuture<Void> schedulerDriverStartFuture = new CompletableFuture<>();
-		final CompletableFuture<Boolean> schedulerDriverStopFuture = new CompletableFuture<>();
+        private final CompletableFuture<Void> schedulerDriverStartFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Boolean> schedulerDriverStopFuture = new CompletableFuture<>();
 
-		final TestingMesosWorkerStore.Builder mesosWorkerStoreBuilder = TestingMesosWorkerStore
-				.newBuilder()
-				.setStopConsumer(mesosWorkerStoreStopFuture::complete)
-				.setPutWorkerConsumer(mesosWorkerStorePutWorkerFuture::complete);
+        final TestingMesosWorkerStore.Builder mesosWorkerStoreBuilder =
+                TestingMesosWorkerStore.newBuilder()
+                        .setStopConsumer(mesosWorkerStoreStopFuture::complete)
+                        .setPutWorkerConsumer(mesosWorkerStorePutWorkerFuture::complete);
 
-		final TestingSchedulerDriver.Builder schedulerDriverBuilder = TestingSchedulerDriver
-				.newBuilder()
-				.setStartSupplier(() -> {
-					schedulerDriverStartFuture.complete(null);
-					return null;
-				})
-				.setStopFunction((failover) -> {
-					schedulerDriverStopFuture.complete(failover);
-					return null;
-				});
+        final TestingSchedulerDriver.Builder schedulerDriverBuilder =
+                TestingSchedulerDriver.newBuilder()
+                        .setStartSupplier(
+                                () -> {
+                                    schedulerDriverStartFuture.complete(null);
+                                    return null;
+                                })
+                        .setStopFunction(
+                                (failover) -> {
+                                    schedulerDriverStopFuture.complete(failover);
+                                    return null;
+                                });
 
-		private ActorSystem actorSystem;
+        private ActorSystem actorSystem;
 
-		private ActorRef driverSelfActor;
-		private TestProbe connectionMonitor;
-		private TestProbe taskRouter;
-		private TestProbe launchCoordinator;
-		private TestProbe reconciliationCoordinator;
+        private ActorRef driverSelfActor;
+        private TestProbe connectionMonitor;
+        private TestProbe taskRouter;
+        private TestProbe launchCoordinator;
+        private TestProbe reconciliationCoordinator;
 
-		final CompletableFuture<Void> connectionMonitorStoppedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> taskRouterStoppedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> launchCoordinatorStoppedFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> reconciliationCoordinatorStoppedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> connectionMonitorStoppedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> taskRouterStoppedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> launchCoordinatorStoppedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> reconciliationCoordinatorStoppedFuture =
+                new CompletableFuture<>();
 
-		ActorRef getDriverSelfActor() {
-			Preconditions.checkState(driverSelfActor != null, "not initialized");
-			return driverSelfActor;
-		}
+        ActorRef getDriverSelfActor() {
+            Preconditions.checkState(driverSelfActor != null, "not initialized");
+            return driverSelfActor;
+        }
 
-		@Override
-		protected void prepareRunTest() {
-			actorSystem = AkkaUtils.createLocalActorSystem(flinkConfig);
+        @Override
+        protected void prepareRunTest() {
+            actorSystem = AkkaUtils.createLocalActorSystem(flinkConfig);
 
-			connectionMonitor = new TestProbe(actorSystem);
-			taskRouter = new TestProbe(actorSystem);
-			launchCoordinator = new TestProbe(actorSystem);
-			reconciliationCoordinator = new TestProbe(actorSystem);
+            connectionMonitor = new TestProbe(actorSystem);
+            taskRouter = new TestProbe(actorSystem);
+            launchCoordinator = new TestProbe(actorSystem);
+            reconciliationCoordinator = new TestProbe(actorSystem);
 
-			launchCoordinator.setAutoPilot(new TestActor.AutoPilot() {
-				@Override
-				public TestActor.AutoPilot run(ActorRef sender, Object msg) {
-					if (msg instanceof LaunchCoordinator.Launch) {
-						final LaunchCoordinator.Launch launch = (LaunchCoordinator.Launch) msg;
-						for (LaunchableTask task : launch.tasks()) {
-							final AcceptOffers acceptOffers = generateAcceptOffers(task.taskRequest().getId());
-							getDriverSelfActor().tell(acceptOffers, launchCoordinator.ref());
-						}
-					}
-					return this;
-				}
-			});
-		}
+            launchCoordinator.setAutoPilot(
+                    new TestActor.AutoPilot() {
+                        @Override
+                        public TestActor.AutoPilot run(ActorRef sender, Object msg) {
+                            if (msg instanceof LaunchCoordinator.Launch) {
+                                final LaunchCoordinator.Launch launch =
+                                        (LaunchCoordinator.Launch) msg;
+                                for (LaunchableTask task : launch.tasks()) {
+                                    final AcceptOffers acceptOffers =
+                                            generateAcceptOffers(task.taskRequest().getId());
+                                    getDriverSelfActor()
+                                            .tell(acceptOffers, launchCoordinator.ref());
+                                }
+                            }
+                            return this;
+                        }
+                    });
+        }
 
-		@Override
-		protected ResourceManagerDriver<RegisteredMesosWorkerNode> createResourceManagerDriver() {
-			final MesosWorkerStore mesosWorkerStore = mesosWorkerStoreBuilder.build();
+        @Override
+        protected ResourceManagerDriver<RegisteredMesosWorkerNode> createResourceManagerDriver() {
+            final MesosWorkerStore mesosWorkerStore = mesosWorkerStoreBuilder.build();
 
-			final MesosResourceManagerActorFactory actorFactory = new MesosResourceManagerActorFactoryImpl(actorSystem) {
-				@Override
-				public ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self) {
-					driverSelfActor = super.createSelfActorForMesosResourceManagerDriver(self);
-					return driverSelfActor;
-				}
+            final MesosResourceManagerActorFactory actorFactory =
+                    new MesosResourceManagerActorFactoryImpl(actorSystem) {
+                        @Override
+                        public ActorRef createSelfActorForMesosResourceManagerDriver(
+                                MesosResourceManagerDriver self) {
+                            driverSelfActor =
+                                    super.createSelfActorForMesosResourceManagerDriver(self);
+                            return driverSelfActor;
+                        }
 
-				@Override
-				public ActorRef createConnectionMonitor(Configuration flinkConfig) {
-					return connectionMonitor.ref();
-				}
+                        @Override
+                        public ActorRef createConnectionMonitor(Configuration flinkConfig) {
+                            return connectionMonitor.ref();
+                        }
 
-				@Override
-				public ActorRef createTaskMonitor(Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver) {
-					return taskRouter.ref();
-				}
+                        @Override
+                        public ActorRef createTaskMonitor(
+                                Configuration flinkConfig,
+                                ActorRef resourceManagerActor,
+                                SchedulerDriver schedulerDriver) {
+                            return taskRouter.ref();
+                        }
 
-				@Override
-				public ActorRef createLaunchCoordinator(Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver, TaskSchedulerBuilder optimizer) {
-					return launchCoordinator.ref();
-				}
+                        @Override
+                        public ActorRef createLaunchCoordinator(
+                                Configuration flinkConfig,
+                                ActorRef resourceManagerActor,
+                                SchedulerDriver schedulerDriver,
+                                TaskSchedulerBuilder optimizer) {
+                            return launchCoordinator.ref();
+                        }
 
-				@Override
-				public ActorRef createReconciliationCoordinator(Configuration flinkConfig, SchedulerDriver schedulerDriver) {
-					return reconciliationCoordinator.ref();
-				}
+                        @Override
+                        public ActorRef createReconciliationCoordinator(
+                                Configuration flinkConfig, SchedulerDriver schedulerDriver) {
+                            return reconciliationCoordinator.ref();
+                        }
 
-				@Override
-				public CompletableFuture<Boolean> stopActor(@Nullable ActorRef actorRef, FiniteDuration timeout) {
-					if (actorRef == connectionMonitor.ref()) {
-						connectionMonitorStoppedFuture.complete(null);
-					} else if (actorRef == taskRouter.ref()) {
-						taskRouterStoppedFuture.complete(null);
-					} else if (actorRef == launchCoordinator.ref()) {
-						launchCoordinatorStoppedFuture.complete(null);
-					} else if (actorRef == reconciliationCoordinator.ref()) {
-						reconciliationCoordinatorStoppedFuture.complete(null);
-					}
-					return CompletableFuture.completedFuture(true);
-				}
-			};
+                        @Override
+                        public CompletableFuture<Boolean> stopActor(
+                                @Nullable ActorRef actorRef, FiniteDuration timeout) {
+                            if (actorRef == connectionMonitor.ref()) {
+                                connectionMonitorStoppedFuture.complete(null);
+                            } else if (actorRef == taskRouter.ref()) {
+                                taskRouterStoppedFuture.complete(null);
+                            } else if (actorRef == launchCoordinator.ref()) {
+                                launchCoordinatorStoppedFuture.complete(null);
+                            } else if (actorRef == reconciliationCoordinator.ref()) {
+                                reconciliationCoordinatorStoppedFuture.complete(null);
+                            }
+                            return CompletableFuture.completedFuture(true);
+                        }
+                    };
 
-			final MesosArtifactServer mesosArtifactServer = TestingMesosArtifactServer.newBuilder().build();
-			final SchedulerDriver schedulerDriver = schedulerDriverBuilder.build();
+            final MesosArtifactServer mesosArtifactServer =
+                    TestingMesosArtifactServer.newBuilder().build();
+            final SchedulerDriver schedulerDriver = schedulerDriverBuilder.build();
 
-			final MesosServices mesosServices = TestingMesosServices.newBuilder()
-					.setCreateMesosWorkerStoreFunction((ignore) -> mesosWorkerStore)
-					.setGetMesosResourceManagerActorFactorySupplier(() -> actorFactory)
-					.setGetArtifactServerSupplier(() -> mesosArtifactServer)
-					.setCreateMesosSchedulerDriverFunction((ignore1, ignore2, ignore3) -> schedulerDriver)
-					.build();
+            final MesosServices mesosServices =
+                    TestingMesosServices.newBuilder()
+                            .setCreateMesosWorkerStoreFunction((ignore) -> mesosWorkerStore)
+                            .setGetMesosResourceManagerActorFactorySupplier(() -> actorFactory)
+                            .setGetArtifactServerSupplier(() -> mesosArtifactServer)
+                            .setCreateMesosSchedulerDriverFunction(
+                                    (ignore1, ignore2, ignore3) -> schedulerDriver)
+                            .build();
 
-			final MesosConfiguration mesosConfig = new MesosConfiguration(
-					"testing-master-url",
-					Protos.FrameworkInfo.newBuilder(),
-					Option.empty());
+            final MesosConfiguration mesosConfig =
+                    new MesosConfiguration(
+                            "testing-master-url",
+                            Protos.FrameworkInfo.newBuilder(),
+                            Option.empty());
 
-			return new MesosResourceManagerDriver(
-					flinkConfig,
-					mesosServices,
-					mesosConfig,
-					generateMesosTaskManagerParameters(),
-					new ContainerSpecification(),
-					null);
-		}
+            return new MesosResourceManagerDriver(
+                    flinkConfig,
+                    mesosServices,
+                    mesosConfig,
+                    generateMesosTaskManagerParameters(),
+                    new ContainerSpecification(),
+                    null);
+        }
 
-		@Override
-		protected void preparePreviousAttemptWorkers() {
-			mesosWorkerStoreBuilder.setRecoverWorkersSupplier(
-					() -> Arrays.asList(previousAttemptNewWorker, previousAttemptLaunchedWorker, previousAttemptReleasedWorker));
-		}
+        @Override
+        protected void preparePreviousAttemptWorkers() {
+            mesosWorkerStoreBuilder.setRecoverWorkersSupplier(
+                    () ->
+                            Arrays.asList(
+                                    previousAttemptNewWorker,
+                                    previousAttemptLaunchedWorker,
+                                    previousAttemptReleasedWorker));
+        }
 
-		@Override
-		protected void validateInitialization() throws Exception {
-			schedulerDriverStartFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-			connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);
-		}
+        @Override
+        protected void validateInitialization() throws Exception {
+            schedulerDriverStartFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+            connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);
+        }
 
-		@Override
-		protected void validateWorkersRecoveredFromPreviousAttempt(Collection<RegisteredMesosWorkerNode> workers) {
-			assertThat(workers.size(), is(1));
+        @Override
+        protected void validateWorkersRecoveredFromPreviousAttempt(
+                Collection<RegisteredMesosWorkerNode> workers) {
+            assertThat(workers.size(), is(1));
 
-			final ResourceID resourceId = workers.iterator().next().getResourceID();
-			assertThat(resourceId.toString(), is(previousAttemptLaunchedWorker.taskID().getValue()));
-		}
+            final ResourceID resourceId = workers.iterator().next().getResourceID();
+            assertThat(
+                    resourceId.toString(), is(previousAttemptLaunchedWorker.taskID().getValue()));
+        }
 
-		@Override
-		protected void validateTermination() throws Exception {
-			assertThat(schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(true));
-		}
+        @Override
+        protected void validateTermination() throws Exception {
+            assertThat(schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(true));
+        }
 
-		@Override
-		protected void validateDeregisterApplication() throws Exception {
-			assertThat(schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(false));
-			assertThat(mesosWorkerStoreStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(true));
-		}
+        @Override
+        protected void validateDeregisterApplication() throws Exception {
+            assertThat(schedulerDriverStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(false));
+            assertThat(mesosWorkerStoreStopFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(true));
+        }
 
-		@Override
-		protected void validateRequestedResources(Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
-			assertThat(taskExecutorProcessSpecs.size(), is(1));
-			assertThat(mesosWorkerStorePutWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS).state(), is(MesosWorkerStore.WorkerState.New));
+        @Override
+        protected void validateRequestedResources(
+                Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
+            assertThat(taskExecutorProcessSpecs.size(), is(1));
+            assertThat(
+                    mesosWorkerStorePutWorkerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS).state(),
+                    is(MesosWorkerStore.WorkerState.New));
 
-			final double expectedMemory = taskExecutorProcessSpecs.iterator().next().getTotalProcessMemorySize().getMebiBytes();
+            final double expectedMemory =
+                    taskExecutorProcessSpecs
+                            .iterator()
+                            .next()
+                            .getTotalProcessMemorySize()
+                            .getMebiBytes();
 
-			launchCoordinator.expectMsgPF(TIMEOUT_DURATION, null, new JavaPartialFunction<Object, Void>() {
-				@Override
-				public Void apply(Object msg, boolean isCheck) {
-					if (msg instanceof LaunchCoordinator.Launch) {
-						final LaunchCoordinator.Launch launch = (LaunchCoordinator.Launch) msg;
-						assertThat(launch.tasks().size(), is(1));
-						assertThat(launch.tasks().get(0).taskRequest().getMemory(), is(expectedMemory));
-						return null;
-					}
-					throw noMatch();
-				}
-			});
-		}
+            launchCoordinator.expectMsgPF(
+                    TIMEOUT_DURATION,
+                    null,
+                    new JavaPartialFunction<Object, Void>() {
+                        @Override
+                        public Void apply(Object msg, boolean isCheck) {
+                            if (msg instanceof LaunchCoordinator.Launch) {
+                                final LaunchCoordinator.Launch launch =
+                                        (LaunchCoordinator.Launch) msg;
+                                assertThat(launch.tasks().size(), is(1));
+                                assertThat(
+                                        launch.tasks().get(0).taskRequest().getMemory(),
+                                        is(expectedMemory));
+                                return null;
+                            }
+                            throw noMatch();
+                        }
+                    });
+        }
 
-		@Override
-		protected void validateReleaseResources(Collection<RegisteredMesosWorkerNode> workerNodes) {
-			assertThat(workerNodes.size(), is(1));
+        @Override
+        protected void validateReleaseResources(Collection<RegisteredMesosWorkerNode> workerNodes) {
+            assertThat(workerNodes.size(), is(1));
 
-			launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
-			launchCoordinator.expectMsgClass(LaunchCoordinator.Unassign.class);
-			taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
-		}
+            launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
+            launchCoordinator.expectMsgClass(LaunchCoordinator.Unassign.class);
+            taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+        }
 
-		private MesosTaskManagerParameters generateMesosTaskManagerParameters() {
-			final ContaineredTaskManagerParameters containeredParams = new ContaineredTaskManagerParameters(TASK_EXECUTOR_PROCESS_SPEC, new HashMap<>());
-			return new MesosTaskManagerParameters(
-					1,
-					0,
-					0,
-					MesosTaskManagerParameters.ContainerType.MESOS,
-					Option.empty(),
-					containeredParams,
-					Collections.emptyList(),
-					Collections.emptyList(),
-					false,
-					Collections.emptyList(),
-					"",
-					Option.empty(),
-					Option.empty(),
-					Collections.emptyList());
-		}
+        private MesosTaskManagerParameters generateMesosTaskManagerParameters() {
+            final ContaineredTaskManagerParameters containeredParams =
+                    new ContaineredTaskManagerParameters(
+                            TASK_EXECUTOR_PROCESS_SPEC, new HashMap<>());
+            return new MesosTaskManagerParameters(
+                    1,
+                    0,
+                    0,
+                    MesosTaskManagerParameters.ContainerType.MESOS,
+                    Option.empty(),
+                    containeredParams,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    false,
+                    Collections.emptyList(),
+                    "",
+                    Option.empty(),
+                    Option.empty(),
+                    Collections.emptyList(),
+                    Collections.emptyMap());
+        }
 
-		private AcceptOffers generateAcceptOffers(String taskIdStr) {
-			final Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue(taskIdStr).build();
-			final Protos.OfferID offerId = Protos.OfferID.newBuilder()
-					.setValue("offer-id")
-					.build();
-			final Protos.Offer.Operation offerOperation = Protos.Offer.Operation.newBuilder()
-					.setType(Protos.Offer.Operation.Type.LAUNCH)
-					.setLaunch(Protos.Offer.Operation.Launch.newBuilder()
-							.addAllTaskInfos(Collections.singletonList(Protos.TaskInfo.newBuilder()
-									.setTaskId(taskId)
-									.setName("task-info")
-									.setSlaveId(SLAVE_ID)
-									.build())))
-					.build();
-			return new AcceptOffers(
-					SLAVE_HOST,
-					Collections.singletonList(offerId),
-					Collections.singletonList(offerOperation));
-		}
-	}
+        private AcceptOffers generateAcceptOffers(String taskIdStr) {
+            final Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue(taskIdStr).build();
+            final Protos.OfferID offerId = Protos.OfferID.newBuilder().setValue("offer-id").build();
+            final Protos.Offer.Operation offerOperation =
+                    Protos.Offer.Operation.newBuilder()
+                            .setType(Protos.Offer.Operation.Type.LAUNCH)
+                            .setLaunch(
+                                    Protos.Offer.Operation.Launch.newBuilder()
+                                            .addAllTaskInfos(
+                                                    Collections.singletonList(
+                                                            Protos.TaskInfo.newBuilder()
+                                                                    .setTaskId(taskId)
+                                                                    .setName("task-info")
+                                                                    .setSlaveId(SLAVE_ID)
+                                                                    .build())))
+                            .build();
+            return new AcceptOffers(
+                    SLAVE_HOST,
+                    Collections.singletonList(offerId),
+                    Collections.singletonList(offerOperation));
+        }
+    }
 }

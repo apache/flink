@@ -45,92 +45,103 @@ import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 @PublicEvolving
 public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
-	public static final String IDENTIFIER = "datagen";
-	public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
+    public static final String IDENTIFIER = "datagen";
+    public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
 
-	public static final ConfigOption<Long> ROWS_PER_SECOND = key("rows-per-second")
-			.longType()
-			.defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
-			.withDescription("Rows per second to control the emit rate.");
+    public static final ConfigOption<Long> ROWS_PER_SECOND =
+            key("rows-per-second")
+                    .longType()
+                    .defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
+                    .withDescription("Rows per second to control the emit rate.");
 
-	public static final ConfigOption<Long> NUMBER_OF_ROWS = key("number-of-rows")
-		.longType()
-		.noDefaultValue()
-		.withDescription("Total number of rows to emit. By default, the source is unbounded.");
+    public static final ConfigOption<Long> NUMBER_OF_ROWS =
+            key("number-of-rows")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Total number of rows to emit. By default, the source is unbounded.");
 
-	public static final String FIELDS = "fields";
-	public static final String KIND = "kind";
-	public static final String START = "start";
-	public static final String END = "end";
-	public static final String MIN = "min";
-	public static final String MAX = "max";
-	public static final String LENGTH = "length";
+    public static final String FIELDS = "fields";
+    public static final String KIND = "kind";
+    public static final String START = "start";
+    public static final String END = "end";
+    public static final String MIN = "min";
+    public static final String MAX = "max";
+    public static final String LENGTH = "length";
 
-	public static final String SEQUENCE = "sequence";
-	public static final String RANDOM = "random";
+    public static final String SEQUENCE = "sequence";
+    public static final String RANDOM = "random";
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return new HashSet<>();
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(ROWS_PER_SECOND);
-		options.add(NUMBER_OF_ROWS);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(ROWS_PER_SECOND);
+        options.add(NUMBER_OF_ROWS);
+        return options;
+    }
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		Configuration options = new Configuration();
-		context.getCatalogTable().getOptions().forEach(options::setString);
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        Configuration options = new Configuration();
+        context.getCatalogTable().getOptions().forEach(options::setString);
 
-		TableSchema schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-		DataGenerator<?>[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
-		Set<ConfigOption<?>> optionalOptions = new HashSet<>();
+        TableSchema schema =
+                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+        DataGenerator<?>[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
+        Set<ConfigOption<?>> optionalOptions = new HashSet<>();
 
-		for (int i = 0; i < fieldGenerators.length; i++) {
-			String name = schema.getFieldNames()[i];
-			DataType type = schema.getFieldDataTypes()[i];
+        for (int i = 0; i < fieldGenerators.length; i++) {
+            String name = schema.getFieldNames()[i];
+            DataType type = schema.getFieldDataTypes()[i];
 
-			ConfigOption<String> kind = key(FIELDS + "." + name + "." + KIND)
-					.stringType().defaultValue(RANDOM);
-			DataGeneratorContainer container = createContainer(name, type, options.get(kind), options);
-			fieldGenerators[i] = container.getGenerator();
+            ConfigOption<String> kind =
+                    key(FIELDS + "." + name + "." + KIND).stringType().defaultValue(RANDOM);
+            DataGeneratorContainer container =
+                    createContainer(name, type, options.get(kind), options);
+            fieldGenerators[i] = container.getGenerator();
 
-			optionalOptions.add(kind);
-			optionalOptions.addAll(container.getOptions());
-		}
+            optionalOptions.add(kind);
+            optionalOptions.addAll(container.getOptions());
+        }
 
-		FactoryUtil.validateFactoryOptions(requiredOptions(), optionalOptions, options);
+        FactoryUtil.validateFactoryOptions(requiredOptions(), optionalOptions, options);
 
-		Set<String> consumedOptionKeys = new HashSet<>();
-		consumedOptionKeys.add(CONNECTOR.key());
-		consumedOptionKeys.add(ROWS_PER_SECOND.key());
-		consumedOptionKeys.add(NUMBER_OF_ROWS.key());
-		optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
-		FactoryUtil.validateUnconsumedKeys(factoryIdentifier(), options.keySet(), consumedOptionKeys);
+        Set<String> consumedOptionKeys = new HashSet<>();
+        consumedOptionKeys.add(CONNECTOR.key());
+        consumedOptionKeys.add(ROWS_PER_SECOND.key());
+        consumedOptionKeys.add(NUMBER_OF_ROWS.key());
+        optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
+        FactoryUtil.validateUnconsumedKeys(
+                factoryIdentifier(), options.keySet(), consumedOptionKeys);
 
-		String name = context.getObjectIdentifier().toString();
-		return new DataGenTableSource(fieldGenerators, name, schema, options.get(ROWS_PER_SECOND), options.get(NUMBER_OF_ROWS));
-	}
+        String name = context.getObjectIdentifier().toString();
+        return new DataGenTableSource(
+                fieldGenerators,
+                name,
+                schema,
+                options.get(ROWS_PER_SECOND),
+                options.get(NUMBER_OF_ROWS));
+    }
 
-	private DataGeneratorContainer createContainer(
-			String name, DataType type, String kind, ReadableConfig options) {
-		switch (kind) {
-			case RANDOM:
-				return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
-			case SEQUENCE:
-				return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
-			default:
-				throw new ValidationException("Unsupported generator kind: " + kind);
-		}
-	}
+    private DataGeneratorContainer createContainer(
+            String name, DataType type, String kind, ReadableConfig options) {
+        switch (kind) {
+            case RANDOM:
+                return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
+            case SEQUENCE:
+                return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
+            default:
+                throw new ValidationException("Unsupported generator kind: " + kind);
+        }
+    }
 }

@@ -35,79 +35,90 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-/**
- * Test expected exceptions for {@link Graph#groupReduceOnEdges}.
- */
+/** Test expected exceptions for {@link Graph#groupReduceOnEdges}. */
 public class ReduceOnEdgesWithExceptionITCase extends AbstractTestBase {
 
-	private static final int PARALLELISM = 4;
+    private static final int PARALLELISM = 4;
 
-	/**
-	 * Test groupReduceOnEdges() with an edge having a srcId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnEdgesInvalidEdgeSrcId() throws Exception {
+    /**
+     * Test groupReduceOnEdges() with an edge having a srcId that does not exist in the vertex
+     * DataSet.
+     */
+    @Test
+    public void testGroupReduceOnEdgesInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidSrcData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
-					graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
+                    graph.groupReduceOnEdges(
+                            new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
 
-			verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
-			env.execute();
+            verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
+            env.execute();
 
-			fail("Expected an exception.");
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            fail("Expected an exception.");
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	/**
-	 * Test groupReduceOnEdges() with an edge having a trgId that does not exist in the vertex DataSet.
-	 */
-	@Test
-	public void testGroupReduceOnEdgesInvalidEdgeTrgId() throws Exception {
+    /**
+     * Test groupReduceOnEdges() with an edge having a trgId that does not exist in the vertex
+     * DataSet.
+     */
+    @Test
+    public void testGroupReduceOnEdgesInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(PARALLELISM);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
+        Graph<Long, Long, Long> graph =
+                Graph.fromDataSet(
+                        TestGraphUtils.getLongLongVertexData(env),
+                        TestGraphUtils.getLongLongEdgeInvalidTrgData(env),
+                        env);
 
-		try {
-			DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
-					graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
+        try {
+            DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
+                    graph.groupReduceOnEdges(
+                            new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
 
-			verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
-			env.execute();
+            verticesWithAllNeighbors.output(new DiscardingOutputFormat<>());
+            env.execute();
 
-			fail("Expected an exception.");
-		} catch (Exception e) {
-			// We expect the job to fail with an exception
-		}
-	}
+            fail("Expected an exception.");
+        } catch (Exception e) {
+            // We expect the job to fail with an exception
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class SelectNeighborsValueGreaterThanFour implements
-			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+    @SuppressWarnings("serial")
+    private static final class SelectNeighborsValueGreaterThanFour
+            implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
-		@Override
-		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
-			for (Edge<Long, Long> edge : edges) {
-				if (v.getValue() > 4) {
-					if (v.getId().equals(edge.getTarget())) {
-						out.collect(new Tuple2<>(v.getId(), edge.getSource()));
-					} else {
-						out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
-					}
-				}
-			}
-		}
-	}
+        @Override
+        public void iterateEdges(
+                Vertex<Long, Long> v,
+                Iterable<Edge<Long, Long>> edges,
+                Collector<Tuple2<Long, Long>> out)
+                throws Exception {
+            for (Edge<Long, Long> edge : edges) {
+                if (v.getValue() > 4) {
+                    if (v.getId().equals(edge.getTarget())) {
+                        out.collect(new Tuple2<>(v.getId(), edge.getSource()));
+                    } else {
+                        out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
+                    }
+                }
+            }
+        }
+    }
 }

@@ -58,7 +58,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
         |  ON T1.a = T2.d
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -96,7 +96,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  UNION ALL
         |  (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -112,7 +112,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  (SELECT d, SUM(a) AS sm FROM T GROUP BY d) T2
         |  ON T1.a = T2.d
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -121,7 +121,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql = "SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -134,7 +134,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
         |  LEFT JOIN y ON T1.a = y.d
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -148,7 +148,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
         |  LEFT JOIN y ON T1.a = y.d
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -162,7 +162,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  LEFT JOIN t ON x.a = t.a
         |  WHERE x.b > 10
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -177,7 +177,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  LEFT JOIN t ON chainable.a = t.a
         |  WHERE chainable.a > 10
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -195,7 +195,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |      (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt))
         |SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -208,7 +208,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  INNER JOIN y ON x.a = y.d
         |  INNER JOIN t ON x.a = t.a
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -226,7 +226,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |      (SELECT x.a AS a, x.b AS b FROM x))
         |SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -244,7 +244,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |      (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
         |SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -265,7 +265,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  UNION ALL
         |  (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -284,7 +284,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  UNION ALL
         |  (SELECT a, b FROM x)
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -300,7 +300,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  UNION ALL
         |  (SELECT a, b FROM x)
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -320,7 +320,23 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |  UNION ALL
         |  (SELECT a FROM T2)
         |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testDeadlockCausedByExchangeInAncestor(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH T1 AS (
+        |  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+        |  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+        |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+        |""".stripMargin
+    util.verifyExecPlan(sql)
   }
 
   def createChainableTableSource(): Unit = {

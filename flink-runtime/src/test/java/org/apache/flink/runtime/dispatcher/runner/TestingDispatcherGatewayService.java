@@ -27,103 +27,112 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
+class TestingDispatcherGatewayService
+        implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
-	private final Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction;
+    private final Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction;
 
-	private final DispatcherGateway dispatcherGateway;
+    private final DispatcherGateway dispatcherGateway;
 
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+    private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private final CompletableFuture<Void> terminationFuture;
-	private final boolean completeTerminationFutureOnClose;
+    private final CompletableFuture<Void> terminationFuture;
+    private final boolean completeTerminationFutureOnClose;
 
-	private TestingDispatcherGatewayService(
-			CompletableFuture<Void> terminationFuture,
-			Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
-			DispatcherGateway dispatcherGateway,
-			CompletableFuture<ApplicationStatus> shutDownFuture,
-			boolean completeTerminationFutureOnClose) {
-		this.terminationFuture = terminationFuture;
-		this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
-		this.dispatcherGateway = dispatcherGateway;
-		this.shutDownFuture = shutDownFuture;
-		this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
-	}
+    private TestingDispatcherGatewayService(
+            CompletableFuture<Void> terminationFuture,
+            Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
+            DispatcherGateway dispatcherGateway,
+            CompletableFuture<ApplicationStatus> shutDownFuture,
+            boolean completeTerminationFutureOnClose) {
+        this.terminationFuture = terminationFuture;
+        this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+        this.dispatcherGateway = dispatcherGateway;
+        this.shutDownFuture = shutDownFuture;
+        this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
+    }
 
-	@Override
-	public DispatcherGateway getGateway() {
-		return dispatcherGateway;
-	}
+    @Override
+    public DispatcherGateway getGateway() {
+        return dispatcherGateway;
+    }
 
-	@Override
-	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
-		return onRemovedJobGraphFunction.apply(jobId);
-	}
+    @Override
+    public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
+        return onRemovedJobGraphFunction.apply(jobId);
+    }
 
-	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
+    @Override
+    public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+        return shutDownFuture;
+    }
 
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (completeTerminationFutureOnClose) {
-			terminationFuture.complete(null);
-		}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (completeTerminationFutureOnClose) {
+            terminationFuture.complete(null);
+        }
 
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static class Builder {
+    public static class Builder {
 
-		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
-		private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction = ignored -> FutureUtils.completedVoidFuture();
+        private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction =
+                ignored -> FutureUtils.completedVoidFuture();
 
-		private DispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder().build();
+        private DispatcherGateway dispatcherGateway =
+                new TestingDispatcherGateway.Builder().build();
 
-		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+        private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 
-		private boolean completeTerminationFutureOnClose = true;
+        private boolean completeTerminationFutureOnClose = true;
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
-			this.terminationFuture = terminationFuture;
-			return this;
-		}
+        public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
+            this.terminationFuture = terminationFuture;
+            return this;
+        }
 
-		public Builder setDispatcherGateway(DispatcherGateway dispatcherGateway) {
-			this.dispatcherGateway = dispatcherGateway;
-			return this;
-		}
+        public Builder setDispatcherGateway(DispatcherGateway dispatcherGateway) {
+            this.dispatcherGateway = dispatcherGateway;
+            return this;
+        }
 
-		public Builder setOnRemovedJobGraphFunction(Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction) {
-			this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
-			return this;
-		}
+        public Builder setOnRemovedJobGraphFunction(
+                Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction) {
+            this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+            return this;
+        }
 
-		public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
-			this.shutDownFuture = shutDownFuture;
-			return this;
-		}
+        public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
+            this.shutDownFuture = shutDownFuture;
+            return this;
+        }
 
-		public Builder withManualTerminationFutureCompletion() {
-			completeTerminationFutureOnClose = false;
-			return this;
-		}
+        public Builder withManualTerminationFutureCompletion() {
+            completeTerminationFutureOnClose = false;
+            return this;
+        }
 
-		public TestingDispatcherGatewayService build() {
-			return new TestingDispatcherGatewayService(terminationFuture, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture, completeTerminationFutureOnClose);
-		}
-	}
+        public TestingDispatcherGatewayService build() {
+            return new TestingDispatcherGatewayService(
+                    terminationFuture,
+                    onRemovedJobGraphFunction,
+                    dispatcherGateway,
+                    shutDownFuture,
+                    completeTerminationFutureOnClose);
+        }
+    }
 }

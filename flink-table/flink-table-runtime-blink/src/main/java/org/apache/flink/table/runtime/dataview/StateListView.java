@@ -36,121 +36,120 @@ import java.util.List;
 @Internal
 public abstract class StateListView<N, EE> extends ListView<EE> implements StateDataView<N> {
 
-	private final Iterable<EE> emptyList = Collections.emptyList();
+    private final Iterable<EE> emptyList = Collections.emptyList();
 
-	@Override
-	public List<EE> getList() {
-		final List<EE> list = new ArrayList<>();
-		try {
-			get().forEach(list::add);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		return list;
-	}
+    @Override
+    public List<EE> getList() {
+        final List<EE> list = new ArrayList<>();
+        try {
+            get().forEach(list::add);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return list;
+    }
 
-	@Override
-	public void setList(List<EE> list) {
-		clear();
-		try {
-			addAll(list);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    @Override
+    public void setList(List<EE> list) {
+        clear();
+        try {
+            addAll(list);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public Iterable<EE> get() throws Exception {
-		Iterable<EE> original = getListState().get();
-		return original != null ? original : emptyList;
-	}
+    @Override
+    public Iterable<EE> get() throws Exception {
+        Iterable<EE> original = getListState().get();
+        return original != null ? original : emptyList;
+    }
 
-	@Override
-	public void add(EE value) throws Exception {
-		getListState().add(value);
-	}
+    @Override
+    public void add(EE value) throws Exception {
+        getListState().add(value);
+    }
 
-	@Override
-	public void addAll(List<EE> list) throws Exception {
-		getListState().addAll(list);
-	}
+    @Override
+    public void addAll(List<EE> list) throws Exception {
+        getListState().addAll(list);
+    }
 
-	@Override
-	public boolean remove(EE value) throws Exception {
-		Iterable<EE> iterable = getListState().get();
-		if (iterable == null) {
-			// ListState.get() may return null according to the Javadoc.
-			return false;
-		}
-		// the getListState().get() not always returns List object
-		// copy values to ArrayList for removing
-		Iterator<EE> iterator = iterable.iterator();
-		List<EE> list = new ArrayList<>();
-		while (iterator.hasNext()) {
-			EE it = iterator.next();
-			list.add(it);
-		}
-		boolean success = list.remove(value);
-		if (success) {
-			getListState().update(list);
-		}
-		return success;
-	}
+    @Override
+    public boolean remove(EE value) throws Exception {
+        Iterable<EE> iterable = getListState().get();
+        if (iterable == null) {
+            // ListState.get() may return null according to the Javadoc.
+            return false;
+        }
+        // the getListState().get() not always returns List object
+        // copy values to ArrayList for removing
+        Iterator<EE> iterator = iterable.iterator();
+        List<EE> list = new ArrayList<>();
+        while (iterator.hasNext()) {
+            EE it = iterator.next();
+            list.add(it);
+        }
+        boolean success = list.remove(value);
+        if (success) {
+            getListState().update(list);
+        }
+        return success;
+    }
 
-	@Override
-	public void clear() {
-		getListState().clear();
-	}
+    @Override
+    public void clear() {
+        getListState().clear();
+    }
 
-	protected abstract ListState<EE> getListState();
+    protected abstract ListState<EE> getListState();
 
-	/**
-	 * {@link KeyedStateListView} is an default implementation of {@link StateListView} whose
-	 * underlying representation is a keyed state.
-	 */
-	public static final class KeyedStateListView<N, T> extends StateListView<N, T> {
+    /**
+     * {@link KeyedStateListView} is an default implementation of {@link StateListView} whose
+     * underlying representation is a keyed state.
+     */
+    public static final class KeyedStateListView<N, T> extends StateListView<N, T> {
 
-		private final ListState<T> listState;
+        private final ListState<T> listState;
 
-		public KeyedStateListView(ListState<T> listState) {
-			this.listState = listState;
-		}
+        public KeyedStateListView(ListState<T> listState) {
+            this.listState = listState;
+        }
 
-		@Override
-		public void setCurrentNamespace(N namespace) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void setCurrentNamespace(N namespace) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		protected ListState<T> getListState() {
-			return listState;
-		}
-	}
+        @Override
+        protected ListState<T> getListState() {
+            return listState;
+        }
+    }
 
-	/**
-	 * {@link NamespacedStateListView} is an {@link StateListView} whose underlying representation is
-	 * a keyed and namespaced state. It also support to change current namespace.
-	 */
-	public static final class NamespacedStateListView<N, T> extends StateListView<N, T> {
+    /**
+     * {@link NamespacedStateListView} is an {@link StateListView} whose underlying representation
+     * is a keyed and namespaced state. It also support to change current namespace.
+     */
+    public static final class NamespacedStateListView<N, T> extends StateListView<N, T> {
 
-		private final InternalListState<?, N, T> listState;
+        private final InternalListState<?, N, T> listState;
 
-		private N namespace;
+        private N namespace;
 
-		public NamespacedStateListView(InternalListState<?, N, T> listState) {
-			this.listState = listState;
-		}
+        public NamespacedStateListView(InternalListState<?, N, T> listState) {
+            this.listState = listState;
+        }
 
-		@Override
-		public void setCurrentNamespace(N namespace) {
-			this.namespace = namespace;
-		}
+        @Override
+        public void setCurrentNamespace(N namespace) {
+            this.namespace = namespace;
+        }
 
-		@Override
-		protected ListState<T> getListState() {
-			listState.setCurrentNamespace(namespace);
-			return listState;
-		}
-	}
-
+        @Override
+        protected ListState<T> getListState() {
+            listState.setCurrentNamespace(namespace);
+            return listState;
+        }
+    }
 }

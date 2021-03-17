@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -35,89 +35,97 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for blocking shuffle.
- */
+/** Tests for blocking shuffle. */
 public class BlockingShuffleITCase {
 
-	private static final String RECORD = "hello, world!";
+    private static final String RECORD = "hello, world!";
 
-	private final int numTaskManagers = 2;
+    private final int numTaskManagers = 2;
 
-	private final int numSlotsPerTaskManager = 4;
+    private final int numSlotsPerTaskManager = 4;
 
-	@Test
-	public void testBoundedBlockingShuffle() throws Exception {
-		JobGraph jobGraph = createJobGraph(1000000);
-		Configuration configuration = new Configuration();
-		JobGraphRunningUtil.execute(jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
-	}
+    @Test
+    public void testBoundedBlockingShuffle() throws Exception {
+        JobGraph jobGraph = createJobGraph(1000000);
+        Configuration configuration = new Configuration();
+        JobGraphRunningUtil.execute(
+                jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+    }
 
-	@Test
-	public void testBoundedBlockingShuffleWithoutData() throws Exception {
-		JobGraph jobGraph = createJobGraph(0);
-		Configuration configuration = new Configuration();
-		JobGraphRunningUtil.execute(jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
-	}
+    @Test
+    public void testBoundedBlockingShuffleWithoutData() throws Exception {
+        JobGraph jobGraph = createJobGraph(0);
+        Configuration configuration = new Configuration();
+        JobGraphRunningUtil.execute(
+                jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+    }
 
-	@Test
-	public void testSortMergeBlockingShuffle() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+    @Test
+    public void testSortMergeBlockingShuffle() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
 
-		JobGraph jobGraph = createJobGraph(1000000);
-		JobGraphRunningUtil.execute(jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
-	}
+        JobGraph jobGraph = createJobGraph(1000000);
+        JobGraphRunningUtil.execute(
+                jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+    }
 
-	@Test
-	public void testSortMergeBlockingShuffleWithoutData() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+    @Test
+    public void testSortMergeBlockingShuffleWithoutData() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
 
-		JobGraph jobGraph = createJobGraph(0);
-		JobGraphRunningUtil.execute(jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
-	}
+        JobGraph jobGraph = createJobGraph(0);
+        JobGraphRunningUtil.execute(
+                jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+    }
 
-	private JobGraph createJobGraph(int numRecordsToSend) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(numTaskManagers * numSlotsPerTaskManager);
-		DataStream<String> source = env.addSource(new StringSource(numRecordsToSend));
-		source
-			.rebalance().map((MapFunction<String, String>) value -> value)
-			.broadcast().addSink(new VerifySink());
+    private JobGraph createJobGraph(int numRecordsToSend) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(numTaskManagers * numSlotsPerTaskManager);
+        DataStream<String> source = env.addSource(new StringSource(numRecordsToSend));
+        source.rebalance()
+                .map((MapFunction<String, String>) value -> value)
+                .broadcast()
+                .addSink(new VerifySink());
 
-		StreamGraph streamGraph = env.getStreamGraph();
-		streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
-		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
-		return StreamingJobGraphGenerator.createJobGraph(streamGraph);
-	}
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
+        // a scheduler supporting batch jobs is required for this job graph, because it contains
+        // blocking data exchanges.
+        // The scheduler is selected based on the JobType.
+        streamGraph.setJobType(JobType.BATCH);
+        return StreamingJobGraphGenerator.createJobGraph(streamGraph);
+    }
 
-	private static class StringSource implements ParallelSourceFunction<String> {
-		private volatile boolean isRunning = true;
-		private int numRecordsToSend;
+    private static class StringSource implements ParallelSourceFunction<String> {
+        private volatile boolean isRunning = true;
+        private int numRecordsToSend;
 
-		StringSource(int numRecordsToSend) {
-			this.numRecordsToSend = numRecordsToSend;
-		}
+        StringSource(int numRecordsToSend) {
+            this.numRecordsToSend = numRecordsToSend;
+        }
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			while (isRunning && numRecordsToSend-- > 0) {
-				ctx.collect(RECORD);
-			}
-		}
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            while (isRunning && numRecordsToSend-- > 0) {
+                ctx.collect(RECORD);
+            }
+        }
 
-		@Override
-		public void cancel() {
-			isRunning = false;
-		}
-	}
+        @Override
+        public void cancel() {
+            isRunning = false;
+        }
+    }
 
-	private static class VerifySink implements SinkFunction<String> {
+    private static class VerifySink implements SinkFunction<String> {
 
-		@Override
-		public void invoke(String value) throws Exception {
-			assertEquals(RECORD, value);
-		}
-	}
+        @Override
+        public void invoke(String value) throws Exception {
+            assertEquals(RECORD, value);
+        }
+    }
 }

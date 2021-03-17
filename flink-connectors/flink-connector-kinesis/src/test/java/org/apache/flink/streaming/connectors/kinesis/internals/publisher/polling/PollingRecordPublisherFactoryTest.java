@@ -33,37 +33,40 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for {@link PollingRecordPublisherFactory}.
- */
+/** Tests for {@link PollingRecordPublisherFactory}. */
 public class PollingRecordPublisherFactoryTest {
 
-	private final PollingRecordPublisherFactory factory = new PollingRecordPublisherFactory(props -> mock(KinesisProxy.class));
+    private final PollingRecordPublisherFactory factory =
+            new PollingRecordPublisherFactory(props -> mock(KinesisProxy.class));
 
-	@Test
-	public void testBuildPollingRecordPublisher() throws Exception {
-		RecordPublisher recordPublisher = factory.create(
-			StartingPosition.restartFromSequenceNumber(SENTINEL_LATEST_SEQUENCE_NUM.get()),
-			new Properties(),
-			mock(MetricGroup.class),
-			mock(StreamShardHandle.class));
+    @Test
+    public void testBuildPollingRecordPublisher() throws Exception {
+        RecordPublisher recordPublisher =
+                factory.create(
+                        StartingPosition.restartFromSequenceNumber(
+                                SENTINEL_LATEST_SEQUENCE_NUM.get()),
+                        new Properties(),
+                        mock(MetricGroup.class),
+                        mock(StreamShardHandle.class));
 
-		assertTrue(recordPublisher instanceof PollingRecordPublisher);
-		assertFalse(recordPublisher instanceof AdaptivePollingRecordPublisher);
-	}
+        assertTrue(recordPublisher instanceof PollingRecordPublisher);
+        assertFalse(recordPublisher instanceof AdaptivePollingRecordPublisher);
+    }
 
-	@Test
-	public void testBuildAdaptivePollingRecordPublisher() throws Exception {
-		Properties properties = new Properties();
-		properties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
+    @Test
+    public void testBuildAdaptivePollingRecordPublisher() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
 
-		RecordPublisher recordPublisher = factory.create(
-			StartingPosition.restartFromSequenceNumber(SENTINEL_LATEST_SEQUENCE_NUM.get()),
-			properties,
-			mock(MetricGroup.class),
-			mock(StreamShardHandle.class));
+        RecordPublisher recordPublisher =
+                factory.create(
+                        StartingPosition.restartFromSequenceNumber(
+                                SENTINEL_LATEST_SEQUENCE_NUM.get()),
+                        properties,
+                        mock(MetricGroup.class),
+                        mock(StreamShardHandle.class));
 
-		assertTrue(recordPublisher instanceof PollingRecordPublisher);
-		assertTrue(recordPublisher instanceof AdaptivePollingRecordPublisher);
-	}
+        assertTrue(recordPublisher instanceof PollingRecordPublisher);
+        assertTrue(recordPublisher instanceof AdaptivePollingRecordPublisher);
+    }
 }

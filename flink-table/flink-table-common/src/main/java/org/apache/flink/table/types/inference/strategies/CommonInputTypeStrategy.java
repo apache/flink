@@ -37,77 +37,72 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * An {@link InputTypeStrategy} that expects that all arguments have a common type.
- */
+/** An {@link InputTypeStrategy} that expects that all arguments have a common type. */
 @Internal
 public final class CommonInputTypeStrategy implements InputTypeStrategy {
 
-	private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
+    private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
 
-	private final ArgumentCount argumentCount;
+    private final ArgumentCount argumentCount;
 
-	public CommonInputTypeStrategy(ArgumentCount argumentCount) {
-		this.argumentCount = argumentCount;
-	}
+    public CommonInputTypeStrategy(ArgumentCount argumentCount) {
+        this.argumentCount = argumentCount;
+    }
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return argumentCount;
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return argumentCount;
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(
-			CallContext callContext,
-			boolean throwOnFailure) {
-		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		List<LogicalType> argumentTypes = argumentDataTypes
-			.stream()
-			.map(DataType::getLogicalType)
-			.collect(Collectors.toList());
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        List<LogicalType> argumentTypes =
+                argumentDataTypes.stream()
+                        .map(DataType::getLogicalType)
+                        .collect(Collectors.toList());
 
-		if (argumentTypes.stream().anyMatch(CommonInputTypeStrategy::isLegacyType)) {
-			return Optional.of(argumentDataTypes);
-		}
+        if (argumentTypes.stream().anyMatch(CommonInputTypeStrategy::isLegacyType)) {
+            return Optional.of(argumentDataTypes);
+        }
 
-		Optional<LogicalType> commonType = LogicalTypeMerging.findCommonType(argumentTypes);
+        Optional<LogicalType> commonType = LogicalTypeMerging.findCommonType(argumentTypes);
 
-		if (!commonType.isPresent()) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"Could not find a common type for arguments: %s",
-					argumentDataTypes);
-			}
-			return Optional.empty();
-		}
+        if (!commonType.isPresent()) {
+            if (throwOnFailure) {
+                throw callContext.newValidationError(
+                        "Could not find a common type for arguments: %s", argumentDataTypes);
+            }
+            return Optional.empty();
+        }
 
-		return commonType.map(type -> Collections.nCopies(
-			argumentTypes.size(),
-			TypeConversions.fromLogicalToDataType(type)));
-	}
+        return commonType.map(
+                type ->
+                        Collections.nCopies(
+                                argumentTypes.size(), TypeConversions.fromLogicalToDataType(type)));
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		Optional<Integer> minCount = argumentCount.getMinCount();
-		Optional<Integer> maxCount = argumentCount.getMaxCount();
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        Optional<Integer> minCount = argumentCount.getMinCount();
+        Optional<Integer> maxCount = argumentCount.getMaxCount();
 
-		int numberOfMandatoryArguments = minCount.orElse(0);
+        int numberOfMandatoryArguments = minCount.orElse(0);
 
-		if (maxCount.isPresent()) {
-			return IntStream.range(numberOfMandatoryArguments, maxCount.get() + 1)
-				.mapToObj(count -> Signature.of(Collections.nCopies(count, COMMON_ARGUMENT)))
-				.collect(Collectors.toList());
-		}
+        if (maxCount.isPresent()) {
+            return IntStream.range(numberOfMandatoryArguments, maxCount.get() + 1)
+                    .mapToObj(count -> Signature.of(Collections.nCopies(count, COMMON_ARGUMENT)))
+                    .collect(Collectors.toList());
+        }
 
-		List<Signature.Argument> arguments = new ArrayList<>(
-			Collections.nCopies(
-				numberOfMandatoryArguments,
-				COMMON_ARGUMENT));
-		arguments.add(Signature.Argument.of("<COMMON>..."));
-		return Collections.singletonList(Signature.of(arguments));
-	}
+        List<Signature.Argument> arguments =
+                new ArrayList<>(Collections.nCopies(numberOfMandatoryArguments, COMMON_ARGUMENT));
+        arguments.add(Signature.Argument.of("<COMMON>..."));
+        return Collections.singletonList(Signature.of(arguments));
+    }
 
-	private static boolean isLegacyType(LogicalType type) {
-		return type instanceof LegacyTypeInformationType;
-	}
+    private static boolean isLegacyType(LogicalType type) {
+        return type instanceof LegacyTypeInformationType;
+    }
 }

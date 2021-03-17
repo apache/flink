@@ -50,96 +50,92 @@ import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptio
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
 
 /**
- * Table format factory for providing configured instances of Schema Registry Avro to RowData
- * {@link SerializationSchema} and {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of Schema Registry Avro to RowData {@link
+ * SerializationSchema} and {@link DeserializationSchema}.
  */
-public class RegistryAvroFormatFactory implements
-		DeserializationFormatFactory,
-		SerializationFormatFactory {
+public class RegistryAvroFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "avro-confluent";
+    public static final String IDENTIFIER = "avro-confluent";
 
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context,
-					DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-						context.createTypeInformation(producedDataType);
-				return new AvroRowDataDeserializationSchema(
-						ConfluentRegistryAvroDeserializationSchema.forGeneric(
-								AvroSchemaConverter.convertToSchema(rowType),
-								schemaRegistryURL),
-						AvroToRowDataConverters.createRowConverter(rowType),
-						rowDataTypeInfo);
-			}
+        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        context.createTypeInformation(producedDataType);
+                return new AvroRowDataDeserializationSchema(
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(rowType), schemaRegistryURL),
+                        AvroToRowDataConverters.createRowConverter(rowType),
+                        rowDataTypeInfo);
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-		Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
-		if (!subject.isPresent()) {
-			throw new ValidationException(String.format("Option %s.%s is required for serialization",
-					IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
-		}
+        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
+        if (!subject.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Option %s.%s is required for serialization",
+                            IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
+        }
 
-		return new EncodingFormat<SerializationSchema<RowData>>() {
-			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context,
-					DataType consumedDataType) {
-				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new AvroRowDataSerializationSchema(
-						rowType,
-						ConfluentRegistryAvroSerializationSchema.forGeneric(
-								subject.get(),
-								AvroSchemaConverter.convertToSchema(rowType),
-								schemaRegistryURL),
-						RowDataToAvroConverters.createConverter(rowType));
-			}
+        return new EncodingFormat<SerializationSchema<RowData>>() {
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new AvroRowDataSerializationSchema(
+                        rowType,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                subject.get(),
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL),
+                        RowDataToAvroConverters.createConverter(rowType));
+            }
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_URL);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SCHEMA_REGISTRY_URL);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_SUBJECT);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SCHEMA_REGISTRY_SUBJECT);
+        return options;
+    }
 }

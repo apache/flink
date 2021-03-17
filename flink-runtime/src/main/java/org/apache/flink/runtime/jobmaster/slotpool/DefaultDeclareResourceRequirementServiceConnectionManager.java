@@ -37,69 +37,80 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Default implementation of {@link DeclareResourceRequirementServiceConnectionManager}.
  *
- * <p>This connection manager is responsible for sending new
- * resource requirements to the connected service. In case of faults it continues
- * retrying to send the latest resource requirements to the service with
- * an exponential backoff strategy.
+ * <p>This connection manager is responsible for sending new resource requirements to the connected
+ * service. In case of faults it continues retrying to send the latest resource requirements to the
+ * service with an exponential backoff strategy.
  */
 class DefaultDeclareResourceRequirementServiceConnectionManager
-		extends AbstractServiceConnectionManager<DeclareResourceRequirementServiceConnectionManager.DeclareResourceRequirementsService>
-		implements DeclareResourceRequirementServiceConnectionManager {
+        extends AbstractServiceConnectionManager<
+                DeclareResourceRequirementServiceConnectionManager
+                        .DeclareResourceRequirementsService>
+        implements DeclareResourceRequirementServiceConnectionManager {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultDeclareResourceRequirementServiceConnectionManager.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(
+                    DefaultDeclareResourceRequirementServiceConnectionManager.class);
 
-	private final ScheduledExecutor scheduledExecutor;
+    private final ScheduledExecutor scheduledExecutor;
 
-	@Nullable
-	@GuardedBy("lock")
-	private ResourceRequirements currentResourceRequirements;
+    @Nullable
+    @GuardedBy("lock")
+    private ResourceRequirements currentResourceRequirements;
 
-	private DefaultDeclareResourceRequirementServiceConnectionManager(ScheduledExecutor scheduledExecutor) {
-		this.scheduledExecutor = scheduledExecutor;
-	}
+    private DefaultDeclareResourceRequirementServiceConnectionManager(
+            ScheduledExecutor scheduledExecutor) {
+        this.scheduledExecutor = scheduledExecutor;
+    }
 
-	@Override
-	public void declareResourceRequirements(ResourceRequirements resourceRequirements) {
-		synchronized (lock) {
-			checkNotClosed();
-			if (isConnected()) {
-				currentResourceRequirements = resourceRequirements;
+    @Override
+    public void declareResourceRequirements(ResourceRequirements resourceRequirements) {
+        synchronized (lock) {
+            checkNotClosed();
+            if (isConnected()) {
+                currentResourceRequirements = resourceRequirements;
 
-				triggerResourceRequirementsSubmission(Duration.ofMillis(1L), Duration.ofMillis(10000L), currentResourceRequirements);
-			}
-		}
-	}
+                triggerResourceRequirementsSubmission(
+                        Duration.ofMillis(1L),
+                        Duration.ofMillis(10000L),
+                        currentResourceRequirements);
+            }
+        }
+    }
 
-	@GuardedBy("lock")
-	private void triggerResourceRequirementsSubmission(
-			Duration sleepOnError,
-			Duration maxSleepOnError,
-			ResourceRequirements resourceRequirementsToSend) {
+    @GuardedBy("lock")
+    private void triggerResourceRequirementsSubmission(
+            Duration sleepOnError,
+            Duration maxSleepOnError,
+            ResourceRequirements resourceRequirementsToSend) {
 
-		FutureUtils.retryWithDelay(
-				() -> sendResourceRequirements(resourceRequirementsToSend),
-				new ExponentialBackoffRetryStrategy(Integer.MAX_VALUE, sleepOnError, maxSleepOnError),
-				throwable -> !(throwable instanceof CancellationException),
-				scheduledExecutor);
-	}
+        FutureUtils.retryWithDelay(
+                () -> sendResourceRequirements(resourceRequirementsToSend),
+                new ExponentialBackoffRetryStrategy(
+                        Integer.MAX_VALUE, sleepOnError, maxSleepOnError),
+                throwable -> !(throwable instanceof CancellationException),
+                scheduledExecutor);
+    }
 
-	private CompletableFuture<Acknowledge> sendResourceRequirements(ResourceRequirements resourceRequirementsToSend) {
-		synchronized (lock) {
-			if (isConnected()) {
-				if (resourceRequirementsToSend == currentResourceRequirements) {
-					return service.declareResourceRequirements(resourceRequirementsToSend);
-				} else {
-					LOG.debug("Newer resource requirements found. Stop sending old requirements.");
-					return FutureUtils.completedExceptionally(new CancellationException());
-				}
-			} else {
-				LOG.debug("Stop sending resource requirements to ResourceManager because it is not connected.");
-				return FutureUtils.completedExceptionally(new CancellationException());
-			}
-		}
-	}
+    private CompletableFuture<Acknowledge> sendResourceRequirements(
+            ResourceRequirements resourceRequirementsToSend) {
+        synchronized (lock) {
+            if (isConnected()) {
+                if (resourceRequirementsToSend == currentResourceRequirements) {
+                    return service.declareResourceRequirements(resourceRequirementsToSend);
+                } else {
+                    LOG.debug("Newer resource requirements found. Stop sending old requirements.");
+                    return FutureUtils.completedExceptionally(new CancellationException());
+                }
+            } else {
+                LOG.debug(
+                        "Stop sending resource requirements to ResourceManager because it is not connected.");
+                return FutureUtils.completedExceptionally(new CancellationException());
+            }
+        }
+    }
 
-	public static DeclareResourceRequirementServiceConnectionManager create(ScheduledExecutor scheduledExecutor) {
-		return new DefaultDeclareResourceRequirementServiceConnectionManager(scheduledExecutor);
-	}
+    public static DeclareResourceRequirementServiceConnectionManager create(
+            ScheduledExecutor scheduledExecutor) {
+        return new DefaultDeclareResourceRequirementServiceConnectionManager(scheduledExecutor);
+    }
 }

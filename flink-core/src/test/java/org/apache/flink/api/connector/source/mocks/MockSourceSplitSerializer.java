@@ -23,27 +23,25 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
-/**
- * The serializer for MockSourceSplitSerializer.
- */
+/** The serializer for MockSourceSplitSerializer. */
 public class MockSourceSplitSerializer implements SimpleVersionedSerializer<MockSourceSplit> {
 
-	@Override
-	public int getVersion() {
-		return 0;
-	}
+    @Override
+    public int getVersion() {
+        return 0;
+    }
 
-	@Override
-	public byte[] serialize(MockSourceSplit split) throws IOException {
-		return InstantiationUtil.serializeObject(split);
-	}
+    @Override
+    public byte[] serialize(MockSourceSplit split) throws IOException {
+        return InstantiationUtil.serializeObject(split);
+    }
 
-	@Override
-	public MockSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-		try {
-			return InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Failed to deserialize the split.", e);
-		}
-	}
+    @Override
+    public MockSourceSplit deserialize(int version, byte[] serialized) throws IOException {
+        try {
+            return InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Failed to deserialize the split.", e);
+        }
+    }
 }

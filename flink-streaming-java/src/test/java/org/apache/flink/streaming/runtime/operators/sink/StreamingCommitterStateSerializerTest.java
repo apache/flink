@@ -29,48 +29,42 @@ import java.util.Collections;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Test {@link StreamingCommitterStateSerializer}.
- */
+/** Test {@link StreamingCommitterStateSerializer}. */
 public class StreamingCommitterStateSerializerTest {
 
-	@Test
-	public void serializeNonEmptyState() throws IOException {
-		final StreamingCommitterState<String> expectedStreamingCommitterState =
-				new StreamingCommitterState<>(Arrays.asList("city", "great", "temper", "valley"));
-		final StreamingCommitterStateSerializer<String> streamingCommitterStateSerializer =
-				new StreamingCommitterStateSerializer<>(SimpleVersionedStringSerializer.INSTANCE);
+    @Test
+    public void serializeNonEmptyState() throws IOException {
+        final StreamingCommitterState<String> expectedStreamingCommitterState =
+                new StreamingCommitterState<>(Arrays.asList("city", "great", "temper", "valley"));
+        final StreamingCommitterStateSerializer<String> streamingCommitterStateSerializer =
+                new StreamingCommitterStateSerializer<>(SimpleVersionedStringSerializer.INSTANCE);
 
-		final byte[] serialize = streamingCommitterStateSerializer.serialize(
-				expectedStreamingCommitterState);
-		final StreamingCommitterState<String> streamingCommitterState =
-				streamingCommitterStateSerializer.deserialize(
-						streamingCommitterStateSerializer.getVersion(),
-						serialize);
+        final byte[] serialize =
+                streamingCommitterStateSerializer.serialize(expectedStreamingCommitterState);
+        final StreamingCommitterState<String> streamingCommitterState =
+                streamingCommitterStateSerializer.deserialize(
+                        streamingCommitterStateSerializer.getVersion(), serialize);
 
-		assertThat(
-				streamingCommitterState.getCommittables(),
-				equalTo(
-						expectedStreamingCommitterState.getCommittables()));
-	}
+        assertThat(
+                streamingCommitterState.getCommittables(),
+                equalTo(expectedStreamingCommitterState.getCommittables()));
+    }
 
-	@Test
-	public void serializeEmptyState() throws IOException {
-		final StreamingCommitterState<String> expectedStreamingCommitterState =
-				new StreamingCommitterState<>(Collections.emptyList());
-		final StreamingCommitterStateSerializer<String> streamingCommitterStateSerializer =
-				new StreamingCommitterStateSerializer<>(SimpleVersionedStringSerializer.INSTANCE);
+    @Test
+    public void serializeEmptyState() throws IOException {
+        final StreamingCommitterState<String> expectedStreamingCommitterState =
+                new StreamingCommitterState<>(Collections.emptyList());
+        final StreamingCommitterStateSerializer<String> streamingCommitterStateSerializer =
+                new StreamingCommitterStateSerializer<>(SimpleVersionedStringSerializer.INSTANCE);
 
-		final byte[] serialize = streamingCommitterStateSerializer.serialize(
-				expectedStreamingCommitterState);
-		final StreamingCommitterState<String> streamingCommitterState =
-				streamingCommitterStateSerializer.deserialize(
-						streamingCommitterStateSerializer.getVersion(),
-						serialize);
+        final byte[] serialize =
+                streamingCommitterStateSerializer.serialize(expectedStreamingCommitterState);
+        final StreamingCommitterState<String> streamingCommitterState =
+                streamingCommitterStateSerializer.deserialize(
+                        streamingCommitterStateSerializer.getVersion(), serialize);
 
-		assertThat(
-				streamingCommitterState.getCommittables(),
-				equalTo(
-						expectedStreamingCommitterState.getCommittables()));
-	}
+        assertThat(
+                streamingCommitterState.getCommittables(),
+                equalTo(expectedStreamingCommitterState.getCommittables()));
+    }
 }

@@ -19,18 +19,30 @@ import abc
 import time
 from functools import reduce
 from itertools import chain
+from typing import List, Tuple, Any, Dict
 
 from apache_beam.coders import PickleCoder
-from typing import Tuple, Any
 
-from pyflink.datastream import TimeDomain
-from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction, \
-    KeyedProcessFunction
+from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
+    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
+    AggregatingStateDescriptor, AggregatingState
+from pyflink.datastream import TimeDomain, TimerService
+from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
+from pyflink.fn_execution.state_data_view import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
-from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, \
-    GroupAggFunction, extract_data_view_specs, DistinctViewDescriptor
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
+
+try:
+    from pyflink.fn_execution.aggregate_fast import RowKeySelector, SimpleAggsHandleFunction, \
+        GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction, \
+        GroupTableAggFunction
+except ImportError:
+    from pyflink.fn_execution.aggregate_slow import RowKeySelector, SimpleAggsHandleFunction, \
+        GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction,\
+        GroupTableAggFunction
+
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
 
@@ -39,6 +51,7 @@ from pyflink.table import FunctionContext, Row
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
 STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
+STREAM_GROUP_TABLE_AGGREGATE_URN = "flink:transform:stream_group_table_aggregate:v1"
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
 PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
     "flink:transform:batch_over_window_aggregate_function:arrow:v1"
@@ -262,7 +275,7 @@ class StatefulFunctionOperation(Operation):
 TRIGGER_TIMER = 1
 
 
-class StreamGroupAggregateOperation(StatefulFunctionOperation):
+class AbstractStreamGroupAggregateOperation(StatefulFunctionOperation):
 
     def __init__(self, spec, keyed_state_backend):
         self.generate_update_before = spec.serialized_fn.generate_update_before
@@ -276,7 +289,7 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
         self.state_cache_size = spec.serialized_fn.state_cache_size
         self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
         self.data_view_specs = extract_data_view_specs(spec.serialized_fn.udfs)
-        super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+        super(AbstractStreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
 
     def open(self):
         self.group_agg_function.open(FunctionContext(self.base_metric_group))
@@ -310,6 +323,45 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             # use the agg index of the first function as the key of shared distinct view
             distinct_view_descriptors[agg_index_list[0]] = DistinctViewDescriptor(
                 input_extractors[agg_index_list[0]], filter_arg_list)
+
+        key_selector = RowKeySelector(self.grouping)
+        if len(self.data_view_specs) > 0:
+            state_value_coder = DataViewFilterCoder(self.data_view_specs)
+        else:
+            state_value_coder = PickleCoder()
+
+        self.group_agg_function = self.create_process_function(
+            user_defined_aggs, input_extractors, filter_args, distinct_indexes,
+            distinct_view_descriptors, key_selector, state_value_coder)
+
+        return self.process_element_or_timer, []
+
+    def process_element_or_timer(self, input_datas: List[Tuple[int, Row, int, Row]]):
+        # the structure of the input data:
+        # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
+        # all the fields are nullable except the "element_type"
+        for input_data in input_datas:
+            if input_data[0] != TRIGGER_TIMER:
+                self.group_agg_function.process_element(input_data[1])
+            else:
+                self.group_agg_function.on_timer(input_data[3])
+        return self.group_agg_function.finish_bundle()
+
+    @abc.abstractmethod
+    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
+                                distinct_indexes, distinct_view_descriptors, key_selector,
+                                state_value_coder):
+        pass
+
+
+class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation):
+
+    def __init__(self, spec, keyed_state_backend):
+        super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
+                                distinct_indexes, distinct_view_descriptors, key_selector,
+                                state_value_coder):
         aggs_handler_function = SimpleAggsHandleFunction(
             user_defined_aggs,
             input_extractors,
@@ -319,12 +371,8 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             filter_args,
             distinct_indexes,
             distinct_view_descriptors)
-        key_selector = RowKeySelector(self.grouping)
-        if len(self.data_view_specs) > 0:
-            state_value_coder = DataViewFilterCoder(self.data_view_specs)
-        else:
-            state_value_coder = PickleCoder()
-        self.group_agg_function = GroupAggFunction(
+
+        return GroupAggFunction(
             aggs_handler_function,
             key_selector,
             self.keyed_state_backend,
@@ -332,17 +380,30 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             self.generate_update_before,
             self.state_cleaning_enabled,
             self.index_of_count_star)
-        return self.process_element_or_timer, []
 
-    def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
-        # the structure of the input data:
-        # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
-        # all the fields are nullable except the "element_type"
-        if input_data[0] != TRIGGER_TIMER:
-            return self.group_agg_function.process_element(input_data[1])
-        else:
-            self.group_agg_function.on_timer(input_data[3])
-            return []
+
+class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation):
+    def __init__(self, spec, keyed_state_backend):
+        super(StreamGroupTableAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
+                                distinct_indexes, distinct_view_descriptors, key_selector,
+                                state_value_coder):
+        aggs_handler_function = SimpleTableAggsHandleFunction(
+            user_defined_aggs,
+            input_extractors,
+            self.data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors)
+        return GroupTableAggFunction(
+            aggs_handler_function,
+            key_selector,
+            self.keyed_state_backend,
+            state_value_coder,
+            self.generate_update_before,
+            self.state_cleaning_enabled,
+            self.index_of_count_star)
 
 
 class DataStreamStatelessFunctionOperation(Operation):
@@ -370,10 +431,46 @@ class DataStreamStatelessFunctionOperation(Operation):
         return func, [user_defined_func]
 
 
+class InternalRuntimeContext(RuntimeContext):
+
+    def __init__(self,
+                 task_name: str,
+                 task_name_with_subtasks: str,
+                 number_of_parallel_subtasks: int,
+                 max_number_of_parallel_subtasks: int,
+                 index_of_this_subtask: int,
+                 attempt_number: int,
+                 job_parameters: Dict[str, str],
+                 keyed_state_backend: RemoteKeyedStateBackend):
+        super(InternalRuntimeContext, self).__init__(
+            task_name, task_name_with_subtasks, number_of_parallel_subtasks,
+            max_number_of_parallel_subtasks, index_of_this_subtask, attempt_number,
+            job_parameters)
+        self._keyed_state_backend = keyed_state_backend
+
+    def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
+        return self._keyed_state_backend.get_value_state(state_descriptor.name, PickleCoder())
+
+    def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
+        return self._keyed_state_backend.get_list_state(state_descriptor.name, PickleCoder())
+
+    def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
+        return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
+                                                       PickleCoder())
+
+    def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
+        return self._keyed_state_backend.get_reducing_state(
+            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
+
+    def get_aggregating_state(
+            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        return self._keyed_state_backend.get_aggregating_state(
+            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_agg_function())
+
+
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def __init__(self, spec):
-        self.collector = ProcessFunctionOperation.InternalCollector()
         self.timer_service = ProcessFunctionOperation.InternalTimerService()
         self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
             self.timer_service)
@@ -381,27 +478,8 @@ class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def generate_func(self, serialized_fn) -> tuple:
         func, proc_func = operation_utils.extract_process_function(
-            serialized_fn, self.function_context, self.collector)
+            serialized_fn, self.function_context)
         return func, [proc_func]
-
-    class InternalCollector(Collector):
-        """
-        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
-        There will be a header flag for each data type. 0 means it is a proc time timer registering
-        request, while 1 means it is an event time timer and 2 means it is a normal data. When
-        registering a timer, it must take along with the corresponding key for it.
-
-        For a ProcessFunction, it will only collect normal data.
-        """
-
-        def __init__(self):
-            self.buf = []
-
-        def collect(self, a: Any):
-            self.buf.append((2, a))
-
-        def clear(self):
-            self.buf.clear()
 
     class InternalProcessFunctionContext(ProcessFunction.Context):
         """
@@ -462,7 +540,22 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
             self.keyed_state_backend)
         return func, [proc_func]
 
-    class InternalCollector(Collector):
+    def open(self):
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'open'):
+                runtime_context = InternalRuntimeContext(
+                    self.spec.serialized_fn.runtime_context.task_name,
+                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                    self.spec.serialized_fn.runtime_context.attempt_number,
+                    {p.key: p.value for p in
+                     self.spec.serialized_fn.runtime_context.job_parameters},
+                    self.keyed_state_backend)
+                user_defined_func.open(runtime_context)
+
+    class InternalCollector(object):
         """
         Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
         There will be a header flag for each data type. 0 means it is a proc time timer registering

@@ -35,52 +35,51 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface TimestampAssignerSupplier<T> extends Serializable {
 
-	/**
-	 * Instantiates a {@link TimestampAssigner}.
-	 */
-	TimestampAssigner<T> createTimestampAssigner(Context context);
+    /** Instantiates a {@link TimestampAssigner}. */
+    TimestampAssigner<T> createTimestampAssigner(Context context);
 
-	static <T> TimestampAssignerSupplier<T> of(SerializableTimestampAssigner<T> assigner) {
-		return new SupplierFromSerializableTimestampAssigner<>(assigner);
-	}
+    static <T> TimestampAssignerSupplier<T> of(SerializableTimestampAssigner<T> assigner) {
+        return new SupplierFromSerializableTimestampAssigner<>(assigner);
+    }
 
-	/**
-	 * Additional information available to {@link #createTimestampAssigner(Context)}. This can be
-	 * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
-	 */
-	interface Context {
+    /**
+     * Additional information available to {@link #createTimestampAssigner(Context)}. This can be
+     * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
+     */
+    interface Context {
 
-		/**
-		 * Returns the metric group for the context in which the created {@link TimestampAssigner}
-		 * is used.
-		 *
-		 * <p>Instances of this class can be used to register new metrics with Flink and to create
-		 * a nested hierarchy based on the group names. See {@link MetricGroup} for more information
-		 * for the metrics system.
-		 *
-		 * @see MetricGroup
-		 */
-		MetricGroup getMetricGroup();
-	}
+        /**
+         * Returns the metric group for the context in which the created {@link TimestampAssigner}
+         * is used.
+         *
+         * <p>Instances of this class can be used to register new metrics with Flink and to create a
+         * nested hierarchy based on the group names. See {@link MetricGroup} for more information
+         * for the metrics system.
+         *
+         * @see MetricGroup
+         */
+        MetricGroup getMetricGroup();
+    }
 
-	/**
-	 * We need an actual class. Implementing this as a lambda in {@link
-	 * #of(SerializableTimestampAssigner)} would not allow the {@link ClosureCleaner} to "reach"
-	 * into the {@link SerializableTimestampAssigner}.
-	 */
-	class SupplierFromSerializableTimestampAssigner<T> implements TimestampAssignerSupplier<T> {
+    /**
+     * We need an actual class. Implementing this as a lambda in {@link
+     * #of(SerializableTimestampAssigner)} would not allow the {@link ClosureCleaner} to "reach"
+     * into the {@link SerializableTimestampAssigner}.
+     */
+    class SupplierFromSerializableTimestampAssigner<T> implements TimestampAssignerSupplier<T> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final SerializableTimestampAssigner<T> assigner;
+        private final SerializableTimestampAssigner<T> assigner;
 
-		public SupplierFromSerializableTimestampAssigner(SerializableTimestampAssigner<T> assigner) {
-			this.assigner = assigner;
-		}
+        public SupplierFromSerializableTimestampAssigner(
+                SerializableTimestampAssigner<T> assigner) {
+            this.assigner = assigner;
+        }
 
-		@Override
-		public TimestampAssigner<T> createTimestampAssigner(Context context) {
-			return assigner;
-		}
-	}
+        @Override
+        public TimestampAssigner<T> createTimestampAssigner(Context context) {
+            return assigner;
+        }
+    }
 }

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -87,7 +87,21 @@ under the License.
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
+		<module>flink-glue-schema-registry-test</module>
 	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- We pick an arbitrary version of net.java.dev.jna:jna to satisfy dependency
+				 convergence for org.testcontainers:testcontainers which transitively depends on
+				 two different versions.-->
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>5.5.0</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
@@ -248,8 +262,11 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*ITCase.*</include>
+								<include>**/*.*</include>
 							</includes>
+							<excludes>
+								<exclude>${test.unit.pattern}</exclude>
+							</excludes>
 							<!-- Disable all tests by default.
                                 Uses a separate property to make it configurable from the command-line. -->
 							<groups>${includeE2E}</groups>

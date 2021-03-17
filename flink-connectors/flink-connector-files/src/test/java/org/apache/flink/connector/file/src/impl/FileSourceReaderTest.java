@@ -33,49 +33,41 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for the {@link FileSourceReader}.
- */
+/** Unit tests for the {@link FileSourceReader}. */
 public class FileSourceReaderTest {
 
-	@ClassRule
-	public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
 
-	@Test
-	public void testRequestSplitWhenNoSplitRestored() throws Exception {
-		final TestingReaderContext context = new TestingReaderContext();
-		final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
+    @Test
+    public void testRequestSplitWhenNoSplitRestored() throws Exception {
+        final TestingReaderContext context = new TestingReaderContext();
+        final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
 
-		reader.start();
-		reader.close();
+        reader.start();
+        reader.close();
 
-		assertEquals(1, context.getNumSplitRequests());
-	}
+        assertEquals(1, context.getNumSplitRequests());
+    }
 
-	@Test
-	public void testNoSplitRequestWhenSplitRestored() throws Exception {
-		final TestingReaderContext context = new TestingReaderContext();
-		final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
+    @Test
+    public void testNoSplitRequestWhenSplitRestored() throws Exception {
+        final TestingReaderContext context = new TestingReaderContext();
+        final FileSourceReader<String, FileSourceSplit> reader = createReader(context);
 
-		reader.addSplits(Collections.singletonList(createTestFileSplit()));
-		reader.start();
-		reader.close();
+        reader.addSplits(Collections.singletonList(createTestFileSplit()));
+        reader.start();
+        reader.close();
 
-		assertEquals(0, context.getNumSplitRequests());
-	}
+        assertEquals(0, context.getNumSplitRequests());
+    }
 
-	private static FileSourceReader<String, FileSourceSplit> createReader(TestingReaderContext context) {
-		return new FileSourceReader<>(
-				context,
-				new StreamFormatAdapter<>(new TextLineFormat()),
-				new Configuration());
-	}
+    private static FileSourceReader<String, FileSourceSplit> createReader(
+            TestingReaderContext context) {
+        return new FileSourceReader<>(
+                context, new StreamFormatAdapter<>(new TextLineFormat()), new Configuration());
+    }
 
-	private static FileSourceSplit createTestFileSplit() throws IOException {
-		return new FileSourceSplit(
-			"test-id",
-			Path.fromLocalFile(TMP_DIR.newFile()),
-			0L,
-			0L);
-	}
+    private static FileSourceSplit createTestFileSplit() throws IOException {
+        return new FileSourceSplit("test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L);
+    }
 }

@@ -21,28 +21,28 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * A buffer which encapsulates the logic of dealing with the response from the {@link CollectSinkFunction}.
- * It will consider the checkpoint related fields in the response.
- * See Java doc of {@link CollectSinkFunction} for explanation of this communication protocol.
+ * A buffer which encapsulates the logic of dealing with the response from the {@link
+ * CollectSinkFunction}. It will consider the checkpoint related fields in the response. See Java
+ * doc of {@link CollectSinkFunction} for explanation of this communication protocol.
  */
 public class CheckpointedCollectResultBuffer<T> extends AbstractCollectResultBuffer<T> {
 
-	public CheckpointedCollectResultBuffer(TypeSerializer<T> serializer) {
-		super(serializer);
-	}
+    public CheckpointedCollectResultBuffer(TypeSerializer<T> serializer) {
+        super(serializer);
+    }
 
-	@Override
-	protected void sinkRestarted(long lastCheckpointedOffset) {
-		// sink restarted, we revert back to where the sink tells us
-		revert(lastCheckpointedOffset);
-	}
+    @Override
+    protected void sinkRestarted(long lastCheckpointedOffset) {
+        // sink restarted, we revert back to where the sink tells us
+        revert(lastCheckpointedOffset);
+    }
 
-	@Override
-	protected void maintainVisibility(long currentVisiblePos, long lastCheckpointedOffset) {
-		if (currentVisiblePos < lastCheckpointedOffset) {
-			// lastCheckpointedOffset increases, this means that more results have been
-			// checkpointed, and we can give these results to the user
-			makeResultsVisible(lastCheckpointedOffset);
-		}
-	}
+    @Override
+    protected void maintainVisibility(long currentVisiblePos, long lastCheckpointedOffset) {
+        if (currentVisiblePos < lastCheckpointedOffset) {
+            // lastCheckpointedOffset increases, this means that more results have been
+            // checkpointed, and we can give these results to the user
+            makeResultsVisible(lastCheckpointedOffset);
+        }
+    }
 }

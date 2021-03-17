@@ -43,81 +43,100 @@ import java.util.Collections;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
-/**
- * Test cases for the deployment of Yarn Flink application clusters.
- */
+/** Test cases for the deployment of Yarn Flink application clusters. */
 public class YARNApplicationITCase extends YarnTestBase {
 
-	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(30);
-	private static final int sleepIntervalInMS = 100;
+    private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(30);
+    private static final int sleepIntervalInMS = 100;
 
-	@BeforeClass
-	public static void setup() {
-		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-application");
-		startYARNWithConfig(YARN_CONFIGURATION, true);
-	}
+    @BeforeClass
+    public static void setup() {
+        YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-application");
+        startYARNWithConfig(YARN_CONFIGURATION, true);
+    }
 
-	@Test
-	public void testApplicationClusterWithLocalUserJarAndFirstUserJarInclusion() throws Exception {
-		runTest(
-			() -> deployApplication(
-				createDefaultConfiguration(getTestingJar(), YarnConfigOptions.UserJarInclusion.FIRST)));
-	}
+    @Test
+    public void testApplicationClusterWithLocalUserJarAndFirstUserJarInclusion() throws Exception {
+        runTest(
+                () ->
+                        deployApplication(
+                                createDefaultConfiguration(
+                                        getTestingJar(),
+                                        YarnConfigOptions.UserJarInclusion.FIRST)));
+    }
 
-	@Test
-	public void testApplicationClusterWithLocalUserJarAndDisableUserJarInclusion() throws Exception {
-		runTest(
-			() -> deployApplication(
-				createDefaultConfiguration(getTestingJar(), YarnConfigOptions.UserJarInclusion.DISABLED)));
-	}
+    @Test
+    public void testApplicationClusterWithLocalUserJarAndDisableUserJarInclusion()
+            throws Exception {
+        runTest(
+                () ->
+                        deployApplication(
+                                createDefaultConfiguration(
+                                        getTestingJar(),
+                                        YarnConfigOptions.UserJarInclusion.DISABLED)));
+    }
 
-	@Test
-	public void testApplicationClusterWithRemoteUserJar() throws Exception {
-		final Path testingJar = getTestingJar();
-		final Path remoteJar = new Path(miniDFSCluster.getFileSystem().getHomeDirectory(), testingJar.getName());
-		miniDFSCluster.getFileSystem().copyFromLocalFile(testingJar, remoteJar);
-		runTest(
-			() -> deployApplication(
-				createDefaultConfiguration(remoteJar, YarnConfigOptions.UserJarInclusion.DISABLED)));
-	}
+    @Test
+    public void testApplicationClusterWithRemoteUserJar() throws Exception {
+        final Path testingJar = getTestingJar();
+        final Path remoteJar =
+                new Path(miniDFSCluster.getFileSystem().getHomeDirectory(), testingJar.getName());
+        miniDFSCluster.getFileSystem().copyFromLocalFile(testingJar, remoteJar);
+        runTest(
+                () ->
+                        deployApplication(
+                                createDefaultConfiguration(
+                                        remoteJar, YarnConfigOptions.UserJarInclusion.DISABLED)));
+    }
 
-	private void deployApplication(Configuration configuration) throws Exception {
-		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
+    private void deployApplication(Configuration configuration) throws Exception {
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(configuration)) {
 
-			final int masterMemory = yarnClusterDescriptor.getFlinkConfiguration().get(JobManagerOptions.TOTAL_PROCESS_MEMORY).getMebiBytes();
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(masterMemory)
-				.setTaskManagerMemoryMB(1024)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
+            final int masterMemory =
+                    yarnClusterDescriptor
+                            .getFlinkConfiguration()
+                            .get(JobManagerOptions.TOTAL_PROCESS_MEMORY)
+                            .getMebiBytes();
+            final ClusterSpecification clusterSpecification =
+                    new ClusterSpecification.ClusterSpecificationBuilder()
+                            .setMasterMemoryMB(masterMemory)
+                            .setTaskManagerMemoryMB(1024)
+                            .setSlotsPerTaskManager(1)
+                            .createClusterSpecification();
 
-			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor
-					.deployApplicationCluster(
-							clusterSpecification,
-							ApplicationConfiguration.fromConfiguration(configuration))
-					.getClusterClient()) {
+            try (ClusterClient<ApplicationId> clusterClient =
+                    yarnClusterDescriptor
+                            .deployApplicationCluster(
+                                    clusterSpecification,
+                                    ApplicationConfiguration.fromConfiguration(configuration))
+                            .getClusterClient()) {
 
-				ApplicationId applicationId = clusterClient.getClusterId();
+                ApplicationId applicationId = clusterClient.getClusterId();
 
-				waitApplicationFinishedElseKillIt(
-					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
-			}
-		}
-	}
+                waitApplicationFinishedElseKillIt(
+                        applicationId,
+                        yarnAppTerminateTimeout,
+                        yarnClusterDescriptor,
+                        sleepIntervalInMS);
+            }
+        }
+    }
 
-	private Path getTestingJar() throws FileNotFoundException {
-		return new Path(getTestJarPath("StreamingWordCount.jar").toURI());
-	}
+    private Path getTestingJar() throws FileNotFoundException {
+        return new Path(getTestJarPath("StreamingWordCount.jar").toURI());
+    }
 
-	private Configuration createDefaultConfiguration(Path userJar, YarnConfigOptions.UserJarInclusion userJarInclusion) {
-		Configuration configuration = new Configuration();
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
-		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion.toString());
-		configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));
+    private Configuration createDefaultConfiguration(
+            Path userJar, YarnConfigOptions.UserJarInclusion userJarInclusion) {
+        Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+        configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+        configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
+        configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
+        configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));
 
-		return configuration;
-	}
+        return configuration;
+    }
 }

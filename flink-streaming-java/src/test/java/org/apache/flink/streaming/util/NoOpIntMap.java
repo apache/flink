@@ -20,13 +20,11 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 
-/**
- * Identity mapper for {@code Integer}.
- */
+/** Identity mapper for {@code Integer}. */
 public class NoOpIntMap implements MapFunction<Integer, Integer> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public Integer map(Integer value) throws Exception {
-		return value;
-	}
+    public Integer map(Integer value) throws Exception {
+        return value;
+    }
 }

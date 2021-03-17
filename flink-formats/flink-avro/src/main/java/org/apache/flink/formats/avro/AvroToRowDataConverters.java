@@ -50,208 +50,211 @@ import java.util.Map;
 
 import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
 
-/** Tool class used to convert from Avro {@link GenericRecord} to {@link RowData}. **/
+/** Tool class used to convert from Avro {@link GenericRecord} to {@link RowData}. * */
 @Internal
 public class AvroToRowDataConverters {
 
-	/**
-	 * Runtime converter that converts Avro data structures into objects of Flink Table & SQL
-	 * internal data structures.
-	 */
-	@FunctionalInterface
-	public interface AvroToRowDataConverter extends Serializable {
-		Object convert(Object object);
-	}
+    /**
+     * Runtime converter that converts Avro data structures into objects of Flink Table & SQL
+     * internal data structures.
+     */
+    @FunctionalInterface
+    public interface AvroToRowDataConverter extends Serializable {
+        Object convert(Object object);
+    }
 
-	// -------------------------------------------------------------------------------------
-	// Runtime Converters
-	// -------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------
+    // Runtime Converters
+    // -------------------------------------------------------------------------------------
 
-	public static AvroToRowDataConverter createRowConverter(RowType rowType) {
-		final AvroToRowDataConverter[] fieldConverters = rowType.getFields().stream()
-				.map(RowType.RowField::getType)
-				.map(AvroToRowDataConverters::createNullableConverter)
-				.toArray(AvroToRowDataConverter[]::new);
-		final int arity = rowType.getFieldCount();
+    public static AvroToRowDataConverter createRowConverter(RowType rowType) {
+        final AvroToRowDataConverter[] fieldConverters =
+                rowType.getFields().stream()
+                        .map(RowType.RowField::getType)
+                        .map(AvroToRowDataConverters::createNullableConverter)
+                        .toArray(AvroToRowDataConverter[]::new);
+        final int arity = rowType.getFieldCount();
 
-		return avroObject -> {
-			IndexedRecord record = (IndexedRecord) avroObject;
-			GenericRowData row = new GenericRowData(arity);
-			for (int i = 0; i < arity; ++i) {
-				row.setField(i, fieldConverters[i].convert(record.get(i)));
-			}
-			return row;
-		};
-	}
+        return avroObject -> {
+            IndexedRecord record = (IndexedRecord) avroObject;
+            GenericRowData row = new GenericRowData(arity);
+            for (int i = 0; i < arity; ++i) {
+                row.setField(i, fieldConverters[i].convert(record.get(i)));
+            }
+            return row;
+        };
+    }
 
-	/**
-	 * Creates a runtime converter which is null safe.
-	 */
-	private static AvroToRowDataConverter createNullableConverter(LogicalType type) {
-		final AvroToRowDataConverter converter = createConverter(type);
-		return avroObject -> {
-			if (avroObject == null) {
-				return null;
-			}
-			return converter.convert(avroObject);
-		};
-	}
+    /** Creates a runtime converter which is null safe. */
+    private static AvroToRowDataConverter createNullableConverter(LogicalType type) {
+        final AvroToRowDataConverter converter = createConverter(type);
+        return avroObject -> {
+            if (avroObject == null) {
+                return null;
+            }
+            return converter.convert(avroObject);
+        };
+    }
 
-	/**
-	 * Creates a runtime converter which assuming input object is not null.
-	 */
-	private static AvroToRowDataConverter createConverter(LogicalType type) {
-		switch (type.getTypeRoot()) {
-		case NULL:
-			return avroObject -> null;
-		case TINYINT:
-			return avroObject -> ((Integer) avroObject).byteValue();
-		case SMALLINT:
-			return avroObject -> ((Integer) avroObject).shortValue();
-		case BOOLEAN: // boolean
-		case INTEGER: // int
-		case INTERVAL_YEAR_MONTH: // long
-		case BIGINT: // long
-		case INTERVAL_DAY_TIME: // long
-		case FLOAT: // float
-		case DOUBLE: // double
-			return avroObject -> avroObject;
-		case DATE:
-			return AvroToRowDataConverters::convertToDate;
-		case TIME_WITHOUT_TIME_ZONE:
-			return AvroToRowDataConverters::convertToTime;
-		case TIMESTAMP_WITHOUT_TIME_ZONE:
-			return AvroToRowDataConverters::convertToTimestamp;
-		case CHAR:
-		case VARCHAR:
-			return avroObject -> StringData.fromString(avroObject.toString());
-		case BINARY:
-		case VARBINARY:
-			return AvroToRowDataConverters::convertToBytes;
-		case DECIMAL:
-			return createDecimalConverter((DecimalType) type);
-		case ARRAY:
-			return createArrayConverter((ArrayType) type);
-		case ROW:
-			return createRowConverter((RowType) type);
-		case MAP:
-		case MULTISET:
-			return createMapConverter(type);
-		case RAW:
-		default:
-			throw new UnsupportedOperationException("Unsupported type: " + type);
-		}
-	}
+    /** Creates a runtime converter which assuming input object is not null. */
+    private static AvroToRowDataConverter createConverter(LogicalType type) {
+        switch (type.getTypeRoot()) {
+            case NULL:
+                return avroObject -> null;
+            case TINYINT:
+                return avroObject -> ((Integer) avroObject).byteValue();
+            case SMALLINT:
+                return avroObject -> ((Integer) avroObject).shortValue();
+            case BOOLEAN: // boolean
+            case INTEGER: // int
+            case INTERVAL_YEAR_MONTH: // long
+            case BIGINT: // long
+            case INTERVAL_DAY_TIME: // long
+            case FLOAT: // float
+            case DOUBLE: // double
+                return avroObject -> avroObject;
+            case DATE:
+                return AvroToRowDataConverters::convertToDate;
+            case TIME_WITHOUT_TIME_ZONE:
+                return AvroToRowDataConverters::convertToTime;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return AvroToRowDataConverters::convertToTimestamp;
+            case CHAR:
+            case VARCHAR:
+                return avroObject -> StringData.fromString(avroObject.toString());
+            case BINARY:
+            case VARBINARY:
+                return AvroToRowDataConverters::convertToBytes;
+            case DECIMAL:
+                return createDecimalConverter((DecimalType) type);
+            case ARRAY:
+                return createArrayConverter((ArrayType) type);
+            case ROW:
+                return createRowConverter((RowType) type);
+            case MAP:
+            case MULTISET:
+                return createMapConverter(type);
+            case RAW:
+            default:
+                throw new UnsupportedOperationException("Unsupported type: " + type);
+        }
+    }
 
-	private static AvroToRowDataConverter createDecimalConverter(DecimalType decimalType) {
-		final int precision = decimalType.getPrecision();
-		final int scale = decimalType.getScale();
-		return avroObject -> {
-			final byte[] bytes;
-			if (avroObject instanceof GenericFixed) {
-				bytes = ((GenericFixed) avroObject).bytes();
-			} else if (avroObject instanceof ByteBuffer) {
-				ByteBuffer byteBuffer = (ByteBuffer) avroObject;
-				bytes = new byte[byteBuffer.remaining()];
-				byteBuffer.get(bytes);
-			} else {
-				bytes = (byte[]) avroObject;
-			}
-			return DecimalData.fromUnscaledBytes(bytes, precision, scale);
-		};
-	}
+    private static AvroToRowDataConverter createDecimalConverter(DecimalType decimalType) {
+        final int precision = decimalType.getPrecision();
+        final int scale = decimalType.getScale();
+        return avroObject -> {
+            final byte[] bytes;
+            if (avroObject instanceof GenericFixed) {
+                bytes = ((GenericFixed) avroObject).bytes();
+            } else if (avroObject instanceof ByteBuffer) {
+                ByteBuffer byteBuffer = (ByteBuffer) avroObject;
+                bytes = new byte[byteBuffer.remaining()];
+                byteBuffer.get(bytes);
+            } else {
+                bytes = (byte[]) avroObject;
+            }
+            return DecimalData.fromUnscaledBytes(bytes, precision, scale);
+        };
+    }
 
-	private static AvroToRowDataConverter createArrayConverter(ArrayType arrayType) {
-		final AvroToRowDataConverter elementConverter = createNullableConverter(arrayType.getElementType());
-		final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
+    private static AvroToRowDataConverter createArrayConverter(ArrayType arrayType) {
+        final AvroToRowDataConverter elementConverter =
+                createNullableConverter(arrayType.getElementType());
+        final Class<?> elementClass =
+                LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
 
-		return avroObject -> {
-			final List<?> list = (List<?>) avroObject;
-			final int length = list.size();
-			final Object[] array = (Object[]) Array.newInstance(elementClass, length);
-			for (int i = 0; i < length; ++i) {
-				array[i] = elementConverter.convert(list.get(i));
-			}
-			return new GenericArrayData(array);
-		};
-	}
+        return avroObject -> {
+            final List<?> list = (List<?>) avroObject;
+            final int length = list.size();
+            final Object[] array = (Object[]) Array.newInstance(elementClass, length);
+            for (int i = 0; i < length; ++i) {
+                array[i] = elementConverter.convert(list.get(i));
+            }
+            return new GenericArrayData(array);
+        };
+    }
 
-	private static AvroToRowDataConverter createMapConverter(LogicalType type) {
-		final AvroToRowDataConverter keyConverter = createConverter(DataTypes.STRING().getLogicalType());
-		final AvroToRowDataConverter valueConverter = createNullableConverter(extractValueTypeToAvroMap(type));
+    private static AvroToRowDataConverter createMapConverter(LogicalType type) {
+        final AvroToRowDataConverter keyConverter =
+                createConverter(DataTypes.STRING().getLogicalType());
+        final AvroToRowDataConverter valueConverter =
+                createNullableConverter(extractValueTypeToAvroMap(type));
 
-		return avroObject -> {
-			final Map<?, ?> map = (Map<?, ?>) avroObject;
-			Map<Object, Object> result = new HashMap<>();
-			for (Map.Entry<?, ?> entry : map.entrySet()) {
-				Object key = keyConverter.convert(entry.getKey());
-				Object value = valueConverter.convert(entry.getValue());
-				result.put(key, value);
-			}
-			return new GenericMapData(result);
-		};
-	}
+        return avroObject -> {
+            final Map<?, ?> map = (Map<?, ?>) avroObject;
+            Map<Object, Object> result = new HashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                Object key = keyConverter.convert(entry.getKey());
+                Object value = valueConverter.convert(entry.getValue());
+                result.put(key, value);
+            }
+            return new GenericMapData(result);
+        };
+    }
 
-	private static TimestampData convertToTimestamp(Object object) {
-		final long millis;
-		if (object instanceof Long) {
-			millis = (Long) object;
-		} else if (object instanceof Instant) {
-			millis = ((Instant) object).toEpochMilli();
-		} else {
-			JodaConverter jodaConverter = JodaConverter.getConverter();
-			if (jodaConverter != null) {
-				millis = jodaConverter.convertTimestamp(object);
-			} else {
-				throw new IllegalArgumentException(
-					"Unexpected object type for TIMESTAMP logical type. Received: " + object);
-			}
-		}
-		return TimestampData.fromEpochMillis(millis);
-	}
+    private static TimestampData convertToTimestamp(Object object) {
+        final long millis;
+        if (object instanceof Long) {
+            millis = (Long) object;
+        } else if (object instanceof Instant) {
+            millis = ((Instant) object).toEpochMilli();
+        } else {
+            JodaConverter jodaConverter = JodaConverter.getConverter();
+            if (jodaConverter != null) {
+                millis = jodaConverter.convertTimestamp(object);
+            } else {
+                throw new IllegalArgumentException(
+                        "Unexpected object type for TIMESTAMP logical type. Received: " + object);
+            }
+        }
+        return TimestampData.fromEpochMillis(millis);
+    }
 
-	private static int convertToDate(Object object) {
-		if (object instanceof Integer) {
-			return (Integer) object;
-		} else if (object instanceof LocalDate) {
-			return (int) ((LocalDate) object).toEpochDay();
-		} else {
-			JodaConverter jodaConverter = JodaConverter.getConverter();
-			if (jodaConverter != null) {
-				return (int) jodaConverter.convertDate(object);
-			} else {
-				throw new IllegalArgumentException("Unexpected object type for DATE logical type. Received: " + object);
-			}
-		}
-	}
+    private static int convertToDate(Object object) {
+        if (object instanceof Integer) {
+            return (Integer) object;
+        } else if (object instanceof LocalDate) {
+            return (int) ((LocalDate) object).toEpochDay();
+        } else {
+            JodaConverter jodaConverter = JodaConverter.getConverter();
+            if (jodaConverter != null) {
+                return (int) jodaConverter.convertDate(object);
+            } else {
+                throw new IllegalArgumentException(
+                        "Unexpected object type for DATE logical type. Received: " + object);
+            }
+        }
+    }
 
-	private static int convertToTime(Object object) {
-		final int millis;
-		if (object instanceof Integer) {
-			millis = (Integer) object;
-		} else if (object instanceof LocalTime) {
-			millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
-		} else {
-			JodaConverter jodaConverter = JodaConverter.getConverter();
-			if (jodaConverter != null) {
-				millis = jodaConverter.convertTime(object);
-			} else {
-				throw new IllegalArgumentException("Unexpected object type for TIME logical type. Received: " + object);
-			}
-		}
-		return millis;
-	}
+    private static int convertToTime(Object object) {
+        final int millis;
+        if (object instanceof Integer) {
+            millis = (Integer) object;
+        } else if (object instanceof LocalTime) {
+            millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
+        } else {
+            JodaConverter jodaConverter = JodaConverter.getConverter();
+            if (jodaConverter != null) {
+                millis = jodaConverter.convertTime(object);
+            } else {
+                throw new IllegalArgumentException(
+                        "Unexpected object type for TIME logical type. Received: " + object);
+            }
+        }
+        return millis;
+    }
 
-	private static byte[] convertToBytes(Object object) {
-		if (object instanceof GenericFixed) {
-			return ((GenericFixed) object).bytes();
-		} else if (object instanceof ByteBuffer) {
-			ByteBuffer byteBuffer = (ByteBuffer) object;
-			byte[] bytes = new byte[byteBuffer.remaining()];
-			byteBuffer.get(bytes);
-			return bytes;
-		} else {
-			return (byte[]) object;
-		}
-	}
+    private static byte[] convertToBytes(Object object) {
+        if (object instanceof GenericFixed) {
+            return ((GenericFixed) object).bytes();
+        } else if (object instanceof ByteBuffer) {
+            ByteBuffer byteBuffer = (ByteBuffer) object;
+            byte[] bytes = new byte[byteBuffer.remaining()];
+            byteBuffer.get(bytes);
+            return bytes;
+        } else {
+            return (byte[]) object;
+        }
+    }
 }

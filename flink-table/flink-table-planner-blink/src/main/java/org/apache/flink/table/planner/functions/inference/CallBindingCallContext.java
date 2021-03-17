@@ -40,88 +40,87 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A {@link CallContext} backed by {@link SqlCallBinding}. Compared to {@link OperatorBindingCallContext},
- * this class is able to reorder arguments.
+ * A {@link CallContext} backed by {@link SqlCallBinding}. Compared to {@link
+ * OperatorBindingCallContext}, this class is able to reorder arguments.
  */
 @Internal
 public final class CallBindingCallContext extends AbstractSqlCallContext {
 
-	private final List<SqlNode> adaptedArguments;
+    private final List<SqlNode> adaptedArguments;
 
-	private final List<DataType> argumentDataTypes;
+    private final List<DataType> argumentDataTypes;
 
-	private final @Nullable DataType outputType;
+    private final @Nullable DataType outputType;
 
-	public CallBindingCallContext(
-			DataTypeFactory dataTypeFactory,
-			FunctionDefinition definition,
-			SqlCallBinding binding,
-			@Nullable RelDataType outputType) {
-		super(
-			dataTypeFactory,
-			definition,
-			binding.getOperator().getNameAsId().toString());
+    public CallBindingCallContext(
+            DataTypeFactory dataTypeFactory,
+            FunctionDefinition definition,
+            SqlCallBinding binding,
+            @Nullable RelDataType outputType) {
+        super(dataTypeFactory, definition, binding.getOperator().getNameAsId().toString());
 
-		this.adaptedArguments = binding.operands(); // reorders the operands
-		this.argumentDataTypes = new AbstractList<DataType>() {
-			@Override
-			public DataType get(int pos) {
-				final RelDataType relDataType = binding.getValidator().deriveType(
-					binding.getScope(),
-					adaptedArguments.get(pos));
-				final LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
-				return TypeConversions.fromLogicalToDataType(logicalType);
-			}
+        this.adaptedArguments = binding.operands(); // reorders the operands
+        this.argumentDataTypes =
+                new AbstractList<DataType>() {
+                    @Override
+                    public DataType get(int pos) {
+                        final RelDataType relDataType =
+                                binding.getValidator()
+                                        .deriveType(binding.getScope(), adaptedArguments.get(pos));
+                        final LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
+                        return TypeConversions.fromLogicalToDataType(logicalType);
+                    }
 
-			@Override
-			public int size() {
-				return binding.getOperandCount();
-			}
-		};
-		this.outputType = convertOutputType(binding, outputType);
-	}
+                    @Override
+                    public int size() {
+                        return binding.getOperandCount();
+                    }
+                };
+        this.outputType = convertOutputType(binding, outputType);
+    }
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		return SqlUtil.isLiteral(adaptedArguments.get(pos), false);
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        return SqlUtil.isLiteral(adaptedArguments.get(pos), false);
+    }
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false);
-	}
+    @Override
+    public boolean isArgumentNull(int pos) {
+        return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false);
+    }
 
-	@Override
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		if (isArgumentNull(pos)) {
-			return Optional.empty();
-		}
-		try {
-			final SqlLiteral literal = SqlLiteral.unchain(adaptedArguments.get(pos));
-			return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
-		} catch (IllegalArgumentException e) {
-			return Optional.empty();
-		}
-	}
+    @Override
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        if (isArgumentNull(pos)) {
+            return Optional.empty();
+        }
+        try {
+            final SqlLiteral literal = SqlLiteral.unchain(adaptedArguments.get(pos));
+            return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return argumentDataTypes;
+    }
 
-	@Override
-	public Optional<DataType> getOutputDataType() {
-		return Optional.ofNullable(outputType);
-	}
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return Optional.ofNullable(outputType);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static @Nullable DataType convertOutputType(SqlCallBinding binding, @Nullable RelDataType returnType) {
-		if (returnType == null || returnType.equals(binding.getValidator().getUnknownType())) {
-			return null;
-		} else {
-			final LogicalType logicalType = FlinkTypeFactory.toLogicalType(returnType);
-			return TypeConversions.fromLogicalToDataType(logicalType);
-		}
-	}
+    private static @Nullable DataType convertOutputType(
+            SqlCallBinding binding, @Nullable RelDataType returnType) {
+        if (returnType == null || returnType.equals(binding.getValidator().getUnknownType())) {
+            return null;
+        } else {
+            final LogicalType logicalType = FlinkTypeFactory.toLogicalType(returnType);
+            return TypeConversions.fromLogicalToDataType(logicalType);
+        }
+    }
 }

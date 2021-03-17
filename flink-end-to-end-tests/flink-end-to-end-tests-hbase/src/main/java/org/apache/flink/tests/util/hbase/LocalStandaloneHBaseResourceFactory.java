@@ -18,13 +18,11 @@
 
 package org.apache.flink.tests.util.hbase;
 
-/**
- * A {@link HBaseResourceFactory} for the {@link LocalStandaloneHBaseResourceFactory}.
- */
+/** A {@link HBaseResourceFactory} for the {@link LocalStandaloneHBaseResourceFactory}. */
 public class LocalStandaloneHBaseResourceFactory implements HBaseResourceFactory {
 
-	@Override
-	public HBaseResource create(String version) {
-		return new LocalStandaloneHBaseResource(version);
-	}
+    @Override
+    public HBaseResource create(String version) {
+        return new LocalStandaloneHBaseResource(version);
+    }
 }

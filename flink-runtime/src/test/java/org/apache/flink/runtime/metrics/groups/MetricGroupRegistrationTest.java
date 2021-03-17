@@ -38,88 +38,90 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the registration of groups and metrics on a {@link MetricGroup}.
- */
+/** Tests for the registration of groups and metrics on a {@link MetricGroup}. */
 public class MetricGroupRegistrationTest extends TestLogger {
-	/**
-	 * Verifies that group methods instantiate the correct metric with the given name.
-	 */
-	@Test
-	public void testMetricInstantiation() throws Exception {
-		MetricRegistryImpl registry = new MetricRegistryImpl(
-			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
-			Collections.singletonList(ReporterSetup.forReporter("test", new TestReporter1())));
+    /** Verifies that group methods instantiate the correct metric with the given name. */
+    @Test
+    public void testMetricInstantiation() throws Exception {
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        Collections.singletonList(
+                                ReporterSetup.forReporter("test", new TestReporter1())));
 
-		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+        MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
-		Counter counter = root.counter("counter");
-		assertEquals(counter, TestReporter1.lastPassedMetric);
-		assertEquals("counter", TestReporter1.lastPassedName);
+        Counter counter = root.counter("counter");
+        assertEquals(counter, TestReporter1.lastPassedMetric);
+        assertEquals("counter", TestReporter1.lastPassedName);
 
-		Gauge<Object> gauge = root.gauge("gauge", new Gauge<Object>() {
-			@Override
-			public Object getValue() {
-				return null;
-			}
-		});
+        Gauge<Object> gauge =
+                root.gauge(
+                        "gauge",
+                        new Gauge<Object>() {
+                            @Override
+                            public Object getValue() {
+                                return null;
+                            }
+                        });
 
-		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
-		assertEquals("gauge", TestReporter1.lastPassedName);
+        Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
+        assertEquals("gauge", TestReporter1.lastPassedName);
 
-		Histogram histogram = root.histogram("histogram", new Histogram() {
-			@Override
-			public void update(long value) {
+        Histogram histogram =
+                root.histogram(
+                        "histogram",
+                        new Histogram() {
+                            @Override
+                            public void update(long value) {}
 
-			}
+                            @Override
+                            public long getCount() {
+                                return 0;
+                            }
 
-			@Override
-			public long getCount() {
-				return 0;
-			}
+                            @Override
+                            public HistogramStatistics getStatistics() {
+                                return null;
+                            }
+                        });
 
-			@Override
-			public HistogramStatistics getStatistics() {
-				return null;
-			}
-		});
+        Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
+        assertEquals("histogram", TestReporter1.lastPassedName);
+        registry.shutdown().get();
+    }
 
-		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
-		assertEquals("histogram", TestReporter1.lastPassedName);
-		registry.shutdown().get();
-	}
+    /** Reporter that exposes the last name and metric instance it was notified of. */
+    public static class TestReporter1 extends TestReporter {
 
-	/**
-	 * Reporter that exposes the last name and metric instance it was notified of.
-	 */
-	public static class TestReporter1 extends TestReporter {
+        public static Metric lastPassedMetric;
+        public static String lastPassedName;
 
-		public static Metric lastPassedMetric;
-		public static String lastPassedName;
+        @Override
+        public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+            lastPassedMetric = metric;
+            lastPassedName = metricName;
+        }
+    }
 
-		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			lastPassedMetric = metric;
-			lastPassedName = metricName;
-		}
-	}
+    /**
+     * Verifies that when attempting to create a group with the name of an existing one the existing
+     * one will be returned instead.
+     */
+    @Test
+    public void testDuplicateGroupName() throws Exception {
+        Configuration config = new Configuration();
 
-	/**
-	 * Verifies that when attempting to create a group with the name of an existing one the existing one will be returned instead.
-	 */
-	@Test
-	public void testDuplicateGroupName() throws Exception {
-		Configuration config = new Configuration();
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+        MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
-		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+        MetricGroup group1 = root.addGroup("group");
+        MetricGroup group2 = root.addGroup("group");
+        MetricGroup group3 = root.addGroup("group");
+        Assert.assertTrue(group1 == group2 && group2 == group3);
 
-		MetricGroup group1 = root.addGroup("group");
-		MetricGroup group2 = root.addGroup("group");
-		MetricGroup group3 = root.addGroup("group");
-		Assert.assertTrue(group1 == group2 && group2 == group3);
-
-		registry.shutdown().get();
-	}
+        registry.shutdown().get();
+    }
 }

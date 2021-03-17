@@ -36,51 +36,50 @@ import java.util.List;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Utilities for {@link SourceFunction}.
- */
+/** Utilities for {@link SourceFunction}. */
 public class SourceFunctionUtil {
 
-	public static <T extends Serializable> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
-		if (sourceFunction instanceof RichFunction) {
-			return runRichSourceFunction(sourceFunction);
-		}
-		else {
-			return runNonRichSourceFunction(sourceFunction);
-		}
-	}
+    public static <T extends Serializable> List<T> runSourceFunction(
+            SourceFunction<T> sourceFunction) throws Exception {
+        if (sourceFunction instanceof RichFunction) {
+            return runRichSourceFunction(sourceFunction);
+        } else {
+            return runNonRichSourceFunction(sourceFunction);
+        }
+    }
 
-	private static <T extends Serializable> List<T> runRichSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
-		try (MockEnvironment environment =
-				new MockEnvironmentBuilder()
-					.setTaskName("MockTask")
-					.setManagedMemorySize(3 * 1024 * 1024)
-					.setInputSplitProvider(new MockInputSplitProvider())
-					.setBufferSize(1024)
-					.build()) {
+    private static <T extends Serializable> List<T> runRichSourceFunction(
+            SourceFunction<T> sourceFunction) throws Exception {
+        try (MockEnvironment environment =
+                new MockEnvironmentBuilder()
+                        .setTaskName("MockTask")
+                        .setManagedMemorySize(3 * 1024 * 1024)
+                        .setInputSplitProvider(new MockInputSplitProvider())
+                        .setBufferSize(1024)
+                        .build()) {
 
-			AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
-			when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
+            AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
+            when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
-			RuntimeContext runtimeContext = new StreamingRuntimeContext(
-				operator,
-				environment,
-				new HashMap<>());
-			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
-			((RichFunction) sourceFunction).open(new Configuration());
+            RuntimeContext runtimeContext =
+                    new StreamingRuntimeContext(operator, environment, new HashMap<>());
+            ((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
+            ((RichFunction) sourceFunction).open(new Configuration());
 
-			return runNonRichSourceFunction(sourceFunction);
-		}
-	}
+            return runNonRichSourceFunction(sourceFunction);
+        }
+    }
 
-	private static <T extends Serializable> List<T> runNonRichSourceFunction(SourceFunction<T> sourceFunction) {
-		final List<T> outputs = new ArrayList<>();
-		try {
-			SourceFunction.SourceContext<T> ctx = new CollectingSourceContext<T>(new Object(), outputs);
-			sourceFunction.run(ctx);
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot invoke source.", e);
-		}
-		return outputs;
-	}
+    private static <T extends Serializable> List<T> runNonRichSourceFunction(
+            SourceFunction<T> sourceFunction) {
+        final List<T> outputs = new ArrayList<>();
+        try {
+            SourceFunction.SourceContext<T> ctx =
+                    new CollectingSourceContext<T>(new Object(), outputs);
+            sourceFunction.run(ctx);
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot invoke source.", e);
+        }
+        return outputs;
+    }
 }
