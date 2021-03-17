@@ -221,19 +221,24 @@ public class SchedulerTestingUtils {
                         attemptID, ExecutionState.CANCELED, new Exception("test task failure")));
     }
 
-    public static void setExecutionToRunning(
-            DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+    public static void setExecutionToState(
+            ExecutionState executionState,
+            DefaultScheduler scheduler,
+            JobVertexID jvid,
+            int subtask) {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptID, ExecutionState.RUNNING));
+        scheduler.updateTaskExecutionState(new TaskExecutionState(attemptID, executionState));
     }
 
     public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
         getAllCurrentExecutionAttempts(scheduler)
                 .forEach(
-                        (attemptId) ->
-                                scheduler.updateTaskExecutionState(
-                                        new TaskExecutionState(attemptId, ExecutionState.RUNNING)));
+                        (attemptId) -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.RECOVERING));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+                        });
     }
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {

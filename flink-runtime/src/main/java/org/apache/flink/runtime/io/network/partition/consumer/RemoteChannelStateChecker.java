@@ -67,6 +67,7 @@ public class RemoteChannelStateChecker {
     private static boolean isConsumerStateValidForConsumption(
             ExecutionState consumerExecutionState) {
         return consumerExecutionState == ExecutionState.RUNNING
+                || consumerExecutionState == ExecutionState.RECOVERING
                 || consumerExecutionState == ExecutionState.DEPLOYING;
     }
 
@@ -74,6 +75,7 @@ public class RemoteChannelStateChecker {
         ExecutionState producerState = getProducerState(responseHandle);
         return producerState == ExecutionState.SCHEDULED
                 || producerState == ExecutionState.DEPLOYING
+                || producerState == ExecutionState.RECOVERING
                 || producerState == ExecutionState.RUNNING
                 || producerState == ExecutionState.FINISHED;
     }

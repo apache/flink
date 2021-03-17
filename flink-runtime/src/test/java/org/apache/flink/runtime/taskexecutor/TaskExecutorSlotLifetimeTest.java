@@ -100,7 +100,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                     return CompletableFuture.completedFuture(Acknowledge.get());
                 });
 
-        final BlockingQueue<TaskExecutionState> taskExecutionStates = new ArrayBlockingQueue<>(2);
+        final BlockingQueue<TaskExecutionState> taskExecutionStates = new ArrayBlockingQueue<>(3);
         final OneShotLatch slotsOfferedLatch = new OneShotLatch();
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()

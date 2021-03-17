@@ -740,7 +740,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
               },
               "start-time" : {
                 "type" : "integer"
@@ -1967,7 +1967,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
               },
               "attempt" : {
                 "type" : "integer"
@@ -2279,7 +2279,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2365,7 +2365,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2600,7 +2600,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
               },
               "start-time" : {
                 "type" : "integer"

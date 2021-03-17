@@ -252,6 +252,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
                 assertNotNull(
                         "No assigned resource (test instability).",
                         vertex.getCurrentAssignedResource());
+                vertex.getCurrentExecutionAttempt().switchToRecovering();
                 vertex.getCurrentExecutionAttempt().switchToRunning();
             }
 
