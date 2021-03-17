@@ -66,4 +66,9 @@ public class TumblingWindowSpec implements WindowSpec {
     public int hashCode() {
         return Objects.hash(TumblingWindowSpec.class, size);
     }
+
+    @Override
+    public String toString() {
+        return String.format("TUMBLE(size=[%s])", formatWithHighestUnit(size));
+    }
 }
