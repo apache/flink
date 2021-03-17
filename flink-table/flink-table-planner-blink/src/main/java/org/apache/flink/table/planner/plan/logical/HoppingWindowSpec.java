@@ -79,4 +79,11 @@ public class HoppingWindowSpec implements WindowSpec {
     public int hashCode() {
         return Objects.hash(HoppingWindowSpec.class, size, slide);
     }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "HOP(size=[%s], slide=[%s])",
+                formatWithHighestUnit(size), formatWithHighestUnit(slide));
+    }
 }
