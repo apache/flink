@@ -57,7 +57,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecPythonGroupTableAggregate",
                     "StreamExecOverAggregate",
                     "StreamExecPythonOverAggregate",
-                    "StreamExecCorrelate",
                     "StreamExecPythonCorrelate",
                     "StreamExecRank",
                     "StreamExecPythonCalc",
