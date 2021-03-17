@@ -110,8 +110,8 @@ show user functions;
 +---------------+
 | function name |
 +---------------+
-|         func4 |
 |         func3 |
+|         func4 |
 +---------------+
 2 rows in set
 !ok
@@ -173,9 +173,9 @@ show user functions;
 +---------------+
 | function name |
 +---------------+
-|         func4 |
 |        func11 |
 |         func3 |
+|         func4 |
 +---------------+
 3 rows in set
 !ok

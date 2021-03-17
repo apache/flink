@@ -116,36 +116,37 @@ public class PrintUtils {
             String nullColumn,
             boolean deriveColumnWidthByType,
             boolean printRowKind) {
-        final List<TableColumn> columns = tableSchema.getTableColumns();
-        String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
-        if (printRowKind) {
-            columnNames =
-                    Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames))
-                            .toArray(String[]::new);
-        }
-
-        final int[] colWidths;
-        if (deriveColumnWidthByType) {
-            colWidths =
-                    columnWidthsByType(
-                            columns,
-                            maxColumnWidth,
-                            nullColumn,
-                            printRowKind ? ROW_KIND_COLUMN : null);
-        } else {
-            final List<Row> rows = new ArrayList<>();
-            final List<String[]> content = new ArrayList<>();
-            content.add(columnNames);
-            while (it.hasNext()) {
-                Row row = it.next();
-                rows.add(row);
-                content.add(rowToString(row, nullColumn, printRowKind));
-            }
-            colWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
-            it = rows.iterator();
-        }
-
         if (it.hasNext()) {
+            final List<TableColumn> columns = tableSchema.getTableColumns();
+            String[] columnNames =
+                    columns.stream().map(TableColumn::getName).toArray(String[]::new);
+            if (printRowKind) {
+                columnNames =
+                        Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames))
+                                .toArray(String[]::new);
+            }
+
+            final int[] colWidths;
+            if (deriveColumnWidthByType) {
+                colWidths =
+                        columnWidthsByType(
+                                columns,
+                                maxColumnWidth,
+                                nullColumn,
+                                printRowKind ? ROW_KIND_COLUMN : null);
+            } else {
+                final List<Row> rows = new ArrayList<>();
+                final List<String[]> content = new ArrayList<>();
+                content.add(columnNames);
+                while (it.hasNext()) {
+                    Row row = it.next();
+                    rows.add(row);
+                    content.add(rowToString(row, nullColumn, printRowKind));
+                }
+                colWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
+                it = rows.iterator();
+            }
+
             final String borderline = PrintUtils.genBorderLine(colWidths);
             // print border line
             printWriter.println(borderline);
