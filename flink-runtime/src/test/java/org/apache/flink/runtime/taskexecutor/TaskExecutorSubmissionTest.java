@@ -342,7 +342,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setUpdateTaskExecutionStateFunction(
                                 taskExecutionState -> {
                                     if (taskExecutionState != null
-                                            && taskExecutionState.getID().equals(eid1)) {
+                                            && taskExecutionState.getID().equals(eid1)
+                                            && taskExecutionState.getExecutionState()
+                                                    == ExecutionState.RUNNING) {
                                         return FutureUtils.completedExceptionally(
                                                 new ExecutionGraphException(
                                                         "The execution attempt "

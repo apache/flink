@@ -235,6 +235,7 @@ public class ExecutionGraphTestUtils {
      */
     public static void switchAllVerticesToRunning(ExecutionGraph eg) {
         for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            vertex.getCurrentExecutionAttempt().switchToRecovering();
             vertex.getCurrentExecutionAttempt().switchToRunning();
         }
     }

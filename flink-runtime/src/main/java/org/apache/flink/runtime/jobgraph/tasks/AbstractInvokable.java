@@ -291,4 +291,16 @@ public abstract class AbstractInvokable {
         throw new UnsupportedOperationException(
                 "dispatchOperatorEvent not supported by " + getClass().getName());
     }
+
+    /**
+     * This method can be called before {@link #invoke()} to restore an invokable object for the
+     * last valid state, if it has it.
+     *
+     * <p>Every implementation determinate what should be restored by itself. (nothing happens by
+     * default).
+     *
+     * @throws Exception Tasks may forward their exceptions for the TaskManager to handle through
+     *     failure/recovery.
+     */
+    public void restore() throws Exception {}
 }

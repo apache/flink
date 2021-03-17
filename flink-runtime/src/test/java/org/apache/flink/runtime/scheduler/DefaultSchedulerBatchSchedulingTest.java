@@ -164,6 +164,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                         () -> {
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
+                                            executionAttemptId, ExecutionState.RECOVERING));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(
                                             executionAttemptId, ExecutionState.RUNNING));
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(

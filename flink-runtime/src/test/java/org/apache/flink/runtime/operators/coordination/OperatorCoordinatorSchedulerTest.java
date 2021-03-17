@@ -86,6 +86,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setExecutionToState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -752,7 +753,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private void failAndRestartTask(DefaultScheduler scheduler, int subtask) {
         failAndRedeployTask(scheduler, subtask);
-        SchedulerTestingUtils.setExecutionToRunning(scheduler, testVertexId, subtask);
+        setExecutionToState(ExecutionState.RECOVERING, scheduler, testVertexId, subtask);
+        setExecutionToState(ExecutionState.RUNNING, scheduler, testVertexId, subtask);
 
         // guard the test assumptions: This must bring the task back to RUNNING
         assertEquals(

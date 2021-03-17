@@ -155,9 +155,13 @@ public class UpdatePartitionConsumersTest extends TestLogger {
         assertThat(ev3.getExecutionState(), is(ExecutionState.DEPLOYING));
         assertThat(ev4.getExecutionState(), is(ExecutionState.DEPLOYING));
 
+        updateState(scheduler, ev1, ExecutionState.RECOVERING);
         updateState(scheduler, ev1, ExecutionState.RUNNING);
+        updateState(scheduler, ev2, ExecutionState.RECOVERING);
         updateState(scheduler, ev2, ExecutionState.RUNNING);
+        updateState(scheduler, ev3, ExecutionState.RECOVERING);
         updateState(scheduler, ev3, ExecutionState.RUNNING);
+        updateState(scheduler, ev4, ExecutionState.RECOVERING);
         updateState(scheduler, ev4, ExecutionState.RUNNING);
 
         final InputGateDeploymentDescriptor ev4Igdd2 =
