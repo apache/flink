@@ -160,7 +160,7 @@ public class AdaptiveScheduler
     private final CheckpointIDCounter checkpointIdCounter;
     private final CheckpointsCleaner checkpointsCleaner;
 
-    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+    private final CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
 
     private final RestartBackoffTimeStrategy restartBackoffTimeStrategy;
 
@@ -292,8 +292,8 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
+    public CompletableFuture<JobStatus> getJobTerminationFuture() {
+        return jobTerminationFuture;
     }
 
     @Override
@@ -829,7 +829,7 @@ public class AdaptiveScheduler
                             : null);
         }
 
-        terminationFuture.complete(null);
+        jobTerminationFuture.complete(archivedExecutionGraph.getState());
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {

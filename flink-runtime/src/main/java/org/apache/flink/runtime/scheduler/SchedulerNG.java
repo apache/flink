@@ -72,7 +72,7 @@ public interface SchedulerNG {
 
     void cancel();
 
-    CompletableFuture<Void> getTerminationFuture();
+    CompletableFuture<JobStatus> getJobTerminationFuture();
 
     void handleGlobalFailure(Throwable cause);
 
