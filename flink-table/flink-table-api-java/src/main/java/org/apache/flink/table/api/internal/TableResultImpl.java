@@ -24,7 +24,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -50,25 +51,25 @@ class TableResultImpl implements TableResult {
     public static final TableResult TABLE_RESULT_OK =
             TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS)
-                    .tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
+                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of("OK")))
                     .build();
 
     private final JobClient jobClient;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
     private final CloseableRowIteratorWrapper data;
     private final PrintStyle printStyle;
 
     private TableResultImpl(
             @Nullable JobClient jobClient,
-            TableSchema tableSchema,
+            ResolvedSchema resolvedSchema,
             ResultKind resultKind,
             CloseableIterator<Row> data,
             PrintStyle printStyle) {
         this.jobClient = jobClient;
-        this.tableSchema =
-                Preconditions.checkNotNull(tableSchema, "tableSchema should not be null");
+        this.resolvedSchema =
+                Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
         this.resultKind = Preconditions.checkNotNull(resultKind, "resultKind should not be null");
         Preconditions.checkNotNull(data, "data should not be null");
         this.data = new CloseableRowIteratorWrapper(data);
@@ -128,8 +129,8 @@ class TableResultImpl implements TableResult {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override
@@ -152,7 +153,7 @@ class TableResultImpl implements TableResult {
                     ((TableauStyle) printStyle).isDeriveColumnWidthByType();
             boolean printRowKind = ((TableauStyle) printStyle).isPrintRowKind();
             PrintUtils.printAsTableauForm(
-                    getTableSchema(),
+                    getResolvedSchema(),
                     it,
                     new PrintWriter(System.out),
                     maxColumnWidth,
@@ -175,7 +176,7 @@ class TableResultImpl implements TableResult {
     /** Builder for creating a {@link TableResultImpl}. */
     public static class Builder {
         private JobClient jobClient = null;
-        private TableSchema tableSchema = null;
+        private ResolvedSchema resolvedSchema = null;
         private ResultKind resultKind = null;
         private CloseableIterator<Row> data = null;
         private PrintStyle printStyle =
@@ -194,13 +195,13 @@ class TableResultImpl implements TableResult {
         }
 
         /**
-         * Specifies table schema of the execution result.
+         * Specifies schema of the execution result.
          *
-         * @param tableSchema a {@link TableSchema} for the execution result.
+         * @param resolvedSchema a {@link ResolvedSchema} for the execution result.
          */
-        public Builder tableSchema(TableSchema tableSchema) {
-            Preconditions.checkNotNull(tableSchema, "tableSchema should not be null");
-            this.tableSchema = tableSchema;
+        public Builder schema(ResolvedSchema resolvedSchema) {
+            Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
+            this.resolvedSchema = resolvedSchema;
             return this;
         }
 
@@ -246,7 +247,7 @@ class TableResultImpl implements TableResult {
 
         /** Returns a {@link TableResult} instance. */
         public TableResult build() {
-            return new TableResultImpl(jobClient, tableSchema, resultKind, data, printStyle);
+            return new TableResultImpl(jobClient, resolvedSchema, resultKind, data, printStyle);
         }
     }
 

@@ -24,7 +24,8 @@ import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
@@ -150,9 +151,9 @@ public class CliClientTest extends TestLogger {
                                         SHOW_ROW.setField(0, "v1");
                                         return new TestTableResult(
                                                 ResultKind.SUCCESS_WITH_CONTENT,
-                                                TableSchema.builder()
-                                                        .field("view", DataTypes.STRING())
-                                                        .build(),
+                                                ResolvedSchema.of(
+                                                        Column.physical(
+                                                                "view", DataTypes.STRING())),
                                                 CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
                                     } else {
                                         throw new SqlExecutionException(
@@ -297,7 +298,7 @@ public class CliClientTest extends TestLogger {
                 return new TestTableResult(
                         new TestingJobClient(),
                         ResultKind.SUCCESS_WITH_CONTENT,
-                        TableSchema.builder().field("result", DataTypes.BIGINT()).build(),
+                        ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
                         CloseableIterator.adapterForIterator(
                                 Collections.singletonList(Row.of(-1L)).iterator()));
             }

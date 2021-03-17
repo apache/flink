@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
@@ -95,21 +94,17 @@ public class DependencyTest {
         try {
             final TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber1");
             assertEquals(
-                    tableResult.getTableSchema(),
-                    TableSchema.builder()
-                            .fields(
-                                    new String[] {
-                                        "name", "type", "null", "key", "extras", "watermark"
-                                    },
-                                    new DataType[] {
-                                        DataTypes.STRING(),
-                                        DataTypes.STRING(),
-                                        DataTypes.BOOLEAN(),
-                                        DataTypes.STRING(),
-                                        DataTypes.STRING(),
-                                        DataTypes.STRING()
-                                    })
-                            .build());
+                    tableResult.getResolvedSchema(),
+                    ResolvedSchema.physical(
+                            new String[] {"name", "type", "null", "key", "extras", "watermark"},
+                            new DataType[] {
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.BOOLEAN(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING()
+                            }));
             List<Row> schemaData =
                     Arrays.asList(
                             Row.of("IntegerField1", "INT", true, null, null, null),

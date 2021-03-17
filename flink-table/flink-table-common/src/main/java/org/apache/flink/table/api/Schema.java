@@ -117,7 +117,7 @@ public final class Schema {
         return components.stream()
                 .map(Objects::toString)
                 .map(s -> "  " + s)
-                .collect(Collectors.joining(", \n", "(\n", "\n)"));
+                .collect(Collectors.joining(",\n", "(\n", "\n)"));
     }
 
     @Override

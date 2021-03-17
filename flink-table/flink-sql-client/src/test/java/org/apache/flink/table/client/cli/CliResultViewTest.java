@@ -17,9 +17,10 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -86,7 +87,7 @@ public class CliResultViewTest {
         final ResultDescriptor descriptor =
                 new ResultDescriptor(
                         "result-id",
-                        TableSchema.builder().field("Null Field", Types.STRING()).build(),
+                        ResolvedSchema.of(Column.physical("Null Field", DataTypes.STRING())),
                         false,
                         false,
                         true);

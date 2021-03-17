@@ -19,7 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -236,15 +237,14 @@ public class PrintUtilsTest {
                 outContent.toString());
     }
 
-    private TableSchema getSchema() {
-        return TableSchema.builder()
-                .field("boolean", DataTypes.BOOLEAN())
-                .field("int", DataTypes.INT())
-                .field("bigint", DataTypes.BIGINT())
-                .field("varchar", DataTypes.STRING())
-                .field("decimal(10, 5)", DataTypes.DECIMAL(10, 5))
-                .field("timestamp", DataTypes.TIMESTAMP(6))
-                .build();
+    private ResolvedSchema getSchema() {
+        return ResolvedSchema.of(
+                Column.physical("boolean", DataTypes.BOOLEAN()),
+                Column.physical("int", DataTypes.INT()),
+                Column.physical("bigint", DataTypes.BIGINT()),
+                Column.physical("varchar", DataTypes.STRING()),
+                Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
+                Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
     }
 
     private List<Row> getData() {

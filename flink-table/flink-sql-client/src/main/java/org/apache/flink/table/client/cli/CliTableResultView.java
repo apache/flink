@@ -264,7 +264,9 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     protected List<AttributedString> computeMainHeaderLines() {
         final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
 
-        Arrays.stream(resultDescriptor.getResultSchema().getFieldNames())
+        resultDescriptor
+                .getResultSchema()
+                .getColumnNames()
                 .forEach(
                         s -> {
                             schemaHeader.append(' ');

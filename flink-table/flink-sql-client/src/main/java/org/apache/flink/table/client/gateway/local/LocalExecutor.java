@@ -40,9 +40,6 @@ import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -300,24 +297,9 @@ public class LocalExecutor implements Executor {
         resultStore.storeResult(jobId, result);
         return new ResultDescriptor(
                 jobId,
-                removeTimeAttributes(tableResult.getTableSchema()),
+                tableResult.getResolvedSchema(),
                 result.isMaterialized(),
                 config.get(EXECUTION_RESULT_MODE).equals(ResultMode.TABLEAU),
                 config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING));
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static TableSchema removeTimeAttributes(TableSchema schema) {
-        final TableSchema.Builder builder = TableSchema.builder();
-        for (int i = 0; i < schema.getFieldCount(); i++) {
-            final DataType dataType = schema.getFieldDataTypes()[i];
-            final DataType convertedType =
-                    DataTypeUtils.replaceLogicalType(
-                            dataType,
-                            LogicalTypeUtils.removeTimeAttributes(dataType.getLogicalType()));
-            builder.field(schema.getFieldNames()[i], convertedType);
-        }
-        return builder.build();
     }
 }

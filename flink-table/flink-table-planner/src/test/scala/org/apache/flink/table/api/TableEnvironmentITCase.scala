@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableEnvironmentITCase.getPersonCsvTableSource
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
@@ -454,11 +455,10 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("id", DataTypes.INT())
-        .field("full name", DataTypes.STRING())
-        .build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("id", DataTypes.INT()),
+        Column.physical("full name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Bob Taylor"),
       Row.of(Integer.valueOf(4), "Peter Smith"),
@@ -479,8 +479,9 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("c", DataTypes.BIGINT().notNull()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("c", DataTypes.BIGINT().notNull())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.ofKind(RowKind.INSERT, JLong.valueOf(1)),
       Row.ofKind(RowKind.DELETE, JLong.valueOf(1)),
@@ -514,11 +515,11 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("name", DataTypes.STRING())
-        .field("pt", Types.SQL_TIMESTAMP())
-        .build(),
-      tableResult.getTableSchema)
+      s"""(
+         |  `name` STRING,
+         |  `pt` TIMESTAMP(3) *PROCTIME*
+         |)""".stripMargin,
+      tableResult.getResolvedSchema.toString)
     val it = tableResult.collect()
     assertTrue(it.hasNext)
     val row = it.next()
@@ -575,7 +576,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
       util.Arrays.asList(fieldNames: _*),
-      util.Arrays.asList(tableResult.getTableSchema.getFieldNames: _*))
+      tableResult.getResolvedSchema.getColumnNames)
     // return the result until the job is finished
     val it = tableResult.collect()
     assertTrue(it.hasNext)
