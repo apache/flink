@@ -180,11 +180,11 @@ public class CliClientITCase extends AbstractTestBase {
             this.tag = tag;
         }
 
-        public boolean onMatch(List<String> lines) {
+        public boolean matches(List<String> lines) {
             return containsTag(lines, begin) && containsTag(lines, end);
         }
 
-        public List<String> matches(List<String> lines) {
+        public List<String> onMatch(List<String> lines) {
             List<String> newLines = new ArrayList<>();
             for (String line : lines) {
                 String newLine =
@@ -260,7 +260,7 @@ public class CliClientITCase extends AbstractTestBase {
         List<Tag> tags = new ArrayList<>();
 
         for (Tag tag : Tag.values()) {
-            if (tag.onMatch(contentLines)) {
+            if (tag.matches(contentLines)) {
                 tags.add(tag);
             }
         }
@@ -272,7 +272,7 @@ public class CliClientITCase extends AbstractTestBase {
     private static String stripTagsAndConcatLines(List<String> lines, List<Tag> tags) {
         List<String> newLines = lines;
         for (Tag tag : tags) {
-            newLines = tag.matches(newLines);
+            newLines = tag.onMatch(newLines);
         }
         return String.join("\n", newLines);
     }
