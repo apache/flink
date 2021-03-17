@@ -35,7 +35,6 @@ import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
-import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -45,7 +44,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected final WindowBuffer.Factory windowBufferFactory;
     protected final WindowCombineFunction.Factory combineFactory;
     protected final SliceAssigner sliceAssigner;
-    protected final AbstractRowDataSerializer<RowData> accSerializer;
+    protected final TypeSerializer<RowData> accSerializer;
     protected final boolean isEventTime;
 
     // ----------------------------------------------------------------------------------------
@@ -72,7 +71,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             WindowBuffer.Factory bufferFactory,
             WindowCombineFunction.Factory combinerFactory,
             SliceAssigner sliceAssigner,
-            AbstractRowDataSerializer<RowData> accSerializer) {
+            TypeSerializer<RowData> accSerializer) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
         this.combineFactory = combinerFactory;

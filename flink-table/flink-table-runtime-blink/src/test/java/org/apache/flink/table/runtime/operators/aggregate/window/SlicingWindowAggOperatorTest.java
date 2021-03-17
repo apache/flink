@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -68,7 +68,7 @@ public class SlicingWindowAggOperatorTest {
 
     private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
 
-    private static final AbstractRowDataSerializer<RowData> ACC_SER =
+    private static final RowDataSerializer ACC_SER =
             new RowDataSerializer(new BigIntType(), new BigIntType());
 
     private static final LogicalType[] OUTPUT_TYPES =
@@ -84,8 +84,8 @@ public class SlicingWindowAggOperatorTest {
             new BinaryRowDataKeySelector(
                     new int[] {0}, INPUT_ROW_TYPE.getChildren().toArray(new LogicalType[0]));
 
-    private static final AbstractRowDataSerializer<RowData> KEY_SER =
-            KEY_SELECTOR.getProducedType().toAbstractRowSerializer();
+    private static final PagedTypeSerializer<RowData> KEY_SER =
+            (PagedTypeSerializer<RowData>) KEY_SELECTOR.getProducedType().toSerializer();
 
     private static final TypeSerializer<RowData> OUT_SERIALIZER =
             new RowDataSerializer(OUTPUT_TYPES);

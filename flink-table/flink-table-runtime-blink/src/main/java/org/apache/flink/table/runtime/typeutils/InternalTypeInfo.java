@@ -120,10 +120,6 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
         return (RowDataSerializer) typeSerializer;
     }
 
-    public AbstractRowDataSerializer<RowData> toAbstractRowSerializer() {
-        return (AbstractRowDataSerializer<RowData>) typeSerializer;
-    }
-
     /**
      * @deprecated {@link TypeInformation} should just be a thin wrapper of a serializer. This
      *     method only exists for legacy code. It is recommended to use the {@link RowType} instead

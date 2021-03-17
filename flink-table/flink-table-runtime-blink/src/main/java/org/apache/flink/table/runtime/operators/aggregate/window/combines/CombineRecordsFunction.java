@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -28,7 +29,6 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
-import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.util.Iterator;
@@ -58,10 +58,10 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     private final boolean requiresCopy;
 
     /** Serializer to copy key if required. */
-    private AbstractRowDataSerializer<RowData> keySerializer;
+    private final TypeSerializer<RowData> keySerializer;
 
     /** Serializer to copy record if required. */
-    private final AbstractRowDataSerializer<RowData> recordSerializer;
+    private final TypeSerializer<RowData> recordSerializer;
 
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
@@ -72,8 +72,8 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> aggregator,
             boolean requiresCopy,
-            AbstractRowDataSerializer<RowData> keySerializer,
-            AbstractRowDataSerializer<RowData> recordSerializer,
+            TypeSerializer<RowData> keySerializer,
+            TypeSerializer<RowData> recordSerializer,
             boolean isEventTime) {
         this.timerService = timerService;
         this.keyContext = keyContext;
@@ -148,13 +148,13 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
         private static final long serialVersionUID = 1L;
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
-        private final AbstractRowDataSerializer<RowData> keySerializer;
-        private final AbstractRowDataSerializer<RowData> recordSerializer;
+        private final TypeSerializer<RowData> keySerializer;
+        private final TypeSerializer<RowData> recordSerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
-                AbstractRowDataSerializer<RowData> keySerializer,
-                AbstractRowDataSerializer<RowData> recordSerializer) {
+                TypeSerializer<RowData> keySerializer,
+                TypeSerializer<RowData> recordSerializer) {
             this.genAggsHandler = genAggsHandler;
             this.keySerializer = keySerializer;
             this.recordSerializer = recordSerializer;

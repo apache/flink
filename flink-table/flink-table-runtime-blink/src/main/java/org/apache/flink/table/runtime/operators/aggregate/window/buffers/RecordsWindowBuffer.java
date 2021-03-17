@@ -22,6 +22,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
 import org.apache.flink.table.runtime.util.WindowKey;
@@ -49,7 +50,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             MemoryManager memoryManager,
             long memorySize,
             WindowCombineFunction combineFunction,
-            AbstractRowDataSerializer<RowData> keySer,
+            PagedTypeSerializer<RowData> keySer,
             AbstractRowDataSerializer<RowData> inputSer) {
         this.combineFunction = combineFunction;
         this.recordsBuffer =
@@ -114,12 +115,11 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
         private static final long serialVersionUID = 1L;
 
-        private final AbstractRowDataSerializer<RowData> keySer;
+        private final PagedTypeSerializer<RowData> keySer;
         private final AbstractRowDataSerializer<RowData> inputSer;
 
         public Factory(
-                AbstractRowDataSerializer<RowData> keySer,
-                AbstractRowDataSerializer<RowData> inputSer) {
+                PagedTypeSerializer<RowData> keySer, AbstractRowDataSerializer<RowData> inputSer) {
             this.keySer = keySer;
             this.inputSer = inputSer;
         }

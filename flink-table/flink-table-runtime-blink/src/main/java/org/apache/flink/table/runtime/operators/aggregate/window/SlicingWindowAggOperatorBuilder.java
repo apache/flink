@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate.window;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
@@ -33,6 +34,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssi
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
 import java.util.function.Supplier;
 
@@ -59,8 +61,8 @@ public class SlicingWindowAggOperatorBuilder {
 
     private SliceAssigner assigner;
     private AbstractRowDataSerializer<RowData> inputSerializer;
-    private AbstractRowDataSerializer<RowData> keySerializer;
-    private AbstractRowDataSerializer<RowData> accSerializer;
+    private PagedTypeSerializer<RowData> keySerializer;
+    private TypeSerializer<RowData> accSerializer;
     private GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction;
     private int indexOfCountStart = -1;
 
@@ -71,7 +73,7 @@ public class SlicingWindowAggOperatorBuilder {
     }
 
     public SlicingWindowAggOperatorBuilder keySerializer(
-            AbstractRowDataSerializer<RowData> keySerializer) {
+            PagedTypeSerializer<RowData> keySerializer) {
         this.keySerializer = keySerializer;
         return this;
     }
@@ -83,7 +85,7 @@ public class SlicingWindowAggOperatorBuilder {
 
     public SlicingWindowAggOperatorBuilder aggregate(
             GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction,
-            AbstractRowDataSerializer<RowData> accSerializer) {
+            TypeSerializer<RowData> accSerializer) {
         this.generatedAggregateFunction = generatedAggregateFunction;
         this.accSerializer = accSerializer;
         return this;

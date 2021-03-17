@@ -55,6 +55,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -182,7 +183,9 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
         final OneInputStreamOperator<RowData, RowData> windowOperator =
                 SlicingWindowAggOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputRowType))
-                        .keySerializer(selector.getKeySerializer())
+                        .keySerializer(
+                                (PagedTypeSerializer<RowData>)
+                                        selector.getProducedType().toSerializer())
                         .assigner(sliceAssigner)
                         .countStarIndex(aggInfoList.getIndexOfCountStar())
                         .aggregate(generatedAggsHandler, new RowDataSerializer(accTypes))
