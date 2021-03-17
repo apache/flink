@@ -32,6 +32,7 @@ public class JobGraphTestUtils {
     public static JobGraph singleNoOpJobGraph() {
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
 
         return JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(jobVertex).build();
     }
