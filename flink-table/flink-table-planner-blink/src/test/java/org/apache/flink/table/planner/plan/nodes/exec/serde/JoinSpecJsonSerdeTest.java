@@ -63,6 +63,6 @@ public class JoinSpecJsonSerdeTest {
         }
         String json = writer.toString();
         JoinSpec actual = mapper.readValue(json, JoinSpec.class);
-        assertEquals(joinSpec.hashCode(), actual.hashCode());
+        assertEquals(joinSpec, actual);
     }
 }
