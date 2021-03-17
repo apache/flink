@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.logical.WindowSpec
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
@@ -26,9 +27,9 @@ import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -54,7 +55,7 @@ object WindowJoinUtil {
    *
    * @param join input join
    * @return True if join condition contains window starts equality of input tables and window
-   *         ends equality of input tables. Else false.
+   *         ends equality of input tables, else false.
    */
   def containsWindowStartEqualityAndEndEquality(join: FlinkLogicalJoin): Boolean = {
     val (windowStartEqualityLeftKeys, windowEndEqualityLeftKeys, _, _) =
@@ -182,26 +183,65 @@ object WindowJoinUtil {
     }
 
     // Validate join
+    def getLeftFieldNames() = join.getLeft.getRowType.getFieldNames.toList
+
+    def getRightFieldNames() = join.getRight.getRowType.getFieldNames.toList
+
     if (windowStartEqualityLeftKeys.nonEmpty && windowEndEqualityLeftKeys.nonEmpty) {
       if (
         leftWindowProperties.getTimeAttributeType != rightWindowProperties.getTimeAttributeType) {
+
+        def timeAttributeTypeStr(isRowTime: Boolean): String = {
+          if (isRowTime) "ROWTIME" else "PROCTIME"
+        }
+
         throw new TableException(
           "Currently, window join doesn't support different time attribute type of left and " +
             "right inputs.\n" +
-            s"The left time attribute type is ${leftWindowProperties.getTimeAttributeType}.\n" +
-            s"The right time attribute type is ${rightWindowProperties.getTimeAttributeType}.")
+            s"The left time attribute type is " +
+            s"${timeAttributeTypeStr(leftWindowProperties.isRowtime)}.\n" +
+            s"The right time attribute type is " +
+            s"${timeAttributeTypeStr(rightWindowProperties.isRowtime)}.")
       } else if (leftWindowProperties.getWindowSpec != rightWindowProperties.getWindowSpec) {
+
+        def windowSpecToStr(
+            inputFieldNames: Seq[String],
+            windowStartIdx: Int,
+            windowEndIdx: Int,
+            windowSpec: WindowSpec): String = {
+          val windowing = s"win_start=[${inputFieldNames(windowStartIdx)}]" +
+            s", win_end=[${inputFieldNames(windowEndIdx)}]"
+          windowSpec.toSummaryString(windowing)
+        }
+
+        val leftWindowSpecStr = windowSpecToStr(
+          getLeftFieldNames(),
+          windowStartEqualityLeftKeys.get(0),
+          windowEndEqualityLeftKeys.get(0),
+          leftWindowProperties.getWindowSpec)
+
+        val rightWindowSpecStr = windowSpecToStr(
+          getRightFieldNames(),
+          windowStartEqualityRightKeys.get(0),
+          windowEndEqualityRightKeys.get(0),
+          rightWindowProperties.getWindowSpec)
         throw new TableException(
           "Currently, window join doesn't support different window table function of left and " +
             "right inputs.\n" +
-            s"The left window table function is ${leftWindowProperties}.\n" +
-            s"The right window table function is ${rightWindowProperties}.")
+            s"The left window table function is $leftWindowSpecStr.\n" +
+            s"The right window table function is $rightWindowSpecStr.")
       }
     } else if (windowStartEqualityLeftKeys.nonEmpty || windowEndEqualityLeftKeys.nonEmpty) {
+      val inputFieldNames = getLeftFieldNames() ++ getRightFieldNames()
+      val condition = join.getExpressionString(
+        join.getCondition,
+        inputFieldNames,
+        None,
+        ExpressionFormat.Infix)
       throw new TableException(
         "Currently, window join requires JOIN ON condition must contain both window starts " +
           "equality of input tables and window ends equality of input tables.\n" +
-          s"But the current JOIN ON condition is ${join.getCondition}.")
+          s"But the current JOIN ON condition is $condition.")
     }
 
     (
