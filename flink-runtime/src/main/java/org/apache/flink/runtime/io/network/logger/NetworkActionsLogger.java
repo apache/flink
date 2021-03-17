@@ -36,7 +36,6 @@ import java.io.Closeable;
  */
 public class NetworkActionsLogger {
     private static final Logger LOG = LoggerFactory.getLogger(NetworkActionsLogger.class);
-    private static final boolean ENABLED = LOG.isTraceEnabled();
     private static final boolean INCLUDE_HASH = true;
 
     public static void traceInput(
@@ -46,7 +45,7 @@ public class NetworkActionsLogger {
             InputChannelInfo channelInfo,
             ChannelStatePersister channelStatePersister,
             int sequenceNumber) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {}, seq {}, {} @ {}",
                     taskName,
@@ -60,7 +59,7 @@ public class NetworkActionsLogger {
 
     public static void traceOutput(
             String action, Buffer buffer, String taskName, ResultSubpartitionInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {} @ {}",
                     taskName,
@@ -72,7 +71,7 @@ public class NetworkActionsLogger {
 
     public static void traceRecover(
             String action, Buffer buffer, String taskName, InputChannelInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {} @ {}",
                     taskName,
@@ -84,7 +83,7 @@ public class NetworkActionsLogger {
 
     public static void traceRecover(
             String action, BufferConsumer bufferConsumer, ResultSubpartitionInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "{} {} @ {}", action, bufferConsumer.toDebugString(INCLUDE_HASH), channelInfo);
         }
@@ -92,7 +91,7 @@ public class NetworkActionsLogger {
 
     public static void tracePersist(
             String action, Buffer buffer, Object channelInfo, long checkpointId) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "{} {}, checkpoint {} @ {}",
                     action,
