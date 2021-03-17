@@ -47,10 +47,10 @@ SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它
 
 ### 启动 SQL 客户端命令行界面
 
-SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#limitations--future)，用户可以通过启动嵌入式 standalone 进程或通过连接到远程 SQL 客户端网关来启动 SQL 客户端命令行界面。目前仅支持 `embedded` 模式。可以通过以下方式启动 CLI：
+SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#limitations--future)，用户可以通过启动嵌入式 standalone 进程或通过连接到远程 SQL 客户端网关来启动 SQL 客户端命令行界面。目前仅支持 `embedded`，模式默认值`embedded`。可以通过以下方式启动 CLI：
 
 ```bash
-./bin/sql-client.sh embedded
+./bin/sql-client.sh
 ```
 
 默认情况下，SQL 客户端将从 `./conf/sql-client-defaults.yaml` 中读取配置。有关环境配置文件结构的更多信息，请参见[配置部分](sqlClient.html#environment-files)。
@@ -158,7 +158,7 @@ Received a total of 5 rows
 SQL 客户端启动时可以添加 CLI 选项，具体如下。
 
 ```text
-./bin/sql-client.sh embedded --help
+./bin/sql-client.sh --help
 
 Mode "embedded" submits Flink jobs from the local machine.
 
