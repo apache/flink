@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -392,6 +393,32 @@ public class JavaUserDefinedAggFunctions {
         public void resetAccumulator(CountDistinctAccum acc) {
             acc.map.clear();
             acc.count = 0;
+        }
+    }
+
+    /** Counts how often the first argument was larger than the second argument. */
+    public static class LargerThanCount extends AggregateFunction<Long, Tuple1<Long>> {
+
+        public void accumulate(Tuple1<Long> acc, Long a, Long b) {
+            if (a > b) {
+                acc.f0 += 1;
+            }
+        }
+
+        public void retract(Tuple1<Long> acc, Long a, Long b) {
+            if (a > b) {
+                acc.f0 -= 1;
+            }
+        }
+
+        @Override
+        public Long getValue(Tuple1<Long> accumulator) {
+            return accumulator.f0;
+        }
+
+        @Override
+        public Tuple1<Long> createAccumulator() {
+            return Tuple1.of(0L);
         }
     }
 }
