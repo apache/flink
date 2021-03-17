@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.logical.WindowSpec
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
@@ -183,56 +182,27 @@ object WindowJoinUtil {
     }
 
     // Validate join
-    def getLeftFieldNames() = join.getLeft.getRowType.getFieldNames.toList
-
-    def getRightFieldNames() = join.getRight.getRowType.getFieldNames.toList
-
     if (windowStartEqualityLeftKeys.nonEmpty && windowEndEqualityLeftKeys.nonEmpty) {
       if (
         leftWindowProperties.getTimeAttributeType != rightWindowProperties.getTimeAttributeType) {
-
-        def timeAttributeTypeStr(isRowTime: Boolean): String = {
-          if (isRowTime) "ROWTIME" else "PROCTIME"
-        }
-
         throw new TableException(
           "Currently, window join doesn't support different time attribute type of left and " +
             "right inputs.\n" +
             s"The left time attribute type is " +
-            s"${timeAttributeTypeStr(leftWindowProperties.isRowtime)}.\n" +
+            s"${leftWindowProperties.getTimeAttributeType}.\n" +
             s"The right time attribute type is " +
-            s"${timeAttributeTypeStr(rightWindowProperties.isRowtime)}.")
+            s"${rightWindowProperties.getTimeAttributeType}.")
       } else if (leftWindowProperties.getWindowSpec != rightWindowProperties.getWindowSpec) {
-
-        def windowSpecToStr(
-            inputFieldNames: Seq[String],
-            windowStartIdx: Int,
-            windowEndIdx: Int,
-            windowSpec: WindowSpec): String = {
-          val windowing = s"win_start=[${inputFieldNames(windowStartIdx)}]" +
-            s", win_end=[${inputFieldNames(windowEndIdx)}]"
-          windowSpec.toSummaryString(windowing)
-        }
-
-        val leftWindowSpecStr = windowSpecToStr(
-          getLeftFieldNames(),
-          windowStartEqualityLeftKeys.get(0),
-          windowEndEqualityLeftKeys.get(0),
-          leftWindowProperties.getWindowSpec)
-
-        val rightWindowSpecStr = windowSpecToStr(
-          getRightFieldNames(),
-          windowStartEqualityRightKeys.get(0),
-          windowEndEqualityRightKeys.get(0),
-          rightWindowProperties.getWindowSpec)
         throw new TableException(
           "Currently, window join doesn't support different window table function of left and " +
             "right inputs.\n" +
-            s"The left window table function is $leftWindowSpecStr.\n" +
-            s"The right window table function is $rightWindowSpecStr.")
+            s"The left window table function is ${leftWindowProperties.getWindowSpec}.\n" +
+            s"The right window table function is ${rightWindowProperties.getWindowSpec}.")
       }
     } else if (windowStartEqualityLeftKeys.nonEmpty || windowEndEqualityLeftKeys.nonEmpty) {
-      val inputFieldNames = getLeftFieldNames() ++ getRightFieldNames()
+      val leftFieldNames = join.getLeft.getRowType.getFieldNames.toList
+      val rightFieldNames = join.getRight.getRowType.getFieldNames.toList
+      val inputFieldNames = leftFieldNames ++ rightFieldNames
       val condition = join.getExpressionString(
         join.getCondition,
         inputFieldNames,

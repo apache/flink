@@ -79,4 +79,11 @@ public class CumulativeWindowSpec implements WindowSpec {
     public int hashCode() {
         return Objects.hash(CumulativeWindowSpec.class, maxSize, step);
     }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "CUMULATE(max_size=[%s], step=[%s])",
+                formatWithHighestUnit(maxSize), formatWithHighestUnit(step));
+    }
 }

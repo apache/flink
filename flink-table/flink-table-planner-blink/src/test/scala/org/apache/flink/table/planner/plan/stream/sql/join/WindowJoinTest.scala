@@ -220,10 +220,8 @@ class WindowJoinTest extends TableTestBase {
     thrown.expectMessage(
       "Currently, window join doesn't support different window table function of left and " +
         "right inputs.\n" +
-        "The left window table function is HOP(win_start=[window_start], win_end=[window_end]," +
-        " size=[10 min], slide=[5 min]).\n" +
-        "The right window table function is CUMULATE(win_start=[window_start], " +
-        "win_end=[window_end], max_size=[1 h], step=[10 min]).")
+        "The left window table function is HOP(size=[10 min], slide=[5 min]).\n" +
+        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
     util.verifyRelPlan(sql)
   }
 
@@ -264,10 +262,8 @@ class WindowJoinTest extends TableTestBase {
     thrown.expectMessage(
       "Currently, window join doesn't support different window table function of left and " +
         "right inputs.\n" +
-        "The left window table function is CUMULATE(win_start=[window_start], " +
-        "win_end=[window_end], max_size=[2 h], step=[10 min]).\n" +
-        "The right window table function is CUMULATE(win_start=[window_start], " +
-        "win_end=[window_end], max_size=[1 h], step=[10 min]).")
+        "The left window table function is CUMULATE(max_size=[2 h], step=[10 min]).\n" +
+        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
     util.verifyRelPlan(sql)
   }
 
@@ -309,8 +305,9 @@ class WindowJoinTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
       "Currently, window join doesn't support different time attribute type of left and " +
-        "right inputs.\nThe left time attribute type is PROCTIME.\n" +
-        "The right time attribute type is ROWTIME.")
+        "right inputs.\n" +
+        "The left time attribute type is TIMESTAMP(3) NOT NULL *PROCTIME*.\n" +
+        "The right time attribute type is TIMESTAMP(3) *ROWTIME*.")
     util.verifyRelPlan(sql)
   }
 
