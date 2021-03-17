@@ -118,7 +118,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     @After
     public void shutdownScheduler() throws Exception {
         if (createdScheduler != null) {
-            createdScheduler.suspend(new Exception("shutdown"));
+            createdScheduler.close();
         }
     }
 
@@ -139,7 +139,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        scheduler.suspend(new Exception("test suspend"));
+        scheduler.close();
 
         assertTrue(coordinator.isClosed());
     }

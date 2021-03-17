@@ -282,8 +282,10 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void suspend(Throwable cause) {
-        state.suspend(cause);
+    public CompletableFuture<Void> closeAsync() {
+        state.suspend(new FlinkException("AdaptiveScheduler is being stopped."));
+
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override

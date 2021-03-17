@@ -505,12 +505,16 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected abstract void startSchedulingInternal();
 
     @Override
-    public void suspend(Throwable cause) {
+    public CompletableFuture<Void> closeAsync() {
         mainThreadExecutor.assertRunningInMainThread();
+
+        final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         incrementVersionsOfAllVertices();
         executionGraph.suspend(cause);
         operatorCoordinatorHandler.disposeAllOperatorCoordinators();
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
