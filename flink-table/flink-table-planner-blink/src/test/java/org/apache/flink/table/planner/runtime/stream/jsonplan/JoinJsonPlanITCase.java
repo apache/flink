@@ -59,7 +59,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                 "b5 bigint");
     }
 
-    /** test non-window inner join * */
+    /** test non-window inner join. * */
     @Test
     public void testNonWindowInnerJoin() throws Exception {
         List<String> dataT1 =
