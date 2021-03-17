@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.types.DataType;
 
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
@@ -145,9 +146,12 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
         final CliRowView view =
                 new CliRowView(
                         client,
-                        resultDescriptor.getResultSchema().getFieldNames(),
+                        resultDescriptor.getResultSchema().getColumnNames().toArray(new String[0]),
                         CliUtils.typesToString(
-                                resultDescriptor.getResultSchema().getFieldDataTypes()),
+                                resultDescriptor
+                                        .getResultSchema()
+                                        .getColumnDataTypes()
+                                        .toArray(new DataType[0])),
                         getRow(results.get(selectedRow)));
         view.open(); // enter view
     }
