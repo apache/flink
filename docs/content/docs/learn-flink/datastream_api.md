@@ -73,7 +73,7 @@ public class Person {
     public Person() {};  
     public Person(String name, Integer age) {  
         . . .
-    };  
+    }
 }  
 
 Person person = new Person("Fred Flintstone", 35);
@@ -127,11 +127,11 @@ public class Example {
         public Person(String name, Integer age) {
             this.name = name;
             this.age = age;
-        };
+        }
 
         public String toString() {
             return this.name.toString() + ": age " + this.age.toString();
-        };
+        }
     }
 }
 ```
@@ -172,7 +172,7 @@ DataStream<Person> flintstones = env.fromCollection(people);
 Another convenient way to get some data into a stream while prototyping is to use a socket
 
 ```java
-DataStream<String> lines = env.socketTextStream("localhost", 9999)
+DataStream<String> lines = env.socketTextStream("localhost", 9999);
 ```
 
 or a file
