@@ -307,7 +307,7 @@ public final class MemorySegment {
                 return ByteBuffer.wrap(heapMemory, offset, length);
             } else {
                 try {
-                    ByteBuffer wrapper = offHeapBuffer.duplicate();
+                    ByteBuffer wrapper = Preconditions.checkNotNull(offHeapBuffer).duplicate();
                     wrapper.limit(offset + length);
                     wrapper.position(offset);
                     return wrapper;
@@ -325,6 +325,7 @@ public final class MemorySegment {
      *
      * @return The owner of the memory segment, or null, if it does not have an owner.
      */
+    @Nullable
     public Object getOwner() {
         return owner;
     }
