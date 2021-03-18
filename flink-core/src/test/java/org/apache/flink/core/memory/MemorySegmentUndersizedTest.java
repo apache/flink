@@ -31,19 +31,8 @@ import java.nio.ByteBuffer;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for undersized {@link HeapMemorySegment} and {@link HybridMemorySegment} (in both heap and
- * off-heap modes).
- */
+/** Tests for undersized {@link HybridMemorySegment} (in both heap and off-heap modes). */
 public class MemorySegmentUndersizedTest {
-
-    @Test
-    public void testZeroSizeHeapSegment() {
-        MemorySegment segment = new HeapMemorySegment(new byte[0]);
-
-        testZeroSizeBuffer(segment);
-        testSegmentWithSizeLargerZero(segment);
-    }
 
     @Test
     public void testZeroSizeHeapHybridSegment() {
@@ -67,11 +56,6 @@ public class MemorySegmentUndersizedTest {
 
         testZeroSizeBuffer(segment);
         testSegmentWithSizeLargerZero(segment);
-    }
-
-    @Test
-    public void testSizeOneHeapSegment() {
-        testSegmentWithSizeLargerZero(new HeapMemorySegment(new byte[1]));
     }
 
     @Test
