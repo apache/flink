@@ -52,16 +52,24 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /** {@link StreamExecNode} for a time interval stream join. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamExecIntervalJoin.class);
+    public static final String FIELD_NAME_INTERVAL_JOIN_SPEC = "intervalJoinSpec";
 
+    @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC)
     private final IntervalJoinSpec intervalJoinSpec;
 
     public StreamExecIntervalJoin(
@@ -70,7 +78,22 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
+        this(
+                intervalJoinSpec,
+                getNewNodeId(),
+                Lists.newArrayList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecIntervalJoin(
+            @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC) IntervalJoinSpec intervalJoinSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
         this.intervalJoinSpec = intervalJoinSpec;
     }
 
