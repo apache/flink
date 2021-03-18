@@ -209,9 +209,9 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         // Zero-length character strings have no serializable string representation.
         if (charType.getLength() == CharType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, charType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, charType.isNullable());
             jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, charType.getLength());
-            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, charType.getTypeRoot().name());
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(charType.asSerializableString());
@@ -223,9 +223,9 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         // Zero-length character strings have no serializable string representation.
         if (varCharType.getLength() == VarCharType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, varCharType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varCharType.isNullable());
             jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varCharType.getLength());
-            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, varCharType.getTypeRoot().name());
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(varCharType.asSerializableString());
@@ -236,9 +236,9 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         // Zero-length binary strings have no serializable string representation.
         if (binaryType.getLength() == BinaryType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
+            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, binaryType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, binaryType.isNullable());
             jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, binaryType.getLength());
-            jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, binaryType.getTypeRoot().name());
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(binaryType.asSerializableString());
@@ -250,10 +250,10 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         // Zero-length binary strings have no serializable string representation.
         if (varBinaryType.getLength() == VarBinaryType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
-            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varBinaryType.isNullable());
-            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varBinaryType.getLength());
             jsonGenerator.writeStringField(
                     FIELD_NAME_TYPE_NAME, varBinaryType.getTypeRoot().name());
+            jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varBinaryType.isNullable());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varBinaryType.getLength());
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(varBinaryType.asSerializableString());
@@ -340,30 +340,30 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     private void serialize(TimestampType timestampType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
+        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, timestampType.isNullable());
         jsonGenerator.writeNumberField(FIELD_NAME_PRECISION, timestampType.getPrecision());
         jsonGenerator.writeObjectField(FIELD_NAME_TIMESTAMP_KIND, timestampType.getKind());
-        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeEndObject();
     }
 
     private void serialize(ZonedTimestampType timestampType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
+        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, timestampType.isNullable());
         jsonGenerator.writeNumberField(FIELD_NAME_PRECISION, timestampType.getPrecision());
         jsonGenerator.writeObjectField(FIELD_NAME_TIMESTAMP_KIND, timestampType.getKind());
-        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeEndObject();
     }
 
     private void serialize(LocalZonedTimestampType timestampType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
+        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, timestampType.isNullable());
         jsonGenerator.writeNumberField(FIELD_NAME_PRECISION, timestampType.getPrecision());
         jsonGenerator.writeObjectField(FIELD_NAME_TIMESTAMP_KIND, timestampType.getKind());
-        jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeEndObject();
     }
 }
