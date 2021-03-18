@@ -191,8 +191,7 @@ drop catalog `mod`;
 # ==========================================================================
 
 create catalog hivecatalog with (
- 'type' = 'hive',
- 'test' = 'test',  -- this makes sure we use TestHiveCatalogFactory
+ 'type' = 'hive-test',
  'hive-version' = '2.3.4'
 );
 [INFO] Catalog has been created.

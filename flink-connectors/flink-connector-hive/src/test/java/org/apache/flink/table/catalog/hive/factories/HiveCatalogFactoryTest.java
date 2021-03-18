@@ -19,12 +19,12 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogDescriptor;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -45,7 +45,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -66,14 +65,13 @@ public class HiveCatalogFactoryTest extends TestLogger {
 
         final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
 
-        final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-        catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-
-        final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
         final Catalog actualCatalog =
-                TableFactoryService.find(CatalogFactory.class, properties)
-                        .createCatalog(catalogName, properties);
+                FactoryUtil.createCatalog(
+                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
         assertEquals(
                 "dummy-hms",
@@ -97,15 +95,14 @@ public class HiveCatalogFactoryTest extends TestLogger {
                 HiveTestUtils.createHiveCatalog(
                         catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
 
-        final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-        catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-
-        final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
-        properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+        options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
         final Catalog actualCatalog =
-                TableFactoryService.find(CatalogFactory.class, properties)
-                        .createCatalog(catalogName, properties);
+                FactoryUtil.createCatalog(
+                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
         checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
         assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
@@ -138,15 +135,21 @@ public class HiveCatalogFactoryTest extends TestLogger {
         CommonTestUtils.setEnv(newEnv);
 
         // create HiveCatalog use the Hadoop Configuration
-        final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-        catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-        final Map<String, String> properties = catalogDescriptor.toProperties();
         final HiveConf hiveConf;
         try {
+            final Map<String, String> options = new HashMap<>();
+            options.put(
+                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+            options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+
             final HiveCatalog hiveCatalog =
                     (HiveCatalog)
-                            TableFactoryService.find(CatalogFactory.class, properties)
-                                    .createCatalog(catalogName, properties);
+                            FactoryUtil.createCatalog(
+                                    catalogName,
+                                    options,
+                                    null,
+                                    Thread.currentThread().getContextClassLoader());
+
             hiveConf = hiveCatalog.getHiveConf();
         } finally {
             // set the Env back
@@ -160,40 +163,50 @@ public class HiveCatalogFactoryTest extends TestLogger {
 
     @Test
     public void testDisallowEmbedded() {
-        expectedException.expect(IllegalArgumentException.class);
-        final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
+        expectedException.expect(ValidationException.class);
 
-        TableFactoryService.find(CatalogFactory.class, properties)
-                .createCatalog("my_catalog", properties);
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+
+        FactoryUtil.createCatalog(
+                "my_catalog", options, null, Thread.currentThread().getContextClassLoader());
     }
 
     @Test
     public void testCreateMultipleHiveCatalog() throws Exception {
-        final HiveCatalogDescriptor descriptor1 = new HiveCatalogDescriptor();
-        descriptor1.hiveSitePath(
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props1.put(
+                HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
                 Thread.currentThread()
                         .getContextClassLoader()
                         .getResource("test-multi-hive-conf1")
                         .getPath());
-        Map<String, String> props1 = descriptor1.toProperties();
 
-        final HiveCatalogDescriptor descriptor2 = new HiveCatalogDescriptor();
-        descriptor2.hiveSitePath(
+        final Map<String, String> props2 = new HashMap<>();
+        props2.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props2.put(
+                HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
                 Thread.currentThread()
                         .getContextClassLoader()
                         .getResource("test-multi-hive-conf2")
                         .getPath());
-        Map<String, String> props2 = descriptor2.toProperties();
 
         Callable<Catalog> callable1 =
                 () ->
-                        TableFactoryService.find(CatalogFactory.class, props1)
-                                .createCatalog("cat1", props1);
+                        FactoryUtil.createCatalog(
+                                "cat1",
+                                props1,
+                                null,
+                                Thread.currentThread().getContextClassLoader());
 
         Callable<Catalog> callable2 =
                 () ->
-                        TableFactoryService.find(CatalogFactory.class, props2)
-                                .createCatalog("cat2", props2);
+                        FactoryUtil.createCatalog(
+                                "cat2",
+                                props2,
+                                null,
+                                Thread.currentThread().getContextClassLoader());
 
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         Future<Catalog> future1 = executorService.submit(callable1);

@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -28,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -38,15 +41,14 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
@@ -63,14 +65,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -205,29 +206,32 @@ public class DependencyTest {
     /** Catalog that can be discovered if classloading is correct. */
     public static class TestCatalogFactory implements CatalogFactory {
 
+        private static final ConfigOption<String> DEFAULT_DATABASE =
+                ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
+                        .stringType()
+                        .defaultValue(GenericInMemoryCatalog.DEFAULT_DB);
+
         @Override
-        public Map<String, String> requiredContext() {
-            final Map<String, String> context = new HashMap<>();
-            context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
-            return context;
+        public String factoryIdentifier() {
+            return CATALOG_TYPE_TEST;
         }
 
         @Override
-        public List<String> supportedProperties() {
-            final List<String> properties = new ArrayList<>();
-            properties.add(CATALOG_DEFAULT_DATABASE);
-            return properties;
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
         }
 
         @Override
-        public Catalog createCatalog(String name, Map<String, String> properties) {
-            final DescriptorProperties params = new DescriptorProperties(true);
-            params.putProperties(properties);
+        public Set<ConfigOption<?>> optionalOptions() {
+            final Set<ConfigOption<?>> options = new HashSet<>();
+            options.add(DEFAULT_DATABASE);
+            return options;
+        }
 
-            final Optional<String> defaultDatabase =
-                    params.getOptionalString(CATALOG_DEFAULT_DATABASE);
-
-            return new TestCatalog(name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
+        @Override
+        public Catalog createCatalog(Context context) {
+            final Configuration configuration = Configuration.fromMap(context.getOptions());
+            return new TestCatalog(context.getName(), configuration.getString(DEFAULT_DATABASE));
         }
     }
 
@@ -249,32 +253,22 @@ public class DependencyTest {
         static final String TABLE_WITH_PARAMETERIZED_TYPES = "param_types_table";
 
         @Override
-        public Map<String, String> requiredContext() {
-            Map<String, String> context = super.requiredContext();
-
-            // For factory discovery service to distinguish TestHiveCatalogFactory from
-            // HiveCatalogFactory
-            context.put("test", "test");
-            return context;
+        public String factoryIdentifier() {
+            return "hive-test";
         }
 
         @Override
-        public List<String> supportedProperties() {
-            List<String> list = super.supportedProperties();
-            list.add(CatalogPropertiesUtil.IS_GENERIC);
+        public Catalog createCatalog(Context context) {
+            final Configuration configuration = Configuration.fromMap(context.getOptions());
 
-            return list;
-        }
-
-        @Override
-        public Catalog createCatalog(String name, Map<String, String> properties) {
             // Developers may already have their own production/testing hive-site.xml set in their
             // environment,
             // and Flink tests should avoid using those hive-site.xml.
             // Thus, explicitly create a testing HiveConf for unit tests here
             Catalog hiveCatalog =
                     HiveTestUtils.createHiveCatalog(
-                            name, properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
+                            context.getName(),
+                            configuration.getString(HiveCatalogFactoryOptions.HIVE_VERSION));
 
             // Creates an additional database to test tableEnv.useDatabase() will switch current
             // database of the catalog

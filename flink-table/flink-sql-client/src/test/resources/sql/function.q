@@ -205,7 +205,7 @@ org.apache.flink.table.api.ValidationException: Alter temporary catalog function
 # test function with hive catalog
 # ==========================================================================
 
-create catalog hivecatalog with ('type'='hive', 'hive-version'='2.3.4','test'='test');
+create catalog hivecatalog with ('type'='hive-test', 'hive-version'='2.3.4');
 [INFO] Catalog has been created.
 !info
 

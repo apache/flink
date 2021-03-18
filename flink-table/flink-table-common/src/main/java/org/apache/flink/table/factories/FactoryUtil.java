@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -60,6 +61,10 @@ public final class FactoryUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(FactoryUtil.class);
 
+    /**
+     * Describes the property version. This can be used for backwards compatibility in case the
+     * property format changes.
+     */
     public static final ConfigOption<Integer> PROPERTY_VERSION =
             ConfigOptions.key("property-version")
                     .intType()
@@ -74,13 +79,6 @@ public final class FactoryUtil {
                     .withDescription(
                             "Uniquely identifies the connector of a dynamic table that is used for accessing data in "
                                     + "an external system. Its value is used during table source and table sink discovery.");
-
-    public static final ConfigOption<String> CATALOG_TYPE =
-            ConfigOptions.key("type")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Uniquely identifies the catalog. Its value is used during catalog discovery.");
 
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
@@ -239,7 +237,11 @@ public final class FactoryUtil {
                 // to the catalog factory itself.
                 final Map<String, String> factoryOptions =
                         options.entrySet().stream()
-                                .filter(entry -> !CATALOG_TYPE.key().equals(entry.getKey()))
+                                .filter(
+                                        entry ->
+                                                !CommonCatalogOptions.CATALOG_TYPE
+                                                        .key()
+                                                        .equals(entry.getKey()))
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
                 final DefaultCatalogContext context =
                         new DefaultCatalogContext(
@@ -258,7 +260,8 @@ public final class FactoryUtil {
                                                                 optionEntry.getKey(),
                                                                 optionEntry.getValue()))
                                         .sorted()
-                                        .collect(Collectors.joining("\n"))));
+                                        .collect(Collectors.joining("\n"))),
+                        t);
             }
         }
     }
@@ -420,12 +423,13 @@ public final class FactoryUtil {
     }
 
     private static CatalogFactory getCatalogFactory(CatalogFactory.Context context) {
-        final String catalogType = context.getOptions().get(CATALOG_TYPE.key());
+        final String catalogType =
+                context.getOptions().get(CommonCatalogOptions.CATALOG_TYPE.key());
         if (catalogType == null) {
             throw new ValidationException(
                     String.format(
                             "Catalog options do not contain an option key '%s' for discovering a catalog.",
-                            CATALOG_TYPE.key()));
+                            CommonCatalogOptions.CATALOG_TYPE.key()));
         }
 
         return discoverFactory(context.getClassLoader(), CatalogFactory.class, catalogType);

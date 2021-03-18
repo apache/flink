@@ -19,38 +19,36 @@
 package org.apache.flink.table.factories.utils;
 
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+/** Legacy catalog factory for testing. */
+public class TestLegacyCatalogFactory implements CatalogFactory {
 
-/** Catalog factory for testing. */
-public class TestCatalogFactory implements CatalogFactory {
-
-    public static final String CATALOG_TYPE_TEST = "test";
-
-    @Override
-    public Catalog createCatalog(String name, Map<String, String> properties) {
-        return new GenericInMemoryCatalog(name);
-    }
+    public static final String CATALOG_TYPE_TEST_LEGACY = "test-legacy";
 
     @Override
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
-        context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
-        context.put(CATALOG_PROPERTY_VERSION, "1");
-
+        context.put(CommonCatalogOptions.CATALOG_TYPE.key(), CATALOG_TYPE_TEST_LEGACY);
+        context.put(FactoryUtil.PROPERTY_VERSION.key(), "1");
         return context;
     }
 
     @Override
     public List<String> supportedProperties() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public Catalog createCatalog(String name, Map<String, String> properties) {
+        return new GenericInMemoryCatalog(name);
     }
 }
