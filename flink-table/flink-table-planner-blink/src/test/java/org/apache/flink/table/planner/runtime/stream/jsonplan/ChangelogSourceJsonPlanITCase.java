@@ -25,18 +25,16 @@ import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 /** Integration tests for operations on changelog source, including upsert source. */
 public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testChangelogSource() throws ExecutionException, InterruptedException, IOException {
+    public void testChangelogSource() throws Exception {
         registerChangelogSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",
@@ -58,7 +56,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testToUpsertSource() throws ExecutionException, InterruptedException, IOException {
+    public void testToUpsertSource() throws Exception {
         registerUpsertSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",

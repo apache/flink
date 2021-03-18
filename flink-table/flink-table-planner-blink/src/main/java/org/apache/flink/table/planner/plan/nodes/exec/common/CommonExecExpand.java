@@ -33,26 +33,41 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexNode;
 
-import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base {@link ExecNode} that can expand one row to multiple rows based on given projects. */
 public abstract class CommonExecExpand extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String FIELD_NAME_PROJECTS = "projects";
+
+    @JsonProperty(FIELD_NAME_PROJECTS)
     private final List<List<RexNode>> projects;
-    private final boolean retainHeader;
+
+    @JsonIgnore private final boolean retainHeader;
 
     public CommonExecExpand(
             List<List<RexNode>> projects,
             boolean retainHeader,
-            InputProperty inputProperty,
+            int id,
+            List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.projects = projects;
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.projects = checkNotNull(projects);
+        checkArgument(
+                projects.size() > 0
+                        && projects.get(0).size() > 0
+                        && projects.stream().map(List::size).distinct().count() == 1);
         this.retainHeader = retainHeader;
     }
 

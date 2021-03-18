@@ -32,11 +32,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /** Test for group aggregate json plan. */
 @RunWith(Parameterized.class)
@@ -72,8 +70,7 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testSimpleAggCallsWithGroupBy()
-            throws IOException, ExecutionException, InterruptedException {
+    public void testSimpleAggCallsWithGroupBy() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -101,8 +98,7 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testDistinctAggCalls()
-            throws ExecutionException, InterruptedException, IOException {
+    public void testDistinctAggCalls() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data2()),

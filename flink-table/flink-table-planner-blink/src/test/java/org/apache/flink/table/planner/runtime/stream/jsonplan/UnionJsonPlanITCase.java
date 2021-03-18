@@ -25,15 +25,13 @@ import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /** Test json serialization/deserialization for union. */
 public class UnionJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testUnion() throws ExecutionException, InterruptedException, IOException {
+    public void testUnion() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data1()),
