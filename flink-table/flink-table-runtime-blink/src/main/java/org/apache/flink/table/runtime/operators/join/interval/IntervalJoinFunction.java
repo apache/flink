@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.SupportsAnyNull;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -46,7 +46,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     private transient JoinCondition joinCondition;
     private transient JoinedRowData reusedJoinRowData;
-    private transient BinaryRowData joinKey;
+    private transient SupportsAnyNull joinKey;
 
     public IntervalJoinFunction(
             GeneratedJoinCondition joinCondition,
@@ -88,6 +88,6 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
     }
 
     public void setJoinKey(RowData currentKey) {
-        this.joinKey = (BinaryRowData) currentKey;
+        this.joinKey = (SupportsAnyNull) currentKey;
     }
 }
