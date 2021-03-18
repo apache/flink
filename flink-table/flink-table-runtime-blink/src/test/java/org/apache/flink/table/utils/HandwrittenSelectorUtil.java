@@ -50,7 +50,7 @@ public class HandwrittenSelectorUtil {
         private final int[] keyFields;
         private final LogicalType[] inputFieldTypes;
         private final LogicalType[] keyFieldTypes;
-        private final TypeSerializer[] keySers;
+        private final TypeSerializer<?>[] keySers;
         private final RowData.FieldGetter[] fieldGetters;
 
         public HandwrittenKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
@@ -68,7 +68,7 @@ public class HandwrittenSelectorUtil {
         }
 
         @Override
-        public RowData getKey(RowData value) throws Exception {
+        public RowData getKey(RowData value) {
             BinaryRowData ret = new BinaryRowData(keyFields.length);
             BinaryRowWriter writer = new BinaryRowWriter(ret);
             for (int i = 0; i < keyFields.length; i++) {
