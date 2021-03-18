@@ -20,21 +20,14 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -46,19 +39,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for the {@link JsonFormatFactory}. */
 public class JsonFormatFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
-
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("field1", DataTypes.BOOLEAN())
-                    .field("field2", DataTypes.INT())
-                    .build();
-
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
     @Test
     public void testSeDeSchema() {
@@ -150,20 +140,20 @@ public class JsonFormatFactoryTest extends TestLogger {
     private void testSchemaDeserializationSchema(Map<String, String> options) {
         final JsonRowDataDeserializationSchema expectedDeser =
                 new JsonRowDataDeserializationSchema(
-                        ROW_TYPE,
-                        InternalTypeInfo.of(ROW_TYPE),
+                        PHYSICAL_TYPE,
+                        InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
                         true,
                         TimestampFormat.ISO_8601);
 
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         DeserializationSchema<RowData> actualDeser =
                 scanSourceMock.valueFormat.createRuntimeDecoder(
-                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expectedDeser, actualDeser);
     }
@@ -171,20 +161,20 @@ public class JsonFormatFactoryTest extends TestLogger {
     private void testSchemaSerializationSchema(Map<String, String> options) {
         final JsonRowDataSerializationSchema expectedSer =
                 new JsonRowDataSerializationSchema(
-                        ROW_TYPE,
+                        PHYSICAL_TYPE,
                         TimestampFormat.ISO_8601,
                         JsonOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
         SerializationSchema<RowData> actualSer =
                 sinkMock.valueFormat.createRuntimeEncoder(
-                        new SinkRuntimeProviderContext(false), SCHEMA.toRowDataType());
+                        new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
 
         assertEquals(expectedSer, actualSer);
     }
@@ -214,25 +204,5 @@ public class JsonFormatFactoryTest extends TestLogger {
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
         return options;
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "Mock scan table"),
-                new Configuration(),
-                JsonFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "Mock sink table"),
-                new Configuration(),
-                JsonFormatFactoryTest.class.getClassLoader(),
-                false);
     }
 }

@@ -39,6 +39,10 @@ public class ResolvedExpressionMock implements ResolvedExpression {
         this.stringRepresentation = stringRepresentation;
     }
 
+    public static ResolvedExpression of(DataType outputDataType, String stringRepresentation) {
+        return new ResolvedExpressionMock(outputDataType, () -> stringRepresentation);
+    }
+
     @Override
     public String asSummaryString() {
         return stringRepresentation.get();

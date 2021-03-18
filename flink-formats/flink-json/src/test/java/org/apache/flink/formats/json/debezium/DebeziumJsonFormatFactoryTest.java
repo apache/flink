@@ -20,23 +20,16 @@ package org.apache.flink.formats.json.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -50,6 +43,11 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -57,29 +55,20 @@ import static org.junit.Assert.fail;
 public class DebeziumJsonFormatFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("a", DataTypes.STRING())
-                    .field("b", DataTypes.INT())
-                    .field("c", DataTypes.BOOLEAN())
-                    .build();
-
-    private static final DataType PHYSICAL_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
-
     @Test
     public void testSeDeSchema() {
         final DebeziumJsonDeserializationSchema expectedDeser =
                 new DebeziumJsonDeserializationSchema(
                         PHYSICAL_DATA_TYPE,
                         Collections.emptyList(),
-                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
                         true,
                         TimestampFormat.ISO_8601);
 
         final Map<String, String> options = getAllOptions();
 
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
@@ -98,7 +87,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         "null",
                         true);
 
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
@@ -120,7 +109,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("debezium-json.ignore-parse-errors", "abc"));
 
-        createTableSource(options);
+        createTableSource(SCHEMA, options);
     }
 
     @Test
@@ -136,7 +125,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         true,
                         true,
                         TimestampFormat.ISO_8601);
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
         DeserializationSchema<RowData> actualDeser =
@@ -145,7 +134,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         assertEquals(expectedDeser, actualDeser);
 
         try {
-            final DynamicTableSink actualSink = createTableSink(options);
+            final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
             TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                     (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
             // should fail
@@ -171,7 +160,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                 containsCause(
                         new ValidationException(
                                 "Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
-        createTableSource(tableOptions);
+        createTableSource(SCHEMA, tableOptions);
     }
 
     @Test
@@ -184,7 +173,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                 containsCause(
                         new ValidationException(
                                 "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
-        createTableSink(tableOptions);
+        createTableSink(SCHEMA, tableOptions);
     }
 
     // ------------------------------------------------------------------------
@@ -215,25 +204,5 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         options.put("debezium-json.map-null-key.literal", "null");
         options.put("debezium-json.encode.decimal-as-plain-number", "true");
         return options;
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock source"),
-                new Configuration(),
-                DebeziumJsonFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock sink"),
-                new Configuration(),
-                DebeziumJsonFormatFactoryTest.class.getClassLoader(),
-                false);
     }
 }

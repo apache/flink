@@ -26,14 +26,15 @@ import org.apache.flink.streaming.connectors.kinesis.FixedKinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.RandomKinesisPartitioner;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -222,15 +223,19 @@ public class KinesisOptions {
      * </ul>
      *
      * @param tableOptions A read-only set of config options that determines the partitioner type.
-     * @param targetTable A catalog version of the table backing the partitioner.
+     * @param physicalType Physical type for partitioning.
+     * @param partitionKeys Partitioning keys in physical type.
      * @param classLoader A {@link ClassLoader} to use for loading user-defined partitioner classes.
      */
     public static KinesisPartitioner<RowData> getKinesisPartitioner(
-            ReadableConfig tableOptions, CatalogTable targetTable, ClassLoader classLoader) {
+            ReadableConfig tableOptions,
+            RowType physicalType,
+            List<String> partitionKeys,
+            ClassLoader classLoader) {
 
-        if (targetTable.isPartitioned()) {
+        if (!partitionKeys.isEmpty()) {
             String delimiter = tableOptions.get(SINK_PARTITIONER_FIELD_DELIMITER);
-            return new RowDataFieldsKinesisPartitioner(targetTable, delimiter);
+            return new RowDataFieldsKinesisPartitioner(physicalType, partitionKeys, delimiter);
         } else if (!tableOptions.getOptional(SINK_PARTITIONER).isPresent()) {
             return new RandomKinesisPartitioner<>();
         } else {

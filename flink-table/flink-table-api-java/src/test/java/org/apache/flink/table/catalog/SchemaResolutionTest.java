@@ -98,7 +98,7 @@ public class SchemaResolutionTest {
                                 Column.metadata(
                                         "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
-                        Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
+                        Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
                                 "primary_constraint", Collections.singletonList("id")));
 

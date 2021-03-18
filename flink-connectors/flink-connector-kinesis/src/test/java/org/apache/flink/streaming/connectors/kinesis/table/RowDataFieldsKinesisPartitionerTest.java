@@ -19,15 +19,13 @@
 package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.factories.TableOptionsBuilder;
 import org.apache.flink.table.factories.TestFormatFactory;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -54,17 +52,18 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
     /** Table name to use for the tests. */
     private static final String TABLE_NAME = "click_stream";
 
-    /** Table schema to use for the tests. */
-    private static final TableSchema TABLE_SCHEMA =
-            TableSchema.builder()
-                    .field("time", DataTypes.TIMESTAMP(3))
-                    .field("ip", DataTypes.VARCHAR(16))
-                    .field("route", DataTypes.STRING())
-                    .field("date", DataTypes.STRING(), "CAST(DATE(`time`) AS STRING)")
-                    .field("year", DataTypes.STRING(), "CAST(YEAR(`time`) AS STRING)")
-                    .field("month", DataTypes.STRING(), "CAST(MONTH(`time`) AS STRING)")
-                    .field("day", DataTypes.STRING(), "CAST(DAYOFMONTH(`time`) AS STRING)")
-                    .build();
+    /** Row type to use for the tests. */
+    private static final RowType ROW_TYPE =
+            (RowType)
+                    DataTypes.ROW(
+                                    DataTypes.FIELD("time", DataTypes.TIMESTAMP(3)),
+                                    DataTypes.FIELD("ip", DataTypes.VARCHAR(16)),
+                                    DataTypes.FIELD("route", DataTypes.STRING()),
+                                    DataTypes.FIELD("date", DataTypes.STRING()),
+                                    DataTypes.FIELD("year", DataTypes.STRING()),
+                                    DataTypes.FIELD("month", DataTypes.STRING()),
+                                    DataTypes.FIELD("day", DataTypes.STRING()))
+                            .getLogicalType();
 
     /** A list of field delimiters to use in the tests. */
     private static final List<String> FIELD_DELIMITERS = Arrays.asList("", "|", ",", "--");
@@ -100,11 +99,10 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitioner() {
-        CatalogTable table = createTable(defaultTableOptions(), PARTITION_BY_DATE_AND_IP);
-
         for (String delimiter : FIELD_DELIMITERS) {
             RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(table, delimiter);
+                    new RowDataFieldsKinesisPartitioner(
+                            ROW_TYPE, PARTITION_BY_DATE_AND_IP, delimiter);
 
             for (LocalDateTime time : DATE_TIMES) {
                 String expectedKey = String.join(delimiter, String.valueOf(days(time)), IP);
@@ -117,8 +115,8 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerExceedingMaxLength() {
-        CatalogTable table = createTable(defaultTableOptions(), PARTITION_BY_ROUTE);
-        RowDataFieldsKinesisPartitioner partitioner = new RowDataFieldsKinesisPartitioner(table);
+        RowDataFieldsKinesisPartitioner partitioner =
+                new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_ROUTE);
 
         String ip = "255.255.255.255";
         String route = "http://www.very-" + repeat("long-", 50) + "address.com/home";
@@ -132,15 +130,13 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerWithStaticPrefix() {
-        CatalogTable table = createTable(defaultTableOptions(), PARTITION_BY_DATE);
-
         // fixed prefix
         String year = String.valueOf(year(DATE_TIMES.get(0)));
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
             RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(table, delimiter);
+                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -162,15 +158,13 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerWithStaticSuffix() {
-        CatalogTable table = createTable(defaultTableOptions(), PARTITION_BY_DATE);
-
         // fixed suffix
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
         String day = String.valueOf(dayOfMonth(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
             RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(table, delimiter);
+                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -192,14 +186,12 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     @Test
     public void testGoodPartitionerWithStaticInfix() {
-        CatalogTable table = createTable(defaultTableOptions(), PARTITION_BY_DATE);
-
         // fixed infix
         String month = String.valueOf(monthOfYear(DATE_TIMES.get(0)));
 
         for (String delimiter : FIELD_DELIMITERS) {
             RowDataFieldsKinesisPartitioner partitioner =
-                    new RowDataFieldsKinesisPartitioner(table, delimiter);
+                    new RowDataFieldsKinesisPartitioner(ROW_TYPE, PARTITION_BY_DATE, delimiter);
 
             partitioner.setStaticFields(
                     new HashMap<String, String>() {
@@ -231,8 +223,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "Cannot create a RowDataFieldsKinesisPartitioner for a non-partitioned table")));
 
-        CatalogTable table = createTable(defaultTableOptions(), Collections.emptyList());
-        new RowDataFieldsKinesisPartitioner(table);
+        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Collections.emptyList());
     }
 
     @Test
@@ -243,8 +234,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The sequence of partition keys cannot contain duplicates")));
 
-        CatalogTable table = createTable(defaultTableOptions(), Arrays.asList("ip", "ip"));
-        new RowDataFieldsKinesisPartitioner(table);
+        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("ip", "ip"));
     }
 
     @Test
@@ -255,8 +245,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys are not present in the table: abc")));
 
-        CatalogTable table = createTable(defaultTableOptions(), Arrays.asList("ip", "abc"));
-        new RowDataFieldsKinesisPartitioner(table);
+        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("ip", "abc"));
     }
 
     @Test
@@ -267,8 +256,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
                         new IllegalArgumentException(
                                 "The following partition keys have types that are not supported by Kinesis: time")));
 
-        CatalogTable table = createTable(defaultTableOptions(), Arrays.asList("time", "ip"));
-        new RowDataFieldsKinesisPartitioner(table);
+        new RowDataFieldsKinesisPartitioner(ROW_TYPE, Arrays.asList("time", "ip"));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -280,7 +268,7 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
     }
 
     private RowData createElement(LocalDateTime time, String ip, String route) {
-        GenericRowData element = new GenericRowData(TABLE_SCHEMA.getFieldCount());
+        GenericRowData element = new GenericRowData(ROW_TYPE.getFieldCount());
         element.setField(0, TimestampData.fromLocalDateTime(time));
         element.setField(1, StringData.fromString(ip));
         element.setField(2, StringData.fromString(route));
@@ -305,10 +293,6 @@ public class RowDataFieldsKinesisPartitionerTest extends TestLogger {
 
     private int dayOfMonth(LocalDateTime time) {
         return time.get(ChronoField.DAY_OF_MONTH);
-    }
-
-    private CatalogTable createTable(TableOptionsBuilder options, List<String> partitionKeys) {
-        return new CatalogTableImpl(TABLE_SCHEMA, partitionKeys, options.build(), TABLE_NAME);
     }
 
     private TableOptionsBuilder defaultTableOptions() {

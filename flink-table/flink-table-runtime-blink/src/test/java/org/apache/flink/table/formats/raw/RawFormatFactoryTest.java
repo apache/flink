@@ -20,15 +20,12 @@ package org.apache.flink.table.formats.raw;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
@@ -42,6 +39,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -51,10 +50,12 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Tests for {@link RawFormatFactory}. */
 public class RawFormatFactoryTest extends TestLogger {
-    private static final TableSchema SCHEMA =
-            TableSchema.builder().field("field1", DataTypes.STRING()).build();
 
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(Column.physical("field1", DataTypes.STRING()));
+
+    private static final RowType ROW_TYPE =
+            (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
     @Test
     public void testSeDeSchema() {
@@ -101,11 +102,10 @@ public class RawFormatFactoryTest extends TestLogger {
 
     @Test
     public void testInvalidSchema() {
-        TableSchema invalidSchema =
-                TableSchema.builder()
-                        .field("f0", DataTypes.STRING())
-                        .field("f1", DataTypes.BIGINT())
-                        .build();
+        ResolvedSchema invalidSchema =
+                ResolvedSchema.of(
+                        Column.physical("f0", DataTypes.STRING()),
+                        Column.physical("f1", DataTypes.BIGINT()));
         String expectedError =
                 "The 'raw' format only supports single physical column. "
                         + "However the defined schema contains multiple physical columns: [`f0` STRING, `f1` BIGINT]";
@@ -181,7 +181,7 @@ public class RawFormatFactoryTest extends TestLogger {
     public void testInvalidFieldTypes() {
         try {
             createDeserializationSchema(
-                    TableSchema.builder().field("field1", DataTypes.TIMESTAMP(3)).build(),
+                    ResolvedSchema.of(Column.physical("field1", DataTypes.TIMESTAMP(3))),
                     getBasicOptions());
             fail();
         } catch (Exception e) {
@@ -194,9 +194,9 @@ public class RawFormatFactoryTest extends TestLogger {
 
         try {
             createDeserializationSchema(
-                    TableSchema.builder()
-                            .field("field1", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
-                            .build(),
+                    ResolvedSchema.of(
+                            Column.physical(
+                                    "field1", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))),
                     getBasicOptions());
             fail();
         } catch (Exception e) {
@@ -213,47 +213,25 @@ public class RawFormatFactoryTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     private static DeserializationSchema<RowData> createDeserializationSchema(
-            TableSchema schema, Map<String, String> options) {
+            ResolvedSchema schema, Map<String, String> options) {
         final DynamicTableSource actualSource = createTableSource(schema, options);
         assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         return scanSourceMock.valueFormat.createRuntimeDecoder(
-                ScanRuntimeProviderContext.INSTANCE, schema.toRowDataType());
+                ScanRuntimeProviderContext.INSTANCE, schema.toPhysicalRowDataType());
     }
 
     private static SerializationSchema<RowData> createSerializationSchema(
-            TableSchema schema, Map<String, String> options) {
+            ResolvedSchema schema, Map<String, String> options) {
         final DynamicTableSink actualSink = createTableSink(schema, options);
         assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
         return sinkMock.valueFormat.createRuntimeEncoder(
-                new SinkRuntimeProviderContext(false), schema.toRowDataType());
-    }
-
-    private static DynamicTableSource createTableSource(
-            TableSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(schema, options, "Mock scan table"),
-                new Configuration(),
-                RawFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(
-            TableSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(schema, options, "Mock sink table"),
-                new Configuration(),
-                RawFormatFactoryTest.class.getClassLoader(),
-                false);
+                new SinkRuntimeProviderContext(false), schema.toPhysicalRowDataType());
     }
 
     /**
