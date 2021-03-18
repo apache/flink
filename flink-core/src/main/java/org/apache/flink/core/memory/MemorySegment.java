@@ -34,7 +34,6 @@ import java.util.function.Function;
  * memory (byte array) or by off-heap memory.
  *
  * <p>The methods for individual memory access are specialized in the classes {@link
- * org.apache.flink.core.memory.HeapMemorySegment} and {@link
  * org.apache.flink.core.memory.HybridMemorySegment}. All methods that operate across two memory
  * segments are implemented in this class, to transparently handle the mixing of memory segment
  * types.
@@ -58,9 +57,7 @@ import java.util.function.Function;
  *
  * <p><i>Note on efficiency</i>: For best efficiency, the code that uses this class should make sure
  * that only one subclass is loaded, or that the methods that are abstract in this class are used
- * only from one of the subclasses (either the {@link
- * org.apache.flink.core.memory.HeapMemorySegment}, or the {@link
- * org.apache.flink.core.memory.HybridMemorySegment}).
+ * only from one of the subclasses ({@link org.apache.flink.core.memory.HybridMemorySegment}).
  *
  * <p>That way, all the abstract methods in the MemorySegment base class have only one loaded actual
  * implementation. This is easy for the JIT to recognize through class hierarchy analysis, or by
