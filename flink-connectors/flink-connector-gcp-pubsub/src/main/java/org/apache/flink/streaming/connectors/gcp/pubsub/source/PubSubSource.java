@@ -87,12 +87,12 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  */
 public class PubSubSource<OUT>
         implements Source<OUT, PubSubSplit, PubSubEnumeratorCheckpoint>, ResultTypeQueryable<OUT> {
-    protected final PubSubDeserializationSchema<OUT> deserializationSchema;
-    protected final PubSubSubscriberFactory pubSubSubscriberFactory;
+    private final PubSubDeserializationSchema<OUT> deserializationSchema;
+    private final PubSubSubscriberFactory pubSubSubscriberFactory;
     private final Properties props;
     private final Credentials credentials;
 
-    PubSubSource(
+    private PubSubSource(
             PubSubDeserializationSchema<OUT> deserializationSchema,
             PubSubSubscriberFactory pubSubSubscriberFactory,
             Properties props,

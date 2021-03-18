@@ -141,7 +141,7 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
             messages.clear();
         }
 
-        public boolean isEndOfStreamSignalled() {
+        private boolean isEndOfStreamSignalled() {
             return endOfStreamSignalled;
         }
     }
@@ -155,7 +155,7 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
      *
      * <p>Calling this message is enqueued by the {@link PubSubSourceFetcherManager} on checkpoint.
      */
-    public void notifyCheckpointComplete() {
+    void notifyCheckpointComplete() {
         LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
         if (!messageIdsToAcknowledge.isEmpty()) {
             subscriber.acknowledge(messageIdsToAcknowledge);

@@ -38,11 +38,11 @@ import java.util.function.Supplier;
  * acknowledged towards GCP Pub/Sub once they have been successfully checkpointed in Flink. As long
  * as a received message has not been acknowledged, GCP Pub/Sub will attempt to deliver it again.
  */
-public class PubSubSourceFetcherManager<T>
+class PubSubSourceFetcherManager<T>
         extends SingleThreadFetcherManager<Tuple2<T, Long>, PubSubSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSourceFetcherManager.class);
 
-    public PubSubSourceFetcherManager(
+    PubSubSourceFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple2<T, Long>>> elementsQueue,
             Supplier<SplitReader<Tuple2<T, Long>, PubSubSplit>> splitReaderSupplier) {
         super(elementsQueue, splitReaderSupplier);
@@ -52,7 +52,7 @@ public class PubSubSourceFetcherManager<T>
      * Creates a {@link SplitFetcher} if there's none available yet and enqueues a task to
      * acknowledge GCP Pub/Sub messages.
      */
-    public void acknowledgeMessages() {
+    void acknowledgeMessages() {
         SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher = fetchers.get(0);
 
         if (splitFetcher != null) {
