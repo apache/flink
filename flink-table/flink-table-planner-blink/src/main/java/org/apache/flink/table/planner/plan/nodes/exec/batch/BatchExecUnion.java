@@ -34,6 +34,6 @@ public class BatchExecUnion extends CommonExecUnion implements BatchExecNode<Row
 
     public BatchExecUnion(
             List<InputProperty> inputProperties, RowType outputType, String description) {
-        super(inputProperties, outputType, description);
+        super(getNewNodeId(), inputProperties, outputType, description);
     }
 }
