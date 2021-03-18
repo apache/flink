@@ -26,11 +26,11 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the {@link HybridMemorySegment} in off-heap mode using unsafe memory. */
+/** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
 @RunWith(Parameterized.class)
-public class HybridOffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
+public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
-    public HybridOffHeapUnsafeMemorySegmentTest(int pageSize) {
+    public OffHeapUnsafeMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 

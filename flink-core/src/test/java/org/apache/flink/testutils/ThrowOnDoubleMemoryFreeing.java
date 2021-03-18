@@ -18,7 +18,6 @@
 
 package org.apache.flink.testutils;
 
-import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.ExternalResource;
@@ -29,7 +28,7 @@ import java.util.Map;
 
 /**
  * A rule that can be used to enable throwing exception on multiple freeing of {@link
- * HybridMemorySegment}.
+ * MemorySegment}.
  */
 public class ThrowOnDoubleMemoryFreeing implements ExternalResource {
 
