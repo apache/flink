@@ -21,6 +21,7 @@ package org.apache.flink.table.data.binary;
 /** Supports optimized any null check. */
 public interface SupportsAnyNull {
 
+    /** If no field is null, return false. Returns true if one of the columns is null. */
     boolean anyNull();
 
     /**
