@@ -33,8 +33,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Various tests with freed memory segments for {@link HeapMemorySegment} and {@link
- * HybridMemorySegment} (in both heap and off-heap modes).
+ * Various tests with freed memory segments for {@link HybridMemorySegment} (in both heap and
+ * off-heap modes).
  */
 public class OperationsOnFreedSegmentTest {
 
@@ -49,21 +49,18 @@ public class OperationsOnFreedSegmentTest {
 
     @Test
     public void testCompare() {
-        MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
         MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
         MemorySegment aliveHybridOffHeap =
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
-        MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
         MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
         MemorySegment freedHybridOffHeap =
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
-        freedHeap.free();
         freedHybridHeap.free();
         freedHybridOffHeap.free();
 
-        MemorySegment[] alive = {aliveHeap, aliveHybridHeap, aliveHybridOffHeap};
-        MemorySegment[] free = {freedHeap, freedHybridHeap, freedHybridOffHeap};
+        MemorySegment[] alive = {aliveHybridHeap, aliveHybridOffHeap};
+        MemorySegment[] free = {freedHybridHeap, freedHybridOffHeap};
 
         // alive with free
         for (MemorySegment seg1 : alive) {
@@ -127,13 +124,12 @@ public class OperationsOnFreedSegmentTest {
     }
 
     private static MemorySegment[] createTestSegments() {
-        MemorySegment heap = new HeapMemorySegment(new byte[PAGE_SIZE]);
         MemorySegment hybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
         MemorySegment hybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
         MemorySegment hybridOffHeapUnsafe =
                 MemorySegmentFactory.allocateOffHeapUnsafeMemory(PAGE_SIZE);
 
-        MemorySegment[] segments = {heap, hybridHeap, hybridOffHeap, hybridOffHeapUnsafe};
+        MemorySegment[] segments = {hybridHeap, hybridOffHeap, hybridOffHeapUnsafe};
 
         return segments;
     }

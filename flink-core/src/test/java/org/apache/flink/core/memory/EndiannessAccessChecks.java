@@ -25,15 +25,10 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment} and {@link
- * HybridMemorySegment} (in both heap and off-heap modes).
+ * Verifies correct accesses with regards to endianness in {@link HybridMemorySegment} (in both heap
+ * and off-heap modes).
  */
 public class EndiannessAccessChecks {
-
-    @Test
-    public void testHeapSegment() {
-        testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
-    }
 
     @Test
     public void testHybridOnHeapSegment() {

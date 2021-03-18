@@ -45,10 +45,6 @@ import static org.apache.flink.core.memory.MemoryUtils.getByteBufferAddress;
  * <p>This class specializes byte access and byte copy calls for heap memory, while reusing the
  * multi-byte type accesses and cross-segment operations from the MemorySegment.
  *
- * <p>This class subsumes the functionality of the {@link
- * org.apache.flink.core.memory.HeapMemorySegment}, but is a bit less efficient for operations on
- * individual bytes.
- *
  * <p>Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */

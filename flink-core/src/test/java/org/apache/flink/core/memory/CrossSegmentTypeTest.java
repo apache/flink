@@ -28,10 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Verifies interoperability between {@link HeapMemorySegment} and {@link HybridMemorySegment} (in
- * both heap and off-heap modes).
- */
+/** Verifies interoperability between heap and off-heap modes of {@link HybridMemorySegment}. */
 public class CrossSegmentTypeTest {
 
     private static final long BYTE_ARRAY_BASE_OFFSET =
@@ -159,7 +156,6 @@ public class CrossSegmentTypeTest {
 
     private static MemorySegment[] createSegments(int size) {
         MemorySegment[] segments = {
-            new HeapMemorySegment(new byte[size]),
             MemorySegmentFactory.allocateUnpooledSegment(size),
             MemorySegmentFactory.allocateUnpooledOffHeapMemory(size),
             MemorySegmentFactory.allocateOffHeapUnsafeMemory(size)

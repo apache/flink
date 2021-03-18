@@ -30,16 +30,6 @@ import java.util.function.Function;
 public class MemorySegmentChecksTest {
 
     @Test(expected = NullPointerException.class)
-    public void testHeapNullBuffer1() {
-        new HeapMemorySegment(null);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testHeapNullBuffer2() {
-        new HeapMemorySegment(null, new Object());
-    }
-
-    @Test(expected = NullPointerException.class)
     public void testHybridHeapNullBuffer2() {
         new HybridMemorySegment((byte[]) null, new Object());
     }
