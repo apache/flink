@@ -20,24 +20,16 @@ package org.apache.flink.formats.json.canal;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -50,24 +42,19 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link CanalJsonFormatFactory}. */
 public class CanalJsonFormatFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("a", DataTypes.STRING())
-                    .field("b", DataTypes.INT())
-                    .field("c", DataTypes.BOOLEAN())
-                    .build();
-
-    private static final DataType PHYSICAL_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
-
-    private static final RowType ROW_TYPE = (RowType) PHYSICAL_DATA_TYPE.getLogicalType();
-
-    private static final InternalTypeInfo<RowData> ROW_TYPE_INFO = InternalTypeInfo.of(ROW_TYPE);
+    private static final InternalTypeInfo<RowData> ROW_TYPE_INFO =
+            InternalTypeInfo.of(PHYSICAL_TYPE);
 
     @Test
     public void testDefaultOptions() {
@@ -86,7 +73,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
         // test Ser
         CanalJsonSerializationSchema expectedSer =
                 new CanalJsonSerializationSchema(
-                        ROW_TYPE,
+                        PHYSICAL_TYPE,
                         TimestampFormat.SQL,
                         JsonOptions.MapNullKeyMode.FAIL,
                         "null",
@@ -121,7 +108,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
         // test Ser
         CanalJsonSerializationSchema expectedSer =
                 new CanalJsonSerializationSchema(
-                        ROW_TYPE,
+                        PHYSICAL_TYPE,
                         TimestampFormat.ISO_8601,
                         JsonOptions.MapNullKeyMode.LITERAL,
                         "nullKey",
@@ -196,14 +183,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
     private static DeserializationSchema<RowData> createDeserializationSchema(
             Map<String, String> options) {
-        DynamicTableSource source =
-                FactoryUtil.createTableSource(
-                        null,
-                        ObjectIdentifier.of("default", "default", "t1"),
-                        new CatalogTableImpl(SCHEMA, options, "mock source"),
-                        new Configuration(),
-                        CanalJsonFormatFactoryTest.class.getClassLoader(),
-                        false);
+        DynamicTableSource source = createTableSource(SCHEMA, options);
 
         assert source instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
@@ -215,14 +195,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
     private static SerializationSchema<RowData> createSerializationSchema(
             Map<String, String> options) {
-        DynamicTableSink sink =
-                FactoryUtil.createTableSink(
-                        null,
-                        ObjectIdentifier.of("default", "default", "t1"),
-                        new CatalogTableImpl(SCHEMA, options, "mock sink"),
-                        new Configuration(),
-                        CanalJsonFormatFactoryTest.class.getClassLoader(),
-                        false);
+        DynamicTableSink sink = createTableSink(SCHEMA, options);
 
         assert sink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =

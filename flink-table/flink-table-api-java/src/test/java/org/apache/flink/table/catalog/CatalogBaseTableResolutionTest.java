@@ -105,7 +105,7 @@ public class CatalogBaseTableResolutionTest {
                             Column.metadata("topic", DataTypes.VARCHAR(200), null, true),
                             Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                             Column.computed("ts", COMPUTED_COLUMN_RESOLVED)),
-                    Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
+                    Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")));
 
