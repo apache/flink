@@ -1,0 +1,24 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>sql-client.execution.max-table-result.rows</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">1000000</td>
+            <td>Integer</td>
+            <td>The number of rows to cache when in the table mode. If the number of rows exceeds the specified value, it retries the row in the FIFO style.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-client.execution.result-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">TABLE</td>
+            <td><p>Enum</p>Possible values: [TABLE, CHANGELOG, TABLEAU]</td>
+            <td>Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog']. The 'table' mode materializes results in memory and visualizes them in a regular, paginated table representation. The 'changelog' mode does not materialize results and visualizes the result stream that is produced by a continuous query. The 'tableau' mode is more like a traditional way which will display the results in the screen directly with a tableau format. </td>
+        </tr>
+    </tbody>
+</table>

@@ -44,23 +44,28 @@ public class SessionContextTest {
     public void testSetAndResetYamlKey() throws Exception {
         SessionContext sessionContext = createSessionContext();
         sessionContext.set("execution.max-table-result-rows", "100000");
+
         Assert.assertEquals(
                 "100000",
                 sessionContext
-                        .getSessionEnvironment()
-                        .getExecution()
-                        .asMap()
-                        .get("max-table-result-rows"));
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.max-table-result-rows"));
 
         sessionContext.reset();
 
         Assert.assertEquals(
                 "100",
                 sessionContext
-                        .getSessionEnvironment()
-                        .getExecution()
-                        .asMap()
-                        .get("max-table-result-rows"));
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.max-table-result-rows"));
     }
 
     @Test
@@ -74,13 +79,6 @@ public class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        Assert.assertEquals(
-                "hive",
-                sessionContext
-                        .getSessionEnvironment()
-                        .getConfiguration()
-                        .asMap()
-                        .get(TABLE_SQL_DIALECT.key()));
         Assert.assertEquals(
                 "hive",
                 sessionContext
@@ -124,10 +122,11 @@ public class SessionContextTest {
                         .getString(TABLE_SQL_DIALECT));
         Assert.assertNull(
                 sessionContext
-                        .getSessionEnvironment()
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
                         .getConfiguration()
-                        .asMap()
-                        .get("pipeline.name"));
+                        .get(NAME));
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
         Assert.assertEquals(
                 16,

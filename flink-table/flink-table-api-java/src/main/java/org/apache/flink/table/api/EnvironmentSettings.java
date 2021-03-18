@@ -178,7 +178,7 @@ public class EnvironmentSettings {
     }
 
     /** Tells if the {@link TableEnvironment} should work in the blink planner or old planner. */
-    boolean isBlinkPlanner() {
+    public boolean isBlinkPlanner() {
         return (this.plannerClass == null && this.executorClass == null)
                 || (Builder.BLINK_PLANNER_FACTORY.equals(this.plannerClass)
                         && Builder.BLINK_EXECUTOR_FACTORY.equals(this.executorClass));

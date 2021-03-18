@@ -267,11 +267,11 @@ describe hivecatalog.`default`.param_types_table;
 3 rows in set
 !ok
 
-SET execution.type = batch;
+SET execution.runtime-mode = batch;
 [INFO] Session property has been set.
 !info
 
-SET execution.result-mode = tableau;
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 
@@ -399,7 +399,7 @@ show tables;
 # test configuration is changed (trigger new ExecutionContext)
 # ==========================================================================
 
-SET execution.result-mode = changelog;
+SET sql-client.execution.result-mode = changelog;
 [INFO] Session property has been set.
 !info
 

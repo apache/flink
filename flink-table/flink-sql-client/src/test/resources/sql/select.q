@@ -17,11 +17,11 @@
 
 # set default streaming mode and tableau result mode
 
-SET execution.type = streaming;
+SET execution.runtime-mode = streaming;
 [INFO] Session property has been set.
 !info
 
-SET execution.result-mode = tableau;
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 
@@ -68,7 +68,7 @@ Received a total of 4 rows
 # test batch query
 # ==========================================================================
 
-SET execution.type = batch;
+SET execution.runtime-mode = batch;
 [INFO] Session property has been set.
 !info
 

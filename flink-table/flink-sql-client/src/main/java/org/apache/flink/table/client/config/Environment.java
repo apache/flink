@@ -45,7 +45,11 @@ import java.util.Map;
  *
  * <p>In future versions, we might restrict the merging or enrichment of deployment properties to
  * not allow overwriting of a deployment by a session.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class Environment {
 
     public static final String EXECUTION_ENTRY = "execution";
