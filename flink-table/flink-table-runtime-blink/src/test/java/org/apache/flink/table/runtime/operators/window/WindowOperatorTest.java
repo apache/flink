@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
@@ -40,7 +41,6 @@ import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.RowDataTestUtil;
@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -128,8 +129,8 @@ public class WindowOperatorTest {
     private LogicalType[] windowTypes =
             new LogicalType[] {new BigIntType(), new BigIntType(), new BigIntType()};
     private GenericRowEqualiser equaliser = new GenericRowEqualiser(accTypes, windowTypes);
-    private BinaryRowDataKeySelector keySelector =
-            new BinaryRowDataKeySelector(new int[] {0}, inputFieldTypes);
+    private RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputFieldTypes);
     private TypeInformation<RowData> keyType = keySelector.getProducedType();
     private RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(

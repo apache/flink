@@ -26,15 +26,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
@@ -64,8 +65,9 @@ public class RowTimeDeduplicateFunctionTest {
     private TypeSerializer<RowData> serializer = inputRowType.toSerializer();
     private int rowTimeIndex = 2;
     private int rowKeyIndex = 0;
-    private BinaryRowDataKeySelector rowKeySelector =
-            new BinaryRowDataKeySelector(new int[] {rowKeyIndex}, inputRowType.toRowFieldTypes());
+    private RowDataKeySelector rowKeySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(
+                    new int[] {rowKeyIndex}, inputRowType.toRowFieldTypes());
     private RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(
                     inputRowType.toRowFieldTypes(),
