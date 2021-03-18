@@ -52,15 +52,15 @@ If you just want to try out Reactive Mode, follow these instructions. They assum
 # Put Job into lib/ directory
 cp ./examples/streaming/TopSpeedWindowing.jar lib/
 # Submit Job in Reactive Mode
-./bin/standalone-job.sh start -Drestart-strategy=fixeddelay -Drestart-strategy.fixed-delay.attempts=100000 -Dscheduler-mode=reactive -j org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
+./bin/standalone-job.sh start -Dscheduler-mode=reactive -Dexecution.checkpointing.interval="10s" -j org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 # Start first TaskManager
 ./bin/taskmanager.sh start
 ```
 
 Let's quickly examine the used submission command:
 - `./bin/standalone-job.sh start` deploys Flink in [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)
-- `-Drestart-strategy=fixeddelay` and `-Drestart-strategy.fixed-delay.attempts=100000` configure the job to restart on failure. This is needed for supporting scale-down.
 - `-Dscheduler-mode=reactive` enables Reactive Mode.
+- `-Dexecution.checkpointing.interval="10s"` configure checkpointing and restart strategy.
 - the last argument is passing the Job's main class name.
 
 You have now started a Flink job in Reactive Mode. The [web interface](http://localhost:8081) shows that the job is running on one TaskManager. If you want to scale up the job, simply add another TaskManager to the cluster:
@@ -81,7 +81,7 @@ To scale down, remove a TaskManager instance.
 
 To enable Reactive Mode, you need to configure `scheduler-mode` to `reactive`.
 
-The **parallelism of individual operators in a job will be determined by the scheduler**. It is not configurable. 
+The **parallelism of individual operators in a job will be determined by the scheduler**. It is not configurable.
 
 The only way of influencing the parallelism is by setting a max parallelism for a operator (which will be respected by the scheduler). The maxParallelism is bounded by 2^15 (32768), which is the value that Reactive Mode uses if nothing else is configured. If there is no maxParallelism defined for an operator, `32768` will be used as a default.
 If you manually set a parallelism in your job for individual operators or the entire job, this setting will be ignored.
@@ -90,8 +90,7 @@ Note that such a high maxParallelism might affect performance of the job, since 
 
 #### Recommendations
 
-- **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will loose its state.
-- **Configure a restarting strategy**: Reactive mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.
+- **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will loose its state. Checkpointing also configures a **restart strategy**. Reactive mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.
 
 
 ### Limitations
