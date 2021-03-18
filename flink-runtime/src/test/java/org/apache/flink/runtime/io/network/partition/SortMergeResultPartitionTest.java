@@ -38,6 +38,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -53,6 +54,7 @@ import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -151,11 +153,7 @@ public class SortMergeResultPartitionTest extends TestLogger {
                     record, dataWritten, subpartition, numBytesWritten, DataType.EVENT_BUFFER);
         }
 
-        ResultSubpartitionView[] views = new ResultSubpartitionView[numSubpartitions];
-        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
-            views[subpartition] = partition.createSubpartitionView(subpartition, listener);
-        }
-
+        ResultSubpartitionView[] views = createSubpartitionViews(partition, numSubpartitions);
         readData(
                 views,
                 bufferWithChannel -> {
@@ -192,10 +190,12 @@ public class SortMergeResultPartitionTest extends TestLogger {
         return ByteBuffer.wrap(dataWritten);
     }
 
-    private void readData(
+    private long readData(
             ResultSubpartitionView[] views, Consumer<BufferWithChannel> bufferProcessor)
             throws Exception {
+        int dataSize = 0;
         int numEndOfPartitionEvents = 0;
+
         while (numEndOfPartitionEvents < views.length) {
             listener.waitForData();
             for (int subpartition = 0; subpartition < views.length; ++subpartition) {
@@ -204,6 +204,7 @@ public class SortMergeResultPartitionTest extends TestLogger {
                 while (bufferAndBacklog != null) {
                     Buffer buffer = bufferAndBacklog.buffer();
                     bufferProcessor.accept(new BufferWithChannel(buffer, subpartition));
+                    dataSize += buffer.readableBytes();
                     buffer.recycleBuffer();
 
                     if (!buffer.isBuffer()) {
@@ -215,6 +216,16 @@ public class SortMergeResultPartitionTest extends TestLogger {
                 }
             }
         }
+        return dataSize;
+    }
+
+    private ResultSubpartitionView[] createSubpartitionViews(
+            SortMergeResultPartition partition, int numSubpartitions) throws Exception {
+        ResultSubpartitionView[] views = new ResultSubpartitionView[numSubpartitions];
+        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+            views[subpartition] = partition.createSubpartitionView(subpartition, listener);
+        }
+        return views;
     }
 
     @Test
@@ -244,6 +255,38 @@ public class SortMergeResultPartitionTest extends TestLogger {
         recordWritten.rewind();
         recordRead.flip();
         assertEquals(recordWritten, recordRead);
+    }
+
+    @Test
+    public void testDataBroadcast() throws Exception {
+        int numSubpartitions = 10;
+        int numBuffers = 100;
+        int numRecords = 10000;
+
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        SortMergeResultPartition partition =
+                createSortMergedPartition(numSubpartitions, bufferPool);
+
+        for (int i = 0; i < numRecords; ++i) {
+            ByteBuffer record = generateRandomData(bufferSize, new Random());
+            partition.broadcastRecord(record);
+        }
+        partition.finish();
+        partition.close();
+
+        int eventSize = EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE).remaining();
+        long dataSize = numSubpartitions * numRecords * bufferSize + numSubpartitions * eventSize;
+        assertNotNull(partition.getResultFile());
+        assertEquals(2, checkNotNull(fileChannelManager.getPaths()[0].list()).length);
+        for (File file : checkNotNull(fileChannelManager.getPaths()[0].listFiles())) {
+            if (file.getName().endsWith(PartitionedFile.DATA_FILE_SUFFIX)) {
+                assertTrue(file.length() < numSubpartitions * numRecords * bufferSize);
+            }
+        }
+
+        ResultSubpartitionView[] views = createSubpartitionViews(partition, numSubpartitions);
+        long dataRead = readData(views, (ignored) -> {});
+        assertEquals(dataSize, dataRead);
     }
 
     @Test
@@ -317,7 +360,7 @@ public class SortMergeResultPartitionTest extends TestLogger {
         partition.finish();
         partition.close();
 
-        assertEquals(2, partition.getResultFile().getNumRegions());
+        assertEquals(3, partition.getResultFile().getNumRegions());
         assertEquals(2, checkNotNull(fileChannelManager.getPaths()[0].list()).length);
 
         ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
