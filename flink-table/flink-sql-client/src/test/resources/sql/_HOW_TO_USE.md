@@ -101,6 +101,19 @@ org.apache.flink.table.catalog.exceptions.CatalogException: A catalog with name 
 !error
 ```
 
+### `!warning`
+
+Executes the current statement and prints the formatted output with information attribute (bold and yellow color).
+
+Example:
+
+```
+# test set the removed key
+SET execution.max-idle-state-retention=1000;
+[WARNING] The specified key is not supported anymore.
+!warning
+```
+
 ### `!info`
 
 Executes the current statement and prints the formatted output with information attribute (bold and blue color).
@@ -141,6 +154,21 @@ SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
 +-------------+----------------------+
 Received a total of 3 rows
 !ok
+```
+
+### Multiple Tags
+
+In some cases, the terminal gets different kinds of the message from the executor. Please use the
+highest order of fatality to identify the output.
+
+Example:
+
+```
+# test set the deprecated key
+SET execution.planner=blink;
+[WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
+[INFO] Session property has been set.
+!warning
 ```
 
 ## Limitation

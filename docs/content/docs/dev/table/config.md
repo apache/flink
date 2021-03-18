@@ -108,3 +108,9 @@ The following options can be used to adjust the behavior of the query optimizer 
 The following options can be used to adjust the behavior of the table planner.
 
 {{< generated/table_config_configuration >}}
+
+### SQL Client Options
+
+The following options can be used to adjust the behavior of the sql client.
+
+{{< generated/sql_client_configuration >}}

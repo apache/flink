@@ -27,7 +27,13 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
-/** Describes a catalog configuration entry. */
+/**
+ * Describes a catalog configuration entry.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
+ */
+@Deprecated
 public class CatalogEntry extends ConfigEntry {
 
     public static final String CATALOG_NAME = "name";

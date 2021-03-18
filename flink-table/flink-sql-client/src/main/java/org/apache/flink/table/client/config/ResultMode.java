@@ -16,25 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config.entries;
+package org.apache.flink.table.client.config;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.types.RowKind;
 
-/**
- * Configuration of a table sink.
- *
- * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
- *     configuration file.
- */
-@Deprecated
-public class SinkTableEntry extends TableEntry {
+/** The mode when display the result of the query in the sql client. */
+public enum ResultMode {
 
-    SinkTableEntry(String name, DescriptorProperties properties) {
-        super(name, properties);
-    }
+    /** Collects results and returns them as table snapshots. */
+    TABLE,
 
-    @Override
-    protected void validate(DescriptorProperties properties) {
-        // validation is performed by the discovered factory
-    }
+    /** A result that is represented as a changelog consisting of records with {@link RowKind}. */
+    CHANGELOG,
+
+    /** Print result in tableau mode. */
+    TABLEAU
 }

@@ -22,7 +22,13 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.List;
 
-/** Configuration of a temporal table. */
+/**
+ * Configuration of a temporal table.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
+ */
+@Deprecated
 public class TemporalTableEntry extends TableEntry {
 
     private static final String TABLES_HISTORY_TABLE = "history-table";

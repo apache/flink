@@ -16,7 +16,7 @@
 # limitations under the License.
 
 # set tableau result mode
-SET execution.result-mode = tableau;
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 

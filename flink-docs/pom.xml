@@ -71,6 +71,11 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
