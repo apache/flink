@@ -163,7 +163,7 @@ public enum PartitionTestUtils {
 
         PartitionedFileWriter fileWriter =
                 new PartitionedFileWriter(numSubpartitions, 1024, basePath);
-        fileWriter.startNewRegion();
+        fileWriter.startNewRegion(false);
         fileWriter.writeBuffers(buffers);
         return fileWriter.finish();
     }

@@ -86,6 +86,13 @@ public class PartitionedFileWriter implements AutoCloseable {
     /** Current subpartition to write buffers to. */
     private int currentSubpartition = -1;
 
+    /**
+     * Broadcast region is an optimization for the broadcast partition which writes the same data to
+     * all subpartitions. For a broadcast region, data is only written once and the indexes of all
+     * subpartitions point to the same offset in the data file.
+     */
+    private boolean isBroadcastRegion;
+
     /** Whether this file writer is finished or not. */
     private boolean isFinished;
 
@@ -134,12 +141,15 @@ public class PartitionedFileWriter implements AutoCloseable {
      *
      * <p>Note: The caller is responsible for releasing the failed {@link PartitionedFile} if any
      * exception occurs.
+     *
+     * @param isBroadcastRegion Whether it's a broadcast region. See {@link #isBroadcastRegion}.
      */
-    public void startNewRegion() throws IOException {
+    public void startNewRegion(boolean isBroadcastRegion) throws IOException {
         checkState(!isFinished, "File writer is already finished.");
         checkState(!isClosed, "File writer is already closed.");
 
         writeRegionIndex();
+        this.isBroadcastRegion = isBroadcastRegion;
     }
 
     private void writeIndexEntry(long subpartitionOffset, int numBuffers) throws IOException {
@@ -205,32 +215,72 @@ public class PartitionedFileWriter implements AutoCloseable {
             return;
         }
 
-        long expectedBytes = 0;
+        long expectedBytes;
         ByteBuffer[] bufferWithHeaders = new ByteBuffer[2 * bufferWithChannels.size()];
 
+        if (isBroadcastRegion) {
+            expectedBytes = collectBroadcastBuffers(bufferWithChannels, bufferWithHeaders);
+        } else {
+            expectedBytes = collectUnicastBuffers(bufferWithChannels, bufferWithHeaders);
+        }
+
+        totalBytesWritten += expectedBytes;
+        BufferReaderWriterUtil.writeBuffers(dataFileChannel, expectedBytes, bufferWithHeaders);
+    }
+
+    private long collectUnicastBuffers(
+            List<BufferWithChannel> bufferWithChannels, ByteBuffer[] bufferWithHeaders) {
+        long expectedBytes = 0;
+        long fileOffset = totalBytesWritten;
         for (int i = 0; i < bufferWithChannels.size(); i++) {
-            BufferWithChannel bufferWithChannel = bufferWithChannels.get(i);
-            Buffer buffer = bufferWithChannel.getBuffer();
-            int subpartitionIndex = bufferWithChannel.getChannelIndex();
-            if (subpartitionIndex != currentSubpartition) {
+            int subpartition = bufferWithChannels.get(i).getChannelIndex();
+            if (subpartition != currentSubpartition) {
                 checkState(
-                        subpartitionBuffers[subpartitionIndex] == 0,
+                        subpartitionBuffers[subpartition] == 0,
                         "Must write data of the same channel together.");
-                subpartitionOffsets[subpartitionIndex] = totalBytesWritten;
-                currentSubpartition = subpartitionIndex;
+                subpartitionOffsets[subpartition] = fileOffset;
+                currentSubpartition = subpartition;
             }
 
-            ByteBuffer header = BufferReaderWriterUtil.allocatedHeaderBuffer();
-            BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, header);
-            bufferWithHeaders[2 * i] = header;
-            bufferWithHeaders[2 * i + 1] = buffer.getNioBufferReadable();
-
-            int numBytes = header.remaining() + buffer.readableBytes();
+            Buffer buffer = bufferWithChannels.get(i).getBuffer();
+            int numBytes = setBufferWithHeader(buffer, bufferWithHeaders, 2 * i);
             expectedBytes += numBytes;
-            totalBytesWritten += numBytes;
-            ++subpartitionBuffers[subpartitionIndex];
+            fileOffset += numBytes;
+            ++subpartitionBuffers[subpartition];
         }
-        BufferReaderWriterUtil.writeBuffers(dataFileChannel, expectedBytes, bufferWithHeaders);
+        return expectedBytes;
+    }
+
+    private long collectBroadcastBuffers(
+            List<BufferWithChannel> bufferWithChannels, ByteBuffer[] bufferWithHeaders) {
+        // set the file offset of all channels as the current file size on the first call
+        if (subpartitionBuffers[0] == 0) {
+            for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+                subpartitionOffsets[subpartition] = totalBytesWritten;
+            }
+        }
+
+        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+            subpartitionBuffers[subpartition] += bufferWithChannels.size();
+        }
+
+        long expectedBytes = 0;
+        for (int i = 0; i < bufferWithChannels.size(); i++) {
+            Buffer buffer = bufferWithChannels.get(i).getBuffer();
+            int numBytes = setBufferWithHeader(buffer, bufferWithHeaders, 2 * i);
+            expectedBytes += numBytes;
+        }
+        return expectedBytes;
+    }
+
+    private int setBufferWithHeader(Buffer buffer, ByteBuffer[] bufferWithHeaders, int index) {
+        ByteBuffer header = BufferReaderWriterUtil.allocatedHeaderBuffer();
+        BufferReaderWriterUtil.setByteChannelBufferHeader(buffer, header);
+
+        bufferWithHeaders[index] = header;
+        bufferWithHeaders[index + 1] = buffer.getNioBufferReadable();
+
+        return header.remaining() + buffer.readableBytes();
     }
 
     /**
