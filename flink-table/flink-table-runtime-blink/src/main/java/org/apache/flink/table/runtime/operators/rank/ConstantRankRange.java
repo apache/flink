@@ -22,11 +22,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.List;
 
 /** rankStart and rankEnd are inclusive, rankStart always start from one. */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeName("Constant")
 public class ConstantRankRange implements RankRange {
 
     public static final String FIELD_NAME_START = "start";
@@ -35,10 +37,10 @@ public class ConstantRankRange implements RankRange {
     private static final long serialVersionUID = 9062345289888078376L;
 
     @JsonProperty(FIELD_NAME_START)
-    private long rankStart;
+    private final long rankStart;
 
     @JsonProperty(FIELD_NAME_END)
-    private long rankEnd;
+    private final long rankEnd;
 
     @JsonCreator
     public ConstantRankRange(
@@ -61,12 +63,6 @@ public class ConstantRankRange implements RankRange {
     @Override
     public String toString(List<String> inputFieldNames) {
         return toString();
-    }
-
-    @Override
-    @JsonProperty(FIELD_NAME_TYPE)
-    public String getType() {
-        return "Constant";
     }
 
     @Override

@@ -22,11 +22,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.List;
 
 /** changing rank limit depends on input. */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeName("Variable")
 public class VariableRankRange implements RankRange {
 
     public static final String FIELD_NAME_END_INDEX = "endIndex";
@@ -34,7 +36,7 @@ public class VariableRankRange implements RankRange {
     private static final long serialVersionUID = 5579785886506433955L;
 
     @JsonProperty(FIELD_NAME_END_INDEX)
-    private int rankEndIndex;
+    private final int rankEndIndex;
 
     @JsonCreator
     public VariableRankRange(@JsonProperty(FIELD_NAME_END_INDEX) int rankEndIndex) {
@@ -49,12 +51,6 @@ public class VariableRankRange implements RankRange {
     @Override
     public String toString(List<String> inputFieldNames) {
         return "rankEnd=" + inputFieldNames.get(rankEndIndex);
-    }
-
-    @Override
-    @JsonProperty(FIELD_NAME_TYPE)
-    public String getType() {
-        return "Variable";
     }
 
     @Override

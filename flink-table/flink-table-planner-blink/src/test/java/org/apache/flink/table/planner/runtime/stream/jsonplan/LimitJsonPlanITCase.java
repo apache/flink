@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-/** Test for sort limit JsonPlan ser/de. */
+/** Test for limit JsonPlan ser/de. */
 public class LimitJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testLimit() throws ExecutionException, InterruptedException, IOException {

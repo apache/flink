@@ -71,7 +71,7 @@ public class StreamExecSortLimit extends StreamExecRank {
             @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperty,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
 
@@ -84,7 +84,7 @@ public class StreamExecSortLimit extends StreamExecRank {
                 false,
                 generateUpdateBefore,
                 id,
-                inputProperty,
+                inputProperties,
                 outputType,
                 description);
         this.limitEnd = rankRange.getRankEnd();

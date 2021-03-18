@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Test PartitionSpec json ser/de. */
+/** Test SortSpec json ser/de. */
 public class SortSpecSerdeTest {
 
     @Test

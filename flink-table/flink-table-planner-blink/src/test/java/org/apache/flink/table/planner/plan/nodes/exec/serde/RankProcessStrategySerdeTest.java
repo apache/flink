@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Test RankType json ser/de. */
+/** Test RankProcessStrategy json ser/de. */
 public class RankProcessStrategySerdeTest {
 
     @Test

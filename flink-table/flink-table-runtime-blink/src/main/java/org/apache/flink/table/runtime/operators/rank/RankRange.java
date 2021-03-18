@@ -29,19 +29,11 @@ import java.util.List;
  * VariableRankRange.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-        value = {
-            @JsonSubTypes.Type(value = ConstantRankRange.class, name = "Constant"),
-            @JsonSubTypes.Type(
-                    value = ConstantRankRangeWithoutEnd.class,
-                    name = "ConstantWithoutEnd"),
-            @JsonSubTypes.Type(value = VariableRankRange.class, name = "Variable"),
-        })
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = ConstantRankRange.class),
+        @JsonSubTypes.Type(value = ConstantRankRangeWithoutEnd.class),
+        @JsonSubTypes.Type(value = VariableRankRange.class)
+})
 public interface RankRange extends Serializable {
-
-    String FIELD_NAME_TYPE = "type";
-
     String toString(List<String> inputFieldNames);
-
-    String getType();
 }

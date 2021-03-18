@@ -30,7 +30,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Test RankType json ser/de. */
+/** Test RankRange json ser/de. */
 public class RankRangeSerdeTest {
 
     @Test
