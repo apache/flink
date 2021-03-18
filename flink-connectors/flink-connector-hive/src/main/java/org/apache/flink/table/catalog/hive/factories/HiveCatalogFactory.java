@@ -18,92 +18,88 @@
 
 package org.apache.flink.table.catalog.hive.factories;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_CONF_DIR;
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.DEFAULT_DATABASE;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HADOOP_CONF_DIR;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_CONF_DIR;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_VERSION;
+import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 
 /** Catalog factory for {@link HiveCatalog}. */
 public class HiveCatalogFactory implements CatalogFactory {
     private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogFactory.class);
 
     @Override
-    public Map<String, String> requiredContext() {
-        Map<String, String> context = new HashMap<>();
-        context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_HIVE); // hive
-        context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
-        return context;
+    public String factoryIdentifier() {
+        return HiveCatalogFactoryOptions.IDENTIFIER;
     }
 
     @Override
-    public List<String> supportedProperties() {
-        List<String> properties = new ArrayList<>();
-
-        // default database
-        properties.add(CATALOG_DEFAULT_DATABASE);
-
-        properties.add(CATALOG_HIVE_CONF_DIR);
-
-        properties.add(CATALOG_HIVE_VERSION);
-
-        properties.add(CATALOG_HADOOP_CONF_DIR);
-
-        return properties;
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
     }
 
     @Override
-    public Catalog createCatalog(String name, Map<String, String> properties) {
-        final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(DEFAULT_DATABASE);
+        options.add(PROPERTY_VERSION);
+        options.add(HIVE_CONF_DIR);
+        options.add(HIVE_VERSION);
+        options.add(HADOOP_CONF_DIR);
+        return options;
+    }
 
-        final String defaultDatabase =
-                descriptorProperties
-                        .getOptionalString(CATALOG_DEFAULT_DATABASE)
-                        .orElse(HiveCatalog.DEFAULT_DB);
-
-        final Optional<String> hiveConfDir =
-                descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
-
-        final Optional<String> hadoopConfDir =
-                descriptorProperties.getOptionalString(CATALOG_HADOOP_CONF_DIR);
-
-        final String version =
-                descriptorProperties
-                        .getOptionalString(CATALOG_HIVE_VERSION)
-                        .orElse(HiveShimLoader.getHiveVersion());
+    @Override
+    public Catalog createCatalog(Context context) {
+        final Configuration configuration = Configuration.fromMap(context.getOptions());
+        validateConfiguration(configuration);
 
         return new HiveCatalog(
-                name,
-                defaultDatabase,
-                hiveConfDir.orElse(null),
-                hadoopConfDir.orElse(null),
-                version);
+                context.getName(),
+                configuration.getString(DEFAULT_DATABASE),
+                configuration.getString(HIVE_CONF_DIR),
+                configuration.getString(HADOOP_CONF_DIR),
+                configuration.getString(HIVE_VERSION));
     }
 
-    private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-        descriptorProperties.putProperties(properties);
+    private void validateConfiguration(Configuration configuration) {
+        final String defaultDatabase = configuration.getString(DEFAULT_DATABASE);
+        if (defaultDatabase != null && defaultDatabase.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Option '%s' was provided, but is empty", DEFAULT_DATABASE.key()));
+        }
 
-        new HiveCatalogValidator().validate(descriptorProperties);
+        final String hiveConfDir = configuration.getString(HIVE_CONF_DIR);
+        if (hiveConfDir != null && hiveConfDir.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Option '%s' was provided, but is empty", HIVE_CONF_DIR.key()));
+        }
 
-        return descriptorProperties;
+        final String hadoopConfDir = configuration.getString(HADOOP_CONF_DIR);
+        if (hadoopConfDir != null && hadoopConfDir.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Option '%s' was provided, but is empty", HADOOP_CONF_DIR.key()));
+        }
+
+        final String hiveVersion = configuration.getString(HIVE_VERSION);
+        if (hiveVersion != null && hiveVersion.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Option '%s' was provided, but is empty", HIVE_VERSION.key()));
+        }
     }
 }

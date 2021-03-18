@@ -13,11 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.table.factories.utils.TestFixedFormatTableFactory
-org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory
-org.apache.flink.table.factories.utils.TestTableSourceFactory
-org.apache.flink.table.factories.utils.TestTableFormatFactory
-org.apache.flink.table.factories.utils.TestAmbiguousTableFormatFactory
-org.apache.flink.table.catalog.TestExternalTableSourceFactory
-org.apache.flink.table.factories.utils.TestCollectionTableFactory
-org.apache.flink.table.factories.utils.TestLegacyCatalogFactory
+org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory

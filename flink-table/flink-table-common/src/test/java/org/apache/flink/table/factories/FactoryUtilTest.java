@@ -20,8 +20,10 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
@@ -46,6 +48,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSin
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link FactoryUtil}. */
@@ -271,6 +274,27 @@ public class FactoryUtilTest {
                     "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
             assertThat(e, containsCause(new ValidationException(errorMsg)));
         }
+    }
+
+    @Test
+    public void testCreateCatalog() {
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), TestCatalogFactory.IDENTIFIER);
+        options.put(TestCatalogFactory.DEFAULT_DATABASE.key(), "my-database");
+
+        final Catalog catalog =
+                FactoryUtil.createCatalog(
+                        "my-catalog",
+                        options,
+                        null,
+                        Thread.currentThread().getContextClassLoader());
+        assertTrue(catalog instanceof TestCatalogFactory.TestCatalog);
+
+        final TestCatalogFactory.TestCatalog testCatalog = (TestCatalogFactory.TestCatalog) catalog;
+        assertEquals(testCatalog.getName(), "my-catalog");
+        assertEquals(
+                testCatalog.getOptions().get(TestCatalogFactory.DEFAULT_DATABASE.key()),
+                "my-database");
     }
 
     // --------------------------------------------------------------------------------------------

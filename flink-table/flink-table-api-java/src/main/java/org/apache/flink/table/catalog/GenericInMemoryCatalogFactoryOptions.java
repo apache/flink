@@ -16,15 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.catalog;
 
-/** Validator for {@link GenericInMemoryCatalogDescriptor}. */
-public class GenericInMemoryCatalogValidator extends CatalogDescriptorValidator {
-    public static final String CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY = "generic_in_memory";
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 
-    @Override
-    public void validate(DescriptorProperties properties) {
-        super.validate(properties);
-        properties.validateValue(CATALOG_TYPE, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY, false);
-    }
+/** {@link ConfigOption}s for {@link GenericInMemoryCatalog}. */
+@Internal
+public class GenericInMemoryCatalogFactoryOptions {
+
+    public static final String IDENTIFIER = "generic_in_memory";
+
+    public static final ConfigOption<String> DEFAULT_DATABASE =
+            ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
+                    .stringType()
+                    .defaultValue(GenericInMemoryCatalog.DEFAULT_DB);
+
+    private GenericInMemoryCatalogFactoryOptions() {}
 }

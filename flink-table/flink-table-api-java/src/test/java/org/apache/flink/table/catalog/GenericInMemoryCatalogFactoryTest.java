@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.descriptors.CatalogDescriptor;
-import org.apache.flink.table.descriptors.GenericInMemoryCatalogDescriptor;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -41,14 +39,15 @@ public class GenericInMemoryCatalogFactoryTest extends TestLogger {
         final GenericInMemoryCatalog expectedCatalog =
                 new GenericInMemoryCatalog(catalogName, databaseName);
 
-        final CatalogDescriptor catalogDescriptor =
-                new GenericInMemoryCatalogDescriptor(databaseName);
-
-        final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Map<String, String> options = new HashMap<>();
+        options.put(
+                CommonCatalogOptions.CATALOG_TYPE.key(),
+                GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
+        options.put(GenericInMemoryCatalogFactoryOptions.DEFAULT_DATABASE.key(), databaseName);
 
         final Catalog actualCatalog =
-                TableFactoryService.find(CatalogFactory.class, properties)
-                        .createCatalog(catalogName, properties);
+                FactoryUtil.createCatalog(
+                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
         checkEquals(expectedCatalog, (GenericInMemoryCatalog) actualCatalog);
     }

@@ -23,6 +23,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -32,7 +33,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.net.URLClassLoader;
 
-import static org.apache.flink.table.descriptors.GenericInMemoryCatalogValidator.CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -48,7 +48,7 @@ public class CatalogITCase {
         String ddl =
                 String.format(
                         "create catalog %s with('type'='%s')",
-                        name, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY);
+                        name, GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
 
         tableEnv.executeSql(ddl);
 
@@ -64,7 +64,7 @@ public class CatalogITCase {
         String ddl =
                 String.format(
                         "create catalog %s with('type'='%s')",
-                        name, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY);
+                        name, GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
         tableEnv.executeSql(ddl);
         assertTrue(tableEnv.getCatalog(name).isPresent());
 
