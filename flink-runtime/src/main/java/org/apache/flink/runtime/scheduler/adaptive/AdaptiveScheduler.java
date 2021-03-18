@@ -210,7 +210,7 @@ public class AdaptiveScheduler
             ExecutionGraphFactory executionGraphFactory)
             throws JobExecutionException {
 
-        ensureFullyPipelinedStreamingJob(jobGraph);
+        assertPreconditions(jobGraph);
 
         this.jobInformation = new JobGraphJobInformation(jobGraph);
         this.declarativeSlotPool = declarativeSlotPool;
@@ -250,13 +250,16 @@ public class AdaptiveScheduler
         registerMetrics();
     }
 
-    private static void ensureFullyPipelinedStreamingJob(JobGraph jobGraph)
-            throws RuntimeException {
+    private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
         Preconditions.checkState(
                 jobGraph.getJobType() == JobType.STREAMING,
                 "The adaptive scheduler only supports streaming jobs.");
 
         for (JobVertex vertex : jobGraph.getVertices()) {
+            Preconditions.checkState(
+                    vertex.getParallelism() > 0,
+                    "The adaptive scheduler expects the parallelism being set for each JobVertex (violated JobVertex: %s).",
+                    vertex.getID());
             for (JobEdge jobEdge : vertex.getInputs()) {
                 Preconditions.checkState(
                         jobEdge.getSource().getResultType().isPipelined(),
