@@ -28,11 +28,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the {@link HybridMemorySegment} in on-heap mode. */
+/** Tests for the {@link MemorySegment} in on-heap mode. */
 @RunWith(Parameterized.class)
-public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
+public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
-    public HybridOnHeapMemorySegmentTest(int pageSize) {
+    public OnHeapMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 
@@ -47,9 +47,9 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testHybridHeapSegmentSpecifics() {
+    public void testHeapSegmentSpecifics() {
         final byte[] buffer = new byte[411];
-        HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
+        MemorySegment seg = new MemorySegment(buffer, null);
 
         assertFalse(seg.isFreed());
         assertFalse(seg.isOffHeap());
@@ -69,7 +69,7 @@ public class HybridOnHeapMemorySegmentTest extends MemorySegmentTestBase {
     @Test
     public void testReadOnlyByteBufferPut() {
         final byte[] buffer = new byte[100];
-        HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
+        MemorySegment seg = new MemorySegment(buffer, null);
 
         String content = "hello world";
         ByteBuffer bb = ByteBuffer.allocate(20);
