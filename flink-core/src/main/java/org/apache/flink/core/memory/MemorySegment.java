@@ -56,34 +56,6 @@ import java.util.function.Function;
  * native instructions, to achieve a high efficiency. Multi byte types (int, long, float, double,
  * ...) are read and written with "unsafe" native commands.
  *
- * <p>Below is an example of the code generated for the {@link
- * HeapMemorySegment#putLongBigEndian(int, long)} function by the just-in-time compiler. The code is
- * grabbed from an Oracle JVM 7 using the hotspot disassembler library (hsdis32.dll) and the jvm
- * command <i>-XX:+UnlockDiagnosticVMOptions
- * -XX:CompileCommand=print,*MemorySegment.putLongBigEndian</i>. Note that this code realizes both
- * the byte order swapping and the reinterpret cast access to get a long from the byte array.
- *
- * <pre>
- * [Verified Entry Point]
- *   0x00007fc403e19920: sub    $0x18,%rsp
- *   0x00007fc403e19927: mov    %rbp,0x10(%rsp)    ;*synchronization entry
- *                                                 ; - org.apache.flink.runtime.memory.UnsafeMemorySegment::putLongBigEndian@-1 (line 652)
- *   0x00007fc403e1992c: mov    0xc(%rsi),%r10d    ;*getfield memory
- *                                                 ; - org.apache.flink.runtime.memory.UnsafeMemorySegment::putLong@4 (line 611)
- *                                                 ; - org.apache.flink.runtime.memory.UnsafeMemorySegment::putLongBigEndian@12 (line 653)
- *   0x00007fc403e19930: bswap  %rcx
- *   0x00007fc403e19933: shl    $0x3,%r10
- *   0x00007fc403e19937: movslq %edx,%r11
- *   0x00007fc403e1993a: mov    %rcx,0x10(%r10,%r11,1)  ;*invokevirtual putLong
- *                                                 ; - org.apache.flink.runtime.memory.UnsafeMemorySegment::putLong@14 (line 611)
- *                                                 ; - org.apache.flink.runtime.memory.UnsafeMemorySegment::putLongBigEndian@12 (line 653)
- *   0x00007fc403e1993f: add    $0x10,%rsp
- *   0x00007fc403e19943: pop    %rbp
- *   0x00007fc403e19944: test   %eax,0x5ba76b6(%rip)        # 0x00007fc4099c1000
- *                                                 ;   {poll_return}
- *   0x00007fc403e1994a: retq
- * </pre>
- *
  * <p><i>Note on efficiency</i>: For best efficiency, the code that uses this class should make sure
  * that only one subclass is loaded, or that the methods that are abstract in this class are used
  * only from one of the subclasses (either the {@link
