@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 
 import org.apache.calcite.config.CalciteConnectionConfigImpl;

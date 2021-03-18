@@ -16,35 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.operations.command;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 
-import java.util.List;
+/** Operation to represent SET command. */
+public class SetOperation implements Operation {
 
-/** Mocks {@link Parser} for tests. */
-public class ParserMock implements Parser {
-    @Override
-    public List<Operation> parse(String statement) {
-        return null;
+    private final String[] operands;
+
+    public SetOperation(String[] operands) {
+        this.operands = operands;
+    }
+
+    public String[] getOperands() {
+        return operands;
     }
 
     @Override
-    public UnresolvedIdentifier parseIdentifier(String identifier) {
-        return UnresolvedIdentifier.of(identifier);
-    }
-
-    @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-        return null;
-    }
-
-    @Override
-    public String[] getCompletionHints(String statement, int position) {
-        throw new UnsupportedOperationException("Unsupported operation.");
+    public String asSummaryString() {
+        if (operands.length == 0) {
+            return "SET";
+        } else {
+            return String.format("SET %s=%s", operands[0], operands[1]);
+        }
     }
 }

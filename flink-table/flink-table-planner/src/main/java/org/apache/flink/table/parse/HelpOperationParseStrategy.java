@@ -16,35 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.parse;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.command.HelpOperation;
 
-import java.util.List;
+import java.util.regex.Pattern;
 
-/** Mocks {@link Parser} for tests. */
-public class ParserMock implements Parser {
-    @Override
-    public List<Operation> parse(String statement) {
-        return null;
+/** Strategy to parse statement to {@link HelpOperation}. */
+public class HelpOperationParseStrategy extends AbstractRegexParseStrategy {
+
+    static final HelpOperationParseStrategy INSTANCE = new HelpOperationParseStrategy();
+
+    private HelpOperationParseStrategy() {
+        super(Pattern.compile("HELP", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override
-    public UnresolvedIdentifier parseIdentifier(String identifier) {
-        return UnresolvedIdentifier.of(identifier);
+    public Operation convert(String statement) {
+        return new HelpOperation();
     }
 
     @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-        return null;
-    }
-
-    @Override
-    public String[] getCompletionHints(String statement, int position) {
-        throw new UnsupportedOperationException("Unsupported operation.");
+    public String[] getHints() {
+        return new String[] {"HELP"};
     }
 }

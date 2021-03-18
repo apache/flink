@@ -186,17 +186,26 @@ public class LocalExecutor implements Executor {
                 return context.wrapClassLoader(
                         () -> parser.parseSqlExpression(sqlExpression, inputSchema));
             }
+
+            @Override
+            public String[] getCompletionHints(String statement, int position) {
+                return context.wrapClassLoader(
+                        () -> parser.getCompletionHints(statement, position));
+            }
         };
     }
 
     @Override
     public List<String> completeStatement(String sessionId, String statement, int position) {
         final ExecutionContext context = getExecutionContext(sessionId);
-        final TableEnvironment tableEnv = context.getTableEnvironment();
+        final TableEnvironmentInternal tableEnv =
+                (TableEnvironmentInternal) context.getTableEnvironment();
 
         try {
             return context.wrapClassLoader(
-                    () -> Arrays.asList(tableEnv.getCompletionHints(statement, position)));
+                    () ->
+                            Arrays.asList(
+                                    tableEnv.getParser().getCompletionHints(statement, position)));
         } catch (Throwable t) {
             // catch everything such that the query does not crash the executor
             if (LOG.isDebugEnabled()) {

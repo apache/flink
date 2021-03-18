@@ -173,11 +173,6 @@ abstract class PlannerBase(
     }
   }
 
-  override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = createFlinkPlanner
-    planner.getCompletionHints(statement, position)
-  }
-
   /**
     * Converts a relational tree of [[ModifyOperation]] into a Calcite relational expression.
     */

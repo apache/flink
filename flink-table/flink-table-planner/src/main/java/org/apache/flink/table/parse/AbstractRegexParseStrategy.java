@@ -16,35 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.parse;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 
-import java.util.List;
+import java.util.regex.Pattern;
 
-/** Mocks {@link Parser} for tests. */
-public class ParserMock implements Parser {
-    @Override
-    public List<Operation> parse(String statement) {
-        return null;
+/** Strategy to parse statement to {@link Operation} by regex. */
+public abstract class AbstractRegexParseStrategy implements ExtendedParseStrategy {
+
+    protected static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
+
+    protected Pattern pattern;
+
+    protected AbstractRegexParseStrategy(Pattern pattern) {
+        this.pattern = pattern;
     }
 
     @Override
-    public UnresolvedIdentifier parseIdentifier(String identifier) {
-        return UnresolvedIdentifier.of(identifier);
-    }
-
-    @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-        return null;
-    }
-
-    @Override
-    public String[] getCompletionHints(String statement, int position) {
-        throw new UnsupportedOperationException("Unsupported operation.");
+    public boolean match(String statement) {
+        return pattern.matcher(statement.trim()).matches();
     }
 }
