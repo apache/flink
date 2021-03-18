@@ -95,10 +95,10 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
             Class<?> operatorBaseClass,
             boolean retainHeader,
             int id,
-            List<InputProperty> inputProperty,
+            List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperty, outputType, description);
+        super(id, inputProperties, outputType, description);
         this.joinType = joinType;
         this.invocation = invocation;
         this.condition = condition;
