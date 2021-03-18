@@ -692,7 +692,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     @Override
     public CompletableFuture<Acknowledge> shutDownCluster(
             final ApplicationStatus applicationStatus) {
-        shutDownFuture.complete(applicationStatus);
+        // Graceful shutdown will not clean up the HA data when dispatcher still has running jobs
+        if (runningJobs.isEmpty()) {
+            shutDownFuture.complete(applicationStatus);
+        } else {
+            shutDownFuture.completeExceptionally(
+                    new NotAllJobsFinishedException(
+                            "Not all jobs finished. Running jobs: " + runningJobs.keySet()));
+        }
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 

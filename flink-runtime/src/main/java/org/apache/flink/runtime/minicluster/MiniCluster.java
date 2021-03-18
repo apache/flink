@@ -44,6 +44,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.NotAllJobsFinishedException;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -80,6 +81,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
@@ -436,8 +438,16 @@ public class MiniCluster implements AutoCloseableAsync {
                 dispatcherResourceManagerComponents) {
             final CompletableFuture<ApplicationStatus> shutDownFuture =
                     dispatcherResourceManagerComponent.getShutDownFuture();
-            FutureUtils.assertNoException(
-                    shutDownFuture.thenRun(dispatcherResourceManagerComponent::closeAsync));
+            shutDownFuture.whenComplete(
+                    (ignored, throwable) -> {
+                        // Expected exception when shutdown cluster with running jobs
+                        if (throwable instanceof NotAllJobsFinishedException) {
+                            dispatcherResourceManagerComponent.closeAsync();
+                        } else {
+                            FutureUtils.handleUncaughtException(
+                                    shutDownFuture, FatalExitExceptionHandler.INSTANCE);
+                        }
+                    });
             shutDownFutures.add(shutDownFuture);
         }
 

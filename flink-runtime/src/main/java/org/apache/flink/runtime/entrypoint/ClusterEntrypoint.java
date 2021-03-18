@@ -41,6 +41,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.dispatcher.NotAllJobsFinishedException;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -266,7 +267,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             (ApplicationStatus applicationStatus, Throwable throwable) -> {
                                 if (throwable != null) {
                                     shutDownAsync(
-                                            ApplicationStatus.UNKNOWN,
+                                            throwable instanceof NotAllJobsFinishedException
+                                                    ? ApplicationStatus.CANCELED
+                                                    : ApplicationStatus.UNKNOWN,
                                             ShutdownBehaviour.STOP_APPLICATION,
                                             ExceptionUtils.stringifyException(throwable),
                                             false);

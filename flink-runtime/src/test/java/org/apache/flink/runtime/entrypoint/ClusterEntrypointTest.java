@@ -28,6 +28,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.NotAllJobsFinishedException;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
@@ -48,6 +49,7 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.TestingClusterEntrypointProcess;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
@@ -63,6 +65,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -227,6 +230,80 @@ public class ClusterEntrypointTest extends TestLogger {
 
             clusterEntrypointProcess.destroy();
         }
+    }
+
+    @Test
+    public void testShutDownFutureCompleteExceptionallyShouldNotCleanUpHAData() throws Exception {
+        testShutDownCluster(
+                dispatcherShutDownFuture ->
+                        dispatcherShutDownFuture.completeExceptionally(
+                                new FlinkException("Exception")),
+                ApplicationStatus.UNKNOWN,
+                false);
+    }
+
+    @Test
+    public void testShutDownFutureCompleteWithNotAllJobsFinishedExceptionShouldNotCleanUpHAData()
+            throws Exception {
+        testShutDownCluster(
+                dispatcherShutDownFuture ->
+                        dispatcherShutDownFuture.completeExceptionally(
+                                new NotAllJobsFinishedException("Not all jobs finished.")),
+                ApplicationStatus.CANCELED,
+                false);
+    }
+
+    @Test
+    public void testShutDownFutureCompleteNormallyShouldCleanUpHAData() throws Exception {
+        testShutDownCluster(
+                dispatcherShutDownFuture ->
+                        dispatcherShutDownFuture.complete(ApplicationStatus.SUCCEEDED),
+                ApplicationStatus.SUCCEEDED,
+                true);
+    }
+
+    private void testShutDownCluster(
+            Consumer<CompletableFuture<ApplicationStatus>> dispatcherShutDownFutureCompleteConsumer,
+            ApplicationStatus expectedApplicationStatus,
+            boolean shouldCleanUpHAData)
+            throws Exception {
+        final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+        final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture =
+                new CompletableFuture<>();
+
+        final HighAvailabilityServices testingHaService =
+                new TestingHighAvailabilityServicesBuilder()
+                        .setCloseFuture(closeFuture)
+                        .setCloseAndCleanupAllDataFuture(closeAndCleanupAllDataFuture)
+                        .build();
+        final TestingDispatcherRunnerFactory testingDispatcherRunnerFactory =
+                new TestingDispatcherRunnerFactory.Builder()
+                        .setShutDownFuture(dispatcherShutDownFuture)
+                        .build();
+        final TestingResourceManagerFactory testingResourceManagerFactory =
+                new TestingResourceManagerFactory.Builder()
+                        .setInitializeConsumer(
+                                (ignore) ->
+                                        dispatcherShutDownFutureCompleteConsumer.accept(
+                                                dispatcherShutDownFuture))
+                        .build();
+        final TestingEntryPoint testingEntryPoint =
+                new TestingEntryPoint.Builder()
+                        .setConfiguration(flinkConfig)
+                        .setHighAvailabilityServices(testingHaService)
+                        .setDispatcherRunnerFactory(testingDispatcherRunnerFactory)
+                        .setResourceManagerFactory(testingResourceManagerFactory)
+                        .build();
+
+        final CompletableFuture<ApplicationStatus> appStatusFuture =
+                startClusterEntrypoint(testingEntryPoint);
+
+        assertThat(
+                appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
+                is(expectedApplicationStatus));
+        assertThat(closeFuture.isDone(), is(!shouldCleanUpHAData));
+        assertThat(closeAndCleanupAllDataFuture.isDone(), is(shouldCleanUpHAData));
     }
 
     private CompletableFuture<ApplicationStatus> startClusterEntrypoint(
