@@ -24,6 +24,25 @@ SET sql-client.execution.result-mode = tableau;
 # test load module
 # ==========================================================================
 
+# list default loaded and enabled module
+SHOW MODULES;
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
+!ok
+
+SHOW FULL MODULES;
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
+!ok
+
 # load core module twice
 LOAD MODULE core;
 [ERROR] Could not execute SQL statement. Load module failed! Reason:
