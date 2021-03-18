@@ -26,16 +26,32 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT NOT NULL"
+          }, {
+            "b" : "INT NOT NULL"
+          } ]
+        }
       } ]
     },
-    "id" : 55,
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore",
-    "id" : 56,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -43,11 +59,19 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "DropUpdateBefore"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 57,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -56,13 +80,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[a, b]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize",
     "uniqueKeys" : [ 0, 1 ],
     "generateUpdateBefore" : true,
-    "id" : 58,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -70,7 +102,15 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "ChangelogNormalize(key=[a, b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -91,7 +131,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
-    "id" : 59,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -99,33 +139,41 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
   } ],
   "edges" : [ {
-    "source" : 55,
-    "target" : 56,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 56,
-    "target" : 57,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 57,
-    "target" : 58,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 58,
-    "target" : 59,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -21,11 +21,27 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a` BIGINT, `b` INT> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT"
+          } ]
+        }
       } ]
     },
-    "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT>",
+    "id" : 5,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
@@ -54,7 +70,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -62,7 +78,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `EXPR$2` VARCHAR(2147483647) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "EXPR$2" : "VARCHAR(2147483647) NOT NULL"
+      } ]
+    },
     "description" : "Calc(select=[a, b, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET \"UTF-16LE\" AS EXPR$2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -92,7 +118,7 @@
       } ]
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -100,19 +126,29 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `EXPR$2` VARCHAR(2147483647) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "EXPR$2" : "VARCHAR(2147483647) NOT NULL"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, EXPR$2])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },

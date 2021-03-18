@@ -21,8 +21,20 @@
         "schema.1.data-type" : "INT NOT NULL"
       }
     },
-    "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` BIGINT>",
+    "id" : 37,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "d" : "BIGINT"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
@@ -72,7 +84,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
+    "id" : 38,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -80,11 +92,27 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` INT NOT NULL, `$f1` INT NOT NULL, `$f2` INT NOT NULL, `d` BIGINT, `a` BIGINT, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "$f1" : "INT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      }, {
+        "d" : "BIGINT"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Calc(select=[b, 10 AS $f1, 5 AS $f2, d, a, c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 3,
+    "id" : 39,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -93,7 +121,23 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` INT NOT NULL, `$f1` INT NOT NULL, `$f2` INT NOT NULL, `d` BIGINT, `a` BIGINT, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "$f1" : "INT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      }, {
+        "d" : "BIGINT"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -178,7 +222,7 @@
     "aggCallNeedRetractions" : [ false, false, false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 4,
+    "id" : 40,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -186,7 +230,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` INT NOT NULL, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a1" : "BIGINT"
+      }, {
+        "a2" : "BIGINT"
+      }, {
+        "a3" : "BIGINT"
+      }, {
+        "c1" : "BIGINT"
+      } ]
+    },
     "description" : "GroupAggregate(groupBy=[b], select=[b, my_sum1(b, $f1) AS a1, my_sum2($f2, b) AS a2, my_avg(d, a) AS a3, my_count(c) AS c1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -239,7 +297,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 5,
+    "id" : 41,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -247,7 +305,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "a1" : "BIGINT"
+      }, {
+        "a2" : "BIGINT"
+      }, {
+        "a3" : "BIGINT"
+      }, {
+        "c1" : "BIGINT"
+      } ]
+    },
     "description" : "Calc(select=[CAST(b) AS b, a1, a2, a3, c1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -274,7 +346,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 6,
+    "id" : 42,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -282,40 +354,54 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `a1` BIGINT, `a2` BIGINT, `a3` BIGINT, `c1` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "a1" : "BIGINT"
+      }, {
+        "a2" : "BIGINT"
+      }, {
+        "a3" : "BIGINT"
+      }, {
+        "c1" : "BIGINT"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, a1, a2, a3, c1])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 37,
+    "target" : 38,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 38,
+    "target" : 39,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 39,
+    "target" : 40,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 40,
+    "target" : 41,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 41,
+    "target" : 42,
     "shuffle" : {
       "type" : "FORWARD"
     },

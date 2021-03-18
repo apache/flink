@@ -50,8 +50,18 @@
         } ]
       } ]
     },
-    "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
+    "id" : 6,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, src, filter=[greaterThan(a, 0)]]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -74,7 +84,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 2,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -82,12 +92,22 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },

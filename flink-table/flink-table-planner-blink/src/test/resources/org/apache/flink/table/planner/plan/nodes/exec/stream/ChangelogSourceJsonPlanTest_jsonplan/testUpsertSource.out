@@ -26,16 +26,32 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT NOT NULL"
+          }, {
+            "b" : "INT NOT NULL"
+          } ]
+        }
       } ]
     },
-    "id" : 60,
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "id" : 6,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 61,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -44,13 +60,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[a, b]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize",
     "uniqueKeys" : [ 0, 1 ],
     "generateUpdateBefore" : true,
-    "id" : 62,
+    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -58,7 +82,15 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "ChangelogNormalize(key=[a, b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -79,7 +111,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
-    "id" : 63,
+    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -87,26 +119,34 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT NOT NULL, `b` INT NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT NOT NULL"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
   } ],
   "edges" : [ {
-    "source" : 60,
-    "target" : 61,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 61,
-    "target" : 62,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 62,
-    "target" : 63,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },

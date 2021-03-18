@@ -23,11 +23,31 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ], [ 2 ] ],
-        "producedType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647)> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT NOT NULL"
+          }, {
+            "c" : "VARCHAR(2147483647)"
+          } ]
+        }
       } ]
     },
     "id" : 7,
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c]]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -102,7 +122,19 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `$f3` BOOLEAN NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
     "description" : "Calc(select=[a, b, c, (a > 1) IS TRUE AS $f3])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
@@ -114,7 +146,19 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `$f3` BOOLEAN NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
     "description" : "Exchange(distribution=[single])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -196,7 +240,19 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`avg_a` BIGINT, `cnt` BIGINT NOT NULL, `min_b` INT, `max_c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "BIGINT"
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "min_b" : "INT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "GroupAggregate(select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -294,7 +350,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`avg_a` DOUBLE, `cnt` BIGINT, `cnt_b` BIGINT, `min_b` BIGINT, `max_c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "DOUBLE"
+      }, {
+        "cnt" : "BIGINT"
+      }, {
+        "cnt_b" : "BIGINT"
+      }, {
+        "min_b" : "BIGINT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Calc(select=[CAST(avg_a) AS avg_a, CAST(cnt) AS cnt, CAST(cnt) AS cnt_b, CAST(min_b) AS min_b, max_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -329,7 +399,21 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`avg_a` DOUBLE, `cnt` BIGINT, `cnt_b` BIGINT, `min_b` BIGINT, `max_c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "avg_a" : "DOUBLE"
+      }, {
+        "cnt" : "BIGINT"
+      }, {
+        "cnt_b" : "BIGINT"
+      }, {
+        "min_b" : "BIGINT"
+      }, {
+        "max_c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])"
   } ],
   "edges" : [ {
