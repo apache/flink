@@ -106,55 +106,7 @@ public class LogicalTypeSerdeTest {
         String json = writer.toString();
         LogicalType actual = mapper.readValue(json, LogicalType.class);
         assertEquals(logicalType, actual);
-        if (canSerializableString(logicalType)) {
-            assertEquals(logicalType.asSerializableString(), actual.asSerializableString());
-        }
-    }
-
-    private boolean canSerializableString(LogicalType logicalType) {
-        if (logicalType instanceof RawType
-                || logicalType instanceof SymbolType
-                || logicalType instanceof TypeInformationRawType) {
-            return false;
-        }
-        if (CharType.ofEmptyLiteral().copy(true).equals(logicalType)
-                || CharType.ofEmptyLiteral().copy(false).equals(logicalType)) {
-            return false;
-        }
-        if (VarCharType.ofEmptyLiteral().copy(true).equals(logicalType)
-                || VarCharType.ofEmptyLiteral().copy(false).equals(logicalType)) {
-            return false;
-        }
-        if (BinaryType.ofEmptyLiteral().copy(true).equals(logicalType)
-                || BinaryType.ofEmptyLiteral().copy(false).equals(logicalType)) {
-            return false;
-        }
-        if (VarBinaryType.ofEmptyLiteral().copy(true).equals(logicalType)
-                || VarBinaryType.ofEmptyLiteral().copy(false).equals(logicalType)) {
-            return false;
-        }
-        if (logicalType instanceof ArrayType) {
-            return canSerializableString(((ArrayType) logicalType).getElementType());
-        }
-        if (logicalType instanceof MultisetType) {
-            return canSerializableString(((MultisetType) logicalType).getElementType());
-        }
-        if (logicalType instanceof MapType) {
-            return canSerializableString(((MapType) logicalType).getKeyType())
-                    && canSerializableString(((MapType) logicalType).getValueType());
-        }
-        if (logicalType instanceof RowType) {
-            RowType rowType = (RowType) logicalType;
-            List<RowType.RowField> fields = rowType.getFields();
-            boolean canSerializableString = true;
-            for (RowType.RowField field : fields) {
-                canSerializableString = canSerializableString(field.getType());
-                if (!canSerializableString) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
     }
 
     @Parameterized.Parameters(name = "{0}")
