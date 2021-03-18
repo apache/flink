@@ -39,9 +39,7 @@ import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -70,7 +68,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -81,13 +78,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
  * StreamExecGroupWindowAggregate} will be dropped.
  */
-public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecWindowAggregate extends StreamExecAggregateBase {
 
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
-    public static final String FIELD_NAME_GROUPING = "grouping";
-    public static final String FIELD_NAME_AGG_CALLS = "aggCalls";
     public static final String FIELD_NAME_WINDOWING = "windowing";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
@@ -134,7 +128,6 @@ public class StreamExecWindowAggregate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, inputProperties, outputType, description);
-        checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
