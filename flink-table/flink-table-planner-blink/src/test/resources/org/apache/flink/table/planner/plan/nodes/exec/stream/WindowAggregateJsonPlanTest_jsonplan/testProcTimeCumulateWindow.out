@@ -119,17 +119,17 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -187,17 +187,17 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -245,10 +245,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -273,10 +273,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -309,10 +309,10 @@
         "step" : "PT5S"
       },
       "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "nullable" : false,
         "precision" : 3,
-        "kind" : "PROCTIME",
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        "kind" : "PROCTIME"
       },
       "timeAttributeIndex" : 2,
       "isRowtime" : false
@@ -324,10 +324,10 @@
         "reference" : {
           "name" : "w$",
           "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
-            "kind" : "PROCTIME",
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+            "kind" : "PROCTIME"
           }
         }
       }
@@ -338,10 +338,10 @@
         "reference" : {
           "name" : "w$",
           "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
-            "kind" : "PROCTIME",
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+            "kind" : "PROCTIME"
           }
         }
       }
@@ -363,17 +363,17 @@
         "EXPR$1" : "BIGINT NOT NULL"
       }, {
         "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },

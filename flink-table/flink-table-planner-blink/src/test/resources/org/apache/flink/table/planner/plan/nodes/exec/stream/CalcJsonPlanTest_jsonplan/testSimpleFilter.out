@@ -37,10 +37,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "d" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },
@@ -125,10 +125,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "d" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },
@@ -174,10 +174,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "d" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },

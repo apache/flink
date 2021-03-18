@@ -119,17 +119,17 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -187,17 +187,17 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       }, {
         "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -254,10 +254,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       } ]
     },
@@ -284,10 +284,10 @@
         "c" : "VARCHAR(2147483647)"
       }, {
         "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       } ]
     },
@@ -371,10 +371,10 @@
         "size" : "PT5S"
       },
       "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "nullable" : true,
         "precision" : 3,
-        "kind" : "ROWTIME",
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+        "kind" : "ROWTIME"
       },
       "timeAttributeIndex" : 3,
       "isRowtime" : true
@@ -386,10 +386,10 @@
         "reference" : {
           "name" : "w$",
           "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
             "nullable" : true,
             "precision" : 3,
-            "kind" : "ROWTIME",
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+            "kind" : "ROWTIME"
           }
         }
       }
@@ -400,10 +400,10 @@
         "reference" : {
           "name" : "w$",
           "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
             "nullable" : true,
             "precision" : 3,
-            "kind" : "ROWTIME",
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+            "kind" : "ROWTIME"
           }
         }
       }
@@ -431,17 +431,17 @@
         "EXPR$6" : "VARCHAR(2147483647)"
       }, {
         "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },
@@ -517,17 +517,17 @@
         "b" : "BIGINT"
       }, {
         "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "EXPR$3" : "BIGINT NOT NULL"
@@ -582,17 +582,17 @@
         "b" : "BIGINT"
       }, {
         "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "EXPR$3" : "BIGINT NOT NULL"

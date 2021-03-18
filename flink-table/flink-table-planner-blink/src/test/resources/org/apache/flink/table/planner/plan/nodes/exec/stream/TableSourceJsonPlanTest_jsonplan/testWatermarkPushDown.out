@@ -66,10 +66,10 @@
             "b" : "INT"
           }, {
             "c" : {
+              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
               "nullable" : true,
               "precision" : 3,
-              "kind" : "ROWTIME",
-              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+              "kind" : "ROWTIME"
             }
           } ]
         }
@@ -85,10 +85,10 @@
         "b" : "INT"
       }, {
         "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       } ]
     },
@@ -131,10 +131,10 @@
         "b" : "INT"
       }, {
         "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "ROWTIME"
         }
       } ]
     },
