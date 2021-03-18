@@ -29,6 +29,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -106,7 +107,7 @@ public final class FactoryUtil {
     public static DynamicTableSource createTableSource(
             @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -140,7 +141,7 @@ public final class FactoryUtil {
     public static DynamicTableSink createTableSink(
             @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -205,8 +206,9 @@ public final class FactoryUtil {
      *
      * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory,
      * DynamicTableFactory.Context)} {@link #createTableSource(Catalog, ObjectIdentifier,
-     * CatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link #createTableSink(Catalog,
-     * ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)} are not applicable.
+     * ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link
+     * #createTableSink(Catalog, ObjectIdentifier, ResolvedCatalogTable, ReadableConfig,
+     * ClassLoader, boolean)} are not applicable.
      */
     @SuppressWarnings("unchecked")
     public static <T extends Factory> T discoverFactory(
@@ -630,14 +632,14 @@ public final class FactoryUtil {
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
-        private final CatalogTable catalogTable;
+        private final ResolvedCatalogTable catalogTable;
         private final ReadableConfig configuration;
         private final ClassLoader classLoader;
         private final boolean isTemporary;
 
         public DefaultDynamicTableContext(
                 ObjectIdentifier objectIdentifier,
-                CatalogTable catalogTable,
+                ResolvedCatalogTable catalogTable,
                 ReadableConfig configuration,
                 ClassLoader classLoader,
                 boolean isTemporary) {
@@ -654,7 +656,7 @@ public final class FactoryUtil {
         }
 
         @Override
-        public CatalogTable getCatalogTable() {
+        public ResolvedCatalogTable getCatalogTable() {
             return catalogTable;
         }
 

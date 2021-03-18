@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -66,7 +67,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         throw new UnsupportedOperationException("Hive factory is only work for catalog.");
     }
 
-    private static CatalogTable removeIsGenericFlag(Context context) {
+    private static ResolvedCatalogTable removeIsGenericFlag(Context context) {
         Map<String, String> newOptions = new HashMap<>(context.getCatalogTable().getOptions());
         boolean isGeneric = Boolean.parseBoolean(newOptions.remove(IS_GENERIC));
         // temporary table doesn't have the IS_GENERIC flag but we still consider it generic

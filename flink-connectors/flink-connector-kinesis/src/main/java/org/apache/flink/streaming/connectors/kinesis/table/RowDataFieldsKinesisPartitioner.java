@@ -20,23 +20,19 @@ package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -104,31 +100,32 @@ public final class RowDataFieldsKinesisPartitioner extends KinesisPartitioner<Ro
      */
     private int fieldNamesStaticPrefixLength = 0;
 
-    public RowDataFieldsKinesisPartitioner(CatalogTable table) {
-        this(table, DEFAULT_DELIMITER);
+    public RowDataFieldsKinesisPartitioner(RowType physicalType, List<String> partitionKeys) {
+        this(physicalType, partitionKeys, DEFAULT_DELIMITER);
     }
 
-    public RowDataFieldsKinesisPartitioner(CatalogTable table, String delimiter) {
-        Preconditions.checkNotNull(table, "table");
+    public RowDataFieldsKinesisPartitioner(
+            RowType physicalType, List<String> partitionKeys, String delimiter) {
+        Preconditions.checkNotNull(physicalType, "physicalType");
+        Preconditions.checkNotNull(partitionKeys, "partitionKeys");
         Preconditions.checkNotNull(delimiter, "delimiter");
         Preconditions.checkArgument(
-                table.isPartitioned(),
+                !partitionKeys.isEmpty(),
                 "Cannot create a RowDataFieldsKinesisPartitioner for a non-partitioned table");
         Preconditions.checkArgument(
-                table.getPartitionKeys().size() == new HashSet<>(table.getPartitionKeys()).size(),
+                partitionKeys.size() == new HashSet<>(partitionKeys).size(),
                 "The sequence of partition keys cannot contain duplicates");
 
-        TableSchema schema = table.getSchema();
-        List<String> schemaFieldsList = Arrays.asList(schema.getFieldNames());
+        List<String> fieldsList = physicalType.getFieldNames();
 
         List<String> badKeyNames = new ArrayList<>();
         List<String> badKeyTypes = new ArrayList<>();
 
-        for (String fieldName : table.getPartitionKeys()) {
-            Optional<DataType> dataType = schema.getFieldDataType(fieldName);
-            if (!dataType.isPresent()) {
+        for (String fieldName : partitionKeys) {
+            int index = fieldsList.indexOf(fieldName);
+            if (index < 0) {
                 badKeyNames.add(fieldName);
-            } else if (!LogicalTypeChecks.hasWellDefinedString(dataType.get().getLogicalType())) {
+            } else if (!LogicalTypeChecks.hasWellDefinedString(physicalType.getTypeAt(index))) {
                 badKeyTypes.add(fieldName);
             }
         }
@@ -143,20 +140,13 @@ public final class RowDataFieldsKinesisPartitioner extends KinesisPartitioner<Ro
                 String.join(", ", badKeyTypes));
 
         this.delimiter = delimiter;
-        this.fieldNames = table.getPartitionKeys();
+        this.fieldNames = partitionKeys;
         this.dynamicFieldGetters = new HashMap<>();
-        for (String fieldName : table.getPartitionKeys()) {
-            TableColumn column =
-                    schema.getTableColumn(fieldName)
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Unexpected field column " + fieldName));
+        for (String fieldName : partitionKeys) {
+            RowField field = physicalType.getFields().get(fieldsList.indexOf(fieldName));
 
             RowData.FieldGetter fieldGetter =
-                    RowData.createFieldGetter(
-                            column.getType().getLogicalType(),
-                            schemaFieldsList.indexOf(column.getName()));
+                    RowData.createFieldGetter(field.getType(), fieldsList.indexOf(field.getName()));
 
             this.dynamicFieldGetters.put(fieldName, fieldGetter);
         }

@@ -21,8 +21,9 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 
@@ -49,8 +50,28 @@ public interface DynamicTableFactory extends Factory {
         /** Returns the identifier of the table in the {@link Catalog}. */
         ObjectIdentifier getObjectIdentifier();
 
-        /** Returns table information received from the {@link Catalog}. */
-        CatalogTable getCatalogTable();
+        /**
+         * Returns the resolved table information received from the {@link Catalog}.
+         *
+         * <p>The {@link ResolvedCatalogTable} forwards the metadata from the catalog but offers a
+         * validated {@link ResolvedSchema}. The original metadata object is available via {@link
+         * ResolvedCatalogTable#getOrigin()}.
+         *
+         * <p>In most cases, a factory is interested in the following two characteristics:
+         *
+         * <pre>{@code
+         * // get the physical data type to initialize the connector
+         * context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType()
+         *
+         * // get primary key information if the connector supports upserts
+         * context.getCatalogTable().getResolvedSchema().getPrimaryKey()
+         * }</pre>
+         *
+         * <p>Other characteristics such as metadata columns or watermarks will be pushed down into
+         * the created {@link DynamicTableSource} or {@link DynamicTableSink} during planning
+         * depending on the implemented ability interfaces.
+         */
+        ResolvedCatalogTable getCatalogTable();
 
         /** Gives read-only access to the configuration of the current session. */
         ReadableConfig getConfiguration();

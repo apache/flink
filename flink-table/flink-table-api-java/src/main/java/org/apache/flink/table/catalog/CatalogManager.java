@@ -866,7 +866,9 @@ public final class CatalogManager {
                 "Unknown kind of catalog base table: " + baseTable.getClass());
     }
 
-    private ResolvedCatalogTable resolveCatalogTable(CatalogTable table) {
+    /** Resolves a {@link CatalogTable} to a validated {@link ResolvedCatalogTable}. */
+    public ResolvedCatalogTable resolveCatalogTable(CatalogTable table) {
+        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
         if (table instanceof ResolvedCatalogTable) {
             return (ResolvedCatalogTable) table;
         }
@@ -874,7 +876,9 @@ public final class CatalogManager {
         return new ResolvedCatalogTable(table, resolvedSchema);
     }
 
-    private ResolvedCatalogView resolveCatalogView(CatalogView view) {
+    /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */
+    public ResolvedCatalogView resolveCatalogView(CatalogView view) {
+        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
         if (view instanceof ResolvedCatalogView) {
             return (ResolvedCatalogView) view;
         }

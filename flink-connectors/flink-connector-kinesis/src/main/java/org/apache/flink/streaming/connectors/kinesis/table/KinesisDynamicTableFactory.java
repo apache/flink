@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -36,6 +37,8 @@ import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -57,7 +60,7 @@ public class KinesisDynamicTableFactory
     public DynamicTableSource createDynamicTableSource(Context context) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
+        ResolvedCatalogTable catalogTable = context.getCatalogTable();
         Properties properties = KinesisOptions.getConsumerProperties(catalogTable.getOptions());
 
         // initialize the table format early in order to register its consumedOptionKeys
@@ -71,8 +74,10 @@ public class KinesisDynamicTableFactory
         // Validate option values
         validateConsumerProperties(tableOptions.get(KinesisOptions.STREAM), properties);
 
+        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
+
         return new KinesisDynamicSource(
-                catalogTable.getSchema().toPhysicalRowDataType(),
+                physicalDataType,
                 tableOptions.get(KinesisOptions.STREAM),
                 properties,
                 decodingFormat);
@@ -86,7 +91,7 @@ public class KinesisDynamicTableFactory
     public DynamicTableSink createDynamicTableSink(Context context) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
+        ResolvedCatalogTable catalogTable = context.getCatalogTable();
         Properties properties = KinesisOptions.getProducerProperties(catalogTable.getOptions());
 
         // initialize the table format early in order to register its consumedOptionKeys
@@ -100,13 +105,18 @@ public class KinesisDynamicTableFactory
         validateKinesisPartitioner(tableOptions, catalogTable);
         validateProducerProperties(properties);
 
+        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
+
         return new KinesisDynamicSink(
-                catalogTable.getSchema().toPhysicalRowDataType(),
+                physicalDataType,
                 tableOptions.get(KinesisOptions.STREAM),
                 properties,
                 encodingFormat,
                 KinesisOptions.getKinesisPartitioner(
-                        tableOptions, catalogTable, context.getClassLoader()));
+                        tableOptions,
+                        (RowType) physicalDataType.getLogicalType(),
+                        catalogTable.getPartitionKeys(),
+                        context.getClassLoader()));
     }
 
     // --------------------------------------------------------------------------------------------
