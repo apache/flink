@@ -21,16 +21,32 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a1` INT, `a2` BIGINT> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a1" : "INT"
+          }, {
+            "a2" : "BIGINT"
+          } ]
+        }
       } ]
     },
-    "id" : 163,
-    "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
+    "id" : 21,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      }, {
+        "a2" : "BIGINT"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a1, a2]]], fields=[a1, a2])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 164,
+    "id" : 22,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -39,7 +55,15 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a1` INT, `a2` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      }, {
+        "a2" : "BIGINT"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -48,7 +72,7 @@
     "aggCallNeedRetractions" : [ ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 165,
+    "id" : 23,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -56,11 +80,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      } ]
+    },
     "description" : "GroupAggregate(groupBy=[a1], select=[a1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 166,
+    "id" : 24,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -69,7 +99,13 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
@@ -92,16 +128,32 @@
       "sourceAbilitySpecs" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`b1` INT, `b2` BIGINT> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "b1" : "INT"
+          }, {
+            "b2" : "BIGINT"
+          } ]
+        }
       } ]
     },
-    "id" : 167,
-    "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
+    "id" : 25,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b1" : "INT"
+      }, {
+        "b2" : "BIGINT"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[b1, b2]]], fields=[b1, b2])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 168,
+    "id" : 26,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -110,7 +162,15 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b1` INT, `b2` BIGINT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b1" : "INT"
+      }, {
+        "b2" : "BIGINT"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
@@ -119,7 +179,7 @@
     "aggCallNeedRetractions" : [ ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 169,
+    "id" : 27,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -127,11 +187,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b1" : "INT"
+      } ]
+    },
     "description" : "GroupAggregate(groupBy=[b1], select=[b1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 170,
+    "id" : 28,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -140,7 +206,13 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b1" : "INT"
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin",
@@ -153,7 +225,7 @@
     },
     "leftUniqueKeys" : [ [ 0 ] ],
     "rightUniqueKeys" : [ [ 0 ] ],
-    "id" : 171,
+    "id" : 29,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -167,7 +239,15 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a1` INT, `b1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      }, {
+        "b1" : "INT"
+      } ]
+    },
     "description" : "Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -188,7 +268,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 172,
+    "id" : 30,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -196,68 +276,76 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a1` INT, `b1` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a1" : "INT"
+      }, {
+        "b1" : "INT"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a1, b1])"
   } ],
   "edges" : [ {
-    "source" : 163,
-    "target" : 164,
+    "source" : 21,
+    "target" : 22,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 164,
-    "target" : 165,
+    "source" : 22,
+    "target" : 23,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 165,
-    "target" : 166,
+    "source" : 23,
+    "target" : 24,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 167,
-    "target" : 168,
+    "source" : 25,
+    "target" : 26,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 168,
-    "target" : 169,
+    "source" : 26,
+    "target" : 27,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 169,
-    "target" : 170,
+    "source" : 27,
+    "target" : 28,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 166,
-    "target" : 171,
+    "source" : 24,
+    "target" : 29,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 170,
-    "target" : 171,
+    "source" : 28,
+    "target" : 29,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 171,
-    "target" : 172,
+    "source" : 29,
+    "target" : 30,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
-/** Test json serialization/deserialization for calc. */
+/** Test json serialization/deserialization for join. */
 public class JoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
