@@ -37,10 +37,10 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },
@@ -112,17 +112,17 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "$4" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -149,17 +149,17 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "$4" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -189,17 +189,17 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       }, {
         "$4" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
-          "kind" : "PROCTIME",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "PROCTIME"
         }
       } ]
     },
@@ -258,10 +258,10 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },
@@ -307,10 +307,10 @@
         "product" : "VARCHAR(2147483647)"
       }, {
         "order_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "REGULAR",
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE"
+          "kind" : "REGULAR"
         }
       } ]
     },

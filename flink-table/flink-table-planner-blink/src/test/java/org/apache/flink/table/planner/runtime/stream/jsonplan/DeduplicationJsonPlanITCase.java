@@ -28,7 +28,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-/** Test for watermark assigner json plan. */
+/** Test for deduplication json plan. */
 public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
