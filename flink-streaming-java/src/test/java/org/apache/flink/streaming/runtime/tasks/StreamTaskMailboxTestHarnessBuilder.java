@@ -163,7 +163,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
 
         StreamTask<OUT, ?> task = taskFactory.apply(streamMockEnvironment);
-        task.beforeInvoke();
+        task.restore();
 
         return new StreamTaskMailboxTestHarness<>(
                 task, outputList, inputGates, streamMockEnvironment);
