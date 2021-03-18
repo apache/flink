@@ -30,9 +30,9 @@ import java.util.List;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = ConstantRankRange.class),
-        @JsonSubTypes.Type(value = ConstantRankRangeWithoutEnd.class),
-        @JsonSubTypes.Type(value = VariableRankRange.class)
+    @JsonSubTypes.Type(value = ConstantRankRange.class),
+    @JsonSubTypes.Type(value = ConstantRankRangeWithoutEnd.class),
+    @JsonSubTypes.Type(value = VariableRankRange.class)
 })
 public interface RankRange extends Serializable {
     String toString(List<String> inputFieldNames);

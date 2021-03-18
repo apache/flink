@@ -47,10 +47,10 @@ import java.util.Set;
 /** Base class of Strategy to choose different rank process function. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = RankProcessStrategy.UndefinedStrategy.class),
-        @JsonSubTypes.Type(value = RankProcessStrategy.AppendFastStrategy.class),
-        @JsonSubTypes.Type(value = RankProcessStrategy.RetractStrategy.class),
-        @JsonSubTypes.Type(value = RankProcessStrategy.UpdateFastStrategy.class)
+    @JsonSubTypes.Type(value = RankProcessStrategy.UndefinedStrategy.class),
+    @JsonSubTypes.Type(value = RankProcessStrategy.AppendFastStrategy.class),
+    @JsonSubTypes.Type(value = RankProcessStrategy.RetractStrategy.class),
+    @JsonSubTypes.Type(value = RankProcessStrategy.UpdateFastStrategy.class)
 })
 public interface RankProcessStrategy {
 
