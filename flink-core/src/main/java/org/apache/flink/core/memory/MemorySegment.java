@@ -33,6 +33,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -135,6 +136,8 @@ public final class MemorySegment {
      */
     private final boolean allowWrap;
 
+    private final AtomicBoolean isFreedAtomic;
+
     /**
      * Creates a new memory segment that represents the memory of the byte array.
      *
@@ -155,6 +158,7 @@ public final class MemorySegment {
         this.owner = owner;
         this.allowWrap = true;
         this.cleaner = null;
+        this.isFreedAtomic = new AtomicBoolean(false);
     }
 
     /**
@@ -200,6 +204,7 @@ public final class MemorySegment {
         this.owner = owner;
         this.allowWrap = allowWrap;
         this.cleaner = cleaner;
+        this.isFreedAtomic = new AtomicBoolean(false);
     }
 
     // ------------------------------------------------------------------------
@@ -233,17 +238,21 @@ public final class MemorySegment {
      * memory segment object has become garbage collected.
      */
     public void free() {
-        if (checkMultipleFree && isFreed()) {
-            throw new IllegalStateException("MemorySegment can be freed only once!");
+        if (isFreedAtomic.getAndSet(true)) {
+            // the segment has already been freed
+            if (checkMultipleFree) {
+                throw new IllegalStateException("MemorySegment can be freed only once!");
+            }
+        } else {
+            // this ensures we can place no more data and trigger
+            // the checks for the freed segment
+            address = addressLimit + 1;
+            offHeapBuffer = null; // to enable GC of unsafe memory
+            if (cleaner != null) {
+                cleaner.run();
+                cleaner = null;
+            }
         }
-        // this ensures we can place no more data and trigger
-        // the checks for the freed segment
-        address = addressLimit + 1;
-        if (cleaner != null) {
-            cleaner.run();
-        }
-        offHeapBuffer = null; // to enable GC of unsafe memory
-        cleaner = null;
     }
 
     /**
