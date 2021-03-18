@@ -1528,6 +1528,55 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRestorePerformedOnlyOnce() throws Exception {
+        // given: the operator with empty snapshot result (all state handles are null)
+        OneInputStreamOperator<String, String> statelessOperator =
+                streamOperatorWithSnapshot(new OperatorSnapshotFutures());
+        DummyEnvironment dummyEnvironment = new DummyEnvironment();
+
+        // when: Invoke the restore explicitly before launching the task.
+        RunningTask<MockStreamTask> task =
+                runTask(
+                        () -> {
+                            MockStreamTask mockStreamTask =
+                                    createMockStreamTask(
+                                            dummyEnvironment, operatorChain(statelessOperator));
+
+                            mockStreamTask.restore();
+
+                            return mockStreamTask;
+                        });
+        waitTaskIsRunning(task.streamTask, task.invocationFuture);
+
+        task.streamTask.cancel();
+
+        // then: 'restore' was called only once.
+        assertThat(task.streamTask.restoreInvocationCount, is(1));
+    }
+
+    @Test
+    public void testRestorePerformedFromInvoke() throws Exception {
+        // given: the operator with empty snapshot result (all state handles are null)
+        OneInputStreamOperator<String, String> statelessOperator =
+                streamOperatorWithSnapshot(new OperatorSnapshotFutures());
+        DummyEnvironment dummyEnvironment = new DummyEnvironment();
+
+        // when: Launch the task.
+        RunningTask<MockStreamTask> task =
+                runTask(
+                        () ->
+                                createMockStreamTask(
+                                        dummyEnvironment, operatorChain(statelessOperator)));
+
+        waitTaskIsRunning(task.streamTask, task.invocationFuture);
+
+        task.streamTask.cancel();
+
+        // then: 'restore' was called even without explicit 'restore' invocation.
+        assertThat(task.streamTask.restoreInvocationCount, is(1));
+    }
+
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
@@ -1843,6 +1892,7 @@ public class StreamTaskTest extends TestLogger {
     private static class MockStreamTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
         private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
+        private int restoreInvocationCount = 0;
 
         MockStreamTask(
                 Environment env,
@@ -1851,6 +1901,12 @@ public class StreamTaskTest extends TestLogger {
                 throws Exception {
             super(env, null, uncaughtExceptionHandler);
             this.overrideOperatorChain = operatorChain;
+        }
+
+        @Override
+        public void restore() throws Exception {
+            super.restore();
+            restoreInvocationCount++;
         }
 
         @Override
