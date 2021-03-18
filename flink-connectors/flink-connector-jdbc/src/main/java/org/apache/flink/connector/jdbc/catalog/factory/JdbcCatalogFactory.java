@@ -18,27 +18,24 @@
 
 package org.apache.flink.connector.jdbc.catalog.factory;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.catalog.JdbcCatalog;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.JdbcCatalogValidator;
 import org.apache.flink.table.factories.CatalogFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_BASE_URL;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_PASSWORD;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_USERNAME;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_TYPE_VALUE_JDBC;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.BASE_URL;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.DEFAULT_DATABASE;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.PASSWORD;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.USERNAME;
+import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 
 /** Factory for {@link JdbcCatalog}. */
 public class JdbcCatalogFactory implements CatalogFactory {
@@ -46,45 +43,63 @@ public class JdbcCatalogFactory implements CatalogFactory {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcCatalogFactory.class);
 
     @Override
-    public Map<String, String> requiredContext() {
-        Map<String, String> context = new HashMap<>();
-        context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_JDBC); // jdbc
-        context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
-        return context;
+    public String factoryIdentifier() {
+        return JdbcCatalogFactoryOptions.IDENTIFIER;
     }
 
     @Override
-    public List<String> supportedProperties() {
-        List<String> properties = new ArrayList<>();
-
-        // default database
-        properties.add(CATALOG_DEFAULT_DATABASE);
-
-        properties.add(CATALOG_JDBC_BASE_URL);
-        properties.add(CATALOG_JDBC_USERNAME);
-        properties.add(CATALOG_JDBC_PASSWORD);
-
-        return properties;
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(DEFAULT_DATABASE);
+        options.add(USERNAME);
+        options.add(PASSWORD);
+        options.add(BASE_URL);
+        return options;
     }
 
     @Override
-    public Catalog createCatalog(String name, Map<String, String> properties) {
-        final DescriptorProperties prop = getValidatedProperties(properties);
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(PROPERTY_VERSION);
+        return options;
+    }
+
+    @Override
+    public Catalog createCatalog(Context context) {
+        final Configuration configuration = Configuration.fromMap(context.getOptions());
+        validateConfiguration(configuration);
 
         return new JdbcCatalog(
-                name,
-                prop.getString(CATALOG_DEFAULT_DATABASE),
-                prop.getString(CATALOG_JDBC_USERNAME),
-                prop.getString(CATALOG_JDBC_PASSWORD),
-                prop.getString(CATALOG_JDBC_BASE_URL));
+                context.getName(),
+                configuration.getString(DEFAULT_DATABASE),
+                configuration.getString(USERNAME),
+                configuration.getString(PASSWORD),
+                configuration.getString(BASE_URL));
     }
 
-    private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-        descriptorProperties.putProperties(properties);
+    private void validateConfiguration(Configuration configuration) {
+        final String defaultDatabase = configuration.getString(DEFAULT_DATABASE);
+        if (defaultDatabase == null || defaultDatabase.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Missing or empty value for '%s'", DEFAULT_DATABASE.key()));
+        }
 
-        new JdbcCatalogValidator().validate(descriptorProperties);
+        final String username = configuration.getString(USERNAME);
+        if (username == null || username.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Missing or empty value for '%s'", USERNAME.key()));
+        }
 
-        return descriptorProperties;
+        final String password = configuration.getString(PASSWORD);
+        if (password == null || password.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Missing or empty value for '%s'", PASSWORD.key()));
+        }
+
+        final String baseUrl = configuration.getString(BASE_URL);
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            throw new ValidationException(
+                    String.format("Missing or empty value for '%s'", BASE_URL.key()));
+        }
     }
 }

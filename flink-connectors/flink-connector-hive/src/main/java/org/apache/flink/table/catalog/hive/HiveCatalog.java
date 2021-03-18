@@ -60,7 +60,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
@@ -203,7 +203,7 @@ public class HiveCatalog extends AbstractCatalog {
         hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         // add this to hiveConf to make sure table factory and source/sink see the same Hive version
         // as HiveCatalog
-        this.hiveConf.set(HiveCatalogValidator.CATALOG_HIVE_VERSION, hiveVersion);
+        this.hiveConf.set(HiveCatalogFactoryOptions.HIVE_VERSION.key(), hiveVersion);
 
         LOG.info("Created HiveCatalog '{}'", catalogName);
     }

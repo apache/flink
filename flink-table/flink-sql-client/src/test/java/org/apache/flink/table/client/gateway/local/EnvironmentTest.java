@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
@@ -35,7 +36,6 @@ import java.util.Set;
 
 import static org.apache.flink.table.client.config.entries.CatalogEntry.CATALOG_NAME;
 import static org.apache.flink.table.client.config.entries.ModuleEntry.MODULE_NAME;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -130,7 +130,7 @@ public class EnvironmentTest {
         Map<String, Object> prop = new HashMap<>();
 
         prop.put(CATALOG_NAME, name);
-        prop.put(CATALOG_TYPE, type);
+        prop.put(CommonCatalogOptions.CATALOG_TYPE.key(), type);
 
         return prop;
     }
