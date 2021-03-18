@@ -30,8 +30,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-/** Test for window aggregate json plan. */
-public class WindowAggregateJsonITCase extends JsonPlanTestBase {
+/** Test for group window aggregate json plan. */
+public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
 
     @Before
     public void setup() throws Exception {
@@ -72,14 +72,13 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 tableEnv.getJsonPlan(
                         "insert into MySink select\n"
                                 + "  name,\n"
-                                + "  window_start,\n"
-                                + "  window_end,\n"
+                                + "  TUMBLE_START(rowtime, INTERVAL '5' SECOND) as window_start,\n"
+                                + "  TUMBLE_END(rowtime, INTERVAL '5' SECOND) as window_end,\n"
                                 + "  COUNT(*),\n"
                                 + "  SUM(`int`),\n"
                                 + "  COUNT(DISTINCT `string`)\n"
-                                + "FROM TABLE(\n"
-                                + "   TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))\n"
-                                + "GROUP BY name, window_start, window_end");
+                                + "FROM MyTable\n"
+                                + "GROUP BY name, TUMBLE(rowtime, INTERVAL '5' SECOND)");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
@@ -102,9 +101,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
-                                + "FROM TABLE(\n"
-                                + "   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))\n"
-                                + "GROUP BY name, window_start, window_end");
+                                + "FROM MyTable\n"
+                                + "GROUP BY name, HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
@@ -112,7 +110,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 Arrays.asList(
                         "+I[a, 1]",
                         "+I[a, 4]",
-                        "+I[a, 5]",
+                        "+I[a, 6]",
                         "+I[b, 1]",
                         "+I[b, 1]",
                         "+I[b, 1]",
@@ -125,39 +123,21 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeCumulateWindow() throws Exception {
+    public void testEventTimeSessionWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
         String jsonPlan =
                 tableEnv.getJsonPlan(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
-                                + "FROM TABLE(\n"
-                                + "  CUMULATE(\n"
-                                + "     TABLE MyTable,\n"
-                                + "     DESCRIPTOR(rowtime),\n"
-                                + "     INTERVAL '5' SECOND,\n"
-                                + "     INTERVAL '15' SECOND))"
-                                + "GROUP BY name, window_start, window_end");
+                                + "FROM MyTable\n"
+                                + "GROUP BY name, Session(rowtime, INTERVAL '3' SECOND)");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
                 Arrays.asList(
-                        "+I[a, 4]",
-                        "+I[a, 5]",
-                        "+I[a, 5]",
-                        "+I[b, 1]",
-                        "+I[b, 1]",
-                        "+I[b, 1]",
-                        "+I[b, 1]",
-                        "+I[b, 1]",
-                        "+I[b, 1]",
-                        "+I[b, 2]",
-                        "+I[b, 2]",
-                        "+I[null, 1]",
-                        "+I[null, 1]",
-                        "+I[null, 1]"),
+                        "+I[a, 1]", "+I[a, 4]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),
                 result);
     }
 }
