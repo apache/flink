@@ -185,14 +185,6 @@ class StreamPlanner(
     }
   }
 
-  override def getCompletionHints(
-      statement: String,
-      position: Int)
-    : Array[String] = {
-    val planner = getFlinkPlanner
-    planner.getCompletionHints(statement, position)
-  }
-
   private def translateToRel(modifyOperation: ModifyOperation): (RelNode, Boolean) = {
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>

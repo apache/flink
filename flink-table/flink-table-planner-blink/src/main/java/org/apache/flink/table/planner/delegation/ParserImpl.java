@@ -31,17 +31,23 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.operations.SqlToOperationConverter;
+import org.apache.flink.table.planner.parse.ParseStrategyParser;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.advise.SqlAdvisor;
+import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link Parser} that uses Calcite. */
 public class ParserImpl implements Parser {
@@ -70,6 +76,12 @@ public class ParserImpl implements Parser {
     public List<Operation> parse(String statement) {
         CalciteParser parser = calciteParserSupplier.get();
         FlinkPlannerImpl planner = validatorSupplier.get();
+
+        // use ParseStrategyParser to parse command first
+        if (ParseStrategyParser.INSTANCE.matches(statement)) {
+            return Collections.singletonList(ParseStrategyParser.INSTANCE.convert(statement));
+        }
+
         // parse the sql query
         SqlNode parsed = parser.parse(statement);
 
@@ -99,6 +111,29 @@ public class ParserImpl implements Parser {
                 TypeConversions.fromLogicalToDataType(logicalType),
                 sqlExpression,
                 sqlExpressionExpanded);
+    }
+
+    public String[] getCompletionHints(String statement, int cursor) {
+        List<String> candidates =
+                new ArrayList<>(
+                        Arrays.asList(
+                                ParseStrategyParser.INSTANCE.getCompletionHints(
+                                        statement, cursor)));
+
+        // fall back to sql advisor
+        SqlAdvisorValidator validator = validatorSupplier.get().getSqlAdvisorValidator();
+        SqlAdvisor advisor =
+                new SqlAdvisor(validator, validatorSupplier.get().config().getParserConfig());
+        String[] replaced = new String[1];
+
+        List<String> sqlHints =
+                advisor.getCompletionHints(statement, cursor, replaced).stream()
+                        .map(item -> item.toIdentifier().toString())
+                        .collect(Collectors.toList());
+
+        candidates.addAll(sqlHints);
+
+        return candidates.toArray(new String[0]);
     }
 
     public CatalogManager getCatalogManager() {

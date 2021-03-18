@@ -27,14 +27,20 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.parse.ParseStrategyParser;
 import org.apache.flink.table.sqlexec.SqlToOperationConverter;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.advise.SqlAdvisor;
+import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link Parser} that uses Calcite. */
 public class ParserImpl implements Parser {
@@ -61,6 +67,12 @@ public class ParserImpl implements Parser {
         CalciteParser parser = calciteParserSupplier.get();
         FlinkPlannerImpl planner = validatorSupplier.get();
         // parse the sql query
+
+        // use ParseStrategyParser to parse commands
+        if (ParseStrategyParser.INSTANCE.matches(statement)) {
+            return Collections.singletonList(ParseStrategyParser.INSTANCE.convert(statement));
+        }
+
         SqlNode parsed = parser.parse(statement);
 
         Operation operation =
@@ -86,5 +98,29 @@ public class ParserImpl implements Parser {
     public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
         throw new UnsupportedOperationException(
                 "Computed columns is only supported by the Blink planner.");
+    }
+
+    @Override
+    public String[] getCompletionHints(String statement, int position) {
+        List<String> candidates =
+                new ArrayList<>(
+                        Arrays.asList(
+                                ParseStrategyParser.INSTANCE.getCompletionHints(
+                                        statement, position)));
+
+        // fall back to sql advisor
+        SqlAdvisorValidator validator = validatorSupplier.get().getSqlAdvisorValidator();
+        SqlAdvisor advisor =
+                new SqlAdvisor(validator, validatorSupplier.get().config().getParserConfig());
+        String[] replaced = new String[1];
+
+        List<String> sqlHints =
+                advisor.getCompletionHints(statement, position, replaced).stream()
+                        .map(item -> item.toIdentifier().toString())
+                        .collect(Collectors.toList());
+
+        candidates.addAll(sqlHints);
+
+        return candidates.toArray(new String[0]);
     }
 }

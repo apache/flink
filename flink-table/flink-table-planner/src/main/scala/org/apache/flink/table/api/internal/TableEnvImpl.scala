@@ -543,8 +543,7 @@ abstract class TableEnvImpl(
   override def listFunctions(): Array[String] = functionCatalog.getFunctions
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = getFlinkPlanner
-    planner.getCompletionHints(statement, position)
+    parser.getCompletionHints(statement, position)
   }
 
   override def sqlQuery(query: String): Table = {

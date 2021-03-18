@@ -63,4 +63,14 @@ public interface Parser {
      * @throws org.apache.flink.table.api.SqlParserException when failed to parse the sql expression
      */
     ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema);
+
+    /**
+     * Returns completion hints for the given statement at the given cursor position. The completion
+     * happens case insensitively.
+     *
+     * @param statement Partial or slightly incorrect SQL statement
+     * @param position cursor position
+     * @return completion hints that fit at the current cursor position
+     */
+    String[] getCompletionHints(String statement, int position);
 }

@@ -62,18 +62,13 @@ class FlinkPlannerImpl(
 
   var validator: FlinkCalciteSqlValidator = _
 
-  def getCompletionHints(sql: String, cursor: Int): Array[String] = {
-    val advisorValidator = new SqlAdvisorValidator(
+  def getSqlAdvisorValidator(): SqlAdvisorValidator = {
+      new SqlAdvisorValidator(
       operatorTable,
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       SqlValidator.Config.DEFAULT
         .withSqlConformance(config.getParserConfig.conformance()))
-    val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
-    val replaced = Array[String](null)
-    val hints = advisor.getCompletionHints(sql, cursor, replaced)
-      .map(item => item.toIdentifier.toString)
-    hints.toArray
   }
 
   /**

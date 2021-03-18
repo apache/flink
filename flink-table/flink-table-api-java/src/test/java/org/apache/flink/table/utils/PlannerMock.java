@@ -46,11 +46,6 @@ public class PlannerMock implements Planner {
     }
 
     @Override
-    public String[] getCompletionHints(String statement, int position) {
-        return new String[0];
-    }
-
-    @Override
     public String getJsonPlan(List<ModifyOperation> modifyOperations) {
         return null;
     }
