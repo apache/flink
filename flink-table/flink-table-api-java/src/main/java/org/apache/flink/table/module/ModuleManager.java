@@ -175,12 +175,16 @@ public class ModuleManager {
      */
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
         AtomicReference<String> moduleName = new AtomicReference<>();
-        usedModules.forEach(n -> {
-            if (loadedModules.get(n).listFunctions().stream().anyMatch(name::equalsIgnoreCase)) {
-                moduleName.set(n);
-                return;
-            }
-        });
+        usedModules.stream()
+                .anyMatch(
+                        n -> {
+                            if (loadedModules.get(n).listFunctions().stream()
+                                    .anyMatch(name::equalsIgnoreCase)) {
+                                moduleName.set(n);
+                                return true;
+                            }
+                            return false;
+                        });
 
         if (moduleName.get() != null) {
             LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, moduleName.get());
