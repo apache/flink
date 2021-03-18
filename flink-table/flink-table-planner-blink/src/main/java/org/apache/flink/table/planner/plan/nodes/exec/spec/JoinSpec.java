@@ -77,7 +77,11 @@ public class JoinSpec {
         Preconditions.checkArgument(leftKeys.length == rightKeys.length);
         Preconditions.checkArgument(leftKeys.length == filterNulls.length);
 
-        this.nonEquiCondition = nonEquiCondition;
+        if (null != nonEquiCondition && nonEquiCondition.isAlwaysTrue()) {
+            this.nonEquiCondition = null;
+        } else {
+            this.nonEquiCondition = nonEquiCondition;
+        }
     }
 
     @JsonIgnore

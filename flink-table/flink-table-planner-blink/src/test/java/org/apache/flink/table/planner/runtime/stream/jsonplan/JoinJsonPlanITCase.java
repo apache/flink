@@ -19,8 +19,9 @@
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.runtime.utils.TestData;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
-import org.apache.flink.types.Row;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,30 +29,23 @@ import org.junit.Test;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** Test for join json plan. */
 public class JoinJsonPlanITCase extends JsonPlanTestBase {
-    private static final List<Row> small5FieldsRowData =
-            Arrays.asList(
-                    Row.of(1, 1L, 0, "Hallo", 1L),
-                    Row.of(2, 2L, 1, "Hallo Welt", 2L),
-                    Row.of(2, 3L, 2, "Hallo Welt wie", 1L),
-                    Row.of(3, 4L, 3, "Hallo Welt wie gehts?", 2L),
-                    Row.of(3, 5L, 4, "ABC", 2L),
-                    Row.of(3, 6L, 5, "BCD", 3L));
-    private static final List<Row> small3FieldsRowData =
-            Arrays.asList(
-                    Row.of(1, 1L, "Hi"), Row.of(2, 2L, "Hello"), Row.of(3, 2L, "Hello world"));
 
     @Override
     @Before
     public void setup() throws Exception {
         super.setup();
-        createTestValuesSourceTable("A", small3FieldsRowData, "a1 int", "a2 bigint", "a3 varchar");
+        createTestValuesSourceTable(
+                "A",
+                JavaScalaConversionUtil.toJava(TestData.smallData3()),
+                "a1 int",
+                "a2 bigint",
+                "a3 varchar");
         createTestValuesSourceTable(
                 "B",
-                small5FieldsRowData,
+                JavaScalaConversionUtil.toJava(TestData.smallData5()),
                 "b1 int",
                 "b2 bigint",
                 "b3 int",
@@ -129,11 +123,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                         "+I[1, HiHi, Hi8]",
                         "+I[2, HeHe, Hi5]",
                         "+I[null, HeHe, Hi9]");
-        assertResult(
-                expected.stream().sorted().collect(Collectors.toList()),
-                TestValuesTableFactory.getResults("MySink").stream()
-                        .sorted()
-                        .collect(Collectors.toList()));
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 
     @Test
@@ -146,11 +136,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[Hello world, Hallo Welt]", "+I[Hello, Hallo Welt]", "+I[Hi, Hallo]");
-        assertResult(
-                expected.stream().sorted().collect(Collectors.toList()),
-                TestValuesTableFactory.getResults("MySink").stream()
-                        .sorted()
-                        .collect(Collectors.toList()));
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 
     @Test
@@ -160,14 +146,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                 tableEnv.getJsonPlan(
                         "insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1");
         tableEnv.executeJsonPlan(jsonPlan).await();
-        List<String> expected =
-                Arrays.asList(
-                        "+I[1, 1]", "+I[2, 2]", "+I[2, 2]", "+I[3, 3]", "+I[3, 3]", "+I[3, 3]");
-        assertResult(
-                expected.stream().sorted().collect(Collectors.toList()),
-                TestValuesTableFactory.getResults("MySink").stream()
-                        .sorted()
-                        .collect(Collectors.toList()));
+        List<String> expected = Arrays.asList("+I[1, 1]", "+I[2, 2]", "+I[2, 2]");
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 
     @Test
@@ -179,11 +159,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "SELECT a3, b4 FROM A, B where a2 = b2 and a2 < 2");
         tableEnv.executeJsonPlan(jsonPlan).await();
         List<String> expected = Arrays.asList("+I[Hi, Hallo]");
-        assertResult(
-                expected.stream().sorted().collect(Collectors.toList()),
-                TestValuesTableFactory.getResults("MySink").stream()
-                        .sorted()
-                        .collect(Collectors.toList()));
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 
     @Test
@@ -194,11 +170,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                         "insert into MySink \n"
                                 + "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3");
         tableEnv.executeJsonPlan(jsonPlan).await();
-        List<String> expected = Arrays.asList("+I[2, 2, 2]", "+I[3, 3, 3]");
-        assertResult(
-                expected.stream().sorted().collect(Collectors.toList()),
-                TestValuesTableFactory.getResults("MySink").stream()
-                        .sorted()
-                        .collect(Collectors.toList()));
+        List<String> expected = Arrays.asList("+I[2, 2, 2]");
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 }

@@ -237,14 +237,7 @@
       "leftKeys" : [ 0 ],
       "rightKeys" : [ 0 ],
       "filterNulls" : [ true ],
-      "nonEquiCondition" : {
-        "kind" : "LITERAL",
-        "value" : true,
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : false
-        }
-      }
+      "nonEquiCondition" : null
     },
     "leftUniqueKeys" : [ [ 1 ] ],
     "rightUniqueKeys" : [ [ 1 ] ],
