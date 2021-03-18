@@ -473,7 +473,7 @@ public class ExampleIntegrationTest {
         public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Long value) throws Exception {
+        public void invoke(Long value, Context context) throws Exception {
             values.add(value);
         }
     }
