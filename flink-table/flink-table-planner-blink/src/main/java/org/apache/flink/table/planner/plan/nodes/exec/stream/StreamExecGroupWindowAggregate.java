@@ -38,9 +38,9 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -59,6 +59,12 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
@@ -80,6 +86,8 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldI
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link ExecNode} for either group window aggregate or group window table aggregate.
@@ -89,16 +97,30 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformT
  * * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
  * StreamExecGroupWindowAggregate} will be dropped.
  */
-public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
+
+    public static final String FIELD_NAME_WINDOW = "window";
+    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
+
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
 
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    @JsonProperty(FIELD_NAME_WINDOW)
+    @JsonSerialize(using = LogicalWindowJsonSerializer.class)
+    @JsonDeserialize(using = LogicalWindowJsonDeserializer.class)
     private final LogicalWindow window;
+
+    @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final PlannerNamedWindowProperty[] namedWindowProperties;
-    private final WindowEmitStrategy emitStrategy;
+
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
     public StreamExecGroupWindowAggregate(
@@ -106,17 +128,40 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
             AggregateCall[] aggCalls,
             LogicalWindow window,
             PlannerNamedWindowProperty[] namedWindowProperties,
-            WindowEmitStrategy emitStrategy,
             boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.grouping = grouping;
-        this.aggCalls = aggCalls;
-        this.window = window;
-        this.namedWindowProperties = namedWindowProperties;
-        this.emitStrategy = emitStrategy;
+        this(
+                grouping,
+                aggCalls,
+                window,
+                namedWindowProperties,
+                needRetraction,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecGroupWindowAggregate(
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
+            @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
+                    PlannerNamedWindowProperty[] namedWindowProperties,
+            @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.grouping = checkNotNull(grouping);
+        this.aggCalls = checkNotNull(aggCalls);
+        this.window = checkNotNull(window);
+        this.namedWindowProperties = checkNotNull(namedWindowProperties);
         this.needRetraction = needRetraction;
     }
 
@@ -192,6 +237,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
         final LogicalType[] accTypes = extractLogicalTypes(aggInfoList.getAccTypes());
         final WindowOperator<?, ?> operator =
                 createWindowOperator(
+                        planner.getTableConfig(),
                         aggCodeGenerator,
                         equaliser,
                         accTypes,
@@ -282,6 +328,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
     }
 
     private WindowOperator<?, ?> createWindowOperator(
+            TableConfig tableConfig,
             GeneratedClass<?> aggsHandler,
             GeneratedRecordEqualiser recordEqualiser,
             LogicalType[] accTypes,
@@ -344,6 +391,7 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
             throw new TableException("Unsupported window: " + window.toString());
         }
 
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(tableConfig, window);
         if (emitStrategy.produceUpdates()) {
             // mark this operator will send retraction and set new trigger
             builder.produceUpdates()

@@ -46,7 +46,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecTemporalJoin",
                     "StreamExecPythonGroupAggregate",
                     "StreamExecWindowTableFunction",
-                    "StreamExecGroupWindowAggregate",
                     "StreamExecPythonGroupWindowAggregate",
                     "StreamExecGroupTableAggregate",
                     "StreamExecPythonGroupTableAggregate",

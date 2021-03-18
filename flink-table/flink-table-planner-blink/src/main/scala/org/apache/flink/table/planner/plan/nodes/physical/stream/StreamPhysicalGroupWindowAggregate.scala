@@ -79,7 +79,6 @@ class StreamPhysicalGroupWindowAggregate(
       aggCalls.toArray,
       window,
       namedWindowProperties.toArray,
-      emitStrategy,
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
