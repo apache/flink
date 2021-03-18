@@ -25,7 +25,7 @@ import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.core.execution.JobClient
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableResultImpl.PrintStyle
-import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl}
+import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
@@ -39,6 +39,7 @@ import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, ShowFunctionsOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope
+import org.apache.flink.table.parse.CalciteParser
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
@@ -53,8 +54,7 @@ import org.apache.calcite.tools.FrameworkConfig
 
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
-import java.util
+import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap, ArrayList => JArrayList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -543,8 +543,7 @@ abstract class TableEnvImpl(
   override def listFunctions(): Array[String] = functionCatalog.getFunctions
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = getFlinkPlanner
-    planner.getCompletionHints(statement, position)
+    parser.getCompletionHints(statement, position)
   }
 
   override def sqlQuery(query: String): Table = {
@@ -590,7 +589,7 @@ abstract class TableEnvImpl(
     val jobName = "insert-into_" + String.join(",", sinkIdentifierNames)
     try {
       val jobClient = execute(dataSinks, jobName)
-      val columns = new util.ArrayList[Column]()
+      val columns = new JArrayList[Column]()
       val affectedRowCounts = new Array[JLong](operations.size())
       operations.indices.foreach { idx =>
         // use sink identifier name as field name
