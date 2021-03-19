@@ -52,6 +52,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                 "b3 int",
                 "b4 varchar",
                 "b5 bigint");
+        // limit parallelism to 1 to avoid error lik
+        // `Insufficient number of network buffers: required 33, but only 2 available`
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
