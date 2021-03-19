@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -48,8 +49,7 @@ public class ChannelStatePersisterTest {
                 new ChannelStatePersister(channelStateWriter, channelInfo);
 
         long checkpointId = 1L;
-        channelStateWriter.start(
-                checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0));
+        channelStateWriter.start(checkpointId, CheckpointOptions.unaligned(getDefault()));
 
         persister.checkForBarrier(barrier(checkpointId));
         persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
@@ -115,8 +115,7 @@ public class ChannelStatePersisterTest {
             persister.stopPersisting(lateCheckpointId);
         }
         persister.checkForBarrier(barrier(lateCheckpointId));
-        channelStateWriter.start(
-                checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0));
+        channelStateWriter.start(checkpointId, CheckpointOptions.unaligned(getDefault()));
         persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
         persister.maybePersist(buildSomeBuffer());
         persister.checkForBarrier(barrier(checkpointId));

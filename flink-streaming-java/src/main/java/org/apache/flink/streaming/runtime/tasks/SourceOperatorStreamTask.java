@@ -24,9 +24,11 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -145,7 +147,9 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
     private void triggerCheckpointForExternallyInducedSource(long checkpointId) {
         final CheckpointOptions checkpointOptions =
-                CheckpointOptions.forCheckpointWithDefaultLocation(
+                CheckpointOptions.forConfig(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
                         configuration.isExactlyOnceCheckpointMode(),
                         configuration.isUnalignedCheckpointsEnabled(),
                         configuration.getAlignmentTimeout());

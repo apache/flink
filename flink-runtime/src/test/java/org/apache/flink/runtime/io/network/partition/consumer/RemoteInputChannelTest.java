@@ -162,9 +162,7 @@ public class RemoteInputChannelTest {
 
         inputChannel.checkpointStarted(
                 new CheckpointBarrier(
-                        42,
-                        System.currentTimeMillis(),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0)));
+                        42, System.currentTimeMillis(), CheckpointOptions.unaligned(getDefault())));
 
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
@@ -1475,7 +1473,7 @@ public class RemoteInputChannelTest {
     private void sendBarrier(RemoteInputChannel channel, int sequenceNumber, int alignmentTimeout)
             throws IOException {
         CheckpointOptions checkpointOptions =
-                CheckpointOptions.create(CHECKPOINT, getDefault(), true, true, alignmentTimeout);
+                CheckpointOptions.forConfig(CHECKPOINT, getDefault(), true, true, alignmentTimeout);
         send(
                 channel,
                 sequenceNumber,

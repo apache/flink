@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -361,12 +360,8 @@ public class PipelinedSubpartitionWithReadViewTest {
         assertEquals(0, availablityListener.getNumPriorityEvents());
 
         CheckpointOptions options =
-                new CheckpointOptions(
-                        CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}),
-                        true,
-                        true,
-                        0);
+                CheckpointOptions.unaligned(
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         channelStateWriter.start(0, options);
         BufferConsumer barrierBuffer =
                 EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
@@ -408,12 +403,8 @@ public class PipelinedSubpartitionWithReadViewTest {
         subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
         CheckpointOptions options =
-                new CheckpointOptions(
-                        CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}),
-                        true,
-                        true,
-                        0);
+                CheckpointOptions.unaligned(
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         BufferConsumer barrierBuffer =
                 EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
         subpartition.add(barrierBuffer);
