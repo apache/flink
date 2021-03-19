@@ -36,8 +36,8 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.DefaultPubSubSubscriberF
 import org.apache.flink.streaming.connectors.gcp.pubsub.DeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorCheckpoint;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorCheckpointSerializer;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorState;
+import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorStateSerializer;
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubSourceEnumerator;
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubRecordEmitter;
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubSourceReader;
@@ -86,7 +86,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  * @param <OUT> The output type of the source.
  */
 public class PubSubSource<OUT>
-        implements Source<OUT, PubSubSplit, PubSubEnumeratorCheckpoint>, ResultTypeQueryable<OUT> {
+        implements Source<OUT, PubSubSplit, PubSubEnumeratorState>, ResultTypeQueryable<OUT> {
     private final PubSubDeserializationSchema<OUT> deserializationSchema;
     private final PubSubSubscriberFactory pubSubSubscriberFactory;
     private final Properties props;
@@ -127,15 +127,14 @@ public class PubSubSource<OUT>
     }
 
     @Override
-    public SplitEnumerator<PubSubSplit, PubSubEnumeratorCheckpoint> createEnumerator(
+    public SplitEnumerator<PubSubSplit, PubSubEnumeratorState> createEnumerator(
             SplitEnumeratorContext<PubSubSplit> enumContext) {
         return new PubSubSourceEnumerator(enumContext);
     }
 
     @Override
-    public SplitEnumerator<PubSubSplit, PubSubEnumeratorCheckpoint> restoreEnumerator(
-            SplitEnumeratorContext<PubSubSplit> enumContext,
-            PubSubEnumeratorCheckpoint checkpoint) {
+    public SplitEnumerator<PubSubSplit, PubSubEnumeratorState> restoreEnumerator(
+            SplitEnumeratorContext<PubSubSplit> enumContext, PubSubEnumeratorState checkpoint) {
         return new PubSubSourceEnumerator(enumContext);
     }
 
@@ -145,9 +144,8 @@ public class PubSubSource<OUT>
     }
 
     @Override
-    public SimpleVersionedSerializer<PubSubEnumeratorCheckpoint>
-            getEnumeratorCheckpointSerializer() {
-        return new PubSubEnumeratorCheckpointSerializer();
+    public SimpleVersionedSerializer<PubSubEnumeratorState> getEnumeratorCheckpointSerializer() {
+        return new PubSubEnumeratorStateSerializer();
     }
 
     @Override

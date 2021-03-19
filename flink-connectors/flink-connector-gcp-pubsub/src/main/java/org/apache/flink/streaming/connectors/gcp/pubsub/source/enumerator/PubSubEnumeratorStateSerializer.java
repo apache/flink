@@ -23,11 +23,11 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.io.IOException;
 
 /**
- * A stub to serialize the contents of a {@link PubSubEnumeratorCheckpoint}. Because no data is
- * stored in such a checkpoint, no proper serialization is necessary.
+ * A stub to serialize the contents of a {@link PubSubEnumeratorState}. Because no data is stored in
+ * such a checkpoint, no proper serialization is necessary.
  */
-public class PubSubEnumeratorCheckpointSerializer
-        implements SimpleVersionedSerializer<PubSubEnumeratorCheckpoint> {
+public class PubSubEnumeratorStateSerializer
+        implements SimpleVersionedSerializer<PubSubEnumeratorState> {
 
     private static final int CURRENT_VERSION = 0;
 
@@ -37,13 +37,12 @@ public class PubSubEnumeratorCheckpointSerializer
     }
 
     @Override
-    public byte[] serialize(PubSubEnumeratorCheckpoint enumeratorCheckpoint) throws IOException {
+    public byte[] serialize(PubSubEnumeratorState enumeratorCheckpoint) throws IOException {
         return new byte[0];
     }
 
     @Override
-    public PubSubEnumeratorCheckpoint deserialize(int version, byte[] serialized)
-            throws IOException {
-        return new PubSubEnumeratorCheckpoint();
+    public PubSubEnumeratorState deserialize(int version, byte[] serialized) throws IOException {
+        return new PubSubEnumeratorState();
     }
 }

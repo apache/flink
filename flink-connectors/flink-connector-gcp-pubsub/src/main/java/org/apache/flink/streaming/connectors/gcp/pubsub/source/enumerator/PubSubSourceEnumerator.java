@@ -33,8 +33,7 @@ import java.util.List;
  * discovery as envisioned by FLIP-27 because GCP Pub/Sub hides partitions and other implementation
  * details.
  */
-public class PubSubSourceEnumerator
-        implements SplitEnumerator<PubSubSplit, PubSubEnumeratorCheckpoint> {
+public class PubSubSourceEnumerator implements SplitEnumerator<PubSubSplit, PubSubEnumeratorState> {
     private final SplitEnumeratorContext<PubSubSplit> context;
 
     public PubSubSourceEnumerator(SplitEnumeratorContext<PubSubSplit> context) {
@@ -69,8 +68,8 @@ public class PubSubSourceEnumerator
      * @throws Exception
      */
     @Override
-    public PubSubEnumeratorCheckpoint snapshotState() throws Exception {
-        return new PubSubEnumeratorCheckpoint();
+    public PubSubEnumeratorState snapshotState() throws Exception {
+        return new PubSubEnumeratorState();
     }
 
     @Override

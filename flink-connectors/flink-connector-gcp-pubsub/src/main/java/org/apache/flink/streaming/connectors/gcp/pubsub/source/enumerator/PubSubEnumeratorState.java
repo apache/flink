@@ -23,4 +23,4 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator;
  * expose any partitions or similar concepts which would need handling by the enumerator. Therefore,
  * there are no offsets or other data that could be saved in a checkpoint.
  */
-public class PubSubEnumeratorCheckpoint {}
+public class PubSubEnumeratorState {}
