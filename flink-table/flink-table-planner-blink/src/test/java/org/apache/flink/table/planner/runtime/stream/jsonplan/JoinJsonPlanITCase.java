@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -51,6 +52,9 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                 "b3 int",
                 "b4 varchar",
                 "b5 bigint");
+        tableEnv.getConfig()
+                .getConfiguration()
+                .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
     }
 
     /** test non-window inner join. * */
