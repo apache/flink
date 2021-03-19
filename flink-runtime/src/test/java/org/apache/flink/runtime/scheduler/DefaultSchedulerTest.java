@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
@@ -55,6 +56,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestUtils;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -97,6 +100,7 @@ import java.util.stream.StreamSupport;
 import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.failExecution;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
@@ -1217,6 +1221,90 @@ public class DefaultSchedulerTest extends TestLogger {
         MatcherAssert.assertThat(savepoint, notNullValue());
 
         MatcherAssert.assertThat(savepoint.getCheckpointID(), is(savepointId));
+    }
+
+    @Test
+    public void testGetAllocationsToReserve() {
+        final JobGraph jobGraph = singleJobVertexJobGraph(8);
+
+        testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+
+        final JobVertexID jobVertexId = jobGraph.getVertices().iterator().next().getID();
+
+        // assign a slot to ev1 and reset it to be CREATED
+        final ExecutionVertex ev1 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 0));
+        final PhysicalSlot physicalSlot1 = assignSlotToExecutionVertex(ev1);
+        failExecution(scheduler, jobVertexId, 0);
+        ev1.resetForNewExecution();
+
+        // assign a slot to ev2, reset it and transition it to be SCHEDULED
+        final ExecutionVertex ev2 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 1));
+        final PhysicalSlot physicalSlot2 = assignSlotToExecutionVertex(ev2);
+        failExecution(scheduler, jobVertexId, 1);
+        ev2.resetForNewExecution();
+        transitionExecutionState(ev2, ExecutionState.SCHEDULED);
+
+        // assign a slot to ev3 and transition it to be DEPLOYING
+        final ExecutionVertex ev3 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 2));
+        final PhysicalSlot physicalSlot3 = assignSlotToExecutionVertex(ev3);
+        transitionExecutionState(ev3, ExecutionState.DEPLOYING);
+
+        // assign a slot to ev4 and transition it to be RUNNING
+        final ExecutionVertex ev4 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 3));
+        final PhysicalSlot physicalSlot4 = assignSlotToExecutionVertex(ev4);
+        transitionExecutionState(ev4, ExecutionState.RUNNING);
+
+        // assign a slot to ev5 and transition it to be FINISHED
+        final ExecutionVertex ev5 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 4));
+        final PhysicalSlot physicalSlot5 = assignSlotToExecutionVertex(ev5);
+        transitionExecutionState(ev5, ExecutionState.FINISHED);
+
+        // assign a slot to ev6 and transition it to be CANCELING
+        final ExecutionVertex ev6 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 5));
+        final PhysicalSlot physicalSlot6 = assignSlotToExecutionVertex(ev6);
+        transitionExecutionState(ev6, ExecutionState.CANCELING);
+
+        // assign a slot to ev7 and transition it to be CANCELED
+        final ExecutionVertex ev7 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 6));
+        final PhysicalSlot physicalSlot7 = assignSlotToExecutionVertex(ev7);
+        transitionExecutionState(ev7, ExecutionState.CANCELED);
+
+        // assign a slot to ev8 and transition it to be FAILED
+        final ExecutionVertex ev8 =
+                scheduler.getExecutionVertex(new ExecutionVertexID(jobVertexId, 7));
+        final PhysicalSlot physicalSlot8 = assignSlotToExecutionVertex(ev8);
+        transitionExecutionState(ev8, ExecutionState.FAILED);
+
+        assertThat(
+                executionSlotAllocatorFactory
+                        .getLatestExecutionSlotAllocationContext()
+                        .getAllocationsToReserve(),
+                containsInAnyOrder(
+                        physicalSlot1.getAllocationId(),
+                        physicalSlot2.getAllocationId(),
+                        physicalSlot6.getAllocationId(),
+                        physicalSlot7.getAllocationId(),
+                        physicalSlot8.getAllocationId()));
+    }
+
+    private static PhysicalSlot assignSlotToExecutionVertex(ExecutionVertex executionVertex) {
+        final PhysicalSlot physicalSlot = PhysicalSlotTestUtils.createPhysicalSlot();
+        executionVertex.tryAssignResource(
+                PhysicalSlotTestUtils.occupyPhysicalSlot(physicalSlot, true));
+        return physicalSlot;
+    }
+
+    private static void transitionExecutionState(
+            ExecutionVertex executionVertex, ExecutionState state) {
+        executionVertex.getCurrentExecutionAttempt().transitionState(state);
     }
 
     private static TaskExecutionState createFailedTaskExecutionState(

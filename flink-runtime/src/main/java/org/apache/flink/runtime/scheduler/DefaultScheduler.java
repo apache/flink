@@ -49,12 +49,14 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IterableUtils;
 
 import org.slf4j.Logger;
 
@@ -65,6 +67,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -610,6 +613,50 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         @Override
         public Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId) {
             return stateLocationRetriever.getStateLocation(executionVertexId);
+        }
+
+        @Override
+        public Set<AllocationID> getAllocationsToReserve() {
+            return IterableUtils.toStream(getSchedulingTopology().getVertices())
+                    .map(SchedulingExecutionVertex::getId)
+                    .map(vid -> getAllocationToReserveFor(vid))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        }
+
+        private AllocationID getAllocationToReserveFor(final ExecutionVertexID executionVertexId) {
+            final ExecutionVertex vertex = getExecutionVertex(executionVertexId);
+            final ExecutionState state = vertex.getExecutionState();
+
+            switch (state) {
+                case CREATED:
+                case SCHEDULED:
+                    /**
+                     * the execution vertex was CANCELED/FAILED and reset so that the previous
+                     * allocation should be reserved.
+                     */
+                    return getPriorAllocationId(executionVertexId);
+                case DEPLOYING:
+                case RUNNING:
+                case FINISHED:
+                    /**
+                     * DEPLOYING/RUNNING execution vertex has acquired a slot and is working well.
+                     * FINISHED execution vertex no longer needs a slot. So there is no need to
+                     * reserve slots for vertices in these states.
+                     */
+                    return null;
+                case CANCELING:
+                case CANCELED:
+                case FAILED:
+                    /**
+                     * the execution vertex is not reset yet so that the current allocation should
+                     * be reserved.
+                     */
+                    return vertex.getCurrentExecutionAttempt().getAssignedAllocationID();
+                default:
+                    throw new IllegalStateException(
+                            "Trying to get allocation id for vertex in state " + state);
+            }
         }
     }
 }
