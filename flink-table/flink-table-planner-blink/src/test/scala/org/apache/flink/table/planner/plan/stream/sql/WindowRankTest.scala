@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
@@ -201,7 +202,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -259,7 +263,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -321,7 +328,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    util.verifyExplain(sql)
   }
 
   // ----------------------------------------------------------------------------------------
@@ -398,4 +408,97 @@ class WindowRankTest extends TableTestBase {
     util.verifyRelPlan(sql)
   }
 
+  @Test
+  def testRankFunction(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv
+        |FROM (
+        |SELECT *,
+        |   RANK() OVER(PARTITION BY window_start, window_end ORDER BY cnt DESC) as rownum
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    sum(d) as sum_d,
+        |    max(d) filter (where b > 1000) as max_d,
+        |    weightedAvg(b, e) AS wAvg,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |  )
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("RANK() on window rank is not supported currently.")
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testDenseRankFunction(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv
+        |FROM (
+        |SELECT *,
+        |   DENSE_RANK() OVER(PARTITION BY window_start, window_end ORDER BY cnt DESC) as rownum
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    sum(d) as sum_d,
+        |    max(d) filter (where b > 1000) as max_d,
+        |    weightedAvg(b, e) AS wAvg,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |  )
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("DENSE_RANK() on window rank is not supported currently.")
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testVariableRankRange(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY window_start, window_end ORDER BY cnt DESC) as rownum
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    sum(d) as sum_d,
+        |    max(d) filter (where b > 1000) as max_d,
+        |    max(b) as max_b,
+        |    weightedAvg(b, e) AS wAvg,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |  )
+        |)
+        |WHERE rownum <= max_b
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Rank strategy rankEnd=$7 on window rank is not supported currently.")
+    util.verifyExplain(sql)
+  }
 }

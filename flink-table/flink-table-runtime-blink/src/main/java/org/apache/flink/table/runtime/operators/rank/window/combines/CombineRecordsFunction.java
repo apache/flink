@@ -16,31 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate.window.combines;
+package org.apache.flink.table.runtime.operators.rank.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
-import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 
 /**
- * An implementation of {@link WindowCombineFunction} that accumulates input records into the window
- * accumulator state.
+ * An implementation of {@link WindowCombineFunction} that save topN records of incremental input
+ * records into the window state.
  */
 public final class CombineRecordsFunction implements WindowCombineFunction {
 
@@ -51,13 +56,19 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     private final StateKeyContext keyContext;
 
     /** The state stores window accumulators. */
-    private final WindowValueState<Long> accState;
+    private final WindowMapState<Long, List<RowData>> dataState;
 
-    /** Function used to handle all aggregates. */
-    private final NamespaceAggsHandleFunction<Long> aggregator;
+    /** The util to compare two sortKey equals to each other. */
+    private final Comparator<RowData> sortKeyComparator;
 
-    /** Whether to copy key and input record, because key and record are reused. */
-    private final boolean requiresCopy;
+    /** The util to get sort key from input record. */
+    private final KeySelector<RowData, RowData> sortKeySelector;
+
+    /** TopN size. */
+    private final long topN;
+
+    /** Whether to copy input key, because key is reused. */
+    private final boolean requiresCopyKey;
 
     /** Serializer to copy key if required. */
     private final TypeSerializer<RowData> keySerializer;
@@ -71,17 +82,21 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     public CombineRecordsFunction(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
-            WindowValueState<Long> accState,
-            NamespaceAggsHandleFunction<Long> aggregator,
-            boolean requiresCopy,
+            WindowMapState<Long, List<RowData>> dataState,
+            Comparator<RowData> sortKeyComparator,
+            KeySelector<RowData, RowData> sortKeySelector,
+            long topN,
+            boolean requiresCopyKey,
             TypeSerializer<RowData> keySerializer,
             TypeSerializer<RowData> recordSerializer,
             boolean isEventTime) {
         this.timerService = timerService;
         this.keyContext = keyContext;
-        this.accState = accState;
-        this.aggregator = aggregator;
-        this.requiresCopy = requiresCopy;
+        this.dataState = dataState;
+        this.sortKeyComparator = sortKeyComparator;
+        this.sortKeySelector = sortKeySelector;
+        this.topN = topN;
+        this.requiresCopyKey = requiresCopyKey;
         this.keySerializer = keySerializer;
         this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
@@ -89,45 +104,45 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
 
     @Override
     public void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception {
-        // step 0: set current key for states and timers
+        // step 1: load all incremental records into TopNBuffer
+        TopNBuffer buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
+        while (records.hasNext()) {
+            RowData record = records.next();
+            if (!isAccumulateMsg(record)) {
+                throw new UnsupportedOperationException(
+                        "Window rank does not support input RowKind: "
+                                + record.getRowKind().shortString());
+            }
+
+            RowData sortKey = sortKeySelector.getKey(record);
+            if (buffer.checkSortKeyInBufferRange(sortKey, topN)) {
+                // the incoming record is reused, we should copy it to insert into buffer
+                buffer.put(sortKey, recordSerializer.copy(record));
+            }
+        }
+
+        // step 2: flush data in TopNBuffer into state
+        Iterator<Map.Entry<RowData, Collection<RowData>>> bufferItr = buffer.entrySet().iterator();
         final RowData key;
-        if (requiresCopy) {
+        if (requiresCopyKey) {
             // the incoming key is reused, we should copy it if state backend doesn't copy it
             key = keySerializer.copy(windowKey.getKey());
         } else {
             key = windowKey.getKey();
         }
         keyContext.setCurrentKey(key);
-
-        // step 1: get the accumulator for the current key and window
         Long window = windowKey.getWindow();
-        RowData acc = accState.value(window);
-        if (acc == null) {
-            acc = aggregator.createAccumulators();
-        }
-
-        // step 2: set accumulator to function
-        aggregator.setAccumulators(window, acc);
-
-        // step 3: do accumulate
-        while (records.hasNext()) {
-            RowData record = records.next();
-            if (requiresCopy) {
-                // the incoming record is reused, we should copy it if state backend doesn't copy it
-                record = recordSerializer.copy(record);
+        while (bufferItr.hasNext()) {
+            Map.Entry<RowData, Collection<RowData>> entry = bufferItr.next();
+            RowData sortKey = entry.getKey();
+            List<RowData> existsData = dataState.get(window, sortKey);
+            if (existsData == null) {
+                existsData = new ArrayList<>();
             }
-            if (isAccumulateMsg(record)) {
-                aggregator.accumulate(record);
-            } else {
-                aggregator.retract(record);
-            }
+            existsData.addAll(entry.getValue());
+            dataState.put(window, sortKey, existsData);
         }
-
-        // step 4: update accumulator into state
-        acc = aggregator.getAccumulators();
-        accState.update(window, acc);
-
-        // step 5: register timer for current window
+        // step 3: register timer for current window
         if (isEventTime) {
             timerService.registerEventTimeTimer(window, window - 1);
         }
@@ -136,9 +151,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     }
 
     @Override
-    public void close() throws Exception {
-        aggregator.close();
-    }
+    public void close() throws Exception {}
 
     // ----------------------------------------------------------------------------------------
     // Factory
@@ -149,17 +162,24 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
 
         private static final long serialVersionUID = 1L;
 
-        private final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
+        // The util to compare two sortKey equals to each other.
+        private final GeneratedRecordComparator generatedSortKeyComparator;
+        private final KeySelector<RowData, RowData> sortKeySelector;
         private final TypeSerializer<RowData> keySerializer;
         private final TypeSerializer<RowData> recordSerializer;
+        private final long topN;
 
         public Factory(
-                GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
+                GeneratedRecordComparator genSortKeyComparator,
+                RowDataKeySelector sortKeySelector,
                 TypeSerializer<RowData> keySerializer,
-                TypeSerializer<RowData> recordSerializer) {
-            this.genAggsHandler = genAggsHandler;
+                TypeSerializer<RowData> recordSerializer,
+                long topN) {
+            this.generatedSortKeyComparator = genSortKeyComparator;
+            this.sortKeySelector = sortKeySelector;
             this.keySerializer = keySerializer;
             this.recordSerializer = recordSerializer;
+            this.topN = topN;
         }
 
         @Override
@@ -170,19 +190,19 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
                 WindowState<Long> windowState,
                 boolean isEventTime)
                 throws Exception {
-            final NamespaceAggsHandleFunction<Long> aggregator =
-                    genAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
-            aggregator.open(
-                    new PerWindowStateDataViewStore(
-                            stateBackend, LongSerializer.INSTANCE, runtimeContext));
-            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
-            WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
+            final Comparator<RowData> sortKeyComparator =
+                    generatedSortKeyComparator.newInstance(runtimeContext.getUserCodeClassLoader());
+            boolean requiresCopyKey = !isStateImmutableInStateBackend(stateBackend);
+            WindowMapState<Long, List<RowData>> windowMapState =
+                    (WindowMapState<Long, List<RowData>>) windowState;
             return new CombineRecordsFunction(
                     timerService,
                     stateBackend::setCurrentKey,
-                    windowValueState,
-                    aggregator,
-                    requiresCopy,
+                    windowMapState,
+                    sortKeyComparator,
+                    sortKeySelector,
+                    topN,
+                    requiresCopyKey,
                     keySerializer,
                     recordSerializer,
                     isEventTime);

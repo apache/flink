@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate.window.combines;
+package org.apache.flink.table.runtime.operators.window.combines;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.io.Serializable;
@@ -65,7 +65,7 @@ public interface WindowCombineFunction {
                 RuntimeContext runtimeContext,
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
-                WindowValueState<Long> windowState,
+                WindowState<Long> windowState,
                 boolean isEventTime)
                 throws Exception;
     }
