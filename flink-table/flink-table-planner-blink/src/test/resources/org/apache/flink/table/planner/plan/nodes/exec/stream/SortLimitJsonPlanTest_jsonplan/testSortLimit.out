@@ -68,7 +68,7 @@
     "description" : "Exchange(distribution=[single])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit",
-    "sortSpec" : {
+    "orderBy" : {
       "fields" : [ {
         "index" : 1,
         "isAscending" : true,
@@ -103,7 +103,7 @@
     },
     "description" : "SortLimit(orderBy=[b ASC], offset=[0], fetch=[10], strategy=[AppendFastStrategy])",
     "rankType" : "ROW_NUMBER",
-    "partitionSpec" : {
+    "partition" : {
       "fields" : [ ]
     },
     "outputRowNumber" : false
