@@ -503,7 +503,7 @@ public class LocalInputChannelTest {
         final CheckpointStorageLocationReference location =
                 CheckpointStorageLocationReference.getDefault();
         CheckpointOptions options =
-                new CheckpointOptions(CheckpointType.CHECKPOINT, location, true, true, 0);
+                CheckpointOptions.forConfig(CheckpointType.CHECKPOINT, location, true, true, 0);
         stateWriter.start(0, options);
 
         final CheckpointBarrier barrier = new CheckpointBarrier(0, 123L, options);
