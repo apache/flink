@@ -28,7 +28,6 @@ import java.io.IOException;
  */
 public class PubSubEnumeratorStateSerializer
         implements SimpleVersionedSerializer<PubSubEnumeratorState> {
-
     private static final int CURRENT_VERSION = 0;
 
     @Override
@@ -43,6 +42,13 @@ public class PubSubEnumeratorStateSerializer
 
     @Override
     public PubSubEnumeratorState deserialize(int version, byte[] serialized) throws IOException {
-        return new PubSubEnumeratorState();
+        if (version == 0) {
+            return new PubSubEnumeratorState();
+        }
+        throw new IOException(
+                String.format(
+                        "The bytes are serialized with version %d, "
+                                + "while this deserializer only supports version up to %d",
+                        version, CURRENT_VERSION));
     }
 }

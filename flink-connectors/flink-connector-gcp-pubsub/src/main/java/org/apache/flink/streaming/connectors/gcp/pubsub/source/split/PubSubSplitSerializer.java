@@ -41,6 +41,13 @@ public class PubSubSplitSerializer implements SimpleVersionedSerializer<PubSubSp
 
     @Override
     public PubSubSplit deserialize(int version, byte[] serialized) throws IOException {
-        return new PubSubSplit();
+        if (version == 0) {
+            return new PubSubSplit();
+        }
+        throw new IOException(
+                String.format(
+                        "The bytes are serialized with version %d, "
+                                + "while this deserializer only supports version up to %d",
+                        version, CURRENT_VERSION));
     }
 }
