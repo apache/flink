@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
@@ -49,6 +50,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
     private final StreamStatusProvider streamStatusProvider;
 
+    private final boolean supportsUnalignedCheckpoints;
+
     private final OutputTag outputTag;
 
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
@@ -58,7 +61,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
             RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
-            StreamStatusProvider streamStatusProvider) {
+            StreamStatusProvider streamStatusProvider,
+            boolean supportsUnalignedCheckpoints) {
 
         checkNotNull(recordWriter);
         this.outputTag = outputTag;
@@ -75,6 +79,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
         }
 
         this.streamStatusProvider = checkNotNull(streamStatusProvider);
+
+        this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
     }
 
     @Override
@@ -140,6 +146,13 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
     }
 
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+        if (isPriorityEvent
+                && event instanceof CheckpointBarrier
+                && !supportsUnalignedCheckpoints) {
+            final CheckpointBarrier barrier = (CheckpointBarrier) event;
+            event = barrier.withOptions(barrier.getCheckpointOptions().withUnalignedUnsupported());
+            isPriorityEvent = false;
+        }
         recordWriter.broadcastEvent(event, isPriorityEvent);
     }
 
