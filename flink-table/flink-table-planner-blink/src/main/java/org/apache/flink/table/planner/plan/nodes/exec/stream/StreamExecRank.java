@@ -80,8 +80,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                     + " state access. Cache size is the number of records in each TopN task.");
 
     public static final String FIELD_NAME_RANK_TYPE = "rankType";
-    public static final String FIELD_NAME_PARTITION_SPEC = "partitionSpec";
-    public static final String FIELD_NAME_SORT_SPEC = "sortSpec";
+    public static final String FIELD_NAME_PARTITION_SPEC = "partition";
+    public static final String FIELD_NAME_SORT_SPEC = "orderBy";
     public static final String FIELD_NAME_RANK_RANG = "rankRange";
     public static final String FIELD_NAME_RANK_STRATEGY = "rankStrategy";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";

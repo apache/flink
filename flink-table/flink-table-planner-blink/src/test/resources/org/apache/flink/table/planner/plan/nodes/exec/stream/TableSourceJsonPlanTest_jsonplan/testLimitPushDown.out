@@ -91,10 +91,10 @@
     },
     "description" : "Limit(offset=[0], fetch=[3])",
     "rankType" : "ROW_NUMBER",
-    "partitionSpec" : {
+    "partition" : {
       "fields" : [ ]
     },
-    "sortSpec" : {
+    "orderBy" : {
       "fields" : [ ]
     },
     "outputRowNumber" : false

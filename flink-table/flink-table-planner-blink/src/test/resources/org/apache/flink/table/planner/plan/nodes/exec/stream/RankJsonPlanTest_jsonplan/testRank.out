@@ -102,10 +102,10 @@
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank",
     "rankType" : "ROW_NUMBER",
-    "partitionSpec" : {
+    "partition" : {
       "fields" : [ 1 ]
     },
-    "sortSpec" : {
+    "orderBy" : {
       "fields" : [ {
         "index" : 0,
         "isAscending" : true,
