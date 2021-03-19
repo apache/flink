@@ -24,15 +24,13 @@ import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /** Test json deserialization for match recognize. */
 public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testSimpleMatch() throws ExecutionException, InterruptedException, IOException {
+    public void testSimpleMatch() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of(1L, "a"),
@@ -71,7 +69,7 @@ public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testComplexMatch() throws ExecutionException, InterruptedException, IOException {
+    public void testComplexMatch() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of("ACME", 1L, 19, 1),
