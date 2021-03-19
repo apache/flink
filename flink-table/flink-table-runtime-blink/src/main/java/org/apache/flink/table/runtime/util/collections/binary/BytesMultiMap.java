@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * @see AbstractBytesMultiMap for more information about the binary layout.
  */
-public final class BytesMultiMap extends AbstractBytesMultiMap<BinaryRowData> {
+public final class BytesMultiMap extends AbstractBytesLinkedMultiMap<BinaryRowData> {
 
     public BytesMultiMap(
             Object owner,

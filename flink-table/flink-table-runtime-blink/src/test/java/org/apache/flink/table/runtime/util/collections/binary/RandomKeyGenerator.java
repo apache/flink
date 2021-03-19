@@ -18,26 +18,10 @@
 
 package org.apache.flink.table.runtime.util.collections.binary;
 
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
-import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/** Test case for {@link WindowBytesHashMap}. */
-public class WindowBytesHashMapTest extends BytesHashMapTestBase<WindowKey> {
+/** Generator to generate keys. */
+interface RandomKeyGenerator<K> {
 
-    public WindowBytesHashMapTest() {
-        super(
-                new WindowKeySerializer(KEY_TYPES.length),
-                RandomKeyGeneratorFactory.createWindowKeyGenerator());
-    }
-
-    @Override
-    public AbstractBytesHashMap<WindowKey> createBytesHashMap(
-            MemoryManager memoryManager,
-            int memorySize,
-            LogicalType[] keyTypes,
-            LogicalType[] valueTypes) {
-        return new WindowBytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
-    }
+    K[] createKeys(LogicalType[] fieldTypes, int num);
 }

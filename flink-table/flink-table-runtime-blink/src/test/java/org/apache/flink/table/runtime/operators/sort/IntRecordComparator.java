@@ -26,6 +26,16 @@ public class IntRecordComparator implements RecordComparator {
 
     public static final IntRecordComparator INSTANCE = new IntRecordComparator();
 
+    private final boolean isDescendingOrder;
+
+    public IntRecordComparator() {
+        this(false);
+    }
+
+    public IntRecordComparator(boolean isDescendingOrder) {
+        this.isDescendingOrder = isDescendingOrder;
+    }
+
     @Override
     public int compare(RowData o1, RowData o2) {
 
@@ -37,14 +47,19 @@ public class IntRecordComparator implements RecordComparator {
                         : (null0At1
                                 ? -1
                                 : (null0At2 ? 1 : Integer.compare(o1.getInt(0), o2.getInt(0))));
-        if (cmp0 != 0) {
+        if (isDescendingOrder) {
+            return -cmp0;
+        } else {
             return cmp0;
         }
-        return 0;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof IntRecordComparator;
+        if (!(obj instanceof IntRecordComparator)) {
+            return false;
+        }
+        IntRecordComparator other = (IntRecordComparator) obj;
+        return isDescendingOrder == other.isDescendingOrder;
     }
 }

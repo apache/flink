@@ -73,13 +73,16 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     protected final BinaryRowData defaultValue;
     protected final PagedTypeSerializer<K> keySerializer;
     protected final BinaryRowDataSerializer valueSerializer;
+    protected final RandomKeyGenerator<K> generator;
 
-    public BytesHashMapTestBase(PagedTypeSerializer<K> keySerializer) {
+    public BytesHashMapTestBase(
+            PagedTypeSerializer<K> keySerializer, RandomKeyGenerator<K> generator) {
         this.keySerializer = keySerializer;
         this.valueSerializer = new BinaryRowDataSerializer(VALUE_TYPES.length);
         this.defaultValue = valueSerializer.createInstance();
         int valueSize = defaultValue.getFixedLengthPartSize();
         this.defaultValue.pointTo(MemorySegmentFactory.wrap(new byte[valueSize]), 0, valueSize);
+        this.generator = generator;
     }
 
     /**
@@ -90,11 +93,6 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             int memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes);
-
-    /**
-     * Generates {@code num} random keys, the types of key fields are defined in {@link #KEY_TYPES}.
-     */
-    public abstract K[] generateRandomKeys(int num);
 
     // ------------------------------------------------------------------------------------------
     // Tests
@@ -116,7 +114,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, new LogicalType[] {});
         Assert.assertTrue(table.isHashSetMode());
 
-        K[] keys = generateRandomKeys(NUM_ENTRIES);
+        K[] keys = generator.createKeys(KEY_TYPES, NUM_ENTRIES);
         verifyKeyInsert(keys, table);
         verifyKeyPresent(keys, table);
         table.free();
@@ -138,7 +136,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
-        K[] keys = generateRandomKeys(NUM_ENTRIES);
+        K[] keys = generator.createKeys(KEY_TYPES, NUM_ENTRIES);
         List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
         verifyInsert(keys, expected, table);
         verifyRetrieve(table, keys, expected);
@@ -161,7 +159,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
-        K[] keys = generateRandomKeys(NUM_ENTRIES);
+        K[] keys = generator.createKeys(KEY_TYPES, NUM_ENTRIES);
         List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
         verifyInsertAndUpdate(keys, expected, table);
         verifyRetrieve(table, keys, expected);
@@ -185,7 +183,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
-        final K[] keys = generateRandomKeys(NUM_ENTRIES);
+        final K[] keys = generator.createKeys(KEY_TYPES, NUM_ENTRIES);
         List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
         verifyInsertAndUpdate(keys, expected, table);
         verifyRetrieve(table, keys, expected);
@@ -212,7 +210,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, minMemorySize, KEY_TYPES, VALUE_TYPES);
 
-        K[] keys = generateRandomKeys(NUM_ENTRIES);
+        K[] keys = generator.createKeys(KEY_TYPES, NUM_ENTRIES);
         List<BinaryRowData> expected = new ArrayList<>(NUM_ENTRIES);
         List<BinaryRowData> actualValues = new ArrayList<>(NUM_ENTRIES);
         List<K> actualKeys = new ArrayList<>(NUM_ENTRIES);
@@ -279,7 +277,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
                 MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
-        final K key = generateRandomKeys(1)[0];
+        final K key = generator.createKeys(KEY_TYPES, 1)[0];
         for (int i = 0; i < 3; i++) {
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(key);
             Assert.assertFalse(lookupInfo.isFound());

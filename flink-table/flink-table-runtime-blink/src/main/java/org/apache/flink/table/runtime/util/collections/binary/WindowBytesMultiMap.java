@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.LogicalType;
  *
  * @see AbstractBytesMultiMap for more information about the binary layout.
  */
-public final class WindowBytesMultiMap extends AbstractBytesMultiMap<WindowKey> {
+public final class WindowBytesMultiMap extends AbstractBytesLinkedMultiMap<WindowKey> {
 
     public WindowBytesMultiMap(
             Object owner,

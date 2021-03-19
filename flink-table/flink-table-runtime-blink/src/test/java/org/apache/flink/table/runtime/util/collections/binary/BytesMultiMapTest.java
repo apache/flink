@@ -18,29 +18,21 @@
 
 package org.apache.flink.table.runtime.util.collections.binary;
 
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
-import org.apache.flink.table.types.logical.LogicalType;
 
 /** Verify the correctness of {@link BytesMultiMap}. */
-public class BytesMultiMapTest extends BytesMultiMapTestBase<BinaryRowData> {
+public class BytesMultiMapTest extends BytesMultiLinkedMapTestBase<BinaryRowData> {
 
     public BytesMultiMapTest() {
-        super(new BinaryRowDataSerializer(KEY_TYPES.length));
+        super(
+                new BinaryRowDataSerializer(KEY_TYPES.length),
+                RandomKeyGeneratorFactory.createBinaryRowDataKeyGenerator());
     }
 
     @Override
-    public AbstractBytesMultiMap<BinaryRowData> createBytesMultiMap(
-            MemoryManager memoryManager,
-            int memorySize,
-            LogicalType[] keyTypes,
-            LogicalType[] valueTypes) {
-        return new BytesMultiMap(this, memoryManager, memorySize, keyTypes, valueTypes);
-    }
-
-    @Override
-    public BinaryRowData[] generateRandomKeys(int num) {
-        return getRandomizedInputs(num);
+    MapCreator<BinaryRowData> buildCreator() {
+        return (memoryManager, memorySize) ->
+                new BytesMultiMap(this, memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
     }
 }

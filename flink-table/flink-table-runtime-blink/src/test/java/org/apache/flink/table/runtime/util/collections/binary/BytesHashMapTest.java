@@ -27,7 +27,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 public class BytesHashMapTest extends BytesHashMapTestBase<BinaryRowData> {
 
     public BytesHashMapTest() {
-        super(new BinaryRowDataSerializer(KEY_TYPES.length));
+        super(
+                new BinaryRowDataSerializer(KEY_TYPES.length),
+                RandomKeyGeneratorFactory.createBinaryRowDataKeyGenerator());
     }
 
     @Override
@@ -37,10 +39,5 @@ public class BytesHashMapTest extends BytesHashMapTestBase<BinaryRowData> {
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
         return new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
-    }
-
-    @Override
-    public BinaryRowData[] generateRandomKeys(int num) {
-        return getRandomizedInputs(num);
     }
 }
