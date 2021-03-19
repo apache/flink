@@ -235,8 +235,7 @@ public class EventSerializer {
             buf.putInt(locationBytes.length);
             buf.put(locationBytes);
         }
-        buf.put((byte) (checkpointOptions.isExactlyOnceMode() ? 1 : 0));
-        buf.put((byte) (checkpointOptions.isUnalignedCheckpoint() ? 1 : 0));
+        buf.put((byte) checkpointOptions.getAlignment().ordinal());
         buf.putLong(checkpointOptions.getAlignmentTimeout());
 
         buf.flip();
@@ -272,19 +271,15 @@ public class EventSerializer {
             buffer.get(bytes);
             locationRef = new CheckpointStorageLocationReference(bytes);
         }
-        final boolean isExactlyOnceMode = buffer.get() == 1;
-        final boolean isUnalignedCheckpoint = buffer.get() == 1;
+        final CheckpointOptions.AlignmentType alignmentType =
+                CheckpointOptions.AlignmentType.values()[buffer.get()];
         final long alignmentTimeout = buffer.getLong();
 
         return new CheckpointBarrier(
                 id,
                 timestamp,
                 new CheckpointOptions(
-                        checkpointType,
-                        locationRef,
-                        isExactlyOnceMode,
-                        isUnalignedCheckpoint,
-                        alignmentTimeout));
+                        checkpointType, locationRef, alignmentType, alignmentTimeout));
     }
 
     // ------------------------------------------------------------------------
