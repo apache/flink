@@ -88,6 +88,12 @@ If you manually set a parallelism in your job for individual operators or the en
 
 Note that such a high maxParallelism might affect performance of the job, since more internal structures are needed to maintain [some internal structures](https://flink.apache.org/features/2017/07/04/flink-rescalable-state.html) of Flink.
 
+When enabling Reactive Mode, the `jobmanager.adaptive-scheduler.resource-wait-timeout` configuration key will default to `-1`. This means that the JobManager will run forever waiting for sufficient resources.
+If you want the JobManager to stop after a certain time without enough TaskManagers to run the job, configure `jobmanager.adaptive-scheduler.resource-wait-timeout`.
+
+With Reactive Mode enabled, the `jobmanager.adaptive-scheduler.resource-stabilization-timeout` configuration key will default to `0`: Flink will start runnning the job, as soon as there are sufficient resources available.
+In scenarios where TaskManagers are not connecting at the same time, but slowly one after another, this behavior leads to a job restart whenever a TaskManager connects. Increase this configuration value if you want to wait for the resources to stabilize before scheduling the job.
+
 #### Recommendations
 
 - **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will loose its state. Checkpointing also configures a **restart strategy**. Reactive mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.

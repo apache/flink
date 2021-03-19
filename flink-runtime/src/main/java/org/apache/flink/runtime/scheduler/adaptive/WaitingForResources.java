@@ -24,6 +24,8 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
 
@@ -42,13 +44,14 @@ class WaitingForResources implements State, ResourceConsumer {
     private final Logger log;
 
     private final ResourceCounter desiredResources;
+    private final Clock clock;
 
     /** If set, there's an ongoing deadline waiting for a resource stabilization. */
     @Nullable private Deadline resourceStabilizationDeadline;
 
     private final Duration resourceStabilizationTimeout;
 
-    private final ScheduledFuture<?> resourceTimeoutFuture;
+    @Nullable private ScheduledFuture<?> resourceTimeoutFuture;
 
     WaitingForResources(
             Context context,
@@ -56,11 +59,29 @@ class WaitingForResources implements State, ResourceConsumer {
             ResourceCounter desiredResources,
             Duration initialResourceAllocationTimeout,
             Duration resourceStabilizationTimeout) {
+        this(
+                context,
+                log,
+                desiredResources,
+                initialResourceAllocationTimeout,
+                resourceStabilizationTimeout,
+                SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    WaitingForResources(
+            Context context,
+            Logger log,
+            ResourceCounter desiredResources,
+            Duration initialResourceAllocationTimeout,
+            Duration resourceStabilizationTimeout,
+            Clock clock) {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
         this.resourceStabilizationTimeout =
                 Preconditions.checkNotNull(resourceStabilizationTimeout);
+        this.clock = clock;
         Preconditions.checkNotNull(initialResourceAllocationTimeout);
 
         Preconditions.checkArgument(
@@ -81,7 +102,9 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Override
     public void onLeave(Class<? extends State> newState) {
-        resourceTimeoutFuture.cancel(false);
+        if (resourceTimeoutFuture != null) {
+            resourceTimeoutFuture.cancel(false);
+        }
     }
 
     @Override
@@ -126,25 +149,23 @@ class WaitingForResources implements State, ResourceConsumer {
         }
 
         if (context.hasSufficientResources()) {
-            Deadline deadline = initializeOrGetResourceStabilizationDeadline();
-            if (deadline.isOverdue()) {
+            if (resourceStabilizationDeadline == null) {
+                resourceStabilizationDeadline =
+                        Deadline.fromNowWithClock(resourceStabilizationTimeout, clock);
+            }
+            if (resourceStabilizationDeadline.isOverdue()) {
                 createExecutionGraphWithAvailableResources();
             } else {
                 // schedule next resource check
                 context.runIfState(
                         this,
                         this::checkDesiredOrSufficientResourcesAvailable,
-                        deadline.timeLeft());
+                        resourceStabilizationDeadline.timeLeft());
             }
+        } else {
+            // clear deadline due to insufficient resources
+            resourceStabilizationDeadline = null;
         }
-    }
-
-    @VisibleForTesting
-    protected Deadline initializeOrGetResourceStabilizationDeadline() {
-        if (resourceStabilizationDeadline == null) {
-            resourceStabilizationDeadline = Deadline.fromNow(resourceStabilizationTimeout);
-        }
-        return resourceStabilizationDeadline;
     }
 
     private void resourceTimeout() {

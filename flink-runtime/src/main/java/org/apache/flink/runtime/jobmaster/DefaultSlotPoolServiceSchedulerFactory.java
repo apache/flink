@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -200,34 +199,27 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
     private static AdaptiveSchedulerFactory getAdaptiveSchedulerFactoryFromConfiguration(
             Configuration configuration) {
-        Duration initialResourceAllocationTimeout =
-                returnValueOrReplaceDefaultIfReactiveMode(
-                        configuration,
-                        JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
-                        Duration.ofMillis(-1));
-        Duration resourceStabilizationTimeout =
-                returnValueOrReplaceDefaultIfReactiveMode(
-                        configuration,
-                        JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT,
-                        Duration.ZERO);
+        Duration allocationTimeoutDefault = JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
+        Duration stabilizationTimeoutDefault =
+                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
+
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            allocationTimeoutDefault = Duration.ofMillis(-1);
+            stabilizationTimeoutDefault = Duration.ZERO;
+        }
+
+        final Duration initialResourceAllocationTimeout =
+                configuration
+                        .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
+                        .orElse(allocationTimeoutDefault);
+
+        final Duration resourceStabilizationTimeout =
+                configuration
+                        .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
+                        .orElse(stabilizationTimeoutDefault);
 
         return new AdaptiveSchedulerFactory(
                 initialResourceAllocationTimeout, resourceStabilizationTimeout);
-    }
-
-    @VisibleForTesting
-    protected static <T> T returnValueOrReplaceDefaultIfReactiveMode(
-            Configuration configuration, ConfigOption<T> option, T replacement) {
-        return configuration
-                .getOptional(option)
-                .orElseGet(
-                        () -> {
-                            if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
-                                    == SchedulerExecutionMode.REACTIVE) {
-                                return replacement;
-                            } else {
-                                return option.defaultValue();
-                            }
-                        });
     }
 }
