@@ -40,9 +40,7 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.Map;
 import java.util.function.Function;
 
 /** Base class for TopN Function. */
@@ -226,20 +224,7 @@ public abstract class AbstractTopNFunction
      * @return true if the record should be put into the buffer.
      */
     protected boolean checkSortKeyInBufferRange(RowData sortKey, TopNBuffer buffer) {
-        Comparator<RowData> comparator = buffer.getSortKeyComparator();
-        Map.Entry<RowData, Collection<RowData>> worstEntry = buffer.lastEntry();
-        if (worstEntry == null) {
-            // return true if the buffer is empty.
-            return true;
-        } else {
-            RowData worstKey = worstEntry.getKey();
-            int compare = comparator.compare(sortKey, worstKey);
-            if (compare < 0) {
-                return true;
-            } else {
-                return buffer.getCurrentTopNum() < getDefaultTopNSize();
-            }
-        }
+        return buffer.checkSortKeyInBufferRange(sortKey, getDefaultTopNSize());
     }
 
     protected void registerMetric(long heapSize) {

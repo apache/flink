@@ -23,10 +23,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.CombineRecordsFunction;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggRecordsCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners.HoppingSliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
@@ -112,7 +112,7 @@ public class SlicingWindowAggOperatorBuilder {
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer);
         final WindowCombineFunction.Factory combinerFactory =
-                new CombineRecordsFunction.Factory(
+                new AggRecordsCombiner.Factory(
                         generatedAggregateFunction, keySerializer, inputSerializer);
         final SlicingWindowProcessor<Long> windowProcessor;
         if (assigner instanceof SliceSharedAssigner) {

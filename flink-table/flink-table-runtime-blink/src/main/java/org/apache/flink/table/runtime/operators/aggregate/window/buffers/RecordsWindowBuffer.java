@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
