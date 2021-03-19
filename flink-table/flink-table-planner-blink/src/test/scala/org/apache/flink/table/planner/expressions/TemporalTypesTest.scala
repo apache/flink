@@ -1448,49 +1448,47 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
         s" ${timestampTz("1970-01-01 00:02:03.234")})",
       "123")
+
+    // test null input
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, CAST(null AS TIMESTAMP_LTZ)," +
+        s" ${timestampTz("1970-01-01 00:02:03.234")})",
+      "null")
   }
 
   @Test
   def testInvalidTimestampLtzArithmetic(): Unit = {
-    val exceptionTemplate =
-      "Unsupported %s which contains TIMESTAMP_LTZ type." +
-        " TIMESTAMP_LTZ type only supports TIMESTAMPDIFF(timepointunit, timepoint1 with" +
-        " TIMESTAMP_LTZ type, timepoint2 with TIMESTAMP_LTZ type), you can also cast" +
-        " TIMESTAMP_LTZ to TIMESTAMP before compare with other temporal types."
+    val exceptionMsg = "TIMESTAMP_LTZ only supports diff between the same type."
 
-    testExpectExceptionThrown(
+    // unsupported operand type
+    testExpectedSqlException(
       s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, TIME '00:00:01')",
-      "",
-      String.format(exceptionTemplate,
-        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, TIME(0) NOT NULL," +
-          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      exceptionMsg,
       classOf[CodeGenException])
 
-    testExpectExceptionThrown(
+    testExpectedSqlException(
       s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, DATE '1970-01-01')",
-      "",
-      String.format(exceptionTemplate,
-        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, DATE NOT NULL," +
-          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      exceptionMsg,
       classOf[CodeGenException])
 
-    testExpectExceptionThrown(
+    testExpectedSqlException(
       s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}," +
         s" TIMESTAMP '1970-01-01 00:00:00.123')",
-      "",
-      String.format(exceptionTemplate,
-        "TIMESTAMPDIFF(INTERVAL MONTH NOT NULL, TIMESTAMP(3) NOT NULL," +
-          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      exceptionMsg,
       classOf[CodeGenException])
 
-    testExpectExceptionThrown(
+    testExpectedSqlException(
       s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
         s" TIME '00:00:00.123')",
-      "",
-      String.format(exceptionTemplate,
-        "TIMESTAMPDIFF(INTERVAL SECOND(3) NOT NULL, TIME(0) NOT NULL," +
-          " TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL)"),
+      exceptionMsg,
       classOf[CodeGenException])
+
+    // invalid operand type
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}, 'test_string_type')",
+      "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
+        " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
+        " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'")
   }
 
   // ----------------------------------------------------------------------------------------------
