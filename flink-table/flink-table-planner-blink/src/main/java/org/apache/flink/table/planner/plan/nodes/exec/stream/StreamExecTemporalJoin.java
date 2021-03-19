@@ -49,8 +49,12 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -61,14 +65,26 @@ import java.util.stream.IntStream;
  * <p>The legacy temporal table function join is the subset of temporal table join, the only
  * difference is the validation, we reuse most same logic here.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
+    public static final String FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN = "isTemporalFunctionJoin";
+    public static final String FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX = "leftTimeAttributeIndex";
+    public static final String FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX = "rightTimeAttributeIndex";
     public static final int FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE = -1;
 
+    @JsonProperty(FIELD_NAME_JOIN_SPEC)
     private final JoinSpec joinSpec;
+
+    @JsonProperty(FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN)
     private final boolean isTemporalFunctionJoin;
+
+    @JsonProperty(FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX)
     private final int leftTimeAttributeIndex;
+
+    @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX)
     private final int rightTimeAttributeIndex;
 
     public StreamExecTemporalJoin(
@@ -80,11 +96,32 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
+        this(
+                joinSpec,
+                isTemporalTableFunctionJoin,
+                leftTimeAttributeIndex,
+                rightTimeAttributeIndex,
+                getNewNodeId(),
+                Arrays.asList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecTemporalJoin(
+            @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
+            @JsonProperty(FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN) boolean isTemporalTableFunctionJoin,
+            @JsonProperty(FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX) int leftTimeAttributeIndex,
+            @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX) int rightTimeAttributeIndex,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
         Preconditions.checkArgument(
                 rightTimeAttributeIndex == FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE
                         || rightTimeAttributeIndex >= 0);
-        this.joinSpec = joinSpec;
+        this.joinSpec = Preconditions.checkNotNull(joinSpec);
         this.isTemporalFunctionJoin = isTemporalTableFunctionJoin;
         this.leftTimeAttributeIndex = leftTimeAttributeIndex;
         this.rightTimeAttributeIndex = rightTimeAttributeIndex;
