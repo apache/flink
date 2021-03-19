@@ -40,6 +40,15 @@ public class ExternalTypeInfoTest extends TypeInformationTestBase<ExternalTypeIn
                     DataTypes.RAW(
                             ByteBuffer.class,
                             new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))),
+            ExternalTypeInfo.of(DataTypes.INT()),
+            ExternalTypeInfo.of(
+                    DataTypes.ROW(
+                            DataTypes.FIELD("a", DataTypes.INT()),
+                            DataTypes.FIELD("b", DataTypes.DATE().bridgedTo(Integer.class)))),
+            ExternalTypeInfo.of(
+                    DataTypes.ROW(
+                            DataTypes.FIELD("a", DataTypes.INT()),
+                            DataTypes.FIELD("b", DataTypes.DATE())))
         };
     }
 }
