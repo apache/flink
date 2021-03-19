@@ -1,0 +1,408 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "Orders"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`rowtime`",
+        "schema.0.data-type" : "INT",
+        "schema.2.name" : "rowtime",
+        "schema.1.name" : "currency",
+        "schema.1.data-type" : "VARCHAR(2147483647)",
+        "schema.3.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "schema.3.name" : "proctime",
+        "connector" : "values",
+        "schema.watermark.0.rowtime" : "rowtime",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.3.expr" : "PROCTIME()",
+        "schema.0.name" : "amount"
+      }
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "amount" : "INT"
+      }, {
+        "currency" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    },
+    "rowtimeFieldIndex" : 2,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "amount" : "INT"
+      }, {
+        "currency" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "amount" : "INT"
+      }, {
+        "currency" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[currency]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "RatesHistory"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`rowtime`",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "connector" : "values",
+        "schema.0.data-type" : "VARCHAR(2147483647) NOT NULL",
+        "schema.watermark.0.rowtime" : "rowtime",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.2.name" : "rowtime",
+        "schema.primary-key.name" : "PK_575402032",
+        "schema.primary-key.columns" : "currency",
+        "schema.1.name" : "rate",
+        "schema.0.name" : "currency",
+        "schema.1.data-type" : "INT"
+      }
+    },
+    "id" : 4,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "currency" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "rate" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    },
+    "rowtimeFieldIndex" : 2,
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "currency" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "rate" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "currency" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "rate" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[currency]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalJoin",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 1 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "isTemporalFunctionJoin" : false,
+    "leftTimeAttributeIndex" : 2,
+    "rightTimeAttributeIndex" : 2,
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "amount" : "INT"
+      }, {
+        "currency" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "currency0" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "rate" : "INT"
+      }, {
+        "rowtime0" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, currency0, rate, rowtime0])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "*",
+        "kind" : "TIMES",
+        "syntax" : "BINARY"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : true
+        }
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : true
+        }
+      } ],
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    } ],
+    "condition" : null,
+    "id" : 8,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "EXPR$0" : "INT"
+      } ]
+    },
+    "description" : "Calc(select=[(amount * rate) AS EXPR$0])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "table-sink-class" : "DEFAULT",
+        "connector" : "values",
+        "schema.0.data-type" : "INT",
+        "schema.0.name" : "a"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 9,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "EXPR$0" : "INT"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[EXPR$0])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
