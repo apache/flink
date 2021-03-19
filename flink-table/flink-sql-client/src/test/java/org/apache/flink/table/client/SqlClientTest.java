@@ -19,6 +19,7 @@
 package org.apache.flink.table.client;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.client.cli.TerminalStreamsResource;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.After;
@@ -28,11 +29,14 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -49,7 +53,11 @@ public class SqlClientTest {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
+    @Rule public final TerminalStreamsResource useSystemStream = TerminalStreamsResource.INSTANCE;
+
     private PrintStream originalPrintStream;
+
+    private InputStream originalInputStream;
 
     private ByteArrayOutputStream testOutputStream;
 
@@ -61,8 +69,11 @@ public class SqlClientTest {
     public void before() throws IOException {
         originalEnv = System.getenv();
         originalPrintStream = System.out;
+        originalInputStream = System.in;
         testOutputStream = new ByteArrayOutputStream();
         System.setOut(new PrintStream(testOutputStream, true));
+        // send "QUIT;" command to gracefully shutdown the terminal
+        System.setIn(new ByteArrayInputStream("QUIT;".getBytes(StandardCharsets.UTF_8)));
 
         // prepare conf dir
         File confFolder = tempFolder.newFolder("conf");
@@ -82,6 +93,7 @@ public class SqlClientTest {
     @After
     public void after() throws InterruptedException {
         System.setOut(originalPrintStream);
+        System.setIn(originalInputStream);
         CommonTestUtils.setEnv(originalEnv);
     }
 
@@ -92,27 +104,29 @@ public class SqlClientTest {
     @Test(timeout = 20000)
     public void testEmbeddedWithOptions() throws InterruptedException {
         String[] args = new String[] {"embedded", "-hist", historyPath};
-        verifyCliStarted(args);
+        SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
     @Test(timeout = 20000)
     public void testEmbeddedWithLongOptions() throws InterruptedException {
         String[] args = new String[] {"embedded", "--history", historyPath};
-        verifyCliStarted(args);
+        SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
     @Test(timeout = 20000)
     public void testEmbeddedWithoutOptions() throws InterruptedException {
         String[] args = new String[] {"embedded"};
-        verifyCliStarted(args);
+        SqlClient.main(args);
+        assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
     @Test(timeout = 20000)
     public void testEmptyOptions() throws InterruptedException {
         String[] args = new String[] {};
-        verifyCliStarted(args);
+        SqlClient.main(args);
+        assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
     @Test(timeout = 20000)
@@ -131,20 +145,5 @@ public class SqlClientTest {
         Objects.requireNonNull(url);
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
         assertEquals(help, getStdoutString());
-    }
-
-    private void verifyCliStarted(String[] args) throws InterruptedException {
-        Thread thread = new Thread(() -> SqlClient.main(args));
-        thread.start();
-
-        // wait until cli is started
-        while (!getStdoutString().contains("Command history file path")) {
-            //noinspection BusyWait
-            Thread.sleep(100);
-        }
-
-        while (!thread.isInterrupted()) {
-            thread.interrupt();
-        }
     }
 }
