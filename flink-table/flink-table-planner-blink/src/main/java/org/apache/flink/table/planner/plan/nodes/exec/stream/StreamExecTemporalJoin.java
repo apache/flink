@@ -45,14 +45,12 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 /**
  * {@link StreamExecNode} for temporal table join (FOR SYSTEM_TIME AS OF) and temporal TableFunction
@@ -141,11 +139,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         RowDataKeySelector leftKeySelector = getLeftKeySelector(leftInputType);
         RowDataKeySelector rightKeySelector = getRightKeySelector(rightInputType);
         ret.setStateKeySelectors(leftKeySelector, rightKeySelector);
-        LogicalType[] keyTypes =
-                IntStream.of(joinSpec.getLeftKeys())
-                        .mapToObj(leftInputType::getTypeAt)
-                        .toArray(LogicalType[]::new);
-        ret.setStateKeyType(InternalTypeInfo.ofFields(keyTypes));
+        ret.setStateKeyType(leftKeySelector.getProducedType());
         return ret;
     }
 
