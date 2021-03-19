@@ -77,6 +77,11 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
     }
 
     @Override
+    public boolean isPointwise() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "CUSTOM";
     }

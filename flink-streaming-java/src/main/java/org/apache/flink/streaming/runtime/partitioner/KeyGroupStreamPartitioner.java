@@ -75,6 +75,11 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T>
     }
 
     @Override
+    public boolean isPointwise() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "HASH";
     }

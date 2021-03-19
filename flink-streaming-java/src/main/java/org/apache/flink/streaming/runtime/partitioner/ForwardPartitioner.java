@@ -41,6 +41,11 @@ public class ForwardPartitioner<T> extends StreamPartitioner<T> {
     }
 
     @Override
+    public boolean isPointwise() {
+        return true;
+    }
+
+    @Override
     public String toString() {
         return "FORWARD";
     }
