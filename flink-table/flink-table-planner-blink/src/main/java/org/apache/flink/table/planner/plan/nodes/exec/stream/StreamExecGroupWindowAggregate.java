@@ -38,9 +38,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
@@ -98,12 +96,8 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformT
  * StreamExecGroupWindowAggregate} will be dropped.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
-    public static final String FIELD_NAME_GROUPING = "grouping";
-    public static final String FIELD_NAME_AGG_CALLS = "aggCalls";
-    public static final String FIELD_NAME_NEED_RETRACTION = "needRetraction";
     public static final String FIELD_NAME_WINDOW = "window";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 

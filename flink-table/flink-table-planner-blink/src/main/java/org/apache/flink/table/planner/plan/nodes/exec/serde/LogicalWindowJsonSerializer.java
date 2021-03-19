@@ -87,8 +87,8 @@ public class LogicalWindowJsonSerializer extends StdSerializer<LogicalWindow> {
         } else if (logicalWindow instanceof SlidingGroupWindow) {
             SlidingGroupWindow window = (SlidingGroupWindow) logicalWindow;
             gen.writeStringField(FIELD_NAME_KIND, KIND_SLIDING);
-            gen.writeObjectField(FIELD_NAME_ALIAS, window.alias());
-            serializeFieldReferenceExpression(window.timeField(), gen);
+            gen.writeObjectField(FIELD_NAME_ALIAS, window.aliasAttribute());
+            serializeFieldReferenceExpression(window.timeAttribute(), gen);
 
             ValueLiteralExpression size = window.size();
             if (hasTimeIntervalType(size)) {
@@ -106,8 +106,8 @@ public class LogicalWindowJsonSerializer extends StdSerializer<LogicalWindow> {
         } else if (logicalWindow instanceof SessionGroupWindow) {
             gen.writeStringField(FIELD_NAME_KIND, KIND_SESSION);
             SessionGroupWindow window = (SessionGroupWindow) logicalWindow;
-            gen.writeObjectField(FIELD_NAME_ALIAS, window.alias());
-            serializeFieldReferenceExpression(window.timeField(), gen);
+            gen.writeObjectField(FIELD_NAME_ALIAS, window.aliasAttribute());
+            serializeFieldReferenceExpression(window.timeAttribute(), gen);
             gen.writeObjectField(FIELD_NAME_GAP, toDuration(window.gap()));
         } else {
             throw new TableException("Unknown LogicalWindow: " + logicalWindow);
