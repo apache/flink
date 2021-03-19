@@ -35,6 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * An implementation of {@link ParquetInputFormat} to read {@link Map} records from Parquet files.
  */
@@ -42,6 +44,11 @@ public class ParquetMapInputFormat extends ParquetInputFormat<Map> {
 
     public ParquetMapInputFormat(Path path, MessageType messageType) {
         super(path, messageType);
+        checkNotNull(messageType, "messageType");
+    }
+
+    public ParquetMapInputFormat(Path path) {
+        this(path, null);
     }
 
     @Override

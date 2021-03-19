@@ -38,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** An implementation of {@link ParquetInputFormat} to read POJO records from Parquet files. */
 public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 
@@ -49,11 +51,16 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
     public ParquetPojoInputFormat(
             Path filePath, MessageType messageType, PojoTypeInfo<E> pojoTypeInfo) {
         super(filePath, messageType);
+        checkNotNull(messageType, "messageType");
         this.pojoTypeClass = pojoTypeInfo.getTypeClass();
         this.typeSerializer = pojoTypeInfo.createSerializer(new ExecutionConfig());
         final Map<String, Field> fieldMap = new HashMap<>();
         findAllFields(pojoTypeClass, fieldMap);
         selectFields(fieldMap.keySet().toArray(new String[0]));
+    }
+
+    public ParquetPojoInputFormat(Path filePath, PojoTypeInfo<E> pojoTypeInfo) {
+        this(filePath, null, pojoTypeInfo);
     }
 
     @Override
