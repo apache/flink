@@ -39,14 +39,14 @@ class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserialization
     private static final long serialVersionUID = 5409547407386004054L;
     private static final Logger LOG =
             LoggerFactory.getLogger(KafkaValueOnlyDeserializerWrapper.class);
-    private final String deserializerClass;
+    private final Class<? extends Deserializer<T>> deserializerClass;
     private final Map<String, String> config;
 
     private transient Deserializer<T> deserializer;
 
     KafkaValueOnlyDeserializerWrapper(
             Class<? extends Deserializer<T>> deserializerClass, Map<String, String> config) {
-        this.deserializerClass = deserializerClass.getName();
+        this.deserializerClass = deserializerClass;
         this.config = config;
     }
 
@@ -59,7 +59,7 @@ class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserialization
             deserializer =
                     (Deserializer<T>)
                             InstantiationUtil.instantiate(
-                                    deserializerClass,
+                                    deserializerClass.getName(),
                                     Deserializer.class,
                                     getClass().getClassLoader());
             if (deserializer instanceof Configurable) {
@@ -93,7 +93,6 @@ class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserialization
 
     @Override
     public TypeInformation<T> getProducedType() {
-        return TypeExtractor.createTypeInfo(
-                Deserializer.class, deserializer.getClass(), 0, null, null);
+        return TypeExtractor.createTypeInfo(Deserializer.class, deserializerClass, 0, null, null);
     }
 }

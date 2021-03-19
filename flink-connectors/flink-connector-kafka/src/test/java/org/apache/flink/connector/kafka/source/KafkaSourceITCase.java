@@ -27,6 +27,7 @@ import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDe
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -44,6 +45,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
@@ -81,6 +83,51 @@ public class KafkaSourceITCase {
         DataStream<PartitionAndValue> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "testBasicRead");
         executeAndVerify(env, stream);
+    }
+
+    @Test
+    public void testValueOnlyDeserializer() throws Exception {
+        KafkaSource<Integer> source =
+                KafkaSource.<Integer>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testValueOnlyDeserializer")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(
+                                KafkaRecordDeserializationSchema.valueOnly(
+                                        IntegerDeserializer.class))
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        final CloseableIterator<Integer> resultIterator =
+                env.fromSource(
+                                source,
+                                WatermarkStrategy.noWatermarks(),
+                                "testValueOnlyDeserializer")
+                        .executeAndCollect();
+
+        AtomicInteger actualSum = new AtomicInteger();
+        resultIterator.forEachRemaining(actualSum::addAndGet);
+
+        // Calculate the actual sum of values
+        // Values in a partition should start from partition ID, and end with
+        // (NUM_RECORDS_PER_PARTITION - 1)
+        // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
+        int expectedSum = 0;
+        for (int partition = 0; partition < KafkaSourceTestEnv.NUM_PARTITIONS; partition++) {
+            for (int value = partition;
+                    value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+                    value++) {
+                expectedSum += value;
+            }
+        }
+
+        // Since we have two topics, the expected sum value should be doubled
+        expectedSum *= 2;
+
+        assertEquals(expectedSum, actualSum.get());
     }
 
     // -----------------
