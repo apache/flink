@@ -31,9 +31,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -70,15 +68,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This node does support un-splittable aggregate function (e.g. STDDEV_POP).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StreamExecGroupAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecGroupAggregate extends StreamExecAggregateBase {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupAggregate.class);
-
-    public static final String FIELD_NAME_GROUPING = "grouping";
-    public static final String FIELD_NAME_AGG_CALLS = "aggCalls";
-    public static final String FIELD_NAME_AGG_CALL_NEED_RETRACTIONS = "aggCallNeedRetractions";
-    public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
-    public static final String FIELD_NAME_NEED_RETRACTION = "needRetraction";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -131,7 +122,6 @@ public class StreamExecGroupAggregate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, inputProperties, outputType, description);
-        checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);

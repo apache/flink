@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSum1AggFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSum2AggFunction;
@@ -26,15 +27,49 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for group aggregate json plan. */
+@RunWith(Parameterized.class)
 public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
+
+    @Parameterized.Parameter public boolean isMiniBatchEnabled;
+
+    @Parameterized.Parameters(name = "isMiniBatchEnabled={0}")
+    public static List<Boolean> testData() {
+        return Arrays.asList(true, false);
+    }
+
+    @Before
+    public void setup() throws Exception {
+        super.setup();
+        if (isMiniBatchEnabled) {
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(
+                            ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
+                            Duration.ofSeconds(10));
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L);
+        } else {
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
+        }
+    }
 
     @Test
     public void testSimpleAggCallsWithGroupBy()
