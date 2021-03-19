@@ -167,6 +167,9 @@ public class PubSubSource<OUT>
     /** @param <OUT> */
     public static class PubSubSourceBuilder<OUT>
             implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
+        private static final int DEFAULT_PUBSUB_SUBSCRIBER_NUMBER_OF_RETRIES = 3;
+        private static final int DEFAULT_PUBSUB_SUBSCRIBER_MAX_MESSAGES_PER_PULL = 100;
+
         private final PubSubDeserializationSchema<OUT> deserializationSchema;
         private String projectName;
         private String subscriptionName;
@@ -246,9 +249,9 @@ public class PubSubSource<OUT>
                 pubSubSubscriberFactory =
                         new DefaultPubSubSubscriberFactory(
                                 ProjectSubscriptionName.format(projectName, subscriptionName),
-                                3,
+                                DEFAULT_PUBSUB_SUBSCRIBER_NUMBER_OF_RETRIES,
                                 Duration.ofSeconds(15),
-                                100);
+                                DEFAULT_PUBSUB_SUBSCRIBER_MAX_MESSAGES_PER_PULL);
             }
 
             return new PubSubSource(
