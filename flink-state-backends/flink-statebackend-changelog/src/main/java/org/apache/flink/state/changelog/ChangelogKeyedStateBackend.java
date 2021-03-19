@@ -247,7 +247,8 @@ class ChangelogKeyedStateBackend<K>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        return keyedStateBackend.create(stateName, byteOrderedElementSerializer);
+        return new ChangelogKeyGroupedPriorityQueue<T>(
+                keyedStateBackend.create(stateName, byteOrderedElementSerializer));
     }
 
     @VisibleForTesting
