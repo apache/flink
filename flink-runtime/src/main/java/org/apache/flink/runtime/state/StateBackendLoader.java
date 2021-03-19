@@ -386,10 +386,6 @@ public class StateBackendLoader {
     private static StateBackend loadChangelogStateBackend(
             StateBackend backend, ClassLoader classLoader) throws DynamicCodeLoadingException {
 
-        LOG.info(
-                "Delegate State Backend is used, and the root State Backend is {}",
-                backend.getClass().getSimpleName());
-
         // ChangelogStateBackend resides in a separate module, load it using reflection
         try {
             Constructor<? extends DelegatingStateBackend> constructor =
