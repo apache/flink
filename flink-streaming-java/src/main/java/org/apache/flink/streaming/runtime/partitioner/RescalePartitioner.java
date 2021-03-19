@@ -70,4 +70,9 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
     public String toString() {
         return "RESCALE";
     }
+
+    @Override
+    public boolean isPointwise() {
+        return true;
+    }
 }
