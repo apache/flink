@@ -275,6 +275,36 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testCheckpointSchedulerIsStoppedOnStopWithSavepoint() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+            StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+                    };
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(mockedExecutionGraphWithCheckpointCoordinator)
+                            .build(ctx);
+
+            coordinator.startCheckpointScheduler();
+
+            // we assume checkpointing to be enabled
+            assertThat(coordinator.isPeriodicCheckpointingStarted(), is(true));
+
+            ctx.setExpectStopWithSavepoint(assertNonNull());
+            exec.stopWithSavepoint("file:///tmp/target", true);
+
+            assertThat(coordinator.isPeriodicCheckpointingStarted(), is(false));
+        }
+    }
+
     static TaskExecutionStateTransition createFailingStateTransition() {
         return new TaskExecutionStateTransition(
                 new TaskExecutionState(
@@ -460,13 +490,14 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
+                CheckpointScheduling checkpointScheduling,
                 CompletableFuture<String> savepointFuture) {
             stopWithSavepointValidator.validateInput(
                     new StopWithSavepointArguments(
                             executionGraph,
                             executionGraphHandler,
                             operatorCoordinatorHandler,
-                            new CheckpointSchedulingProvider(executionGraph),
+                            checkpointScheduling,
                             savepointFuture));
             hadStateTransition = true;
             return mockedStopWithSavepointOperationFuture;

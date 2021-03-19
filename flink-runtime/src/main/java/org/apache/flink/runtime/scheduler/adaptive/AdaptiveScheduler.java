@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -827,6 +828,7 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
+            CheckpointScheduling checkpointScheduling,
             CompletableFuture<String> savepointFuture) {
 
         StopWithSavepoint stopWithSavepoint =
@@ -836,7 +838,7 @@ public class AdaptiveScheduler
                                 executionGraph,
                                 executionGraphHandler,
                                 operatorCoordinatorHandler,
-                                new CheckpointSchedulingProvider(executionGraph),
+                                checkpointScheduling,
                                 LOG,
                                 userCodeClassLoader,
                                 savepointFuture));

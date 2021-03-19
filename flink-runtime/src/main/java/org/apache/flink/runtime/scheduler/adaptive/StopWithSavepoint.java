@@ -81,6 +81,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         FutureUtils.assertNoException(
                 savepointFuture.handle(
                         (savepointLocation, throwable) -> {
+                            // make sure we handle the future completion in the main thread and
+                            // outside the constructor (where state transitions are not allowed)
                             context.runIfState(
                                     this,
                                     () -> handleSavepointCompletion(savepointLocation, throwable),
@@ -160,7 +162,9 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                 completeOperationAndGoToFinished(savepoint);
             }
         } else {
-            handleAnyFailure(new FlinkException("Job did not finish properly."));
+            handleAnyFailure(
+                    new FlinkException(
+                            "Job did not reach the FINISHED state while performing stop-with-savepoint."));
         }
     }
 
