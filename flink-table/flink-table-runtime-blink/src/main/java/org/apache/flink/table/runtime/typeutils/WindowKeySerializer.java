@@ -103,11 +103,25 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
         keySerializer.copy(source, target);
     }
 
+    /**
+     * Actually, the return value is just for saving checkSkipReadForFixLengthPart in the
+     * mapFromPages, the cost is very small.
+     *
+     * <p>TODO so, we can remove this return value for simplifying interface.
+     */
     @Override
     public int serializeToPages(WindowKey record, AbstractPagedOutputView target)
             throws IOException {
         target.writeLong(record.getWindow());
         keySerializer.serializeToPages(record.getKey(), target);
+        // We cannot return the num of bytes skipped by keySerializer. The return value is to help
+        // better relocate the start offset where the data is located, and the offset we need here
+        // is the offset that we started to write.
+        // Consider this case:
+        // |----First segment----|Second Segment|
+        // |--------Left 10 bytes|--------------|
+        // In fact, we will write 8 bytes in the first segment and skip the next two bytes. At this
+        // time, its offset should also be 0.
         return 0;
     }
 
