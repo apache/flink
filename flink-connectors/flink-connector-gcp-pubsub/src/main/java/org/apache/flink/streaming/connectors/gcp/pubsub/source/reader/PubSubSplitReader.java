@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -51,8 +52,9 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
     private PubSubSubscriber subscriber;
     private final PubSubCollector collector;
     // Store the IDs of GCP Pub/Sub messages that yet have to be acknowledged so that they are not
-    // resent.
-    private final List<String> messageIdsToAcknowledge = new ArrayList<>();
+    // resent. Must be synchronized because it's accessed both by the fetcher and the reader thread.
+    private final List<String> messageIdsToAcknowledge =
+            Collections.synchronizedList(new ArrayList<>());
 
     /**
      * @param deserializationSchema a deserialization schema to apply to incoming message payloads.
@@ -154,10 +156,12 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
      * <p>Calling this message is enqueued by the {@link PubSubSourceFetcherManager} on checkpoint.
      */
     void notifyCheckpointComplete() {
-        if (!messageIdsToAcknowledge.isEmpty() && subscriber != null) {
-            LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
-            subscriber.acknowledge(messageIdsToAcknowledge);
-            messageIdsToAcknowledge.clear();
+        synchronized (messageIdsToAcknowledge) {
+            if (!messageIdsToAcknowledge.isEmpty() && subscriber != null) {
+                LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
+                subscriber.acknowledge(messageIdsToAcknowledge);
+                messageIdsToAcknowledge.clear();
+            }
         }
     }
 }
