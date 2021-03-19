@@ -44,8 +44,8 @@ import java.util.Arrays;
  * <p>- In future versions: In gateway mode, the SQL CLI client connects to the REST API of the
  * gateway and allows for managing queries via console.
  *
- * <p>For debugging in an IDE you can execute the main method of this class using: "embedded
- * --defaults /path/to/sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
+ * <p>For debugging in an IDE you can execute the main method of this class using: "--defaults
+ * /path/to/sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
  *
  * <p>Make sure that the FLINK_CONF_DIR environment variable is set.
  */
@@ -125,20 +125,20 @@ public class SqlClient {
     // --------------------------------------------------------------------------------------------
 
     public static void main(String[] args) {
-        final String model;
+        final String mode;
         final String[] modeArgs;
         if (args.length < 1 || args[0].startsWith("-")) {
             // mode is not specified, use the default `embedded` mode
-            model = MODE_EMBEDDED;
+            mode = MODE_EMBEDDED;
             modeArgs = args;
         } else {
             // mode is specified, extract the mode value and reaming args
-            model = args[0];
+            mode = args[0];
             // remove mode
             modeArgs = Arrays.copyOfRange(args, 1, args.length);
         }
 
-        switch (model) {
+        switch (mode) {
             case MODE_EMBEDDED:
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
                 if (options.isPrintHelp()) {

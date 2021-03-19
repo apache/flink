@@ -54,6 +54,12 @@ The SQL Client scripts are also located in the binary directory of Flink. [In th
 ./bin/sql-client.sh
 ```
 
+or explicitly use `embedded` mode:
+
+```bash
+./bin/sql-client.sh embedded
+```
+
 By default, the SQL Client will read its configuration from the environment file located in `./conf/sql-client-defaults.yaml`. See the [configuration part](sqlClient.html#environment-files) for more information about the structure of environment files.
 
 ### Running SQL Queries
@@ -157,11 +163,11 @@ Configuration
 The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
 
 ```text
-./bin/sql-client.sh embedded --help
+./bin/sql-client.sh --help
 
-Mode "embedded" submits Flink jobs from the local machine.
+Mode "embedded" (default) submits Flink jobs from the local machine.
 
-  Syntax: embedded [OPTIONS]
+  Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
      -d,--defaults <environment file>      The environment properties with which
                                            every new session is initialized.
