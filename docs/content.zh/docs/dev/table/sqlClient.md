@@ -53,6 +53,12 @@ SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#lim
 ./bin/sql-client.sh
 ```
 
+或者显式使用 `embedded` 模式:
+
+```bash
+./bin/sql-client.sh embedded
+```
+
 默认情况下，SQL 客户端将从 `./conf/sql-client-defaults.yaml` 中读取配置。有关环境配置文件结构的更多信息，请参见[配置部分](sqlClient.html#environment-files)。
 
 ### 执行 SQL 查询
@@ -160,9 +166,9 @@ SQL 客户端启动时可以添加 CLI 选项，具体如下。
 ```text
 ./bin/sql-client.sh --help
 
-Mode "embedded" submits Flink jobs from the local machine.
+Mode "embedded" (default) submits Flink jobs from the local machine.
 
-  Syntax: embedded [OPTIONS]
+  Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
      -d,--defaults <environment file>      The environment properties with which
                                            every new session is initialized.

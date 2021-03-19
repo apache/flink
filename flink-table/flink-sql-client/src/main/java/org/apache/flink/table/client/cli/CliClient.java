@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.config.YamlConfigUtils;
@@ -684,9 +685,23 @@ public class CliClient implements AutoCloseable {
 
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * Internal flag to use {@link System#in} and {@link System#out} stream to construct {@link
+     * Terminal} for tests. This allows tests can easily mock input stream when startup {@link
+     * SqlClient}.
+     */
+    protected static boolean useSystemInOutStream = false;
+
     private static Terminal createDefaultTerminal() {
         try {
-            return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
+            if (useSystemInOutStream) {
+                return TerminalBuilder.builder()
+                        .name(CliStrings.CLI_NAME)
+                        .streams(System.in, System.out)
+                        .build();
+            } else {
+                return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
+            }
         } catch (IOException e) {
             throw new SqlClientException("Error opening command line interface.", e);
         }

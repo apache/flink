@@ -209,7 +209,6 @@ final class FlinkDistribution {
     public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
         final List<String> commands = new ArrayList<>();
         commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-        commands.add("embedded");
         job.getDefaultEnvFile()
                 .ifPresent(
                         defaultEnvFile -> {
