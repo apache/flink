@@ -63,9 +63,15 @@ public class SqlCommandParserTest {
                         TestItem.validSql("eXiT;", SqlCommand.QUIT).cannotParseComment(),
                         TestItem.validSql("CLEAR;", SqlCommand.CLEAR).cannotParseComment(),
                         // desc xx
-                        TestItem.validSql("DESC MyTable", SqlCommand.DESC, "MyTable")
+                        TestItem.validSql(
+                                        "DESC MyTable",
+                                        SqlCommand.DESCRIBE,
+                                        "`default_catalog`.`default_database`.`MyTable`")
                                 .cannotParseComment(),
-                        TestItem.validSql("DESC         MyTable     ", SqlCommand.DESC, "MyTable")
+                        TestItem.validSql(
+                                        "DESC         MyTable     ",
+                                        SqlCommand.DESCRIBE,
+                                        "`default_catalog`.`default_database`.`MyTable`")
                                 .cannotParseComment(),
                         TestItem.invalidSql(
                                 "DESC ", // no table name
