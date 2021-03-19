@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the behaviors of the {@link InputProcessorUtil}. */
@@ -88,10 +89,7 @@ public class InputProcessorUtilTest {
                         channelId < inputGate.getNumberOfInputChannels();
                         channelId++) {
                     bufferReceivedListener.notifyBarrierReceived(
-                            new CheckpointBarrier(
-                                    1,
-                                    42,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation(true, true)),
+                            new CheckpointBarrier(1, 42, CheckpointOptions.unaligned(getDefault())),
                             new InputChannelInfo(inputGate.getGateIndex(), channelId));
                 }
             }

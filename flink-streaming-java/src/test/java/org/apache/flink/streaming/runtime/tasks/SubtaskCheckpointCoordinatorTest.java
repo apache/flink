@@ -30,11 +30,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -107,7 +109,7 @@ public class SubtaskCheckpointCoordinatorTest {
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();
         CheckpointOptions options =
-                new CheckpointOptions(
+                CheckpointOptions.forConfig(
                         checkpointType, locationReference, true, unalignedCheckpointEnabled);
         coordinator.initCheckpoint(1L, options);
         return writer.started;
@@ -172,6 +174,50 @@ public class SubtaskCheckpointCoordinatorTest {
                 () -> true);
 
         assertEquals(false, broadcastedPriorityEvent.get());
+    }
+
+    @Test
+    public void testForceAlignedCheckpointResultingInPriorityEvents() throws Exception {
+        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+
+        SubtaskCheckpointCoordinator coordinator =
+                new MockSubtaskCheckpointCoordinatorBuilder()
+                        .setUnalignedCheckpointEnabled(true)
+                        .setEnvironment(mockEnvironment)
+                        .build();
+
+        AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
+        final OperatorChain<?, ?> operatorChain =
+                new OperatorChain(
+                        new MockStreamTaskBuilder(mockEnvironment).build(),
+                        new NonRecordWriter<>()) {
+                    @Override
+                    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
+                            throws IOException {
+                        super.broadcastEvent(event, isPriorityEvent);
+                        broadcastedPriorityEvent.set(isPriorityEvent);
+                        // test if we can write output data
+                        coordinator
+                                .getChannelStateWriter()
+                                .addOutputData(
+                                        0,
+                                        new ResultSubpartitionInfo(0, 0),
+                                        0,
+                                        BufferBuilderTestUtils.buildSomeBuffer(1337));
+                    }
+                };
+
+        CheckpointOptions forcedAlignedOptions =
+                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())
+                        .withUnalignedUnsupported();
+        coordinator.checkpointState(
+                new CheckpointMetaData(42, 0),
+                forcedAlignedOptions,
+                new CheckpointMetrics(),
+                operatorChain,
+                () -> true);
+
+        assertEquals(true, broadcastedPriorityEvent.get());
     }
 
     @Test

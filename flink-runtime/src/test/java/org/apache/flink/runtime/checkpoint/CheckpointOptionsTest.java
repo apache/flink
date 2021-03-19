@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions.AlignmentType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
@@ -30,6 +31,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link CheckpointOptions} class. */
@@ -62,23 +64,58 @@ public class CheckpointOptionsTest {
         assertArrayEquals(locationBytes, copy.getTargetLocation().getReferenceBytes());
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void testSavepointNeedsAlignment() {
-        CheckpointStorageLocationReference location =
-                CheckpointStorageLocationReference.getDefault();
-        assertTrue(new CheckpointOptions(SAVEPOINT, location, true, true).needsAlignment());
-        assertFalse(new CheckpointOptions(SAVEPOINT, location, false, true).needsAlignment());
-        assertTrue(new CheckpointOptions(SAVEPOINT, location, true, false).needsAlignment());
-        assertFalse(new CheckpointOptions(SAVEPOINT, location, false, false).needsAlignment());
+        new CheckpointOptions(
+                SAVEPOINT,
+                CheckpointStorageLocationReference.getDefault(),
+                AlignmentType.UNALIGNED);
     }
 
     @Test
     public void testCheckpointNeedsAlignment() {
         CheckpointStorageLocationReference location =
                 CheckpointStorageLocationReference.getDefault();
-        assertFalse(new CheckpointOptions(CHECKPOINT, location, true, true).needsAlignment());
-        assertTrue(new CheckpointOptions(CHECKPOINT, location, true, false).needsAlignment());
-        assertFalse(new CheckpointOptions(CHECKPOINT, location, false, true).needsAlignment());
-        assertFalse(new CheckpointOptions(CHECKPOINT, location, false, false).needsAlignment());
+        assertFalse(
+                new CheckpointOptions(CHECKPOINT, location, AlignmentType.UNALIGNED)
+                        .needsAlignment());
+        assertTrue(
+                new CheckpointOptions(CHECKPOINT, location, AlignmentType.ALIGNED)
+                        .needsAlignment());
+        assertTrue(
+                new CheckpointOptions(CHECKPOINT, location, AlignmentType.FORCED_ALIGNED)
+                        .needsAlignment());
+        assertFalse(
+                new CheckpointOptions(CHECKPOINT, location, AlignmentType.AT_LEAST_ONCE)
+                        .needsAlignment());
+    }
+
+    @Test
+    public void testForceAlignmentIsReversable() {
+        CheckpointStorageLocationReference location =
+                CheckpointStorageLocationReference.getDefault();
+        assertReversable(CheckpointOptions.unaligned(location), true);
+
+        assertReversable(CheckpointOptions.aligned(CHECKPOINT, location), false);
+        assertReversable(CheckpointOptions.aligned(SAVEPOINT, location), false);
+        assertReversable(CheckpointOptions.notExactlyOnce(CHECKPOINT, location), false);
+        assertReversable(CheckpointOptions.notExactlyOnce(SAVEPOINT, location), false);
+    }
+
+    private void assertReversable(CheckpointOptions options, boolean forceHasEffect) {
+        assertEquals(
+                "all non-forced options support unaligned mode",
+                options,
+                options.withUnalignedSupported());
+        CheckpointOptions unalignedUnsupported = options.withUnalignedUnsupported();
+        if (forceHasEffect) {
+            assertNotEquals("expected changes in the options", options, unalignedUnsupported);
+        } else {
+            assertEquals("not expected changes to the options", options, unalignedUnsupported);
+        }
+        assertEquals(
+                "expected fully reversable options",
+                options,
+                unalignedUnsupported.withUnalignedSupported());
     }
 }

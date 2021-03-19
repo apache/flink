@@ -341,7 +341,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
                 new CheckpointBarrier(
                         barrierId,
                         barrierTimestamp,
-                        new CheckpointOptions(
+                        CheckpointOptions.forConfig(
                                 checkpointType,
                                 CheckpointStorageLocationReference.getDefault(),
                                 true,
