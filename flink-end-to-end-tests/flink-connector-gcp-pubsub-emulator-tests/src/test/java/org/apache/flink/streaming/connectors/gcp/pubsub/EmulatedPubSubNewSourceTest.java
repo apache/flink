@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,9 +43,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.connectors.gcp.pubsub.SimpleStringSchemaWithStopMarkerDetection.STOP_MARKER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -75,10 +74,6 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
     // failing.
     // The assumptions:
     // 1) The ordering of the messages is maintained.
-    //    We are inserting a STOP_MARKER _after_ the set of test measurements and we assume this
-    // STOP event will
-    //    arrive after the actual test data so we can stop the processing. In the real PubSub this
-    // is NOT true.
     // 2) Exactly once: We assume that every message we put in comes out exactly once.
     //    In the real PubSub there are a lot of situations (mostly failure/retry) where this is not
     // true.
@@ -91,21 +86,6 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
                         "Ten");
 
         List<String> messagesToSend = new ArrayList<>(input);
-
-        // Now add some stream termination messages.
-        // NOTE: Messages are pulled from PubSub in batches by the source.
-        //       So we need enough STOP_MARKERs to ensure ALL parallel tasks get at least one
-        // STOP_MARKER
-        //       If not then at least one task will not terminate and the test will not end.
-        //       We pull 3 at a time, have 4 parallel: We need at least 12 STOP_MARKERS
-        IntStream.rangeClosed(1, 20).forEach(i -> messagesToSend.add(STOP_MARKER));
-
-        // IMPORTANT NOTE: This way of testing uses an effect of the PubSub emulator that is
-        // absolutely
-        // guaranteed NOT to work in the real PubSub: The ordering of the messages is maintained in
-        // the topic.
-        // So here we can assume that if we add a stop message LAST we can terminate the test stream
-        // when we see it.
 
         // Publish the messages into PubSub
         Publisher publisher = pubsubHelper.createPublisher(PROJECT_NAME, TOPIC_NAME);
@@ -130,7 +110,7 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
 
         PubSubSource<String> source =
                 PubSubSource.newBuilder()
-                        .withDeserializationSchema(new SimpleStringSchemaWithStopMarkerDetection())
+                        .withDeserializationSchema(new SimpleStringSchema())
                         .withProjectName(PROJECT_NAME)
                         .withSubscriptionName(SUBSCRIPTION_NAME)
                         .withCredentials(EmulatorCredentials.getInstance())

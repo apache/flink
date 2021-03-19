@@ -108,10 +108,6 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
             messageIdsToAcknowledge.add(receivedMessage.getAckId());
         }
 
-        if (collector.isEndOfStreamSignalled()) {
-            recordsBySplits.addFinishedSplit(PubSubSplit.SPLIT_ID);
-        }
-
         return recordsBySplits.build();
     }
 
@@ -131,15 +127,8 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
     private class PubSubCollector implements Collector<T> {
         private final List<T> messages = new ArrayList<>();
 
-        private boolean endOfStreamSignalled = false;
-
         @Override
         public void collect(T message) {
-            if (endOfStreamSignalled || deserializationSchema.isEndOfStream(message)) {
-                this.endOfStreamSignalled = true;
-                return;
-            }
-
             messages.add(message);
         }
 
@@ -152,10 +141,6 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
         private void reset() {
             messages.clear();
-        }
-
-        private boolean isEndOfStreamSignalled() {
-            return endOfStreamSignalled;
         }
     }
 
