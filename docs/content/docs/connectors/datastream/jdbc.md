@@ -76,7 +76,7 @@ JdbcExecutionOptions.builder()
 .build()
 ```
 
-A JDBC batch is executed as soon as one of the following condition is true:
+A JDBC batch is executed as soon as one of the following conditions is true:
 
 * the configured batch interval time is elapsed
 * the maximum batch size is reached 
