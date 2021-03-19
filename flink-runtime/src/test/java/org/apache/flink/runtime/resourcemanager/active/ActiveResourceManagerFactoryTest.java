@@ -22,19 +22,14 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
-
-import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
@@ -47,25 +42,10 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
     private static final MemorySize TOTAL_FLINK_SIZE = MemorySize.ofMebiBytes(2 * 1024);
     private static final MemorySize TOTAL_PROCESS_SIZE = MemorySize.ofMebiBytes(3 * 1024);
 
-    private static Map<String, String> systemEnv;
-
-    @BeforeClass
-    public static void setupClass() {
-        systemEnv = System.getenv();
-        System.clearProperty("flink.tests.disable-declarative");
-        System.clearProperty("flink.tests.enable-fine-grained");
-    }
-
-    @AfterClass
-    public static void teardownClass() {
-        if (systemEnv != null) {
-            CommonTestUtils.setEnv(systemEnv, true);
-        }
-    }
-
     @Test
     public void testGetEffectiveConfigurationForResourceManagerCoarseGrained() {
         final Configuration config = new Configuration();
+        config.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, false);
         config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, false);
         config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
