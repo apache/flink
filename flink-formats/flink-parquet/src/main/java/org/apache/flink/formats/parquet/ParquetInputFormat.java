@@ -45,6 +45,8 @@ import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,14 +79,29 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E>
     /** The flag to track that the current split should be skipped. */
     private boolean skipThisSplit = false;
 
+    @Nullable
+    /**
+     * Fields to read types. They can be null if the user did not provide a schema, in that case the
+     * types are extracted from the file itself
+     */
     private TypeInformation[] fieldTypes;
 
+    @Nullable
+    /**
+     * Fields to read. They can be null if the user provided neither the expected schema nor the
+     * projected fields
+     */
     private String[] fieldNames;
 
     private FilterPredicate filterPredicate;
 
     private transient Counter recordConsumed;
 
+    @Nullable
+    /**
+     * User provided schema. It can be null if the user did not provide a schema, then the schema
+     * will be determined out of the file itself
+     */
     private transient MessageType expectedFileSchema;
 
     private transient ParquetRecordReader<Row> parquetRecordReader;
@@ -97,11 +114,13 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E>
      */
     protected ParquetInputFormat(Path path, MessageType messageType) {
         super(path);
-        this.expectedFileSchema = checkNotNull(messageType, "messageType");
-        RowTypeInfo rowTypeInfo =
-                (RowTypeInfo) ParquetSchemaConverter.fromParquetType(expectedFileSchema);
-        this.fieldTypes = rowTypeInfo.getFieldTypes();
-        this.fieldNames = rowTypeInfo.getFieldNames();
+        this.expectedFileSchema = messageType;
+        if (expectedFileSchema != null) {
+            RowTypeInfo rowTypeInfo =
+                    (RowTypeInfo) ParquetSchemaConverter.fromParquetType(expectedFileSchema);
+            this.fieldTypes = rowTypeInfo.getFieldTypes();
+            this.fieldNames = rowTypeInfo.getFieldNames();
+        }
         // read whole parquet file as one file split
         this.unsplittable = true;
     }
@@ -129,8 +148,13 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E>
     public void selectFields(String[] fieldNames) {
         checkNotNull(fieldNames, "fieldNames");
         this.fieldNames = fieldNames;
-        RowTypeInfo rowTypeInfo =
-                (RowTypeInfo) ParquetSchemaConverter.fromParquetType(expectedFileSchema);
+        if (expectedFileSchema != null) {
+            this.fieldTypes = getFieldTypesFromSchema(fieldNames, expectedFileSchema);
+        }
+    }
+
+    private TypeInformation[] getFieldTypesFromSchema(String[] fieldNames, MessageType schema) {
+        RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(schema);
         TypeInformation[] selectFieldTypes = new TypeInformation[fieldNames.length];
         for (int i = 0; i < fieldNames.length; i++) {
             try {
@@ -144,7 +168,7 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E>
                         e);
             }
         }
-        this.fieldTypes = selectFieldTypes;
+        return selectFieldTypes;
     }
 
     public void setFilterPredicate(FilterPredicate filterPredicate) {
@@ -168,6 +192,16 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E>
         ParquetReadOptions options = ParquetReadOptions.builder().build();
         ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
         MessageType fileSchema = fileReader.getFileMetaData().getSchema();
+        if (expectedFileSchema == null) { // user did not provide a read schema, use the file schema
+            if (fieldNames == null) { // user did not provide projected fields, use all the fields
+                RowTypeInfo rowTypeInfo =
+                        (RowTypeInfo) ParquetSchemaConverter.fromParquetType(fileSchema);
+                fieldNames = rowTypeInfo.getFieldNames();
+                fieldTypes = rowTypeInfo.getFieldTypes();
+            } else { // user provided projected fields, get the corresponding types from file schema
+                fieldTypes = getFieldTypesFromSchema(fieldNames, fileSchema);
+            }
+        }
         MessageType readSchema = getReadSchema(fileSchema, split.getPath());
         if (skipThisSplit) {
             LOG.warn(

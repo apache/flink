@@ -26,6 +26,8 @@ import org.apache.flink.types.Row;
 
 import org.apache.parquet.schema.MessageType;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * An implementation of {@link ParquetInputFormat} to read {@link Row} records from Parquet files.
  */
@@ -35,6 +37,11 @@ public class ParquetRowInputFormat extends ParquetInputFormat<Row>
 
     public ParquetRowInputFormat(Path path, MessageType messageType) {
         super(path, messageType);
+        checkNotNull(messageType, "messageType");
+    }
+
+    public ParquetRowInputFormat(Path path) {
+        this(path, null);
     }
 
     @Override
