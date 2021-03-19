@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @Internal
 public final class BinaryRowData extends BinarySection
-        implements RowData, TypedSetters, SupportsAnyNull {
+        implements RowData, TypedSetters, NullAwareGetters {
 
     public static final boolean LITTLE_ENDIAN =
             (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);

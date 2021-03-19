@@ -20,9 +20,9 @@ package org.apache.flink.table.data.binary;
 
 import org.apache.flink.annotation.Internal;
 
-/** Supports optimized any null check. */
+/** Provides null related getters. */
 @Internal
-public interface SupportsAnyNull {
+public interface NullAwareGetters {
 
     /** If no field is null, return false. Returns true if one of the columns is null. */
     boolean anyNull();
