@@ -113,16 +113,9 @@ public class PubSubSource<OUT>
         FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple2<OUT, Long>>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         Supplier<PubSubSplitReader<OUT>> splitReaderSupplier =
-                () -> {
-                    try {
-                        return new PubSubSplitReader<>(
-                                deserializationSchema,
-                                pubSubSubscriberFactory.getSubscriber(credentials));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                };
+                () ->
+                        new PubSubSplitReader<>(
+                                deserializationSchema, pubSubSubscriberFactory, credentials);
         PubSubRecordEmitter<OUT> recordEmitter = new PubSubRecordEmitter<>();
 
         return new PubSubSourceReader<>(

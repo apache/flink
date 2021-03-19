@@ -25,9 +25,11 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplit;
 import org.apache.flink.util.Collector;
 
+import com.google.auth.Credentials;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +45,10 @@ import java.util.List;
  */
 public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSubSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSplitReader.class);
-    private final PubSubSubscriber subscriber;
     private final PubSubDeserializationSchema<T> deserializationSchema;
+    private final PubSubSubscriberFactory pubSubSubscriberFactory;
+    private final Credentials credentials;
+    private PubSubSubscriber subscriber;
     private final PubSubCollector collector;
     // Store the IDs of GCP Pub/Sub messages that yet have to be acknowledged so that they are not
     // resent.
@@ -52,19 +56,26 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
     /**
      * @param deserializationSchema a deserialization schema to apply to incoming message payloads.
-     * @param subscriber a subscriber object to read messages from.
+     * @param pubSubSubscriberFactory a factory from which a new subscriber can be created from
+     * @param credentials the credentials to use for creating a new subscriber
      */
     public PubSubSplitReader(
-            PubSubDeserializationSchema deserializationSchema, PubSubSubscriber subscriber) {
+            PubSubDeserializationSchema deserializationSchema,
+            PubSubSubscriberFactory pubSubSubscriberFactory,
+            Credentials credentials) {
 
-        this.subscriber = subscriber;
         this.deserializationSchema = deserializationSchema;
+        this.pubSubSubscriberFactory = pubSubSubscriberFactory;
+        this.credentials = credentials;
         this.collector = new PubSubCollector();
     }
 
     @Override
     public RecordsWithSplitIds<Tuple2<T, Long>> fetch() throws IOException {
         RecordsBySplits.Builder<Tuple2<T, Long>> recordsBySplits = new RecordsBySplits.Builder<>();
+        if (subscriber == null) {
+            subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
+        }
 
         for (ReceivedMessage receivedMessage : subscriber.pull()) {
             try {
@@ -112,7 +123,9 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
     @Override
     public void close() throws Exception {
-        subscriber.close();
+        if (subscriber != null) {
+            subscriber.close();
+        }
     }
 
     private class PubSubCollector implements Collector<T> {
@@ -156,8 +169,8 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
      * <p>Calling this message is enqueued by the {@link PubSubSourceFetcherManager} on checkpoint.
      */
     void notifyCheckpointComplete() {
-        LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
-        if (!messageIdsToAcknowledge.isEmpty()) {
+        if (!messageIdsToAcknowledge.isEmpty() && subscriber != null) {
+            LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
             subscriber.acknowledge(messageIdsToAcknowledge);
             messageIdsToAcknowledge.clear();
         }
