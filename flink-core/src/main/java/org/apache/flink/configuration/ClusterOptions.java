@@ -165,9 +165,15 @@ public class ClusterOptions {
         // TODO We need to bind fine-grained with declarative because in the first step we implement
         // the feature base on the declarative protocol. We would be able to support both protocols
         // and no longer need this binding after FLINK-20838.
-        return isDeclarativeResourceManagementEnabled(configuration)
-                && (configuration.get(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)
-                        || System.getProperties().containsKey("flink.tests.enable-fine-grained"));
+        if (!isDeclarativeResourceManagementEnabled(configuration)) {
+            return false;
+        }
+
+        if (configuration.contains(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)) {
+            return configuration.get(ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT);
+        } else {
+            return System.getProperties().containsKey("flink.tests.enable-fine-grained");
+        }
     }
 
     /** The mode of how to handle user code attempting to exit JVM. */
