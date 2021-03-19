@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
 
 import java.io.IOException;
@@ -46,7 +45,7 @@ public interface WindowBuffer {
      * @throws Exception Thrown, if the element cannot be added to the buffer, or if the flushing
      *     throws an exception.
      */
-    void addElement(BinaryRowData key, long window, RowData element) throws Exception;
+    void addElement(RowData key, long window, RowData element) throws Exception;
 
     /**
      * Advances the progress time, the progress time is watermark if working in event-time mode, or

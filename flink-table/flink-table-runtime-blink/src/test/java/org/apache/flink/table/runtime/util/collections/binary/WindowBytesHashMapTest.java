@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.util.collections.binary;
 
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -30,7 +32,9 @@ import java.util.Random;
 public class WindowBytesHashMapTest extends BytesHashMapTestBase<WindowKey> {
 
     public WindowBytesHashMapTest() {
-        super(new WindowKeySerializer(KEY_TYPES.length));
+        super(
+                new WindowKeySerializer(
+                        (PagedTypeSerializer) new BinaryRowDataSerializer(KEY_TYPES.length)));
     }
 
     @Override
@@ -39,7 +43,12 @@ public class WindowBytesHashMapTest extends BytesHashMapTestBase<WindowKey> {
             int memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        return new WindowBytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+        return new WindowBytesHashMap(
+                this,
+                memoryManager,
+                memorySize,
+                (PagedTypeSerializer) new BinaryRowDataSerializer(keyTypes.length),
+                valueTypes.length);
     }
 
     @Override

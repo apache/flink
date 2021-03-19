@@ -93,13 +93,22 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
             long memorySize,
             PagedTypeSerializer<K> keySerializer,
             LogicalType[] valueTypes) {
+        this(owner, memoryManager, memorySize, keySerializer, valueTypes.length);
+    }
+
+    public AbstractBytesHashMap(
+            final Object owner,
+            MemoryManager memoryManager,
+            long memorySize,
+            PagedTypeSerializer<K> keySerializer,
+            int valueArity) {
         super(owner, memoryManager, memorySize, keySerializer);
 
         this.recordArea = new RecordArea();
 
         this.keySerializer = keySerializer;
-        this.valueSerializer = new BinaryRowDataSerializer(valueTypes.length);
-        if (valueTypes.length == 0) {
+        this.valueSerializer = new BinaryRowDataSerializer(valueArity);
+        if (valueArity == 0) {
             this.hashSetMode = true;
             this.reusedValue = new BinaryRowData(0);
             this.reusedValue.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);

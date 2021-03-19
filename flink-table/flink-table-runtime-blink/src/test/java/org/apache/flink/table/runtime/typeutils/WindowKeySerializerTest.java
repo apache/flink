@@ -30,7 +30,7 @@ public class WindowKeySerializerTest extends SerializerTestBase<WindowKey> {
 
     @Override
     protected TypeSerializer<WindowKey> createSerializer() {
-        return new WindowKeySerializer(2);
+        return new WindowKeySerializer((AbstractRowDataSerializer) new BinaryRowDataSerializer(2));
     }
 
     @Override
