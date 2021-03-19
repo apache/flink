@@ -9,7 +9,7 @@ Add this dependency entry to your pom.xml to use the Google Cloud Pub/Sub source
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-gcp-pubsub_2.11</artifactId>
+  <artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
   <version>1.13-SNAPSHOT</version>
 </dependency>
 ```
