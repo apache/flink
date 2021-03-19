@@ -27,7 +27,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
@@ -40,7 +42,7 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutab
  * An implementation of {@link WindowCombineFunction} that accumulates input records into the window
  * accumulator state.
  */
-public final class CombineRecordsFunction implements WindowCombineFunction {
+public final class AggRecordsCombiner implements WindowCombineFunction {
 
     /** The service to register event-time or processing-time timers. */
     private final InternalTimerService<Long> timerService;
@@ -66,7 +68,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
-    public CombineRecordsFunction(
+    public AggRecordsCombiner(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
@@ -142,7 +144,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     // Factory
     // ----------------------------------------------------------------------------------------
 
-    /** Factory to create {@link CombineRecordsFunction}. */
+    /** Factory to create {@link AggRecordsCombiner}. */
     public static final class Factory implements WindowCombineFunction.Factory {
 
         private static final long serialVersionUID = 1L;
@@ -165,7 +167,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
                 RuntimeContext runtimeContext,
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
-                WindowValueState<Long> windowState,
+                WindowState<Long> windowState,
                 boolean isEventTime)
                 throws Exception {
             final NamespaceAggsHandleFunction<Long> aggregator =
@@ -174,10 +176,11 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
                     new PerWindowStateDataViewStore(
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
             boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
-            return new CombineRecordsFunction(
+            WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
+            return new AggRecordsCombiner(
                     timerService,
                     stateBackend::setCurrentKey,
-                    windowState,
+                    windowValueState,
                     aggregator,
                     requiresCopy,
                     keySerializer,

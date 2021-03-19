@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 
 import java.io.IOException;
 import java.io.Serializable;
