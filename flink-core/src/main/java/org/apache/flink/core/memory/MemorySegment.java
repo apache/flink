@@ -72,7 +72,7 @@ public final class MemorySegment {
             "flink.tests.check-segment-multiple-free";
 
     private static final boolean checkMultipleFree =
-            System.getenv().containsKey(CHECK_MULTIPLE_FREE_PROPERTY);
+            System.getProperties().containsKey(CHECK_MULTIPLE_FREE_PROPERTY);
 
     /** The unsafe handle for transparent memory copied (heap / off-heap). */
     @SuppressWarnings("restriction")
