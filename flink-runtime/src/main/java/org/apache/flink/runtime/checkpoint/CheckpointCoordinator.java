@@ -816,7 +816,7 @@ public class CheckpointCoordinator {
             Execution[] executions) {
 
         final CheckpointOptions checkpointOptions =
-                new CheckpointOptions(
+                CheckpointOptions.forConfig(
                         props.getCheckpointType(),
                         checkpointStorageLocation.getLocationReference(),
                         isExactlyOnceMode,

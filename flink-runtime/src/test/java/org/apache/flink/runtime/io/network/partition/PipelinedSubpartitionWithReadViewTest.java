@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -348,11 +347,8 @@ public class PipelinedSubpartitionWithReadViewTest {
         assertEquals(0, availablityListener.getNumPriorityEvents());
 
         CheckpointOptions options =
-                new CheckpointOptions(
-                        CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}),
-                        true,
-                        true);
+                CheckpointOptions.unaligned(
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         BufferConsumer barrierBuffer =
                 EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
         subpartition.add(barrierBuffer, true);
