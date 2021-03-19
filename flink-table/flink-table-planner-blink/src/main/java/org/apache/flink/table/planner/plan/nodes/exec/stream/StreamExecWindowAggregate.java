@@ -46,6 +46,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssign
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -134,7 +135,9 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final TableConfig config = planner.getTableConfig();
-        final SliceAssigner sliceAssigner = createSliceAssigner(windowing);
+        final String shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), config);
+        final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         // Hopping window requires additional COUNT(*) to determine whether to register next timer
         // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
@@ -151,7 +154,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                         aggInfoList,
                         config,
                         planner.getRelBuilder(),
-                        inputRowType.getChildren());
+                        inputRowType.getChildren(),
+                        shiftTimeZone);
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
@@ -160,6 +164,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         final OneInputStreamOperator<RowData, RowData> windowOperator =
                 SlicingWindowAggOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputRowType))
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(
                                 (PagedTypeSerializer<RowData>)
                                         selector.getProducedType().toSerializer())
@@ -188,7 +193,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             AggregateInfoList aggInfoList,
             TableConfig config,
             RelBuilder relBuilder,
-            List<LogicalType> fieldTypes) {
+            List<LogicalType> fieldTypes,
+            String shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
@@ -211,6 +217,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 "GroupingWindowAggsHandler",
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
-                sliceAssigner);
+                sliceAssigner,
+                shiftTimeZone);
     }
 }

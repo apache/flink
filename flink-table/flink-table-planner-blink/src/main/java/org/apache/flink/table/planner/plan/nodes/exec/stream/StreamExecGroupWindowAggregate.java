@@ -56,6 +56,7 @@ import org.apache.flink.table.runtime.operators.window.WindowOperator;
 import org.apache.flink.table.runtime.operators.window.WindowOperatorBuilder;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -207,6 +208,10 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             inputTimeFieldIndex = -1;
         }
 
+        final String shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(
+                        window.timeAttribute().getOutputDataType().getLogicalType(), config);
+
         final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
         Arrays.fill(aggCallNeedRetractions, needRetraction);
         final AggregateInfoList aggInfoList =
@@ -220,7 +225,11 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final GeneratedClass<?> aggCodeGenerator =
                 createAggsHandler(
-                        aggInfoList, config, planner.getRelBuilder(), inputRowType.getChildren());
+                        aggInfoList,
+                        config,
+                        planner.getRelBuilder(),
+                        inputRowType.getChildren(),
+                        shiftTimeZone);
 
         final LogicalType[] aggResultTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] windowPropertyTypes =
@@ -235,6 +244,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final LogicalType[] aggValueTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] accTypes = extractLogicalTypes(aggInfoList.getAccTypes());
+
         final WindowOperator<?, ?> operator =
                 createWindowOperator(
                         planner.getTableConfig(),
@@ -244,7 +254,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         windowPropertyTypes,
                         aggValueTypes,
                         inputRowType.getChildren().toArray(new LogicalType[0]),
-                        inputTimeFieldIndex);
+                        inputTimeFieldIndex,
+                        shiftTimeZone);
 
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
@@ -272,7 +283,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             AggregateInfoList aggInfoList,
             TableConfig config,
             RelBuilder relBuilder,
-            List<LogicalType> fieldTypes) {
+            List<LogicalType> fieldTypes,
+            String shiftTimeZone) {
         final boolean needMerge;
         final Class<?> windowClass;
         if (window instanceof SlidingGroupWindow) {
@@ -317,13 +329,15 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                     "GroupingWindowTableAggsHandler",
                     aggInfoList,
                     JavaScalaConversionUtil.toScala(windowProperties),
-                    windowClass);
+                    windowClass,
+                    shiftTimeZone);
         } else {
             return generator.generateNamespaceAggsHandler(
                     "GroupingWindowAggsHandler",
                     aggInfoList,
                     JavaScalaConversionUtil.toScala(windowProperties),
-                    windowClass);
+                    windowClass,
+                    shiftTimeZone);
         }
     }
 
@@ -335,9 +349,12 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             LogicalType[] windowPropertyTypes,
             LogicalType[] aggValueTypes,
             LogicalType[] inputFields,
-            int timeFieldIndex) {
+            int timeFieldIndex,
+            String shiftTimeZone) {
         WindowOperatorBuilder builder =
-                WindowOperatorBuilder.builder().withInputFields(inputFields);
+                WindowOperatorBuilder.builder()
+                        .withInputFields(inputFields)
+                        .withShiftTimezone(shiftTimeZone);
 
         if (window instanceof TumblingGroupWindow) {
             TumblingGroupWindow tumblingWindow = (TumblingGroupWindow) window;

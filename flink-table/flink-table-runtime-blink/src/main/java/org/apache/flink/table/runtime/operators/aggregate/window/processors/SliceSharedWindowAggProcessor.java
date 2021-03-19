@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFun
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import javax.annotation.Nullable;
 
@@ -52,8 +53,15 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             WindowCombineFunction.Factory combinerFactory,
             SliceSharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
-            int indexOfCountStar) {
-        super(genAggsHandler, bufferFactory, combinerFactory, sliceAssigner, accSerializer);
+            int indexOfCountStar,
+            String shiftTimeZone) {
+        super(
+                genAggsHandler,
+                bufferFactory,
+                combinerFactory,
+                sliceAssigner,
+                accSerializer,
+                shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
@@ -78,7 +86,9 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             if (sliceSharedAssigner.isEventTime()) {
                 timerService.registerEventTimeTimer(nextWindowEnd, nextWindowEnd - 1);
             } else {
-                timerService.registerProcessingTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+                timerService.registerProcessingTimeTimer(
+                        nextWindowEnd,
+                        TimeWindowUtil.toEpochMillsForTimer(nextWindowEnd - 1, timeZone));
             }
         }
     }

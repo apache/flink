@@ -23,11 +23,11 @@
         "schema.watermark.0.rowtime" : "rowtime",
         "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
         "schema.3.expr" : "TO_TIMESTAMP(`c`)",
-        "schema.4.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "schema.0.name" : "a"
       }
     },
-    "id" : 17,
+    "id" : 18,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -100,7 +100,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 18,
+    "id" : 19,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -126,7 +126,7 @@
         }
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -168,7 +168,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 19,
+    "id" : 20,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -194,7 +194,7 @@
         }
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -220,7 +220,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 20,
+    "id" : 21,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -235,7 +235,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -245,7 +245,7 @@
     "description" : "Calc(select=[b, proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 21,
+    "id" : 22,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -261,7 +261,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -296,7 +296,7 @@
         "size" : "PT15M"
       },
       "timeAttributeType" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
         "precision" : 3,
         "kind" : "PROCTIME"
@@ -311,7 +311,7 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
             "kind" : "PROCTIME"
@@ -325,7 +325,7 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
             "kind" : "PROCTIME"
@@ -333,7 +333,7 @@
         }
       }
     } ],
-    "id" : 22,
+    "id" : 23,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -391,7 +391,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 23,
+    "id" : 24,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -435,7 +435,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 24,
+    "id" : 25,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -462,13 +462,6 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2])"
   } ],
   "edges" : [ {
-    "source" : 17,
-    "target" : 18,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
     "source" : 18,
     "target" : 19,
     "shuffle" : {
@@ -506,6 +499,13 @@
   }, {
     "source" : 23,
     "target" : 24,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 24,
+    "target" : 25,
     "shuffle" : {
       "type" : "FORWARD"
     },

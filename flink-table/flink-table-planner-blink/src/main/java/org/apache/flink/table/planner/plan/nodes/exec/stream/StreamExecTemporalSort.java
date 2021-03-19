@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sort.ProcTimeSortOperator;
 import org.apache.flink.table.runtime.operators.sort.RowTimeSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -104,10 +105,15 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             TimestampType keyType = (TimestampType) timeType;
             if (keyType.getKind() == TimestampKind.ROWTIME) {
                 return createSortRowTime(inputType, inputTransform, config);
-            } else if (keyType.getKind() == TimestampKind.PROCTIME) {
+            }
+        }
+        if (timeType instanceof LocalZonedTimestampType) {
+            LocalZonedTimestampType keyType = (LocalZonedTimestampType) timeType;
+            if (keyType.getKind() == TimestampKind.PROCTIME) {
                 return createSortProcTime(inputType, inputTransform, config);
             }
         }
+
         throw new TableException(
                 String.format(
                         "Sort: Internal Error\n"

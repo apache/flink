@@ -139,7 +139,7 @@ public class LogicalTypeSerdeTest {
                         new TimeType(3),
                         new TimestampType(),
                         new TimestampType(3),
-                        new TimestampType(false, TimestampKind.PROCTIME, 3),
+                        new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new TimestampType(false, TimestampKind.ROWTIME, 3),
                         new ZonedTimestampType(),
                         new ZonedTimestampType(3),

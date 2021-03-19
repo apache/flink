@@ -49,6 +49,7 @@ import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -138,7 +139,9 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final TableConfig config = planner.getTableConfig();
-        final SliceAssigner sliceAssigner = createSliceAssigner(windowing);
+        final String shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), config);
+        final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList localAggInfoList =
                 AggregateUtil.deriveWindowAggregateInfoList(

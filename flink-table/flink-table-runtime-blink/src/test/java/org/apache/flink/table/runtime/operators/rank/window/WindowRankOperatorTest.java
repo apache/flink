@@ -119,6 +119,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone("UTC")
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -208,6 +209,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone("UTC")
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -281,6 +283,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone("UTC")
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)

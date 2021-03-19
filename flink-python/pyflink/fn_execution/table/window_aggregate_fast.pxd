@@ -52,6 +52,7 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
 cdef class GroupWindowAggFunctionBase:
     cdef libc.stdint.int64_t _allowed_lateness
     cdef int _rowtime_index
+    cdef str _shift_timezone
     cdef RowKeySelector _key_selector
     cdef object _state_value_coder
     cdef object _state_backend
@@ -71,6 +72,7 @@ cdef class GroupWindowAggFunctionBase:
     cpdef list on_event_time(self, object timer)
     cpdef list on_processing_time(self, object timer)
     cpdef list get_timers(self)
+    cpdef libc.stdint.int64_t to_utc_timestamp_mills(self, libc.stdint.int64_t epoch_mills)
     cpdef libc.stdint.int64_t cleanup_time(self, object window)
     cdef void _register_cleanup_timer(self, object window)
     cdef InternalRow _emit_window_result(self, list key, object window)

@@ -120,6 +120,17 @@ public final class LogicalTypeChecks {
         return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
     }
 
+    public static boolean supportedTimeAttributeType(LogicalType logicalType) {
+        if (isProctimeAttribute(logicalType)
+                && logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+            return true;
+        }
+        if (isTimeAttribute(logicalType) && hasFamily(logicalType, LogicalTypeFamily.TIMESTAMP)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Checks if the given type is a composite type.
      *

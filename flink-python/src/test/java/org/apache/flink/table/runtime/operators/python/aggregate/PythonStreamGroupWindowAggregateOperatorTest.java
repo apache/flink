@@ -328,6 +328,7 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 new PlannerNamedWindowProperty[] {
                     new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
                     new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
-                });
+                },
+                "UTC");
     }
 }

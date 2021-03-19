@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVar
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
-import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
@@ -371,7 +371,7 @@ class MatchCodeGenerator(
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
           ctx.nullCheck)
 
       case MATCH_ROWTIME =>
@@ -387,7 +387,7 @@ class MatchCodeGenerator(
   }
 
   private def generateProctimeTimestamp(): GeneratedExpression = {
-    val resultType = new TimestampType(3)
+    val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =

@@ -188,7 +188,16 @@ class TemporalJoinITCase(state: StateBackendMode)
          |        FROM currency_proctime) T
          | WHERE rowNum = 1""".stripMargin)
 
-    createSinkTable("proctime_default_sink", None)
+    createSinkTable("proctime_default_sink", Some(
+      s"""
+         |  order_id BIGINT,
+         |  currency STRING,
+         |  amount BIGINT,
+         |  l_time TIMESTAMP_LTZ(3),
+         |  rate BIGINT,
+         |  r_time TIMESTAMP_LTZ(3),
+         |  PRIMARY KEY(order_id) NOT ENFORCED
+         |""".stripMargin))
 
 
     val rowTimeOrderDataId = registerData(rowTimeOrderData)
@@ -362,7 +371,7 @@ class TemporalJoinITCase(state: StateBackendMode)
       | currency STRING,
       | currency_no STRING,
       | rate BIGINT,
-      | proctime TIMESTAMP(3)
+      | proctime TIMESTAMP_LTZ(3)
       | """.stripMargin))
 
     val sql = "INSERT INTO proctime_sink1 " +
@@ -436,8 +445,17 @@ class TemporalJoinITCase(state: StateBackendMode)
 
   @Test
   def testProcTimeMultiTemporalJoin(): Unit = {
-    createSinkTable("proctime_sink8", None)
-    val sql = "INSERT INTO proctime_sink8 " +
+    createSinkTable("proctime_sink2", Some(
+      s"""
+         |  order_id BIGINT,
+         |  currency STRING,
+         |  amount BIGINT,
+         |  l_time TIMESTAMP_LTZ(3),
+         |  rate BIGINT,
+         |  r_time TIMESTAMP_LTZ(3),
+         |  PRIMARY KEY(order_id) NOT ENFORCED
+         |""".stripMargin))
+    val sql = "INSERT INTO proctime_sink2 " +
       " SELECT o.order_id, o.currency, o.amount, o.proctime, r.rate, r1.proctime " +
       " FROM orders_proctime AS o " +
       " JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime as r " +

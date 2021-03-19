@@ -79,7 +79,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         super(
                 windowAggregator,
                 windowAssigner,
@@ -91,7 +92,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 windowPropertyTypes,
                 rowtimeIndex,
                 produceUpdates,
-                allowedLateness);
+                allowedLateness,
+                shiftTimeZone);
         this.aggWindowAggregator = windowAggregator;
         this.equaliser = checkNotNull(equaliser);
     }
@@ -108,7 +110,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean sendRetraction,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         super(
                 windowAssigner,
                 trigger,
@@ -119,7 +122,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 windowPropertyTypes,
                 rowtimeIndex,
                 sendRetraction,
-                allowedLateness);
+                allowedLateness,
+                shiftTimeZone);
         this.generatedAggWindowAggregator = generatedAggWindowAggregator;
         this.generatedEqualiser = checkNotNull(generatedEqualiser);
     }

@@ -458,7 +458,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
                 },
                 groupingSet,
-                udafInputOffsets);
+                udafInputOffsets,
+                "UTC");
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
@@ -475,7 +476,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 long allowedLateness,
                 PlannerNamedWindowProperty[] namedProperties,
                 int[] groupingSet,
-                int[] udafInputOffsets) {
+                int[] udafInputOffsets,
+                String shiftTimeZone) {
             super(
                     config,
                     pandasAggFunctions,
@@ -487,7 +489,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     allowedLateness,
                     namedProperties,
                     groupingSet,
-                    udafInputOffsets);
+                    udafInputOffsets,
+                    shiftTimeZone);
         }
 
         @Override

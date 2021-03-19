@@ -63,7 +63,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         super(
                 windowTableAggregator,
                 windowAssigner,
@@ -75,7 +76,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
                 windowPropertyTypes,
                 rowtimeIndex,
                 produceUpdates,
-                allowedLateness);
+                allowedLateness,
+                shiftTimeZone);
         this.tableAggWindowAggregator = windowTableAggregator;
     }
 
@@ -90,7 +92,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean sendRetraction,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         super(
                 windowAssigner,
                 trigger,
@@ -101,7 +104,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
                 windowPropertyTypes,
                 rowtimeIndex,
                 sendRetraction,
-                allowedLateness);
+                allowedLateness,
+                shiftTimeZone);
         this.generatedTableAggWindowAggregator = generatedTableAggWindowAggregator;
     }
 

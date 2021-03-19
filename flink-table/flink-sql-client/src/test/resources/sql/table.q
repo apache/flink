@@ -91,29 +91,29 @@ alter table orders2 set ('connector' = 'kafka');
 
 # test describe table
 describe orders2;
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    name |                    type |  null |       key |        extras |                  watermark |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    user |                  BIGINT | false | PRI(user) |               |                            |
-| product |             VARCHAR(32) |  true |           |               |                            |
-|  amount |                     INT |  true |           |               |                            |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
 !ok
 
 # test desc table
 desc orders2;
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    name |                    type |  null |       key |        extras |                  watermark |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    user |                  BIGINT | false | PRI(user) |               |                            |
-| product |             VARCHAR(32) |  true |           |               |                            |
-|  amount |                     INT |  true |           |               |                            |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
 !ok
 

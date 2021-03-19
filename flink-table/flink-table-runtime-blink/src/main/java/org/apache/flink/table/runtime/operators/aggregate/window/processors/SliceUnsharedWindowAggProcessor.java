@@ -37,8 +37,15 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             WindowBuffer.Factory windowBufferFactory,
             WindowCombineFunction.Factory combineFactory,
             SliceUnsharedAssigner sliceAssigner,
-            TypeSerializer<RowData> accSerializer) {
-        super(genAggsHandler, windowBufferFactory, combineFactory, sliceAssigner, accSerializer);
+            TypeSerializer<RowData> accSerializer,
+            String shiftTimeZone) {
+        super(
+                genAggsHandler,
+                windowBufferFactory,
+                combineFactory,
+                sliceAssigner,
+                accSerializer,
+                shiftTimeZone);
     }
 
     @Override

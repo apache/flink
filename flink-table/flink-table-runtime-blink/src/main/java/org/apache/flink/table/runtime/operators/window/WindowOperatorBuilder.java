@@ -72,6 +72,7 @@ public class WindowOperatorBuilder {
     protected long allowedLateness = 0L;
     protected boolean produceUpdates = false;
     protected int rowtimeIndex = -1;
+    protected String shiftTimeZone = "UTC";
 
     public static WindowOperatorBuilder builder() {
         return new WindowOperatorBuilder();
@@ -79,6 +80,16 @@ public class WindowOperatorBuilder {
 
     public WindowOperatorBuilder withInputFields(LogicalType[] inputFieldTypes) {
         this.inputFieldTypes = inputFieldTypes;
+        return this;
+    }
+
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    public WindowOperatorBuilder withShiftTimezone(String shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
         return this;
     }
 
@@ -278,7 +289,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.windowPropertyTypes,
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
-                        windowOperatorBuilder.allowedLateness);
+                        windowOperatorBuilder.allowedLateness,
+                        windowOperatorBuilder.shiftTimeZone);
             } else {
                 //noinspection unchecked
                 return new TableAggregateWindowOperator(
@@ -293,7 +305,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.windowPropertyTypes,
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
-                        windowOperatorBuilder.allowedLateness);
+                        windowOperatorBuilder.allowedLateness,
+                        windowOperatorBuilder.shiftTimeZone);
             }
         }
     }
@@ -341,7 +354,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.windowPropertyTypes,
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
-                        windowOperatorBuilder.allowedLateness);
+                        windowOperatorBuilder.allowedLateness,
+                        windowOperatorBuilder.shiftTimeZone);
             } else {
                 //noinspection unchecked
                 return new AggregateWindowOperator(
@@ -357,7 +371,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.windowPropertyTypes,
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
-                        windowOperatorBuilder.allowedLateness);
+                        windowOperatorBuilder.allowedLateness,
+                        windowOperatorBuilder.shiftTimeZone);
             }
         }
     }

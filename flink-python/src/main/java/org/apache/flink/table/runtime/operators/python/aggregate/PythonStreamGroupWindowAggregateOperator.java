@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.RowType;
@@ -56,6 +57,10 @@ import org.apache.flink.table.types.logical.TinyIntType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
+
+import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
+import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
 
 /** The Python Group Window AggregateFunction operator for the blink planner. */
 @Internal
@@ -117,6 +122,11 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     /** Session Window gap. */
     private long gap;
 
+    /** The shift timeZone of the window. */
+    private final String shiftTimeZone;
+
+    protected transient TimeZone timeZone;
+
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
 
@@ -147,7 +157,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             WindowAssigner<W> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties) {
+            PlannerNamedWindowProperty[] namedProperties,
+            String shiftTimeZone) {
         super(
                 config,
                 inputType,
@@ -163,12 +174,14 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.allowedLateness = allowedLateness;
+        this.shiftTimeZone = shiftTimeZone;
         buildWindow(window, namedProperties);
     }
 
     @Override
     public void open() throws Exception {
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
+        timeZone = TimeZone.getTimeZone(shiftTimeZone);
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
         // The structure is:  [type]|[normal record]|[timestamp]|[current watermark]|[timer data]
         // If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
@@ -207,8 +220,18 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                     (GenericRowData) udfResult.getRow(1, outputType.getFieldCount());
             int fieldCount = outputType.getFieldCount();
             for (int i = fieldCount - namedProperties.length; i < fieldCount; i++) {
-                aggResult.setField(i, TimestampData.fromEpochMillis(aggResult.getLong(i)));
+                FlinkFnApi.GroupWindow.WindowProperty namedProperty =
+                        namedProperties[i - (fieldCount - namedProperties.length)];
+                if (namedProperty == WINDOW_START || namedProperty == WINDOW_END) {
+                    aggResult.setField(i, TimestampData.fromEpochMillis(aggResult.getLong(i)));
+                } else {
+                    aggResult.setField(
+                            i,
+                            TimestampData.fromEpochMillis(
+                                    getShiftEpochMills(aggResult.getLong(i))));
+                }
             }
+
             rowDataWrapper.collect(aggResult);
         } else {
             RowData timerData = udfResult.getRow(2, timerDataLength);
@@ -225,17 +248,23 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
                     internalTimerService.registerEventTimeTimer(window, timestamp);
                 } else if (timerOperandType == REGISTER_PROCESSING_TIMER) {
-                    internalTimerService.registerProcessingTimeTimer(window, timestamp);
+                    internalTimerService.registerProcessingTimeTimer(
+                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone));
                 } else if (timerOperandType == DELETE_EVENT_TIMER) {
                     internalTimerService.deleteEventTimeTimer(window, timestamp);
                 } else if (timerOperandType == DELETE_PROCESSING_TIMER) {
-                    internalTimerService.deleteProcessingTimeTimer(window, timestamp);
+                    internalTimerService.deleteProcessingTimeTimer(
+                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone));
                 } else {
                     throw new RuntimeException(
                             String.format("Unsupported timerOperandType %s.", timerOperandType));
                 }
             }
         }
+    }
+
+    protected long getShiftEpochMills(long utcTimestampMills) {
+        return TimeWindowUtil.toEpochMills(utcTimestampMills, timeZone);
     }
 
     @Override
@@ -298,6 +327,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         for (FlinkFnApi.GroupWindow.WindowProperty namedProperty : namedProperties) {
             windowBuilder.addNamedProperties(namedProperty);
         }
+        windowBuilder.setShiftTimezone(shiftTimeZone);
         builder.setGroupWindow(windowBuilder);
         return builder.build();
     }
@@ -356,7 +386,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         for (int i = 0; i < namedProperties.length; i++) {
             PlannerWindowProperty namedProperty = namedProperties[i].getProperty();
             if (namedProperty instanceof PlannerWindowStart) {
-                this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+                this.namedProperties[i] = WINDOW_START;
             } else if (namedProperty instanceof PlannerWindowEnd) {
                 this.namedProperties[i] = FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
             } else if (namedProperty instanceof PlannerRowtimeAttribute) {
@@ -380,7 +410,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         reuseTimerData.setField(2, baos.toByteArray());
         baos.reset();
 
-        reuseTimerRowData.setLong(2, timer.getTimestamp());
+        reuseTimerRowData.setLong(
+                2, TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), timeZone));
+
         udfInputTypeSerializer.serialize(reuseTimerRowData, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();

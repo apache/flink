@@ -59,6 +59,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.TimeZone;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -66,6 +67,7 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -84,6 +86,9 @@ public class WindowOperatorTest {
     public static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {false}, new Object[] {true});
     }
+
+    private static final String UTC_TIMEZONE_ID = "UTC";
+    private static final String SHANGHAI_TIMEZONE_ID = "Asia/Shanghai";
 
     private final boolean isTableAggregate;
     private static final SumAndCountAggTimeWindow sumAndCountAggTimeWindow =
@@ -255,11 +260,21 @@ public class WindowOperatorTest {
     }
 
     @Test
-    public void testProcessingTimeSlidingWindows() throws Throwable {
+    public void testProcessingTimeSlidingWindowsinUTC() throws Throwable {
+        testProcessingTimeSlidingWindows(UTC_TIMEZONE_ID);
+    }
+
+    @Test
+    public void testProcessingTimeSlidingWindowsinShanghai() throws Throwable {
+        testProcessingTimeSlidingWindows(SHANGHAI_TIMEZONE_ID);
+    }
+
+    private void testProcessingTimeSlidingWindows(String shiftTimeZone) throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
+                        .withShiftTimezone(shiftTimeZone)
                         .withInputFields(inputFieldTypes)
                         .sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
                         .withProcessingTime()
@@ -274,6 +289,7 @@ public class WindowOperatorTest {
                 createTestHarness(operator);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        TimeZone tz = TimeZone.getTimeZone(shiftTimeZone);
 
         testHarness.open();
 
@@ -284,7 +300,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(1000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, -2000L, 1000L, 999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                1L,
+                                1L,
+                                toUtcTimestampMills(-2000L, tz),
+                                toUtcTimestampMills(1000L, tz),
+                                toUtcTimestampMills(999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -295,7 +319,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(2000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, -1000L, 2000L, 1999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(-1000L, tz),
+                                toUtcTimestampMills(2000L, tz),
+                                toUtcTimestampMills(1999L, tz))));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -305,9 +337,25 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(3000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -319,13 +367,45 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(7000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 1000L, 4000L, 3999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(1000L, tz),
+                                toUtcTimestampMills(4000L, tz),
+                                toUtcTimestampMills(3999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 1000L, 4000L, 3999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                5L,
+                                5L,
+                                toUtcTimestampMills(1000L, tz),
+                                toUtcTimestampMills(4000L, tz),
+                                toUtcTimestampMills(3999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 5L, 5L, 2000L, 5000L, 4999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                5L,
+                                5L,
+                                toUtcTimestampMills(2000L, tz),
+                                toUtcTimestampMills(5000L, tz),
+                                toUtcTimestampMills(4999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(6000L, tz),
+                                toUtcTimestampMills(5999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -501,12 +581,22 @@ public class WindowOperatorTest {
     }
 
     @Test
-    public void testProcessingTimeCumulativeWindows() throws Throwable {
+    public void testProcessingTimeCumulativeWindowsInUTC() throws Throwable {
+        testProcessingTimeCumulativeWindows(UTC_TIMEZONE_ID);
+    }
+
+    @Test
+    public void testProcessingTimeCumulativeWindowsInShangHai() throws Throwable {
+        testProcessingTimeCumulativeWindows(SHANGHAI_TIMEZONE_ID);
+    }
+
+    private void testProcessingTimeCumulativeWindows(String shiftTimeZone) throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFieldTypes)
+                        .withShiftTimezone(shiftTimeZone)
                         .cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
                         .withProcessingTime()
                         .aggregateAndBuild(
@@ -523,6 +613,7 @@ public class WindowOperatorTest {
 
         testHarness.open();
 
+        TimeZone tz = TimeZone.getTimeZone(shiftTimeZone);
         // timestamp is ignored in processing time
         testHarness.setProcessingTime(3);
         testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
@@ -530,7 +621,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(1000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 0L, 1000L, 999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                1L,
+                                1L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(1000L, tz),
+                                toUtcTimestampMills(999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -541,7 +640,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(2000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(2000L, tz),
+                                toUtcTimestampMills(1999L, tz))));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -551,9 +658,25 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(3000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -565,17 +688,65 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(7000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 4000L, 3999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(4000L, tz),
+                                toUtcTimestampMills(3999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 4000L, 3999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                1L,
+                                1L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(4000L, tz),
+                                toUtcTimestampMills(3999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 5000L, 4999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(5000L, tz),
+                                toUtcTimestampMills(4999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 5000L, 4999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                1L,
+                                1L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(5000L, tz),
+                                toUtcTimestampMills(4999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 6000L, 5999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(6000L, tz),
+                                toUtcTimestampMills(5999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 6000L, 5999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                1L,
+                                1L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(6000L, tz),
+                                toUtcTimestampMills(5999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -961,13 +1132,23 @@ public class WindowOperatorTest {
     }
 
     @Test
+    public void testProcessingTimeTumblingWindowsInUTC() throws Exception {
+        testProcessingTimeTumblingWindows(UTC_TIMEZONE_ID);
+    }
+
+    @Test
+    public void testProcessingTimeTumblingWindowsInShanghai() throws Exception {
+        testProcessingTimeTumblingWindows(SHANGHAI_TIMEZONE_ID);
+    }
+
     @SuppressWarnings("unchecked")
-    public void testProcessingTimeTumblingWindows() throws Exception {
+    private void testProcessingTimeTumblingWindows(String shiftTimeZone) throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFieldTypes)
+                        .withShiftTimezone(shiftTimeZone)
                         .tumble(Duration.ofSeconds(3))
                         .withProcessingTime()
                         .aggregateAndBuild(
@@ -979,6 +1160,7 @@ public class WindowOperatorTest {
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
+        TimeZone tz = TimeZone.getTimeZone(shiftTimeZone);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -997,9 +1179,25 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(5000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(0L, tz),
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(2999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1011,7 +1209,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(7000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(3000L, tz),
+                                toUtcTimestampMills(6000L, tz),
+                                toUtcTimestampMills(5999L, tz))));
 
         assertEquals(0L, operator.getWatermarkLatency().getValue());
         assertor.assertOutputEqualsSorted(
@@ -1108,12 +1314,22 @@ public class WindowOperatorTest {
     }
 
     @Test
-    public void testProcessingTimeSessionWindows() throws Throwable {
+    public void testProcessingTimeSessionWindowsInUTC() throws Throwable {
+        testProcessingTimeSessionWindows(UTC_TIMEZONE_ID);
+    }
+
+    @Test
+    public void testProcessingTimeSessionWindowsInShanghai() throws Throwable {
+        testProcessingTimeSessionWindows(SHANGHAI_TIMEZONE_ID);
+    }
+
+    private void testProcessingTimeSessionWindows(String shiftTimeZone) throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFieldTypes)
+                        .withShiftTimezone(shiftTimeZone)
                         .session(Duration.ofSeconds(3))
                         .withProcessingTime()
                         .aggregateAndBuild(
@@ -1133,6 +1349,7 @@ public class WindowOperatorTest {
                                 0, new VarCharType(VarCharType.MAX_LENGTH)));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        TimeZone tz = TimeZone.getTimeZone(shiftTimeZone);
 
         testHarness.open();
 
@@ -1146,7 +1363,15 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(5000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 3L, 4000L, 3999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(3L, tz),
+                                toUtcTimestampMills(4000L, tz),
+                                toUtcTimestampMills(3999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1160,9 +1385,25 @@ public class WindowOperatorTest {
         testHarness.setProcessingTime(10000);
 
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key2", 2L, 2L, 5000L, 8000L, 7999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key2",
+                                2L,
+                                2L,
+                                toUtcTimestampMills(5000L, tz),
+                                toUtcTimestampMills(8000L, tz),
+                                toUtcTimestampMills(7999L, tz))));
         expectedOutput.addAll(
-                doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 5000L, 8000L, 7999L)));
+                doubleRecord(
+                        isTableAggregate,
+                        insertRecord(
+                                "key1",
+                                3L,
+                                3L,
+                                toUtcTimestampMills(5000L, tz),
+                                toUtcTimestampMills(8000L, tz),
+                                toUtcTimestampMills(7999L, tz))));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());

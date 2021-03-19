@@ -68,10 +68,16 @@ public class SlicingWindowAggOperatorBuilder {
     private GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction;
     private GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction;
     private int indexOfCountStart = -1;
+    private String shiftTimeZone;
 
     public SlicingWindowAggOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
         this.inputSerializer = inputSerializer;
+        return this;
+    }
+
+    public SlicingWindowAggOperatorBuilder shiftTimeZone(String shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
         return this;
     }
 
@@ -149,7 +155,8 @@ public class SlicingWindowAggOperatorBuilder {
                             combinerFactory,
                             (SliceSharedAssigner) assigner,
                             accSerializer,
-                            indexOfCountStart);
+                            indexOfCountStart,
+                            shiftTimeZone);
         } else if (assigner instanceof SliceUnsharedAssigner) {
             windowProcessor =
                     new SliceUnsharedWindowAggProcessor(
@@ -157,11 +164,12 @@ public class SlicingWindowAggOperatorBuilder {
                             bufferFactory,
                             combinerFactory,
                             (SliceUnsharedAssigner) assigner,
-                            accSerializer);
+                            accSerializer,
+                            shiftTimeZone);
         } else {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
-        return new SlicingWindowOperator<>(windowProcessor);
+        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
     }
 }

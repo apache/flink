@@ -65,10 +65,16 @@ public class WindowRankOperatorBuilder {
     private long rankStart = -1;
     private long rankEnd = -1;
     private int windowEndIndex = -1;
+    private String shiftTimeZone = "UTC";
 
     public WindowRankOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
         this.inputSerializer = inputSerializer;
+        return this;
+    }
+
+    public WindowRankOperatorBuilder shiftTimeZone(String shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
         return this;
     }
 
@@ -148,6 +154,6 @@ public class WindowRankOperatorBuilder {
                         rankEnd,
                         outputRankNumber,
                         windowEndIndex);
-        return new SlicingWindowOperator<>(windowProcessor);
+        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
     }
 }

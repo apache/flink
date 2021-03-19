@@ -180,6 +180,8 @@ message GroupWindow {
   int64 allowedLateness = 8;
 
   repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.

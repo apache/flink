@@ -98,15 +98,15 @@ show views;
 
 # test describe view
 describe v1;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
@@ -139,28 +139,28 @@ create view `mod` as select * from orders;
 !info
 
 describe `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
 desc `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 

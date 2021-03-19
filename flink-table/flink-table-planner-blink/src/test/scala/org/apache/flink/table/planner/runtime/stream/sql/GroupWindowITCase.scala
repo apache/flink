@@ -38,6 +38,7 @@ import org.junit.runners.Parameterized
 
 import java.math.BigDecimal
 import java.time.Duration
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
@@ -345,6 +346,38 @@ class GroupWindowITCase(mode: StateBackendMode)
       "1970-01-01T00:00:00.018,1",
       "1970-01-01T00:00:00.033,0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testProctimeCascadeWindowAgg: Unit = {
+    val stream = failingDataSource(data)
+    val table =
+      stream.toTable(
+        tEnv, 'rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name, 'proctime.proctime)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        | SELECT cnt,
+        |  TUMBLE_START(pt1, INTERVAL '0.01' SECOND),
+        |  TUMBLE_END(pt1, INTERVAL '0.01' SECOND),
+        |  TUMBLE_PROCTIME(pt1, INTERVAL '0.01' SECOND),
+        |  MAX(s1),
+        |  MAX(e1) FROM
+        | (SELECT
+        |   TUMBLE_START(proctime, INTERVAL '0.005' SECOND) as s1,
+        |   TUMBLE_END(proctime, INTERVAL '0.005' SECOND) e1,
+        |   TUMBLE_PROCTIME(proctime, INTERVAL '0.005' SECOND) as pt1,
+        |   COUNT(name) as cnt
+        |  FROM T1
+        |  GROUP BY 'a', TUMBLE(proctime, INTERVAL '0.005' SECOND)
+        |  ) as T
+        | GROUP BY cnt, TUMBLE(pt1, INTERVAL '0.01' SECOND)
+      """.stripMargin
+    val timeZone = TimeZone.getTimeZone(tEnv.getConfig.getLocalTimeZone.toString)
+    val sink = new TestingAppendSink(timeZone)
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    // due to the non-deterministic of proctime() function, the result isn't checked here
   }
 
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {

@@ -53,11 +53,13 @@ import org.apache.flink.table.runtime.operators.window.internal.MergingWindowPro
 import org.apache.flink.table.runtime.operators.window.internal.PanedWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.Collection;
+import java.util.TimeZone;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -120,6 +122,13 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     protected final boolean produceUpdates;
 
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    protected final String shiftTimeZone;
+
     private final int rowtimeIndex;
 
     /**
@@ -154,6 +163,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     protected transient InternalValueState<K, W, RowData> previousState;
 
     private transient TriggerContext triggerContext;
+    private transient TimeZone timeZone;
 
     // ------------------------------------------------------------------------
     // Metrics
@@ -174,7 +184,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAggregator = checkNotNull(windowAggregator);
         this.windowAssigner = checkNotNull(windowAssigner);
@@ -190,7 +201,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         // rowtime index should >= 0 when in event time mode
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
         this.rowtimeIndex = rowtimeIndex;
-
+        this.shiftTimeZone = shiftTimeZone;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -204,7 +215,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            String shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAssigner = checkNotNull(windowAssigner);
         this.trigger = checkNotNull(trigger);
@@ -219,6 +231,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         // rowtime index should >= 0 when in event time mode
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
         this.rowtimeIndex = rowtimeIndex;
+        this.shiftTimeZone = shiftTimeZone;
 
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
@@ -253,6 +266,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
                     (InternalValueState<K, W, RowData>)
                             getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
         }
+        timeZone = TimeZone.getTimeZone(shiftTimeZone);
 
         compileGeneratedCode();
 
@@ -333,6 +347,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         } else {
             timestamp = internalTimerService.currentProcessingTime();
         }
+
+        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone);
 
         // the windows which the input row should be placed into
         Collection<W> affectedWindows = windowFunction.assignStateNamespace(inputRow, timestamp);
@@ -553,7 +569,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         boolean onProcessingTime(long time) throws Exception {
-            return trigger.onProcessingTime(time, window);
+            return trigger.onProcessingTime(
+                    TimeWindowUtil.toUtcTimestampMills(time, timeZone), window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -581,7 +598,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void registerProcessingTimeTimer(long time) {
-            internalTimerService.registerProcessingTimeTimer(window, time);
+            internalTimerService.registerProcessingTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
         }
 
         @Override
@@ -591,7 +609,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void deleteProcessingTimeTimer(long time) {
-            internalTimerService.deleteProcessingTimeTimer(window, time);
+            internalTimerService.deleteProcessingTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
         }
 
         @Override
