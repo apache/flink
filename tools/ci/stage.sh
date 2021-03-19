@@ -74,7 +74,6 @@ flink-filesystems/flink-oss-fs-hadoop,\
 flink-filesystems/flink-s3-fs-base,\
 flink-filesystems/flink-s3-fs-hadoop,\
 flink-filesystems/flink-s3-fs-presto,\
-flink-filesystems/flink-swift-fs-hadoop,\
 flink-fs-tests,\
 flink-formats,\
 flink-formats/flink-avro-confluent-registry,\
