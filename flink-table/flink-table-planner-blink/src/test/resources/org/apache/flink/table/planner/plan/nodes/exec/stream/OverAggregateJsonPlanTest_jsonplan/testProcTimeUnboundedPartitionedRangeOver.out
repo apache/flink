@@ -265,7 +265,7 @@
         "fields" : [ 1 ]
       },
       "groups" : [ {
-        "sortSpec" : {
+        "orderBy" : {
           "fields" : [ {
             "index" : 2,
             "isAscending" : true,
@@ -315,7 +315,7 @@
         "rows" : false
       } ],
       "constants" : [ ],
-      "inputFieldNum" : 3
+      "originalInputFieldNum" : 3
     },
     "id" : 6,
     "inputProperties" : [ {

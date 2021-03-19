@@ -276,7 +276,7 @@
         "fields" : [ ]
       },
       "groups" : [ {
-        "sortSpec" : {
+        "orderBy" : {
           "fields" : [ {
             "index" : 1,
             "isAscending" : true,
@@ -330,7 +330,7 @@
           "scale" : 6
         }
       } ],
-      "inputFieldNum" : 3
+      "originalInputFieldNum" : 3
     },
     "id" : 29,
     "inputProperties" : [ {

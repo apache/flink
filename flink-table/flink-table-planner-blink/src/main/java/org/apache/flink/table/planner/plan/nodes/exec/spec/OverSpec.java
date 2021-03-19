@@ -48,7 +48,7 @@ public class OverSpec {
     public static final String FIELD_NAME_PARTITION = "partition";
     public static final String FIELD_NAME_GROUPS = "groups";
     public static final String FIELD_NAME_CONSTANTS = "constants";
-    public static final String FIELD_NAME_INPUT_FIELD_NUM = "inputFieldNum";
+    public static final String FIELD_NAME_INPUT_FIELD_NUM = "originalInputFieldNum";
 
     /** Describes the partition-by part, all groups in this over have same partition. */
     @JsonProperty(FIELD_NAME_PARTITION)
@@ -110,7 +110,7 @@ public class OverSpec {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class GroupSpec {
-        public static final String FIELD_NAME_SORT_SPEC = "sortSpec";
+        public static final String FIELD_NAME_SORT_SPEC = "orderBy";
         public static final String FIELD_NAME_IS_ROWS = "isRows";
         public static final String FIELD_NAME_LOWER_BOUND = "lowerBound";
         public static final String FIELD_NAME_UPPER_BOUND = "upperBound";
