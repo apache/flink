@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.utils.TableFunc1;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Tests for function calls in plan json. */
@@ -69,6 +70,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
+    @Ignore("the case is ignored because of FLINK-21870")
     public void testRegisterByClass() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
