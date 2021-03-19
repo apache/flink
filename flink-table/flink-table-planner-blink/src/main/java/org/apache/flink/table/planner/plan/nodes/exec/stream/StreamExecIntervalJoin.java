@@ -50,6 +50,7 @@ import org.apache.flink.table.runtime.operators.join.interval.RowTimeIntervalJoi
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -94,7 +95,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, inputProperties, outputType, description);
-        this.intervalJoinSpec = intervalJoinSpec;
+        Preconditions.checkArgument(inputProperties.size() == 2);
+        this.intervalJoinSpec = Preconditions.checkNotNull(intervalJoinSpec);
     }
 
     @Override
