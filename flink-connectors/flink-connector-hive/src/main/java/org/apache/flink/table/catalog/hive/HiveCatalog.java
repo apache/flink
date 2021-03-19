@@ -103,6 +103,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -217,12 +218,27 @@ public class HiveCatalog extends AbstractCatalog {
                     HadoopUtils.possibleHadoopConfPaths(
                             new org.apache.flink.configuration.Configuration())) {
                 hadoopConf = getHadoopConfiguration(possibleHadoopConfPath);
-                if (hadoopConf != null) {
+                if (hadoopConf != null && hadoopConf.size() != 0) {
                     break;
                 }
             }
         } else {
             hadoopConf = getHadoopConfiguration(hadoopConfDir);
+            if (hadoopConf == null) {
+                throw new CatalogException(
+                        "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
+                        new FileNotFoundException("Path " + hadoopConfDir + " does not exist."));
+            }
+            if (hadoopConf.size() == 0) {
+                String possiableUsedFiles =
+                        "core-site.xml | hdfs-site.xml | yarn-site.xml | mapred-site.xml";
+                throw new CatalogException(
+                        "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
+                        new FileNotFoundException(
+                                "None of the conf files ("
+                                        + possiableUsedFiles
+                                        + ") exist in the folder."));
+            }
         }
         if (hadoopConf == null) {
             hadoopConf = new Configuration();
