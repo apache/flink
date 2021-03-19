@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate.window.processors;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
@@ -25,7 +26,6 @@ import org.apache.flink.table.runtime.operators.aggregate.window.combines.Window
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import javax.annotation.Nullable;
 
@@ -51,9 +51,9 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             WindowBuffer.Factory bufferFactory,
             WindowCombineFunction.Factory combinerFactory,
             SliceSharedAssigner sliceAssigner,
-            LogicalType[] accumulatorTypes,
+            TypeSerializer<RowData> accSerializer,
             int indexOfCountStar) {
-        super(genAggsHandler, bufferFactory, combinerFactory, sliceAssigner, accumulatorTypes);
+        super(genAggsHandler, bufferFactory, combinerFactory, sliceAssigner, accSerializer);
         this.sliceSharedAssigner = sliceAssigner;
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }

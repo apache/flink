@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -65,11 +66,10 @@ public class SlicingWindowAggOperatorTest {
                             new RowType.RowField("f1", new IntType()),
                             new RowType.RowField("f2", new BigIntType())));
 
-    private static final LogicalType[] KEY_TYPES =
-            new LogicalType[] {new VarCharType(Integer.MAX_VALUE)};
+    private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
 
-    private static final LogicalType[] ACC_TYPES =
-            new LogicalType[] {new BigIntType(), new BigIntType()};
+    private static final RowDataSerializer ACC_SER =
+            new RowDataSerializer(new BigIntType(), new BigIntType());
 
     private static final LogicalType[] OUTPUT_TYPES =
             new LogicalType[] {
@@ -83,6 +83,9 @@ public class SlicingWindowAggOperatorTest {
     private static final BinaryRowDataKeySelector KEY_SELECTOR =
             new BinaryRowDataKeySelector(
                     new int[] {0}, INPUT_ROW_TYPE.getChildren().toArray(new LogicalType[0]));
+
+    private static final PagedTypeSerializer<RowData> KEY_SER =
+            (PagedTypeSerializer<RowData>) KEY_SELECTOR.getProducedType().toSerializer();
 
     private static final TypeSerializer<RowData> OUT_SERIALIZER =
             new RowDataSerializer(OUTPUT_TYPES);
@@ -99,10 +102,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .countStarIndex(1)
                         .build();
 
@@ -206,10 +209,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .countStarIndex(1)
                         .build();
 
@@ -278,10 +281,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -384,10 +387,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -456,10 +459,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -556,10 +559,10 @@ public class SlicingWindowAggOperatorTest {
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
         SlicingWindowOperator<RowData, ?> operator =
                 SlicingWindowAggOperatorBuilder.builder()
-                        .inputType(INPUT_ROW_TYPE)
-                        .keyTypes(KEY_TYPES)
+                        .inputSerializer(INPUT_ROW_SER)
+                        .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -613,10 +616,10 @@ public class SlicingWindowAggOperatorTest {
         try {
             // hopping window without specifying count star index
             SlicingWindowAggOperatorBuilder.builder()
-                    .inputType(INPUT_ROW_TYPE)
-                    .keyTypes(KEY_TYPES)
+                    .inputSerializer(INPUT_ROW_SER)
+                    .keySerializer(KEY_SER)
                     .assigner(assigner)
-                    .aggregate(wrapGenerated(aggsFunction), ACC_TYPES)
+                    .aggregate(wrapGenerated(aggsFunction), ACC_SER)
                     .build();
             fail("should fail");
         } catch (Exception e) {
