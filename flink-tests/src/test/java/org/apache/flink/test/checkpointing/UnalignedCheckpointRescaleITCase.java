@@ -25,17 +25,23 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,7 +67,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         PIPELINE {
             @Override
             UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = 8;
+                int numShuffles = 10;
                 final int numSlots = parallelism * numShuffles + 3;
                 // aim for 3 TMs
                 int slotsPerTaskManager = (numSlots + 2) / 3;
@@ -95,7 +101,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         MULTI_INPUT {
             @Override
             UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = NUM_SOURCES * 8 + 1;
+                int numShuffles = NUM_SOURCES * 10 + 1;
                 int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
                 // aim for 3 TMs
                 int slotsPerTaskManager = (numSlots + 2) / 3;
@@ -134,7 +140,6 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                                             .map(new UnionLikeCoGroup())
                                             .name("min" + inputIndex)
                                             .uid("min" + inputIndex)
-                                            .setParallelism(parallelism + inputIndex)
                                             .slotSharingGroup(
                                                     slotSharing ? "default" : ("min" + inputIndex));
                 }
@@ -146,7 +151,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         UNION {
             @Override
             UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = NUM_SOURCES * 8 + 1;
+                int numShuffles = NUM_SOURCES * 10 + 1;
                 int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
                 // aim for 3 TMs
                 int slotsPerTaskManager = (numSlots + 2) / 3;
@@ -181,6 +186,64 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 }
 
                 addFailingSink(combinedSource, minCheckpoints, slotSharing);
+            }
+        },
+
+        BROADCAST {
+            @Override
+            UnalignedSettings createSettings(int parallelism) {
+                int numShuffles = NUM_SOURCES * 8 + 1;
+                int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
+                // aim for 3 TMs
+                int slotsPerTaskManager = (numSlots + 2) / 3;
+                return new UnalignedSettings(this::createPipeline)
+                        .setParallelism(parallelism)
+                        .setSlotSharing(false)
+                        .setNumSlots(numSlots)
+                        .setSlotsPerTaskManager(slotsPerTaskManager)
+                        .setExpectedFailures(1);
+            }
+
+            private void createPipeline(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+
+                final int parallelism = env.getParallelism();
+                final DataStream<Long> broadcastSide =
+                        env.fromSource(
+                                new LongSource(
+                                        minCheckpoints,
+                                        parallelism,
+                                        expectedRestarts,
+                                        env.getCheckpointInterval()),
+                                noWatermarks(),
+                                "source");
+                final DataStream<Long> source =
+                        createSourcePipeline(
+                                        env,
+                                        minCheckpoints,
+                                        slotSharing,
+                                        expectedRestarts,
+                                        parallelism,
+                                        0,
+                                        val -> true)
+                                .map(i -> checkHeader(i))
+                                .name("map")
+                                .uid("map")
+                                .slotSharingGroup(slotSharing ? "default" : "failing-map");
+
+                final MapStateDescriptor<Long, Long> descriptor =
+                        new MapStateDescriptor<>(
+                                "broadcast",
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                BasicTypeInfo.LONG_TYPE_INFO);
+                final BroadcastStream<Long> broadcast = broadcastSide.broadcast(descriptor);
+                final SingleOutputStreamOperator<Long> joined =
+                        source.connect(broadcast).process(new TestBroadcastProcessFunction());
+
+                addFailingSink(joined, minCheckpoints, slotSharing);
             }
         };
 
@@ -265,7 +328,13 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     .map(new StatefulKeyedMap())
                     .name("keyby" + inputIndex)
                     .uid("keyby" + inputIndex)
-                    .slotSharingGroup(slotSharing ? "default" : ("keyby" + inputIndex));
+                    .slotSharingGroup(slotSharing ? "default" : ("keyby" + inputIndex))
+                    .rescale()
+                    .map(i -> checkHeader(i))
+                    .name("rescale" + inputIndex)
+                    .uid("rescale" + inputIndex)
+                    .setParallelism(Math.max(parallelism + 1, parallelism * 3 / 2))
+                    .slotSharingGroup(slotSharing ? "rescale" : ("rescale" + inputIndex));
         }
 
         abstract UnalignedSettings createSettings(int parallelism);
@@ -274,11 +343,27 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         public String toString() {
             return name().toLowerCase();
         }
+
+        private static class TestBroadcastProcessFunction
+                extends BroadcastProcessFunction<Long, Long, Long> {
+            private static final long serialVersionUID = 7852973507735751404L;
+
+            TestBroadcastProcessFunction() {}
+
+            @Override
+            public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+                out.collect(checkHeader(value));
+            }
+
+            @Override
+            public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {}
+        }
     }
 
     @Parameterized.Parameters(name = "{0} {1} from {2} to {3}")
     public static Object[][] getScaleFactors() {
         return new Object[][] {
+            new Object[] {"downscale", Topology.BROADCAST, 5, 2},
             new Object[] {"upscale", Topology.PIPELINE, 1, 2},
             new Object[] {"upscale", Topology.PIPELINE, 2, 3},
             new Object[] {"upscale", Topology.PIPELINE, 3, 7},
