@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -34,9 +33,28 @@ import static org.junit.Assert.assertEquals;
 /** Test for temporal sort json plan. */
 public class TemporalSortJsonITCase extends JsonPlanTestBase {
 
-    @Before
-    public void setup() throws Exception {
-        super.setup();
+    @Test
+    public void testSortProcessingTime() throws Exception {
+        createTestValuesSourceTable(
+                "MyTable",
+                JavaScalaConversionUtil.toJava(TestData.smallData3()),
+                "a INT",
+                "b BIGINT",
+                "c STRING",
+                "proctime as PROCTIME()");
+        createTestValuesSinkTable("MySink", "a INT");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink SELECT a FROM MyTable order by proctime, c");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+
+        assertResult(
+                Arrays.asList("+I[1]", "+I[2]", "+I[3]"),
+                TestValuesTableFactory.getResults("MySink"));
+    }
+
+    @Test
+    public void testSortRowTime() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.windowData()),
@@ -48,7 +66,6 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                     "`bigdec` DECIMAL(10, 2)",
                     "`string` STRING",
                     "`name` STRING",
-                    "proctime as PROCTIME()",
                     "`rowtime` AS TO_TIMESTAMP(`ts`)",
                     "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND",
                 },
@@ -58,25 +75,6 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                         put("failing-source", "true");
                     }
                 });
-    }
-
-    @Test
-    public void testSortProcessingTime() throws Exception {
-        createTestValuesSinkTable("MySink", "`int` INT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink SELECT `int` FROM MyTable order by proctime, `double`");
-        tableEnv.executeJsonPlan(jsonPlan).await();
-
-        assertEquals(
-                Arrays.asList(
-                        "+I[3]", "+I[1]", "+I[2]", "+I[2]", "+I[3]", "+I[1]", "+I[4]", "+I[5]",
-                        "+I[5]", "+I[6]", "+I[7]"),
-                TestValuesTableFactory.getResults("MySink"));
-    }
-
-    @Test
-    public void testSortRowTime() throws Exception {
         createTestValuesSinkTable("MySink", "`int` INT");
         String jsonPlan =
                 tableEnv.getJsonPlan(
