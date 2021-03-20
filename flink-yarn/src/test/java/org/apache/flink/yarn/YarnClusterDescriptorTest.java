@@ -725,7 +725,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
         final Configuration flinkConfig = new Configuration();
         flinkConfig.set(
                 YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR,
-                YarnConfigOptions.UserJarInclusion.DISABLED.name());
+                YarnConfigOptions.UserJarInclusion.DISABLED);
 
         final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptor(flinkConfig);
