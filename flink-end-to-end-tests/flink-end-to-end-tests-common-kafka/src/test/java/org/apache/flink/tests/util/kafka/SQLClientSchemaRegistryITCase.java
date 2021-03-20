@@ -187,7 +187,7 @@ public class SQLClientSchemaRegistryITCase {
                                 + "'",
                         ");",
                         "",
-                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', CAST (1234 AS TIMESTAMP(3)));");
+                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', TO_TIMESTAMP(FROM_UNIXTIME(1234)));");
 
         executeSqlStatements(sqlLines);
 
