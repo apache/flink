@@ -31,11 +31,27 @@
       }, {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : "ROW<`a` BIGINT, `b` INT> NOT NULL"
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT"
+          } ]
+        }
       } ]
     },
     "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, PartitionTable, filter=[], partitions=[{p=A}], project=[a, b]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
@@ -85,7 +101,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `p` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "p" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Calc(select=[a, b, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET \"UTF-16LE\") AS p])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -115,7 +141,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `p` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "p" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, p])"
   } ],
   "edges" : [ {

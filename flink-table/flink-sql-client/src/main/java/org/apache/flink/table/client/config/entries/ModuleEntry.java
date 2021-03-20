@@ -26,7 +26,13 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
-/** Describes a module configuration entry. */
+/**
+ * Describes a module configuration entry.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
+ */
+@Deprecated
 public class ModuleEntry extends ConfigEntry {
 
     public static final String MODULE_NAME = "name";

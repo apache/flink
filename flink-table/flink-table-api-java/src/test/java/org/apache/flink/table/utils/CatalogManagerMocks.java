@@ -32,7 +32,9 @@ public final class CatalogManagerMocks {
     public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 
     public static CatalogManager createEmptyCatalogManager() {
-        return preparedCatalogManager().build();
+        final CatalogManager catalogManager = preparedCatalogManager().build();
+        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        return catalogManager;
     }
 
     public static CatalogManager.Builder preparedCatalogManager() {

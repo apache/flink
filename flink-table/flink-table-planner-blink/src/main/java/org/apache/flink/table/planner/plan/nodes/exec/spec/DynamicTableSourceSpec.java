@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -60,7 +60,7 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     @JsonCreator
     public DynamicTableSourceSpec(
             @JsonProperty(FIELD_NAME_IDENTIFIER) ObjectIdentifier objectIdentifier,
-            @JsonProperty(FIELD_NAME_CATALOG_TABLE) CatalogTable catalogTable,
+            @JsonProperty(FIELD_NAME_CATALOG_TABLE) ResolvedCatalogTable catalogTable,
             @Nullable @JsonProperty(FIELD_NAME_SOURCE_ABILITY_SPECS)
                     List<SourceAbilitySpec> sourceAbilitySpecs) {
         super(objectIdentifier, catalogTable);
@@ -83,7 +83,11 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
 
             if (sourceAbilitySpecs != null) {
                 RowType newProducedType =
-                        (RowType) catalogTable.getSchema().toRowDataType().getLogicalType();
+                        (RowType)
+                                catalogTable
+                                        .getResolvedSchema()
+                                        .toSourceRowDataType()
+                                        .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilitySpecs) {
                     SourceAbilityContext context =
                             new SourceAbilityContext(planner.getFlinkContext(), newProducedType);

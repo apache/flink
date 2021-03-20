@@ -24,16 +24,30 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecUnion;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
  * Stream {@link ExecNode} that is not a physical node and just union the inputs' records into one
  * node.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecUnion extends CommonExecUnion implements StreamExecNode<RowData> {
 
     public StreamExecUnion(
             List<InputProperty> inputProperties, RowType outputType, String description) {
-        super(inputProperties, outputType, description);
+        this(getNewNodeId(), inputProperties, outputType, description);
+    }
+
+    @JsonCreator
+    public StreamExecUnion(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
     }
 }

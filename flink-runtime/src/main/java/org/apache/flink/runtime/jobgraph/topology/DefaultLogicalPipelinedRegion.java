@@ -31,7 +31,7 @@ public class DefaultLogicalPipelinedRegion {
 
     private final Set<JobVertexID> vertexIDs;
 
-    public DefaultLogicalPipelinedRegion(final Set<? extends LogicalVertex<?, ?>> logicalVertices) {
+    public DefaultLogicalPipelinedRegion(final Set<? extends LogicalVertex> logicalVertices) {
         checkNotNull(logicalVertices);
 
         this.vertexIDs =

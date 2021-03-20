@@ -213,7 +213,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val names = FieldInfoUtils.getFieldNames(typeInfo)
       TableSchema.builder().fields(names, types).build()
     } else {
-      FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toTableSchema
+      TableSchema.fromResolvedSchema(
+        FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toResolvedSchema)
     }
 
     addTableSource(name, new TestTableSource(isBounded, tableSchema))
@@ -1613,7 +1614,7 @@ object TableTestUtil {
       ObjectIdentifier.of(tEnv.getCurrentCatalog, tEnv.getCurrentDatabase, name),
       dataStream,
       typeInfoSchema.getIndices,
-      typeInfoSchema.toTableSchema,
+      typeInfoSchema.toResolvedSchema,
       fieldNullables.getOrElse(Array.fill(fieldCnt)(true)),
       statistic.getOrElse(FlinkStatistic.UNKNOWN)
     )

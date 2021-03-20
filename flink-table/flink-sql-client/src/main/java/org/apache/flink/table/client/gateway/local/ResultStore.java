@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
@@ -30,6 +31,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.ResultMode.CHANGELOG;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 
 /** Maintains dynamic results. */
 public class ResultStore {
@@ -44,25 +50,30 @@ public class ResultStore {
      * Creates a result. Might start threads or opens sockets so every created result must be
      * closed.
      */
-    public DynamicResult createResult(Environment env, TableResult tableResult) {
-        if (env.getExecution().inStreamingMode()) {
-            if (env.getExecution().isChangelogMode() || env.getExecution().isTableauMode()) {
+    public DynamicResult createResult(ReadableConfig config, TableResult tableResult) {
+        // validate
+        if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
+                && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {
+            throw new SqlExecutionException(
+                    "Results of batch queries can only be served in table or tableau mode.");
+        }
+
+        switch (config.get(EXECUTION_RESULT_MODE)) {
+            case CHANGELOG:
+            case TABLEAU:
                 return new ChangelogCollectResult(tableResult);
-            } else {
-                return new MaterializedCollectStreamResult(
-                        tableResult, env.getExecution().getMaxTableResultRows());
-            }
-        } else {
-            // Batch Execution
-            if (env.getExecution().isTableMode()) {
-                return new MaterializedCollectBatchResult(
-                        tableResult, env.getExecution().getMaxTableResultRows());
-            } else if (env.getExecution().isTableauMode()) {
-                return new ChangelogCollectResult(tableResult);
-            } else {
+            case TABLE:
+                Integer maxRows = config.get(EXECUTION_MAX_TABLE_RESULT_ROWS);
+                if (config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING)) {
+                    return new MaterializedCollectStreamResult(tableResult, maxRows);
+                } else {
+                    return new MaterializedCollectBatchResult(tableResult, maxRows);
+                }
+            default:
                 throw new SqlExecutionException(
-                        "Results of batch queries can only be served in table or tableau mode.");
-            }
+                        String.format(
+                                "Unknown value '%s' for option '%s'.",
+                                config.get(EXECUTION_RESULT_MODE), EXECUTION_RESULT_MODE.key()));
         }
     }
 

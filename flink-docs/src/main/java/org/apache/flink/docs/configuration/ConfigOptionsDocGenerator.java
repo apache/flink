@@ -87,7 +87,9 @@ public class ConfigOptionsDocGenerator {
                 new OptionsClassLocation("flink-python", "org.apache.flink.python"),
                 new OptionsClassLocation(
                         "flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
-                new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli")
+                new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli"),
+                new OptionsClassLocation(
+                        "flink-table/flink-sql-client", "org.apache.flink.table.client.config")
             };
 
     static final Set<String> EXCLUSIONS =

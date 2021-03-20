@@ -26,8 +26,6 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -119,8 +117,6 @@ public class ExecutionContextTest {
         assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
         assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
 
-        assertEquals(
-                TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
         assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
 
         assertEquals("failure-rate", conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
@@ -152,8 +148,6 @@ public class ExecutionContextTest {
         assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
         assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
 
-        assertEquals(
-                TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
         assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
 
         assertNull(conf.getString(RestartStrategyOptions.RESTART_STRATEGY));

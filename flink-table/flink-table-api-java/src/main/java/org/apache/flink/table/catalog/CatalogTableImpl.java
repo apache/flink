@@ -76,7 +76,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
     @Override
     public Map<String, String> toProperties() {
-        DescriptorProperties descriptor = new DescriptorProperties();
+        DescriptorProperties descriptor = new DescriptorProperties(false);
 
         descriptor.putTableSchema(SCHEMA, getSchema());
         descriptor.putPartitionKeys(getPartitionKeys());
@@ -96,7 +96,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
     /** Construct a {@link CatalogTableImpl} from complete properties that contains table schema. */
     public static CatalogTableImpl fromProperties(Map<String, String> properties) {
-        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        DescriptorProperties descriptorProperties = new DescriptorProperties(false);
         descriptorProperties.putProperties(properties);
         TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
         List<String> partitionKeys = descriptorProperties.getPartitionKeys();
@@ -111,7 +111,7 @@ public class CatalogTableImpl extends AbstractCatalogTable {
     public static Map<String, String> removeRedundant(
             Map<String, String> properties, TableSchema schema, List<String> partitionKeys) {
         Map<String, String> ret = new HashMap<>(properties);
-        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        DescriptorProperties descriptorProperties = new DescriptorProperties(false);
         descriptorProperties.putTableSchema(SCHEMA, schema);
         descriptorProperties.putPartitionKeys(partitionKeys);
         descriptorProperties.asMap().keySet().forEach(ret::remove);

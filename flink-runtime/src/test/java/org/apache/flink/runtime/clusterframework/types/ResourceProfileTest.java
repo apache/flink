@@ -20,7 +20,7 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.resources.GPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
@@ -48,6 +48,7 @@ import static org.junit.Assert.fail;
 public class ResourceProfileTest extends TestLogger {
     private static final MemorySize TOO_LARGE_MEMORY =
             MAX_MEMORY_SIZE_TO_LOG.add(MemorySize.ofMebiBytes(10));
+    private static final String EXTERNAL_RESOURCE_NAME = "gpu";
 
     @Test
     public void testAllFieldsNoLessThanProfile() {
@@ -104,8 +105,14 @@ public class ResourceProfileTest extends TestLogger {
                         .build();
         assertFalse(rp4.allFieldsNoLessThan(rp5));
 
-        ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).setGPUResource(2.2).build();
-        ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).setGPUResource(1.1).build();
+        ResourceSpec rs1 =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2))
+                        .build();
+        ResourceSpec rs2 =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1))
+                        .build();
 
         assertFalse(rp1.allFieldsNoLessThan(ResourceProfile.fromResourceSpec(rs1)));
         assertTrue(
@@ -136,7 +143,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskHeapMemoryMB(100)
                         .setTaskOffHeapMemoryMB(100)
                         .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
         final ResourceProfile requirement1 = ResourceProfile.UNKNOWN;
         final ResourceProfile requirement2 =
@@ -152,7 +159,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskHeapMemoryMB(100)
                         .setTaskOffHeapMemoryMB(100)
                         .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
 
         assertTrue(resource1.isMatching(requirement1));
@@ -170,12 +177,21 @@ public class ResourceProfileTest extends TestLogger {
         ResourceSpec rs2 = ResourceSpec.newBuilder(1.0, 100).build();
         assertEquals(ResourceProfile.fromResourceSpec(rs1), ResourceProfile.fromResourceSpec(rs2));
 
-        ResourceSpec rs3 = ResourceSpec.newBuilder(1.0, 100).setGPUResource(2.2).build();
-        ResourceSpec rs4 = ResourceSpec.newBuilder(1.0, 100).setGPUResource(1.1).build();
+        ResourceSpec rs3 =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2))
+                        .build();
+        ResourceSpec rs4 =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1))
+                        .build();
         assertNotEquals(
                 ResourceProfile.fromResourceSpec(rs3), ResourceProfile.fromResourceSpec(rs4));
 
-        ResourceSpec rs5 = ResourceSpec.newBuilder(1.0, 100).setGPUResource(2.2).build();
+        ResourceSpec rs5 =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2))
+                        .build();
         MemorySize networkMemory = MemorySize.ofMebiBytes(100);
         assertEquals(
                 ResourceProfile.fromResourceSpec(rs3, networkMemory),
@@ -257,13 +273,18 @@ public class ResourceProfileTest extends TestLogger {
 
     @Test
     public void testGet() {
-        ResourceSpec rs = ResourceSpec.newBuilder(1.0, 100).setGPUResource(1.6).build();
+        ResourceSpec rs =
+                ResourceSpec.newBuilder(1.0, 100)
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.6))
+                        .build();
         ResourceProfile rp = ResourceProfile.fromResourceSpec(rs, MemorySize.ofMebiBytes(50));
 
         assertEquals(new CPUResource(1.0), rp.getCpuCores());
         assertEquals(150, rp.getTotalMemory().getMebiBytes());
         assertEquals(100, rp.getOperatorsMemory().getMebiBytes());
-        assertEquals(new GPUResource(1.6), rp.getExtendedResources().get(GPUResource.NAME));
+        assertEquals(
+                new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.6),
+                rp.getExtendedResources().get(EXTERNAL_RESOURCE_NAME));
     }
 
     @Test
@@ -283,7 +304,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(200)
                         .setManagedMemoryMB(200)
                         .setNetworkMemoryMB(200)
-                        .addExtendedResource("gpu", new GPUResource(2.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.0))
                         .build();
 
         final ResourceProfile rp1MergeRp1 =
@@ -301,7 +322,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(300)
                         .setManagedMemoryMB(300)
                         .setNetworkMemoryMB(300)
-                        .addExtendedResource("gpu", new GPUResource(2.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.0))
                         .build();
         final ResourceProfile rp2MergeRp2 =
                 ResourceProfile.newBuilder()
@@ -310,7 +331,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(400)
                         .setManagedMemoryMB(400)
                         .setNetworkMemoryMB(400)
-                        .addExtendedResource("gpu", new GPUResource(4.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 4.0))
                         .build();
 
         assertEquals(rp1MergeRp1, rp1.merge(rp1));
@@ -425,7 +446,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(Integer.MAX_VALUE)
                         .setManagedMemoryMB(Integer.MAX_VALUE)
                         .setNetworkMemoryMB(Integer.MAX_VALUE)
-                        .addExtendedResource("gpu", new GPUResource(4.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 4.0))
                         .build();
         final ResourceProfile rp2 =
                 ResourceProfile.newBuilder()
@@ -449,7 +470,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(100)
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
 
         ResourceProfile rp2 = rp1;
@@ -469,7 +490,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(100)
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
 
         assertEquals(ResourceProfile.ZERO, rp1.multiply(0));
@@ -484,7 +505,7 @@ public class ResourceProfileTest extends TestLogger {
                         .setTaskOffHeapMemoryMB(100)
                         .setNetworkMemoryMB(100)
                         .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
         rp.multiply(-2);
     }
@@ -533,7 +554,7 @@ public class ResourceProfileTest extends TestLogger {
     public void testZeroExtendedResourceFromConstructor() {
         final ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
-                        .addExtendedResource("gpu", new GPUResource(0.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 0.0))
                         .build();
         assertEquals(resourceProfile.getExtendedResources().size(), 0);
     }
@@ -542,7 +563,7 @@ public class ResourceProfileTest extends TestLogger {
     public void testZeroExtendedResourceFromSubtract() {
         final ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
-                        .addExtendedResource("gpu", new GPUResource(1.0))
+                        .setExtendedResource(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.0))
                         .build();
         assertEquals(resourceProfile.subtract(resourceProfile).getExtendedResources().size(), 0);
     }

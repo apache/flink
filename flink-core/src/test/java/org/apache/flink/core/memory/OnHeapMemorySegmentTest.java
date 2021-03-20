@@ -26,31 +26,30 @@ import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the {@link HeapMemorySegment} in off-heap mode. */
+/** Tests for the {@link MemorySegment} in on-heap mode. */
 @RunWith(Parameterized.class)
-public class HeapMemorySegmentTest extends MemorySegmentTestBase {
+public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
 
-    public HeapMemorySegmentTest(int pageSize) {
+    public OnHeapMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 
     @Override
     MemorySegment createSegment(int size) {
-        return new HeapMemorySegment(new byte[size]);
+        return MemorySegmentFactory.allocateUnpooledSegment(size);
     }
 
     @Override
     MemorySegment createSegment(int size, Object owner) {
-        return new HeapMemorySegment(new byte[size], owner);
+        return MemorySegmentFactory.allocateUnpooledSegment(size, owner);
     }
 
     @Test
     public void testHeapSegmentSpecifics() {
         final byte[] buffer = new byte[411];
-        HeapMemorySegment seg = new HeapMemorySegment(buffer);
+        MemorySegment seg = new MemorySegment(buffer, null);
 
         assertFalse(seg.isFreed());
         assertFalse(seg.isOffHeap());
@@ -68,11 +67,35 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testGetArrayAfterFree() {
+    public void testReadOnlyByteBufferPut() {
         final byte[] buffer = new byte[100];
-        HeapMemorySegment seg = new HeapMemorySegment(buffer);
+        MemorySegment seg = new MemorySegment(buffer, null);
 
-        seg.free();
-        assertNull(seg.getArray());
+        String content = "hello world";
+        ByteBuffer bb = ByteBuffer.allocate(20);
+        bb.put(content.getBytes());
+        bb.rewind();
+
+        int offset = 10;
+        int numBytes = 5;
+
+        ByteBuffer readOnlyBuf = bb.asReadOnlyBuffer();
+        assertFalse(readOnlyBuf.isDirect());
+        assertFalse(readOnlyBuf.hasArray());
+
+        seg.put(offset, readOnlyBuf, numBytes);
+
+        // verify the area before the written region.
+        for (int i = 0; i < offset; i++) {
+            assertEquals(0, buffer[i]);
+        }
+
+        // verify the region that is written.
+        assertEquals("hello", new String(buffer, offset, numBytes));
+
+        // verify the area after the written region.
+        for (int i = offset + numBytes; i < buffer.length; i++) {
+            assertEquals(0, buffer[i]);
+        }
     }
 }

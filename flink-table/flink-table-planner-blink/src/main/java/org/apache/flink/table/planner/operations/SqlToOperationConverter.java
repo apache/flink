@@ -61,6 +61,7 @@ import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -79,6 +80,7 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -127,7 +129,6 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.StringUtils;
 
@@ -147,13 +148,13 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be converted to {@link
@@ -820,29 +821,32 @@ public class SqlToOperationConverter {
                         .substitute(this::getQuotedSqlString);
 
         PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
-        TableSchema schema = operation.getTableSchema();
+        ResolvedSchema schema = operation.getResolvedSchema();
 
         // the view column list in CREATE VIEW is optional, if it's not empty, we should update
         // the column name with the names in view column list.
         if (!fieldNames.isEmpty()) {
             // alias column names:
-            String[] inputFieldNames = schema.getFieldNames();
-            String[] aliasFieldNames =
-                    fieldNames.stream().map(SqlNode::toString).toArray(String[]::new);
+            List<String> inputFieldNames = schema.getColumnNames();
+            List<String> aliasFieldNames =
+                    fieldNames.stream().map(SqlNode::toString).collect(Collectors.toList());
 
-            if (inputFieldNames.length != aliasFieldNames.length) {
+            if (inputFieldNames.size() != aliasFieldNames.size()) {
                 throw new ValidationException(
                         String.format(
                                 "VIEW definition and input fields not match:\n\tDef fields: %s.\n\tInput fields: %s.",
-                                Arrays.toString(aliasFieldNames),
-                                Arrays.toString(inputFieldNames)));
+                                aliasFieldNames, inputFieldNames));
             }
 
-            DataType[] inputFieldTypes = schema.getFieldDataTypes();
-            schema = TableSchema.builder().fields(aliasFieldNames, inputFieldTypes).build();
+            schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
         }
 
-        return new CatalogViewImpl(originalQuery, expandedQuery, schema, props, comment);
+        return CatalogView.of(
+                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                comment,
+                originalQuery,
+                expandedQuery,
+                props);
     }
 
     /** Convert DROP VIEW statement. */

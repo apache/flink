@@ -44,19 +44,21 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
     private final Map<Priority, TaskExecutorProcessSpec> priorityToTaskExecutorProcessSpec;
 
     private final Resource maxContainerResource;
-    private final Map<String, Long> externalResourceConfigs;
+    private final Map<String, Long> maxExternalResources;
+    private final Map<String, String> externalResourceConfigKeys;
 
     private int nextPriority = 1;
 
     TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-            final Resource maxContainerResource, final Map<String, Long> externalResourceConfigs) {
+            final Resource maxContainerResource,
+            final Map<String, String> externalResourceConfigKeys) {
         this.maxContainerResource = Preconditions.checkNotNull(maxContainerResource);
-        this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
+        this.externalResourceConfigKeys = Preconditions.checkNotNull(externalResourceConfigKeys);
 
         taskExecutorProcessSpecToPriorityAndResource = new HashMap<>();
         priorityToTaskExecutorProcessSpec = new HashMap<>();
-
-        validateExternalResourceConfigs();
+        maxExternalResources =
+                ResourceInformationReflector.INSTANCE.getExternalResources(maxContainerResource);
     }
 
     Optional<PriorityAndResource> getPriorityAndResource(
@@ -85,23 +87,17 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
                         taskExecutorProcessSpec, priorityAndResource.getResource()));
     }
 
-    private void validateExternalResourceConfigs() {
-        final Map<String, Long> maxExternalResources =
-                ResourceInformationReflector.INSTANCE.getExternalResources(maxContainerResource);
-        for (Map.Entry<String, Long> entry : externalResourceConfigs.entrySet()) {
-            final String resourceName = entry.getKey();
-            final long configuredValue = entry.getValue();
-            Preconditions.checkState(
-                    maxExternalResources.containsKey(resourceName),
-                    "External resource %s is not supported by the Yarn cluster.",
-                    resourceName);
-            Preconditions.checkState(
-                    configuredValue <= maxExternalResources.get(resourceName),
-                    "Configured value for external resource %s (%s) exceeds the max limitation of the Yarn cluster (%s).",
-                    resourceName,
-                    configuredValue,
-                    maxExternalResources.get(resourceName));
-        }
+    private void validateExternalResourceConfig(String configKey, long value) {
+        Preconditions.checkState(
+                maxExternalResources.containsKey(configKey),
+                "External resource %s is not supported by the Yarn cluster.",
+                configKey);
+        Preconditions.checkState(
+                value <= maxExternalResources.get(configKey),
+                "Configured value for external resource %s (%s) exceeds the max limitation of the Yarn cluster (%s).",
+                configKey,
+                value,
+                maxExternalResources.get(configKey));
     }
 
     private void tryAdaptAndAddTaskExecutorResourceSpecIfNotExist(
@@ -136,10 +132,18 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
             return Optional.empty();
         }
 
-        for (Map.Entry<String, Long> externalResource : externalResourceConfigs.entrySet()) {
-            ResourceInformationReflector.INSTANCE.setResourceInformation(
-                    resource, externalResource.getKey(), externalResource.getValue());
-        }
+        taskExecutorProcessSpec
+                .getExtendedResources()
+                .forEach(
+                        (resourceName, externalResource) -> {
+                            final String configKey = externalResourceConfigKeys.get(resourceName);
+                            final long value = externalResource.getValue().longValue();
+                            if (configKey != null) {
+                                validateExternalResourceConfig(configKey, value);
+                                ResourceInformationReflector.INSTANCE.setResourceInformation(
+                                        resource, configKey, value);
+                            }
+                        });
 
         return Optional.of(resource);
     }

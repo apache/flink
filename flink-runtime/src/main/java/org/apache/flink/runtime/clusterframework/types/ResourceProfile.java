@@ -21,9 +21,10 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -31,10 +32,12 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -96,7 +99,7 @@ public class ResourceProfile implements Serializable {
     // ------------------------------------------------------------------------
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
-    @Nullable private final Resource cpuCores;
+    @Nullable private final CPUResource cpuCores;
 
     /** How much task heap memory is needed. */
     @Nullable // can be null only for UNKNOWN
@@ -115,7 +118,7 @@ public class ResourceProfile implements Serializable {
     private final MemorySize networkMemory;
 
     /** A extensible field for user specified resources from {@link ResourceSpec}. */
-    private final Map<String, Resource> extendedResources;
+    private final Map<String, ExternalResource> extendedResources;
 
     // ------------------------------------------------------------------------
 
@@ -130,15 +133,14 @@ public class ResourceProfile implements Serializable {
      * @param extendedResources The extended resources such as GPU and FPGA
      */
     private ResourceProfile(
-            final Resource cpuCores,
+            final CPUResource cpuCores,
             final MemorySize taskHeapMemory,
             final MemorySize taskOffHeapMemory,
             final MemorySize managedMemory,
             final MemorySize networkMemory,
-            final Map<String, Resource> extendedResources) {
+            final Map<String, ExternalResource> extendedResources) {
 
         checkNotNull(cpuCores);
-        checkArgument(cpuCores instanceof CPUResource, "cpuCores must be CPUResource");
 
         this.cpuCores = cpuCores;
         this.taskHeapMemory = checkNotNull(taskHeapMemory);
@@ -171,7 +173,7 @@ public class ResourceProfile implements Serializable {
      *
      * @return The cpu cores, 1.0 means a full cpu thread
      */
-    public Resource getCpuCores() {
+    public CPUResource getCpuCores() {
         throwUnsupportedOperationExecptionIfUnknown();
         return cpuCores;
     }
@@ -241,7 +243,7 @@ public class ResourceProfile implements Serializable {
      *
      * @return The extended resources
      */
-    public Map<String, Resource> getExtendedResources() {
+    public Map<String, ExternalResource> getExtendedResources() {
         throwUnsupportedOperationExecptionIfUnknown();
         return Collections.unmodifiableMap(extendedResources);
     }
@@ -322,7 +324,8 @@ public class ResourceProfile implements Serializable {
                 && managedMemory.compareTo(other.managedMemory) >= 0
                 && networkMemory.compareTo(other.networkMemory) >= 0) {
 
-            for (Map.Entry<String, Resource> resource : other.extendedResources.entrySet()) {
+            for (Map.Entry<String, ExternalResource> resource :
+                    other.extendedResources.entrySet()) {
                 if (!extendedResources.containsKey(resource.getKey())
                         || extendedResources
                                         .get(resource.getKey())
@@ -384,10 +387,10 @@ public class ResourceProfile implements Serializable {
             return UNKNOWN;
         }
 
-        Map<String, Resource> resultExtendedResource = new HashMap<>(extendedResources);
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
 
         other.extendedResources.forEach(
-                (String name, Resource resource) -> {
+                (String name, ExternalResource resource) -> {
                     resultExtendedResource.compute(
                             name,
                             (ignored, oldResource) ->
@@ -424,13 +427,12 @@ public class ResourceProfile implements Serializable {
                 allFieldsNoLessThan(other),
                 "Try to subtract an unmatched resource profile from this one.");
 
-        Map<String, Resource> resultExtendedResource = new HashMap<>(extendedResources);
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
 
         other.extendedResources.forEach(
-                (String name, Resource resource) -> {
-                    resultExtendedResource.compute(
-                            name, (ignored, oldResource) -> oldResource.subtract(resource));
-                });
+                (String name, ExternalResource resource) ->
+                        resultExtendedResource.compute(
+                                name, (ignored, oldResource) -> oldResource.subtract(resource)));
 
         return new ResourceProfile(
                 cpuCores.subtract(other.cpuCores),
@@ -456,7 +458,7 @@ public class ResourceProfile implements Serializable {
             return ZERO;
         }
 
-        Map<String, Resource> resultExtendedResource =
+        Map<String, ExternalResource> resultExtendedResource =
                 extendedResources.entrySet().stream()
                         .map(
                                 entry ->
@@ -484,15 +486,14 @@ public class ResourceProfile implements Serializable {
             return "ResourceProfile{ANY}";
         }
 
-        final StringBuilder extendedResourceStr = new StringBuilder(extendedResources.size() * 10);
-        for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
-            extendedResourceStr
-                    .append(", ")
-                    .append(resource.getKey())
-                    .append('=')
-                    .append(resource.getValue().getValue());
-        }
-        return "ResourceProfile{" + getResourceString() + extendedResourceStr + '}';
+        return "ResourceProfile{"
+                + getResourceString()
+                + (extendedResources.isEmpty()
+                        ? ""
+                        : (", "
+                                + ExternalResourceUtils.generateExternalResourcesString(
+                                        extendedResources.values())))
+                + '}';
     }
 
     private String getResourceString() {
@@ -555,7 +556,7 @@ public class ResourceProfile implements Serializable {
                 .setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
                 .setManagedMemory(resourceSpec.getManagedMemory())
                 .setNetworkMemory(networkMemory)
-                .addExtendedResources(resourceSpec.getExtendedResources())
+                .setExtendedResources(resourceSpec.getExtendedResources().values())
                 .build();
     }
 
@@ -576,22 +577,22 @@ public class ResourceProfile implements Serializable {
                 .setTaskOffHeapMemory(resourceProfile.taskOffHeapMemory)
                 .setManagedMemory(resourceProfile.managedMemory)
                 .setNetworkMemory(resourceProfile.networkMemory)
-                .addExtendedResources(resourceProfile.extendedResources);
+                .setExtendedResources(resourceProfile.extendedResources.values());
     }
 
     /** Builder for the {@link ResourceProfile}. */
     public static class Builder {
 
-        private Resource cpuCores = new CPUResource(0.0);
+        private CPUResource cpuCores = new CPUResource(0.0);
         private MemorySize taskHeapMemory = MemorySize.ZERO;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
         private MemorySize networkMemory = MemorySize.ZERO;
-        private Map<String, Resource> extendedResources = new HashMap<>();
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
 
         private Builder() {}
 
-        public Builder setCpuCores(Resource cpuCores) {
+        public Builder setCpuCores(CPUResource cpuCores) {
             this.cpuCores = cpuCores;
             return this;
         }
@@ -641,15 +642,25 @@ public class ResourceProfile implements Serializable {
             return this;
         }
 
-        public Builder addExtendedResource(String name, Resource extendedResource) {
-            this.extendedResources.put(name, extendedResource);
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
             return this;
         }
 
-        public Builder addExtendedResources(Map<String, Resource> extendedResources) {
-            if (extendedResources != null) {
-                this.extendedResources.putAll(extendedResources);
-            }
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<ExternalResource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExternalResource::getName, Function.identity()));
             return this;
         }
 

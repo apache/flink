@@ -30,14 +30,7 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A factory for (hybrid) memory segments ({@link HybridMemorySegment}).
- *
- * <p>The purpose of this factory is to make sure that all memory segments for heap data are of the
- * same type. That way, the runtime does not mix the various specializations of the {@link
- * MemorySegment}. Not mixing them has shown to be beneficial to method specialization by the JIT
- * and to overall performance.
- */
+/** A factory for memory segments ({@link MemorySegment}). */
 @Internal
 public final class MemorySegmentFactory {
     private static final Logger LOG = LoggerFactory.getLogger(MemorySegmentFactory.class);
@@ -52,7 +45,7 @@ public final class MemorySegmentFactory {
      * @return A new memory segment that targets the given heap memory region.
      */
     public static MemorySegment wrap(byte[] buffer) {
-        return new HybridMemorySegment(buffer, null);
+        return new MemorySegment(buffer, null);
     }
 
     /**
@@ -106,7 +99,7 @@ public final class MemorySegmentFactory {
      * @return A new memory segment, backed by unpooled heap memory.
      */
     public static MemorySegment allocateUnpooledSegment(int size, Object owner) {
-        return new HybridMemorySegment(new byte[size], owner);
+        return new MemorySegment(new byte[size], owner);
     }
 
     /**
@@ -130,7 +123,7 @@ public final class MemorySegmentFactory {
      */
     public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
         ByteBuffer memory = allocateDirectMemory(size);
-        return new HybridMemorySegment(memory, owner);
+        return new MemorySegment(memory, owner);
     }
 
     @VisibleForTesting
@@ -176,7 +169,7 @@ public final class MemorySegmentFactory {
         long address = MemoryUtils.allocateUnsafe(size);
         ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
         Runnable cleaner = MemoryUtils.createMemoryCleaner(address, customCleanupAction);
-        return new HybridMemorySegment(offHeapBuffer, owner, false, cleaner);
+        return new MemorySegment(offHeapBuffer, owner, false, cleaner);
     }
 
     /**
@@ -191,6 +184,6 @@ public final class MemorySegmentFactory {
      * @return A new memory segment representing the given off-heap memory.
      */
     public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
-        return new HybridMemorySegment(memory, null);
+        return new MemorySegment(memory, null);
     }
 }

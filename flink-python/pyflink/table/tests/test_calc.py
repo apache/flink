@@ -41,8 +41,8 @@ class StreamTableCalcTests(PyFlinkBlinkStreamTableTestCase):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         t = t.alias("d, e, f")
         result = t.select(t.d, t.e, t.f)
-        table_schema = result._j_table.getQueryOperation().getTableSchema()
-        self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
+        resolved_schema = result._j_table.getQueryOperation().getResolvedSchema()
+        self.assertEqual(['d', 'e', 'f'], list(resolved_schema.getColumnNames()))
 
     def test_where(self):
         t_env = self.t_env

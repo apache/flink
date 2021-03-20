@@ -158,11 +158,23 @@ public class MemoryUtils {
         Preconditions.checkNotNull(buffer, "buffer is null");
         Preconditions.checkArgument(
                 buffer.isDirect(), "Can't get address of a non-direct ByteBuffer.");
+
+        long offHeapAddress;
         try {
-            return UNSAFE.getLong(buffer, BUFFER_ADDRESS_FIELD_OFFSET);
+            offHeapAddress = UNSAFE.getLong(buffer, BUFFER_ADDRESS_FIELD_OFFSET);
         } catch (Throwable t) {
             throw new Error("Could not access direct byte buffer address field.", t);
         }
+
+        Preconditions.checkState(offHeapAddress > 0, "negative pointer or size");
+        Preconditions.checkState(
+                offHeapAddress < Long.MAX_VALUE - Integer.MAX_VALUE,
+                "Segment initialized with too large address: "
+                        + offHeapAddress
+                        + " ; Max allowed address is "
+                        + (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
+
+        return offHeapAddress;
     }
 
     /** Should not be instantiated. */

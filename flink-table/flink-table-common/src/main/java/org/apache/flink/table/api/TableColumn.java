@@ -19,6 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -32,7 +34,10 @@ import java.util.Optional;
  *
  * <p>A table column is fully resolved with a name and {@link DataType}. It describes either a
  * {@link PhysicalColumn}, {@link ComputedColumn}, or {@link MetadataColumn}.
+ *
+ * @deprecated See {@link ResolvedSchema} and {@link Column}.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TableColumn {
 

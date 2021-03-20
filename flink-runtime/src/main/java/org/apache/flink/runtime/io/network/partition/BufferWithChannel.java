@@ -16,30 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.resources;
+package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import java.math.BigDecimal;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** The GPU resource. */
-@Internal
-public class GPUResource extends Resource {
+/** Buffer and the corresponding channel index. */
+public class BufferWithChannel {
 
-    private static final long serialVersionUID = -2276080061777135142L;
+    private final Buffer buffer;
 
-    public static final String NAME = "GPU";
+    private final int channelIndex;
 
-    public GPUResource(double value) {
-        super(NAME, value);
+    BufferWithChannel(Buffer buffer, int channelIndex) {
+        this.buffer = checkNotNull(buffer);
+        this.channelIndex = channelIndex;
     }
 
-    private GPUResource(BigDecimal value) {
-        super(NAME, value);
+    public Buffer getBuffer() {
+        return buffer;
     }
 
-    @Override
-    public Resource create(BigDecimal value) {
-        return new GPUResource(value);
+    public int getChannelIndex() {
+        return channelIndex;
     }
 }

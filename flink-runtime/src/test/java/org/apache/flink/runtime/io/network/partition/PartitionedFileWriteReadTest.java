@@ -31,6 +31,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
@@ -58,11 +59,11 @@ public class PartitionedFileWriteReadTest {
 
         List<Buffer>[] buffersWritten = new List[numSubpartitions];
         List<Buffer>[] buffersRead = new List[numSubpartitions];
-        Queue<Buffer>[] regionBuffers = new Queue[numSubpartitions];
+        List<BufferWithChannel>[] regionBuffers = new List[numSubpartitions];
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             buffersWritten[subpartition] = new ArrayList<>();
             buffersRead[subpartition] = new ArrayList<>();
-            regionBuffers[subpartition] = new ArrayDeque<>();
+            regionBuffers[subpartition] = new ArrayList<>();
         }
 
         PartitionedFileWriter fileWriter = createPartitionedFileWriter(numSubpartitions);
@@ -74,16 +75,15 @@ public class PartitionedFileWriteReadTest {
 
                 int subpartition = random.nextInt(numSubpartitions);
                 buffersWritten[subpartition].add(buffer);
-                regionBuffers[subpartition].add(buffer);
+                regionBuffers[subpartition].add(new BufferWithChannel(buffer, subpartition));
             }
 
             int[] writeOrder =
                     PartitionSortedBufferTest.getRandomSubpartitionOrder(numSubpartitions);
             for (int index = 0; index < numSubpartitions; ++index) {
                 int subpartition = writeOrder[index];
-                while (!regionBuffers[subpartition].isEmpty()) {
-                    fileWriter.writeBuffer(regionBuffers[subpartition].poll(), subpartition);
-                }
+                fileWriter.writeBuffers(regionBuffers[subpartition]);
+                regionBuffers[subpartition].clear();
             }
         }
         PartitionedFile partitionedFile = fileWriter.finish();
@@ -127,7 +127,7 @@ public class PartitionedFileWriteReadTest {
                 if (random.nextBoolean()) {
                     Buffer buffer = createBuffer(random, bufferSize);
                     subpartitionBuffers[subpartition].add(buffer);
-                    fileWriter.writeBuffer(buffer, subpartition);
+                    fileWriter.writeBuffers(getBufferWithChannels(buffer, subpartition));
                 }
             }
         }
@@ -168,13 +168,13 @@ public class PartitionedFileWriteReadTest {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 
             NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer1, 1);
+            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer1, 1));
 
             NetworkBuffer buffer2 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer2, 0);
+            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer2, 0));
 
             NetworkBuffer buffer3 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer3, 1);
+            partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer3, 1));
         } finally {
             partitionedFileWriter.finish();
         }
@@ -187,7 +187,7 @@ public class PartitionedFileWriteReadTest {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
         NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
 
-        partitionedFileWriter.writeBuffer(buffer, 0);
+        partitionedFileWriter.writeBuffers(getBufferWithChannels(buffer, 0));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -210,6 +210,10 @@ public class PartitionedFileWriteReadTest {
             MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
             assertNull(partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE));
         }
+    }
+
+    private List<BufferWithChannel> getBufferWithChannels(Buffer buffer, int channelIndex) {
+        return Collections.singletonList(new BufferWithChannel(buffer, channelIndex));
     }
 
     private PartitionedFileReader createAndClosePartitionedFiledReader() throws IOException {

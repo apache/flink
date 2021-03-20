@@ -18,7 +18,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -40,6 +45,48 @@ public class IterableUtils {
         return iterable instanceof Collection
                 ? ((Collection<E>) iterable).stream()
                 : StreamSupport.stream(iterable.spliterator(), false);
+    }
+
+    /**
+     * Flatmap the two-dimensional {@link Iterable} into an one-dimensional {@link Iterable} and
+     * convert the keys into items.
+     *
+     * @param itemGroups to flatmap
+     * @param mapper convert the {@link K} into {@link V}
+     * @param <K> type of key in the two-dimensional iterable
+     * @param <V> type of items that are mapped to
+     * @param <G> iterable of {@link K}
+     * @return flattened one-dimensional {@link Iterable} from the given two-dimensional {@link
+     *     Iterable}
+     */
+    @Internal
+    public static <K, V, G extends Iterable<K>> Iterator<V> flatMap(
+            Iterable<G> itemGroups, Function<K, V> mapper) {
+        return new Iterator<V>() {
+            private final Iterator<G> groupIterator = itemGroups.iterator();
+            private Iterator<K> itemIterator;
+
+            @Override
+            public boolean hasNext() {
+                while (itemIterator == null || !itemIterator.hasNext()) {
+                    if (!groupIterator.hasNext()) {
+                        return false;
+                    } else {
+                        itemIterator = groupIterator.next().iterator();
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public V next() {
+                if (hasNext()) {
+                    return mapper.apply(itemIterator.next());
+                } else {
+                    throw new NoSuchElementException();
+                }
+            }
+        };
     }
 
     // --------------------------------------------------------------------------------------------

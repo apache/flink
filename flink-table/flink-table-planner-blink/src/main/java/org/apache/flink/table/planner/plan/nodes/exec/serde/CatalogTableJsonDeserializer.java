@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -30,19 +30,30 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import java.io.IOException;
 import java.util.Map;
 
-/** JSON deserializer for {@link CatalogTable}. */
-public class CatalogTableJsonDeserializer extends StdDeserializer<CatalogTable> {
+/** JSON deserializer for {@link ResolvedCatalogTable}. */
+public class CatalogTableJsonDeserializer extends StdDeserializer<ResolvedCatalogTable> {
     private static final long serialVersionUID = 1L;
 
     public CatalogTableJsonDeserializer() {
-        super(CatalogTable.class);
+        super(ResolvedCatalogTable.class);
     }
 
     @Override
-    public CatalogTable deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
-        Map<String, String> catalogProperties =
+    public ResolvedCatalogTable deserialize(JsonParser jsonParser, DeserializationContext ctx)
+            throws IOException {
+        return deserialize(jsonParser, (FlinkDeserializationContext) ctx);
+    }
+
+    private ResolvedCatalogTable deserialize(JsonParser jsonParser, FlinkDeserializationContext ctx)
+            throws IOException {
+        final CatalogManager catalogManager =
+                ctx.getSerdeContext().getFlinkContext().getCatalogManager();
+
+        final Map<String, String> catalogProperties =
                 jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
-        return CatalogTableImpl.fromProperties(catalogProperties);
+
+        final CatalogTable unresolvedTable = CatalogTable.fromProperties(catalogProperties);
+
+        return (ResolvedCatalogTable) catalogManager.resolveCatalogBaseTable(unresolvedTable);
     }
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
@@ -37,13 +37,15 @@ public class ProjectQueryOperation implements QueryOperation {
 
     private final List<ResolvedExpression> projectList;
     private final QueryOperation child;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public ProjectQueryOperation(
-            List<ResolvedExpression> projectList, QueryOperation child, TableSchema tableSchema) {
+            List<ResolvedExpression> projectList,
+            QueryOperation child,
+            ResolvedSchema resolvedSchema) {
         this.projectList = projectList;
         this.child = child;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     public List<ResolvedExpression> getProjectList() {
@@ -51,8 +53,8 @@ public class ProjectQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

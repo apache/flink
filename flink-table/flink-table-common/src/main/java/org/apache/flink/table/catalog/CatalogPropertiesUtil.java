@@ -74,7 +74,10 @@ public final class CatalogPropertiesUtil {
 
             serializeResolvedSchema(properties, resolvedTable.getResolvedSchema());
 
-            properties.put(COMMENT, resolvedTable.getComment());
+            final String comment = resolvedTable.getComment();
+            if (comment != null && comment.length() > 0) {
+                properties.put(COMMENT, comment);
+            }
 
             serializePartitionKeys(properties, resolvedTable.getPartitionKeys());
 

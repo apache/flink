@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -89,7 +89,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
         final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
         TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        final TableSchema oldSchema = oldTableSourceTable.catalogTable().getSchema();
+        final ResolvedSchema oldSchema = oldTableSourceTable.catalogTable().getResolvedSchema();
         final DynamicTableSource oldSource = oldTableSourceTable.tableSource();
         final TableConfig config = ShortcutUtils.unwrapContext(scan).getTableConfig();
 
@@ -114,12 +114,12 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
                             pks -> {
                                 for (String name : pks.getColumns()) {
                                     int index = fieldNames.indexOf(name);
-                                    TableColumn col = oldSchema.getTableColumn(index).get();
+                                    Column col = oldSchema.getColumn(index).get();
                                     oldProjectsWithPK.add(
                                             new RexInputRef(
                                                     index,
                                                     flinkTypeFactory.createFieldTypeFromLogicalType(
-                                                            col.getType().getLogicalType())));
+                                                            col.getDataType().getLogicalType())));
                                 }
                             });
         }

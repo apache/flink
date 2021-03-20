@@ -21,10 +21,8 @@ package org.apache.flink.metrics.prometheus;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.exporter.HTTPServer;
@@ -38,9 +36,6 @@ import java.util.Iterator;
         factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
 public class PrometheusReporter extends AbstractPrometheusReporter {
 
-    static final String ARG_PORT = "port";
-    private static final String DEFAULT_PORT = "9249";
-
     private HTTPServer httpServer;
     private int port;
 
@@ -50,29 +45,23 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         return port;
     }
 
-    @Override
-    public void open(MetricConfig config) {
-        super.open(config);
-
-        String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
-        Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-
+    PrometheusReporter(Iterator<Integer> ports) {
         while (ports.hasNext()) {
-            int port = ports.next();
+            port = ports.next();
             try {
                 // internally accesses CollectorRegistry.defaultRegistry
                 httpServer = new HTTPServer(port);
-                this.port = port;
                 log.info("Started PrometheusReporter HTTP server on port {}.", port);
                 break;
             } catch (IOException ioe) { // assume port conflict
                 log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
             }
         }
+
         if (httpServer == null) {
             throw new RuntimeException(
                     "Could not start PrometheusReporter HTTP server on any configured port. Ports: "
-                            + portsConfig);
+                            + ports);
         }
     }
 

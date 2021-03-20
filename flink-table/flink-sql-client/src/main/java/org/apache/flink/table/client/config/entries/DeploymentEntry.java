@@ -42,7 +42,11 @@ import static org.apache.flink.table.client.config.Environment.DEPLOYMENT_ENTRY;
  * most properties to Flink's CLI frontend properties directly.
  *
  * <p>All properties of this entry are optional and evaluated lazily.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class DeploymentEntry extends ConfigEntry {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeploymentEntry.class);
