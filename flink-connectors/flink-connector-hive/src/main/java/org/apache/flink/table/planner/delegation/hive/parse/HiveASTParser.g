@@ -21,7 +21,7 @@ options
 {
 tokenVocab=HiveASTLexer;
 output=AST;
-ASTLabelType=ASTNode;
+ASTLabelType=HiveParserASTNode;
 backtrack=false;
 k=3;
 }
@@ -414,7 +414,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 }
 
 

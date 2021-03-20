@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
-
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 /** Counterpart of hive's org.apache.hadoop.hive.ql.optimizer.calcite.translator.ASTBuilder. */
 public class HiveParserASTBuilder {
@@ -32,11 +31,11 @@ public class HiveParserASTBuilder {
         return b;
     }
 
-    public static ASTNode createAST(int tokenType, String text) {
-        return (ASTNode) HiveASTParseDriver.ADAPTOR.create(tokenType, text);
+    public static HiveParserASTNode createAST(int tokenType, String text) {
+        return (HiveParserASTNode) HiveASTParseDriver.ADAPTOR.create(tokenType, text);
     }
 
-    public static ASTNode qualifiedName(String tableName, String colName) {
+    public static HiveParserASTNode qualifiedName(String tableName, String colName) {
         HiveParserASTBuilder b =
                 HiveParserASTBuilder.construct(HiveASTParser.DOT, ".")
                         .add(
@@ -47,9 +46,9 @@ public class HiveParserASTBuilder {
         return b.node();
     }
 
-    ASTNode curr;
+    HiveParserASTNode curr;
 
-    public ASTNode node() {
+    public HiveParserASTNode node() {
         return curr;
     }
 
