@@ -20,20 +20,30 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.util.SerializedThrowable;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.nio.file.Files;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for blocking shuffle. */
 public class BlockingShuffleITCase {
@@ -44,48 +54,83 @@ public class BlockingShuffleITCase {
 
     private final int numSlotsPerTaskManager = 4;
 
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+
     @Test
     public void testBoundedBlockingShuffle() throws Exception {
-        JobGraph jobGraph = createJobGraph(1000000);
-        Configuration configuration = new Configuration();
+        JobGraph jobGraph = createJobGraph(1000000, false);
+        Configuration configuration = getConfiguration();
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
 
     @Test
     public void testBoundedBlockingShuffleWithoutData() throws Exception {
-        JobGraph jobGraph = createJobGraph(0);
-        Configuration configuration = new Configuration();
+        JobGraph jobGraph = createJobGraph(0, false);
+        Configuration configuration = getConfiguration();
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
 
     @Test
     public void testSortMergeBlockingShuffle() throws Exception {
-        Configuration configuration = new Configuration();
+        Configuration configuration = getConfiguration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
 
-        JobGraph jobGraph = createJobGraph(1000000);
+        JobGraph jobGraph = createJobGraph(1000000, false);
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
 
     @Test
     public void testSortMergeBlockingShuffleWithoutData() throws Exception {
-        Configuration configuration = new Configuration();
+        Configuration configuration = getConfiguration();
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
 
-        JobGraph jobGraph = createJobGraph(0);
+        JobGraph jobGraph = createJobGraph(0, false);
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
     }
 
-    private JobGraph createJobGraph(int numRecordsToSend) {
+    @Test
+    public void testDeletePartitionFileOfBoundedBlockingShuffle() throws Exception {
+        Configuration configuration = getConfiguration();
+        JobGraph jobGraph = createJobGraph(0, true);
+        SerializedThrowable exception =
+                JobGraphRunningUtil.executeAndGetThrowable(
+                        jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+        assertNotNull(exception);
+        assertTrue(exception.getFullStringifiedStackTrace().contains("PartitionNotFoundException"));
+    }
+
+    @Test
+    public void testDeletePartitionFileOfSortMergeBlockingShuffle() throws Exception {
+        Configuration configuration = getConfiguration();
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+
+        JobGraph jobGraph = createJobGraph(0, true);
+        SerializedThrowable exception =
+                JobGraphRunningUtil.executeAndGetThrowable(
+                        jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+        assertNotNull(exception);
+        assertTrue(exception.getFullStringifiedStackTrace().contains("PartitionNotFoundException"));
+    }
+
+    private Configuration getConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.TMP_DIRS, TEMP_FOLDER.getRoot().getAbsolutePath());
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 100);
+        return configuration;
+    }
+
+    private JobGraph createJobGraph(int numRecordsToSend, boolean deletePartitionFile) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(numTaskManagers * numSlotsPerTaskManager);
-        DataStream<String> source = env.addSource(new StringSource(numRecordsToSend));
+        DataStream<String> source =
+                env.addSource(new StringSource(numRecordsToSend, deletePartitionFile));
         source.rebalance()
                 .map((MapFunction<String, String>) value -> value)
                 .broadcast()
@@ -100,12 +145,15 @@ public class BlockingShuffleITCase {
         return StreamingJobGraphGenerator.createJobGraph(streamGraph);
     }
 
-    private static class StringSource implements ParallelSourceFunction<String> {
+    private static class StringSource extends RichParallelSourceFunction<String> {
+
+        private final boolean deletePartitionFile;
         private volatile boolean isRunning = true;
         private int numRecordsToSend;
 
-        StringSource(int numRecordsToSend) {
+        StringSource(int numRecordsToSend, boolean deletePartitionFile) {
             this.numRecordsToSend = numRecordsToSend;
+            this.deletePartitionFile = deletePartitionFile;
         }
 
         @Override
@@ -118,6 +166,21 @@ public class BlockingShuffleITCase {
         @Override
         public void cancel() {
             isRunning = false;
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+
+            if (deletePartitionFile) {
+                for (File directory : checkNotNull(TEMP_FOLDER.getRoot().listFiles())) {
+                    if (directory.isDirectory()) {
+                        for (File file : checkNotNull(directory.listFiles())) {
+                            Files.deleteIfExists(file.toPath());
+                        }
+                    }
+                }
+            }
         }
     }
 
