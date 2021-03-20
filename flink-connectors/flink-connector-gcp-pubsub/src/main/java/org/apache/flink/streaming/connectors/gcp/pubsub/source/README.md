@@ -16,7 +16,8 @@ Add this dependency entry to your pom.xml to use the Google Cloud Pub/Sub source
 
 ## Usage
 
-To keep up the Google Cloud Pub/Sub at-least-once guarantee, messages are acknowledged against Pub/Sub when checkpointing succeeds. If a message is not acknowledged within a timeout (here `Duration.ofSeconds(1)`), Pub/Sub will attempt redelivery. To avoid unnecessary redelivery of successfully received messages, the timeout after which the reception of a message is deemed a failure (acknowledge deadline) should always be configured (much) *higher* than the checkpointing interval!
+To keep up the Google Cloud Pub/Sub at-least-once guarantee, messages are acknowledged against Pub/Sub when checkpointing succeeds. If a message is not acknowledged within an acknowledge deadline, Pub/Sub will attempt redelivery. To avoid unnecessary redelivery of successfully received messages, the checkpointing interval should always be configured (much) *lower* than the Google Cloud Pub/Sub acknowledge deadline.
+
 
 ```java
 import org.apache.flink.streaming.connectors.gcp.pubsub.source.PubSubSource;
@@ -42,7 +43,7 @@ PubSubSource<String> source =
                 .setPubSubSubscriberFactory(
                         // The maximum number of messages that should be pulled in one go
                         3,
-                        // The timeout after which the reception of a message is deemed a failure
+                        // The timeout after which a message pull request is deemed a failure
                         Duration.ofSeconds(1),
                         // The number of times the reception of a message should be retried in case of failure
                         10)

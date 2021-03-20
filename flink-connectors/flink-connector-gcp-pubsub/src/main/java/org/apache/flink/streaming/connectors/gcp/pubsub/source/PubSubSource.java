@@ -73,7 +73,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  *         .setPubSubSubscriberFactory(
  *                 // The maximum number of messages that should be pulled in one go
  *                 3,
- *                 // The timeout after which the reception of a message is deemed a failure
+ *                 // The timeout after which a message pull request is deemed a failure
  *                 Duration.ofSeconds(1),
  *                 // The number of times the reception of a message should be retried in case of failure
  *                 10)
@@ -240,8 +240,7 @@ public class PubSubSource<OUT>
          * Create a parameterized {@DefaultPubSubSubscriberFactory} and set it on the builder.
          *
          * @param maxMessagesPerPull The maximum number of messages that should be pulled in one go.
-         * @param perRequestTimeout The timeout after which the reception of a message is deemed a
-         *     failure.
+         * @param perRequestTimeout The timeout per request from the subscriber
          * @param retries The number of times the reception of a message should be retried in case
          *     of * failure.
          */

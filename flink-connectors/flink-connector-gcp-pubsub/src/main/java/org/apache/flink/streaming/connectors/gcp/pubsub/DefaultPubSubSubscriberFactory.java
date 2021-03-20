@@ -51,7 +51,7 @@ public class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
      *     com.google.pubsub.v1.ProjectSubscriptionName}.
      * @param retries The number of times the reception of a message should be retried in case of
      *     failure.
-     * @param pullTimeout The timeout after which the reception of a message is deemed a failure.
+     * @param pullTimeout The timeout after which a message pull request is deemed a failure
      * @param maxMessagesPerPull The maximum number of messages that should be pulled in one go.
      */
     public DefaultPubSubSubscriberFactory(
