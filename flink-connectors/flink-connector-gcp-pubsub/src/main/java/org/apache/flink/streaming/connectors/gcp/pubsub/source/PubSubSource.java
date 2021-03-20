@@ -61,23 +61,22 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  * be constructed through the {@link PubSubSourceBuilder} like so:
  *
  * <pre>{@code
- * PubSubSource.newBuilder()
+ * PubSubSource.<String>builder()
  *         // The deserialization schema to deserialize Pub/Sub messages
- *         .withDeserializationSchema(new SimpleStringSchema())
+ *         .setDeserializationSchema(new SimpleStringSchema())
  *         // The name string of your Pub/Sub project
- *         .withProjectName(PROJECT_NAME)
+ *         .setProjectName(PROJECT_NAME)
  *         // The name string of the subscription you would like to receive messages from
- *         .withSubscriptionName(SUBSCRIPTION_NAME)
- *         // An instance of the com.google.auth.Credentials class to authenticate against Google Cloud
- *         .withCredentials(CREDENTIALS)
- *         .withPubSubSubscriberFactory(
+ *         .setSubscriptionName(SUBSCRIPTION_NAME)
+ *         // An instance of com.google.auth.Credentials to authenticate against Google Cloud
+ *         .setCredentials(CREDENTIALS)
+ *         .setPubSubSubscriberFactory(
  *                 // The maximum number of messages that should be pulled in one go
  *                 3,
  *                 // The timeout after which the reception of a message is deemed a failure
  *                 Duration.ofSeconds(1),
  *                 // The number of times the reception of a message should be retried in case of failure
  *                 10)
- *         .setProps(new Properties())
  *         .build();
  * }</pre>
  *
@@ -156,73 +155,97 @@ public class PubSubSource<OUT>
     /**
      * Get a builder to build a {@link PubSubSource}.
      *
-     * @return A builder for a @{link PubSubSource}.
+     * @return A builder for a {@link PubSubSource}.
      */
-    public static DeserializationSchemaBuilder newBuilder() {
-        return new DeserializationSchemaBuilder();
+    public static <OUT> PubSubSourceBuilder<OUT> builder() {
+        return new PubSubSourceBuilder<>();
     }
 
     /** @param <OUT> */
-    public static class PubSubSourceBuilder<OUT>
-            implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
+    public static class PubSubSourceBuilder<OUT> {
         private static final int DEFAULT_PUBSUB_SUBSCRIBER_NUMBER_OF_RETRIES = 3;
         private static final int DEFAULT_PUBSUB_SUBSCRIBER_MAX_MESSAGES_PER_PULL = 100;
 
-        private final PubSubDeserializationSchema<OUT> deserializationSchema;
+        private PubSubDeserializationSchema<OUT> deserializationSchema;
         private String projectName;
         private String subscriptionName;
-
         private PubSubSubscriberFactory pubSubSubscriberFactory;
         private Properties props;
         private Credentials credentials;
 
+        private PubSubSourceBuilder() {
+            this.props = new Properties();
+        }
+
         /**
-         * Use any {@link DeserializationSchema} to use in the {@link PubSubSource}. The schema will
-         * be wrapped automatically for compatibility with the source.
+         * Set the DeserializationSchema used to deserialize incoming Pub/Sub messages. Use any
+         * {@link DeserializationSchema} to use in the {@link PubSubSource}. The schema will be
+         * wrapped automatically for compatibility with the source.
          *
-         * @param deserializationSchema The deserialization schema to use.
+         * @param deserializationSchema a deserialization schema to use.
          */
-        private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {
+        public PubSubSourceBuilder<OUT> setDeserializationSchema(
+                DeserializationSchema<OUT> deserializationSchema) {
             Preconditions.checkNotNull(deserializationSchema);
             this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
+            return this;
         }
 
         /**
-         * Use a {@link PubSubDeserializationSchema} for the {@link PubSubSource}.
+         * Set the PubSubDeserializationSchema used to deserialize incoming Pub/Sub messages.
          *
-         * @param deserializationSchema The deserialization schema to use.
+         * @param deserializationSchema a deserialization schema to use.
          */
-        private PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema) {
+        public PubSubSourceBuilder<OUT> setDeserializationSchema(
+                PubSubDeserializationSchema<OUT> deserializationSchema) {
             Preconditions.checkNotNull(deserializationSchema);
             this.deserializationSchema = deserializationSchema;
+            return this;
         }
 
-        @Override
-        public SubscriptionNameBuilder<OUT> withProjectName(String projectName) {
+        /** @param projectName the name string of your Pub/Sub project */
+        public PubSubSourceBuilder<OUT> setProjectName(String projectName) {
             Preconditions.checkNotNull(projectName);
             this.projectName = projectName;
             return this;
         }
 
-        @Override
-        public PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName) {
+        /**
+         * @param subscriptionName the name string of the subscription you would like to receive
+         *     messages from
+         */
+        public PubSubSourceBuilder<OUT> setSubscriptionName(String subscriptionName) {
             Preconditions.checkNotNull(subscriptionName);
             this.subscriptionName = subscriptionName;
             return this;
         }
 
-        public PubSubSourceBuilder<OUT> withCredentials(Credentials credentials) {
+        /**
+         * @param credentials an instance of {@com.google.auth.Credentials} to authenticate against
+         *     Google Cloud
+         */
+        public PubSubSourceBuilder<OUT> setCredentials(Credentials credentials) {
             this.credentials = credentials;
             return this;
         }
 
-        public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(
+        /** @param pubSubSubscriberFactory a custom factory to create Pub/Sub subscribers from */
+        public PubSubSourceBuilder<OUT> setPubSubSubscriberFactory(
                 PubSubSubscriberFactory pubSubSubscriberFactory) {
             this.pubSubSubscriberFactory = pubSubSubscriberFactory;
             return this;
         }
 
-        public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(
+        /**
+         * Create a parameterized {@DefaultPubSubSubscriberFactory} and set it on the builder.
+         *
+         * @param maxMessagesPerPull The maximum number of messages that should be pulled in one go.
+         * @param perRequestTimeout The timeout after which the reception of a message is deemed a
+         *     failure.
+         * @param retries The number of times the reception of a message should be retried in case
+         *     of * failure.
+         */
+        public PubSubSourceBuilder<OUT> setPubSubSubscriberFactory(
                 int maxMessagesPerPull, Duration perRequestTimeout, int retries) {
             this.pubSubSubscriberFactory =
                     new DefaultPubSubSubscriberFactory(
@@ -233,12 +256,19 @@ public class PubSubSource<OUT>
             return this;
         }
 
-        public PubSubSourceBuilder setProps(Properties props) {
+        public PubSubSourceBuilder<OUT> setProps(Properties props) {
             this.props = props;
             return this;
         }
 
         public PubSubSource<OUT> build() throws IOException {
+            Preconditions.checkNotNull(
+                    deserializationSchema, "Deserialization schema must be provided.");
+            Preconditions.checkNotNull(
+                    projectName, "Google Cloud Pub/Sub projectName must be set.");
+            Preconditions.checkNotNull(
+                    subscriptionName, "Google Cloud Pub/Sub subscriptionName must be set.");
+
             if (credentials == null) {
                 credentials = defaultCredentialsProviderBuilder().build().getCredentials();
             }
@@ -255,37 +285,6 @@ public class PubSubSource<OUT>
             return new PubSubSource(
                     deserializationSchema, pubSubSubscriberFactory, props, credentials);
         }
-    }
-
-    /** Part of {@link PubSubSourceBuilder} to set required fields. */
-    public static class DeserializationSchemaBuilder {
-        /**
-         * Set the DeserializationSchema used to deserialize incoming PubSubMessages. If you want
-         * access to meta data of a PubSubMessage use the overloaded
-         * withDeserializationSchema({@link PubSubDeserializationSchema}) method instead.
-         */
-        public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(
-                DeserializationSchema<OUT> deserializationSchema) {
-            return new PubSubSourceBuilder<>(deserializationSchema);
-        }
-
-        /** Set the DeserializationSchema used to deserialize incoming PubSubMessages. */
-        public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(
-                PubSubDeserializationSchema<OUT> deserializationSchema) {
-            return new PubSubSourceBuilder<>(deserializationSchema);
-        }
-    }
-
-    /** Part of {@link PubSubSourceBuilder} to set required fields. */
-    public interface ProjectNameBuilder<OUT> {
-        /** Set the project name of the subscription to pull messages from. */
-        SubscriptionNameBuilder<OUT> withProjectName(String projectName);
-    }
-
-    /** Part of {@link PubSubSourceBuilder} to set required fields. */
-    public interface SubscriptionNameBuilder<OUT> {
-        /** Set the subscription name of the subscription to pull messages from. */
-        PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName);
     }
 
     // ----------- private helper methods ---------------

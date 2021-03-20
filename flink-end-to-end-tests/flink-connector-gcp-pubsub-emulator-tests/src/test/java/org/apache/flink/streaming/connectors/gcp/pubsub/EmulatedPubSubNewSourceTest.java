@@ -41,7 +41,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -109,12 +108,12 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         PubSubSource<String> source =
-                PubSubSource.newBuilder()
-                        .withDeserializationSchema(new SimpleStringSchema())
-                        .withProjectName(PROJECT_NAME)
-                        .withSubscriptionName(SUBSCRIPTION_NAME)
-                        .withCredentials(EmulatorCredentials.getInstance())
-                        .withPubSubSubscriberFactory(
+                PubSubSource.<String>builder()
+                        .setDeserializationSchema(new SimpleStringSchema())
+                        .setProjectName(PROJECT_NAME)
+                        .setSubscriptionName(SUBSCRIPTION_NAME)
+                        .setCredentials(EmulatorCredentials.getInstance())
+                        .setPubSubSubscriberFactory(
                                 new PubSubSubscriberFactoryForEmulator(
                                         getPubSubHostPort(),
                                         PROJECT_NAME,
@@ -122,7 +121,6 @@ public class EmulatedPubSubNewSourceTest extends GCloudUnitTestBase {
                                         10,
                                         Duration.ofSeconds(1),
                                         3))
-                        .setProps(new Properties())
                         .build();
 
         DataStream<String> fromPubSub =

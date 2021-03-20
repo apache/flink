@@ -32,23 +32,22 @@ env.enableCheckpointing(1000);
 // env.setParallelism(4);
 
 PubSubSource<String> source =
-        PubSubSource.newBuilder()
+        PubSubSource.<String>builder()
                 // The deserialization schema to deserialize Pub/Sub messages
-                .withDeserializationSchema(new SimpleStringSchema())
+                .setDeserializationSchema(new SimpleStringSchema())
                 // The name string of your Pub/Sub project
-                .withProjectName(PROJECT_NAME)
+                .setProjectName(PROJECT_NAME)
                 // The name string of the subscription you would like to receive messages from
-                .withSubscriptionName(SUBSCRIPTION_NAME)
+                .setSubscriptionName(SUBSCRIPTION_NAME)
                 // An instance of the com.google.auth.Credentials class to authenticate against Google Cloud
-                .withCredentials(CREDENTIALS)
-                .withPubSubSubscriberFactory(
+                .setCredentials(CREDENTIALS)
+                .setPubSubSubscriberFactory(
                         // The maximum number of messages that should be pulled in one go
                         3,
                         // The timeout after which the reception of a message is deemed a failure
                         Duration.ofSeconds(1),
                         // The number of times the reception of a message should be retried in case of failure
                         10)
-                .setProps(new Properties())
                 .build();
 
 DataStream<String> fromPubSub =
