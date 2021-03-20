@@ -57,8 +57,15 @@ import java.util.function.Supplier;
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
 
 /**
- * A source implementation to pull messages from GCP Pub/Sub into Flink. A {@link PubSubSource} can
- * be constructed through the {@link PubSubSourceBuilder} like so:
+ * A source implementation to pull messages from GCP Pub/Sub into Flink.
+ *
+ * <p>The {@link PubSubSourceEnumerator} assigns a static {@PubSubSplit} to every
+ * {@PubSubSourceReader} that joins. The split does not contain any split-specific information
+ * because Pub/Sub does not allow subscribers to specify a "range" of messages to pull by providing
+ * partitions or offsets. However, Pub/Sub will automatically load-balance messages between multiple
+ * readers which use the same subscription.
+ *
+ * <p>A {@link PubSubSource} can be constructed through the {@link PubSubSourceBuilder} like so:
  *
  * <pre>{@code
  * PubSubSource.<String>builder()
