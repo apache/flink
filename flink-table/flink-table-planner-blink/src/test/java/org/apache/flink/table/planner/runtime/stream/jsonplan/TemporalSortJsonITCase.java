@@ -44,8 +44,7 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                 "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a INT");
         String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink SELECT a FROM MyTable order by proctime, c");
+                tableEnv.getJsonPlan("insert into MySink SELECT a FROM MyTable order by proctime");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         assertResult(
