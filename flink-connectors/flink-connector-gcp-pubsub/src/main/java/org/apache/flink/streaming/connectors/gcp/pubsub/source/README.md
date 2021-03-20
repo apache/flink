@@ -16,8 +16,6 @@ Add this dependency entry to your pom.xml to use the Google Cloud Pub/Sub source
 
 ## Usage
 
-Please keep in mind that the new source can be found in package `org.apache.flink.streaming.connectors.gcp.pubsub.source` while the old source implementation can still be found in `org.apache.flink.streaming.connectors.gcp.pubsub` (without `source` suffix). The API of the new source is not much different from the old one.
-
 To keep up the Google Cloud Pub/Sub at-least-once guarantee, messages are acknowledged against Pub/Sub when checkpointing succeeds. If a message is not acknowledged within a timeout (here `Duration.ofSeconds(1)`), Pub/Sub will attempt redelivery. To avoid unnecessary redelivery of successfully received messages, the timeout after which the reception of a message is deemed a failure (acknowledge deadline) should always be configured (much) *higher* than the checkpointing interval!
 
 ```java
@@ -68,9 +66,7 @@ A `PubSubSourceReader` uses Pub/Sub's pull mechanism to read new messages from t
 
 Pub/Sub only guarantees at-least-once message delivery. This guarantee is kept up by the source as well. The mechanism that is used to achieve this is that Pub/Sub expects a message to be acknowledged by the subscriber to signal that the message has been consumed successfully. Any message that has not been acknowledged yet will be automatically redelivered by Pub/Sub once an ack deadline has passed.
 
-When a new checkpoint is written...
-- all messages pulled since the previous checkpoint are acknowledged to Pub/Sub and...
-- are forwarded to down-stream tasks
+When a new checkpoint is triggered, all messages which were successfully pulled since the previous checkpoint are acknowledged to Pub/Sub.
 
 This ensures at-least-once delivery in the source because in the case of failure, non-checkpointed messages have not yet been acknowledged and will therefore be redelivered by the Pub/Sub service. Because of this automatic redelivery and given at-least-once guarantee, it's also not necessary to write any data such as message IDs into the checkpoint.
 
