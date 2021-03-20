@@ -454,22 +454,34 @@ public class HiveTableUtil {
      */
     public static Configuration getHadoopConfiguration(String hadoopConfDir) {
         if (new File(hadoopConfDir).exists()) {
-            Configuration hadoopConfiguration = new Configuration();
+            Configuration hadoopConfiguration = null;
             File coreSite = new File(hadoopConfDir, "core-site.xml");
             if (coreSite.exists()) {
+                if (hadoopConfiguration == null) {
+                    hadoopConfiguration = new Configuration();
+                }
                 hadoopConfiguration.addResource(new Path(coreSite.getAbsolutePath()));
             }
             File hdfsSite = new File(hadoopConfDir, "hdfs-site.xml");
             if (hdfsSite.exists()) {
+                if (hadoopConfiguration == null) {
+                    hadoopConfiguration = new Configuration();
+                }
                 hadoopConfiguration.addResource(new Path(hdfsSite.getAbsolutePath()));
             }
             File yarnSite = new File(hadoopConfDir, "yarn-site.xml");
             if (yarnSite.exists()) {
+                if (hadoopConfiguration == null) {
+                    hadoopConfiguration = new Configuration();
+                }
                 hadoopConfiguration.addResource(new Path(yarnSite.getAbsolutePath()));
             }
             // Add mapred-site.xml. We need to read configurations like compression codec.
             File mapredSite = new File(hadoopConfDir, "mapred-site.xml");
             if (mapredSite.exists()) {
+                if (hadoopConfiguration == null) {
+                    hadoopConfiguration = new Configuration();
+                }
                 hadoopConfiguration.addResource(new Path(mapredSite.getAbsolutePath()));
             }
             return hadoopConfiguration;

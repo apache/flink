@@ -218,25 +218,20 @@ public class HiveCatalog extends AbstractCatalog {
                     HadoopUtils.possibleHadoopConfPaths(
                             new org.apache.flink.configuration.Configuration())) {
                 hadoopConf = getHadoopConfiguration(possibleHadoopConfPath);
-                if (hadoopConf != null && hadoopConf.size() != 0) {
+                if (hadoopConf != null) {
                     break;
                 }
             }
         } else {
             hadoopConf = getHadoopConfiguration(hadoopConfDir);
             if (hadoopConf == null) {
-                throw new CatalogException(
-                        "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
-                        new FileNotFoundException("Path " + hadoopConfDir + " does not exist."));
-            }
-            if (hadoopConf.size() == 0) {
-                String possiableUsedFiles =
+                String possiableUsedConfFiles =
                         "core-site.xml | hdfs-site.xml | yarn-site.xml | mapred-site.xml";
                 throw new CatalogException(
                         "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
                         new FileNotFoundException(
-                                "None of the conf files ("
-                                        + possiableUsedFiles
+                                "Please check the path none of the conf files ("
+                                        + possiableUsedConfFiles
                                         + ") exist in the folder."));
             }
         }
