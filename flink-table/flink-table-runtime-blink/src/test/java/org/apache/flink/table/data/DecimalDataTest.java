@@ -115,7 +115,10 @@ public class DecimalDataTest {
         assertTrue(castToBoolean(castFrom(true, 5, 0)));
         assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
         assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
-        assertEquals(5000, castToTimestamp(castFrom("5", 5, 0)));
+        assertEquals(5000, castToTimestamp(castFrom("5", 5, 0)).getMillisecond());
+        assertEquals(12300456, castToTimestamp(castFrom("12300.4567", 10, 4)).getMillisecond());
+        assertEquals(
+                780000, castToTimestamp(castFrom("12300.45678", 10, 5)).getNanoOfMillisecond());
 
         DecimalData newDecimal = castFrom(castFrom(10, 5, 2), 10, 4);
         assertEquals(10, newDecimal.precision());
@@ -170,6 +173,8 @@ public class DecimalDataTest {
         assertNull(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0));
         assertEquals(0, DecimalData.zero(20, 2).toBigDecimal().intValue());
         assertEquals(0, DecimalData.zero(20, 2).toBigDecimal().intValue());
+        assertEquals(1234000, castToTimestamp(castFrom("1234", 20, 4)).getMillisecond());
+        assertEquals(0, castToTimestamp(castFrom("1234", 20, 4)).getNanoOfMillisecond());
     }
 
     @Test
