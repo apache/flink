@@ -568,7 +568,7 @@ abstract class TableEnvImpl(
     if (operations.size != 1) {
       throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
-    executeOperation(operations.get(0))
+    executeInternal(operations.get(0))
   }
 
   override def createStatementSet = new StatementSetImpl(this)
@@ -609,7 +609,7 @@ abstract class TableEnvImpl(
     }
   }
 
-  override def executeInternal(operation: QueryOperation): TableResult = {
+  private def executeQueryOperation(operation: QueryOperation): TableResult = {
     val tableSchema = TableSchema.fromResolvedSchema(operation.getResolvedSchema)
     val tableSink = new BatchSelectTableSink(tableSchema)
     val dataSink = writeToSinkAndTranslate(operation, tableSink)
@@ -651,12 +651,12 @@ abstract class TableEnvImpl(
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
            _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation =>
-        executeOperation(operation)
+        executeInternal(operation)
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
   }
 
-  private def executeOperation(operation: Operation): TableResult = {
+  override def executeInternal(operation: Operation): TableResult = {
     operation match {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
         executeInternal(JCollections.singletonList[ModifyOperation](catalogSinkModifyOperation))
@@ -828,7 +828,7 @@ abstract class TableEnvImpl(
             descOperation.getSqlIdentifier.asSummaryString()))
         }
       case queryOperation: QueryOperation =>
-        executeInternal(queryOperation)
+        executeQueryOperation(queryOperation)
 
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)

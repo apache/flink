@@ -708,7 +708,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
 
-        return executeOperation(operations.get(0));
+        return executeInternal(operations.get(0));
     }
 
     @Override
@@ -750,8 +750,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    @Override
-    public TableResult executeInternal(QueryOperation operation) {
+    private TableResult executeQueryOperation(QueryOperation operation) {
         SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
@@ -808,13 +807,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof UseDatabaseOperation
                 || operation instanceof LoadModuleOperation
                 || operation instanceof UnloadModuleOperation) {
-            executeOperation(operation);
+            executeInternal(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
         }
     }
 
-    private TableResult executeOperation(Operation operation) {
+    @Override
+    public TableResult executeInternal(Operation operation) {
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof CreateTableOperation) {
@@ -1184,7 +1184,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 describeTableOperation.getSqlIdentifier().asSummaryString()));
             }
         } else if (operation instanceof QueryOperation) {
-            return executeInternal((QueryOperation) operation);
+            return executeQueryOperation((QueryOperation) operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
