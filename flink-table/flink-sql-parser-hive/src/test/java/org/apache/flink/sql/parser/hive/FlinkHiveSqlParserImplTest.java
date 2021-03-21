@@ -100,6 +100,9 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     public void testDescribeDatabase() {
         sql("describe schema db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc schema db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -114,6 +117,10 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe extended tbl").ok("DESCRIBE EXTENDED `TBL`");
         sql("describe formatted tbl").ok("DESCRIBE FORMATTED `TBL`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc extended tbl").ok("DESCRIBE EXTENDED `TBL`");
+        sql("desc formatted tbl").ok("DESCRIBE FORMATTED `TBL`");
     }
 
     @Test
@@ -279,6 +286,8 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+
+        sql("desc catalog cat").ok("DESCRIBE CATALOG `CAT`");
     }
 
     @Test

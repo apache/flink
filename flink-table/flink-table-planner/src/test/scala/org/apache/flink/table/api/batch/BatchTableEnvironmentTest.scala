@@ -564,15 +564,16 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult1 = testUtil.tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
+    val expectedResult = java.util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, null, null))
     val tableResult2 = testUtil.tableEnv.executeSql("DESCRIBE tbl1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    checkData(
-      java.util.Arrays.asList(
-        Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
-        Row.of("b", "INT", Boolean.box(true), null, null, null),
-        Row.of("c", "STRING", Boolean.box(true), null, null, null)
-      ).iterator(),
-      tableResult2.collect())
+    checkData(expectedResult.iterator(), tableResult2.collect())
+    val tableResult3 = testUtil.tableEnv.executeSql("DESC tbl1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(expectedResult.iterator(), tableResult3.collect())
   }
 
   @Test
