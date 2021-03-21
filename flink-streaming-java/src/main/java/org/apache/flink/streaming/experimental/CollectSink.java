@@ -84,7 +84,7 @@ public class CollectSink<IN> extends RichSinkFunction<IN> {
             streamWriter = new DataOutputViewStreamWrapper(outputStream);
         } catch (IOException e) {
             throw new IOException(
-                    "Cannot get back the stream while opening connection to client at"
+                    "Cannot get back the stream while opening connection to client at "
                             + hostIp.toString()
                             + ":"
                             + port,
