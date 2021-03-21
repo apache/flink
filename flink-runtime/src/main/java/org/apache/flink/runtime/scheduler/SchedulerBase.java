@@ -75,6 +75,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntryExtractor;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -145,7 +147,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private final BoundedFIFOQueue<ExceptionHistoryEntry> exceptionHistory;
+    private final ExceptionHistoryEntryExtractor exceptionHistoryEntryExtractor;
+    private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -210,7 +213,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.operatorCoordinatorHandler =
                 new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
-        exceptionHistory =
+
+        this.exceptionHistoryEntryExtractor = new ExceptionHistoryEntryExtractor();
+        this.exceptionHistory =
                 new BoundedFIFOQueue<>(
                         jobMasterConfiguration.getInteger(
                                 JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE));
@@ -598,30 +603,31 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         archiveGlobalFailure(failure, executionGraph.getStatusTimestamp(JobStatus.FAILED));
     }
 
-    protected final void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
-        exceptionHistory.add(ExceptionHistoryEntry.fromGlobalFailure(failure, timestamp));
+    private void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
+        exceptionHistory.add(
+                exceptionHistoryEntryExtractor.extractGlobalFailure(
+                        executionGraph.getAllExecutionVertices(), failure, timestamp));
         log.debug("Archive global failure.", failure);
     }
 
     protected final void archiveFromFailureHandlingResult(
             FailureHandlingResult failureHandlingResult) {
-        final Optional<Execution> executionOptional =
-                failureHandlingResult
-                        .getExecutionVertexIdOfFailedTask()
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertex::getCurrentExecutionAttempt);
+        if (failureHandlingResult.getExecutionVertexIdOfFailedTask().isPresent()) {
+            final ExecutionVertexID executionVertexId =
+                    failureHandlingResult.getExecutionVertexIdOfFailedTask().get();
+            final RootExceptionHistoryEntry rootEntry =
+                    exceptionHistoryEntryExtractor.extractLocalFailure(
+                            executionGraph.getAllVertices(),
+                            executionVertexId,
+                            failureHandlingResult.getVerticesToRestart().stream()
+                                    .filter(v -> !executionVertexId.equals(v))
+                                    .collect(Collectors.toSet()));
+            exceptionHistory.add(rootEntry);
 
-        if (executionOptional.isPresent()) {
-            final Execution failedExecution = executionOptional.get();
-            final ExceptionHistoryEntry exceptionHistoryEntry =
-                    ExceptionHistoryEntry.fromFailedExecution(
-                            failedExecution,
-                            failedExecution.getVertex().getTaskNameWithSubtaskIndex());
-            exceptionHistory.add(exceptionHistoryEntry);
             log.debug(
                     "Archive local failure causing attempt {} to fail: {}",
-                    failedExecution.getAttemptId(),
-                    exceptionHistoryEntry.getExceptionAsString());
+                    executionVertexId,
+                    rootEntry.getExceptionAsString());
         } else {
             // fallback in case of a global fail over - no failed state is set and, therefore, no
             // timestamp was taken
@@ -709,14 +715,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected void notifyPartitionDataAvailableInternal(
             IntermediateResultPartitionID resultPartitionId) {}
 
-    /**
-     * Returns a copy of the current history of task failures.
-     *
-     * @return a copy of the current history of task failures.
-     */
     @VisibleForTesting
-    protected Iterable<ExceptionHistoryEntry> getExceptionHistory() {
-        final Collection<ExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
+    Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
+        final Collection<RootExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
         exceptionHistory.forEach(copy::add);
 
         return copy;

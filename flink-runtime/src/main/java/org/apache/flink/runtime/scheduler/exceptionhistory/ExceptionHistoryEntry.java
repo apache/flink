@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler;
+package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -40,45 +39,19 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     @Nullable private final String failingTaskName;
     @Nullable private final ArchivedTaskManagerLocation taskManagerLocation;
 
-    /**
-     * Creates a {@code ExceptionHistoryEntry} representing a global failure from the passed {@code
-     * Throwable} and timestamp.
-     *
-     * @param cause The reason for the failure.
-     * @param timestamp The time the failure was caught.
-     * @return The {@code ExceptionHistoryEntry} instance.
-     */
-    public static ExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
-        return new ExceptionHistoryEntry(cause, timestamp, null, null);
-    }
-
-    /**
-     * Creates a {@code ExceptionHistoryEntry} representing a local failure using the passed
-     * information.
-     *
-     * @param execution The {@link AccessExecution} that caused the failure.
-     * @param failingTaskName The name of the task the {@code execution} is connected to.
-     * @return The {@code ExceptionHistoryEntry} instance.
-     */
-    public static ExceptionHistoryEntry fromFailedExecution(
-            AccessExecution execution, String failingTaskName) {
-        ErrorInfo failureInfo =
-                execution
-                        .getFailureInfo()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "The passed Execution does not provide a failureCause."));
-        return new ExceptionHistoryEntry(
-                failureInfo.getException(),
-                failureInfo.getTimestamp(),
+    ExceptionHistoryEntry(
+            Throwable cause,
+            long timestamp,
+            @Nullable String failingTaskName,
+            @Nullable TaskManagerLocation taskManagerLocation) {
+        this(
+                cause,
+                timestamp,
                 failingTaskName,
-                ArchivedTaskManagerLocation.fromTaskManagerLocation(
-                        execution.getAssignedResourceLocation()));
+                ArchivedTaskManagerLocation.fromTaskManagerLocation(taskManagerLocation));
     }
 
-    @VisibleForTesting
-    public ExceptionHistoryEntry(
+    private ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
             @Nullable String failingTaskName,
@@ -127,7 +100,7 @@ public class ExceptionHistoryEntry extends ErrorInfo {
          */
         @VisibleForTesting
         @Nullable
-        public static ArchivedTaskManagerLocation fromTaskManagerLocation(
+        static ArchivedTaskManagerLocation fromTaskManagerLocation(
                 TaskManagerLocation taskManagerLocation) {
             if (taskManagerLocation == null) {
                 return null;
