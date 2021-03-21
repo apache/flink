@@ -27,6 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -117,21 +118,21 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         public static final String FIELD_NAME_TRUNCATED = "truncated";
 
         @JsonProperty(FIELD_NAME_ENTRIES)
-        private final List<ExceptionInfo> entries;
+        private final List<RootExceptionInfo> entries;
 
         @JsonProperty(FIELD_NAME_TRUNCATED)
         private final boolean truncated;
 
         @JsonCreator
         public JobExceptionHistory(
-                @JsonProperty(FIELD_NAME_ENTRIES) List<ExceptionInfo> entries,
+                @JsonProperty(FIELD_NAME_ENTRIES) List<RootExceptionInfo> entries,
                 @JsonProperty(FIELD_NAME_TRUNCATED) boolean truncated) {
             this.entries = entries;
             this.truncated = truncated;
         }
 
         @JsonIgnore
-        public List<ExceptionInfo> getEntries() {
+        public List<RootExceptionInfo> getEntries() {
             return entries;
         }
 
@@ -169,7 +170,10 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         }
     }
 
-    /** Collects the information of a single exception. */
+    /**
+     * Json equivalent of {@link
+     * org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry}.
+     */
     public static class ExceptionInfo {
 
         public static final String FIELD_NAME_EXCEPTION_NAME = "exceptionName";
@@ -273,6 +277,75 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     .add("timestamp=" + timestamp)
                     .add("taskName='" + taskName + "'")
                     .add("location='" + location + "'")
+                    .toString();
+        }
+    }
+
+    /**
+     * Json equivalent of {@link
+     * org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry}.
+     */
+    public static class RootExceptionInfo extends ExceptionInfo {
+
+        public static final String FIELD_NAME_CONCURRENT_EXCEPTIONS = "concurrentExceptions";
+
+        @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
+        private final Collection<ExceptionInfo> concurrentExceptions;
+
+        public RootExceptionInfo(
+                String exceptionName,
+                String stacktrace,
+                long timestamp,
+                Collection<ExceptionInfo> concurrentExceptions) {
+            this(exceptionName, stacktrace, timestamp, null, null, concurrentExceptions);
+        }
+
+        @JsonCreator
+        public RootExceptionInfo(
+                @JsonProperty(FIELD_NAME_EXCEPTION_NAME) String exceptionName,
+                @JsonProperty(FIELD_NAME_EXCEPTION_STACKTRACE) String stacktrace,
+                @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
+                @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
+                @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
+                @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
+                        Collection<ExceptionInfo> concurrentExceptions) {
+            super(exceptionName, stacktrace, timestamp, taskName, location);
+            this.concurrentExceptions = concurrentExceptions;
+        }
+
+        @JsonIgnore
+        public Collection<ExceptionInfo> getConcurrentExceptions() {
+            return concurrentExceptions;
+        }
+
+        // hashCode and equals are necessary for the test classes deriving from
+        // RestResponseMarshallingTestBase
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass() || !super.equals(o)) {
+                return false;
+            }
+            RootExceptionInfo that = (RootExceptionInfo) o;
+            return getConcurrentExceptions().equals(that.getConcurrentExceptions());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), getConcurrentExceptions());
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", RootExceptionInfo.class.getSimpleName() + "[", "]")
+                    .add("exceptionName='" + getExceptionName() + "'")
+                    .add("stacktrace='" + getStacktrace() + "'")
+                    .add("timestamp=" + getTimestamp())
+                    .add("taskName='" + getTaskName() + "'")
+                    .add("location='" + getLocation() + "'")
+                    .add("concurrentExceptions=" + getConcurrentExceptions())
                     .toString();
         }
     }

@@ -34,8 +34,9 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.UpperLimitExceptionParameter;
-import org.apache.flink.runtime.scheduler.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
@@ -56,6 +57,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /** Handler serving the job exceptions. */
 public class JobExceptionsHandler
@@ -153,17 +155,17 @@ public class JobExceptionsHandler
                         executionGraphInfo.getExceptionHistory(), exceptionToReportMaxSize));
     }
 
-    static JobExceptionsInfoWithHistory.JobExceptionHistory createJobExceptionHistory(
-            Iterable<ExceptionHistoryEntry> historyEntries, int limit) {
+    private static JobExceptionsInfoWithHistory.JobExceptionHistory createJobExceptionHistory(
+            Iterable<RootExceptionHistoryEntry> historyEntries, int limit) {
         // we need to reverse the history to have a stable result when doing paging on it
-        final List<ExceptionHistoryEntry> reversedHistoryEntries = new ArrayList<>();
+        final List<RootExceptionHistoryEntry> reversedHistoryEntries = new ArrayList<>();
         Iterables.addAll(reversedHistoryEntries, historyEntries);
         Collections.reverse(reversedHistoryEntries);
 
-        List<JobExceptionsInfoWithHistory.ExceptionInfo> exceptionHistoryEntries =
+        List<JobExceptionsInfoWithHistory.RootExceptionInfo> exceptionHistoryEntries =
                 reversedHistoryEntries.stream()
                         .limit(limit)
-                        .map(JobExceptionsHandler::createExceptionInfo)
+                        .map(JobExceptionsHandler::createRootExceptionInfo)
                         .collect(Collectors.toList());
 
         return new JobExceptionsInfoWithHistory.JobExceptionHistory(
@@ -171,28 +173,51 @@ public class JobExceptionsHandler
                 exceptionHistoryEntries.size() < reversedHistoryEntries.size());
     }
 
-    private static JobExceptionsInfoWithHistory.ExceptionInfo createExceptionInfo(
-            ExceptionHistoryEntry historyEntry) {
+    private static JobExceptionsInfoWithHistory.RootExceptionInfo createRootExceptionInfo(
+            RootExceptionHistoryEntry historyEntry) {
+        final List<JobExceptionsInfoWithHistory.ExceptionInfo> concurrentExceptions =
+                StreamSupport.stream(historyEntry.getConcurrentExceptions().spliterator(), false)
+                        .map(JobExceptionsHandler::createExceptionInfo)
+                        .collect(Collectors.toList());
+
         if (historyEntry.isGlobal()) {
-            return new JobExceptionsInfoWithHistory.ExceptionInfo(
+            return new JobExceptionsInfoWithHistory.RootExceptionInfo(
                     historyEntry.getException().getOriginalErrorClassName(),
                     historyEntry.getExceptionAsString(),
-                    historyEntry.getTimestamp());
+                    historyEntry.getTimestamp(),
+                    concurrentExceptions);
         }
 
-        Preconditions.checkArgument(
-                historyEntry.getFailingTaskName() != null,
-                "The taskName must not be null for a non-global failure.");
-        Preconditions.checkArgument(
-                historyEntry.getTaskManagerLocation() != null,
-                "The location must not be null for a non-global failure.");
+        assertLocalExceptionInfo(historyEntry);
 
-        return new JobExceptionsInfoWithHistory.ExceptionInfo(
+        return new JobExceptionsInfoWithHistory.RootExceptionInfo(
                 historyEntry.getException().getOriginalErrorClassName(),
                 historyEntry.getExceptionAsString(),
                 historyEntry.getTimestamp(),
                 historyEntry.getFailingTaskName(),
-                toString(historyEntry.getTaskManagerLocation()));
+                toString(historyEntry.getTaskManagerLocation()),
+                concurrentExceptions);
+    }
+
+    private static JobExceptionsInfoWithHistory.ExceptionInfo createExceptionInfo(
+            ExceptionHistoryEntry exceptionHistoryEntry) {
+        assertLocalExceptionInfo(exceptionHistoryEntry);
+
+        return new JobExceptionsInfoWithHistory.ExceptionInfo(
+                exceptionHistoryEntry.getException().getOriginalErrorClassName(),
+                exceptionHistoryEntry.getExceptionAsString(),
+                exceptionHistoryEntry.getTimestamp(),
+                exceptionHistoryEntry.getFailingTaskName(),
+                toString(exceptionHistoryEntry.getTaskManagerLocation()));
+    }
+
+    private static void assertLocalExceptionInfo(ExceptionHistoryEntry exceptionHistoryEntry) {
+        Preconditions.checkArgument(
+                exceptionHistoryEntry.getFailingTaskName() != null,
+                "The taskName must not be null for a non-global failure.");
+        Preconditions.checkArgument(
+                exceptionHistoryEntry.getTaskManagerLocation() != null,
+                "The location must not be null for a non-global failure.");
     }
 
     @VisibleForTesting

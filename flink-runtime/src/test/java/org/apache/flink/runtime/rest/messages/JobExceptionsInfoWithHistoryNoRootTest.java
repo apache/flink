@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,14 +51,24 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                 false,
                 new JobExceptionsInfoWithHistory.JobExceptionHistory(
                         Arrays.asList(
-                                new JobExceptionsInfoWithHistory.ExceptionInfo(
-                                        "global failure #0", "stacktrace #0", 0L),
-                                new JobExceptionsInfoWithHistory.ExceptionInfo(
+                                new JobExceptionsInfoWithHistory.RootExceptionInfo(
+                                        "global failure #0",
+                                        "stacktrace #0",
+                                        0L,
+                                        Collections.singletonList(
+                                                new JobExceptionsInfoWithHistory.ExceptionInfo(
+                                                        "local task failure #2",
+                                                        "stacktrace #2",
+                                                        2L,
+                                                        "task name #2",
+                                                        "location #2"))),
+                                new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
                                         "stacktrace #1",
                                         1L,
                                         "task name",
-                                        "location")),
+                                        "location",
+                                        Collections.emptyList())),
                         false));
     }
 }
