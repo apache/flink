@@ -171,7 +171,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -263,7 +263,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean formatted = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ LOOKAHEAD(2)
       ( <EXTENDED> { extended = true; }
         |
@@ -1090,7 +1090,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);

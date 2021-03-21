@@ -34,6 +34,11 @@ describe non_exist;
 org.apache.flink.table.api.ValidationException: Tables or views with the identifier 'default_catalog.default_database.non_exist' doesn't exist
 !error
 
+desc non_exist;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Tables or views with the identifier 'default_catalog.default_database.non_exist' doesn't exist
+!error
+
 alter table non_exist rename to non_exist2;
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` doesn't exist or is a temporary table.
@@ -86,6 +91,20 @@ alter table orders2 set ('connector' = 'kafka');
 
 # test describe table
 describe orders2;
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+|    name |                    type |  null |       key |        extras |                  watermark |
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+|    user |                  BIGINT | false | PRI(user) |               |                            |
+| product |             VARCHAR(32) |  true |           |               |                            |
+|  amount |                     INT |  true |           |               |                            |
+|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+# test desc table
+desc orders2;
 +---------+-------------------------+-------+-----------+---------------+----------------------------+
 |    name |                    type |  null |       key |        extras |                  watermark |
 +---------+-------------------------+-------+-----------+---------------+----------------------------+

@@ -310,7 +310,6 @@ public class CliClient implements AutoCloseable {
             case USE:
                 callUseDatabase(cmdCall);
                 break;
-            case DESC:
             case DESCRIBE:
                 callDescribe(cmdCall);
                 break;

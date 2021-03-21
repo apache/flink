@@ -284,8 +284,6 @@ public final class SqlCommandParser {
 
         DROP_CATALOG,
 
-        DESC("DESC\\s+(.*)", SINGLE_OPERAND),
-
         DESCRIBE,
 
         // supports both `explain xx` and `explain plan for xx` now
