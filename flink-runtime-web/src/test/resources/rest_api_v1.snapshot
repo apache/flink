@@ -1612,7 +1612,7 @@
               "type" : "array",
               "items" : {
                 "type" : "object",
-                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:RootExceptionInfo",
                 "properties" : {
                   "exceptionName" : {
                     "type" : "string"
@@ -1628,6 +1628,30 @@
                   },
                   "location" : {
                     "type" : "string"
+                  },
+                  "concurrentExceptions" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                      "properties" : {
+                        "exceptionName" : {
+                          "type" : "string"
+                        },
+                        "stacktrace" : {
+                          "type" : "string"
+                        },
+                        "timestamp" : {
+                          "type" : "integer"
+                        },
+                        "taskName" : {
+                          "type" : "string"
+                        },
+                        "location" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
                   }
                 }
               }
