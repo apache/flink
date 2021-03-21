@@ -61,6 +61,8 @@ public class PubSubSourceReader<T>
 
     @Override
     public List<PubSubSplit> snapshotState(long checkpointId) {
+        ((PubSubSourceFetcherManager<T>) splitFetcherManager)
+                .prepareForAcknowledgement(checkpointId);
         return Arrays.asList(new PubSubSplit());
     }
 
@@ -75,7 +77,7 @@ public class PubSubSourceReader<T>
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         LOG.info("Acknowledging received GCP Pub/Sub messages for checkpoint {}", checkpointId);
-        ((PubSubSourceFetcherManager<T>) splitFetcherManager).acknowledgeMessages();
+        ((PubSubSourceFetcherManager<T>) splitFetcherManager).acknowledgeMessages(checkpointId);
     }
 
     @Override

@@ -38,6 +38,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /**
  * A {@link SplitReader} to read from a given {@link PubSubSubscriber}.
@@ -46,6 +48,7 @@ import java.util.List;
  */
 public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSubSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(PubSubSplitReader.class);
+    private static final long UPCOMING_CHECKPOINT = 0;
     private final PubSubDeserializationSchema<T> deserializationSchema;
     private final PubSubSubscriberFactory pubSubSubscriberFactory;
     private final Credentials credentials;
@@ -53,8 +56,8 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
     private final PubSubCollector collector;
     // Store the IDs of GCP Pub/Sub messages that yet have to be acknowledged so that they are not
     // resent. Must be synchronized because it's accessed both by the fetcher and the reader thread.
-    private final List<String> messageIdsToAcknowledge =
-            Collections.synchronizedList(new ArrayList<>());
+    private final SortedMap<Long, List<String>> messageIdsToAcknowledge =
+            Collections.synchronizedSortedMap(new TreeMap<>());
 
     /**
      * @param deserializationSchema a deserialization schema to apply to incoming message payloads.
@@ -70,6 +73,8 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
         this.pubSubSubscriberFactory = pubSubSubscriberFactory;
         this.credentials = credentials;
         this.collector = new PubSubCollector();
+
+        this.messageIdsToAcknowledge.put(UPCOMING_CHECKPOINT, new ArrayList<>());
     }
 
     @Override
@@ -107,7 +112,7 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
                 collector.reset();
             }
 
-            messageIdsToAcknowledge.add(receivedMessage.getAckId());
+            messageIdsToAcknowledge.get(UPCOMING_CHECKPOINT).add(receivedMessage.getAckId());
         }
 
         return recordsBySplits.build();
@@ -148,6 +153,14 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
 
     //    ------------------------------------------------------
 
+    void prepareForAcknowledgement(long checkpointId) {
+        synchronized (messageIdsToAcknowledge) {
+            messageIdsToAcknowledge.put(
+                    checkpointId, messageIdsToAcknowledge.remove(UPCOMING_CHECKPOINT));
+            messageIdsToAcknowledge.put(UPCOMING_CHECKPOINT, new ArrayList<>());
+        }
+    }
+
     /**
      * Acknowledge the reception of messages towards GCP Pub/Sub since the last checkpoint. As long
      * as a received message has not been acknowledged, GCP Pub/Sub will attempt to deliver it
@@ -155,13 +168,17 @@ public class PubSubSplitReader<T> implements SplitReader<Tuple2<T, Long>, PubSub
      *
      * <p>Calling this message is enqueued by the {@link PubSubSourceFetcherManager} on checkpoint.
      */
-    void notifyCheckpointComplete() {
+    void acknowledgeMessages(long checkpointId) {
         synchronized (messageIdsToAcknowledge) {
-            if (!messageIdsToAcknowledge.isEmpty() && subscriber != null) {
-                LOG.info("Acknowledging messages with IDs {}", messageIdsToAcknowledge);
-                subscriber.acknowledge(messageIdsToAcknowledge);
-                messageIdsToAcknowledge.clear();
+            List<String> messageIdsForCheckpoint = messageIdsToAcknowledge.get(checkpointId);
+            if (!messageIdsForCheckpoint.isEmpty() && subscriber != null) {
+                LOG.info(
+                        "Acknowledging messages for checkpoint {} with IDs {}",
+                        checkpointId,
+                        messageIdsForCheckpoint);
+                subscriber.acknowledge(messageIdsForCheckpoint);
             }
+            messageIdsToAcknowledge.remove(checkpointId);
         }
     }
 }

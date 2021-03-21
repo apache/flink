@@ -47,18 +47,48 @@ class PubSubSourceFetcherManager<T>
         super(elementsQueue, splitReaderSupplier);
     }
 
+    void prepareForAcknowledgement(long checkpointId) {
+        SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher = fetchers.get(0);
+
+        if (splitFetcher != null) {
+            enqueuePrepareForAcknowledgementTask(splitFetcher, checkpointId);
+        } else {
+            splitFetcher = createSplitFetcher();
+            enqueuePrepareForAcknowledgementTask(splitFetcher, checkpointId);
+            startFetcher(splitFetcher);
+        }
+    }
+
+    private void enqueuePrepareForAcknowledgementTask(
+            SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher, long checkpointId) {
+        PubSubSplitReader<T> pubSubSplitReader =
+                (PubSubSplitReader<T>) splitFetcher.getSplitReader();
+
+        splitFetcher.enqueueTask(
+                new SplitFetcherTask() {
+                    @Override
+                    public boolean run() {
+                        pubSubSplitReader.prepareForAcknowledgement(checkpointId);
+                        return true;
+                    }
+
+                    @Override
+                    public void wakeUp() {}
+                });
+    }
+
     /**
      * Creates a {@link SplitFetcher} if there's none available yet and enqueues a task to
      * acknowledge GCP Pub/Sub messages.
      */
-    void acknowledgeMessages() {
+    void acknowledgeMessages(long checkpointId) {
         SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher = fetchers.get(0);
 
         if (splitFetcher != null) {
-            enqueueAcknowledgeMessageTask(splitFetcher);
+            enqueueAcknowledgeMessagesTask(splitFetcher, checkpointId);
         } else {
             splitFetcher = createSplitFetcher();
-            enqueueAcknowledgeMessageTask(splitFetcher);
+            enqueueAcknowledgeMessagesTask(splitFetcher, checkpointId);
             startFetcher(splitFetcher);
         }
     }
@@ -70,8 +100,8 @@ class PubSubSourceFetcherManager<T>
      *
      * @param splitFetcher the split fetcher on which the acknowledge task should be enqueued.
      */
-    private void enqueueAcknowledgeMessageTask(
-            SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher) {
+    private void enqueueAcknowledgeMessagesTask(
+            SplitFetcher<Tuple2<T, Long>, PubSubSplit> splitFetcher, long checkpointId) {
         PubSubSplitReader<T> pubSubSplitReader =
                 (PubSubSplitReader<T>) splitFetcher.getSplitReader();
 
@@ -79,7 +109,7 @@ class PubSubSourceFetcherManager<T>
                 new SplitFetcherTask() {
                     @Override
                     public boolean run() {
-                        pubSubSplitReader.notifyCheckpointComplete();
+                        pubSubSplitReader.acknowledgeMessages(checkpointId);
                         return true;
                     }
 
