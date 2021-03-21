@@ -18,26 +18,26 @@
 
 package org.apache.flink.streaming.examples.statemachine;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.examples.statemachine.dfa.State;
 import org.apache.flink.streaming.examples.statemachine.event.Alert;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializer;
 import org.apache.flink.util.Collector;
-
-import java.util.Properties;
 
 /**
  * Main class of the state machine example. This class implements the streaming application that
@@ -69,38 +69,8 @@ public class StateMachineExample {
 
         // ---- determine whether to use the built-in source, or read from Kafka ----
 
-        final SourceFunction<Event> source;
+        final DataStream<Event> events;
         final ParameterTool params = ParameterTool.fromArgs(args);
-
-        if (params.has("kafka-topic")) {
-            // set up the Kafka reader
-            String kafkaTopic = params.get("kafka-topic");
-            String brokers = params.get("brokers", "localhost:9092");
-
-            System.out.printf("Reading from kafka topic %s @ %s\n", kafkaTopic, brokers);
-            System.out.println();
-
-            Properties kafkaProps = new Properties();
-            kafkaProps.setProperty("bootstrap.servers", brokers);
-
-            FlinkKafkaConsumer<Event> kafka =
-                    new FlinkKafkaConsumer<>(kafkaTopic, new EventDeSerializer(), kafkaProps);
-            kafka.setStartFromLatest();
-            kafka.setCommitOffsetsOnCheckpoints(false);
-            source = kafka;
-        } else {
-            double errorRate = params.getDouble("error-rate", 0.0);
-            int sleep = params.getInt("sleep", 1);
-
-            System.out.printf(
-                    "Using standalone source with error rate %f and sleep delay %s millis\n",
-                    errorRate, sleep);
-            System.out.println();
-
-            source = new EventsGeneratorSource(errorRate, sleep);
-        }
-
-        // ---- main program ----
 
         // create the environment to create streams and configure execution
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -119,12 +89,45 @@ public class StateMachineExample {
             env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
         }
 
+        if (params.has("kafka-topic")) {
+            // set up the Kafka reader
+            String kafkaTopic = params.get("kafka-topic");
+            String brokers = params.get("brokers", "localhost:9092");
+
+            System.out.printf("Reading from kafka topic %s @ %s\n", kafkaTopic, brokers);
+            System.out.println();
+
+            KafkaSource<Event> source =
+                    KafkaSource.<Event>builder()
+                            .setBootstrapServers(brokers)
+                            .setGroupId("stateMachineExample")
+                            .setTopics(kafkaTopic)
+                            .setDeserializer(
+                                    KafkaRecordDeserializationSchema.valueOnly(
+                                            new EventDeSerializer()))
+                            .setStartingOffsets(OffsetsInitializer.latest())
+                            .build();
+            events =
+                    env.fromSource(
+                            source, WatermarkStrategy.noWatermarks(), "StateMachineExampleSource");
+        } else {
+            double errorRate = params.getDouble("error-rate", 0.0);
+            int sleep = params.getInt("sleep", 1);
+
+            System.out.printf(
+                    "Using standalone source with error rate %f and sleep delay %s millis\n",
+                    errorRate, sleep);
+            System.out.println();
+
+            events = env.addSource(new EventsGeneratorSource(errorRate, sleep));
+        }
+
+        // ---- main program ----
+
         final String outputFile = params.get("output");
 
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
-
-        DataStream<Event> events = env.addSource(source);
 
         DataStream<Alert> alerts =
                 events
