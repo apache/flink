@@ -1051,6 +1051,11 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### Availability
+
+{{< hint warning >}}
+If [Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) is enabled then these metrics, except `numRestarts`, do not work correctly.
+{{< /hint >}}
+
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1097,6 +1102,11 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### Checkpointing
+
+{{< hint warning >}}
+If [Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) is enabled then checkpointing metrics with the `Job` scope do not work correctly.
+{{< /hint >}}
+
 Note that for failed checkpoints, metrics are updated on a best efforts basis and may be not accurate.
 <table class="table table-bordered">
   <thead>
