@@ -24,11 +24,22 @@ import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.types.logical.LogicalType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexLiteral;
@@ -36,6 +47,7 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
@@ -43,6 +55,11 @@ import java.util.stream.IntStream;
 public final class LookupJoinUtil {
 
     /** A field used as an equal condition when querying content from a dimension table. */
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(value = ConstantLookupKey.class),
+        @JsonSubTypes.Type(value = FieldRefLookupKey.class)
+    })
     public static class LookupKey {
         private LookupKey() {
             // sealed class
@@ -50,22 +67,76 @@ public final class LookupJoinUtil {
     }
 
     /** A {@link LookupKey} whose value is constant. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonTypeName("Constant")
     public static class ConstantLookupKey extends LookupKey {
+        public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
+        public static final String FIELD_NAME_LITERAL = "literal";
+
+        @JsonProperty(FIELD_NAME_SOURCE_TYPE)
         public final LogicalType sourceType;
+
+        @JsonProperty(FIELD_NAME_LITERAL)
+        @JsonSerialize(using = RexNodeJsonSerializer.class)
+        @JsonDeserialize(using = RexNodeJsonDeserializer.class)
         public final RexLiteral literal;
 
-        public ConstantLookupKey(LogicalType sourceType, RexLiteral literal) {
+        @JsonCreator
+        public ConstantLookupKey(
+                @JsonProperty(FIELD_NAME_SOURCE_TYPE) LogicalType sourceType,
+                @JsonProperty(FIELD_NAME_LITERAL) RexLiteral literal) {
             this.sourceType = sourceType;
             this.literal = literal;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ConstantLookupKey that = (ConstantLookupKey) o;
+            return Objects.equals(sourceType, that.sourceType)
+                    && Objects.equals(literal, that.literal);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(sourceType, literal);
         }
     }
 
     /** A {@link LookupKey} whose value comes from the left table field. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonTypeName("FieldRef")
     public static class FieldRefLookupKey extends LookupKey {
+        public static final String FIELD_NAME_INDEX = "index";
+
+        @JsonProperty(FIELD_NAME_INDEX)
         public final int index;
 
-        public FieldRefLookupKey(int index) {
+        @JsonCreator
+        public FieldRefLookupKey(@JsonProperty(FIELD_NAME_INDEX) int index) {
             this.index = index;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            FieldRefLookupKey that = (FieldRefLookupKey) o;
+            return index == that.index;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(index);
         }
     }
 

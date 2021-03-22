@@ -130,4 +130,10 @@ public class DynamicTableSourceSpec extends CatalogTableSpecBase {
     public void setTableSource(DynamicTableSource tableSource) {
         this.tableSource = tableSource;
     }
+
+    @JsonIgnore
+    @Nullable
+    public List<SourceAbilitySpec> getSourceAbilitySpecs() {
+        return sourceAbilitySpecs;
+    }
 }
