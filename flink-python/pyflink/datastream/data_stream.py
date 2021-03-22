@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 import uuid
-from typing import Callable, Union, List
+from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
@@ -852,28 +852,45 @@ class KeyedStream(DataStream):
                 raise TypeError("The input func must be a ReduceFunction or a callable function.")
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
-        class KeyedReduceFunctionWrapper(KeyedProcessFunction):
+        class KeyedReduceProcessFunction(KeyedProcessFunction):
 
-            def __init__(self, underlying: ReduceFunction):
-                self._underlying = underlying
-                self._reduce_state_name = "_reduce_state" + str(uuid.uuid4())
+            def __init__(self, reduce_function: ReduceFunction):
+                self._reduce_function = reduce_function
                 self._reduce_value_state = None  # type: ValueState
 
             def open(self, runtime_context: RuntimeContext):
                 self._reduce_value_state = runtime_context.get_state(
-                    ValueStateDescriptor(self._reduce_state_name, output_type))
-                self._underlying.open(runtime_context)
+                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
+                self._reduce_function.open(runtime_context)
+                from pyflink.fn_execution.operations import StreamingRuntimeContext
+                self._in_batch_execution_mode = \
+                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 reduce_value = self._reduce_value_state.value()
                 if reduce_value is not None:
-                    reduce_value = self._underlying.reduce(reduce_value, value)
+                    reduce_value = self._reduce_function.reduce(reduce_value, value)
                 else:
+                    # register a timer for emitting the result at the end when this is the
+                    # first input for this key
+                    if self._in_batch_execution_mode:
+                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
                     reduce_value = value
                 self._reduce_value_state.update(reduce_value)
-                return [reduce_value]
+                if self._in_batch_execution_mode:
+                    # only emitting the result when all the data for a key is received
+                    return []
+                else:
+                    return [reduce_value]
 
-        return self.process(KeyedReduceFunctionWrapper(func), output_type)  # type: ignore
+            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                current_value = self._reduce_value_state.value()
+                if current_value is not None:
+                    return [current_value]
+                else:
+                    return []
+
+        return self.process(KeyedReduceProcessFunction(func), output_type)  # type: ignore
 
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         if callable(func):
@@ -881,7 +898,7 @@ class KeyedStream(DataStream):
         elif not isinstance(func, FilterFunction):
             raise TypeError("The input func must be a FilterFunction or a callable function.")
 
-        class KeyedFilterFunctionWrapper(KeyedProcessFunction):
+        class KeyedFilterProcessFunction(KeyedProcessFunction):
 
             def __init__(self, underlying: FilterFunction):
                 self._underlying = underlying
@@ -898,7 +915,7 @@ class KeyedStream(DataStream):
                 else:
                     return []
         return self.process(
-            KeyedFilterFunctionWrapper(func), self._original_data_type_info)  # type: ignore
+            KeyedFilterProcessFunction(func), self._original_data_type_info)  # type: ignore
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
@@ -1068,7 +1085,7 @@ class ConnectedStreams(object):
 
         if self._is_keyed_stream():
 
-            class KeyedCoMapFunctionWrapper(KeyedCoProcessFunction):
+            class KeyedCoMapCoProcessFunction(KeyedCoProcessFunction):
                 def __init__(self, underlying: CoMapFunction):
                     self._underlying = underlying
 
@@ -1084,7 +1101,7 @@ class ConnectedStreams(object):
                 def close(self):
                     self._underlying.close()
 
-            return self.process(KeyedCoMapFunctionWrapper(func), output_type)
+            return self.process(KeyedCoMapCoProcessFunction(func), output_type)
         else:
             # get connected stream
             j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
@@ -1114,7 +1131,7 @@ class ConnectedStreams(object):
 
         if self._is_keyed_stream():
 
-            class KeyedCoFlatMapFunctionWrapper(KeyedCoProcessFunction):
+            class KeyedCoFlatMapProcessFunction(KeyedCoProcessFunction):
 
                 def __init__(self, underlying: CoFlatMapFunction):
                     self._underlying = underlying
@@ -1131,7 +1148,7 @@ class ConnectedStreams(object):
                 def close(self):
                     self._underlying.close()
 
-            return self.process(KeyedCoFlatMapFunctionWrapper(func), output_type)
+            return self.process(KeyedCoFlatMapProcessFunction(func), output_type)
         else:
             # get connected stream
             j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)

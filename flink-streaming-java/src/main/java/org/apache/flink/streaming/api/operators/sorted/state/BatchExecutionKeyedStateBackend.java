@@ -68,7 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p><b>IMPORTANT:</b> Requires the incoming records to be sorted/grouped by the key. Used in a
  * BATCH style execution.
  */
-class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBackend<K> {
+public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBackend<K> {
     private static final Logger LOG =
             LoggerFactory.getLogger(BatchExecutionKeyedStateBackend.class);
 

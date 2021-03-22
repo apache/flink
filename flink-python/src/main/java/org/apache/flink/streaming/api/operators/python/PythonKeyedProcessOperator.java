@@ -54,6 +54,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
+
 /**
  * {@link PythonKeyedProcessOperator} is responsible for launching beam runner which will start a
  * python harness to execute user defined python function. It is also able to handle the timer and
@@ -188,13 +190,13 @@ public class PythonKeyedProcessOperator<OUT>
     @Override
     public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
         bufferedTimestamp.offer(timer.getTimestamp());
-        processTimer(TimeDomain.EVENT_TIME, timer);
+        processTimer(TimeDomain.EVENT_TIME, timer.getTimestamp(), timer.getKey());
     }
 
     @Override
     public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
         bufferedTimestamp.offer(Long.MIN_VALUE);
-        processTimer(TimeDomain.PROCESSING_TIME, timer);
+        processTimer(TimeDomain.PROCESSING_TIME, timer.getTimestamp(), timer.getKey());
     }
 
     @Override
@@ -209,7 +211,8 @@ public class PythonKeyedProcessOperator<OUT>
                         pythonFunctionInfo,
                         getRuntimeContext(),
                         Collections.EMPTY_MAP,
-                        keyTypeInfo),
+                        keyTypeInfo,
+                        inBatchExecutionMode(getKeyedStateBackend())),
                 FLAT_MAP_CODER_URN,
                 jobOptions,
                 getFlinkMetricContainer(),
@@ -269,13 +272,11 @@ public class PythonKeyedProcessOperator<OUT>
      * Timestamp of the fired timer; Current watermark and the key of the timer.
      *
      * @param timeDomain The type of the timer.
-     * @param timer The fired timer.
+     * @param time The timestamp of the fired timer.
+     * @param key The key that is bound to this timer.
      * @throws Exception The runnerInputSerializer might throw exception.
      */
-    private void processTimer(TimeDomain timeDomain, InternalTimer<Row, VoidNamespace> timer)
-            throws Exception {
-        long time = timer.getTimestamp();
-        Row timerKey = timer.getKey();
+    private void processTimer(TimeDomain timeDomain, long time, Row key) throws Exception {
         if (timeDomain == TimeDomain.PROCESSING_TIME) {
             reusableTimerData.setField(
                     0, PythonOperatorUtils.KeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value);
@@ -285,7 +286,7 @@ public class PythonKeyedProcessOperator<OUT>
         }
         reusableTimerData.setField(1, time);
         reusableTimerData.setField(2, timerService.currentWatermark());
-        reusableTimerData.setField(3, timerKey);
+        reusableTimerData.setField(3, key);
         runnerInputSerializer.serialize(reusableTimerData, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
@@ -301,6 +302,10 @@ public class PythonKeyedProcessOperator<OUT>
      */
     @Override
     public void setCurrentKey(Object key) {
+        if (inBatchExecutionMode(getKeyedStateBackend())) {
+            super.setCurrentKey(key);
+        }
+
         keyForTimerService = key;
     }
 

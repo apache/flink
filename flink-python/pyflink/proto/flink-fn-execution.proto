@@ -102,6 +102,7 @@ message UserDefinedDataStreamFunction {
     int32 index_of_this_subtask = 5;
     int32 attempt_number = 6;
     repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
   }
 
   FunctionType function_type = 1;

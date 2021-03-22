@@ -754,10 +754,6 @@ class KeyedProcessFunction(Function):
 
     Note that access to keyed state and timers (which are also scoped to a key) is only available if
     the KeyedProcessFunction is applied on a KeyedStream.
-    """
-
-    """
-    A function that process elements of a stream.
 
     For every element in the input stream process_element(value, ctx, out) is invoked. This can
     produce zero or more elements as output. Implementations can also query the time and set timers
@@ -806,7 +802,7 @@ class KeyedProcessFunction(Function):
         """
         Process one element from the input stream.
 
-        This function can output zero or more elements using the Collector parameter and also update
+        This function can output zero or more elements and also update
         internal state or set timers using the Context parameter.
 
         :param value: The input value.

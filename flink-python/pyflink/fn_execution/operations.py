@@ -544,7 +544,8 @@ class StreamingRuntimeContext(RuntimeContext):
                  index_of_this_subtask: int,
                  attempt_number: int,
                  job_parameters: Dict[str, str],
-                 keyed_state_backend: Union[RemoteKeyedStateBackend, None]):
+                 keyed_state_backend: Union[RemoteKeyedStateBackend, None],
+                 in_batch_execution_mode: bool):
         self._task_name = task_name
         self._task_name_with_subtasks = task_name_with_subtasks
         self._number_of_parallel_subtasks = number_of_parallel_subtasks
@@ -553,6 +554,7 @@ class StreamingRuntimeContext(RuntimeContext):
         self._attempt_number = attempt_number
         self._job_parameters = job_parameters
         self._keyed_state_backend = keyed_state_backend
+        self._in_batch_execution_mode = in_batch_execution_mode
 
     def get_task_name(self) -> str:
         """
@@ -652,7 +654,8 @@ class DataStreamStatelessFunctionOperation(Operation):
                     self.spec.serialized_fn.runtime_context.attempt_number,
                     {p.key: p.value
                      for p in self.spec.serialized_fn.runtime_context.job_parameters},
-                    None
+                    None,
+                    self.spec.serialized_fn.runtime_context.in_batch_execution_mode
                 )
                 user_defined_func.open(runtime_context)
 
@@ -746,7 +749,8 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
                     self.spec.serialized_fn.runtime_context.attempt_number,
                     {p.key: p.value for p in
                      self.spec.serialized_fn.runtime_context.job_parameters},
-                    self.keyed_state_backend)
+                    self.keyed_state_backend,
+                    self.spec.serialized_fn.runtime_context.in_batch_execution_mode)
                 user_defined_func.open(runtime_context)
 
     class InternalCollector(object):
