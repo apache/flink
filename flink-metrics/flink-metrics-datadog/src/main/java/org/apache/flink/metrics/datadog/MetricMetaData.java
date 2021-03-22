@@ -18,21 +18,43 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.Gauge;
-
 import java.util.List;
 
-/** Mapping of gauge between Flink and Datadog. */
-public class DGauge extends DMetric {
-    private final Gauge<Number> gauge;
+/** All metadata associated with a given metric. */
+public final class MetricMetaData {
 
-    public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags, Clock clock) {
-        super(new MetricMetaData(MetricType.gauge, metricName, host, tags, clock));
-        gauge = g;
+    private final String metricName;
+    private final MetricType type;
+    private final String host;
+    private final List<String> tags;
+    private final Clock clock;
+
+    public MetricMetaData(
+            MetricType metricType, String metricName, String host, List<String> tags, Clock clock) {
+        this.type = metricType;
+        this.metricName = metricName;
+        this.host = host;
+        this.tags = tags;
+        this.clock = clock;
     }
 
-    @Override
-    public Number getMetricValue() {
-        return gauge.getValue();
+    public MetricType getType() {
+        return type;
+    }
+
+    public String getMetricName() {
+        return metricName;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public Clock getClock() {
+        return clock;
     }
 }
