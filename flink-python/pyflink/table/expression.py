@@ -21,7 +21,7 @@ from typing import Union, TypeVar, Generic
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_data_type
-from pyflink.util.utils import to_jarray
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
 

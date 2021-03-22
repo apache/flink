@@ -168,10 +168,6 @@ public class PythonConfigUtil {
         Configuration mergedConfig = getEnvConfigWithDependencies(env);
 
         boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
-        if (executedInBatchMode) {
-            throw new UnsupportedOperationException(
-                    "Batch mode is still not supported in Python DataStream API.");
-        }
 
         if (mergedConfig.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
             Field transformationsField =

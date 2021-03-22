@@ -19,7 +19,7 @@ from py4j.java_gateway import java_import, JavaObject
 from pyflink.common import typeinfo
 from pyflink.common.typeinfo import TypeInformation
 
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 from pyflink.java_gateway import get_gateway
 from typing import Union

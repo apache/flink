@@ -32,7 +32,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Union
 
 from pyflink.common.types import _create_row
-from pyflink.util.utils import to_jarray, is_instance_of
+from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
 

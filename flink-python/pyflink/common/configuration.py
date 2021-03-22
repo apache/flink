@@ -20,7 +20,7 @@ from typing import Set, Dict
 from py4j.java_gateway import JavaObject
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import add_jars_to_context_class_loader
+from pyflink.util.java_utils import add_jars_to_context_class_loader
 
 
 class Configuration:
