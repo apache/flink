@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -1310,6 +1311,8 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
     @Test
     public void testAllocationUpdatesIgnoredIfSlotMarkedAsPendingForOtherJob() throws Exception {
+        final DefaultSlotTracker slotTracker = new DefaultSlotTracker();
+
         final CompletableFuture<AllocationID> firstSlotAllocationIdFuture =
                 new CompletableFuture<>();
         final CompletableFuture<Acknowledge> firstSlotRequestAcknowledgeFuture =
@@ -1331,6 +1334,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
         try (final DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
+                        .setSlotTracker(slotTracker)
                         .buildAndStart(
                                 ResourceManagerId.generate(),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
@@ -1362,7 +1366,11 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             slotManager.freeSlot(slotId, firstSlotAllocationIdFuture.get());
 
             // acknowledge the first allocation
+            // this should fail if the acknowledgement is not ignored
             firstSlotRequestAcknowledgeFuture.complete(Acknowledge.get());
+
+            // sanity check that the acknowledge was really ignored
+            assertThat(slotTracker.getSlot(slotId).getJobId(), is(not(firstJobId)));
         }
     }
 
