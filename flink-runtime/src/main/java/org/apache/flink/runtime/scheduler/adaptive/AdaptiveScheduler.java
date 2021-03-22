@@ -63,6 +63,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
@@ -707,14 +708,13 @@ public class AdaptiveScheduler
     }
 
     private VertexParallelism determineParallelism(SlotAllocator slotAllocator)
-            throws JobExecutionException {
+            throws NoResourceAvailableException {
 
         return slotAllocator
                 .determineParallelism(jobInformation, declarativeSlotPool.getFreeSlotsInformation())
                 .orElseThrow(
                         () ->
-                                new JobExecutionException(
-                                        jobInformation.getJobID(),
+                                new NoResourceAvailableException(
                                         "Not enough resources available for scheduling."));
     }
 
