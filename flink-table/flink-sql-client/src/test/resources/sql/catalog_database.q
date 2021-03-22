@@ -389,11 +389,11 @@ create table `default`.MyTable6 (a int, b string);
 [INFO] Table has been created.
 !info
 
-create view c1.`default`.MyView5 as select 1 + 1;
+create view `default`.MyView5 as select 1 + 1;
 [INFO] View has been created.
 !info
 
-create view c1.`default`.MyView6 as select 1 + 1;
+create view `default`.MyView6 as select 1 + 1;
 [INFO] View has been created.
 !info
 
