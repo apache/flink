@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -219,6 +220,7 @@ public final class MemorySegment {
      *
      * @return <tt>true</tt>, if the memory segment has been freed, <tt>false</tt> otherwise.
      */
+    @VisibleForTesting
     public boolean isFreed() {
         return address > addressLimit;
     }

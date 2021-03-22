@@ -346,7 +346,7 @@ public class MemoryManager {
                     while (segmentsIterator.hasNext()) {
                         MemorySegment segment = segmentsIterator.next();
                         try {
-                            if (segment == null || segment.isFreed()) {
+                            if (segment == null) {
                                 continue;
                             }
                             Object nextOwner = segment.getOwner();
