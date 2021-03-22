@@ -185,7 +185,7 @@ public class DefaultSlotTracker implements SlotTracker {
         Preconditions.checkNotNull(slot);
         Preconditions.checkState(
                 jobId.equals(slot.getJobId()),
-                "Job ID from slot status updated (%s) does not match currently assigned job ID (%s) for slot %s.",
+                "Job ID from slot status update (%s) does not match currently assigned job ID (%s) for slot %s.",
                 jobId,
                 slot.getJobId(),
                 slot.getSlotId());
