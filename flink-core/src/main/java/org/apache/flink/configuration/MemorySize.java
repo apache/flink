@@ -310,10 +310,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         try {
             result = DoubleMath.roundToLong(fractionalResult, RoundingMode.UP);
         } catch (ArithmeticException e) {
-            if (e.getMessage().contains("not in range")) {
-                // throw the below overflow exception
-                notInRange = true;
-            }
+            // throw the below overflow exception
+            // roundToLong throws if fractionalResult is:
+            // inf, NaN, smaller than Long.MIN_VALUE, or larger than Long.MAX_VALUE
+            notInRange = true;
         }
 
         // check for overflow
