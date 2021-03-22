@@ -869,7 +869,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         jobManagerAddress);
             } else {
                 // tell old job manager that he is no longer the job leader
-                disconnectJobManager(
+                closeJobManagerConnection(
                         oldJobManagerRegistration.getJobID(),
                         new Exception("New job leader for job " + jobId + " found."));
 
@@ -1083,7 +1083,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         if (jobManagerRegistrations.containsKey(jobId)) {
-            disconnectJobManager(jobId, new Exception("Job " + jobId + "was removed"));
+            closeJobManagerConnection(jobId, new Exception("Job " + jobId + "was removed"));
         }
     }
 
@@ -1092,7 +1092,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
             if (Objects.equals(jobManagerRegistration.getJobMasterId(), oldJobMasterId)) {
-                disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
+                closeJobManagerConnection(jobId, new Exception("Job leader lost leadership."));
             } else {
                 log.debug(
                         "Discarding job leader lost leadership, because a new job leader was found for job {}. ",
