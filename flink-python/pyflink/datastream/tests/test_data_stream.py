@@ -51,19 +51,6 @@ class DataStreamTests(object):
     def tearDown(self) -> None:
         self.test_sink.clear()
 
-    def test_reduce_function_without_data_types(self):
-        ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
-                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
-        ds.key_by(lambda a: a[1]) \
-          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-          .add_sink(self.test_sink)
-        self.env.execute('reduce_function_test')
-        result = self.test_sink.get_results()
-        expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
-        expected.sort()
-        result.sort()
-        self.assertEqual(expected, result)
-
     def test_map_function_without_data_types(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection([('ab', decimal.Decimal(1)),
@@ -525,45 +512,6 @@ class DataStreamTests(object):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def test_reduce_with_state(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
-
-        with self.assertRaises(Exception):
-            keyed_stream.name("keyed stream")
-
-        class AssertKeyReduceFunction(ReduceFunction):
-
-            def __init__(self):
-                self.state = None
-
-            def open(self, runtime_context: RuntimeContext):
-                self.state = runtime_context.get_state(
-                    ValueStateDescriptor("test_state", Types.INT()))
-
-            def reduce(self, value1, value2):
-                state_value = self.state.value()
-                if state_value is None:
-                    state_value = 2
-                else:
-                    state_value += 1
-                result_value = Row(value1[0] + value2[0], value1[1])
-                if result_value[0] == 'ab':
-                    assert state_value == 2
-                if result_value[0] == 'cde':
-                    assert state_value == 3
-                self.state.update(state_value)
-                return result_value
-
-        keyed_stream.reduce(AssertKeyReduceFunction()).add_sink(self.test_sink)
-        self.env.execute('key_by_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[a, 0]', '+I[ab, 0]', '+I[c, 1]', '+I[cd, 1]', '+I[cde, 1]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -670,9 +618,6 @@ class DataStreamTests(object):
                 current_watermark = ctx.timer_service().current_watermark()
                 yield "current timestamp: {}, current watermark: {}, current_value: {}"\
                     .format(str(current_timestamp), str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx, out):
-                pass
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
@@ -1112,6 +1057,35 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected_result.sort()
         self.assertEqual(expected_result, result)
 
+    def test_reduce_function_without_data_types(self):
+        ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
+                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
+        ds.key_by(lambda a: a[1]) \
+          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
+          .add_sink(self.test_sink)
+        self.env.execute('reduce_function_test')
+        result = self.test_sink.get_results()
+        expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
+        expected.sort()
+        result.sort()
+        self.assertEqual(expected, result)
+
+    def test_reduce_with_state(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+
+        with self.assertRaises(Exception):
+            keyed_stream.name("keyed stream")
+
+        keyed_stream.reduce(MyReduceFunction()).add_sink(self.test_sink)
+        self.env.execute('key_by_test')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[a, 0]', '+I[ab, 0]', '+I[c, 1]', '+I[cd, 1]', '+I[cde, 1]']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
 
 class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
 
@@ -1161,6 +1135,35 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)
+
+    def test_reduce(self):
+        ds = self.env.from_collection([(1, 'a'), (4, 'b'), (2, 'a'), (3, 'b'), (3, 'a')],
+                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
+        ds.key_by(lambda a: a[1]) \
+          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
+          .add_sink(self.test_sink)
+        self.env.execute('reduce_function_test')
+        result = self.test_sink.get_results()
+        expected = ["+I[6, a]", "+I[7, b]"]
+        expected.sort()
+        result.sort()
+        self.assertEqual(expected, result)
+
+    def test_reduce_with_state(self):
+        ds = self.env.from_collection([('a', 0), ('c', 1), ('d', 1), ('b', 0), ('e', 1)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+
+        with self.assertRaises(Exception):
+            keyed_stream.name("keyed stream")
+
+        keyed_stream.reduce(MyReduceFunction()).add_sink(self.test_sink)
+        self.env.execute('key_by_test')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[ab, 0]', '+I[cde, 1]']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
 
 
 class MyMapFunction(MapFunction):
@@ -1252,3 +1255,27 @@ class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
             count += 1
         self.count_state.update(count)
         return [Row(value[0], count)]
+
+
+class MyReduceFunction(ReduceFunction):
+
+    def __init__(self):
+        self.state = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.state = runtime_context.get_state(
+            ValueStateDescriptor("test_state", Types.INT()))
+
+    def reduce(self, value1, value2):
+        state_value = self.state.value()
+        if state_value is None:
+            state_value = 2
+        else:
+            state_value += 1
+        result_value = Row(value1[0] + value2[0], value1[1])
+        if result_value[0] == 'ab':
+            assert state_value == 2
+        if result_value[0] == 'cde':
+            assert state_value == 3
+        self.state.update(state_value)
+        return result_value
