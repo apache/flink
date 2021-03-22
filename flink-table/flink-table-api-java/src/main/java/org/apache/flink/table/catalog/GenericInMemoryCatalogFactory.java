@@ -19,9 +19,8 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,12 +52,11 @@ public class GenericInMemoryCatalogFactory implements CatalogFactory {
 
     @Override
     public Catalog createCatalog(Context context) {
-        final Configuration configuration = Configuration.fromMap(context.getOptions());
-        final String defaultDatabase = configuration.getString(DEFAULT_DATABASE);
-        if (defaultDatabase == null || defaultDatabase.isEmpty()) {
-            throw new ValidationException("The default database must not be empty");
-        }
+        final FactoryUtil.CatalogFactoryHelper helper =
+                FactoryUtil.createCatalogFactoryHelper(this, context);
+        helper.validate();
 
-        return new GenericInMemoryCatalog(context.getName(), defaultDatabase);
+        return new GenericInMemoryCatalog(
+                context.getName(), helper.getOptions().get(DEFAULT_DATABASE));
     }
 }

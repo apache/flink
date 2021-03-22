@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
@@ -142,7 +143,7 @@ public class FactoryUtilTest {
     @Test
     public void testUnconsumedOption() {
         expectError(
-                "Unsupported options found for connector 'test-connector'.\n\n"
+                "Unsupported options found for 'test-connector'.\n\n"
                         + "Unsupported options:\n\n"
                         + "this-is-also-not-consumed\n"
                         + "this-is-not-consumed\n\n"
@@ -295,6 +296,34 @@ public class FactoryUtilTest {
         assertEquals(
                 testCatalog.getOptions().get(TestCatalogFactory.DEFAULT_DATABASE.key()),
                 "my-database");
+    }
+
+    @Test
+    public void testCatalogFactoryHelper() {
+        final FactoryUtil.CatalogFactoryHelper helper1 =
+                FactoryUtil.createCatalogFactoryHelper(
+                        new TestCatalogFactory(),
+                        new FactoryUtil.DefaultCatalogContext(
+                                "test",
+                                Collections.emptyMap(),
+                                null,
+                                Thread.currentThread().getContextClassLoader()));
+
+        // No error
+        helper1.validate();
+
+        final FactoryUtil.CatalogFactoryHelper helper2 =
+                FactoryUtil.createCatalogFactoryHelper(
+                        new TestCatalogFactory(),
+                        new FactoryUtil.DefaultCatalogContext(
+                                "test",
+                                Collections.singletonMap("x", "y"),
+                                null,
+                                Thread.currentThread().getContextClassLoader()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expect(containsMessage("Unsupported options found for 'test-catalog'"));
+        helper2.validate();
     }
 
     // --------------------------------------------------------------------------------------------
