@@ -42,7 +42,7 @@ public class HiveTablePartition implements Serializable {
     private final CachedSerializedValue<StorageDescriptor> storageDescriptor;
 
     /** The map of partition key names and their values. */
-    private final Map<String, Object> partitionSpec;
+    private final Map<String, String> partitionSpec;
 
     // Table properties that should be used to initialize SerDe
     private final Properties tableProps;
@@ -53,7 +53,7 @@ public class HiveTablePartition implements Serializable {
 
     public HiveTablePartition(
             StorageDescriptor storageDescriptor,
-            Map<String, Object> partitionSpec,
+            Map<String, String> partitionSpec,
             Properties tableProps) {
         try {
             this.storageDescriptor =
@@ -74,7 +74,7 @@ public class HiveTablePartition implements Serializable {
         }
     }
 
-    public Map<String, Object> getPartitionSpec() {
+    public Map<String, String> getPartitionSpec() {
         return partitionSpec;
     }
 
