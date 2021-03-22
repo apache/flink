@@ -325,11 +325,11 @@ class BoundedOutOfOrdernessGenerator extends WatermarkGenerator[MyEvent] {
 
     var currentMaxTimestamp: Long = _
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
+    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         currentMaxTimestamp = max(eventTimestamp, currentMaxTimestamp)
     }
 
-    override def onPeriodicEmit(): Unit = {
+    override def onPeriodicEmit(output: WatermarkOutput): Unit = {
         // emit the watermark as current highest timestamp minus the out-of-orderness bound
         output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1));
     }
@@ -344,11 +344,11 @@ class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
 
     val maxTimeLag = 5000L // 5 seconds
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
+    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         // don't need to do anything because we work on processing time
     }
 
-    override def onPeriodicEmit(): Unit = {
+    override def onPeriodicEmit(output: WatermarkOutput): Unit = {
         output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag));
     }
 }
