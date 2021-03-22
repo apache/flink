@@ -21,9 +21,8 @@ package org.apache.flink.kubernetes.highavailability;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.KubernetesResource;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
-import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingLeaderCallbackHandler;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
@@ -50,7 +49,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
 
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
-    private final KubeClientFactory kubeClientFactory = new DefaultKubeClientFactory();
+    private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
     private static final long TIMEOUT = 120L * 1000L;
 
@@ -75,7 +74,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
         try {
             for (int i = 0; i < leaderNum; i++) {
                 final String lockIdentity = UUID.randomUUID().toString();
-                kubeClients[i] = kubeClientFactory.fromConfiguration(configuration);
+                kubeClients[i] = kubeClientFactory.fromConfiguration(configuration, "testing");
                 leaderCallbackHandlers[i] = new TestingLeaderCallbackHandler(lockIdentity);
                 leaderElectors[i] =
                         kubeClients[i].createLeaderElector(
