@@ -20,20 +20,12 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.Assume;
 import org.junit.rules.ExternalResource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ExternalResource} which has a configured real Kubernetes cluster and client. We assume
@@ -43,16 +35,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class KubernetesResource extends ExternalResource {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KubernetesResource.class);
-
-    private static final long TIMEOUT = 30L * 1000L;
-
     private static final String CLUSTER_ID = "flink-itcase-cluster";
 
     private static String kubeConfigFile;
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
-    private ExecutorService executorService;
 
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
@@ -69,20 +56,13 @@ public class KubernetesResource extends ExternalResource {
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
         configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        executorService = Executors.newFixedThreadPool(8, new ExecutorThreadFactory("IO-Executor"));
-        final KubeClientFactory kubeClientFactory = new DefaultKubeClientFactory();
-        flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, executorService);
+        final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
+        flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
     }
 
     @Override
     public void after() {
         flinkKubeClient.close();
-        executorService.shutdownNow();
-        try {
-            executorService.awaitTermination(TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            LOG.warn("Could not properly shutdown the executor service.", e);
-        }
     }
 
     public Configuration getConfiguration() {
