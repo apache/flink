@@ -35,6 +35,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.NoOpWatchCallbackHandler;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -53,6 +54,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -467,7 +470,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         flinkConfig.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
 
         final FlinkKubeClient realFlinkKubeClient =
-                DefaultKubeClientFactory.getInstance().fromConfiguration(flinkConfig);
+                FlinkKubeClientFactory.getInstance().fromConfiguration(flinkConfig, "testing");
         realFlinkKubeClient.watchConfigMaps(CLUSTER_ID, new NoOpWatchCallbackHandler<>());
         final String path =
                 "/api/v1/namespaces/"
@@ -478,6 +481,16 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         final RecordedRequest watchRequest = server.takeRequest(TIMEOUT, TimeUnit.MILLISECONDS);
         assertThat(watchRequest.getPath(), is(path));
         assertThat(watchRequest.getMethod(), is(HttpMethodWrapper.GET.toString()));
+    }
+
+    @Test
+    public void testIOExecutorShouldBeShutDownWhenFlinkKubeClientClosed() {
+        final ExecutorService executorService =
+                Executors.newFixedThreadPool(2, new ExecutorThreadFactory("Testing-IO"));
+        final FlinkKubeClient flinkKubeClient =
+                new Fabric8FlinkKubeClient(flinkConfig, kubeClient, executorService);
+        flinkKubeClient.close();
+        assertThat(executorService.isShutdown(), is(true));
     }
 
     private KubernetesConfigMap buildTestingConfigMap() {
