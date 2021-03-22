@@ -153,6 +153,10 @@ public class CliResultViewTest {
         public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
 
         @Override
+        public void resetSessionProperty(String sessionId, String key)
+                throws SqlExecutionException {}
+
+        @Override
         public void setSessionProperty(String sessionId, String key, String value)
                 throws SqlExecutionException {}
 

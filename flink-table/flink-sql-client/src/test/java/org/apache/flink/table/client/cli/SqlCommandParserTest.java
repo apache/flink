@@ -173,6 +173,12 @@ public class SqlCommandParserTest {
                                 .cannotParseComment(),
                         // reset
                         TestItem.validSql("reset;", SqlCommand.RESET).cannotParseComment(),
+                        // reset xx.yy
+                        TestItem.validSql("reset xx.yy;", SqlCommand.RESET, "xx.yy")
+                                .cannotParseComment(),
+                        // reset xx-yy
+                        TestItem.validSql("reset xx-yy;", SqlCommand.RESET, "xx-yy")
+                                .cannotParseComment(),
                         // source xx
                         TestItem.validSql("source /my/file;", SqlCommand.SOURCE, "/my/file")
                                 .cannotParseComment(),

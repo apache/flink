@@ -30,7 +30,7 @@ HELP		Prints the available commands.
 INSERT INTO		Inserts the results of a SQL SELECT query into a declared table sink.
 INSERT OVERWRITE		Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.
 QUIT		Quits the SQL CLI client.
-RESET		Resets all session configuration properties.
+RESET		Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties.
 SELECT		Executes a SQL SELECT query on the Flink cluster.
 SET		Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties.
 SHOW FUNCTIONS		Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'
