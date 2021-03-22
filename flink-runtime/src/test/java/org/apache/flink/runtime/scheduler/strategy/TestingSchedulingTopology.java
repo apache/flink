@@ -294,6 +294,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                         initTestingSchedulingResultPartitionBuilder()
                                 .withIntermediateDataSetID(intermediateDataSetId)
                                 .withResultPartitionState(resultPartitionState)
+                                .withPartitionNum(idx)
                                 .build();
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
@@ -341,10 +342,13 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                     initTestingSchedulingResultPartitionBuilder()
                             .withIntermediateDataSetID(intermediateDataSetId)
                             .withResultPartitionState(resultPartitionState);
+
+            int partitionNum = 0;
+
             for (TestingSchedulingExecutionVertex producer : producers) {
 
                 final TestingSchedulingResultPartition resultPartition =
-                        resultPartitionBuilder.build();
+                        resultPartitionBuilder.withPartitionNum(partitionNum++).build();
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
 
