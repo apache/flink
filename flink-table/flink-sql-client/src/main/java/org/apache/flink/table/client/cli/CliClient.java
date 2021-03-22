@@ -55,9 +55,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_DEPRECATED_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_DEPRECATED_KEY;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_REMOVED_KEY;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */
@@ -285,7 +286,7 @@ public class CliClient implements AutoCloseable {
                 callClear();
                 break;
             case RESET:
-                callReset();
+                callReset(cmdCall);
                 break;
             case SET:
                 callSet(cmdCall);
@@ -412,14 +413,36 @@ public class CliClient implements AutoCloseable {
         clearTerminal();
     }
 
-    private void callReset() {
+    private void callReset(SqlCommandCall cmdCall) {
         try {
-            executor.resetSessionProperties(sessionId);
+            // reset all session properties
+            if (cmdCall.operands.length == 0) {
+                executor.resetSessionProperties(sessionId);
+                printInfo(CliStrings.MESSAGE_RESET);
+            }
+            // reset a session property
+            else {
+                String key = cmdCall.operands[0].trim();
+                executor.resetSessionProperty(sessionId, key);
+
+                boolean isRemovedKey = YamlConfigUtils.isRemovedKey(key);
+                boolean isDeprecatedKey = YamlConfigUtils.isDeprecatedKey(key);
+                if (isRemovedKey || isDeprecatedKey) {
+                    printRemovedOrDeprecatedKeyMessage(key);
+                }
+                // when it's not removedKey, need to print normal message
+                if (!isRemovedKey) {
+                    terminal.writer()
+                            .println(
+                                    CliStrings.messageInfo(String.format(MESSAGE_RESET_KEY, key))
+                                            .toAnsi());
+                    terminal.flush();
+                }
+            }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
-        printInfo(CliStrings.MESSAGE_RESET);
     }
 
     private void callSet(SqlCommandCall cmdCall) {
@@ -439,6 +462,7 @@ public class CliClient implements AutoCloseable {
                 List<String> prettyEntries = YamlConfigUtils.getPropertiesInPretty(properties);
                 prettyEntries.forEach(entry -> terminal.writer().println(entry));
             }
+            terminal.flush();
         }
         // set a property
         else {
@@ -450,26 +474,17 @@ public class CliClient implements AutoCloseable {
                 printExecutionException(e);
                 return;
             }
-            if (YamlConfigUtils.isRemovedKey(key)) {
-                terminal.writer()
-                        .println(CliStrings.messageWarning(MESSAGE_SET_REMOVED_KEY).toAnsi());
-            } else {
-                if (YamlConfigUtils.isDeprecatedKey(key)) {
-                    terminal.writer()
-                            .println(
-                                    CliStrings.messageWarning(
-                                                    String.format(
-                                                            MESSAGE_SET_DEPRECATED_KEY,
-                                                            key,
-                                                            YamlConfigUtils
-                                                                    .getOptionNameWithDeprecatedKey(
-                                                                            key)))
-                                            .toAnsi());
-                }
+            boolean isRemovedKey = YamlConfigUtils.isRemovedKey(key);
+            boolean isDeprecatedKey = YamlConfigUtils.isDeprecatedKey(key);
+            if (isRemovedKey || isDeprecatedKey) {
+                printRemovedOrDeprecatedKeyMessage(key);
+            }
+            // it's not removedKey, need to print info message
+            if (!isRemovedKey) {
                 terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
+                terminal.flush();
             }
         }
-        terminal.flush();
     }
 
     private void callHelp() {
@@ -680,6 +695,22 @@ public class CliClient implements AutoCloseable {
     private void printInfo(String message) {
         terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
         terminal.flush();
+    }
+
+    private void printWarning(String message) {
+        terminal.writer().println(CliStrings.messageWarning(message).toAnsi());
+        terminal.flush();
+    }
+
+    private void printRemovedOrDeprecatedKeyMessage(String key) {
+        String msg =
+                YamlConfigUtils.isRemovedKey(key)
+                        ? MESSAGE_REMOVED_KEY
+                        : String.format(
+                                MESSAGE_DEPRECATED_KEY,
+                                key,
+                                YamlConfigUtils.getOptionNameWithDeprecatedKey(key));
+        printWarning(msg);
     }
 
     // --------------------------------------------------------------------------------------------
