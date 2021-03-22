@@ -58,13 +58,17 @@ Properties are passed to a discovery service where the service tries to match th
 
 ##  Module Lifecycle and Resolution Order
 
-A module can be loaded, enabled, disabled and unloaded. When TableEnvironment loads a module initially, it enables the module by default. Flink supports multiple modules and keeps track of the loading order to resolve metadata. *E.g.*, when there are two functions of the same name residing in two modules, Flink always resolves the function reference to the one in the 1st enabled module.
+A module can be loaded, enabled, disabled and unloaded. When TableEnvironment loads a module initially, it enables the module by default. Flink supports multiple modules and keeps track of the loading order to resolve metadata.
+Besides, Flink only resolves the functions among enabled modules. *E.g.*, when there are two functions of the same name residing in two modules, there will be three conditions.
+- If both of the modules are enabled, then Flink resolves the function according to the resolution order of the modules.
+- If one of them is disabled, then Flink resolves the function to the enabled module.
+- If both of the modules are disabled, then Flink cannot resolve the function.
 
-Users can change the resolution order by using modules in a different declared order. *E.g.*, users can specify Flink to find functions first in Hive by `USE MODULES hive, core`. 
+Users can change the resolution order by using modules in a different declared order. *E.g.*, users can specify Flink to find functions first in Hive by `USE MODULES hive, core`.
 
-Besides, users can also disable modules by not declaring them. *E.g.*, users can specify Flink to disable core module by `USE MODULES hive` (However, it is strongly not recommended disabling core module). Disable a module does not unload it, and users can enable it again by using it. *E.g.*, users can bring back core module and place it in the first by `USE MODULES core, hive`. A module can be enabled only when it is loaded already. Using an unloaded module will throw an Exception. Eventually, users can unload a module. 
+Besides, users can also disable modules by not declaring them. *E.g.*, users can specify Flink to disable core module by `USE MODULES hive` (However, it is strongly not recommended disabling core module). Disable a module does not unload it, and users can enable it again by using it. *E.g.*, users can bring back core module and place it in the first by `USE MODULES core, hive`. A module can be enabled only when it is loaded already. Using an unloaded module will throw an Exception. Eventually, users can unload a module.
 
-Flink only resolves the functions among enabled modules. The difference between disabling and unloading a module is that TableEnvironment still keeps the disabled modules, and users can list all loaded modules to view the disabled modules.
+The difference between disabling and unloading a module is that TableEnvironment still keeps the disabled modules, and users can list all loaded modules to view the disabled modules.
 
 ## Namespace
 
@@ -153,9 +157,7 @@ tableEnv.executeSql("SHOW FULL MODULES").print();
 // Unload hive module
 tableEnv.executeSql("UNLOAD MODULE hive");
 tableEnv.executeSql("SHOW MODULES").print();
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 tableEnv.executeSql("SHOW FULL MODULES").print();
 // +-------------+-------+
 // | module name |  used |
@@ -240,9 +242,7 @@ tableEnv.executeSql("SHOW FULL MODULES").print()
 // Unload hive module
 tableEnv.executeSql("UNLOAD MODULE hive")
 tableEnv.executeSql("SHOW MODULES").print()
-// +-------------+
-// | module name |
-// +-------------+
+// Empty set
 tableEnv.executeSql("SHOW FULL MODULES").print()
 // +-------------+-------+
 // | module name |  used |
@@ -330,9 +330,7 @@ t_env.execute_sql("SHOW FULL MODULES").print()
 # Unload hive module
 t_env.execute_sql("UNLOAD MODULE hive")
 t_env.execute_sql("SHOW MODULES").print()
-# +-------------+
-# | module name |
-# +-------------+
+# Empty set
 t_env.execute_sql("SHOW FULL MODULES").print()
 # +-------------+-------+
 # | module name |  used |
@@ -345,68 +343,73 @@ t_env.execute_sql("SHOW FULL MODULES").print()
 ```sql
 -- Show initially loaded and enabled modules
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        core |
--- +-------------+
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
 Flink SQL> SHOW FULL MODULES;
--- +-------------+------+
--- | module name | used |
--- +-------------+------+
--- |        core | true |
--- +-------------+------+
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
 
 -- Load a hive module
 Flink SQL> LOAD MODULE hive WITH ('hive-version' = '...');
 
 -- Show all enabled modules
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        core |
--- |        hive |
--- +-------------+
++-------------+
+| module name |
++-------------+
+|        core |
+|        hive |
++-------------+
+2 rows in set
 
 -- Show all loaded modules with both name and use status
 Flink SQL> SHOW FULL MODULES;
--- +-------------+------+
--- | module name | used |
--- +-------------+------+
--- |        core | true |
--- |        hive | true |
--- +-------------+------+
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
+|        hive | true |
++-------------+------+
+2 rows in set
 
 -- Change resolution order
 Flink SQL> USE MODULES hive, core ;
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        hive |
--- |        core |
--- +-------------+
++-------------+
+| module name |
++-------------+
+|        hive |
+|        core |
++-------------+
+2 rows in set
 Flink SQL> SHOW FULL MODULES;
--- +-------------+------+
--- | module name | used |
--- +-------------+------+
--- |        hive | true |
--- |        core | true |
--- +-------------+------+
++-------------+------+
+| module name | used |
++-------------+------+
+|        hive | true |
+|        core | true |
++-------------+------+
+2 rows in set
 
 -- Unload hive module
 Flink SQL> UNLOAD MODULE hive;
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
+Empty set
 Flink SQL> SHOW FULL MODULES;
--- +-------------+-------+
--- | module name |  used |
--- +-------------+-------+
--- |        hive | false |
--- +-------------+-------+
++-------------+-------+
+| module name |  used |
++-------------+-------+
+|        hive | false |
++-------------+-------+
+1 row in set
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}

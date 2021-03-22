@@ -37,7 +37,6 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW VIEWS
 - SHOW FUNCTIONS
 - SHOW MODULES
-- SHOW FULL MODULES
 
 ## Run a SHOW statement
 
@@ -365,21 +364,21 @@ f1
 ...
 
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        core |
--- +-------------+
--- 1 row in set
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
 
 
 Flink SQL> SHOW FULL MODULES;
--- +-------------+------+
--- | module name | used |
--- +-------------+------+
--- |        core | true |
--- +-------------+------+
--- 1 row in set
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
 
 
 ```
@@ -450,17 +449,12 @@ Show only user-defined functions in the current catalog and current database.
 ## SHOW MODULES
 
 ```sql
-SHOW MODULES
+SHOW [FULL] MODULES
 ```
 
 Show all enabled module names with resolution order.
 
-## SHOW FULL MODULES
-
-```sql
-SHOW FULL MODULES
-```
-
+**FULL**
 Show all loaded modules and enabled status with resolution order.
 
 {{< top >}}

@@ -365,21 +365,21 @@ f1
 ...
 
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        core |
--- +-------------+
--- 1 row in set
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
 
 
 Flink SQL> SHOW FULL MODULES;
--- +-------------+------+
--- | module name | used |
--- +-------------+------+
--- |        core | true |
--- +-------------+------+
--- 1 row in set
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
 
 
 ```
@@ -450,17 +450,12 @@ SHOW [USER] FUNCTIONS
 ## SHOW MODULES
 
 ```sql
-SHOW MODULES
+SHOW [FULL] MODULES
 ```
 
 展示当前环境激活的所有 module。
 
-## SHOW FULL MODULES
-
-```sql
-SHOW FULL MODULES
-```
-
+**FULL**
 展示当前环境加载的所有 module 及激活状态。
 
 {{< top >}}

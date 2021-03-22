@@ -100,7 +100,7 @@ Flink SQL> UNLOAD MODULE core;
 [INFO] Unload module succeeded!
 
 Flink SQL> SHOW MODULES;
--- Empty set
+Empty set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -111,5 +111,5 @@ Flink SQL> SHOW MODULES;
 
 The following grammar gives an overview of the available syntax:
 ```sql
-UNLOAD MODULE `module_name`
+UNLOAD MODULE module_name
 ```

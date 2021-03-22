@@ -118,12 +118,12 @@ Flink SQL> LOAD MODULE hive WITH ('hive-version' = '3.1.2');
 [INFO] Load module succeeded!
 
 Flink SQL> SHOW MODULES;
--- +-------------+
--- | module name |
--- +-------------+
--- |        core |
--- |        hive |
--- +-------------+
++-------------+
+| module name |
++-------------+
+|        core |
+|        hive |
++-------------+
 
 ```
 {{< /tab >}}
@@ -135,8 +135,9 @@ Flink SQL> SHOW MODULES;
 
 The following grammar gives an overview of the available syntax:
 ```sql
-LOAD MODULE `module_name` [WITH ('key1' = 'val1', 'key2' = 'val2', ...)]
+LOAD MODULE module_name [WITH ('key1' = 'val1', 'key2' = 'val2', ...)]
 ```
 {{< hint warning >}}
 `module_name` is a simple identifier. It is case-sensitive and should be identical to the module type defined in the module factory because it is used to perform module discovery.
+Properties `('key1' = 'val1', 'key2' = 'val2', ...)` is a map that contains a set of key-value pairs (except for the key `'type'`) and passed to the discovery service to instantiate the corresponding module.
 {{< /hint >}}

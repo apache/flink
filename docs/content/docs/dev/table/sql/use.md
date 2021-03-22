@@ -232,12 +232,13 @@ Flink SQL> USE db1;
 Flink SQL> USE MODULES hive;
 [INFO] Use modules succeeded!
 Flink SQL> SHOW FULL MODULES;
--- +-------------+-------+
--- | module name |  used |
--- +-------------+-------+
--- |        hive |  true |
--- |        core | false |
--- +-------------+-------+
++-------------+-------+
+| module name |  used |
++-------------+-------+
+|        hive |  true |
+|        core | false |
++-------------+-------+
+2 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -254,7 +255,7 @@ Set the current catalog. All subsequent commands that do not explicitly specify 
 
 ## USE MODULES
 ```sql
-USE MODULES `module_name1`[, `module_name2`, ...]
+USE MODULES module_name1[, module_name2, ...]
 ```
 Set the enabled modules with declared order. All subsequent commands will resolve metadata(functions/user-defined types/rules, *etc.*) within enabled modules and follow resolution order. A module is used by default when it is loaded. Loaded modules will become disabled if not used by `USE MODULES` statement. The default loaded and enabled module is `core`.
 
