@@ -50,7 +50,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -107,7 +106,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        public Optional<JobID> getJobId() {
+        public JobID getJobId() {
             return runtimeContext.getJobId();
         }
 
@@ -299,7 +298,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        public Optional<JobID> getJobId() {
+        public JobID getJobId() {
             return iterationRuntimeContext.getJobId();
         }
     }

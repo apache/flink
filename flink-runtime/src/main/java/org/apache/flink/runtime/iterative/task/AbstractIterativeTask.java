@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Future;
 
 /** The abstract base class for all tasks able to participate in an iteration. */
@@ -432,7 +431,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
         }
 
         @Override
-        public Optional<JobID> getJobId() {
+        public JobID getJobId() {
             return runtimeUdfContext.getJobId();
         }
 
