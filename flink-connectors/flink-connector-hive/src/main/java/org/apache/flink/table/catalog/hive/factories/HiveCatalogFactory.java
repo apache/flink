@@ -19,11 +19,10 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,41 +64,15 @@ public class HiveCatalogFactory implements CatalogFactory {
 
     @Override
     public Catalog createCatalog(Context context) {
-        final Configuration configuration = Configuration.fromMap(context.getOptions());
-        validateConfiguration(configuration);
+        final FactoryUtil.CatalogFactoryHelper helper =
+                FactoryUtil.createCatalogFactoryHelper(this, context);
+        helper.validate();
 
         return new HiveCatalog(
                 context.getName(),
-                configuration.getString(DEFAULT_DATABASE),
-                configuration.getString(HIVE_CONF_DIR),
-                configuration.getString(HADOOP_CONF_DIR),
-                configuration.getString(HIVE_VERSION));
-    }
-
-    private void validateConfiguration(Configuration configuration) {
-        final String defaultDatabase = configuration.getString(DEFAULT_DATABASE);
-        if (defaultDatabase != null && defaultDatabase.isEmpty()) {
-            throw new ValidationException(
-                    String.format(
-                            "Option '%s' was provided, but is empty", DEFAULT_DATABASE.key()));
-        }
-
-        final String hiveConfDir = configuration.getString(HIVE_CONF_DIR);
-        if (hiveConfDir != null && hiveConfDir.isEmpty()) {
-            throw new ValidationException(
-                    String.format("Option '%s' was provided, but is empty", HIVE_CONF_DIR.key()));
-        }
-
-        final String hadoopConfDir = configuration.getString(HADOOP_CONF_DIR);
-        if (hadoopConfDir != null && hadoopConfDir.isEmpty()) {
-            throw new ValidationException(
-                    String.format("Option '%s' was provided, but is empty", HADOOP_CONF_DIR.key()));
-        }
-
-        final String hiveVersion = configuration.getString(HIVE_VERSION);
-        if (hiveVersion != null && hiveVersion.isEmpty()) {
-            throw new ValidationException(
-                    String.format("Option '%s' was provided, but is empty", HIVE_VERSION.key()));
-        }
+                helper.getOptions().get(DEFAULT_DATABASE),
+                helper.getOptions().get(HIVE_CONF_DIR),
+                helper.getOptions().get(HADOOP_CONF_DIR),
+                helper.getOptions().get(HIVE_VERSION));
     }
 }

@@ -54,6 +54,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -172,6 +173,16 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link CatalogFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static CatalogFactoryHelper createCatalogFactoryHelper(
+            CatalogFactory factory, CatalogFactory.Context context) {
+        return new CatalogFactoryHelper(factory, context);
     }
 
     /**
@@ -376,7 +387,7 @@ public final class FactoryUtil {
         if (remainingOptionKeys.size() > 0) {
             throw new ValidationException(
                     String.format(
-                            "Unsupported options found for connector '%s'.\n\n"
+                            "Unsupported options found for '%s'.\n\n"
                                     + "Unsupported options:\n\n"
                                     + "%s\n\n"
                                     + "Supported options:\n\n"
@@ -506,6 +517,69 @@ public final class FactoryUtil {
     // --------------------------------------------------------------------------------------------
     // Helper classes
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Helper utility for catalog implementations to validate options provided by {@link
+     * CatalogFactory}.
+     */
+    @PublicEvolving
+    public static class CatalogFactoryHelper {
+
+        private final CatalogFactory catalogFactory;
+        private final CatalogFactory.Context context;
+        private final Configuration configuration;
+
+        private final Set<String> consumedOptionKeys;
+
+        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
+            this.catalogFactory = catalogFactory;
+            this.context = context;
+            this.configuration = Configuration.fromMap(context.getOptions());
+
+            consumedOptionKeys = new HashSet<>();
+            consumedOptionKeys.add(PROPERTY_VERSION.key());
+            Stream.concat(
+                            catalogFactory.requiredOptions().stream(),
+                            catalogFactory.optionalOptions().stream())
+                    .map(ConfigOption::key)
+                    .forEach(consumedOptionKeys::add);
+        }
+
+        /**
+         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option
+         * keys.
+         */
+        public void validate() {
+            validateFactoryOptions(catalogFactory, configuration);
+            validateUnconsumedKeys(
+                    catalogFactory.factoryIdentifier(), configuration.keySet(), consumedOptionKeys);
+        }
+
+        /**
+         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option keys
+         * while ignoring the options with given prefixes.
+         *
+         * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
+         * validation.
+         *
+         * @param prefixesToSkip Set of option key prefixes to skip validation
+         */
+        public void validateExcept(String... prefixesToSkip) {
+            Preconditions.checkArgument(
+                    prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
+            final List<String> prefixesList = Arrays.asList(prefixesToSkip);
+            consumedOptionKeys.addAll(
+                    configuration.keySet().stream()
+                            .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
+                            .collect(Collectors.toSet()));
+            validate();
+        }
+
+        /** Returns all options of the catalog. */
+        public ReadableConfig getOptions() {
+            return configuration;
+        }
+    }
 
     /**
      * Helper utility for discovering formats and validating all options for a {@link
