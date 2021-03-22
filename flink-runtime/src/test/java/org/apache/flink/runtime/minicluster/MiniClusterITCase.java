@@ -46,13 +46,12 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -108,28 +107,38 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21403
     public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
         try {
-            final JobVertex vertex = new JobVertex("Test Vertex");
-            vertex.setParallelism(2);
-            vertex.setMaxParallelism(2);
-            vertex.setInvokableClass(BlockingNoOpInvokable.class);
+            final JobVertex vertex1 = new JobVertex("Test Vertex1");
+            vertex1.setParallelism(1);
+            vertex1.setMaxParallelism(1);
+            vertex1.setInvokableClass(BlockingNoOpInvokable.class);
 
-            final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+            final JobVertex vertex2 = new JobVertex("Test Vertex2");
+            vertex2.setParallelism(1);
+            vertex2.setMaxParallelism(1);
+            vertex2.setInvokableClass(BlockingNoOpInvokable.class);
+
+            vertex2.connectNewDataSetAsInput(
+                    vertex1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+            final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex1, vertex2);
 
             runHandleJobsWhenNotEnoughSlots(jobGraph);
 
             fail("Job should fail.");
         } catch (JobExecutionException e) {
-            assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
-            assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
+            assertThat(e, FlinkMatchers.containsMessage("Job execution failed"));
+            assertThat(e, FlinkMatchers.containsCause(NoResourceAvailableException.class));
         }
     }
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
         final Configuration configuration = getDefaultConfiguration();
+        // this triggers the failure for the default scheduler
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
+        // this triggers the failure for the adaptive scheduler
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(100));
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
