@@ -360,6 +360,15 @@ public class KubernetesConfigOptions {
                                             code("FlinkKubeClient#checkAndUpdateConfigMap"))
                                     .build());
 
+    public static final ConfigOption<Integer> KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE =
+            key("kubernetes.client.io-pool.size")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            "The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations "
+                                    + "(e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). "
+                                    + "Increasing the pool size allows to run more IO operations concurrently.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.
