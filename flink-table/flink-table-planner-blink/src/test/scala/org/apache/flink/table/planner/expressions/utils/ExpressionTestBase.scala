@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.expressions.utils
 
 import java.util.Collections
-
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.apache.flink.api.common.TaskInfo
+import org.apache.flink.api.common.{JobID, TaskInfo}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.java.typeutils.RowTypeInfo

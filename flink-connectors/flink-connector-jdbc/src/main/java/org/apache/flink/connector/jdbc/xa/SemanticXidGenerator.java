@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.xa;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.util.AbstractID;
 
 import javax.transaction.xa.Xid;
 
@@ -63,12 +62,8 @@ class SemanticXidGenerator implements XidGenerator {
 
     @Override
     public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
-        byte[] jobIdOrRandomBytes =
-                runtimeContext
-                        .getJobId()
-                        .map(AbstractID::getBytes)
-                        .orElse(getRandomBytes(JobID.SIZE));
-        System.arraycopy(jobIdOrRandomBytes, 0, gtridBuffer, 0, JobID.SIZE);
+        byte[] jobIdBytes = runtimeContext.getJobId().getBytes();
+        System.arraycopy(jobIdBytes, 0, gtridBuffer, 0, JobID.SIZE);
 
         writeNumber(runtimeContext.getIndexOfThisSubtask(), Integer.BYTES, gtridBuffer, JobID.SIZE);
         writeNumber(checkpointId, Long.BYTES, gtridBuffer, JobID.SIZE + Integer.BYTES);
