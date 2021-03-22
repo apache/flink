@@ -48,8 +48,8 @@ from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, D
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     UserDefinedAggregateFunctionWrapper, udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
-from pyflink.util import utils
-from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
+from pyflink.util import java_utils
+from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
     to_j_explain_detail_arr, to_jarray
 
 __all__ = [
@@ -524,7 +524,7 @@ class TableEnvironment(object):
         """
         warnings.warn("Deprecated in 1.10. Use from_path instead.", DeprecationWarning)
         gateway = get_gateway()
-        j_table_paths = utils.to_jarray(gateway.jvm.String, table_path)
+        j_table_paths = java_utils.to_jarray(gateway.jvm.String, table_path)
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table, self)
 

@@ -19,7 +19,7 @@ from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_type, _from_java_type, DataType, RowType
-from pyflink.util.utils import to_jarray
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['TableSchema']
 

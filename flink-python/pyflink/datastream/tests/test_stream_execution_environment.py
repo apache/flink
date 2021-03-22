@@ -581,17 +581,5 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
 
-    def test_batch_execution_mode(self):
-        # set the runtime execution mode to BATCH
-        JRuntimeExecutionMode = get_gateway().jvm \
-            .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
-        self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
-        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x) \
-            .add_sink(self.test_sink)
-
-        # Running jobs in Batch mode is not supported yet, it should throw an exception.
-        with self.assertRaises(Exception):
-            self.env.get_execution_plan()
-
     def tearDown(self) -> None:
         self.test_sink.clear()

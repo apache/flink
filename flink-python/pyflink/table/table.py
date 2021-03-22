@@ -34,8 +34,8 @@ from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
-from pyflink.util.utils import to_jarray
-from pyflink.util.utils import to_j_explain_detail_arr
+from pyflink.util.java_utils import to_jarray
+from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 

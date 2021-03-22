@@ -82,15 +82,24 @@ def is_instance_of(java_object, java_class):
 
 def get_j_env_configuration(t_env):
     if is_instance_of(t_env._get_j_env(), "org.apache.flink.api.java.ExecutionEnvironment"):
-        j_configuration = t_env._get_j_env().getConfiguration()
+        return t_env._get_j_env().getConfiguration()
     else:
-        env_clazz = load_java_class(
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
-        method = env_clazz.getDeclaredMethod(
-            "getConfiguration", to_jarray(get_gateway().jvm.Class, []))
-        method.setAccessible(True)
-        j_configuration = method.invoke(t_env._get_j_env(), to_jarray(get_gateway().jvm.Object, []))
-    return j_configuration
+        return invoke_method(
+            t_env._get_j_env(),
+            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
+            "getConfiguration"
+        )
+
+
+def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
+    env_clazz = load_java_class(object_type)
+    method = env_clazz.getDeclaredMethod(
+        method_name,
+        to_jarray(
+            get_gateway().jvm.Class,
+            [load_java_class(arg_type) for arg_type in arg_types or []]))
+    method.setAccessible(True)
+    return method.invoke(obj, to_jarray(get_gateway().jvm.Object, args or []))
 
 
 def is_local_deployment(j_configuration):

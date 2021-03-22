@@ -19,7 +19,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 
 class ExecutionEnvironment(object):

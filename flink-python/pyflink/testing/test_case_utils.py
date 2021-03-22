@@ -29,6 +29,7 @@ from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
 from pyflink.common import JobExecutionResult
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.table import TableConfig
 from pyflink.table.sources import CsvTableSource
 from pyflink.dataset.execution_environment import ExecutionEnvironment
@@ -38,7 +39,7 @@ from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEn
     TableEnvironment
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import add_jars_to_context_class_loader, to_jarray
+from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -256,6 +257,30 @@ class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
+
+
+class PyFlinkStreamingTestCase(PyFlinkTestCase):
+    """
+    Base class for streaming tests.
+    """
+
+    def setUp(self):
+        super(PyFlinkStreamingTestCase, self).setUp()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+
+
+class PyFlinkBatchTestCase(PyFlinkTestCase):
+    """
+    Base class for batch tests.
+    """
+
+    def setUp(self):
+        super(PyFlinkBatchTestCase, self).setUp()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
+        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
 
 class PythonAPICompletenessTestCase(object):

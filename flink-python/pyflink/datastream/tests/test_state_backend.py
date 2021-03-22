@@ -21,7 +21,7 @@ from pyflink.datastream.state_backend import (_from_j_state_backend, CustomState
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.testing.test_case_utils import PyFlinkTestCase
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 
 class MemoryStateBackendTests(PyFlinkTestCase):
