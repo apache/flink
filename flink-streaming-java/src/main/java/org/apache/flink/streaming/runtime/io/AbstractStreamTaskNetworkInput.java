@@ -157,7 +157,9 @@ public abstract class AbstractStreamTaskNetworkInput<
             // which is very valuable in case of bounded stream
             releaseDeserializer(bufferOrEvent.getChannelInfo());
         } else if (event.getClass() == EndOfChannelStateEvent.class) {
-            return InputStatus.END_OF_RECOVERY;
+            if (checkpointedInputGate.allChannelsRecovered()) {
+                return InputStatus.END_OF_RECOVERY;
+            }
         }
         return InputStatus.MORE_AVAILABLE;
     }
