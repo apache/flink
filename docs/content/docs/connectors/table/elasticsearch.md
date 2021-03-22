@@ -158,7 +158,7 @@ Connector Options
       <td style="word-wrap: break-word;">1000</td>
       <td>Integer</td>
       <td>Maximum number of buffered actions per bulk request.
-      Can be set to <code>'0'</code> to disable it.
+      Can be set to <code>'-1'</code> to disable it.
       </td>
     </tr>
     <tr>
