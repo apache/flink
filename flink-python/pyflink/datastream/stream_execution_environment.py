@@ -30,6 +30,7 @@ from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
@@ -117,6 +118,26 @@ class StreamExecutionEnvironment(object):
         :return: Maximum degree of parallelism.
         """
         return self._j_stream_execution_environment.getMaxParallelism()
+
+    def set_runtime_mode(self, execution_mode: RuntimeExecutionMode):
+        """
+        Sets the runtime execution mode for the application
+        :class:`~pyflink.datastream.execution_mode.RuntimeExecutionMode`. This
+        is equivalent to setting the `execution.runtime-mode` in your application's
+        configuration file.
+
+        We recommend users to NOT use this method but set the `execution.runtime-mode` using
+        the command-line when submitting the application. Keeping the application code
+        configuration-free allows for more flexibility as the same application will be able to be
+        executed in any execution mode.
+
+        :param execution_mode: The desired execution mode.
+        :return: The execution environment of your application.
+
+        .. versionadded:: 1.13.0
+        """
+        return self._j_stream_execution_environment.setRuntimeMode(
+            execution_mode._to_j_execution_mode())
 
     def set_buffer_timeout(self, timeout_millis: int) -> 'StreamExecutionEnvironment':
         """
