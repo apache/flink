@@ -26,10 +26,8 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelog
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData2, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler
 import org.apache.flink.util.ExceptionUtils
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.experimental.categories.Category
 import org.junit.{Rule, Test}
 import org.junit.rules.ExpectedException
 
@@ -701,26 +699,10 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
-  @Category(Array(classOf[FailsWithAdaptiveScheduler])) // FLINK-21403
   def testParallelismWithSinkFunction(): Unit = {
     val negativeParallelism = -1
     val validParallelism = 1
-    val oversizedParallelism = Int.MaxValue
     val index = new AtomicInteger(1)
-
-    Try(innerTestSetParallelism(
-      "SinkFunction",
-      oversizedParallelism,
-      index = index.getAndIncrement))
-    match {
-      case Success(_) => fail("this should not happen")
-      case Failure(t) => {
-        val exception = ExceptionUtils.findThrowableWithMessage(
-          t,
-          s"Failed to wait job finish")
-        assertTrue(exception.isPresent)
-      }
-    }
 
     Try(innerTestSetParallelism(
       "SinkFunction",
@@ -743,10 +725,8 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
-  @Category(Array(classOf[FailsWithAdaptiveScheduler])) // FLINK-21403
   def testParallelismWithOutputFormat(): Unit = {
     val negativeParallelism = -1
-    val oversizedParallelism = Int.MaxValue
     val validParallelism = 1
     val index = new AtomicInteger(1)
 
@@ -760,20 +740,6 @@ class TableSinkITCase extends StreamingTestBase {
         val exception = ExceptionUtils.findThrowableWithMessage(
           t,
           s"should not be less than zero or equal to zero")
-        assertTrue(exception.isPresent)
-      }
-    }
-
-    Try(innerTestSetParallelism(
-      "SinkFunction",
-      oversizedParallelism,
-      index = index.getAndIncrement))
-    match {
-      case Success(_) => fail("this should not happen")
-      case Failure(t) => {
-        val exception = ExceptionUtils.findThrowableWithMessage(
-          t,
-          s"Failed to wait job finish")
         assertTrue(exception.isPresent)
       }
     }
