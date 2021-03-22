@@ -46,6 +46,8 @@ import org.apache.flink.types.Row;
 
 import java.util.Collections;
 
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
+
 /** KeyedCoProcessOperator. */
 public class PythonKeyedCoProcessOperator<OUT>
         extends TwoInputPythonFunctionOperator<Row, Row, Row, OUT>
@@ -105,7 +107,8 @@ public class PythonKeyedCoProcessOperator<OUT>
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         Collections.EMPTY_MAP,
-                        keyTypeInfo),
+                        keyTypeInfo,
+                        inBatchExecutionMode(getKeyedStateBackend())),
                 getCoderUrn(),
                 getJobOptions(),
                 getFlinkMetricContainer(),
@@ -232,6 +235,10 @@ public class PythonKeyedCoProcessOperator<OUT>
      */
     @Override
     public void setCurrentKey(Object key) {
+        if (inBatchExecutionMode(getKeyedStateBackend())) {
+            super.setCurrentKey(key);
+        }
+
         keyForTimerService = key;
     }
 

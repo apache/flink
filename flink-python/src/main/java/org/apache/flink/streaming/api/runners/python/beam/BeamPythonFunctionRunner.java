@@ -107,6 +107,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.setCurrentKeyForStreaming;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
 @Internal
@@ -733,11 +734,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 bais.setBuffer(keyBytes, 0, keyBytes.length);
                 Object key = keySerializer.deserialize(baisWrapper);
                 if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
-                    keyedStateBackend.setCurrentKey(
+                    setCurrentKeyForStreaming(
+                            keyedStateBackend,
                             ((RowDataSerializer) keyedStateBackend.getKeySerializer())
                                     .toBinaryRow((RowData) key));
                 } else {
-                    keyedStateBackend.setCurrentKey(key);
+                    setCurrentKeyForStreaming(keyedStateBackend, key);
                 }
             } else {
                 throw new RuntimeException("Unsupported bag state request: " + request);
@@ -854,11 +856,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 bais.setBuffer(keyBytes, 0, keyBytes.length);
                 Object key = keySerializer.deserialize(baisWrapper);
                 if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
-                    keyedStateBackend.setCurrentKey(
+                    setCurrentKeyForStreaming(
+                            keyedStateBackend,
                             ((RowDataSerializer) keyedStateBackend.getKeySerializer())
                                     .toBinaryRow((RowData) key));
                 } else {
-                    keyedStateBackend.setCurrentKey(key);
+                    setCurrentKeyForStreaming(keyedStateBackend, key);
                 }
             } else {
                 throw new RuntimeException("Unsupported bag state request: " + request);
