@@ -39,13 +39,10 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.connectors.hive.util.HivePartitionUtils.restorePartitionValueFromType;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSpecFromPath;
 
 /** The {@link CompactReader.Factory} to delegate hive bulk format. */
@@ -110,18 +107,7 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
     }
 
     private HiveTablePartition createPartition(Path path) {
-        Map<String, Object> partitionSpec = new LinkedHashMap<>();
-        Map<String, DataType> nameToTypes = new HashMap<>();
-        for (int i = 0; i < fieldNames.length; i++) {
-            nameToTypes.put(fieldNames[i], fieldTypes[i]);
-        }
-        for (Map.Entry<String, String> entry : extractPartitionSpecFromPath(path).entrySet()) {
-            Object partitionValue =
-                    restorePartitionValueFromType(
-                            shim, entry.getValue(), nameToTypes.get(entry.getKey()));
-            partitionSpec.put(entry.getKey(), partitionValue);
-        }
-
+        Map<String, String> partitionSpec = extractPartitionSpecFromPath(path);
         try {
             return new HiveTablePartition(sd.deserializeValue(), partitionSpec, properties);
         } catch (IOException | ClassNotFoundException e) {
