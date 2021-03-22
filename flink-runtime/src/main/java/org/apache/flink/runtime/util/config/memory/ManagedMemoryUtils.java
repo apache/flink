@@ -155,4 +155,19 @@ public enum ManagedMemoryUtils {
                         BigDecimal.ROUND_DOWN)
                 .doubleValue();
     }
+
+    public static void validateManagedMemoryUseCaseWeights(
+            Map<ManagedMemoryUseCase, Integer> existingOperatorScopeUseCaseWeights,
+            Map<ManagedMemoryUseCase, Integer> newOperatorScopeUseCaseWeights) {
+        for (Map.Entry<ManagedMemoryUseCase, Integer> entry :
+                newOperatorScopeUseCaseWeights.entrySet()) {
+            Integer existingWeight = existingOperatorScopeUseCaseWeights.get(entry.getKey());
+            if (existingWeight != null && !existingWeight.equals(entry.getValue())) {
+                throw new IllegalConfigurationException(
+                        String.format(
+                                "The new value '%d' mismatch with the existing value '%d' for managed memory consumer weight '%s'.",
+                                entry.getValue(), existingWeight, entry.getKey()));
+            }
+        }
+    }
 }

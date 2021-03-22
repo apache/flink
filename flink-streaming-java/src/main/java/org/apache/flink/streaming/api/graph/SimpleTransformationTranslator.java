@@ -116,9 +116,7 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
         }
 
         final StreamNode streamNode = streamGraph.getStreamNode(transformationId);
-        if (streamNode != null
-                && streamNode.getManagedMemoryOperatorScopeUseCaseWeights().isEmpty()
-                && streamNode.getManagedMemorySlotScopeUseCases().isEmpty()) {
+        if (streamNode != null) {
             streamNode.setManagedMemoryUseCaseWeights(
                     transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
                     transformation.getManagedMemorySlotScopeUseCases());

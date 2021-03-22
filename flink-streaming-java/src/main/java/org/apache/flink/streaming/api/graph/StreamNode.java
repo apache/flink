@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils.validateManagedMemoryUseCaseWeights;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Class representing the operators in the streaming programs, with all their properties. */
@@ -209,6 +210,8 @@ public class StreamNode {
     public void setManagedMemoryUseCaseWeights(
             Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
             Set<ManagedMemoryUseCase> slotScopeUseCases) {
+        validateManagedMemoryUseCaseWeights(
+                managedMemoryOperatorScopeUseCaseWeights, operatorScopeUseCaseWeights);
         managedMemoryOperatorScopeUseCaseWeights.putAll(operatorScopeUseCaseWeights);
         managedMemorySlotScopeUseCases.addAll(slotScopeUseCases);
     }
