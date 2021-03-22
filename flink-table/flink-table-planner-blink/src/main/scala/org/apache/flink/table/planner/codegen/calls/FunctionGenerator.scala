@@ -506,6 +506,12 @@ class FunctionGenerator private(config: TableConfig) {
     Seq(),
     new CurrentTimePointCallGen(false, isStreamingMode))
 
+  // CURRENT_ROW_TIMESTAMP evaluates in row-level
+  addSqlFunction(
+    CURRENT_ROW_TIMESTAMP,
+    Seq(),
+    new CurrentTimePointCallGen(false, true))
+
   addSqlFunction(
     LOCALTIME,
     Seq(),

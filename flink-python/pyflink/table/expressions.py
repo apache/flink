@@ -198,7 +198,7 @@ def current_time() -> Expression:
 def current_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in local time zone,
-    the underlying function return type is TIMESTAMP_LTZ.
+    the return type of this expression is TIMESTAMP_LTZ.
     """
     return _leaf_op("currentTimestamp")
 
@@ -213,7 +213,7 @@ def local_time() -> Expression:
 def local_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in local time zone,
-    the underlying function return type is TIMESTAMP.
+    the return type of this expression s TIMESTAMP.
     """
     return _leaf_op("localTimestamp")
 
