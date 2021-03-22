@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
@@ -45,11 +46,9 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils.transform
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.rex.{RexNode, RexProgram}
 
 import java.util
-
 import scala.collection.JavaConverters._
 
 object LookupJoinCodeGenerator {
@@ -505,24 +504,18 @@ object LookupJoinCodeGenerator {
     */
   def generateCalcMapFunction(
       config: TableConfig,
-      calcProgram: Option[RexProgram],
+      projection: Seq[RexNode],
+      condition: RexNode,
+      outputType: RelDataType,
       tableSourceRowType: RowType)
-    : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
-    require(calcProgram.isDefined)
-    val program = calcProgram.get
-    val projection = program.getProjectList.asScala.map(program.expandLocalRef)
-    val condition = if (program.getCondition != null) {
-      Some(program.expandLocalRef(program.getCondition))
-    } else {
-      None
-    }
+  : GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
       "TableCalcMapFunction",
-      FlinkTypeFactory.toLogicalRowType(program.getOutputRowType),
+      FlinkTypeFactory.toLogicalRowType(outputType),
       classOf[GenericRowData],
       projection,
-      condition,
+      Option(condition),
       config)
   }
 }

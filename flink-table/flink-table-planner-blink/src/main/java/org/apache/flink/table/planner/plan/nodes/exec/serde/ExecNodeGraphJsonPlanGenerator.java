@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -246,6 +247,16 @@ public class ExecNodeGraphJsonPlanGenerator {
                             .getTableSourceSpec()
                             .setReadableConfig(serdeCtx.getConfiguration());
                     ((StreamExecTableSourceScan) execNode)
+                            .getTableSourceSpec()
+                            .setClassLoader(serdeCtx.getClassLoader());
+                }
+                if (execNode instanceof StreamExecLookupJoin) {
+                    ((StreamExecLookupJoin) execNode)
+                            .getTemporalTableSourceSpec()
+                            .getTableSourceSpec()
+                            .setReadableConfig(serdeCtx.getConfiguration());
+                    ((StreamExecLookupJoin) execNode)
+                            .getTemporalTableSourceSpec()
                             .getTableSourceSpec()
                             .setClassLoader(serdeCtx.getClassLoader());
                 }

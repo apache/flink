@@ -19,18 +19,20 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
-
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, JoinTypeUtil}
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import java.util
-
 import scala.collection.JavaConverters._
 
 /**
@@ -66,12 +68,31 @@ class BatchPhysicalLookupJoin(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val existCalcOnTemporalTable = calcOnTemporalTable.nonEmpty
+    var calcOnTemporalTableOutputRowType: RelDataType = null
+    var calcOnTemporalTableProjections: java.util.List[RexNode] = null
+    var calcOnTemporalTableCondition: RexNode = null
+    if (existCalcOnTemporalTable) {
+      calcOnTemporalTableOutputRowType = calcOnTemporalTable.get.getOutputRowType
+      val projections = JavaScalaConversionUtil
+        .toScala(calcOnTemporalTable.get.getProjectList)
+        .map(calcOnTemporalTable.get.expandLocalRef)
+      calcOnTemporalTableProjections = JavaScalaConversionUtil.toJava(projections)
+      if (calcOnTemporalTable.get.getCondition != null) {
+        calcOnTemporalTableCondition = calcOnTemporalTable.get
+          .expandLocalRef(calcOnTemporalTable.get.getCondition)
+      }
+    }
     new BatchExecLookupJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       remainingCondition.orNull,
-      temporalTable,
-      calcOnTemporalTable.orNull,
+      new TemporalTableSourceSpec(temporalTable,
+                                  FlinkRelOptUtil.getTableConfigFromContext(this)),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
+      existCalcOnTemporalTable,
+      calcOnTemporalTableOutputRowType,
+      calcOnTemporalTableProjections,
+      calcOnTemporalTableCondition,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

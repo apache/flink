@@ -21,36 +21,83 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.plan.RelOptTable;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /** {@link StreamExecNode} for temporal table join that implemented by lookup. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
     public StreamExecLookupJoin(
             FlinkJoinType joinType,
             @Nullable RexNode joinCondition,
-            RelOptTable temporalTable,
-            @Nullable RexProgram calcOnTemporalTable,
+            TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            boolean existCalcOnTemporalTable,
+            @Nullable RelDataType calcOnTemporalTableOutputRowType,
+            @Nullable List<RexNode> calcOnTemporalTableProjections,
+            @Nullable RexNode calcOnTemporalTableCondition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
+        this(
+                joinType,
+                joinCondition,
+                temporalTableSourceSpec,
+                lookupKeys,
+                existCalcOnTemporalTable,
+                calcOnTemporalTableOutputRowType,
+                calcOnTemporalTableProjections,
+                calcOnTemporalTableCondition,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecLookupJoin(
+            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
+            @JsonProperty(FIELD_NAME_JOIN_CONDITION) @Nullable RexNode joinCondition,
+            @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
+                    TemporalTableSourceSpec temporalTableSourceSpec,
+            @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            @JsonProperty(FIELD_NAME_EXIST_CALC_ON_TEMPORAL_TABLE) boolean existCalcOnTemporalTable,
+            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_OUTPUT_TYPE) @Nullable
+                    RelDataType calcOnTemporalTableOutputRowType,
+            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_PROJECTIONS) @Nullable
+                    List<RexNode> calcOnTemporalTableProjections,
+            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_CONDITION) @Nullable
+                    RexNode calcOnTemporalTableCondition,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 joinType,
                 joinCondition,
-                temporalTable,
-                calcOnTemporalTable,
+                temporalTableSourceSpec,
                 lookupKeys,
-                inputProperty,
+                existCalcOnTemporalTable,
+                calcOnTemporalTableOutputRowType,
+                calcOnTemporalTableProjections,
+                calcOnTemporalTableCondition,
+                id,
+                inputProperties,
                 outputType,
                 description);
     }
