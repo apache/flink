@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -33,7 +32,12 @@ import java.util.Map;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /** Test {@link SessionContext}. */
 public class SessionContextTest {
@@ -45,27 +49,14 @@ public class SessionContextTest {
         SessionContext sessionContext = createSessionContext();
         sessionContext.set("execution.max-table-result-rows", "100000");
 
-        Assert.assertEquals(
+        assertEquals(
                 "100000",
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .toMap()
-                        .get("execution.max-table-result-rows"));
+                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
 
         sessionContext.reset();
 
-        Assert.assertEquals(
-                "100",
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .toMap()
-                        .get("execution.max-table-result-rows"));
+        assertEquals(
+                "100", getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
     }
 
     @Test
@@ -79,78 +70,111 @@ public class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        Assert.assertEquals(
-                "hive",
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getString(TABLE_SQL_DIALECT));
-        Assert.assertEquals(
-                128,
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getInteger(MAX_PARALLELISM));
-        Assert.assertEquals(
-                "test",
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getString(NAME));
-        Assert.assertFalse(
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getBoolean(OBJECT_REUSE));
+        assertEquals("hive", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
+        assertEquals(128, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration(sessionContext).getString(NAME));
+        assertFalse(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
 
         sessionContext.reset();
-        Assert.assertEquals(
-                "default",
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getString(TABLE_SQL_DIALECT));
-        Assert.assertNull(
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .get(NAME));
+        assertEquals("default", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
+        assertNull(getConfiguration(sessionContext).get(NAME));
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
-        Assert.assertEquals(
-                16,
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getInteger(MAX_PARALLELISM));
-        Assert.assertNull(
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getString(NAME, null));
+        assertEquals(16, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
+        assertNull(getConfiguration(sessionContext).getString(NAME, null));
         // The value of OBJECT_REUSE in origin configuration is true
-        Assert.assertTrue(
-                sessionContext
-                        .getExecutionContext()
-                        .getTableEnvironment()
-                        .getConfig()
-                        .getConfiguration()
-                        .getBoolean(OBJECT_REUSE));
+        assertTrue(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+    }
+
+    @Test
+    public void testSetAndResetKeyInYamlKey() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        sessionContext.set("execution.max-table-result-rows", "200000");
+        sessionContext.set("execution.result-mode", "table");
+
+        assertEquals(
+                "200000",
+                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+
+        assertEquals("table", getConfigurationMap(sessionContext).get("execution.result-mode"));
+
+        sessionContext.reset("execution.result-mode");
+        assertEquals("changelog", getConfigurationMap(sessionContext).get("execution.result-mode"));
+        // no reset this key execution.max-table-result-rows
+        assertEquals(
+                "200000",
+                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+
+        // reset option for deprecated key
+        sessionContext.reset("sql-client.execution.max-table-result.rows");
+        assertEquals(
+                "100",
+                getConfigurationMap(sessionContext)
+                        .get("sql-client.execution.max-table-result.rows"));
+        assertEquals(
+                "100", getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+    }
+
+    @Test
+    public void testSetAndResetKeyInConfigOptions() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        // table config option
+        sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
+        // runtime config option and Yaml specified value
+        sessionContext.set(MAX_PARALLELISM.key(), "128");
+        // runtime config option and doesn't have default value
+        sessionContext.set(NAME.key(), "test");
+        // runtime config from flink-conf
+        sessionContext.set(OBJECT_REUSE.key(), "false");
+
+        assertEquals("hive", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
+        assertEquals(128, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration(sessionContext).getString(NAME));
+        assertFalse(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+
+        sessionContext.reset(TABLE_SQL_DIALECT.key());
+        assertEquals("default", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
+
+        sessionContext.reset(MAX_PARALLELISM.key());
+        assertEquals(16, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
+
+        sessionContext.reset(NAME.key());
+        assertNull(getConfiguration(sessionContext).get(NAME));
+
+        sessionContext.reset(OBJECT_REUSE.key());
+        assertTrue(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+    }
+
+    @Test
+    public void testSetWithConfigOptionAndResetWithYamlKey() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        // runtime config option and has deprecated key
+        sessionContext.set(TABLE_PLANNER.key(), "blink");
+        assertEquals(
+                "blink", getConfiguration(sessionContext).get(TABLE_PLANNER).name().toLowerCase());
+
+        sessionContext.reset(TABLE_PLANNER.key());
+        assertEquals(
+                "old", getConfiguration(sessionContext).get(TABLE_PLANNER).name().toLowerCase());
+        assertEquals(
+                "old", getConfigurationMap(sessionContext).get("execution.planner").toLowerCase());
+    }
+
+    @Test
+    public void testSetAndResetKeyNotInYaml() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        // other property not in yaml and flink-conf
+        sessionContext.set("aa", "11");
+        sessionContext.set("bb", "22");
+
+        assertEquals("11", getConfigurationMap(sessionContext).get("aa"));
+        assertEquals("22", getConfigurationMap(sessionContext).get("bb"));
+
+        sessionContext.reset("aa");
+        assertNull(getConfigurationMap(sessionContext).get("aa"));
+        assertEquals("22", getConfigurationMap(sessionContext).get("bb"));
+
+        sessionContext.reset("bb");
+        assertNull(getConfigurationMap(sessionContext).get("bb"));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -176,5 +200,17 @@ public class SessionContextTest {
                         flinkConfig,
                         Collections.singletonList(new DefaultCLI()));
         return SessionContext.create(defaultContext, "test-session");
+    }
+
+    private Map<String, String> getConfigurationMap(SessionContext context) {
+        return context.getExecutionContext()
+                .getTableEnvironment()
+                .getConfig()
+                .getConfiguration()
+                .toMap();
+    }
+
+    private Configuration getConfiguration(SessionContext context) {
+        return context.getExecutionContext().getTableEnvironment().getConfig().getConfiguration();
     }
 }

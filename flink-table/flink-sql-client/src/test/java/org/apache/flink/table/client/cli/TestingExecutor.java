@@ -104,6 +104,11 @@ class TestingExecutor implements Executor {
     }
 
     @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
     public void setSessionProperty(String sessionId, String key, String value)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");

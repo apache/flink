@@ -77,7 +77,7 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     SqlCommand.RESET,
-                                    "Resets all session configuration properties."))
+                                    "Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties."))
                     .append(
                             formatCommand(
                                     SqlCommand.SELECT,
@@ -178,12 +178,13 @@ public final class CliStrings {
     public static final String MESSAGE_RESET =
             "All session properties have been set to their default values.";
 
+    public static final String MESSAGE_RESET_KEY = "Session property has been reset.";
+
     public static final String MESSAGE_SET = "Session property has been set.";
 
-    public static final String MESSAGE_SET_REMOVED_KEY =
-            "The specified key is not supported anymore.";
+    public static final String MESSAGE_REMOVED_KEY = "The specified key is not supported anymore.";
 
-    public static final String MESSAGE_SET_DEPRECATED_KEY =
+    public static final String MESSAGE_DEPRECATED_KEY =
             "The specified key '%s' is deprecated. Please use '%s' instead.";
 
     public static final String MESSAGE_EMPTY = "Result was empty.";

@@ -97,7 +97,7 @@ public class CliClientTest extends TestLogger {
     @Test
     public void testSqlCompletion() throws IOException {
         verifySqlCompletion(
-                "", 0, Arrays.asList("SOURCE", "QUIT;", "RESET;"), Collections.emptyList());
+                "", 0, Arrays.asList("SOURCE", "QUIT;", "RESET"), Collections.emptyList());
         verifySqlCompletion(
                 "SELE", 5, Collections.singletonList("HintA"), Collections.singletonList("QUIT;"));
         verifySqlCompletion(
@@ -239,6 +239,10 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+
+        @Override
+        public void resetSessionProperty(String sessionId, String key)
+                throws SqlExecutionException {}
 
         @Override
         public void setSessionProperty(String sessionId, String key, String value)

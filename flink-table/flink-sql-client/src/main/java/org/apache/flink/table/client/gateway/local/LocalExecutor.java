@@ -147,6 +147,12 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        SessionContext context = getSessionContext(sessionId);
+        context.reset(key);
+    }
+
+    @Override
     public void setSessionProperty(String sessionId, String key, String value)
             throws SqlExecutionException {
         SessionContext context = getSessionContext(sessionId);

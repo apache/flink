@@ -62,6 +62,16 @@ public interface Executor {
     void resetSessionProperties(String sessionId) throws SqlExecutionException;
 
     /**
+     * Reset given key's the session property for default value, if key is not defined in config
+     * file, then remove it.
+     *
+     * @param sessionId to identifier the session
+     * @param key of need to reset the session property
+     * @throws SqlExecutionException if any error happen.
+     */
+    void resetSessionProperty(String sessionId, String key) throws SqlExecutionException;
+
+    /**
      * Set given key's session property to the specific value.
      *
      * @param key of the session property

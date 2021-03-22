@@ -337,7 +337,16 @@ public final class SqlCommandParser {
                     return Optional.of(new String[] {operands[1], operands[2]});
                 }),
 
-        RESET("RESET", NO_OPERANDS),
+        RESET(
+                "RESET(\\s+(\\S+)\\s*)?",
+                (operands) -> {
+                    if (operands.length < 2) {
+                        return Optional.empty();
+                    } else if (operands[0] == null) {
+                        return Optional.of(new String[0]);
+                    }
+                    return Optional.of(new String[] {operands[1]});
+                }),
 
         SOURCE("SOURCE\\s+(.*)", SINGLE_OPERAND);
 
