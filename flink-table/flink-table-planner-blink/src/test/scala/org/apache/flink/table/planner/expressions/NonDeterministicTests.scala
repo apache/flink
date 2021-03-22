@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.InternalConfigOptions
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -46,6 +47,7 @@ class NonDeterministicTests extends ExpressionTestBase {
       "CURRENT_DATE",
       "CURRENT_TIME",
       "CURRENT_TIMESTAMP",
+      "CURRENT_ROW_TIMESTAMP()",
       "NOW()",
       "LOCALTIME",
       "LOCALTIMESTAMP"))
@@ -98,6 +100,23 @@ class NonDeterministicTests extends ExpressionTestBase {
   }
 
   @Test
+  def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
+    config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
+
+    val round1 = evaluateFunctionResult(temporalFunctions)
+    Thread.sleep(1 * 1000L)
+    val round2: List[String] = evaluateFunctionResult(temporalFunctions)
+
+    assertEquals(round1.size, round2.size)
+    round1.zip(round2).foreach {
+      case (result1: String, result2: String) => {
+        assert(result1 < result2)
+      }
+    }
+  }
+
+  @Test
   def testTemporalFunctionsInUTC(): Unit = {
     testTemporalTimestamp(ZoneId.of("UTC"))
   }
@@ -147,6 +166,11 @@ class NonDeterministicTests extends ExpressionTestBase {
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}, NOW()) <= 60",
+      "true")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}," +
+        s" CURRENT_ROW_TIMESTAMP()) <= 60",
       "true")
   }
 
