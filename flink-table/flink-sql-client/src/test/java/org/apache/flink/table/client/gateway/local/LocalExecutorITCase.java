@@ -567,12 +567,6 @@ public class LocalExecutorITCase extends TestLogger {
         return EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private Environment createModifiedEnvironment(String yamlFile, Map<String, String> replaceVars)
-            throws Exception {
-        replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-        return EnvironmentFileUtil.parseModified(yamlFile, replaceVars);
-    }
-
     private List<String> retrieveTableResult(Executor executor, String sessionId, String resultID)
             throws InterruptedException {
 
