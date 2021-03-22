@@ -36,8 +36,9 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -293,9 +294,9 @@ abstract class PlannerBase(
   }
 
   /**
-    * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
-   * and tries to reuse duplicate sub-plans.
-    */
+   * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
+   * tries to reuse duplicate sub-plans and transforms the graph based on the given processors.
+   */
   @VisibleForTesting
   private[flink] def translateToExecNodeGraph(optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
     val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
@@ -314,7 +315,15 @@ abstract class PlannerBase(
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
     generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+    val execGraph = generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+
+    // process the graph
+    val context = new ProcessorContext(this)
+    val processors = getExecNodeGraphProcessors
+    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
+
+  protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor]
 
   /**
     * Translates an [[ExecNodeGraph]] into a [[Transformation]] DAG.

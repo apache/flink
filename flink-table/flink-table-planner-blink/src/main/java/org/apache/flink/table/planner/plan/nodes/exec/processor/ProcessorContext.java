@@ -18,11 +18,24 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 
-/** DAGProcess plugin, use it can set resource of dag or change other node info. */
-public interface DAGProcessor {
+/** Context for {@link ExecNodeGraphProcessor} to process {@link ExecNodeGraph}. */
+public class ProcessorContext {
 
-    /** Given an {@link ExecNodeGraph}, process it and return the result {@link ExecNodeGraph}. */
-    ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context);
+    private final PlannerBase planner;
+
+    public ProcessorContext(PlannerBase planner) {
+        this.planner = planner;
+    }
+
+    /**
+     * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.delegation.BatchPlanner} for
+     * batch job. and {@link org.apache.flink.table.planner.delegation.StreamPlanner} for stream
+     * job.
+     */
+    public PlannerBase getPlanner() {
+        return planner;
+    }
 }

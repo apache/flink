@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DAGProcessContext, DAGProcessor, DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -38,8 +38,8 @@ import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSi
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
+import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.logical.LogicalTableModify
-import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -62,21 +62,16 @@ class BatchPlanner(
 
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
-  override private[flink] def translateToExecNodeGraph(
-      optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
-    val execGraph = super.translateToExecNodeGraph(optimizedRelNodes)
-    val context = new DAGProcessContext(this)
-
-    val processors = new util.ArrayList[DAGProcessor]()
+  override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = {
+    val processors = new util.ArrayList[ExecNodeGraphProcessor]()
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
     if (getTableConfig.getConfiguration.getBoolean(
-        OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
-
-    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
+    processors
   }
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
@@ -96,7 +91,7 @@ class BatchPlanner(
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration
+    validateAndOverrideConfiguration()
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
         val relNode = getRelBuilder.queryOperation(queryOperation).build()

@@ -109,7 +109,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
         while (!execNode.getInputEdges().isEmpty()) {
             execNode = execNode.getInputEdges().get(0).getSource();
         }
-        DAGProcessContext context = new DAGProcessContext(util.getPlanner());
+        ProcessorContext context = new ProcessorContext(util.getPlanner());
         Assert.assertEquals(
                 expected, MultipleInputNodeCreationProcessor.isChainableSource(execNode, context));
     }
