@@ -28,6 +28,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
@@ -38,6 +39,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
     public static final String FIELD_NAME_METRICS = "metrics";
 
+    @JsonProperty(FIELD_NAME_METRICS)
     private final TaskManagerMetricsInfo taskManagerMetrics;
 
     @JsonCreator
@@ -89,7 +91,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
                 taskManagerMetrics);
     }
 
-    @JsonProperty(FIELD_NAME_METRICS)
+    @JsonIgnore
     @VisibleForTesting
     public final TaskManagerMetricsInfo getTaskManagerMetricsInfo() {
         return this.taskManagerMetrics;
