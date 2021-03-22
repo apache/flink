@@ -29,11 +29,11 @@ under the License.
 {{< label "Sink: Batch" >}}
 {{< label "Sink: Streaming Append & Upsert Mode" >}}
 
-Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中。本文档描述如何设置 Elasticsearch 连接器来对 Elasticsearch 运行 SQL 查询。
+Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中。本文档描述运行 SQL 查询时如何设置 Elasticsearch 连接器。
 
-连接器可以在 upsert 模式下操作，使用 DDL 中定义的主键与外部系统交换 UPDATE/DELETE 消息。
+连接器可以工作在 upsert 模式，使用 DDL 中定义的主键与外部系统交换 UPDATE/DELETE 消息。
 
-如果 DDL 中没有定义主键，那么连接器只能在 append 模式下操作，只能与外部系统交换 INSERT 消息。
+如果 DDL 中没有定义主键，那么连接器只能工作在 append 模式，只能与外部系统交换 INSERT 消息。
 
 依赖
 ------------
@@ -59,16 +59,16 @@ CREATE TABLE myUserTable (
 );
 ```
 
-连接器选项
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-left" style="width: 25%">参数</th>
         <th class="text-center" style="width: 8%">是否必选</th>
         <th class="text-center" style="width: 7%">默认值</th>
-        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 10%">数据类型</th>
         <th class="text-center" style="width: 50%">描述</th>
       </tr>
     </thead>
@@ -201,7 +201,7 @@ CREATE TABLE myUserTable (
       <td>可选</td>
       <td style="word-wrap: break-word;">50ms</td>
       <td>Duration</td>
-      <td>每次回退尝试之间的延迟。<code>CONSTANT</code> 回退只是每次重试之间的延迟。<code>EXPONENTIAL</code> 回退是初始基准延迟。</td>
+      <td>每次回退尝试之间的延迟。对于 <code>CONSTANT</code> 回退策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 回退策略，该值是初始的延迟。</td>
     </tr>
     <tr>
       <td><h5>connection.max-retry-timeout</h5></td>
@@ -239,7 +239,7 @@ Elasticsearch sink 可以根据是否定义了主键来确定是在 upsert 模�
 如果未定义主键，Elasticsearch sink 将以 append 模式工作，该模式只能消费包含 INSERT 消息的查询。
 
 在 Elasticsearch 连接器中，主键用于计算 Elasticsearch 的文档 id，文档 id 为最多 512 字节且不包含空格的字符串。
-Elasticsearch 连接器通过使用 `document-id.key-delimiter` 指定的键分隔符按照 DDL 中定义的顺序连接所有主键字段，为每一行生成一个文档 ID 字符串。
+Elasticsearch 连接器通过使用 `document-id.key-delimiter` 指定的键分隔符按照 DDL 中定义的顺序连接所有主键字段，为每一行记录生成一个文档 ID 字符串。
 某些类型不允许作为主键字段，因为它们没有对应的字符串表示形式，例如，`BYTES`，`ROW`，`ARRAY`，`MAP` 等。
 如果未指定主键，Elasticsearch 将自动生成文档 id。
 
