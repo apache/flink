@@ -45,6 +45,8 @@ class TestingExecutorBuilder {
             setSessionPropertyFunction = (ignoredA, ignoredB, ignoredC) -> null;
     private FunctionWithException<String, Void, SqlExecutionException>
             resetSessionPropertiesFunction = (ignoredA) -> null;
+    private BiFunctionWithException<String, String, Void, SqlExecutionException>
+            resetOneSessionPropertiesFunction = (ignoredA, ignoredB) -> null;
 
     @SafeVarargs
     public final TestingExecutorBuilder setResultChangesSupplier(
@@ -97,6 +99,7 @@ class TestingExecutorBuilder {
                 resultPagesSupplier,
                 setExecuteSqlConsumer,
                 setSessionPropertyFunction,
-                resetSessionPropertiesFunction);
+                resetSessionPropertiesFunction,
+                resetOneSessionPropertiesFunction);
     }
 }

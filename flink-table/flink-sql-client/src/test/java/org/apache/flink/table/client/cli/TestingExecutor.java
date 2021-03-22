@@ -63,6 +63,10 @@ class TestingExecutor implements Executor {
     private final FunctionWithException<String, Void, SqlExecutionException>
             resetSessionPropertiesFunction;
 
+    private int numResetOneSessionPropertyCalls = 0;
+    private final BiFunctionWithException<String, String, Void, SqlExecutionException>
+            resetOneSessionPropertyFunction;
+
     private final SqlParserHelper helper;
 
     TestingExecutor(
@@ -76,13 +80,16 @@ class TestingExecutor implements Executor {
             TriFunctionWithException<String, String, String, Void, SqlExecutionException>
                     setSessionPropertyFunction,
             FunctionWithException<String, Void, SqlExecutionException>
-                    resetSessionPropertiesFunction) {
+                    resetSessionPropertiesFunction,
+            BiFunctionWithException<String, String, Void, SqlExecutionException>
+                    resetOneSessionPropertiesFunction) {
         this.resultChanges = resultChanges;
         this.snapshotResults = snapshotResults;
         this.resultPages = resultPages;
         this.executeSqlConsumer = executeSqlConsumer;
         this.setSessionPropertyFunction = setSessionPropertyFunction;
         this.resetSessionPropertiesFunction = resetSessionPropertiesFunction;
+        this.resetOneSessionPropertyFunction = resetOneSessionPropertiesFunction;
         helper = new SqlParserHelper();
         helper.registerTables();
     }
@@ -135,6 +142,12 @@ class TestingExecutor implements Executor {
     public void resetSessionProperties(String sessionId) throws SqlExecutionException {
         numResetSessionPropertiesCalls++;
         resetSessionPropertiesFunction.apply(sessionId);
+    }
+
+    @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        numResetOneSessionPropertyCalls++;
+        resetOneSessionPropertyFunction.apply(sessionId, key);
     }
 
     @Override

@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_DEPRECATED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_REMOVED_KEY;
@@ -284,7 +285,7 @@ public class CliClient implements AutoCloseable {
                 callClear();
                 break;
             case RESET:
-                callReset();
+                callReset(cmdCall);
                 break;
             case SET:
                 callSet(cmdCall);
@@ -412,14 +413,44 @@ public class CliClient implements AutoCloseable {
         clearTerminal();
     }
 
-    private void callReset() {
+    private void callReset(SqlCommandCall cmdCall) {
         try {
-            executor.resetSessionProperties(sessionId);
+            // reset all session properties
+            if (cmdCall.operands.length == 0) {
+                executor.resetSessionProperties(sessionId);
+                printInfo(CliStrings.MESSAGE_RESET);
+            }
+            // reset a session property
+            else {
+                String key = cmdCall.operands[0].trim();
+                executor.resetSessionProperty(sessionId, key);
+                if (YamlConfigUtils.isRemovedKey(key)) {
+                    terminal.writer()
+                            .println(CliStrings.messageWarning(MESSAGE_SET_REMOVED_KEY).toAnsi());
+                } else {
+                    if (YamlConfigUtils.isDeprecatedKey(key)) {
+                        terminal.writer()
+                                .println(
+                                        CliStrings.messageWarning(
+                                                        String.format(
+                                                                MESSAGE_SET_DEPRECATED_KEY,
+                                                                key,
+                                                                YamlConfigUtils
+                                                                        .getOptionNameWithDeprecatedKey(
+                                                                                key)))
+                                                .toAnsi());
+                    }
+                    terminal.writer()
+                            .println(
+                                    CliStrings.messageInfo(String.format(MESSAGE_RESET_KEY, key))
+                                            .toAnsi());
+                }
+                terminal.flush();
+            }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
-        printInfo(CliStrings.MESSAGE_RESET);
     }
 
     private void callSet(SqlCommandCall cmdCall) {

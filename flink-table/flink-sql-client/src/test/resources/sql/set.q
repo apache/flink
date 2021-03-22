@@ -104,3 +104,70 @@ Was expecting one of:
     "," ...
 
 !error
+
+# test reset remove key
+reset execution.max-idle-state-retention;
+[WARNING] The specified key is not supported anymore.
+!warning
+
+set execution.max-table-result-rows=100;
+[WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
+[INFO] Session property has been set.
+!warning
+
+# test reset the deprecated key
+reset execution.max-table-result-rows;
+[WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
+[INFO] Session property has been reset.
+!warning
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok
+
+
+set parallelism.default=3;
+[INFO] Session property has been set.
+!info
+
+# test reset option key
+reset parallelism.default;
+[INFO] Session property has been reset.
+!info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok
+
+set execution.attached=false;
+[INFO] Session property has been set.
+!info
+
+reset execution.attached;
+[INFO] Session property has been reset.
+!info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok

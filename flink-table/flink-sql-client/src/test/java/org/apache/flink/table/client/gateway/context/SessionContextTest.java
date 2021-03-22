@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
@@ -151,6 +152,188 @@ public class SessionContextTest {
                         .getConfig()
                         .getConfiguration()
                         .getBoolean(OBJECT_REUSE));
+    }
+
+    @Test
+    public void testSetAndResetKeyInYamlKey() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        sessionContext.set("execution.max-table-result-rows", "200000");
+        sessionContext.set("execution.result-mode", "table");
+
+        Assert.assertEquals(
+                "200000",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.max-table-result-rows"));
+
+        Assert.assertEquals(
+                "table",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.result-mode"));
+
+        sessionContext.reset("execution.result-mode");
+        Assert.assertEquals(
+                "changelog",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.result-mode"));
+        // no reset this key execution.max-table-result-rows
+        Assert.assertEquals(
+                "200000",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .toMap()
+                        .get("execution.max-table-result-rows"));
+    }
+
+    @Test
+    public void testSetAndResetKeyInConfigOptions() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        // table config option
+        sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
+        // runtime config option and Yaml specified value
+        sessionContext.set(MAX_PARALLELISM.key(), "128");
+        // runtime config option and doesn't have default value
+        sessionContext.set(NAME.key(), "test");
+        // runtime config from flink-conf
+        sessionContext.set(OBJECT_REUSE.key(), "false");
+
+        Assert.assertEquals(
+                "hive",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(TABLE_SQL_DIALECT));
+        Assert.assertEquals(
+                128,
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getInteger(MAX_PARALLELISM));
+        Assert.assertEquals(
+                "test",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(NAME));
+        Assert.assertFalse(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getBoolean(OBJECT_REUSE));
+
+        sessionContext.reset(TABLE_SQL_DIALECT.key());
+        Assert.assertEquals(
+                "default",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(TABLE_SQL_DIALECT));
+
+        sessionContext.reset(MAX_PARALLELISM.key());
+        Assert.assertEquals(
+                16,
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getInteger(MAX_PARALLELISM));
+
+        sessionContext.reset(NAME.key());
+        Assert.assertNull(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .get(NAME));
+
+        sessionContext.reset(OBJECT_REUSE.key());
+        Assert.assertTrue(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getBoolean(OBJECT_REUSE));
+    }
+
+    @Test
+    public void testSetAndResetKeyNotInYaml() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        // other property not in yaml and flink-conf
+        sessionContext.set("aa", "11");
+        sessionContext.set("bb", "22");
+
+        Assert.assertEquals(
+                "11",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(ConfigOptions.key("aa").stringType().noDefaultValue()));
+        Assert.assertEquals(
+                "22",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(ConfigOptions.key("bb").stringType().noDefaultValue()));
+
+        sessionContext.reset("aa");
+        Assert.assertNull(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(ConfigOptions.key("aa").stringType().noDefaultValue()));
+        Assert.assertEquals(
+                "22",
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(ConfigOptions.key("bb").stringType().noDefaultValue()));
+
+        sessionContext.reset("bb");
+        Assert.assertNull(
+                sessionContext
+                        .getExecutionContext()
+                        .getTableEnvironment()
+                        .getConfig()
+                        .getConfiguration()
+                        .getString(ConfigOptions.key("bb").stringType().noDefaultValue()));
     }
 
     // --------------------------------------------------------------------------------------------
