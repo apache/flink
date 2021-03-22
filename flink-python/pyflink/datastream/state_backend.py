@@ -23,7 +23,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Optional
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 __all__ = [
     'StateBackend',

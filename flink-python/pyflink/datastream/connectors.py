@@ -24,7 +24,7 @@ from pyflink.common.serialization import DeserializationSchema, Encoder, Seriali
 from pyflink.common.typeinfo import RowTypeInfo, TypeInformation
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class, to_jarray
+from pyflink.util.java_utils import load_java_class, to_jarray
 
 from py4j.java_gateway import java_import
 
