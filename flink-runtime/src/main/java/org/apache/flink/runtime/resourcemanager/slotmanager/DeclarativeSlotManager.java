@@ -555,10 +555,10 @@ public class DeclarativeSlotManager implements SlotManager {
         CompletableFuture<Void> slotAllocationResponseProcessingFuture =
                 requestFuture.handleAsync(
                         (Acknowledge acknowledge, Throwable throwable) -> {
-                            final AllocationID pendingSlotAllocation =
+                            final AllocationID currentAllocationForSlot =
                                     pendingSlotAllocations.get(slotId);
-                            if (pendingSlotAllocation == null
-                                    || !pendingSlotAllocation.equals(allocationId)) {
+                            if (currentAllocationForSlot == null
+                                    || !currentAllocationForSlot.equals(allocationId)) {
                                 LOG.debug(
                                         "Ignoring slot allocation update from task executor {} for slot {} and job {}, because the allocation was already completed or cancelled.",
                                         instanceId,
