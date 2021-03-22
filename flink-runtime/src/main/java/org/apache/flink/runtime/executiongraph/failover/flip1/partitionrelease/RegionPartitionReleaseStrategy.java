@@ -74,7 +74,10 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
         if (regionExecutionView.isFinished()) {
             final SchedulingPipelinedRegion pipelinedRegion =
                     schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
-            return filterReleasablePartitions(pipelinedRegion.getConsumedResults());
+            return filterReleasablePartitions(
+                    IterableUtils.flatMap(
+                            pipelinedRegion.getAllBlockingConsumedPartitionGroups(),
+                            schedulingTopology::getResultPartition));
         }
         return Collections.emptyList();
     }
@@ -100,6 +103,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     private List<IntermediateResultPartitionID> filterReleasablePartitions(
             final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
         return IterableUtils.toStream(schedulingResultPartitions)
+                .distinct()
                 .map(SchedulingResultPartition::getId)
                 .filter(this::areConsumerRegionsFinished)
                 .collect(Collectors.toList());

@@ -51,9 +51,10 @@ public interface PipelinedRegion<
     V getVertex(VID vertexId);
 
     /**
-     * Returns the results that this pipelined region consumes.
+     * Returns whether the vertex is in this pipelined region or not.
      *
-     * @return Iterable over all consumed results
+     * @param vertexId the vertex id used to look up
+     * @return the vertex is in this pipelined region or not
      */
-    Iterable<? extends R> getConsumedResults();
+    boolean contains(VID vertexId);
 }
