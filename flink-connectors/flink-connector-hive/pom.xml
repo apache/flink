@@ -873,6 +873,7 @@ under the License.
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr3-maven-plugin</artifactId>
+				<version>3.5.2</version>
 				<executions>
 					<execution>
 						<goals>
