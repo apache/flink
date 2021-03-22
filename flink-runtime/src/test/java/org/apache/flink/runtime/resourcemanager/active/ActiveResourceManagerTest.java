@@ -778,10 +778,11 @@ public class ActiveResourceManagerTest extends TestLogger {
                             // resource allocation takes longer than worker registration timeout
                             try {
                                 Thread.sleep(TESTING_START_WORKER_TIMEOUT_MS * 2);
-                                requestResourceFuture.complete(tmResourceId);
                             } catch (InterruptedException e) {
                                 fail();
                             }
+
+                            runInMainThread(() -> requestResourceFuture.complete(tmResourceId));
 
                             // worker registered, verify not released due to timeout
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
