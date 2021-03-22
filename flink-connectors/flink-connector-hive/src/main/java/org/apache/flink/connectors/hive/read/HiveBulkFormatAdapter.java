@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.src.util.ArrayResultIterator;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
 import org.apache.flink.orc.OrcColumnarRowFileInputFormat;
 import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
@@ -99,7 +100,8 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
         this.producedRowType = producedRowType;
         this.useMapRedReader = useMapRedReader;
         this.partitionFieldExtractor =
-                new PartitionFieldExtractorImpl(hiveShim, jobConfWrapper.getDefaultPartitionName());
+                new PartitionFieldExtractorImpl(
+                        hiveShim, JobConfUtils.getDefaultPartitionName(jobConfWrapper));
     }
 
     @Override

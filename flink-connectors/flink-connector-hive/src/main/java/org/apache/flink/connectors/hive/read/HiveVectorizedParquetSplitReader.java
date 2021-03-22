@@ -18,8 +18,8 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
@@ -69,7 +69,7 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
                         split.getHiveTablePartition().getPartitionSpec(),
                         fieldNames,
                         fieldTypes,
-                        new JobConfWrapper(jobConf).getDefaultPartitionName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         HiveShimLoader.loadHiveShim(hiveVersion));
         this.reader =
                 ParquetSplitReaderUtil.genPartColumnarRowReader(

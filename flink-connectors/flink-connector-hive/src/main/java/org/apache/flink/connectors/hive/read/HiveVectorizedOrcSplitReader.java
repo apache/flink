@@ -18,8 +18,8 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcSplitReaderUtil;
@@ -71,7 +71,7 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
                         split.getHiveTablePartition().getPartitionSpec(),
                         fieldNames,
                         fieldTypes,
-                        new JobConfWrapper(jobConf).getDefaultPartitionName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         HiveShimLoader.loadHiveShim(hiveVersion));
         this.reader =
                 hiveVersion.startsWith("1.")

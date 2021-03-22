@@ -21,8 +21,8 @@ package org.apache.flink.connectors.hive.read;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -145,7 +145,7 @@ public class HiveMapredSplitReader implements SplitReader {
         this.row = new GenericRowData(selectedFields.length);
         // set partition columns
         if (!partitionKeys.isEmpty()) {
-            String defaultPartitionName = new JobConfWrapper(jobConf).getDefaultPartitionName();
+            String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
             for (int i = 0; i < selectedFields.length; i++) {
                 if (selectedFields[i] >= structFields.size()) {
                     LogicalType partitionType = fieldTypes[selectedFields[i]].getLogicalType();
