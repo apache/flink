@@ -30,7 +30,7 @@ import java.util.Optional;
 public interface ReadableConfig {
 
     /**
-     * Reads a value using the metada included in {@link ConfigOption}. Returns the {@link
+     * Reads a value using the metadata included in {@link ConfigOption}. Returns the {@link
      * ConfigOption#defaultValue()} if value key not present in the configuration.
      *
      * @param option metadata of the option to read
@@ -41,7 +41,7 @@ public interface ReadableConfig {
     <T> T get(ConfigOption<T> option);
 
     /**
-     * Reads a value using the metada included in {@link ConfigOption}. In contrast to {@link
+     * Reads a value using the metadata included in {@link ConfigOption}. In contrast to {@link
      * #get(ConfigOption)} returns {@link Optional#empty()} if value not present.
      *
      * @param option metadata of the option to read
