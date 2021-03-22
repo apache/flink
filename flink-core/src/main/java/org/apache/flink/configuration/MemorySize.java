@@ -20,7 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.apache.flink.shaded.guava18.com.google.common.math.DoubleMath;
+
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -269,7 +272,16 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         int pos = 0;
 
         char current;
-        while (pos < len && (current = trimmed.charAt(pos)) >= '0' && current <= '9') {
+        boolean alreadyFractional = false;
+        while (pos < len
+                && (((current = trimmed.charAt(pos)) >= '0' && current <= '9') || current == '.')) {
+            if (current == '.') {
+                if (alreadyFractional) {
+                    throw new IllegalArgumentException(
+                            "The value '" + text + "' contains multiple decimal points.");
+                }
+                alreadyFractional = true;
+            }
             pos++;
         }
 
@@ -280,9 +292,9 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
             throw new NumberFormatException("text does not start with a number");
         }
 
-        final long value;
+        final double value;
         try {
-            value = Long.parseLong(number); // this throws a NumberFormatException on overflow
+            value = Double.parseDouble(number); // this throws a NumberFormatException on overflow
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
                     "The value '"
@@ -291,10 +303,21 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         }
 
         final long multiplier = parseUnit(unit).map(MemoryUnit::getMultiplier).orElse(1L);
-        final long result = value * multiplier;
+        final double fractionalResult = value * multiplier;
+
+        long result = 0;
+        boolean notInRange = false;
+        try {
+            result = DoubleMath.roundToLong(fractionalResult, RoundingMode.UP);
+        } catch (ArithmeticException e) {
+            if (e.getMessage().contains("not in range")) {
+                // throw the below overflow exception
+                notInRange = true;
+            }
+        }
 
         // check for overflow
-        if (result / multiplier != value) {
+        if (notInRange || fractionalResult / multiplier != value) {
             throw new IllegalArgumentException(
                     "The value '"
                             + text
