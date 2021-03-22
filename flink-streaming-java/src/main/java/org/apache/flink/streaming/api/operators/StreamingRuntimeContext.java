@@ -52,7 +52,6 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -161,8 +160,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     @Override
-    public Optional<JobID> getJobId() {
-        return Optional.of(taskEnvironment.getJobID());
+    public JobID getJobId() {
+        return taskEnvironment.getJobID();
     }
 
     @Override
