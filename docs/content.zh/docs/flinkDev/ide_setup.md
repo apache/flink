@@ -216,7 +216,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 ### Python 规范检查
 Apache Flink 的 Python 代码检查样式应在项目中引入 flake8 的外部工具。
 
-1. 将 flake8 安装在使用的 Python 解释器中（请参阅（[https://pypi.org/project/flake8/](https://pypi.org/project/flake8/)））。
+1. 将 flake8 安装在使用的 Python 解释器中（请参阅([https://pypi.org/project/flake8/](https://pypi.org/project/flake8/))）。
 2. 选择 "PyCharm → Preferences... → Tools → External Tools → +（在右侧页面的左下角）"，然后配置外部工具。
 3. 将 "Name" 设置为 "flake8"。
 4. 将 "Description" 设置为 "code style check"。
