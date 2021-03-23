@@ -200,7 +200,10 @@ under the License.
 							<!-- it was decided to remove the fold opperations in 1.12 -->
 							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
 							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
-						</excludes>
+
+                            <!-- added method to interface in 1.13 -->
+                            <exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
+                        </excludes>
 					</parameter>
 				</configuration>
 			</plugin>
