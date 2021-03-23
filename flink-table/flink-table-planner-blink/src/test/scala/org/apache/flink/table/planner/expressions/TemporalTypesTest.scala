@@ -288,6 +288,9 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "CAST(CAST(100.1234 as DECIMAL(38, 18)) AS TIMESTAMP_LTZ(3))",
       "1970-01-01 08:01:40.123")
+    testSqlApi(
+      "CAST(CAST(1616490480.123 AS DECIMAL(38, 18)) AS TIMESTAMP_LTZ(9))",
+      "2021-03-23 17:08:00.123000000")
 
     // TIMESTAMP_LTZ -> TIME
     testSqlApi(
@@ -370,6 +373,9 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DECIMAL(38, 6))",
       "123.123456")
     testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123456789")} AS DECIMAL(38, 9))",
+      "123.123456789")
+    testSqlApi(
       s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DECIMAL(38, 4))",
       "123.1235")
 
@@ -385,11 +391,12 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def tesInvalidCastBetweenNumericAndTimestamp(): Unit = {
     val castFromTimestampExceptionMsg = "The cast conversion from TIMESTAMP type to NUMERIC type" +
-      " is problematic, it's recommended to use UNIX_TIMESTAMP(CAST(timestampCol AS STRING))" +
-      " as an replacement."
+      " is not allowed,it's recommended to use" +
+      " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead."
+
     val castToTimestampExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP type" +
-      " is problematic, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(epochSeconds)) as" +
-      " an replacement."
+      " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
+      " instead, note the numeric is in seconds."
 
     testExpectedSqlException(
       "CAST(CAST(123 as TINYINT) AS TIMESTAMP)",
@@ -1580,64 +1587,64 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimestampLtzArithmetic(): Unit = {
     // TIMESTAMP_LTZ +/- INTERVAL should support nanosecond
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' YEAR",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' YEAR",
       "1971-02-01 00:00:00.123456789")
 
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' MONTH",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' MONTH",
       "1970-01-01 00:00:00.123456789")
 
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' DAY",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' DAY",
       "1970-02-02 00:00:00.123456789")
 
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' HOUR",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' HOUR",
       "1970-01-31 23:00:00.123456789")
 
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' MINUTE",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' MINUTE",
       "1970-02-01 00:01:00.123456789")
 
     testSqlApi(
-      s"${timestampTz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' SECOND",
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' SECOND",
       "1970-01-31 23:59:59.123456789")
 
     // test TIMESTAMPDIFF for TIMESTAMP_LTZ type
     testSqlApi(
-      s"TIMESTAMPDIFF(YEAR, ${timestampTz("1970-01-01 00:00:00.123456789")}," +
-        s" ${timestampTz("1971-01-02 01:02:03.123456789")})",
+      s"TIMESTAMPDIFF(YEAR, ${timestampLtz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123456789")})",
       "1")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123456789")}," +
-        s" ${timestampTz("1971-01-02 01:02:03.123456789")})",
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123456789")})",
       "12")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(DAY, ${timestampTz("1970-01-01 00:00:00.123")}," +
-        s" ${timestampTz("1971-01-02 01:02:03.123")})",
+      s"TIMESTAMPDIFF(DAY, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123")})",
       "366")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(HOUR, ${timestampTz("1970-01-01 00:00:00.123")}," +
-        s" ${timestampTz("1970-01-01 01:02:03.123")})",
+      s"TIMESTAMPDIFF(HOUR, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1970-01-01 01:02:03.123")})",
       "1")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(MINUTE, ${timestampTz("1970-01-01 01:02:03.123")}," +
-        s" ${timestampTz("1970-01-01 00:00:00")})",
+      s"TIMESTAMPDIFF(MINUTE, ${timestampLtz("1970-01-01 01:02:03.123")}," +
+        s" ${timestampLtz("1970-01-01 00:00:00")})",
       "-62")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
-        s" ${timestampTz("1970-01-01 00:02:03.234")})",
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1970-01-01 00:02:03.234")})",
       "123")
 
     // test null input
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, CAST(null AS TIMESTAMP_LTZ)," +
-        s" ${timestampTz("1970-01-01 00:02:03.234")})",
+        s" ${timestampLtz("1970-01-01 00:02:03.234")})",
       "null")
   }
 
@@ -1647,30 +1654,30 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     // unsupported operand type
     testExpectedSqlException(
-      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, TIME '00:00:01')",
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}, TIME '00:00:01')",
       exceptionMsg,
       classOf[CodeGenException])
 
     testExpectedSqlException(
-      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}, DATE '1970-01-01')",
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}, DATE '1970-01-01')",
       exceptionMsg,
       classOf[CodeGenException])
 
     testExpectedSqlException(
-      s"TIMESTAMPDIFF(MONTH, ${timestampTz("1970-01-01 00:00:00.123")}," +
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}," +
         s" TIMESTAMP '1970-01-01 00:00:00.123')",
       exceptionMsg,
       classOf[CodeGenException])
 
     testExpectedSqlException(
-      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}," +
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}," +
         s" TIME '00:00:00.123')",
       exceptionMsg,
       classOf[CodeGenException])
 
     // invalid operand type
     testExpectedSqlException(
-      s"TIMESTAMPDIFF(SECOND, ${timestampTz("1970-01-01 00:00:00.123")}, 'test_string_type')",
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}, 'test_string_type')",
       "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
         " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
         " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'")

@@ -115,7 +115,7 @@ public class DecimalDataTest {
         assertTrue(castToBoolean(castFrom(true, 5, 0)));
         assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
         assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
-        assertEquals(5000, castToTimestamp(castFrom("5", 5, 0)));
+        assertEquals(5000, castToTimestamp(castFrom("5", 5, 0)).getMillisecond());
 
         DecimalData newDecimal = castFrom(castFrom(10, 5, 2), 10, 4);
         assertEquals(10, newDecimal.precision());

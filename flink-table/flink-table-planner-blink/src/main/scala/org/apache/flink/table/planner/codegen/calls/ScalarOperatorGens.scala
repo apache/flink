@@ -1258,12 +1258,12 @@ object ScalarOperatorGens {
          (TIMESTAMP_WITHOUT_TIME_ZONE, DECIMAL) => {
       if (TIMESTAMP_WITHOUT_TIME_ZONE.equals(targetType.getTypeRoot)) {
         throw new ValidationException("The cast conversion from NUMERIC type to TIMESTAMP type" +
-          " is problematic, it's recommended to use" +
-          " TO_TIMESTAMP(FROM_UNIXTIME(epochSeconds)) as an replacement.")
+          " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
+          " instead, note the numeric is in seconds.")
       } else {
         throw new ValidationException("The cast conversion from TIMESTAMP type to NUMERIC type" +
-          " is problematic, it's recommended to use" +
-          " UNIX_TIMESTAMP(CAST(timestampCol AS STRING)) as an replacement.")
+          " is not allowed,it's recommended to use" +
+          " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.")
       }
     }
 
@@ -1284,17 +1284,21 @@ object ScalarOperatorGens {
     case (FLOAT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
          (DOUBLE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis((long) ($operandTerm * 1000)," +
-          s" (int)($operandTerm * 1000_000_000 % 1000_000))"
+        operandTerm =>
+          s"""
+             |$DECIMAL_UTIL.castToTimestamp(
+             |  $DECIMAL_UTIL.castFrom(
+             |    (double) $operandTerm,
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
+             """.stripMargin
       }
 
     // DECIMAL -> TimestampLtz
     case (DECIMAL, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
-          s"$TIMESTAMP_DATA.fromEpochMillis(" +
-            s"(long) ($DECIMAL_UTIL.doubleValue($operandTerm) * 1000), " +
-            s"(int)($DECIMAL_UTIL.doubleValue($operandTerm) * 1000_000_000 % 1000_000) )"
+          s"$DECIMAL_UTIL.castToTimestamp($operandTerm)"
       }
 
     // TimestampLtz -> Tinyint
@@ -1324,15 +1328,27 @@ object ScalarOperatorGens {
     // TimestampLtz -> Float
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, FLOAT) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((float) ($operandTerm.getMillisecond() / 1000.0" +
-          s" + $operandTerm.getNanoOfMillisecond() / 1000_000_000.0))"
+        operandTerm =>
+          s"""
+             |$DECIMAL_UTIL.castToFloat(
+             |  $DECIMAL_UTIL.castFrom(
+             |    $operandTerm,
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
+             """.stripMargin
       }
 
     // TimestampLtz -> Double
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DOUBLE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((double) ($operandTerm.getMillisecond() / 1000.0" +
-          s" + $operandTerm.getNanoOfMillisecond() / 1000_000_000.0))"
+        operandTerm =>
+          s"""
+             |$DECIMAL_UTIL.castToDouble(
+             |  $DECIMAL_UTIL.castFrom(
+             |    $operandTerm,
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
+             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
+             """.stripMargin
       }
 
     // TimestampLtz -> Decimal
@@ -1342,9 +1358,7 @@ object ScalarOperatorGens {
         operandTerm =>
           s"""
              |$DECIMAL_UTIL.castFrom(
-             |  ((double) ($operandTerm.getMillisecond() / 1000.0
-             |   + $operandTerm.getNanoOfMillisecond() / 1000_000_000.0)),
-             |  ${dt.getPrecision}, ${dt.getScale})
+             |  $operandTerm, ${dt.getPrecision}, ${dt.getScale})
            """.stripMargin
       }
 
