@@ -43,15 +43,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-/** Handler implementation for the {@link OperatorCoordinator OperatorCoordinators}. */
-public class OperatorCoordinatorHandlerImplementation implements OperatorCoordinatorHandler {
+/** Default handler for the {@link OperatorCoordinator OperatorCoordinators}. */
+public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
     private final ExecutionGraph executionGraph;
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
     private final Consumer<Throwable> globalFailureHandler;
 
-    public OperatorCoordinatorHandlerImplementation(
+    public DefaultOperatorCoordinatorHandler(
             ExecutionGraph executionGraph, Consumer<Throwable> globalFailureHandler) {
         this.executionGraph = executionGraph;
 
@@ -59,7 +59,7 @@ public class OperatorCoordinatorHandlerImplementation implements OperatorCoordin
         this.globalFailureHandler = globalFailureHandler;
     }
 
-    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap(
+    private static Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap(
             ExecutionGraph executionGraph) {
         Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
         for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {

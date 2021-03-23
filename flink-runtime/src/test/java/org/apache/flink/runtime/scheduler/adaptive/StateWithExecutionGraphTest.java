@@ -19,19 +19,11 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -94,7 +86,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
             stateWithExecutionGraph.onLeave(AdaptiveSchedulerTest.DummyState.class);
 
-            assertThat(testingOperatorCoordinatorHandler.isRunning(), is(false));
+            assertThat(testingOperatorCoordinatorHandler.isDisposed(), is(true));
         }
     }
 
@@ -160,12 +152,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
     private TestingStateWithExecutionGraph createStateWithExecutionGraph(
             MockStateWithExecutionGraphContext context, ExecutionGraph executionGraph) {
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandlerImplementation(
-                        executionGraph,
-                        globalFailure -> {
-                            throw new FlinkRuntimeException(
-                                    "No global failures are expected", globalFailure);
-                        });
+                new TestingOperatorCoordinatorHandler();
         return createStateWithExecutionGraph(context, executionGraph, operatorCoordinatorHandler);
     }
 
@@ -230,41 +217,6 @@ public class StateWithExecutionGraphTest extends TestLogger {
         @Override
         void onGloballyTerminalState(JobStatus globallyTerminalState) {
             globallyTerminalStateFuture.complete(globallyTerminalState);
-        }
-    }
-
-    private static class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
-        private boolean running = false;
-
-        @Override
-        public void initializeOperatorCoordinators(
-                ComponentMainThreadExecutor mainThreadExecutor) {}
-
-        @Override
-        public void startAllOperatorCoordinators() {
-            running = true;
-        }
-
-        @Override
-        public void disposeAllOperatorCoordinators() {
-            running = false;
-        }
-
-        @Override
-        public void deliverOperatorEventToCoordinator(
-                ExecutionAttemptID taskExecutionId, OperatorID operatorId, OperatorEvent evt)
-                throws FlinkException {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
-                OperatorID operator, CoordinationRequest request) throws FlinkException {
-            throw new UnsupportedOperationException();
-        }
-
-        public boolean isRunning() {
-            return running;
         }
     }
 }

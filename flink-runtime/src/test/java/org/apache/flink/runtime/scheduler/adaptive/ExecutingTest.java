@@ -53,7 +53,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -104,8 +103,8 @@ public class ExecutingTest extends TestLogger {
     public void testDisposalOfOperatorCoordinatorsOnLeaveOfStateWithExecutionGraph()
             throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            MockOperatorCoordinatorHandler operatorCoordinator =
-                    new MockOperatorCoordinatorHandler();
+            TestingOperatorCoordinatorHandler operatorCoordinator =
+                    new TestingOperatorCoordinatorHandler();
             Executing exec =
                     new ExecutingStateBuilder()
                             .setOperatorCoordinatorHandler(operatorCoordinator)
@@ -370,12 +369,7 @@ public class ExecutingTest extends TestLogger {
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
-            operatorCoordinatorHandler =
-                    new OperatorCoordinatorHandlerImplementation(
-                            executionGraph,
-                            (throwable) -> {
-                                throw new RuntimeException("Error in test", throwable);
-                            });
+            operatorCoordinatorHandler = new TestingOperatorCoordinatorHandler();
         }
 
         public ExecutingStateBuilder setExecutionGraph(ExecutionGraph executionGraph) {
@@ -687,29 +681,6 @@ public class ExecutingTest extends TestLogger {
         @Override
         public Logger getLogger() {
             return null;
-        }
-    }
-
-    private static class MockOperatorCoordinatorHandler
-            extends OperatorCoordinatorHandlerImplementation {
-
-        private boolean disposed = false;
-
-        public MockOperatorCoordinatorHandler() throws JobException, JobExecutionException {
-            super(
-                    TestingDefaultExecutionGraphBuilder.newBuilder().build(),
-                    (throwable) -> {
-                        throw new RuntimeException("Error in test", throwable);
-                    });
-        }
-
-        @Override
-        public void disposeAllOperatorCoordinators() {
-            disposed = true;
-        }
-
-        public boolean isDisposed() {
-            return disposed;
         }
     }
 

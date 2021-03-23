@@ -31,16 +31,40 @@ import java.util.concurrent.CompletableFuture;
 
 /** Handler for the {@link OperatorCoordinator OperatorCoordinators}. */
 public interface OperatorCoordinatorHandler {
+
+    /**
+     * Initialize operator coordinators.
+     *
+     * @param mainThreadExecutor Executor for submitting work to the main thread.
+     */
     void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor);
 
+    /** Start all operator coordinators. */
     void startAllOperatorCoordinators();
 
+    /** Dispose all operator coordinators. */
     void disposeAllOperatorCoordinators();
 
+    /**
+     * Delivers an OperatorEvent to a {@link OperatorCoordinator}.
+     *
+     * @param taskExecutionId Execution attempt id of the originating task.
+     * @param operatorId OperatorId of the target OperatorCoordinator.
+     * @param event Event to deliver to the OperatorCoordinator.
+     * @throws FlinkException If no coordinator is registered for operator.
+     */
     void deliverOperatorEventToCoordinator(
-            ExecutionAttemptID taskExecutionId, OperatorID operatorId, OperatorEvent evt)
+            ExecutionAttemptID taskExecutionId, OperatorID operatorId, OperatorEvent event)
             throws FlinkException;
 
+    /**
+     * Deliver coordination request from the client to the coordinator.
+     *
+     * @param operator Id of target operator.
+     * @param request request for the operator.
+     * @return Future with the response.
+     * @throws FlinkException If the coordinator doesn't exist or if it can not handle the request.
+     */
     CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException;
 }
