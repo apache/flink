@@ -71,7 +71,9 @@ public class TestTableResult implements TableResult {
     }
 
     @Override
-    public void await() {}
+    public void await() throws InterruptedException {
+        Thread.sleep(60000);
+    }
 
     @Override
     public void await(long timeout, TimeUnit unit) {}

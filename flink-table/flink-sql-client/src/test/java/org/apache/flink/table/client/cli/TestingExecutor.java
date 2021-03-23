@@ -102,7 +102,7 @@ class TestingExecutor implements Executor {
 
     @Override
     public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-        return null;
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override

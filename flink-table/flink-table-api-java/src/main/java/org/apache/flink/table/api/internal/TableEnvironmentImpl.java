@@ -153,9 +153,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
@@ -720,7 +722,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResult executeInternal(List<ModifyOperation> operations) {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
-        return executeInternal(transformations, sinkIdentifierNames);
+        TableResult result = executeInternal(transformations, sinkIdentifierNames);
+        if (tableConfig.getConfiguration().get(TABLE_DML_SYNC)) {
+            try {
+                result.await();
+            } catch (InterruptedException | ExecutionException e) {
+                result.getJobClient().ifPresent(JobClient::cancel);
+                throw new TableException("Fail to wait execution finish.", e);
+            }
+        }
+        return result;
     }
 
     private TableResult executeInternal(

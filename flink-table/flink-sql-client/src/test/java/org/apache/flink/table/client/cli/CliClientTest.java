@@ -56,6 +56,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,7 +68,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.FutureTask;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -130,6 +133,38 @@ public class CliClientTest extends TestLogger {
         }
     }
 
+    @Test
+    public void verifyCancelSubmitInSyncMode() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor(true);
+        String sessionId = mockExecutor.openSession("test-session");
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
+
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyTempFile(),
+                        null)) {
+            FutureTask<Boolean> task =
+                    new FutureTask<>(() -> client.submitUpdate(INSERT_INTO_STATEMENT));
+            Thread thread = new Thread(task);
+            thread.start();
+
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
+
+            thread.interrupt();
+            assertFalse(task.get());
+            assertTrue(
+                    outputStream
+                            .toString()
+                            .contains("java.lang.InterruptedException: sleep interrupted"));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private void verifyUpdateSubmission(
@@ -189,13 +224,25 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
+        public boolean isSync = false;
+        public boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
+        private Configuration configuration = new Configuration();
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
         private final SqlParserHelper helper = new SqlParserHelper();
 
         @Override
         public void start() throws SqlExecutionException {}
+
+        public MockExecutor() {
+            this(false);
+        }
+
+        public MockExecutor(boolean isSync) {
+            configuration.set(TABLE_DML_SYNC, isSync);
+            this.isSync = isSync;
+        }
 
         @Override
         public String openSession(@Nullable String sessionId) throws SqlExecutionException {
@@ -247,6 +294,14 @@ public class CliClientTest extends TestLogger {
                 throw new SqlExecutionException("Fail execution.");
             }
             if (operation instanceof ModifyOperation || operation instanceof QueryOperation) {
+                if (isSync) {
+                    isAwait = true;
+                    try {
+                        Thread.sleep(Long.MAX_VALUE);
+                    } catch (InterruptedException e) {
+                        throw new SqlExecutionException("Fail to execute", e);
+                    }
+                }
                 return new TestTableResult(
                         new TestingJobClient(),
                         ResultKind.SUCCESS_WITH_CONTENT,

@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.core.execution.JobClient
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableResultImpl.PrintStyle
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.catalog._
@@ -595,6 +596,12 @@ abstract class TableEnvImpl(
         // use sink identifier name as field name
         columns.add(Column.physical(sinkIdentifierNames(idx), DataTypes.BIGINT()))
         affectedRowCounts(idx) = -1L
+      }
+      if (config.getConfiguration.get(TableConfigOptions.TABLE_DML_SYNC)) {
+        throw new IllegalArgumentException(
+          "It's always to submit job in async when table " +
+          "environment is in BATCH mode with OLD planner. " +
+            "Please set the option `table.dml-sync` false.")
       }
       TableResultImpl.builder()
         .jobClient(jobClient)

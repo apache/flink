@@ -193,12 +193,18 @@ public final class CliStrings {
     public static final String MESSAGE_SUBMITTING_STATEMENT =
             "Submitting SQL update statement to the cluster...";
 
+    public static final String MESSAGE_FINISH_STATEMENT =
+            "Complete execution of the SQL update statement.";
+
     public static final String MESSAGE_STATEMENT_SUBMITTED =
             "Table update statement has been successfully submitted to the cluster:";
 
     public static final String MESSAGE_WILL_EXECUTE = "Executing the following statement:";
 
     public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
+
+    public static final String MESSAGE_WAIT_EXECUTE =
+            "Execute statement in sync mode. Please wait for the execution finish...";
 
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
 
