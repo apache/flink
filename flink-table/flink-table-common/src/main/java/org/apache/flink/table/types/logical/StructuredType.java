@@ -77,6 +77,7 @@ import java.util.stream.Collectors;
  */
 @PublicEvolving
 public final class StructuredType extends UserDefinedType {
+    private static final long serialVersionUID = 1L;
 
     public static final String FORMAT = "*%s*";
 
@@ -87,6 +88,7 @@ public final class StructuredType extends UserDefinedType {
 
     /** Defines an attribute of a {@link StructuredType}. */
     public static final class StructuredAttribute implements Serializable {
+        private static final long serialVersionUID = 1L;
 
         private final String name;
 

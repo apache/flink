@@ -56,6 +56,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class DayTimeIntervalType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int MIN_DAY_PRECISION = 1;
 
