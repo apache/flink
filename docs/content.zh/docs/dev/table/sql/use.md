@@ -100,6 +100,15 @@ tEnv.executeSql("SHOW DATABASES").print();
 // change default database
 tEnv.executeSql("USE db1");
 
+// change module resolution order and enabled status
+tEnv.executeSql("USE MODULES hive");
+tEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -139,6 +148,15 @@ tEnv.executeSql("SHOW DATABASES").print()
 // change default database
 tEnv.executeSql("USE db1")
 
+// change module resolution order and enabled status
+tEnv.executeSql("USE MODULES hive")
+tEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -178,6 +196,15 @@ table_env.execute_sql("SHOW DATABASES").print()
 # change default database
 table_env.execute_sql("USE db1")
 
+# change module resolution order and enabled status
+table_env.execute_sql("USE MODULES hive")
+table_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive |  true |
+# |        core | false |
+# +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -201,6 +228,16 @@ db1
 
 Flink SQL> USE db1;
 
+Flink SQL> USE MODULES hive;
+[INFO] Use modules succeeded!
+Flink SQL> SHOW FULL MODULES;
++-------------+-------+
+| module name |  used |
++-------------+-------+
+|        hive |  true |
+|        core | false |
++-------------+-------+
+2 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -215,6 +252,11 @@ USE CATALOG catalog_name
 
 设置当前的 catalog。所有后续命令未显式指定 catalog 的将使用此 catalog。如果指定的的 catalog 不存在，则抛出异常。默认的当前 catalog 是 `default_catalog`。
 
+## USE MODULES
+```sql
+USE MODULES module_name1[, module_name2, ...]
+```
+Set the enabled modules with declared order. All subsequent commands will resolve metadata(functions/user-defined types/rules, *etc.*) within enabled modules and follow resolution order. A module is used by default when it is loaded. Loaded modules will become disabled if not used by `USE MODULES` statement. The default loaded and enabled module is `core`.
 
 ## USE
 
