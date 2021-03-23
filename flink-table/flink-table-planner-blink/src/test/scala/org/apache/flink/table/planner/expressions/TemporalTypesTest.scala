@@ -379,6 +379,17 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DECIMAL(38, 4))",
       "123.1235")
 
+    // test cast between TIMESTAMP_LTZ and TIMESTAMP_LTZ
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(3))",
+      "1970-01-01 08:00:01.123")
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(6))",
+      "1970-01-01 08:00:01.123456")
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(9))",
+      "1970-01-01 08:00:01.123456000")
+
     // test cast with null value
     testSqlApi(
       s"CAST(CAST(null AS BIGINT) AS TIMESTAMP_LTZ(3))",

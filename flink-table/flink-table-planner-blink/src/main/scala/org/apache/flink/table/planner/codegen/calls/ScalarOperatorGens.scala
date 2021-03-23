@@ -1286,12 +1286,9 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           s"""
-             |$DECIMAL_UTIL.castToTimestamp(
-             |  $DECIMAL_UTIL.castFrom(
-             |    (double) $operandTerm,
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
-             """.stripMargin
+              |$TIMESTAMP_DATA.fromEpochMillis((long) ($operandTerm * 1000),
+              |(int) (($operandTerm - (int) $operandTerm) * 1000_000_000 % 1000_000))
+              """.stripMargin
       }
 
     // DECIMAL -> TimestampLtz
@@ -1330,12 +1327,9 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           s"""
-             |$DECIMAL_UTIL.castToFloat(
-             |  $DECIMAL_UTIL.castFrom(
-             |    $operandTerm,
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
-             """.stripMargin
+             |((float) ($operandTerm.getMillisecond() / 1000.0 +
+             |$operandTerm.getNanoOfMillisecond() / 1000_000_000.0))
+          """.stripMargin
       }
 
     // TimestampLtz -> Double
@@ -1343,12 +1337,9 @@ object ScalarOperatorGens {
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
           s"""
-             |$DECIMAL_UTIL.castToDouble(
-             |  $DECIMAL_UTIL.castFrom(
-             |    $operandTerm,
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getPrecision(),
-             |    $DECIMAL_UTIL.DECIMAL_SYSTEM_DEFAULT.getScale()))
-             """.stripMargin
+             |((double) ($operandTerm.getMillisecond() / 1000.0 +
+             |$operandTerm.getNanoOfMillisecond() / 1000_000_000.0))
+          """.stripMargin
       }
 
     // TimestampLtz -> Decimal
