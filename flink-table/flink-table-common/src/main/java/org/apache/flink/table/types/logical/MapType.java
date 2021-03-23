@@ -40,6 +40,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class MapType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final String FORMAT = "MAP<%s, %s>";
 

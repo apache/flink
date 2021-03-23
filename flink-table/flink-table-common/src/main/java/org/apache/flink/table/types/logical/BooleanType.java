@@ -31,6 +31,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class BooleanType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "BOOLEAN";
 
