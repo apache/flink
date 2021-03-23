@@ -35,6 +35,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.api.utils.output.OutputWithTimerRowHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.types.Row;
@@ -122,7 +124,9 @@ public class PythonKeyedProcessOperator<OUT>
     /** OutputStream Wrapper. */
     private transient DataOutputViewStreamWrapper baosWrapper;
 
-    private transient TimestampedCollector<OUT> collector;
+    private transient OutputWithTimerRowHandler runnerOutputHandler;
+
+    private transient Object keyForTimerService;
 
     public PythonKeyedProcessOperator(
             Configuration config,
@@ -143,7 +147,8 @@ public class PythonKeyedProcessOperator<OUT>
         // keyData, real data
         runnerInputTypeInfo =
                 Types.ROW(Types.BYTE, Types.LONG, Types.LONG, keyTypeInfo, this.inputTypeInfo);
-        runnerOutputTypeInfo = Types.ROW(Types.BYTE, Types.LONG, keyTypeInfo, this.outputTypeInfo);
+        runnerOutputTypeInfo =
+                OutputWithTimerRowHandler.getRunnerOutputTypeInfo(outputTypeInfo, keyTypeInfo);
         keyTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         keyTypeInfo);
@@ -165,7 +170,13 @@ public class PythonKeyedProcessOperator<OUT>
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
-        this.collector = new TimestampedCollector<>(output);
+        runnerOutputHandler =
+                new OutputWithTimerRowHandler(
+                        getKeyedStateBackend(),
+                        timerService,
+                        new TimestampedCollector<>(output),
+                        this);
+
         super.open();
     }
 
@@ -177,13 +188,13 @@ public class PythonKeyedProcessOperator<OUT>
     @Override
     public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
         bufferedTimestamp.offer(timer.getTimestamp());
-        processTimer(false, timer);
+        processTimer(TimeDomain.EVENT_TIME, timer);
     }
 
     @Override
     public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
         bufferedTimestamp.offer(Long.MIN_VALUE);
-        processTimer(true, timer);
+        processTimer(TimeDomain.PROCESSING_TIME, timer);
     }
 
     @Override
@@ -232,12 +243,7 @@ public class PythonKeyedProcessOperator<OUT>
         } else {
             bais.setBuffer(rawResult, 0, length);
             Row runnerOutput = (Row) runnerOutputSerializer.deserialize(baisWrapper);
-            if (runnerOutput.getField(0) != null) {
-                registerTimer(runnerOutput);
-            } else {
-                collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-                collector.collect((OUT) runnerOutput.getField(3));
-            }
+            runnerOutputHandler.accept(runnerOutput, bufferedTimestamp.peek());
         }
     }
 
@@ -262,15 +268,15 @@ public class PythonKeyedProcessOperator<OUT>
      * input data is a Row containing 4 fields: TimerFlag 0 for proc time, 1 for event time;
      * Timestamp of the fired timer; Current watermark and the key of the timer.
      *
-     * @param procTime Whether is it a proc time timer, otherwise event time timer.
+     * @param timeDomain The type of the timer.
      * @param timer The fired timer.
      * @throws Exception The runnerInputSerializer might throw exception.
      */
-    private void processTimer(boolean procTime, InternalTimer<Row, VoidNamespace> timer)
+    private void processTimer(TimeDomain timeDomain, InternalTimer<Row, VoidNamespace> timer)
             throws Exception {
         long time = timer.getTimestamp();
-        Row timerKey = Row.of(timer.getKey());
-        if (procTime) {
+        Row timerKey = timer.getKey();
+        if (timeDomain == TimeDomain.PROCESSING_TIME) {
             reusableTimerData.setField(
                     0, PythonOperatorUtils.KeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value);
         } else {
@@ -289,33 +295,17 @@ public class PythonKeyedProcessOperator<OUT>
     }
 
     /**
-     * Handler the timer registration request from python user defined function. Before registering
-     * the timer, we must set the current key to be the key when the timer is register in python
-     * side.
-     *
-     * @param row The timer registration request data.
+     * As the beam state gRPC service will access the KeyedStateBackend in parallel with this
+     * operator, we must override this method to prevent changing the current key of the
+     * KeyedStateBackend while the beam service is handling requests.
      */
-    private void registerTimer(Row row) {
-        synchronized (getKeyedStateBackend()) {
-            byte type = (byte) row.getField(0);
-            long time = (long) row.getField(1);
-            Object timerKey = ((Row) (row.getField(2))).getField(0);
-            setCurrentKey(timerKey);
-            if (type
-                    == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER
-                            .value) {
-                this.timerService.registerEventTimeTimer(time);
-            } else if (type
-                    == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER
-                            .value) {
-                this.timerService.registerProcessingTimeTimer(time);
-            } else if (type
-                    == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value) {
-                this.timerService.deleteEventTimeTimer(time);
-            } else if (type
-                    == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value) {
-                this.timerService.deleteProcessingTimeTimer(time);
-            }
-        }
+    @Override
+    public void setCurrentKey(Object key) {
+        keyForTimerService = key;
+    }
+
+    @Override
+    public Object getCurrentKey() {
+        return keyForTimerService;
     }
 }

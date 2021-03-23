@@ -175,19 +175,6 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
             free(self._end_message)
 
 
-cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
-
-    def __init__(self, field_coder):
-        self._single_field_coder = field_coder
-
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
-        for value in iter_value:
-            self._single_field_coder.encode_to_stream(value, output_stream)
-
-    cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
-        return self._single_field_coder.decode_from_stream(input_stream)
-
-
 cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
 
     def __init__(self, field_coder):
