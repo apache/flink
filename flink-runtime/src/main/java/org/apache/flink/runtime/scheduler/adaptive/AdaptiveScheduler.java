@@ -78,6 +78,7 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -646,7 +647,7 @@ public class AdaptiveScheduler
                 new ExecutionGraphHandler(
                         executionGraph, LOG, ioExecutor, componentMainThreadExecutor);
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
+                new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(componentMainThreadExecutor);
         operatorCoordinatorHandler.startAllOperatorCoordinators();
 

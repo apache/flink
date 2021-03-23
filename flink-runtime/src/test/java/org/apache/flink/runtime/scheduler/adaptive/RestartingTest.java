@@ -119,11 +119,7 @@ public class RestartingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        executionGraph,
-                        (throwable) -> {
-                            throw new RuntimeException("Error in test", throwable);
-                        });
+                new TestingOperatorCoordinatorHandler();
         executionGraph.transitionToRunning();
         return new Restarting(
                 ctx,
