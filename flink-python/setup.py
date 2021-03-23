@@ -279,6 +279,7 @@ run sdist.
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
+                'pyflink.fn_execution.utils',
                 'pyflink.metrics',
                 'pyflink.ml',
                 'pyflink.ml.api',

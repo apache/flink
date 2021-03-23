@@ -26,7 +26,7 @@ from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssign
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic, RuntimeContext
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction, \
-    ReduceFunction
+    ReduceFunction, KeyedCoProcessFunction
 from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
@@ -136,6 +136,28 @@ class DataStreamTests(PyFlinkTestCase):
         results.sort()
         self.assertEqual(expected, results)
 
+    def test_keyed_co_process_function(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1.connect(ds2) \
+            .key_by(lambda x: x[0], lambda x: x[0]) \
+            .process(MyKeyedCoProcessFunction()) \
+            .add_sink(self.test_sink)
+        self.env.execute('co_map_function_test')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('a', 1)>",
+                    "<Row('b', 1)>",
+                    "<Row('b', 2)>",
+                    "<Row('c', 1)>",
+                    "<Row('c', 2)>",
+                    "<Row('d', 1)>"]
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
     def test_connected_streams_with_dependency(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
@@ -177,7 +199,7 @@ class DataStreamTests(PyFlinkTestCase):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_key_by_on_connect_stream(self):
+    def test_key_by_and_co_map(self):
         ds1 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()])) \
             .key_by(MyKeySelector(), key_type_info=Types.INT())
@@ -189,20 +211,26 @@ class DataStreamTests(PyFlinkTestCase):
                 self.pre1 = None
                 self.pre2 = None
 
+            def open(self, runtime_context: RuntimeContext):
+                self.pre1 = runtime_context.get_state(
+                    ValueStateDescriptor("pre1", Types.STRING()))
+                self.pre2 = runtime_context.get_state(
+                    ValueStateDescriptor("pre2", Types.STRING()))
+
             def map1(self, value):
                 if value[0] == 'b':
-                    assert self.pre1 == 'a'
+                    assert self.pre1.value() == 'a'
                 if value[0] == 'd':
-                    assert self.pre1 == 'c'
-                self.pre1 = value[0]
+                    assert self.pre1.value() == 'c'
+                self.pre1.update(value[0])
                 return value
 
             def map2(self, value):
                 if value[0] == 'b':
-                    assert self.pre2 == 'a'
+                    assert self.pre2.value() == 'a'
                 if value[0] == 'd':
-                    assert self.pre2 == 'c'
-                self.pre2 = value[0]
+                    assert self.pre2.value() == 'c'
+                self.pre2.update(value[0])
                 return value
 
         ds1.connect(ds2)\
@@ -289,6 +317,22 @@ class DataStreamTests(PyFlinkTestCase):
         self.env.execute('co_flat_map_function_test')
         results = self.test_sink.get_results(False)
         expected = ['2', '2', '3', '3', '4', '4', 'b']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_key_by_and_co_flat_map(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c"), ("a", "a")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).key_by(lambda x: 1, lambda x: 1) \
+            .flat_map(MyRichCoFlatMapFunction(), output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('co_flat_map_function_test')
+        results = self.test_sink.get_results(False)
+        expected = ['2', '2', '3', '3', '4', '4', 'a', 'b', 'c']
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -1110,3 +1154,49 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
     def flat_map2(self, value):
         if value[0] == 'b':
             yield value[0]
+
+
+class MyRichCoFlatMapFunction(CoFlatMapFunction):
+
+    def __init__(self):
+        self.map_state = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.map_state = runtime_context.get_map_state(
+            MapStateDescriptor("map", Types.STRING(), Types.BOOLEAN()))
+
+    def flat_map1(self, value):
+        yield str(value[0] + 1)
+        yield str(value[0] + 1)
+
+    def flat_map2(self, value):
+        if value[0] not in self.map_state:
+            self.map_state[value[0]] = True
+            yield value[0]
+
+
+class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
+
+    def __init__(self):
+        self.count_state = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.count_state = runtime_context.get_state(ValueStateDescriptor("count", Types.INT()))
+
+    def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        count = self.count_state.value()
+        if count is None:
+            count = 1
+        else:
+            count += 1
+        self.count_state.update(count)
+        return [Row(value[0], count)]
+
+    def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        count = self.count_state.value()
+        if count is None:
+            count = 1
+        else:
+            count += 1
+        self.count_state.update(count)
+        return [Row(value[0], count)]

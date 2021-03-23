@@ -19,7 +19,7 @@ import abc
 import time
 from functools import reduce
 from itertools import chain
-from typing import List, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict, Union
 
 from apache_beam.coders import PickleCoder
 
@@ -27,7 +27,8 @@ from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListState
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
     AggregatingStateDescriptor, AggregatingState
 from pyflink.datastream import TimeDomain, TimerService
-from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction
+from pyflink.datastream.functions import RuntimeContext, ProcessFunction, KeyedProcessFunction, \
+    KeyedCoProcessFunction
 from pyflink.datastream.timerservice import TimerOperandType, InternalTimer, InternalTimerImpl
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.state_data_view import extract_data_view_specs
@@ -558,7 +559,7 @@ class DataStreamStatelessFunctionOperation(Operation):
         return func, [user_defined_func]
 
 
-class InternalRuntimeContext(RuntimeContext):
+class StreamingRuntimeContext(RuntimeContext):
 
     def __init__(self,
                  task_name: str,
@@ -568,31 +569,122 @@ class InternalRuntimeContext(RuntimeContext):
                  index_of_this_subtask: int,
                  attempt_number: int,
                  job_parameters: Dict[str, str],
-                 keyed_state_backend: RemoteKeyedStateBackend):
-        super(InternalRuntimeContext, self).__init__(
-            task_name, task_name_with_subtasks, number_of_parallel_subtasks,
-            max_number_of_parallel_subtasks, index_of_this_subtask, attempt_number,
-            job_parameters)
+                 keyed_state_backend: Union[RemoteKeyedStateBackend, None]):
+        self._task_name = task_name
+        self._task_name_with_subtasks = task_name_with_subtasks
+        self._number_of_parallel_subtasks = number_of_parallel_subtasks
+        self._max_number_of_parallel_subtasks = max_number_of_parallel_subtasks
+        self._index_of_this_subtask = index_of_this_subtask
+        self._attempt_number = attempt_number
+        self._job_parameters = job_parameters
         self._keyed_state_backend = keyed_state_backend
 
+    def get_task_name(self) -> str:
+        """
+        Returns the name of the task in which the UDF runs, as assigned during plan construction.
+        """
+        return self._task_name
+
+    def get_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the parallelism with which the parallel task runs.
+        """
+        return self._number_of_parallel_subtasks
+
+    def get_max_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the number of max-parallelism with which the parallel task runs.
+        """
+        return self._max_number_of_parallel_subtasks
+
+    def get_index_of_this_subtask(self) -> int:
+        """
+        Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+        parallelism-1 (parallelism as returned by
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`).
+        """
+        return self._index_of_this_subtask
+
+    def get_attempt_number(self) -> int:
+        """
+        Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+        """
+        return self._attempt_number
+
+    def get_task_name_with_subtasks(self) -> str:
+        """
+        Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+        where 3 would be (:func:`~RuntimeContext.get_index_of_this_subtask` + 1), and 6 would be
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`.
+        """
+        return self._task_name_with_subtasks
+
+    def get_job_parameter(self, key: str, default_value: str):
+        """
+        Gets the global job parameter value associated with the given key as a string.
+        """
+        return self._job_parameters[key] if key in self._job_parameters else default_value
+
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
-        return self._keyed_state_backend.get_value_state(state_descriptor.name, PickleCoder())
+        if self._keyed_state_backend:
+            return self._keyed_state_backend.get_value_state(state_descriptor.name, PickleCoder())
+        else:
+            raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
-        return self._keyed_state_backend.get_list_state(state_descriptor.name, PickleCoder())
+        if self._keyed_state_backend:
+            return self._keyed_state_backend.get_list_state(state_descriptor.name, PickleCoder())
+        else:
+            raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
-        return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
-                                                       PickleCoder())
+        if self._keyed_state_backend:
+            return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
+                                                           PickleCoder())
+        else:
+            raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
-        return self._keyed_state_backend.get_reducing_state(
-            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
+        if self._keyed_state_backend:
+            return self._keyed_state_backend.get_reducing_state(
+                state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
+        else:
+            raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_aggregating_state(
             self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
-        return self._keyed_state_backend.get_aggregating_state(
-            state_descriptor.get_name(), PickleCoder(), state_descriptor.get_agg_function())
+        if self._keyed_state_backend:
+            return self._keyed_state_backend.get_aggregating_state(
+                state_descriptor.get_name(), PickleCoder(), state_descriptor.get_agg_function())
+        else:
+            raise Exception("This state is only accessible by functions executed on a KeyedStream.")
+
+
+class DataStreamStatelessFunctionOperation(Operation):
+
+    def __init__(self, spec):
+        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
+
+    def open(self):
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'open'):
+                runtime_context = StreamingRuntimeContext(
+                    self.spec.serialized_fn.runtime_context.task_name,
+                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                    self.spec.serialized_fn.runtime_context.attempt_number,
+                    {p.key: p.value
+                     for p in self.spec.serialized_fn.runtime_context.job_parameters},
+                    None
+                )
+                user_defined_func.open(runtime_context)
+
+    def generate_func(self, serialized_fn):
+        func, user_defined_func = operation_utils.extract_data_stream_stateless_function(
+            serialized_fn)
+        return func, [user_defined_func]
 
 
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
@@ -670,7 +762,7 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
     def open(self):
         for user_defined_func in self.user_defined_funcs:
             if hasattr(user_defined_func, 'open'):
-                runtime_context = InternalRuntimeContext(
+                runtime_context = StreamingRuntimeContext(
                     self.spec.serialized_fn.runtime_context.task_name,
                     self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
                     self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
@@ -693,33 +785,34 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         def __init__(self):
             self.buf = []
 
-        def collect_reg_proc_timer(self, a: Any, key: Any):
+        def collect_reg_proc_timer(self, a: int, key: Row):
             self.buf.append(
-                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value,
+                (TimerOperandType.REGISTER_PROC_TIMER.value,
                  a, key, None))
 
-        def collect_reg_event_timer(self, a: Any, key: Any):
+        def collect_reg_event_timer(self, a: int, key: Row):
             self.buf.append(
-                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER.value,
+                (TimerOperandType.REGISTER_EVENT_TIMER.value,
                  a, key, None))
 
-        def collect_del_proc_timer(self, a: Any, key: Any):
+        def collect_del_proc_timer(self, a: int, key: Row):
             self.buf.append(
-                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value,
+                (TimerOperandType.DELETE_PROC_TIMER.value,
                  a, key, None))
 
-        def collect_del_event_timer(self, a: Any, key: Any):
+        def collect_del_event_timer(self, a: int, key: Row):
             self.buf.append(
-                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value,
+                (TimerOperandType.DELETE_EVENT_TIMER.value,
                  a, key, None))
 
         def collect(self, a: Any):
-            self.buf.append((operation_utils.KeyedProcessFunctionOutputFlag.NORMAL_DATA.value, a))
+            self.buf.append((None, a))
 
         def clear(self):
             self.buf.clear()
 
-    class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext):
+    class InternalKeyedProcessFunctionOnTimerContext(
+            KeyedProcessFunction.OnTimerContext, KeyedCoProcessFunction.OnTimerContext):
         """
         Internal implementation of ProcessFunction.OnTimerContext.
         """
@@ -751,7 +844,8 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         def set_time_domain(self, td: TimeDomain):
             self._time_domain = td
 
-    class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
+    class InternalKeyedProcessFunctionContext(
+            KeyedProcessFunction.Context, KeyedCoProcessFunction.Context):
         """
         Internal implementation of KeyedProcessFunction.Context.
         """

@@ -85,7 +85,8 @@ message UserDefinedDataStreamFunction {
     CO_FLAT_MAP = 3;
     PROCESS = 4;
     KEYED_PROCESS = 5;
-    TIMESTAMP_ASSIGNER = 6;
+    KEYED_CO_PROCESS = 6;
+    TIMESTAMP_ASSIGNER = 7;
   }
 
   message JobParameter {

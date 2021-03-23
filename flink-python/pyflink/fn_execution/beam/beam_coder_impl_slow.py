@@ -367,22 +367,6 @@ class DataStreamFlatMapCoderImpl(StreamCoderImpl):
         return 'DataStreamFlatMapCoderImpl[%s]' % repr(self._field_coder)
 
 
-class DataStreamCoFlatMapCoderImpl(StreamCoderImpl):
-    def __init__(self, field_coder):
-        self._field_coder = field_coder
-
-    def encode_to_stream(self, iter_value, stream,
-                         nested):  # type: (Any, create_OutputStream, bool) -> None
-        for value in iter_value:
-            self._field_coder.encode_to_stream(value, stream, nested)
-
-    def decode_from_stream(self, stream, nested):
-        return self._field_coder.decode_from_stream(stream, nested)
-
-    def __str__(self) -> str:
-        return 'DataStreamCoFlatMapCoderImpl[%s]' % repr(self._field_coder)
-
-
 class MapCoderImpl(StreamCoderImpl):
 
     def __init__(self, key_coder, value_coder):
