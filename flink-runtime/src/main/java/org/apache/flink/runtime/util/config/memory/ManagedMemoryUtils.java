@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** Utils for configuration and calculations related to managed memory and its various use cases. */
 public enum ManagedMemoryUtils {
     ;
@@ -156,18 +158,19 @@ public enum ManagedMemoryUtils {
                 .doubleValue();
     }
 
-    public static void validateManagedMemoryUseCaseWeights(
+    public static void validateUseCaseWeightsNoConflict(
             Map<ManagedMemoryUseCase, Integer> existingOperatorScopeUseCaseWeights,
             Map<ManagedMemoryUseCase, Integer> newOperatorScopeUseCaseWeights) {
-        for (Map.Entry<ManagedMemoryUseCase, Integer> entry :
-                newOperatorScopeUseCaseWeights.entrySet()) {
-            Integer existingWeight = existingOperatorScopeUseCaseWeights.get(entry.getKey());
-            if (existingWeight != null && !existingWeight.equals(entry.getValue())) {
-                throw new IllegalConfigurationException(
-                        String.format(
-                                "The new value '%d' mismatch with the existing value '%d' for managed memory consumer weight '%s'.",
-                                entry.getValue(), existingWeight, entry.getKey()));
-            }
-        }
+        newOperatorScopeUseCaseWeights.forEach(
+                (useCase, newWeight) ->
+                        checkState(
+                                existingOperatorScopeUseCaseWeights
+                                        .getOrDefault(useCase, newWeight)
+                                        .equals(newWeight),
+                                String.format(
+                                        "The new managed memory consumer weight '%d' mismatches with the existing weight '%d' for '%s'.",
+                                        newWeight,
+                                        existingOperatorScopeUseCaseWeights.get(useCase),
+                                        useCase)));
     }
 }

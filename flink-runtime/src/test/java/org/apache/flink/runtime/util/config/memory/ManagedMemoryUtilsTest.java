@@ -268,7 +268,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testManagedMemoryUseCaseWeightsConfiguredWithConsistentValue() {
+    public void testUseCaseWeightsConfiguredWithConsistentValue() {
         final Map<ManagedMemoryUseCase, Integer> existingWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
@@ -284,11 +284,11 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                     }
                 };
 
-        ManagedMemoryUtils.validateManagedMemoryUseCaseWeights(existingWeights, newWeights);
+        ManagedMemoryUtils.validateUseCaseWeightsNoConflict(existingWeights, newWeights);
     }
 
-    @Test(expected = IllegalConfigurationException.class)
-    public void testManagedMemoryUseCaseWeightsConfiguredWithConflictValue() {
+    @Test(expected = IllegalStateException.class)
+    public void testUseCaseWeightsConfiguredWithConflictValue() {
         final Map<ManagedMemoryUseCase, Integer> existingWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
@@ -303,6 +303,6 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                     }
                 };
 
-        ManagedMemoryUtils.validateManagedMemoryUseCaseWeights(existingWeights, newWeights);
+        ManagedMemoryUtils.validateUseCaseWeightsNoConflict(existingWeights, newWeights);
     }
 }
