@@ -1374,6 +1374,49 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testReclaimInactiveSlotsOnEmptyRequirements() throws Exception {
+        final SlotTracker slotTracker = new DefaultSlotTracker();
+
+        final CompletableFuture<JobID> freeInactiveSlotsJobIdFuture = new CompletableFuture<>();
+
+        final TestingTaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setFreeInactiveSlotsConsumer(freeInactiveSlotsJobIdFuture::complete)
+                        .createTestingTaskExecutorGateway();
+
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .setSlotTracker(slotTracker)
+                        .buildAndStart(
+                                ResourceManagerId.generate(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new TestingResourceActionsBuilder().build())) {
+
+            final JobID jobId = new JobID();
+
+            final TaskExecutorConnection taskExecutionConnection =
+                    createTaskExecutorConnection(taskExecutorGateway);
+            final SlotReport slotReport =
+                    createSlotReportWithAllocatedSlots(
+                            taskExecutionConnection.getResourceID(), jobId, 1);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
+
+            // setup initial requirements, which should not trigger slots being reclaimed
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 2));
+            assertThat(freeInactiveSlotsJobIdFuture.isDone(), is(false));
+
+            // decrease requirements, which should not trigger slots being reclaimed
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            assertThat(freeInactiveSlotsJobIdFuture.isDone(), is(false));
+
+            // clear requirements, which should trigger slots being reclaimed
+            slotManager.processResourceRequirements(ResourceRequirements.empty(jobId, "foobar"));
+            assertThat(freeInactiveSlotsJobIdFuture.get(), is(jobId));
+        }
+    }
+
     private static SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {
         final Set<SlotStatus> slotStatusSet = new HashSet<>(numberSlots);
         for (int i = 0; i < numberSlots; i++) {
