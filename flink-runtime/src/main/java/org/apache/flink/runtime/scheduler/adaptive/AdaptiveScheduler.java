@@ -82,6 +82,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
@@ -646,7 +647,8 @@ public class AdaptiveScheduler
                 new ExecutionGraphHandler(
                         executionGraph, LOG, ioExecutor, componentMainThreadExecutor);
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
+                new OperatorCoordinatorHandlerImplementation(
+                        executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(componentMainThreadExecutor);
         operatorCoordinatorHandler.startAllOperatorCoordinators();
 

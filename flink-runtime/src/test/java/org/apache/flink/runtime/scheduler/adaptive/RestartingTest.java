@@ -25,6 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -119,7 +120,7 @@ public class RestartingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
+                new OperatorCoordinatorHandlerImplementation(
                         executionGraph,
                         (throwable) -> {
                             throw new RuntimeException("Error in test", throwable);

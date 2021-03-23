@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -370,7 +371,7 @@ public class ExecutingTest extends TestLogger {
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
             operatorCoordinatorHandler =
-                    new OperatorCoordinatorHandler(
+                    new OperatorCoordinatorHandlerImplementation(
                             executionGraph,
                             (throwable) -> {
                                 throw new RuntimeException("Error in test", throwable);
@@ -689,7 +690,8 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockOperatorCoordinatorHandler extends OperatorCoordinatorHandler {
+    private static class MockOperatorCoordinatorHandler
+            extends OperatorCoordinatorHandlerImplementation {
 
         private boolean disposed = false;
 

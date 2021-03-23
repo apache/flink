@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -352,7 +353,7 @@ public class StopWithSavepointTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
+                new OperatorCoordinatorHandlerImplementation(
                         executionGraph,
                         (throwable) -> {
                             throw new RuntimeException("Error in test", throwable);

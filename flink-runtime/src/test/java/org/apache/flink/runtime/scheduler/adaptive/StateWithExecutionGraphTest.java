@@ -19,10 +19,17 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -75,34 +82,112 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testOperatorCoordinatorShutdownOnLeave() throws Exception {
+        try (MockStateWithExecutionGraphContext context =
+                new MockStateWithExecutionGraphContext()) {
+
+            final TestingOperatorCoordinatorHandler testingOperatorCoordinatorHandler =
+                    new TestingOperatorCoordinatorHandler();
+            final TestingStateWithExecutionGraph stateWithExecutionGraph =
+                    createStateWithExecutionGraph(context, testingOperatorCoordinatorHandler);
+
+            stateWithExecutionGraph.onLeave(AdaptiveSchedulerTest.DummyState.class);
+
+            assertThat(testingOperatorCoordinatorHandler.isRunning(), is(false));
+        }
+    }
+
+    @Test
+    public void testSuspendToFinished() throws Exception {
+        try (MockStateWithExecutionGraphContext context =
+                new MockStateWithExecutionGraphContext()) {
+
+            final TestingStateWithExecutionGraph stateWithExecutionGraph =
+                    createStateWithExecutionGraph(context);
+
+            context.setExpectFinished(aeg -> assertThat(aeg.getState(), is(JobStatus.SUSPENDED)));
+
+            stateWithExecutionGraph.suspend(new RuntimeException());
+        }
+    }
+
+    @Test
+    public void testOnGloballyTerminalStateCalled() throws Exception {
+        MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
+
+        StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
+        final TestingStateWithExecutionGraph stateWithExecutionGraph =
+                createStateWithExecutionGraph(context, mockExecutionGraph);
+
+        mockExecutionGraph.completeTerminationFuture(JobStatus.FINISHED);
+
+        context.close();
+
+        assertThat(
+                stateWithExecutionGraph.getGloballyTerminalStateFuture().get(),
+                is(JobStatus.FINISHED));
+    }
+
+    @Test
+    public void testOnGloballyTerminalStateNotCalledOnNonGloballyTerminalState() throws Exception {
+        MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
+
+        StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
+        final TestingStateWithExecutionGraph stateWithExecutionGraph =
+                createStateWithExecutionGraph(context, mockExecutionGraph);
+
+        mockExecutionGraph.completeTerminationFuture(JobStatus.SUSPENDED);
+
+        context.close();
+
+        assertThat(stateWithExecutionGraph.getGloballyTerminalStateFuture().isDone(), is(false));
+    }
+
+    private TestingStateWithExecutionGraph createStateWithExecutionGraph(
+            MockStateWithExecutionGraphContext context) {
+        final ExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+        return createStateWithExecutionGraph(context, executionGraph);
+    }
+
     private TestingStateWithExecutionGraph createStateWithExecutionGraph(
             MockStateWithExecutionGraphContext context,
-            StateTrackingMockExecutionGraph testingExecutionGraph) {
+            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+        final ExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+        return createStateWithExecutionGraph(context, executionGraph, operatorCoordinatorHandler);
+    }
 
-        final ExecutionGraphHandler executionGraphHandler =
-                new ExecutionGraphHandler(
-                        testingExecutionGraph,
-                        log,
-                        context.getMainThreadExecutor(),
-                        context.getMainThreadExecutor());
-
+    private TestingStateWithExecutionGraph createStateWithExecutionGraph(
+            MockStateWithExecutionGraphContext context, ExecutionGraph executionGraph) {
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        testingExecutionGraph,
+                new OperatorCoordinatorHandlerImplementation(
+                        executionGraph,
                         globalFailure -> {
                             throw new FlinkRuntimeException(
                                     "No global failures are expected", globalFailure);
                         });
-
-        return new TestingStateWithExecutionGraph(
-                context,
-                testingExecutionGraph,
-                executionGraphHandler,
-                operatorCoordinatorHandler,
-                log);
+        return createStateWithExecutionGraph(context, executionGraph, operatorCoordinatorHandler);
     }
 
-    private final class TestingStateWithExecutionGraph extends StateWithExecutionGraph {
+    private TestingStateWithExecutionGraph createStateWithExecutionGraph(
+            MockStateWithExecutionGraphContext context,
+            ExecutionGraph executionGraph,
+            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+
+        final ExecutionGraphHandler executionGraphHandler =
+                new ExecutionGraphHandler(
+                        executionGraph,
+                        log,
+                        context.getMainThreadExecutor(),
+                        context.getMainThreadExecutor());
+
+        executionGraph.transitionToRunning();
+
+        return new TestingStateWithExecutionGraph(
+                context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, log);
+    }
+
+    private static final class TestingStateWithExecutionGraph extends StateWithExecutionGraph {
 
         private final CompletableFuture<JobStatus> globallyTerminalStateFuture =
                 new CompletableFuture<>();
@@ -145,6 +230,41 @@ public class StateWithExecutionGraphTest extends TestLogger {
         @Override
         void onGloballyTerminalState(JobStatus globallyTerminalState) {
             globallyTerminalStateFuture.complete(globallyTerminalState);
+        }
+    }
+
+    private static class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
+        private boolean running = false;
+
+        @Override
+        public void initializeOperatorCoordinators(
+                ComponentMainThreadExecutor mainThreadExecutor) {}
+
+        @Override
+        public void startAllOperatorCoordinators() {
+            running = true;
+        }
+
+        @Override
+        public void disposeAllOperatorCoordinators() {
+            running = false;
+        }
+
+        @Override
+        public void deliverOperatorEventToCoordinator(
+                ExecutionAttemptID taskExecutionId, OperatorID operatorId, OperatorEvent evt)
+                throws FlinkException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+                OperatorID operator, CoordinationRequest request) throws FlinkException {
+            throw new UnsupportedOperationException();
+        }
+
+        public boolean isRunning() {
+            return running;
         }
     }
 }

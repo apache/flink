@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandlerImplementation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
@@ -140,7 +141,7 @@ public class CancelingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
+                new OperatorCoordinatorHandlerImplementation(
                         executionGraph,
                         (throwable) -> {
                             throw new RuntimeException("Error in test", throwable);
