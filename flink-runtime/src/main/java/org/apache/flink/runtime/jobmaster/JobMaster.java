@@ -1131,7 +1131,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         ResourceManagerGateway resourceManagerGateway =
                 establishedResourceManagerConnection.getResourceManagerGateway();
-        resourceManagerGateway.disconnectJobManager(jobGraph.getJobID(), cause);
+        resourceManagerGateway.disconnectJobManager(
+                jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
         slotPoolService.disconnectResourceManager();
     }
 
