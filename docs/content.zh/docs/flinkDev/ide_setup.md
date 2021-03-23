@@ -27,19 +27,15 @@ under the License.
 
 # 导入 Flink 到 IDE 中
 
-以下各节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的开发。
-有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/datastream/project-configuration" >}})
-和 [Scala API]({{< ref "docs/dev/datastream/project-configuration" >}}) 快速入门指南。
+以下章节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的源码开发。有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/datastream/project-configuration" >}}) 和 [Scala API]({{< ref "docs/dev/datastream/project-configuration" >}}) 快速入门指南。
 
 {{< hint info >}}
-每当你的 IDE 无法正常工作时，首先请尝试使用 Maven
-命令行（`mvn clean package -DskipTests`），因为它可能是由于你的 IDE 中存在错误或未正确设置。
+每当你的 IDE 无法正常工作时，请优先尝试使用 Maven 命令行（`mvn clean package -DskipTests`），因为它可能是由于你的 IDE 中存在错误或未正确设置。
 {{< /hint >}}
 
 ## 准备
 
-首先，请从我们的一个[存储库](https://flink.apache.org/community.html#source-code)中
-检出 Flink 源，例如：
+首先，请从我们的[仓库](https://flink.apache.org/community.html#source-code)中拉取 Flink 源，例如：
 
 ```bash
 git clone https://github.com/apache/flink.git
@@ -47,9 +43,7 @@ git clone https://github.com/apache/flink.git
 
 ## 忽略重构提交
 
-我们在 `.git-blame-ignore-revs` 中保留了一个大的重构提交列表。
-使用 `git blame` 查看更改注释时，忽略这些注释会很有帮助。
-你可以使用以下方法来配置 git 和你的 IDE：
+我们在 `.git-blame-ignore-revs` 中保留了一个大的重构提交列表。使用 `git blame` 查看更改注释时，忽略这些注释会很有帮助。你可以使用以下方法来配置 git 和你的 IDE：
 
 ```bash
 git config blame.ignoreRevsFile .git-blame-ignore-revs
@@ -57,17 +51,14 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 ## IntelliJ IDEA
 
-关于如何设置 IntelliJ IDEA IDE 来开发 Flink 核心的简要指南。
-众所周知由于 Eclipse 混合 Scala 和 Java 项目时存在问题，
-因此越来越多的贡献者正在迁移到 IntelliJ IDEA。
+该指南介绍了关于如何设置 IntelliJ IDEA IDE 来进行 Flink 核心开发。众所周知由于 Eclipse 混合 Scala 和 Java 项目时存在问题，因此越来越多的贡献者正在迁移到 IntelliJ IDEA。
 
 以下文档描述了如何设置 IntelliJ IDEA 2019.1.3
 （[https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/)），以及导入 Flink 的步骤
 
 ### 安装 Scala 插件
 
-IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，
-请在导入 Flink 之前按照以下说明来进行操作以启用对 Scala 项目和文件的支持：
+IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请在导入 Flink 之前按照以下说明来进行操作以启用对 Scala 项目和文件的支持：
 
 1. 转到 IntelliJ 插件设置（IntelliJ IDEA -> Preferences -> Plugins）并点击 "Install Jetbrains plugin..."
 2. 选择并安装 "Scala" 插件
@@ -118,8 +109,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 你可以通过打开 Checkstyle 工具窗口并单击 "Check Module" 按钮来扫描整个模块。扫描不应报告任何错误。
 
 {{< hint info >}}
-存在一些模块没有完全被 CheckStyle 格式化，其中包括 `flink-core`，`flink-optimizer`，`flink-runtime`。
-不过，请确保你在这些模块中添加/修改的代码仍然符合 checkstyle 规则。
+存在一些模块没有完全被 CheckStyle 格式化，其中包括 `flink-core`，`flink-optimizer` 和 `flink-runtime`。不过，请确保你在这些模块中添加/修改的代码仍然符合 checkstyle 规则。
 {{< /hint >}}
 
 ### Scala 规范检查
@@ -127,10 +117,10 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 在 Intellij 中启用 scalastyle，通过选择 Settings -> Editor -> Inspections，
 然后搜索 "Scala style inspections"，还要放置 `"tools/maven/scalastyle-config.xml"` 在 `"<root>/.idea"` 或 `"<root>/project"` 目录中。
 
-### 版权简介
+### 版权信息
 
-每个文件都需要包含 Apache 许可证作为标头。这可以在 IntelliJ 中通过添加版权配置文件来自动进行：
-1. 打开设置
+每个文件都需要包含 Apache 许可证作为标头。这可以在 IntelliJ 中通过添加 Copyright Profile 来自动配置：
+1. 打开 IntelliJ 设置
 2. 转到 Editor -> Copyright -> Copyright Profiles
 3. 添加一个新的版权文件命名为 `Apache`
 4. 添加以下文本作为许可证文本：
@@ -152,7 +142,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
    See the License for the specific language governing permissions and 
    limitations under the License.
    ```
-5. 点击 Apply，保存修改
+5. 点击 Apply，保存变更配置
 
 ### 常问问题
 
@@ -170,7 +160,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 解决方法：打开项目设置窗口（File -> Project Structure -> Project Settings: Project），然后选择 JDK 8 作为项目 SDK。
 如果要使用 JDK 11，则可能必须在切换回新的 Flink 版本后恢复此状态。
 
-- 失败案例且 Flink 类出现 `NoClassDefFoundError` 错误信息
+- 运行 Flink Examples 且 Flink 出现关于 `NoClassDefFoundError` 错误信息
 
 这可能是由于将 Flink 依赖项设置为 provided，导致它们没有自动放置在类路径中。
 你可以在运行配置中选中 "Include dependencies with 'Provided' scope" 框，
@@ -179,11 +169,10 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 ## Eclipse
 
 {{< hint warning >}}
-**注意:** 根据我们的经验，以下这种设置不适用于 Flink，如：由于与 Scala IDE 3.0.3 捆绑在一起的旧 Eclipse
-版本的缺陷或由于与 Scala IDE 4.4.1 中绑定的 Scala 版本不兼容。
+**注意:** 根据我们的经验，以下配置会导致 Flink 无法正常工作，如：由于与 Scala IDE 3.0.3 捆绑在一起的旧 Eclipse 版本的缺陷或者是由于 Scala IDE 4.4.1 中绑定的 Scala 版本不兼容。
 {{< /hint >}}
 
-**我们建议改为使用 IntelliJ IDEA（请参见[上文](#intellij-idea)）**
+**我们建议改为使用 IntelliJ（请参见[上文](#intellij-idea)）**
 
 ## PyCharm
 
