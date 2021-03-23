@@ -46,6 +46,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef size_t _field_count
     cdef size_t _leading_complete_bytes_num
     cdef size_t _remaining_bits_num
+    cdef bint _single_output
 
     cdef bint*_mask
     cdef unsigned char*_mask_byte_search_table
@@ -126,10 +127,14 @@ cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
 
 cdef class WindowCoderImpl(BaseCoderImpl):
     cdef size_t _tmp_output_pos
+    cdef size_t _input_pos
     cdef char*_tmp_output_data
+    cdef char*_input_data
 
     cpdef bytes encode_nested(self, value)
+    cpdef decode_nested(self, bytes encoded_bytes)
     cdef void _encode_bigint(self, libc.stdint.int64_t v)
+    cdef libc.stdint.int64_t _decode_bigint(self) except? -1
 
 cdef class TimeWindowCoderImpl(WindowCoderImpl):
     pass

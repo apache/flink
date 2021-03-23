@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Generic
 
 from pyflink.common.typeinfo import Types
@@ -24,7 +24,7 @@ from pyflink.fn_execution.window import TimeWindow, CountWindow
 from pyflink.fn_execution.window_context import TriggerContext, W
 
 
-class Trigger(Generic[W]):
+class Trigger(Generic[W], ABC):
     """
     A Trigger determines when a pane of a window should be evaluated to emit the results for
     that part of the window.

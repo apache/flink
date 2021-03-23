@@ -141,10 +141,10 @@ class Row(object):
     def set_field_names(self, field_names: List):
         self._fields = field_names
 
-    def is_retract_msg(self):
+    def _is_retract_msg(self):
         return self._row_kind == RowKind.UPDATE_BEFORE or self._row_kind == RowKind.DELETE
 
-    def is_accumulate_msg(self):
+    def _is_accumulate_msg(self):
         return self._row_kind == RowKind.UPDATE_AFTER or self._row_kind == RowKind.INSERT
 
     def __contains__(self, item):

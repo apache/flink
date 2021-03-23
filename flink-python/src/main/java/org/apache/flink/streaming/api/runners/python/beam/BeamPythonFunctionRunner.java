@@ -33,6 +33,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -130,6 +131,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
 
+    protected final FlinkFnApi.CoderParam.OutputMode outputMode;
+
     private transient boolean bundleStarted;
 
     private final String taskName;
@@ -198,9 +201,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
             @Nullable TypeSerializer keySerializer,
-            TypeSerializer namespaceSerializer,
+            @Nullable TypeSerializer namespaceSerializer,
             @Nullable MemoryManager memoryManager,
-            double managedMemoryFraction) {
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.functionUrn = Preconditions.checkNotNull(functionUrn);
@@ -211,6 +215,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
+        this.outputMode = outputMode;
         this.resultTuple = new Tuple2<>();
     }
 

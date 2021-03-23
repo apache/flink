@@ -343,7 +343,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
                 acc = self._window_aggregator.create_accumulators()
             self._window_aggregator.set_accumulators(window, acc)
 
-            if input_row.is_accumulate_msg():
+            if input_row._is_accumulate_msg():
                 self._window_aggregator.accumulate(input_value)
             else:
                 self._window_aggregator.retract(input_value)

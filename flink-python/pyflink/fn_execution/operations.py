@@ -34,7 +34,6 @@ from pyflink.fn_execution.state_data_view import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-from pyflink.fn_execution.window import TimeWindow, CountWindow
 
 from pyflink.fn_execution.window_assigner import TumblingWindowAssigner, CountTumblingWindowAssigner
 from pyflink.fn_execution.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
@@ -46,12 +45,15 @@ try:
         GroupTableAggFunction
     from pyflink.fn_execution.window_aggregate_fast import SimpleNamespaceAggsHandleFunction, \
         GroupWindowAggFunction
+    from pyflink.fn_execution.coder_impl_fast import InternalRow
+    has_cython = True
 except ImportError:
     from pyflink.fn_execution.aggregate_slow import RowKeySelector, SimpleAggsHandleFunction, \
         GroupAggFunction, DistinctViewDescriptor, SimpleTableAggsHandleFunction,\
         GroupTableAggFunction
     from pyflink.fn_execution.window_aggregate_slow import SimpleNamespaceAggsHandleFunction, \
         GroupWindowAggFunction
+    has_cython = False
 
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
@@ -431,6 +433,7 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                                 distinct_indexes, distinct_view_descriptors, key_selector,
                                 state_value_coder):
         self._is_time_window = self._window.is_time_window
+        self._namespace_coder = self.keyed_state_backend._namespace_coder_impl
         if self._window.window_type == flink_fn_execution_pb2.GroupWindow.TUMBLING_GROUP_WINDOW:
             if self._is_time_window:
                 window_assigner = TumblingWindowAssigner(
@@ -471,48 +474,43 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             trigger,
             self._window.time_field_index)
 
-    def process_element_or_timer(self, input_datas: List[Tuple[int, Row, int, Row, int, int]]):
+    def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
         results = []
-        for input_data in input_datas:
-            if input_data[0] == NORMAL_RECORD:
-                self.group_agg_function.process_watermark(input_data[2])
-                result_datas = self.group_agg_function.process_element(input_data[1])
-                for result_data in result_datas:
-                    result = [NORMAL_RECORD, result_data, None]
-                    results.append(result)
-                timers = self.group_agg_function.get_timers()
-                for timer in timers:
-                    timer_operand_type = timer[0]  # type: TimerOperandType
-                    internal_timer = timer[1]  # type: InternalTimer
-                    window = internal_timer.get_namespace()
-                    key = internal_timer.get_key()
-                    timestamp = internal_timer.get_timestamp()
-                    if self._is_time_window:
-                        timer_data = \
-                            [TRIGGER_TIMER, None,
-                             [timer_operand_type.value, key, timestamp, window.start, window.end]]
-                    else:
-                        timer_data = \
-                            [TRIGGER_TIMER, None,
-                             [timer_operand_type.value, key, timestamp, window.id]]
-                    results.append(timer_data)
+        if input_data[0] == NORMAL_RECORD:
+            self.group_agg_function.process_watermark(input_data[3])
+            if has_cython:
+                input_row = InternalRow(input_data[1]._values, input_data[1].get_row_kind().value)
             else:
-                timestamp = input_data[2]
-                timer_data = input_data[3]
-                key = list(timer_data[1])
-                timer_type = timer_data[0]
-                if self._is_time_window:
-                    namespace = TimeWindow(timer_data[2], timer_data[3])
-                else:
-                    namespace = CountWindow(timer_data[2])
-                timer = InternalTimerImpl(timestamp, key, namespace)
-                if timer_type == REGISTER_EVENT_TIMER:
-                    result_datas = self.group_agg_function.on_event_time(timer)
-                else:
-                    result_datas = self.group_agg_function.on_processing_time(timer)
-                for result_data in result_datas:
-                    result = [NORMAL_RECORD, result_data, None]
-                    results.append(result)
+                input_row = input_data[1]
+            result_datas = self.group_agg_function.process_element(input_row)
+            for result_data in result_datas:
+                result = [NORMAL_RECORD, result_data, None]
+                results.append(result)
+            timers = self.group_agg_function.get_timers()
+            for timer in timers:
+                timer_operand_type = timer[0]  # type: TimerOperandType
+                internal_timer = timer[1]  # type: InternalTimer
+                window = internal_timer.get_namespace()
+                key = internal_timer.get_key()
+                timestamp = internal_timer.get_timestamp()
+                encoded_window = self._namespace_coder.encode_nested(window)
+                timer_data = [TRIGGER_TIMER, None,
+                              [timer_operand_type.value, key, timestamp, encoded_window]]
+                results.append(timer_data)
+        else:
+            timestamp = input_data[2]
+            timer_data = input_data[4]
+            key = list(timer_data[1])
+            timer_type = timer_data[0]
+            namespace = self._namespace_coder.decode_nested(timer_data[2])
+            timer = InternalTimerImpl(timestamp, key, namespace)
+            if timer_type == REGISTER_EVENT_TIMER:
+                result_datas = self.group_agg_function.on_event_time(timer)
+            else:
+                result_datas = self.group_agg_function.on_processing_time(timer)
+            for result_data in result_datas:
+                result = [NORMAL_RECORD, result_data, None]
+                results.append(result)
         return results
 
     def _create_named_property_function(self):

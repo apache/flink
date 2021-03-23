@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 import sys
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Generic, List
 
 from pyflink.common import Row
@@ -30,7 +30,7 @@ def join_row(left: List, right: List):
     return Row(*(left + right))
 
 
-class InternalWindowProcessFunction(Generic[K, W]):
+class InternalWindowProcessFunction(Generic[K, W], ABC):
     """
     The internal interface for functions that process over grouped windows.
     """

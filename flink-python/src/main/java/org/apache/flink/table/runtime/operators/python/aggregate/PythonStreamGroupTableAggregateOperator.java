@@ -58,7 +58,8 @@ public class PythonStreamGroupTableAggregateOperator
                 indexOfCountStar,
                 generateUpdateBefore,
                 minRetentionTime,
-                maxRetentionTime);
+                maxRetentionTime,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
     }
 
     /**

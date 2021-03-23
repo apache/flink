@@ -68,7 +68,8 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 keySerializer,
                 null,
                 null,
-                0.0);
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.operator = operator;
     }
 

@@ -74,7 +74,8 @@ public class PassThroughStreamTableAggregatePythonFunctionRunner
                 keySerializer,
                 null,
                 null,
-                0.0);
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;
     }

@@ -469,7 +469,7 @@ class GroupAggFunction(GroupAggFunctionBase):
             start_index = 0
             if accumulators is None:
                 for i in range(len(input_rows)):
-                    if input_rows[i].is_retract_msg():
+                    if input_rows[i]._is_retract_msg():
                         start_index += 1
                     else:
                         break
@@ -486,7 +486,7 @@ class GroupAggFunction(GroupAggFunctionBase):
 
             for input_row in input_rows[start_index:]:
                 # update aggregate result and set to the newRow
-                if input_row.is_accumulate_msg():
+                if input_row._is_accumulate_msg():
                     # accumulate input
                     self.aggs_handle.accumulate(input_row._values)
                 else:
@@ -564,7 +564,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
             start_index = 0
             if accumulators is None:
                 for i in range(len(input_rows)):
-                    if input_rows[i].is_retract_msg():
+                    if input_rows[i]._is_retract_msg():
                         start_index += 1
                     else:
                         break
@@ -581,7 +581,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
 
             for input_row in input_rows[start_index:]:
                 # update aggregate result and set to the newRow
-                if input_row.is_accumulate_msg():
+                if input_row._is_accumulate_msg():
                     # accumulate input
                     self.aggs_handle.accumulate(input_row._values)
                 else:
