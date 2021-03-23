@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -506,7 +507,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public void disconnectJobManager(final JobID jobId, final Exception cause) {
+    public void disconnectJobManager(
+            final JobID jobId, JobStatus jobStatus, final Exception cause) {
         closeJobManagerConnection(jobId, cause);
     }
 

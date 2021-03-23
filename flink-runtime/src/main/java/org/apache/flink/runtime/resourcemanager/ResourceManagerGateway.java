@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -179,9 +180,10 @@ public interface ResourceManagerGateway
      * Disconnects a JobManager specified by the given resourceID from the {@link ResourceManager}.
      *
      * @param jobId JobID for which the JobManager was the leader
+     * @param jobStatus status of the job at the time of disconnection
      * @param cause for the disconnection of the JobManager
      */
-    void disconnectJobManager(JobID jobId, Exception cause);
+    void disconnectJobManager(JobID jobId, JobStatus jobStatus, Exception cause);
 
     /**
      * Requests information about the registered {@link TaskExecutor}.
