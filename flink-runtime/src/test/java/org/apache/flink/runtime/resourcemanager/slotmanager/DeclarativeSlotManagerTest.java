@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -49,6 +50,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import akka.pattern.AskTimeoutException;
 import org.junit.Test;
 
@@ -70,6 +73,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -1302,6 +1306,71 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             assertThat(trackingSecurityManager.getSystemExitFuture().isDone(), is(false));
         } finally {
             System.setSecurityManager(null);
+        }
+    }
+
+    @Test
+    public void testAllocationUpdatesIgnoredIfSlotMarkedAsPendingForOtherJob() throws Exception {
+        final DefaultSlotTracker slotTracker = new DefaultSlotTracker();
+
+        final CompletableFuture<AllocationID> firstSlotAllocationIdFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Acknowledge> firstSlotRequestAcknowledgeFuture =
+                new CompletableFuture<>();
+        final Iterator<CompletableFuture<Acknowledge>> slotRequestAcknowledgeFutures =
+                Arrays.asList(
+                                firstSlotRequestAcknowledgeFuture,
+                                new CompletableFuture<Acknowledge>())
+                        .iterator();
+
+        final TestingTaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setRequestSlotFunction(
+                                requestSlotParameters -> {
+                                    firstSlotAllocationIdFuture.complete(requestSlotParameters.f2);
+                                    return slotRequestAcknowledgeFutures.next();
+                                })
+                        .createTestingTaskExecutorGateway();
+
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .setSlotTracker(slotTracker)
+                        .buildAndStart(
+                                ResourceManagerId.generate(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new TestingResourceActionsBuilder().build())) {
+
+            final TaskExecutorConnection taskExecutionConnection =
+                    createTaskExecutorConnection(taskExecutorGateway);
+            final SlotReport slotReport =
+                    createSlotReport(taskExecutionConnection.getResourceID(), 1);
+            final SlotID slotId = Iterators.getOnlyElement(slotReport.iterator()).getSlotID();
+
+            // register task executor
+            slotManager.registerTaskManager(
+                    taskExecutionConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
+            slotManager.reportSlotStatus(
+                    taskExecutionConnection.getInstanceID(),
+                    createSlotReport(taskExecutionConnection.getResourceID(), 1));
+
+            // triggers the allocation of a slot
+            final JobID firstJobId = new JobID();
+            slotManager.processResourceRequirements(createResourceRequirements(firstJobId, 1));
+            // clear requirements immediately to ensure the slot will not get re-allocated to the
+            // same job
+            slotManager.processResourceRequirements(
+                    ResourceRequirements.empty(firstJobId, "foobar"));
+            // when the slot is freed it will be re-assigned to this second job
+            slotManager.processResourceRequirements(createResourceRequirements(new JobID(), 1));
+
+            slotManager.freeSlot(slotId, firstSlotAllocationIdFuture.get());
+
+            // acknowledge the first allocation
+            // this should fail if the acknowledgement is not ignored
+            firstSlotRequestAcknowledgeFuture.complete(Acknowledge.get());
+
+            // sanity check that the acknowledge was really ignored
+            assertThat(slotTracker.getSlot(slotId).getJobId(), is(not(firstJobId)));
         }
     }
 
