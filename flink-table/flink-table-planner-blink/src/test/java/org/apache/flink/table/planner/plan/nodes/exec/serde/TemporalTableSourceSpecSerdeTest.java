@@ -89,7 +89,7 @@ public class TemporalTableSourceSpecSerdeTest {
             String json = writer.toString();
             TemporalTableSourceSpec actual = mapper.readValue(json, TemporalTableSourceSpec.class);
             assertEquals(spec.getTableSourceSpec(), actual.getTableSourceSpec());
-            assertEquals(spec.getRowType(), actual.getRowType());
+            assertEquals(spec.getOutputType(), actual.getOutputType());
         }
     }
 

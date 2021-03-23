@@ -30,7 +30,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -47,10 +46,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             @Nullable RexNode joinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            boolean existCalcOnTemporalTable,
-            @Nullable RelDataType calcOnTemporalTableOutputRowType,
-            @Nullable List<RexNode> calcOnTemporalTableProjections,
-            @Nullable RexNode calcOnTemporalTableCondition,
+            @Nullable List<RexNode> projectionOnTemporalTable,
+            @Nullable RexNode filterOnTemporalTable,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -59,10 +56,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
-                existCalcOnTemporalTable,
-                calcOnTemporalTableOutputRowType,
-                calcOnTemporalTableProjections,
-                calcOnTemporalTableCondition,
+                projectionOnTemporalTable,
+                filterOnTemporalTable,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -76,13 +71,10 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            @JsonProperty(FIELD_NAME_EXIST_CALC_ON_TEMPORAL_TABLE) boolean existCalcOnTemporalTable,
-            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_OUTPUT_TYPE) @Nullable
-                    RelDataType calcOnTemporalTableOutputRowType,
-            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_PROJECTIONS) @Nullable
-                    List<RexNode> calcOnTemporalTableProjections,
-            @JsonProperty(FIELD_NAME_CALC_ON_TEMPORAL_TABLE_CONDITION) @Nullable
-                    RexNode calcOnTemporalTableCondition,
+            @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
+                    List<RexNode> projectionOnTemporalTable,
+            @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
+                    RexNode filterOnTemporalTable,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -92,10 +84,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
-                existCalcOnTemporalTable,
-                calcOnTemporalTableOutputRowType,
-                calcOnTemporalTableProjections,
-                calcOnTemporalTableCondition,
+                projectionOnTemporalTable,
+                filterOnTemporalTable,
                 id,
                 inputProperties,
                 outputType,

@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -42,10 +41,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
             @Nullable RexNode joinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
-            boolean existCalcOnTemporalTable,
-            @Nullable RelDataType calcOnTemporalTableOutputRowType,
-            @Nullable List<RexNode> calcOnTemporalTableProjections,
-            @Nullable RexNode calcOnTemporalTableCondition,
+            @Nullable List<RexNode> projectionOnTemporalTable,
+            @Nullable RexNode filterOnTemporalTable,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -54,10 +51,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
-                existCalcOnTemporalTable,
-                calcOnTemporalTableOutputRowType,
-                calcOnTemporalTableProjections,
-                calcOnTemporalTableCondition,
+                projectionOnTemporalTable,
+                filterOnTemporalTable,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,

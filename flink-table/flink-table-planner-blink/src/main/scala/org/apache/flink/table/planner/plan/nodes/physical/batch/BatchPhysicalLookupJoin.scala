@@ -69,17 +69,15 @@ class BatchPhysicalLookupJoin(
 
   override def translateToExecNode(): ExecNode[_] = {
     val existCalcOnTemporalTable = calcOnTemporalTable.nonEmpty
-    var calcOnTemporalTableOutputRowType: RelDataType = null
-    var calcOnTemporalTableProjections: java.util.List[RexNode] = null
-    var calcOnTemporalTableCondition: RexNode = null
+    var projectionOnTemporalTable: java.util.List[RexNode] = null
+    var filterOnTemporalTable: RexNode = null
     if (existCalcOnTemporalTable) {
-      calcOnTemporalTableOutputRowType = calcOnTemporalTable.get.getOutputRowType
       val projections = JavaScalaConversionUtil
         .toScala(calcOnTemporalTable.get.getProjectList)
         .map(calcOnTemporalTable.get.expandLocalRef)
-      calcOnTemporalTableProjections = JavaScalaConversionUtil.toJava(projections)
+      projectionOnTemporalTable = JavaScalaConversionUtil.toJava(projections)
       if (calcOnTemporalTable.get.getCondition != null) {
-        calcOnTemporalTableCondition = calcOnTemporalTable.get
+        filterOnTemporalTable = calcOnTemporalTable.get
           .expandLocalRef(calcOnTemporalTable.get.getCondition)
       }
     }
@@ -89,10 +87,8 @@ class BatchPhysicalLookupJoin(
       new TemporalTableSourceSpec(temporalTable,
                                   FlinkRelOptUtil.getTableConfigFromContext(this)),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
-      existCalcOnTemporalTable,
-      calcOnTemporalTableOutputRowType,
-      calcOnTemporalTableProjections,
-      calcOnTemporalTableCondition,
+      projectionOnTemporalTable,
+      filterOnTemporalTable,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

@@ -369,6 +369,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 
   @Test
   def testJoinTemporalTableWithTrueCondition(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Temporal table join requires an equality condition on fields of " +
+                           "table [default_catalog.default_database.LookupTable]")
     val sql =
       """
         |SELECT * FROM MyTable AS T
@@ -377,7 +380,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE T.c > 1000
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql)
   }
 
   @Test

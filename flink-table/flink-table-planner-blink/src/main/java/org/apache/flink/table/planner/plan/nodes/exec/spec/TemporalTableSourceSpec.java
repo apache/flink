@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -48,16 +47,16 @@ import java.util.Arrays;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TemporalTableSourceSpec {
-    public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
-    public static final String FIELD_NAME_ROW_TYPE = "rowType";
+    public static final String FIELD_NAME_LOOK_UP_TABLE_SOURCE = "lookupTableSource";
+    public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
 
-    @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
+    @JsonProperty(FIELD_NAME_LOOK_UP_TABLE_SOURCE)
     @Nullable
     private DynamicTableSourceSpec tableSourceSpec;
 
-    @JsonProperty(FIELD_NAME_ROW_TYPE)
+    @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
     @Nullable
-    private RelDataType rowType;
+    private RelDataType outputType;
 
     @JsonIgnore private RelOptTable temporalTable;
 
@@ -65,7 +64,7 @@ public class TemporalTableSourceSpec {
         this.temporalTable = temporalTable;
         if (temporalTable instanceof TableSourceTable) {
             TableSourceTable tableSourceTable = (TableSourceTable) temporalTable;
-            rowType = tableSourceTable.getRowType();
+            outputType = tableSourceTable.getRowType();
             this.tableSourceSpec =
                     new DynamicTableSourceSpec(
                             tableSourceTable.tableIdentifier(),
@@ -78,11 +77,11 @@ public class TemporalTableSourceSpec {
 
     @JsonCreator
     public TemporalTableSourceSpec(
-            @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE) @Nullable
+            @JsonProperty(FIELD_NAME_LOOK_UP_TABLE_SOURCE) @Nullable
                     DynamicTableSourceSpec dynamicTableSourceSpec,
-            @JsonProperty(FIELD_NAME_ROW_TYPE) @Nullable RelDataType rowType) {
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) @Nullable RelDataType outputType) {
         this.tableSourceSpec = dynamicTableSourceSpec;
-        this.rowType = rowType;
+        this.outputType = outputType;
     }
 
     @JsonIgnore
@@ -90,7 +89,7 @@ public class TemporalTableSourceSpec {
         if (null != temporalTable) {
             return temporalTable;
         }
-        if (null != tableSourceSpec && null != rowType) {
+        if (null != tableSourceSpec && null != outputType) {
             LookupTableSource lookupTableSource = tableSourceSpec.getLookupTableSource(planner);
             ObjectIdentifier objectIdentifier = tableSourceSpec.getObjectIdentifier();
             ResolvedCatalogTable catalogTable = tableSourceSpec.getCatalogTable();
@@ -102,7 +101,7 @@ public class TemporalTableSourceSpec {
             return new TableSourceTable(
                     null,
                     objectIdentifier,
-                    rowType,
+                    outputType,
                     FlinkStatistic.UNKNOWN(),
                     lookupTableSource,
                     true,
@@ -114,14 +113,14 @@ public class TemporalTableSourceSpec {
     }
 
     @JsonIgnore
-    @VisibleForTesting
+    @Nullable
     public DynamicTableSourceSpec getTableSourceSpec() {
         return tableSourceSpec;
     }
 
     @JsonIgnore
-    @VisibleForTesting
-    public RelDataType getRowType() {
-        return rowType;
+    @Nullable
+    public RelDataType getOutputType() {
+        return outputType;
     }
 }

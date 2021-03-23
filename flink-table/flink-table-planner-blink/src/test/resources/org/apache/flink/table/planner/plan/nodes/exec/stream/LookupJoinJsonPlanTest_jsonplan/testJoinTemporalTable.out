@@ -220,7 +220,7 @@
     "joinType" : "INNER",
     "joinCondition" : null,
     "temporalTable" : {
-      "scanTableSource" : {
+      "lookupTableSource" : {
         "identifier" : {
           "catalogName" : "default_catalog",
           "databaseName" : "default_database",
@@ -237,7 +237,7 @@
           "schema.1.data-type" : "VARCHAR(2147483647)"
         }
       },
-      "rowType" : {
+      "outputType" : {
         "structKind" : "FULLY_QUALIFIED",
         "nullable" : false,
         "fields" : [ {
@@ -262,10 +262,8 @@
         "index" : 0
       }
     },
-    "existCalcOnTemporalTable" : false,
-    "calcOnTemporalTableOutputRowType" : null,
-    "calcOnTemporalTableProjections" : null,
-    "calcOnTemporalTableCondition" : null,
+    "projectionOnTemporalTable" : null,
+    "filterOnTemporalTable" : null,
     "id" : 10,
     "inputProperties" : [ {
       "requiredDistribution" : {
