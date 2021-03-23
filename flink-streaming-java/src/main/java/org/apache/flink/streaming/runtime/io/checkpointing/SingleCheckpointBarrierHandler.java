@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link SingleCheckpointBarrierHandler} is used for triggering checkpoint while reading the first
@@ -120,6 +121,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         }
 
         checkSubsumedCheckpoint(channelInfo, barrier);
+        checkState(currentCheckpointId == barrierId);
 
         if (numBarriersReceived == 0) {
             if (getNumOpenChannels() == 1) {
@@ -142,23 +144,19 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             return;
         }
 
-        if (currentCheckpointId == barrierId) {
-            if (++numBarriersReceived == numOpenChannels) {
-                if (getNumOpenChannels() > 1) {
-                    markAlignmentEnd();
-                }
-                numBarriersReceived = 0;
-                lastCancelledOrCompletedCheckpointId = currentCheckpointId;
-                LOG.debug(
-                        "{}: Received all barriers for checkpoint {}.",
-                        taskName,
-                        currentCheckpointId);
-                handleBarrier(
-                        barrier,
-                        channelInfo,
-                        CheckpointBarrierBehaviourController::postProcessLastBarrier);
-                allBarriersReceivedFuture.complete(null);
+        if (++numBarriersReceived == numOpenChannels) {
+            if (getNumOpenChannels() > 1) {
+                markAlignmentEnd();
             }
+            numBarriersReceived = 0;
+            lastCancelledOrCompletedCheckpointId = currentCheckpointId;
+            LOG.debug(
+                    "{}: Received all barriers for checkpoint {}.", taskName, currentCheckpointId);
+            handleBarrier(
+                    barrier,
+                    channelInfo,
+                    CheckpointBarrierBehaviourController::postProcessLastBarrier);
+            allBarriersReceivedFuture.complete(null);
         }
     }
 
