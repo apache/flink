@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -214,7 +215,10 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
             final ExecutionVertexID executionVertexId = executionVertex.getId();
 
-            for (SchedulingResultPartition partition : executionVertex.getConsumedResults()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    executionVertex.getConsumedPartitionGroups()) {
+                final SchedulingResultPartition partition =
+                        topology.getResultPartition(consumedPartitionGroup.getFirst());
                 final ExecutionVertexID producerVertexId = partition.getProducer().getId();
                 if (!inSameLogicalSlotSharingGroup(producerVertexId, executionVertexId)) {
                     continue;
