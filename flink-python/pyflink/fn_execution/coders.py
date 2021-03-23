@@ -72,8 +72,7 @@ class TableFunctionRowCoder(BaseCoder):
 
     @staticmethod
     def from_schema_proto(coder_param_proto):
-        schema_proto = coder_param_proto.schema
-        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
