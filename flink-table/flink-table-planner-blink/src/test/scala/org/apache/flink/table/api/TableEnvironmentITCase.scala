@@ -448,6 +448,69 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testTableDMLSync(): Unit = {
+    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true));
+    val sink1Path = _tempFolder.newFolder().toString
+    tEnv.executeSql(
+      s"""
+         |create table MySink1 (
+         |  first string,
+         |  last string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sink1Path',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+
+    val sink2Path = _tempFolder.newFolder().toString
+    tEnv.executeSql(
+      s"""
+         |create table MySink2 (
+         |  first string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sink2Path',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+
+    val sink3Path = _tempFolder.newFolder().toString
+    tEnv.executeSql(
+      s"""
+         |create table MySink3 (
+         |  last string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sink3Path',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+
+    val tableResult1 =
+      tEnv.sqlQuery("select first, last from MyTable").executeInsert("MySink1", false)
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO MySink2 select first from MySink1")
+    stmtSet.addInsertSql("INSERT INTO MySink3 select last from MySink1")
+    val tableResult2 = stmtSet.execute()
+
+    checkInsertTableResult(
+      tableResult2,
+      "default_catalog.default_database.MySink2",
+      "default_catalog.default_database.MySink3" )
+    assertFirstValues(sink2Path)
+    assertLastValues(sink3Path)
+
+    // Verify it's no problem to invoke await twice
+    tableResult1.await()
+    tableResult2.await()
+  }
+
+  @Test
   def testStatementSet(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
