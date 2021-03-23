@@ -30,8 +30,8 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
         t = t_env.from_elements([(1, 1, "Hello")], ['a', 'b', 'c'])
 
         result = t.over_window(
-            Over.partition_by("c")
-                .order_by("a")
+            Over.partition_by(t.c)
+                .order_by(t.a)
                 .preceding(expr.row_interval(2))
                 .following(expr.CURRENT_ROW)
                 .alias("w"))
