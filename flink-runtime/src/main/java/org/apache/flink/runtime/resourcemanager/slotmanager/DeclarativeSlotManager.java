@@ -254,6 +254,8 @@ public class DeclarativeSlotManager implements SlotManager {
 
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
             jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
+
+            maybeReclaimInactiveSlots(resourceRequirements.getJobId());
         } else {
             jobMasterTargetAddresses.put(
                     resourceRequirements.getJobId(), resourceRequirements.getTargetAddress());
@@ -261,6 +263,18 @@ public class DeclarativeSlotManager implements SlotManager {
         resourceTracker.notifyResourceRequirements(
                 resourceRequirements.getJobId(), resourceRequirements.getResourceRequirements());
         checkResourceRequirements();
+    }
+
+    private void maybeReclaimInactiveSlots(JobID jobId) {
+        if (!resourceTracker.getAcquiredResources(jobId).isEmpty()) {
+            final Collection<TaskExecutorConnection> taskExecutorsWithAllocatedSlots =
+                    slotTracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId);
+            for (TaskExecutorConnection taskExecutorConnection : taskExecutorsWithAllocatedSlots) {
+                final TaskExecutorGateway taskExecutorGateway =
+                        taskExecutorConnection.getTaskExecutorGateway();
+                taskExecutorGateway.freeInactiveSlots(jobId, taskManagerRequestTimeout);
+            }
+        }
     }
 
     /**
