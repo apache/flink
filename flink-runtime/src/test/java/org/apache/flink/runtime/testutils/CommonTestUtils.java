@@ -136,20 +136,34 @@ public class CommonTestUtils {
         waitUntilCondition(condition, timeout, RETRY_INTERVAL, errorMsg);
     }
 
+    /**
+     * Wait util the given condition is met or timeout.
+     *
+     * <p>This method guarantees:
+     *
+     * <ul>
+     *   <li>Does not call condition after met.
+     *   <li>Does not throw exception after met.
+     * </ul>
+     *
+     * @throws TimeoutException if the condition is not met before timeout.
+     * @throws InterruptedException if the thread is interrupted.
+     * @throws Exception if condition evaluation throws.
+     */
     public static void waitUntilCondition(
             SupplierWithException<Boolean, Exception> condition,
             Deadline timeout,
             long retryIntervalMillis,
             String errorMsg)
             throws Exception {
-        while (timeout.hasTimeLeft() && !condition.get()) {
+        while (timeout.hasTimeLeft()) {
+            if (condition.get()) {
+                return;
+            }
             final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
             Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
         }
-
-        if (!timeout.hasTimeLeft()) {
-            throw new TimeoutException(errorMsg);
-        }
+        throw new TimeoutException(errorMsg);
     }
 
     public static void waitForAllTaskRunning(

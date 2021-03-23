@@ -188,6 +188,13 @@ public class CommonTestUtils {
     /**
      * Wait util the given condition is met or timeout.
      *
+     * <p>This method guarantees:
+     *
+     * <ul>
+     *   <li>Does not call condition after met.
+     *   <li>Does not throw exception after met.
+     * </ul>
+     *
      * @param condition the condition to wait for.
      * @param timeout the maximum time to wait for the condition to become true.
      * @param errorMsg the error message to include in the <code>TimeoutException</code> if the
@@ -198,16 +205,17 @@ public class CommonTestUtils {
     @SuppressWarnings("BusyWait")
     public static void waitUtil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
             throws TimeoutException, InterruptedException {
-        long timeoutMs = timeout.toMillis();
-        if (timeoutMs <= 0) {
+        long timeoutNanos = timeout.toNanos();
+        if (timeoutNanos <= 0) {
             throw new IllegalArgumentException("The timeout must be positive.");
         }
-        long startingTime = System.currentTimeMillis();
-        while (!condition.get() && System.currentTimeMillis() - startingTime < timeoutMs) {
+        long startingTime = System.nanoTime();
+        while (System.nanoTime() - startingTime < timeoutNanos) {
+            if (condition.get()) {
+                return;
+            }
             Thread.sleep(1);
         }
-        if (!condition.get()) {
-            throw new TimeoutException(errorMsg);
-        }
+        throw new TimeoutException(errorMsg);
     }
 }
