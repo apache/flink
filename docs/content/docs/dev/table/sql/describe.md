@@ -225,5 +225,5 @@ root
 ## Syntax
 
 ```sql
-DESCRIBE | DESC [catalog_name.][db_name.]table_name
+{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
 ```
