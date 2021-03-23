@@ -293,6 +293,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
             cmd.addUris(CommandInfo.URI.newBuilder().setValue(uri));
         }
 
+        // set unix user for mesos tasks
+        if (params.user().isDefined()) {
+            cmd.setUser(params.user().get());
+        }
+
         // propagate environment variables
         for (Map.Entry<String, String> entry :
                 params.containeredParameters().taskManagerEnv().entrySet()) {
