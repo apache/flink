@@ -49,6 +49,16 @@ public class TableConfigOptions {
                                     + "so this option will become obsolete.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_DML_SYNC =
+            key("table.dml-sync")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies if the DML job (i.e. the insert operation) is executed asynchronously or synchronously. "
+                                    + "By default, the execution is async, so you can submit multiple DML jobs at the same time. "
+                                    + "If set this option to true, the insert operation will wait for the job to finish.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =
             key("table.dynamic-table-options.enabled")
                     .booleanType()

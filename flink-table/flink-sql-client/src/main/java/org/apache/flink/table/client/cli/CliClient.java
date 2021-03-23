@@ -60,12 +60,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.TableResultImpl.TABLE_RESULT_OK;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_DEPRECATED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_EXECUTE_STATEMENT;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_FINISH_STATEMENT;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SUBMITTED;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_WAIT_EXECUTE;
 import static org.apache.flink.table.client.config.YamlConfigUtils.getOptionNameWithDeprecatedKey;
 import static org.apache.flink.table.client.config.YamlConfigUtils.getPropertiesInPretty;
 import static org.apache.flink.table.client.config.YamlConfigUtils.isDeprecatedKey;
@@ -414,25 +418,33 @@ public class CliClient implements AutoCloseable {
     private boolean callInsert(CatalogSinkModifyOperation operation) {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
-        try {
-            TableResult result = executor.executeOperation(sessionId, operation);
-            checkState(result.getJobClient().isPresent());
-            terminal.writer()
-                    .println(
-                            CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED)
-                                    .toAnsi());
-            // keep compatibility with before
-            terminal.writer()
-                    .println(
-                            String.format(
-                                    "Job ID: %s\n",
-                                    result.getJobClient().get().getJobID().toString()));
-            terminal.flush();
-            return true;
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
+        TableResult tableResult = null;
+        boolean sync = executor.getSessionConfig(sessionId).get(TABLE_DML_SYNC);
+        if (sync) {
+            printInfo(MESSAGE_WAIT_EXECUTE);
         }
-        return false;
+        try {
+            tableResult = executor.executeOperation(sessionId, operation);
+            checkState(tableResult.getJobClient().isPresent());
+
+            if (sync) {
+                terminal.writer()
+                        .println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
+            } else {
+                terminal.writer()
+                        .println(CliStrings.messageInfo(MESSAGE_STATEMENT_SUBMITTED).toAnsi());
+                terminal.writer()
+                        .println(
+                                String.format(
+                                        "Job ID: %s\n",
+                                        tableResult.getJobClient().get().getJobID().toString()));
+            }
+            terminal.flush();
+        } catch (Exception e) {
+            printExecutionException(e);
+            return false;
+        }
+        return true;
     }
 
     private void executeOperation(Operation operation) {
