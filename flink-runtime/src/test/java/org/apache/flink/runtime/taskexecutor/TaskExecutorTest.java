@@ -2208,6 +2208,71 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testReleaseInactiveSlots() throws Exception {
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .build();
+
+        final TaskExecutor taskExecutor =
+                createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
+
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setRegisterTaskManagerFunction(
+                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                        new CompletableFuture<>())
+                        .build();
+
+        rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final InstanceID registrationId = new InstanceID();
+        final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+        final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture =
+                new CompletableFuture<>();
+        final TestingResourceManagerGateway resourceManagerGateway =
+                createRmWithTmRegisterAndNotifySlotHooks(
+                        registrationId, taskExecutorIsRegistered, availableSlotFuture);
+
+        rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+
+        resourceManagerLeaderRetriever.notifyListener(
+                resourceManagerGateway.getAddress(),
+                resourceManagerGateway.getFencingToken().toUUID());
+
+        try {
+            taskExecutor.start();
+
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            taskExecutorIsRegistered.await();
+
+            final AllocationID allocationId = new AllocationID();
+            final SlotID slotId = new SlotID(taskExecutor.getResourceID(), 0);
+            final CompletableFuture<Acknowledge> requestSlotFuture =
+                    taskExecutorGateway.requestSlot(
+                            slotId,
+                            jobId,
+                            allocationId,
+                            ResourceProfile.UNKNOWN,
+                            jobMasterGateway.getAddress(),
+                            resourceManagerGateway.getFencingToken(),
+                            timeout);
+
+            assertThat(requestSlotFuture.get(), is(Acknowledge.get()));
+
+            taskExecutor.freeInactiveSlots(jobId, timeout);
+
+            // the slot should be freed
+            assertThat(availableSlotFuture.get().f1, is(slotId));
+            assertThat(availableSlotFuture.get().f2, is(allocationId));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
+    }
+
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
