@@ -100,4 +100,13 @@ interface SlotTracker {
      * @return free slots
      */
     Collection<TaskManagerSlotInformation> getFreeSlots();
+
+    /**
+     * Returns all task executors that have at least 1 pending/completed allocation for the given
+     * job.
+     *
+     * @param jobId the job for which the task executors must have a slot
+     * @return task executors with at least 1 slot for the job
+     */
+    Collection<TaskExecutorConnection> getTaskExecutorsWithAllocatedSlotsForJob(JobID jobId);
 }
