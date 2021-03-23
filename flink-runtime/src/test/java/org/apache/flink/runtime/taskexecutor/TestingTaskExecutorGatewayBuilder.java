@@ -68,6 +68,7 @@ public class TestingTaskExecutorGatewayBuilder {
     private static final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             NOOP_FREE_SLOT_FUNCTION =
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
+    private static final Consumer<JobID> NOOP_FREE_INACTIVE_SLOTS_CONSUMER = ignored -> {};
     private static final Consumer<ResourceID> NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER =
             ignored -> {};
     private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER =
@@ -101,6 +102,7 @@ public class TestingTaskExecutorGatewayBuilder {
             requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
     private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction =
             NOOP_FREE_SLOT_FUNCTION;
+    private Consumer<JobID> freeInactiveSlotsConsumer = NOOP_FREE_INACTIVE_SLOTS_CONSUMER;
     private Consumer<ResourceID> heartbeatResourceManagerConsumer =
             NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER;
     private Consumer<Exception> disconnectResourceManagerConsumer =
@@ -172,6 +174,12 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
+    public TestingTaskExecutorGatewayBuilder setFreeInactiveSlotsConsumer(
+            Consumer<JobID> freeInactiveSlotsConsumer) {
+        this.freeInactiveSlotsConsumer = freeInactiveSlotsConsumer;
+        return this;
+    }
+
     public TestingTaskExecutorGatewayBuilder setHeartbeatResourceManagerConsumer(
             Consumer<ResourceID> heartbeatResourceManagerConsumer) {
         this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
@@ -234,6 +242,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 submitTaskConsumer,
                 requestSlotFunction,
                 freeSlotFunction,
+                freeInactiveSlotsConsumer,
                 heartbeatResourceManagerConsumer,
                 disconnectResourceManagerConsumer,
                 cancelTaskFunction,
