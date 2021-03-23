@@ -18,16 +18,18 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
+import org.apache.flink.table.api.DataTypes.NULL
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.{ExpandUtil, RelExplainUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.util.Litmus
+
 import java.util
-import org.apache.flink.table.api.DataTypes.NULL
-import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

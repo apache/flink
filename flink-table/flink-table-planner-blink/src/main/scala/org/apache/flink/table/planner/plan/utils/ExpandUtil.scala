@@ -30,7 +30,6 @@ import java.math.BigDecimal
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
 
 object ExpandUtil {
 
@@ -87,38 +86,6 @@ object ExpandUtil {
     relBuilder.expand(expandProjects, expandIdIdxInExpand)
 
     (duplicateFieldMap, expandIdIdxInExpand)
-  }
-
-  /**
-   * Build final output field name list.
-   *
-   * the order of fields are:
-   * first, the input fields,
-   * second, expand_id field(to distinguish different expanded rows),
-   * last, optional duplicate fields.
-   *
-   * @param inputType Input row type.
-   * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.
-   * @return final output field names.
-   */
-  def buildExpandFieldNames(
-      inputType: RelDataType,
-      duplicateFieldIndexes: Array[Integer]): util.List[String] = {
-    // 1. add original input fields
-    val fieldNameList = mutable.ListBuffer(inputType.getFieldNames: _*)
-    val allFieldNames = mutable.Set[String](fieldNameList: _*)
-
-    // 2. add expand_id('$e') field
-    var expandIdFieldName = buildUniqueFieldName(allFieldNames, "$e")
-    fieldNameList += expandIdFieldName
-
-    // 3. add duplicate fields
-    duplicateFieldIndexes.foreach {
-      duplicateFieldIdx =>
-        fieldNameList += buildUniqueFieldName(
-          allFieldNames, inputType.getFieldNames.get(duplicateFieldIdx))
-    }
-    fieldNameList
   }
 
   /**
