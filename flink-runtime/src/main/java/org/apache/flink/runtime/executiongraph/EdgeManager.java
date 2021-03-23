@@ -47,11 +47,6 @@ public class EdgeManager {
 
         checkNotNull(consumerVertexGroup);
 
-        checkState(
-                !partitionConsumers.containsKey(resultPartitionId),
-                "There can only be a single consumer for the result partition %s.",
-                resultPartitionId);
-
         final List<ConsumerVertexGroup> consumers =
                 getConsumerVertexGroupsForPartitionInternal(resultPartitionId);
 

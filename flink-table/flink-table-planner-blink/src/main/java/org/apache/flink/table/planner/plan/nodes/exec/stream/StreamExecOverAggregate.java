@@ -56,6 +56,10 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.tools.RelBuilder;
@@ -69,11 +73,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Stream {@link ExecNode} for time-based over operator. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecOverAggregate.class);
 
+    public static final String FIELD_NAME_OVER_SPEC = "overSpec";
+
+    @JsonProperty(FIELD_NAME_OVER_SPEC)
     private final OverSpec overSpec;
 
     public StreamExecOverAggregate(
@@ -81,8 +92,24 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.overSpec = overSpec;
+        this(
+                overSpec,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecOverAggregate(
+            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.overSpec = checkNotNull(overSpec);
     }
 
     @SuppressWarnings("unchecked")

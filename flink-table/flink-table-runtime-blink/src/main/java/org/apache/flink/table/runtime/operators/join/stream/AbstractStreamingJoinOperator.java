@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
@@ -132,7 +132,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
         public boolean apply(RowData left, RowData right) {
             if (!nullSafe) { // is not null safe, return false if any null exists
                 // key is always BinaryRowData
-                BinaryRowData joinKey = (BinaryRowData) getCurrentKey();
+                NullAwareGetters joinKey = (NullAwareGetters) getCurrentKey();
                 if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
                     // find null present, return false directly
                     return false;

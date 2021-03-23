@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
@@ -535,11 +536,10 @@ class TableEnvironmentITCase(
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("a", DataTypes.INT())
-        .field("c", DataTypes.STRING())
-        .build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("a", DataTypes.INT()),
+        Column.physical("c", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Hello"),
       Row.of(Integer.valueOf(3), "Hello world"))
@@ -573,7 +573,7 @@ class TableEnvironmentITCase(
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
       util.Arrays.asList(fieldNames: _*),
-      util.Arrays.asList(tableResult.getTableSchema.getFieldNames: _*))
+      tableResult.getResolvedSchema.getColumnNames)
     // return the result until the job is finished
     val it = tableResult.collect()
     assertTrue(it.hasNext)

@@ -232,10 +232,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * <p>This ensures that with (any) pre-allocated off-heap memory by us, there is some off-heap
      * memory remaining for Flink's libraries. Creating task managers will thus fail if no off-heap
      * memory remains.
-     *
-     * @throws NullPointerException There is a known Hadoop bug (YARN-7007) that got fixed in Hadoop
-     *     2.8.6 but might cause test instabilities. See FLINK-20659/FLINK-15534 for further
-     *     information.
      */
     @Test
     public void perJobYarnClusterOffHeap() throws Exception {
@@ -293,10 +289,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      *
      * <p><b>Hint: </b> If you think it is a good idea to add more assertions to this test, think
      * again!
-     *
-     * @throws NullPointerException There is a known Hadoop bug (YARN-7007) that got fixed in Hadoop
-     *     2.8.6 but might cause test instabilities. See FLINK-13009/FLINK-15534 for further
-     *     information.
      */
     @Test
     public void
@@ -459,9 +451,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * Test deployment to non-existing queue & ensure that the system logs a WARN message for the
      * user. (Users had unexpected behavior of Flink on YARN because they mistyped the target queue.
      * With an error message, we can help users identifying the issue)
-     *
-     * @throws NullPointerException There is a known Hadoop bug (YARN-7007) that got fixed in Hadoop
-     *     2.8.6 but might cause test instabilities. See FLINK-15534 for further information.
      */
     @Test
     public void testNonexistingQueueWARNmessage() throws Exception {
@@ -504,9 +493,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     /**
      * Test per-job yarn cluster with the parallelism set at the CliFrontend instead of the YARN
      * client.
-     *
-     * @throws NullPointerException There is a known Hadoop bug (YARN-7007) that got fixed in Hadoop
-     *     2.8.6 but might cause test instabilities. See FLINK-15534 for further information.
      */
     @Test
     public void perJobYarnClusterWithParallelism() throws Exception {
@@ -642,7 +628,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         // find out the application id and wait until it has finished.
         try {
             List<ApplicationReport> apps =
-                    yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+                    getApplicationReportWithRetryOnNPE(
+                            yc, EnumSet.of(YarnApplicationState.RUNNING));
 
             ApplicationId tmpAppId;
             if (apps.size() == 1) {
@@ -653,12 +640,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
                 LOG.info("waiting for the job with appId {} to finish", tmpAppId);
                 // wait until the app has finished
-                while (yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() > 0) {
+                while (getApplicationReportWithRetryOnNPE(
+                                        yc, EnumSet.of(YarnApplicationState.RUNNING))
+                                .size()
+                        > 0) {
                     sleep(500);
                 }
             } else {
                 // get appId by finding the latest finished appid
-                apps = yc.getApplications();
+                apps = getApplicationReportWithRetryOnNPE(yc);
                 Collections.sort(
                         apps,
                         new Comparator<ApplicationReport>() {

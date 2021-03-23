@@ -36,8 +36,9 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -198,7 +199,8 @@ abstract class PlannerBase(
         val input = getRelBuilder.queryOperation(s.getChild).build()
         // convert query schema to sink schema
         val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
-          SelectTableSinkSchemaConverter.changeDefaultConversionClass(s.getChild.getTableSchema))
+          SelectTableSinkSchemaConverter.changeDefaultConversionClass(
+            TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema)))
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
         val sink = createSelectTableSink(sinkSchema)
@@ -292,9 +294,9 @@ abstract class PlannerBase(
   }
 
   /**
-    * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
-   * and tries to reuse duplicate sub-plans.
-    */
+   * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
+   * tries to reuse duplicate sub-plans and transforms the graph based on the given processors.
+   */
   @VisibleForTesting
   private[flink] def translateToExecNodeGraph(optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
     val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
@@ -313,7 +315,15 @@ abstract class PlannerBase(
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
     generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+    val execGraph = generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+
+    // process the graph
+    val context = new ProcessorContext(this)
+    val processors = getExecNodeGraphProcessors
+    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
+
+  protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor]
 
   /**
     * Translates an [[ExecNodeGraph]] into a [[Transformation]] DAG.
@@ -334,33 +344,39 @@ abstract class PlannerBase(
   private def getTableSink(
       objectIdentifier: ObjectIdentifier,
       dynamicOptions: JMap[String, String])
-    : Option[(CatalogTable, Any)] = {
-    val lookupResult = JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
-    lookupResult
-      .map(_.getTable) match {
-      case Some(table: ConnectorCatalogTable[_, _]) =>
-        JavaScalaConversionUtil.toScala(table.getTableSink) match {
-          case Some(sink) => Some(table, sink)
+    : Option[(ResolvedCatalogTable, Any)] = {
+    val optionalLookupResult =
+      JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    if (optionalLookupResult.isEmpty) {
+      return None
+    }
+    val lookupResult = optionalLookupResult.get
+    lookupResult.getTable match {
+      case connectorTable: ConnectorCatalogTable[_, _] =>
+        val resolvedTable = lookupResult.getResolvedTable.asInstanceOf[ResolvedCatalogTable]
+        JavaScalaConversionUtil.toScala(connectorTable.getTableSink) match {
+          case Some(sink) => Some(resolvedTable, sink)
           case None => None
         }
 
-      case Some(table: CatalogTable) =>
-        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
+      case regularTable: CatalogTable =>
+        val resolvedTable = lookupResult.getResolvedTable.asInstanceOf[ResolvedCatalogTable]
         val tableToFind = if (dynamicOptions.nonEmpty) {
-          table.copy(FlinkHints.mergeTableOptions(dynamicOptions, table.getOptions))
+          resolvedTable.copy(FlinkHints.mergeTableOptions(dynamicOptions, resolvedTable.getOptions))
         } else {
-          table
+          resolvedTable
         }
-        val isTemporary = lookupResult.get.isTemporary
-        if (isLegacyConnectorOptions(objectIdentifier, table, isTemporary)) {
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
+        val isTemporary = lookupResult.isTemporary
+        if (isLegacyConnectorOptions(objectIdentifier, resolvedTable.getOrigin, isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orElse(null),
             objectIdentifier,
-            tableToFind,
+            tableToFind.getOrigin,
             getTableConfig.getConfiguration,
             isStreamingMode,
             isTemporary)
-          Option(table, tableSink)
+          Option(resolvedTable, tableSink)
         } else {
           val tableSink = FactoryUtil.createTableSink(
             catalog.orElse(null),
@@ -369,7 +385,7 @@ abstract class PlannerBase(
             getTableConfig.getConfiguration,
             getClassLoader,
             isTemporary)
-          Option(table, tableSink)
+          Option(resolvedTable, tableSink)
         }
 
       case _ => None

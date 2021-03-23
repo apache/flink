@@ -59,7 +59,15 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCom
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
-/** A table schema that represents a table's structure with field names and data types. */
+/**
+ * A table schema that represents a table's structure with field names and data types.
+ *
+ * @deprecated This class has been deprecated as part of FLIP-164. It has been replaced by two more
+ *     dedicated classes {@link Schema} and {@link ResolvedSchema}. Use {@link Schema} for
+ *     declaration in APIs. {@link ResolvedSchema} is offered by the framework after resolution and
+ *     validation.
+ */
+@Deprecated
 @PublicEvolving
 public class TableSchema {
 

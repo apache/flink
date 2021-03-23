@@ -1628,6 +1628,37 @@ public class JobMasterTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testJobMasterOnlyTerminatesAfterTheSchedulerHasClosed() throws Exception {
+        final CompletableFuture<Void> schedulerTerminationFuture = new CompletableFuture<>();
+        final TestingSchedulerNG testingSchedulerNG =
+                TestingSchedulerNG.newBuilder()
+                        .setCloseAsyncSupplier(() -> schedulerTerminationFuture)
+                        .build();
+
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(testingSchedulerNG)))
+                        .createJobMaster();
+
+        jobMaster.start();
+
+        final CompletableFuture<Void> jobMasterTerminationFuture = jobMaster.closeAsync();
+
+        try {
+            jobMasterTerminationFuture.get(10L, TimeUnit.MILLISECONDS);
+            fail("Expected TimeoutException because the JobMaster should not terminate.");
+        } catch (TimeoutException expected) {
+        }
+
+        schedulerTerminationFuture.complete(null);
+
+        jobMasterTerminationFuture.get();
+    }
+
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
             BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,

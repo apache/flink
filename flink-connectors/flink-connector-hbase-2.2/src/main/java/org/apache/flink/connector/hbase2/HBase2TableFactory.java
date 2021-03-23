@@ -62,6 +62,7 @@ import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_ZK_QUOR
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -192,6 +193,9 @@ public class HBase2TableFactory
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
+        // comment
+        properties.add(COMMENT);
 
         // HBase properties
         properties.add(CONNECTOR_PROPERTIES + ".*");

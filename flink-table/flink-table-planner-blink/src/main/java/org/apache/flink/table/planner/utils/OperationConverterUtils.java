@@ -128,15 +128,35 @@ public class OperationConverterUtils {
             throw new ValidationException("CHANGE COLUMN cannot be applied to partition columns");
         }
         TableSchema oldSchema = catalogTable.getSchema();
+        boolean first = changeColumn.isFirst();
+        String after = changeColumn.getAfter() == null ? null : changeColumn.getAfter().getSimple();
+        TableColumn newTableColumn = toTableColumn(changeColumn.getNewColumn(), sqlValidator);
+        TableSchema newSchema = changeColumn(oldSchema, oldName, newTableColumn, first, after);
+        Map<String, String> newProperties = new HashMap<>(catalogTable.getOptions());
+        newProperties.putAll(extractProperties(changeColumn.getProperties()));
+        return new AlterTableSchemaOperation(
+                tableIdentifier,
+                new CatalogTableImpl(
+                        newSchema,
+                        catalogTable.getPartitionKeys(),
+                        newProperties,
+                        catalogTable.getComment()));
+        // TODO: handle watermark and constraints
+    }
+
+    // change a column in the old table schema and return the updated table schema
+    public static TableSchema changeColumn(
+            TableSchema oldSchema,
+            String oldName,
+            TableColumn newTableColumn,
+            boolean first,
+            String after) {
         int oldIndex = Arrays.asList(oldSchema.getFieldNames()).indexOf(oldName);
         if (oldIndex < 0) {
             throw new ValidationException(
                     String.format("Old column %s not found for CHANGE COLUMN", oldName));
         }
-        boolean first = changeColumn.isFirst();
-        String after = changeColumn.getAfter() == null ? null : changeColumn.getAfter().getSimple();
         List<TableColumn> tableColumns = oldSchema.getTableColumns();
-        TableColumn newTableColumn = toTableColumn(changeColumn.getNewColumn(), sqlValidator);
         if ((!first && after == null) || oldName.equals(after)) {
             tableColumns.set(oldIndex, newTableColumn);
         } else {
@@ -162,17 +182,7 @@ public class OperationConverterUtils {
             builder.add(column);
         }
         setWatermarkAndPK(builder, oldSchema);
-        TableSchema newSchema = builder.build();
-        Map<String, String> newProperties = new HashMap<>(catalogTable.getOptions());
-        newProperties.putAll(extractProperties(changeColumn.getProperties()));
-        return new AlterTableSchemaOperation(
-                tableIdentifier,
-                new CatalogTableImpl(
-                        newSchema,
-                        catalogTable.getPartitionKeys(),
-                        newProperties,
-                        catalogTable.getComment()));
-        // TODO: handle watermark and constraints
+        return builder.build();
     }
 
     private static TableColumn toTableColumn(

@@ -68,6 +68,7 @@ public class TestingDeclarativeSlotPoolBuilder {
     private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
     private LongConsumer returnIdleSlotsConsumer = ignored -> {};
     private Consumer<ResourceCounter> setResourceRequirementsConsumer = ignored -> {};
+    private Function<AllocationID, Boolean> containsFreeSlotFunction = ignored -> false;
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -148,6 +149,12 @@ public class TestingDeclarativeSlotPoolBuilder {
         return this;
     }
 
+    public TestingDeclarativeSlotPoolBuilder setContainsFreeSlotFunction(
+            Function<AllocationID, Boolean> containsFreeSlotFunction) {
+        this.containsFreeSlotFunction = containsFreeSlotFunction;
+        return this;
+    }
+
     public TestingDeclarativeSlotPoolBuilder setReturnIdleSlotsConsumer(
             LongConsumer returnIdleSlotsConsumer) {
         this.returnIdleSlotsConsumer = returnIdleSlotsConsumer;
@@ -167,6 +174,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 reserveFreeSlotFunction,
                 freeReservedSlotFunction,
                 containsSlotsFunction,
+                containsFreeSlotFunction,
                 returnIdleSlotsConsumer,
                 setResourceRequirementsConsumer);
     }

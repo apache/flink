@@ -147,6 +147,8 @@ class InMemoryTableFactory(terminationCount: Int)
     // table constraint
     properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
     properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+    // comment
+    properties.add(COMMENT);
 
     properties
   }

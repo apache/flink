@@ -63,9 +63,15 @@ public class SqlCommandParserTest {
                         TestItem.validSql("eXiT;", SqlCommand.QUIT).cannotParseComment(),
                         TestItem.validSql("CLEAR;", SqlCommand.CLEAR).cannotParseComment(),
                         // desc xx
-                        TestItem.validSql("DESC MyTable", SqlCommand.DESC, "MyTable")
+                        TestItem.validSql(
+                                        "DESC MyTable",
+                                        SqlCommand.DESCRIBE,
+                                        "`default_catalog`.`default_database`.`MyTable`")
                                 .cannotParseComment(),
-                        TestItem.validSql("DESC         MyTable     ", SqlCommand.DESC, "MyTable")
+                        TestItem.validSql(
+                                        "DESC         MyTable     ",
+                                        SqlCommand.DESCRIBE,
+                                        "`default_catalog`.`default_database`.`MyTable`")
                                 .cannotParseComment(),
                         TestItem.invalidSql(
                                 "DESC ", // no table name
@@ -334,6 +340,22 @@ public class SqlCommandParserTest {
                         // show full modules
                         TestItem.validSql(
                                 "SHOW FULL MODULES", SqlCommand.SHOW_MODULES, "SHOW FULL MODULES"),
+                        // show functions
+                        TestItem.validSql(
+                                "SHOW FUNCTIONS;", SqlCommand.SHOW_FUNCTIONS, "SHOW FUNCTIONS"),
+                        TestItem.validSql(
+                                "  SHOW FUNCTIONS   ;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW FUNCTIONS"),
+                        // show user functions
+                        TestItem.validSql(
+                                "SHOW USER FUNCTIONS;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW USER FUNCTIONS"),
+                        TestItem.validSql(
+                                "  SHOW USER FUNCTIONS   ;",
+                                SqlCommand.SHOW_FUNCTIONS,
+                                "SHOW USER FUNCTIONS"),
                         // Test create function.
                         TestItem.invalidSql(
                                 "CREATE FUNCTION ",

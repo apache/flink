@@ -19,12 +19,14 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -38,9 +40,6 @@ import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -50,11 +49,12 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -137,12 +137,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
-        final Environment env = getSessionContext(sessionId).getSessionEnvironment();
-        final Map<String, String> properties = new HashMap<>();
-        properties.putAll(env.getExecution().asTopLevelMap());
-        properties.putAll(env.getDeployment().asTopLevelMap());
-        properties.putAll(env.getConfiguration().asMap());
-        return properties;
+        return getSessionContext(sessionId).getConfigMap();
     }
 
     @Override
@@ -216,7 +211,7 @@ public class LocalExecutor implements Executor {
             throws SqlExecutionException {
         final SessionContext context = getSessionContext(sessionId);
         return executeQueryInternal(
-                context.getExecutionContext(), query, context.getSessionEnvironment());
+                context.getExecutionContext(), query, context.getReadableConfig());
     }
 
     @Override
@@ -286,7 +281,7 @@ public class LocalExecutor implements Executor {
     }
 
     private ResultDescriptor executeQueryInternal(
-            ExecutionContext context, String query, Environment environment) {
+            ExecutionContext context, String query, ReadableConfig config) {
         final TableResult tableResult;
         try {
             tableResult =
@@ -295,31 +290,16 @@ public class LocalExecutor implements Executor {
             // catch everything such that the query does not crash the executor
             throw new SqlExecutionException("Invalid SQL statement.", t);
         }
-        final DynamicResult result = resultStore.createResult(environment, tableResult);
+        final DynamicResult result = resultStore.createResult(config, tableResult);
         checkArgument(tableResult.getJobClient().isPresent());
         String jobId = tableResult.getJobClient().get().getJobID().toString();
         // store the result under the JobID
         resultStore.storeResult(jobId, result);
         return new ResultDescriptor(
                 jobId,
-                removeTimeAttributes(tableResult.getTableSchema()),
+                tableResult.getResolvedSchema(),
                 result.isMaterialized(),
-                environment.getExecution().isTableauMode(),
-                environment.getExecution().inStreamingMode());
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private static TableSchema removeTimeAttributes(TableSchema schema) {
-        final TableSchema.Builder builder = TableSchema.builder();
-        for (int i = 0; i < schema.getFieldCount(); i++) {
-            final DataType dataType = schema.getFieldDataTypes()[i];
-            final DataType convertedType =
-                    DataTypeUtils.replaceLogicalType(
-                            dataType,
-                            LogicalTypeUtils.removeTimeAttributes(dataType.getLogicalType()));
-            builder.field(schema.getFieldNames()[i], convertedType);
-        }
-        return builder.build();
+                config.get(EXECUTION_RESULT_MODE).equals(ResultMode.TABLEAU),
+                config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING));
     }
 }

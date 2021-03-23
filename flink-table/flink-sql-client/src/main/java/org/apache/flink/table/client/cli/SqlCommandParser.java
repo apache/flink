@@ -165,7 +165,6 @@ public final class SqlCommandParser {
             operands = new String[0];
         } else if (operation instanceof ShowFunctionsOperation) {
             cmd = SqlCommand.SHOW_FUNCTIONS;
-            operands = new String[0];
         } else if (operation instanceof ShowPartitionsOperation) {
             cmd = SqlCommand.SHOW_PARTITIONS;
         } else if (operation instanceof CreateCatalogFunctionOperation
@@ -284,8 +283,6 @@ public final class SqlCommandParser {
         CREATE_CATALOG,
 
         DROP_CATALOG,
-
-        DESC("DESC\\s+(.*)", SINGLE_OPERAND),
 
         DESCRIBE,
 

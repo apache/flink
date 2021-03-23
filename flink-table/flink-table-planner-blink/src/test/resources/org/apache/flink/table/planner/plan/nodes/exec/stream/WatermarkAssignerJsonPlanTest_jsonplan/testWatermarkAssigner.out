@@ -25,7 +25,22 @@
       }
     },
     "id" : 1,
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -70,7 +85,22 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "description" : "WatermarkAssigner(rowtime=[c], watermark=[(c - 5000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -100,7 +130,22 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])"
   } ],
   "edges" : [ {

@@ -19,12 +19,12 @@
 package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -61,9 +62,11 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.removeTimeAttributes;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /** Utilities for handling {@link DataType}s. */
@@ -209,6 +212,18 @@ public final class DataTypeUtils {
     }
 
     /**
+     * Removes time attributes from the {@link DataType}. As everywhere else in the code base, this
+     * method does not support nested time attributes for now.
+     */
+    public static DataType removeTimeAttribute(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (hasFamily(type, LogicalTypeFamily.TIMESTAMP)) {
+            return replaceLogicalType(dataType, removeTimeAttributes(type));
+        }
+        return dataType;
+    }
+
+    /**
      * Transforms the given data type to a different data type using the given transformations.
      *
      * <p>The transformations will be called in the given order. In case of constructed or composite
@@ -233,7 +248,7 @@ public final class DataTypeUtils {
     }
 
     /**
-     * Expands a composite {@link DataType} to a corresponding {@link TableSchema}. Useful for
+     * Expands a composite {@link DataType} to a corresponding {@link ResolvedSchema}. Useful for
      * flattening a column or mapping a physical to logical type of a table source
      *
      * <p>Throws an exception for a non composite type. You can use {@link
@@ -247,7 +262,7 @@ public final class DataTypeUtils {
      * @param dataType Data type to expand. Must be a composite type.
      * @return A corresponding table schema.
      */
-    public static TableSchema expandCompositeTypeToSchema(DataType dataType) {
+    public static ResolvedSchema expandCompositeTypeToSchema(DataType dataType) {
         if (dataType instanceof FieldsDataType) {
             return expandCompositeType((FieldsDataType) dataType);
         } else if (dataType.getLogicalType() instanceof LegacyTypeInformationType
@@ -269,8 +284,8 @@ public final class DataTypeUtils {
      * @return The field at the given position.
      */
     public static Optional<DataType> getField(DataType compositeType, int index) {
-        TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
-        return tableSchema.getFieldDataType(index);
+        ResolvedSchema tableSchema = expandCompositeTypeToSchema(compositeType);
+        return tableSchema.getColumn(index).map(Column::getDataType);
     }
 
     /**
@@ -284,8 +299,8 @@ public final class DataTypeUtils {
      * @return The field with the given name.
      */
     public static Optional<DataType> getField(DataType compositeType, String name) {
-        TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
-        return tableSchema.getFieldDataType(name);
+        final ResolvedSchema resolvedSchema = expandCompositeTypeToSchema(compositeType);
+        return resolvedSchema.getColumn(name).map(Column::getDataType);
     }
 
     /**
@@ -522,34 +537,34 @@ public final class DataTypeUtils {
         }
     }
 
-    private static TableSchema expandCompositeType(FieldsDataType dataType) {
+    private static ResolvedSchema expandCompositeType(FieldsDataType dataType) {
         DataType[] fieldDataTypes = dataType.getChildren().toArray(new DataType[0]);
         return dataType.getLogicalType()
                 .accept(
-                        new LogicalTypeDefaultVisitor<TableSchema>() {
+                        new LogicalTypeDefaultVisitor<ResolvedSchema>() {
                             @Override
-                            public TableSchema visit(RowType rowType) {
+                            public ResolvedSchema visit(RowType rowType) {
                                 return expandCompositeType(rowType, fieldDataTypes);
                             }
 
                             @Override
-                            public TableSchema visit(StructuredType structuredType) {
+                            public ResolvedSchema visit(StructuredType structuredType) {
                                 return expandCompositeType(structuredType, fieldDataTypes);
                             }
 
                             @Override
-                            public TableSchema visit(DistinctType distinctType) {
+                            public ResolvedSchema visit(DistinctType distinctType) {
                                 return distinctType.getSourceType().accept(this);
                             }
 
                             @Override
-                            protected TableSchema defaultMethod(LogicalType logicalType) {
+                            protected ResolvedSchema defaultMethod(LogicalType logicalType) {
                                 throw new IllegalArgumentException("Expected a composite type");
                             }
                         });
     }
 
-    private static TableSchema expandLegacyCompositeType(DataType dataType) {
+    private static ResolvedSchema expandLegacyCompositeType(DataType dataType) {
         // legacy composite type
         CompositeType<?> compositeType =
                 (CompositeType<?>)
@@ -557,17 +572,18 @@ public final class DataTypeUtils {
                                 .getTypeInformation();
 
         String[] fieldNames = compositeType.getFieldNames();
-        TypeInformation<?>[] fieldTypes =
+        DataType[] fieldTypes =
                 Arrays.stream(fieldNames)
                         .map(compositeType::getTypeAt)
-                        .toArray(TypeInformation[]::new);
+                        .map(TypeConversions::fromLegacyInfoToDataType)
+                        .toArray(DataType[]::new);
 
-        return new TableSchema(fieldNames, fieldTypes);
+        return ResolvedSchema.physical(fieldNames, fieldTypes);
     }
 
-    private static TableSchema expandCompositeType(
+    private static ResolvedSchema expandCompositeType(
             LogicalType compositeType, DataType[] fieldDataTypes) {
         final String[] fieldNames = getFieldNames(compositeType).toArray(new String[0]);
-        return TableSchema.builder().fields(fieldNames, fieldDataTypes).build();
+        return ResolvedSchema.physical(fieldNames, fieldDataTypes);
     }
 }

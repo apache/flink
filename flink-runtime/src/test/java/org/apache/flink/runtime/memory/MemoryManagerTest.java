@@ -21,14 +21,18 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.testutils.ThrowOnDoubleMemoryFreeing;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -49,6 +53,10 @@ public class MemoryManagerTest {
     private MemoryManager memoryManager;
 
     private Random random;
+
+    @ClassRule
+    public static ThrowOnDoubleMemoryFreeing throwOnDoubleMemoryFreeing =
+            new ThrowOnDoubleMemoryFreeing();
 
     @Before
     public void setUp() {
@@ -187,6 +195,45 @@ public class MemoryManagerTest {
         testCannotAllocateAnymore(mockInvoke, 2);
 
         this.memoryManager.releaseAll(mockInvoke);
+    }
+
+    @Test
+    public void releaseCollectionAfterReleaseAll() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, 1);
+        MemorySegment segment = segs.iterator().next();
+
+        this.memoryManager.releaseAll(mockInvoke);
+        // the collection must be modifiable
+        this.memoryManager.release(new ArrayList<>(Collections.singletonList(segment)));
+        // there is no exception. see FLINK-21728
+    }
+
+    @Test
+    public void releaseAfterReleaseAll() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, 1);
+        MemorySegment segment = segs.iterator().next();
+
+        this.memoryManager.releaseAll(mockInvoke);
+        this.memoryManager.release(segment);
+        // there is no exception. see FLINK-21728
+    }
+
+    @Test
+    public void releaseSameSegmentFromTwoCollections() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        MemorySegment seg1 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+        MemorySegment seg2 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+        MemorySegment seg3 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+
+        // the collection must be modifiable
+        this.memoryManager.release(new ArrayList<>(Arrays.asList(seg1, seg2)));
+        this.memoryManager.release(new ArrayList<>(Arrays.asList(seg2, seg3)));
+        // there is no exception. see FLINK-21728
     }
 
     private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {

@@ -171,7 +171,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -263,7 +263,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean formatted = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ LOOKAHEAD(2)
       ( <EXTENDED> { extended = true; }
         |
@@ -1035,18 +1035,22 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
 }
 
 /**
- * Hive syntax:
- *
- * SHOW FUNCTIONS [LIKE "<pattern>"];
- */
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, null);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
@@ -1086,7 +1090,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);

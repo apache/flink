@@ -34,6 +34,11 @@ describe non_exist;
 org.apache.flink.table.api.ValidationException: Tables or views with the identifier 'default_catalog.default_database.non_exist' doesn't exist
 !error
 
+desc non_exist;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Tables or views with the identifier 'default_catalog.default_database.non_exist' doesn't exist
+!error
+
 alter table non_exist rename to non_exist2;
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` doesn't exist or is a temporary table.
@@ -60,7 +65,12 @@ CREATE TABLE IF NOT EXISTS orders (
 
 # test SHOW TABLES
 show tables;
-orders
++------------+
+| table name |
++------------+
+|     orders |
++------------+
+1 row in set
 !ok
 
 # ==========================================================================
@@ -93,6 +103,20 @@ describe orders2;
 5 rows in set
 !ok
 
+# test desc table
+desc orders2;
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+|    name |                    type |  null |       key |        extras |                  watermark |
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+|    user |                  BIGINT | false | PRI(user) |               |                            |
+| product |             VARCHAR(32) |  true |           |               |                            |
+|  amount |                     INT |  true |           |               |                            |
+|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
 # ==========================================================================
 # test drop table
 # ==========================================================================
@@ -103,8 +127,8 @@ drop table orders2;
 
 # verify table is dropped
 show tables;
-[INFO] Result was empty.
-!info
+Empty set
+!ok
 
 # ==========================================================================
 # test temporary table
@@ -133,7 +157,12 @@ create temporary table if not exists tbl1 (
 
 # list permanent and temporary tables together
 show tables;
-tbl1
++------------+
+| table name |
++------------+
+|       tbl1 |
++------------+
+1 row in set
 !ok
 
 drop temporary table tbl1;
@@ -173,5 +202,5 @@ drop table `mod`;
 !info
 
 show tables;
-[INFO] Result was empty.
-!info
+Empty set
+!ok

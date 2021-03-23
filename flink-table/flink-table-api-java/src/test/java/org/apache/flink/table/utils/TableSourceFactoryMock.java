@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -89,6 +90,8 @@ public class TableSourceFactoryMock implements TableSourceFactory<Row> {
         // table constraint
         supportedProperties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         supportedProperties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        // comment
+        supportedProperties.add(COMMENT);
 
         return supportedProperties;
     }

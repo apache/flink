@@ -89,7 +89,7 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     SqlCommand.SHOW_FUNCTIONS,
-                                    "Shows all user-defined and built-in functions."))
+                                    "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
                     .append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
                     .append(
                             formatCommand(
@@ -179,6 +179,12 @@ public final class CliStrings {
             "All session properties have been set to their default values.";
 
     public static final String MESSAGE_SET = "Session property has been set.";
+
+    public static final String MESSAGE_SET_REMOVED_KEY =
+            "The specified key is not supported anymore.";
+
+    public static final String MESSAGE_SET_DEPRECATED_KEY =
+            "The specified key '%s' is deprecated. Please use '%s' instead.";
 
     public static final String MESSAGE_EMPTY = "Result was empty.";
 
@@ -334,6 +340,14 @@ public final class CliStrings {
         return new AttributedStringBuilder()
                 .style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.BLUE))
                 .append("[INFO] ")
+                .append(message)
+                .toAttributedString();
+    }
+
+    public static AttributedString messageWarning(String message) {
+        return new AttributedStringBuilder()
+                .style(AttributedStyle.DEFAULT.bold().foreground(AttributedStyle.YELLOW))
+                .append("[WARNING] ")
                 .append(message)
                 .toAttributedString();
     }

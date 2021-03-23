@@ -58,6 +58,11 @@ public class KubernetesTestUtils {
                 ContaineredTaskManagerParameters.create(
                         flinkConfig, TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig));
         return new KubernetesTaskManagerParameters(
-                flinkConfig, podName, "", containeredTaskManagerParameters, Collections.emptyMap());
+                flinkConfig,
+                podName,
+                "",
+                "",
+                containeredTaskManagerParameters,
+                Collections.emptyMap());
     }
 }

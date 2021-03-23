@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -36,7 +36,7 @@ import scala.collection.JavaConversions._
   * @param traitSet the traits of this rel
   * @param input    input relational expression
  *  @param tableIdentifier the full path of the table to retrieve.
- *  @param catalogTable Catalog table where this table source table comes from
+ *  @param catalogTable Resolved catalog table where this table source table comes from
  *  @param tableSink the [[DynamicTableSink]] for which to write into
   */
 abstract class Sink(
@@ -44,7 +44,7 @@ abstract class Sink(
     traitSet: RelTraitSet,
     input: RelNode,
     val tableIdentifier: ObjectIdentifier,
-    val catalogTable: CatalogTable,
+    val catalogTable: ResolvedCatalogTable,
     val tableSink: DynamicTableSink)
   extends SingleRel(cluster, traitSet, input) {
 

@@ -20,8 +20,10 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
@@ -29,7 +31,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
 
@@ -49,11 +50,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 /** The base class for json plan testing. */
-public abstract class JsonPlanTestBase {
+public abstract class JsonPlanTestBase extends AbstractTestBase {
 
     @Rule public ExpectedException exception = ExpectedException.none();
-
-    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
     protected TableEnvironmentInternal tableEnv;
 
@@ -67,6 +66,10 @@ public abstract class JsonPlanTestBase {
     @After
     public void after() {
         TestValuesTableFactory.clearAllData();
+    }
+
+    protected TableResult executeSqlWithJsonPlanVerified(String sql) {
+        return tableEnv.executeJsonPlan(tableEnv.getJsonPlan(sql));
     }
 
     protected void createTestValuesSourceTable(
@@ -161,7 +164,7 @@ public abstract class JsonPlanTestBase {
     protected void createTestCsvSourceTable(
             String tableName, List<String> data, String... fieldNameAndTypes) throws IOException {
         checkArgument(fieldNameAndTypes.length > 0);
-        File sourceFile = tmpFolder.newFile();
+        File sourceFile = TEMPORARY_FOLDER.newFile();
         Collections.shuffle(data);
         Files.write(sourceFile.toPath(), String.join("\n", data).getBytes());
         String ddl =
@@ -191,7 +194,7 @@ public abstract class JsonPlanTestBase {
                 StringUtils.isNullOrWhitespaceOnly(partitionFields)
                         ? ""
                         : "\n partitioned by (" + partitionFields + ") \n";
-        File sinkPath = tmpFolder.newFolder();
+        File sinkPath = TEMPORARY_FOLDER.newFolder();
         String ddl =
                 String.format(
                         "CREATE TABLE %s (\n"
@@ -213,7 +216,7 @@ public abstract class JsonPlanTestBase {
         assertResult(expected, actual);
     }
 
-    protected void assertResult(List<String> expected, List<String> actual) throws IOException {
+    protected void assertResult(List<String> expected, List<String> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
         assertEquals(expected, actual);

@@ -89,8 +89,9 @@ interface SlotTracker {
      * Notifies the tracker about the slot statuses.
      *
      * @param slotStatuses slot statues
+     * @return whether any slot status has changed
      */
-    void notifySlotStatus(Iterable<SlotStatus> slotStatuses);
+    boolean notifySlotStatus(Iterable<SlotStatus> slotStatuses);
 
     /**
      * Returns a view over free slots. The returned collection cannot be modified directly, but

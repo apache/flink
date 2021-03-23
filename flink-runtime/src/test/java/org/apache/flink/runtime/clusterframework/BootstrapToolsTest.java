@@ -50,6 +50,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,7 +171,8 @@ public class BootstrapToolsTest extends TestLogger {
                         new MemorySize(222), // networkMemSize
                         new MemorySize(0), // managedMemorySize
                         new MemorySize(333), // jvmMetaspaceSize
-                        new MemorySize(0)); // jvmOverheadSize
+                        new MemorySize(0), // jvmOverheadSize
+                        Collections.emptyList());
         final ContaineredTaskManagerParameters containeredParams =
                 new ContaineredTaskManagerParameters(
                         taskExecutorProcessSpec, new HashMap<String, String>());

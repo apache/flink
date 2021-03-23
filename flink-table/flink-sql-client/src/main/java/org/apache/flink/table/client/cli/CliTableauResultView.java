@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -117,14 +117,14 @@ public class CliTableauResultView implements AutoCloseable {
     }
 
     private void printResults(AtomicInteger receivedRowCount, boolean isStreamingMode) {
-        List<TableColumn> columns = resultDescriptor.getResultSchema().getTableColumns();
+        List<Column> columns = resultDescriptor.getResultSchema().getColumns();
         final String[] fieldNames;
         final int[] colWidths;
         if (isStreamingMode) {
             fieldNames =
                     Stream.concat(
                                     Stream.of(PrintUtils.ROW_KIND_COLUMN),
-                                    columns.stream().map(TableColumn::getName))
+                                    columns.stream().map(Column::getName))
                             .toArray(String[]::new);
             colWidths =
                     PrintUtils.columnWidthsByType(
@@ -133,7 +133,7 @@ public class CliTableauResultView implements AutoCloseable {
                             PrintUtils.NULL_COLUMN,
                             PrintUtils.ROW_KIND_COLUMN);
         } else {
-            fieldNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
+            fieldNames = columns.stream().map(Column::getName).toArray(String[]::new);
             colWidths =
                     PrintUtils.columnWidthsByType(
                             columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
@@ -153,7 +153,12 @@ public class CliTableauResultView implements AutoCloseable {
 
             switch (result.getType()) {
                 case EMPTY:
-                    // do nothing
+                    try {
+                        // prevent busy loop
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        // get ctrl+c from terminal and fallback
+                    }
                     break;
                 case EOS:
                     if (receivedRowCount.get() > 0) {

@@ -1200,6 +1200,11 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             assertThat(
                     notification.f1,
                     hasItem(ResourceRequirement.create(ResourceProfile.ANY, numExistingSlots)));
+
+            // another slot report that does not indicate any changes should not trigger another
+            // notification
+            slotManager.reportSlotStatus(taskExecutionConnection.getInstanceID(), slotReport);
+            assertThat(notEnoughResourceNotifications, hasSize(1));
         }
     }
 

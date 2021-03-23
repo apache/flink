@@ -348,7 +348,9 @@ public class RexNodeSerdeTest {
                                                 BuiltInFunctionDefinitions.TYPE_OF.getName()),
                                         BuiltInFunctionDefinitions.TYPE_OF),
                                 rexBuilder.makeInputRef(
-                                        FACTORY.createSqlType(SqlTypeName.INTEGER), 0)));
+                                        FACTORY.createSqlType(SqlTypeName.INTEGER), 0)),
+                        rexBuilder.makePatternFieldRef(
+                                "test", FACTORY.createSqlType(SqlTypeName.INTEGER), 0));
         return rexNodes.stream().map(n -> new Object[] {n, flinkContext}).toArray(Object[][]::new);
     }
 

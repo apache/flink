@@ -172,6 +172,15 @@ class EnvironmentSettings(object):
         """
         return self._j_environment_settings.getBuiltInDatabaseName()
 
+    def is_blink_planner(self) -> bool:
+        """
+        Tells if :class:`~pyflink.table.TableEnvironment` should work in a blink or old
+        planner.
+
+        :return: True if the TableEnvironment should work in a blink planner, false otherwise.
+        """
+        return self._j_environment_settings.isBlinkPlanner()
+
     def is_streaming_mode(self) -> bool:
         """
         Tells if the :class:`~pyflink.table.TableEnvironment` should work in a batch or streaming

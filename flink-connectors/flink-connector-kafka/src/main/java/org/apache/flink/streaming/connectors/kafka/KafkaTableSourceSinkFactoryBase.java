@@ -53,6 +53,7 @@ import java.util.Properties;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -155,6 +156,9 @@ public abstract class KafkaTableSourceSinkFactoryBase
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
+        // comment
+        properties.add(COMMENT);
 
         // format wildcard
         properties.add(FORMAT + ".*");

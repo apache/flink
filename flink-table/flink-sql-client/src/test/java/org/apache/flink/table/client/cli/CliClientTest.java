@@ -24,7 +24,8 @@ import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
@@ -51,7 +52,6 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,10 +64,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link CliClient}. */
@@ -140,46 +138,7 @@ public class CliClientTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testShowViews() throws Exception {
-        TestingExecutor executor =
-                new TestingExecutorBuilder()
-                        .setExecuteSqlConsumer(
-                                (ignored1, sql) -> {
-                                    if (sql.equalsIgnoreCase("show views")) {
-                                        SHOW_ROW.setField(0, "v1");
-                                        return new TestTableResult(
-                                                ResultKind.SUCCESS_WITH_CONTENT,
-                                                TableSchema.builder()
-                                                        .field("view", DataTypes.STRING())
-                                                        .build(),
-                                                CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
-                                    } else {
-                                        throw new SqlExecutionException(
-                                                "unexpected sql statement: " + sql);
-                                    }
-                                })
-                        .build();
-        String output = testExecuteSql(executor, "show views;");
-        assertThat(executor.getNumExecuteSqlCalls(), is(1));
-        assertTrue(output.contains("v1"));
-    }
-
     // --------------------------------------------------------------------------------------------
-
-    /** execute a sql statement and return the terminal output as string. */
-    private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
-        InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        String sessionId = executor.openSession("test-session");
-
-        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, executor, historyTempFile(), null)) {
-            client.open();
-            return new String(outputStream.toByteArray());
-        }
-    }
 
     private void verifyUpdateSubmission(
             String statement, boolean failExecution, boolean testFailure) throws Exception {
@@ -297,7 +256,7 @@ public class CliClientTest extends TestLogger {
                 return new TestTableResult(
                         new TestingJobClient(),
                         ResultKind.SUCCESS_WITH_CONTENT,
-                        TableSchema.builder().field("result", DataTypes.BIGINT()).build(),
+                        ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
                         CloseableIterator.adapterForIterator(
                                 Collections.singletonList(Row.of(-1L)).iterator()));
             }

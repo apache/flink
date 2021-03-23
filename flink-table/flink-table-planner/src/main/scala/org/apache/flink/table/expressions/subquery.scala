@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -61,7 +62,7 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
-        val tableSchema = tableOperation.getTableSchema
+        val tableSchema = TableSchema.fromResolvedSchema(tableOperation.getResolvedSchema)
         if (tableSchema.getFieldCount > 1) {
           return ValidationFailure(
             s"The sub-query table '$name' must not have more than one column.")

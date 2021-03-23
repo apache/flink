@@ -100,7 +100,6 @@ import java.util.stream.IntStream;
 import scala.Option;
 import scala.Some;
 
-import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
@@ -143,7 +142,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             List<RexNode> rexNodes = convertToRexNodes(projection.getProjectList());
 
             return relBuilder
-                    .project(rexNodes, asList(projection.getTableSchema().getFieldNames()), true)
+                    .project(rexNodes, projection.getResolvedSchema().getColumnNames(), true)
                     .build();
         }
 
@@ -244,7 +243,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 TableFunctionDefinition functionDefinition =
                         (TableFunctionDefinition) calculatedTable.getFunctionDefinition();
 
-                String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
+                String[] fieldNames =
+                        calculatedTable.getResolvedSchema().getColumnNames().toArray(new String[0]);
                 int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 
                 TableFunction<?> tableFunction = functionDefinition.getTableFunction();
@@ -289,7 +289,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         @Override
         public RelNode visit(ValuesQueryOperation values) {
             RelDataType rowType =
-                    relBuilder.getTypeFactory().buildLogicalRowType(values.getTableSchema());
+                    relBuilder
+                            .getTypeFactory()
+                            .buildLogicalRowType(
+                                    TableSchema.fromResolvedSchema(values.getResolvedSchema()));
             if (values.getValues().isEmpty()) {
                 relBuilder.values(rowType);
                 return relBuilder.build();
@@ -327,8 +330,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                                 LogicalValues.createOneRow(
                                                         relBuilder.getCluster()));
                                         relBuilder.project(
-                                                exprs,
-                                                asList(values.getTableSchema().getFieldNames()));
+                                                exprs, values.getResolvedSchema().getColumnNames());
                                         return relBuilder.build();
                                     })
                             .collect(toList());
@@ -366,7 +368,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return convertToDataStreamScan(
                         dataStreamQueryOperation.getDataStream(),
                         dataStreamQueryOperation.getFieldIndices(),
-                        dataStreamQueryOperation.getTableSchema());
+                        TableSchema.fromResolvedSchema(
+                                dataStreamQueryOperation.getResolvedSchema()));
             } else if (other instanceof DataSetQueryOperation) {
                 return convertToDataSetScan((DataSetQueryOperation<?>) other);
             } else if (other instanceof ScalaDataStreamQueryOperation) {
@@ -375,7 +378,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return convertToDataStreamScan(
                         dataStreamQueryOperation.getDataStream(),
                         dataStreamQueryOperation.getFieldIndices(),
-                        dataStreamQueryOperation.getTableSchema());
+                        TableSchema.fromResolvedSchema(
+                                dataStreamQueryOperation.getResolvedSchema()));
             }
 
             throw new TableException("Unknown table operation: " + other);
@@ -385,7 +389,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
         public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
             final Table relTable =
                     new TableSourceTable<>(
-                            tableSourceTable.getTableSchema(),
+                            TableSchema.fromResolvedSchema(tableSourceTable.getResolvedSchema()),
                             tableSourceTable.getTableSource(),
                             !tableSourceTable.isBatch(),
                             FlinkStatistic.UNKNOWN());
@@ -406,7 +410,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                             Schemas.path(
                                     catalogReader.getRootSchema(),
                                     Collections.singletonList(refId))),
-                    tableSourceTable.getTableSchema(),
+                    TableSchema.fromResolvedSchema(tableSourceTable.getResolvedSchema()),
                     tableSourceTable.getTableSource(),
                     Option.empty());
         }
@@ -430,7 +434,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             RelDataType logicalRowType =
                     relBuilder
                             .getTypeFactory()
-                            .buildLogicalRowType(tableOperation.getTableSchema());
+                            .buildLogicalRowType(
+                                    TableSchema.fromResolvedSchema(
+                                            tableOperation.getResolvedSchema()));
 
             return new FlinkLogicalDataSetScan(
                     relBuilder.getCluster(),

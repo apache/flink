@@ -23,10 +23,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /** State which describes a job which is currently being restarted. */
 class Restarting extends StateWithExecutionGraph {
@@ -34,6 +38,8 @@ class Restarting extends StateWithExecutionGraph {
     private final Context context;
 
     private final Duration backoffTime;
+
+    @Nullable private ScheduledFuture<?> goToWaitingForResourcesFuture;
 
     Restarting(
             Context context,
@@ -47,6 +53,15 @@ class Restarting extends StateWithExecutionGraph {
         this.backoffTime = backoffTime;
 
         getExecutionGraph().cancel();
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        if (goToWaitingForResourcesFuture != null) {
+            goToWaitingForResourcesFuture.cancel(false);
+        }
+
+        super.onLeave(newState);
     }
 
     @Override
@@ -72,9 +87,9 @@ class Restarting extends StateWithExecutionGraph {
 
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
-        if (globallyTerminalState == JobStatus.CANCELED) {
-            context.runIfState(this, context::goToWaitingForResources, backoffTime);
-        }
+        Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
+        goToWaitingForResourcesFuture =
+                context.runIfState(this, context::goToWaitingForResources, backoffTime);
     }
 
     /** Context of the {@link Restarting} state. */
@@ -105,8 +120,9 @@ class Restarting extends StateWithExecutionGraph {
          *     the delay
          * @param action action to run if the state equals the expected state
          * @param delay delay after which the action should be executed
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     static class Factory implements StateFactory<Restarting> {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -187,24 +186,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
         jobVertex.setParallelism(parallelism);
         jobVertex.setInvokableClass(NoOpInvokable.class);
         return JobGraphTestUtils.batchJobGraph(jobVertex);
-    }
-
-    private static class GloballyTerminalJobStatusListener implements JobStatusListener {
-
-        private final CompletableFuture<JobStatus> globallyTerminalJobStatusFuture =
-                new CompletableFuture<>();
-
-        @Override
-        public void jobStatusChanges(
-                JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
-            if (newJobStatus.isGloballyTerminalState()) {
-                globallyTerminalJobStatusFuture.complete(newJobStatus);
-            }
-        }
-
-        public CompletableFuture<JobStatus> getTerminationFuture() {
-            return globallyTerminalJobStatusFuture;
-        }
     }
 
     private SchedulerNG createScheduler(

@@ -21,7 +21,8 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -53,7 +54,7 @@ public class CliTableauResultViewTest {
 
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
-    private TableSchema schema;
+    private ResolvedSchema schema;
     private List<Row> data;
     private List<Row> streamingData;
 
@@ -63,14 +64,13 @@ public class CliTableauResultViewTest {
         terminal = TerminalUtils.createDummyTerminal(terminalOutput);
 
         schema =
-                TableSchema.builder()
-                        .field("boolean", DataTypes.BOOLEAN())
-                        .field("int", DataTypes.INT())
-                        .field("bigint", DataTypes.BIGINT())
-                        .field("varchar", DataTypes.STRING())
-                        .field("decimal(10, 5)", DataTypes.DECIMAL(10, 5))
-                        .field("timestamp", DataTypes.TIMESTAMP(6))
-                        .build();
+                ResolvedSchema.of(
+                        Column.physical("boolean", DataTypes.BOOLEAN()),
+                        Column.physical("int", DataTypes.INT()),
+                        Column.physical("bigint", DataTypes.BIGINT()),
+                        Column.physical("varchar", DataTypes.STRING()),
+                        Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
+                        Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
 
         data = new ArrayList<>();
         data.add(
@@ -149,8 +149,8 @@ public class CliTableauResultViewTest {
                         Timestamp.valueOf("2020-03-04 18:39:14")));
 
         streamingData = new ArrayList<>();
-        for (int i = 0; i < data.size(); ++i) {
-            Row row = Row.copy(data.get(i));
+        for (Row datum : data) {
+            Row row = Row.copy(datum);
             streamingData.add(row);
         }
     }
@@ -221,11 +221,11 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults());
+        Future<?> furture = executorService.submit(view::displayResults);
 
         // wait until we trying to get batch result
         CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 0,
+                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1,
                 Deadline.now().plus(Duration.ofSeconds(5)),
                 50L);
 
@@ -423,7 +423,7 @@ public class CliTableauResultViewTest {
 
         // submit result display in another thread
         ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(() -> view.displayResults());
+        Future<?> furture = executorService.submit(view::displayResults);
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(

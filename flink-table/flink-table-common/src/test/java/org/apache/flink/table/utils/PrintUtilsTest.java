@@ -19,7 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -82,16 +83,7 @@ public class PrintUtilsTest {
         PrintUtils.printAsTableauForm(
                 getSchema(), Collections.<Row>emptyList().iterator(), new PrintWriter(outContent));
 
-        assertEquals(
-                "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |"
-                        + System.lineSeparator()
-                        + "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
@@ -105,16 +97,7 @@ public class PrintUtilsTest {
                 true, // derive column width by type
                 true);
 
-        assertEquals(
-                "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
-                        + System.lineSeparator()
-                        + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
@@ -128,16 +111,7 @@ public class PrintUtilsTest {
                 false, // derive column width by content
                 false);
 
-        assertEquals(
-                "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |"
-                        + System.lineSeparator()
-                        + "+---------+-----+--------+---------+----------------+-----------+"
-                        + System.lineSeparator()
-                        + "0 row in set"
-                        + System.lineSeparator(),
-                outContent.toString());
+        assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
 
     @Test
@@ -263,15 +237,14 @@ public class PrintUtilsTest {
                 outContent.toString());
     }
 
-    private TableSchema getSchema() {
-        return TableSchema.builder()
-                .field("boolean", DataTypes.BOOLEAN())
-                .field("int", DataTypes.INT())
-                .field("bigint", DataTypes.BIGINT())
-                .field("varchar", DataTypes.STRING())
-                .field("decimal(10, 5)", DataTypes.DECIMAL(10, 5))
-                .field("timestamp", DataTypes.TIMESTAMP(6))
-                .build();
+    private ResolvedSchema getSchema() {
+        return ResolvedSchema.of(
+                Column.physical("boolean", DataTypes.BOOLEAN()),
+                Column.physical("int", DataTypes.INT()),
+                Column.physical("bigint", DataTypes.BIGINT()),
+                Column.physical("varchar", DataTypes.STRING()),
+                Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
+                Column.physical("timestamp", DataTypes.TIMESTAMP(6)));
     }
 
     private List<Row> getData() {

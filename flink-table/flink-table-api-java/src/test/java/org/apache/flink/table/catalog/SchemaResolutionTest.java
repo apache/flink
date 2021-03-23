@@ -39,6 +39,7 @@ import java.util.Collections;
 import static org.apache.flink.table.api.Expressions.callSql;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertFalse;
@@ -201,14 +202,14 @@ public class SchemaResolutionTest {
                 SCHEMA.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>], \n"
-                                + "  `topic` METADATA VIRTUAL, \n"
-                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE], \n"
-                                + "  `orig_ts` METADATA FROM 'timestamp', \n"
-                                + "  `proctime` AS [PROCTIME()], \n"
-                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND], \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>],\n"
+                                + "  `topic` METADATA VIRTUAL,\n"
+                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE],\n"
+                                + "  `orig_ts` METADATA FROM 'timestamp',\n"
+                                + "  `proctime` AS [PROCTIME()],\n"
+                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }
@@ -220,14 +221,14 @@ public class SchemaResolutionTest {
                 resolvedSchema.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>, \n"
-                                + "  `topic` STRING METADATA VIRTUAL, \n"
-                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE, \n"
-                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp', \n"
-                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(), \n"
-                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND, \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>,\n"
+                                + "  `topic` STRING METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE,\n"
+                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',\n"
+                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
+                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }
@@ -305,7 +306,11 @@ public class SchemaResolutionTest {
                                 DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
                         .notNull();
-        assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
+        final DataType sourceRowDataType = resolvedSchema.toSourceRowDataType();
+        assertThat(sourceRowDataType, equalTo(expectedDataType));
+
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(4).getLogicalType()));
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(6).getLogicalType()));
     }
 
     // --------------------------------------------------------------------------------------------

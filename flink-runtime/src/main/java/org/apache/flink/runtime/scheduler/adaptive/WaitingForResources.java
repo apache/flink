@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -29,6 +28,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * State which describes that the scheduler is waiting for resources in order to execute the job.
@@ -40,6 +40,8 @@ class WaitingForResources implements State, ResourceConsumer {
     private final Logger log;
 
     private final ResourceCounter desiredResources;
+
+    private final ScheduledFuture<?> resourceTimeoutFuture;
 
     WaitingForResources(
             Context context,
@@ -53,9 +55,15 @@ class WaitingForResources implements State, ResourceConsumer {
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
 
         // since state transitions are not allowed in state constructors, schedule calls for later.
-        context.runIfState(
-                this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
+        resourceTimeoutFuture =
+                context.runIfState(
+                        this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
         context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        resourceTimeoutFuture.cancel(false);
     }
 
     @Override
@@ -101,19 +109,7 @@ class WaitingForResources implements State, ResourceConsumer {
     }
 
     private void createExecutionGraphWithAvailableResources() {
-        try {
-            final ExecutionGraph executionGraph =
-                    context.createExecutionGraphWithAvailableResources();
-
-            context.goToExecuting(executionGraph);
-        } catch (Exception exception) {
-            log.info(
-                    "Failed to go from {} to {} because the ExecutionGraph creation failed.",
-                    WaitingForResources.class.getSimpleName(),
-                    Executing.class.getSimpleName(),
-                    exception);
-            context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, exception));
-        }
+        context.goToCreatingExecutionGraph();
     }
 
     /** Context of the {@link WaitingForResources} state. */
@@ -126,12 +122,8 @@ class WaitingForResources implements State, ResourceConsumer {
          */
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
 
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Executing} state
-         */
-        void goToExecuting(ExecutionGraph executionGraph);
+        /** Transitions into the {@link CreatingExecutionGraph} state. */
+        void goToCreatingExecutionGraph();
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
@@ -153,22 +145,15 @@ class WaitingForResources implements State, ResourceConsumer {
         boolean hasEnoughResources(ResourceCounter desiredResources);
 
         /**
-         * Creates an {@link ExecutionGraph} with the available resources.
-         *
-         * @return the created {@link ExecutionGraph}
-         * @throws Exception if the creation of the {@link ExecutionGraph} fails
-         */
-        ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception;
-
-        /**
          * Runs the given action after a delay if the state at this time equals the expected state.
          *
          * @param expectedState expectedState describes the required state at the time of running
          *     the action
          * @param action action to run if the expected state equals the actual state
          * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     static class Factory implements StateFactory<WaitingForResources> {

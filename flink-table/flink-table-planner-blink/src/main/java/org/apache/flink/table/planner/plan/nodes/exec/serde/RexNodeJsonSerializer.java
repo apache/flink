@@ -37,6 +37,7 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -59,6 +60,8 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     public static final String FIELD_NAME_NAME = "name";
     // RexInputRef fields
     public static final String FIELD_NAME_INPUT_INDEX = "inputIndex";
+    // RexPatternFieldRef fields
+    public static final String FIELD_NAME_ALPHA = "alpha";
     // RexLiteral fields
     public static final String FIELD_NAME_CLASS = "class";
     // RexFieldAccess fields
@@ -84,6 +87,7 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     public static final String FIELD_NAME_CONTAINS_NULL = "containsNull";
 
     // supported SqlKinds
+    public static final String SQL_KIND_PATTERN_INPUT_REF = "PATTERN_INPUT_REF";
     public static final String SQL_KIND_INPUT_REF = "INPUT_REF";
     public static final String SQL_KIND_LITERAL = "LITERAL";
     public static final String SQL_KIND_FIELD_ACCESS = "FIELD_ACCESS";
@@ -113,6 +117,9 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             case CORREL_VARIABLE:
                 serialize((RexCorrelVariable) rexNode, jsonGenerator);
                 break;
+            case PATTERN_INPUT_REF:
+                serialize((RexPatternFieldRef) rexNode, jsonGenerator);
+                break;
             default:
                 if (rexNode instanceof RexCall) {
                     serialize((RexCall) rexNode, jsonGenerator);
@@ -120,6 +127,15 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                     throw new TableException("Unknown RexNode: " + rexNode);
                 }
         }
+    }
+
+    private void serialize(RexPatternFieldRef inputRef, JsonGenerator gen) throws IOException {
+        gen.writeStartObject();
+        gen.writeStringField(FIELD_NAME_KIND, SQL_KIND_PATTERN_INPUT_REF);
+        gen.writeStringField(FIELD_NAME_ALPHA, inputRef.getAlpha());
+        gen.writeNumberField(FIELD_NAME_INPUT_INDEX, inputRef.getIndex());
+        gen.writeObjectField(FIELD_NAME_TYPE, inputRef.getType());
+        gen.writeEndObject();
     }
 
     private void serialize(RexInputRef inputRef, JsonGenerator gen) throws IOException {

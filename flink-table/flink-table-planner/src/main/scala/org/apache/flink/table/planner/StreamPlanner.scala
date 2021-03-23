@@ -199,7 +199,8 @@ class StreamPlanner(
         writeToSink(s.getChild, s.getSink, "UnregisteredSink")
 
       case s: SelectSinkOperation =>
-        val sink = new StreamSelectTableSink(s.getChild.getTableSchema)
+        val sink = new StreamSelectTableSink(
+          TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema))
         s.setSelectResultProvider(sink.getSelectResultProvider)
         writeToSink(s.getChild, sink, "collect")
 
@@ -244,7 +245,7 @@ class StreamPlanner(
         }
 
         val tableSink = new DataStreamTableSink(
-          outputConversion.getChild.getTableSchema,
+          TableSchema.fromResolvedSchema(outputConversion.getChild.getResolvedSchema),
           TypeConversions.fromDataTypeToLegacyInfo(outputConversion.getType),
           withChangeFlag)
         val input = getRelBuilder.tableOperation(modifyOperation.getChild).build()

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.CountDistinct;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSum1AggFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSum2AggFunction;
@@ -32,6 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -53,6 +55,23 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
     public void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
+        if (isMiniBatchEnabled) {
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(
+                            ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
+                            Duration.ofSeconds(10));
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L);
+        } else {
+            tEnv.getConfig()
+                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
+        }
 
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"

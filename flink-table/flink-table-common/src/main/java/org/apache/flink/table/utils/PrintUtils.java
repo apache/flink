@@ -19,8 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
@@ -74,9 +74,9 @@ public class PrintUtils {
      * </pre>
      */
     public static void printAsTableauForm(
-            TableSchema tableSchema, Iterator<Row> it, PrintWriter printWriter) {
+            ResolvedSchema resolvedSchema, Iterator<Row> it, PrintWriter printWriter) {
         printAsTableauForm(
-                tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN, false, false);
+                resolvedSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN, false, false);
     }
 
     /**
@@ -99,7 +99,7 @@ public class PrintUtils {
      * 4 rows in set
      * </pre>
      *
-     * @param tableSchema The schema of the data to print
+     * @param resolvedSchema The schema of the data to print
      * @param it The iterator for the data to print
      * @param printWriter The writer to write to
      * @param maxColumnWidth The max width of a column
@@ -109,15 +109,20 @@ public class PrintUtils {
      * @param printRowKind A flag to indicate whether print row kind info
      */
     public static void printAsTableauForm(
-            TableSchema tableSchema,
+            ResolvedSchema resolvedSchema,
             Iterator<Row> it,
             PrintWriter printWriter,
             int maxColumnWidth,
             String nullColumn,
             boolean deriveColumnWidthByType,
             boolean printRowKind) {
-        final List<TableColumn> columns = tableSchema.getTableColumns();
-        String[] columnNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
+        if (!it.hasNext()) {
+            printWriter.println("Empty set");
+            printWriter.flush();
+            return;
+        }
+        final List<Column> columns = resolvedSchema.getColumns();
+        String[] columnNames = columns.stream().map(Column::getName).toArray(String[]::new);
         if (printRowKind) {
             columnNames =
                     Stream.concat(Stream.of(ROW_KIND_COLUMN), Arrays.stream(columnNames))
@@ -152,7 +157,6 @@ public class PrintUtils {
         PrintUtils.printSingleRow(colWidths, columnNames, printWriter);
         // print border line
         printWriter.println(borderline);
-        printWriter.flush();
 
         long numRows = 0;
         while (it.hasNext()) {
@@ -163,17 +167,9 @@ public class PrintUtils {
             numRows++;
         }
 
-        if (numRows > 0) {
-            // print border line
-            printWriter.println(borderline);
-        }
-
-        final String rowTerm;
-        if (numRows > 1) {
-            rowTerm = "rows";
-        } else {
-            rowTerm = "row";
-        }
+        // print border line
+        printWriter.println(borderline);
+        final String rowTerm = numRows > 1 ? "rows" : "row";
         printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
     }
@@ -234,7 +230,7 @@ public class PrintUtils {
      * stored in java heap memory, we can't determine column widths based on column values.
      */
     public static int[] columnWidthsByType(
-            List<TableColumn> columns,
+            List<Column> columns,
             int maxColumnWidth,
             String nullColumn,
             @Nullable String rowKindColumn) {
@@ -243,7 +239,7 @@ public class PrintUtils {
 
         // determine proper column width based on types
         for (int i = 0; i < columns.size(); ++i) {
-            LogicalType type = columns.get(i).getType().getLogicalType();
+            LogicalType type = columns.get(i).getDataType().getLogicalType();
             int len;
             switch (type.getTypeRoot()) {
                 case TINYINT:

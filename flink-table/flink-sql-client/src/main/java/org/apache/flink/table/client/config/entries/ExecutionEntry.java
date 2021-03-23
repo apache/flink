@@ -20,8 +20,6 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -42,7 +40,11 @@ import static org.apache.flink.table.client.config.Environment.EXECUTION_ENTRY;
  * ExecutionEnvironment/StreamExecutionEnvironment/TableEnvironment or as code in a Flink job.
  *
  * <p>All properties of this entry are optional and evaluated lazily.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class ExecutionEntry extends ConfigEntry {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionEntry.class);
@@ -50,7 +52,7 @@ public class ExecutionEntry extends ConfigEntry {
     public static final ExecutionEntry DEFAULT_INSTANCE =
             new ExecutionEntry(new DescriptorProperties(true));
 
-    private static final String EXECUTION_PLANNER = "planner";
+    public static final String EXECUTION_PLANNER = "planner";
 
     public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
 
@@ -62,35 +64,29 @@ public class ExecutionEntry extends ConfigEntry {
 
     private static final String EXECUTION_TYPE_VALUE_BATCH = "batch";
 
-    private static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
+    public static final String EXECUTION_TIME_CHARACTERISTIC = "time-characteristic";
 
     private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME = "event-time";
 
     private static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME =
             "processing-time";
 
-    private static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL =
+    public static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL =
             "periodic-watermarks-interval";
 
-    private static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
+    public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
-    private static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
+    public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";
 
-    private static final String EXECUTION_PARALLELISM = "parallelism";
+    public static final String EXECUTION_PARALLELISM = "parallelism";
 
-    private static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
+    public static final String EXECUTION_MAX_PARALLELISM = "max-parallelism";
 
-    private static final String EXECUTION_RESULT_MODE = "result-mode";
+    public static final String EXECUTION_RESULT_MODE = "result-mode";
 
-    private static final String EXECUTION_RESULT_MODE_VALUE_CHANGELOG = "changelog";
+    public static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
-    private static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
-
-    private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
-
-    private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
-
-    private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
+    public static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
 
     private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK = "fallback";
 
@@ -100,14 +96,14 @@ public class ExecutionEntry extends ConfigEntry {
 
     private static final String EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FAILURE_RATE = "failure-rate";
 
-    private static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
+    public static final String EXECUTION_RESTART_STRATEGY_ATTEMPTS = "restart-strategy.attempts";
 
-    private static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
+    public static final String EXECUTION_RESTART_STRATEGY_DELAY = "restart-strategy.delay";
 
-    private static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL =
+    public static final String EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL =
             "restart-strategy.failure-rate-interval";
 
-    private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL =
+    public static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL =
             "restart-strategy.max-failures-per-interval";
 
     public static final String EXECUTION_CURRENT_CATALOG = "current-catalog";
@@ -156,29 +152,6 @@ public class ExecutionEntry extends ConfigEntry {
         properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
     }
 
-    public EnvironmentSettings getEnvironmentSettings() {
-        final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
-
-        if (inStreamingMode()) {
-            builder.inStreamingMode();
-        } else if (inBatchMode()) {
-            builder.inBatchMode();
-        }
-
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-
-        if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            builder.useOldPlanner();
-        } else if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            builder.useBlinkPlanner();
-        }
-
-        return builder.build();
-    }
-
     public boolean inStreamingMode() {
         return properties
                 .getOptionalString(EXECUTION_TYPE)
@@ -211,24 +184,6 @@ public class ExecutionEntry extends ConfigEntry {
         return false;
     }
 
-    public boolean isBatchPlanner() {
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-
-        // Blink planner is not a batch planner
-        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            return false;
-        }
-        // Old planner can be a streaming or batch planner
-        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return inBatchMode();
-        }
-
-        return false;
-    }
-
     public boolean isBlinkPlanner() {
         final String planner =
                 properties
@@ -240,46 +195,6 @@ public class ExecutionEntry extends ConfigEntry {
         return true;
     }
 
-    public TimeCharacteristic getTimeCharacteristic() {
-        return properties
-                .getOptionalString(EXECUTION_TIME_CHARACTERISTIC)
-                .flatMap(
-                        (v) -> {
-                            switch (v) {
-                                case EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME:
-                                    return Optional.of(TimeCharacteristic.EventTime);
-                                case EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME:
-                                    return Optional.of(TimeCharacteristic.ProcessingTime);
-                                default:
-                                    return Optional.empty();
-                            }
-                        })
-                .orElseGet(
-                        () ->
-                                useDefaultValue(
-                                        EXECUTION_TIME_CHARACTERISTIC,
-                                        TimeCharacteristic.EventTime,
-                                        EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME));
-    }
-
-    public long getPeriodicWatermarksInterval() {
-        return properties
-                .getOptionalLong(EXECUTION_PERIODIC_WATERMARKS_INTERVAL)
-                .orElseGet(() -> useDefaultValue(EXECUTION_PERIODIC_WATERMARKS_INTERVAL, 200L));
-    }
-
-    public long getMinStateRetention() {
-        return properties
-                .getOptionalLong(EXECUTION_MIN_STATE_RETENTION)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MIN_STATE_RETENTION, 0L));
-    }
-
-    public long getMaxStateRetention() {
-        return properties
-                .getOptionalLong(EXECUTION_MAX_STATE_RETENTION)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MAX_STATE_RETENTION, 0L));
-    }
-
     public Optional<Integer> getParallelism() {
         return properties.getOptionalInt(EXECUTION_PARALLELISM);
     }
@@ -288,12 +203,6 @@ public class ExecutionEntry extends ConfigEntry {
         return properties
                 .getOptionalInt(EXECUTION_MAX_PARALLELISM)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MAX_PARALLELISM, 128));
-    }
-
-    public int getMaxTableResultRows() {
-        return properties
-                .getOptionalInt(EXECUTION_MAX_TABLE_RESULT_ROWS)
-                .orElseGet(() -> useDefaultValue(EXECUTION_MAX_TABLE_RESULT_ROWS, 1_000_000));
     }
 
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
@@ -377,27 +286,6 @@ public class ExecutionEntry extends ConfigEntry {
 
     public Optional<String> getCurrentDatabase() {
         return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
-    }
-
-    public boolean isChangelogMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_CHANGELOG))
-                .orElse(false);
-    }
-
-    public boolean isTableMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
-                .orElse(false);
-    }
-
-    public boolean isTableauMode() {
-        return properties
-                .getOptionalString(EXECUTION_RESULT_MODE)
-                .map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
-                .orElse(false);
     }
 
     public Map<String, String> asTopLevelMap() {

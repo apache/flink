@@ -37,7 +37,8 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.module.{Module, ModuleEntry, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
-import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.{CatalogQueryOperation, ShowFunctionsOperation, TableSourceQueryOperation, _}
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
@@ -45,6 +46,7 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
@@ -52,6 +54,8 @@ import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
+import java.util
+
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.util.Try
@@ -461,7 +465,7 @@ abstract class TableEnvImpl(
       .map(t =>
         new CatalogQueryOperation(
           objectIdentifier,
-          TableSchema.fromResolvedSchema(t.getResolvedSchema)))
+          t.getResolvedSchema))
   }
 
   override def listModules(): Array[String] = {
@@ -564,7 +568,7 @@ abstract class TableEnvImpl(
     if (operations.size != 1) {
       throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
-    executeOperation(operations.get(0))
+    executeInternal(operations.get(0))
   }
 
   override def createStatementSet = new StatementSetImpl(this)
@@ -586,17 +590,17 @@ abstract class TableEnvImpl(
     val jobName = "insert-into_" + String.join(",", sinkIdentifierNames)
     try {
       val jobClient = execute(dataSinks, jobName)
-      val builder = TableSchema.builder()
+      val columns = new util.ArrayList[Column]()
       val affectedRowCounts = new Array[JLong](operations.size())
       operations.indices.foreach { idx =>
         // use sink identifier name as field name
-        builder.field(sinkIdentifierNames(idx), DataTypes.BIGINT())
+        columns.add(Column.physical(sinkIdentifierNames(idx), DataTypes.BIGINT()))
         affectedRowCounts(idx) = -1L
       }
       TableResultImpl.builder()
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-        .tableSchema(builder.build())
+        .schema(ResolvedSchema.of(columns))
         .data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts: _*), userClassLoader))
         .build()
     } catch {
@@ -605,8 +609,8 @@ abstract class TableEnvImpl(
     }
   }
 
-  override def executeInternal(operation: QueryOperation): TableResult = {
-    val tableSchema = operation.getTableSchema
+  private def executeQueryOperation(operation: QueryOperation): TableResult = {
+    val tableSchema = TableSchema.fromResolvedSchema(operation.getResolvedSchema)
     val tableSink = new BatchSelectTableSink(tableSchema)
     val dataSink = writeToSinkAndTranslate(operation, tableSink)
     try {
@@ -616,7 +620,7 @@ abstract class TableEnvImpl(
       TableResultImpl.builder
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-        .tableSchema(tableSchema)
+        .schema(operation.getResolvedSchema)
         .data(selectResultProvider.getResultIterator)
         .setPrintStyle(
           PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, true, false))
@@ -647,12 +651,12 @@ abstract class TableEnvImpl(
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
            _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation =>
-        executeOperation(operation)
+        executeInternal(operation)
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG)
     }
   }
 
-  private def executeOperation(operation: Operation): TableResult = {
+  override def executeInternal(operation: Operation): TableResult = {
     operation match {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
         executeInternal(JCollections.singletonList[ModifyOperation](catalogSinkModifyOperation))
@@ -770,8 +774,16 @@ abstract class TableEnvImpl(
         buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
-      case _: ShowFunctionsOperation =>
-        buildShowResult("function name", listFunctions())
+      case showFunctionsOperation: ShowFunctionsOperation =>
+        val functionScope = showFunctionsOperation.getFunctionScope()
+        val functionNames = functionScope match {
+          case FunctionScope.USER => listUserDefinedFunctions()
+          case FunctionScope.ALL => listFunctions()
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"SHOW FUNCTIONS with $functionScope scope is not supported.")
+        }
+        buildShowResult("function name", functionNames)
       case createViewOperation: CreateViewOperation =>
         if (createViewOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -802,7 +814,7 @@ abstract class TableEnvImpl(
         val explanation = explainInternal(JCollections.singletonList(explainOperation.getChild))
         TableResultImpl.builder.
           resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-          .tableSchema(TableSchema.builder.field("result", DataTypes.STRING).build)
+          .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING)))
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.rawContent())
           .build
@@ -816,7 +828,7 @@ abstract class TableEnvImpl(
             descOperation.getSqlIdentifier.asSummaryString()))
         }
       case queryOperation: QueryOperation =>
-        executeInternal(queryOperation)
+        executeQueryOperation(queryOperation)
 
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -866,8 +878,7 @@ abstract class TableEnvImpl(
       rows: Array[Array[Object]]): TableResult = {
     TableResultImpl.builder()
       .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-      .tableSchema(
-        TableSchema.builder().fields(headers, types).build())
+      .schema(ResolvedSchema.physical(headers, types))
       .data(rows.map(Row.of(_:_*)).toList)
       .build()
   }
@@ -1213,8 +1224,7 @@ abstract class TableEnvImpl(
       if (!exist) {
         functionCatalog.registerTemporarySystemFunction(
           createFunctionOperation.getFunctionName,
-          createFunctionOperation.getFunctionClass,
-          createFunctionOperation.getFunctionLanguage,
+          createFunctionOperation.getCatalogFunction,
           false)
       } else if (!createFunctionOperation.isIgnoreIfExists) {
         throw new ValidationException(

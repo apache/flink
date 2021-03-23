@@ -177,6 +177,9 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, FlinkSqlOperatorTable.LOCALTIMESTAMP);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.DATE_FORMAT, FlinkSqlOperatorTable.DATE_FORMAT);
+        DEFINITION_OPERATOR_MAP.put(
+                BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ,
+                FlinkSqlOperatorTable.TO_TIMESTAMP_LTZ);
 
         // collection
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.AT, FlinkSqlOperatorTable.ITEM);

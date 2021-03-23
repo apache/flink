@@ -19,15 +19,14 @@
 package org.apache.flink.table.planner.sources;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -59,11 +58,11 @@ public final class DynamicSourceUtils {
      */
     public static void prepareDynamicSource(
             ObjectIdentifier sourceIdentifier,
-            CatalogTable table,
+            ResolvedCatalogTable table,
             DynamicTableSource source,
             boolean isStreamingMode,
             TableConfig config) {
-        final TableSchema schema = table.getSchema();
+        final ResolvedSchema schema = table.getResolvedSchema();
 
         validateAndApplyMetadata(sourceIdentifier, schema, source);
 
@@ -82,16 +81,16 @@ public final class DynamicSourceUtils {
      * SupportsReadingMetadata#listReadableMetadata()}.
      *
      * <p>This method assumes that source and schema have been validated via {@link
-     * #prepareDynamicSource(ObjectIdentifier, CatalogTable, DynamicTableSource, boolean,
+     * #prepareDynamicSource(ObjectIdentifier, ResolvedCatalogTable, DynamicTableSource, boolean,
      * TableConfig)}.
      */
     public static List<String> createRequiredMetadataKeys(
-            TableSchema schema, DynamicTableSource source) {
+            ResolvedSchema schema, DynamicTableSource source) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         final Set<String> requiredMetadataKeys =
                 metadataColumns.stream()
-                        .map(c -> c.getMetadataAlias().orElse(c.getName()))
+                        .map(c -> c.getMetadataKey().orElse(c.getName()))
                         .collect(Collectors.toSet());
 
         final Map<String, DataType> metadataMap = extractMetadataMap(source);
@@ -109,13 +108,11 @@ public final class DynamicSourceUtils {
      * <p>Physical columns use the table schema's name. Metadata column use the metadata key as
      * name.
      */
-    public static RowType createProducedType(TableSchema schema, DynamicTableSource source) {
+    public static RowType createProducedType(ResolvedSchema schema, DynamicTableSource source) {
         final Map<String, DataType> metadataMap = extractMetadataMap(source);
 
         final Stream<RowField> physicalFields =
-                schema.getTableColumns().stream()
-                        .filter(TableColumn::isPhysical)
-                        .map(c -> new RowField(c.getName(), c.getType().getLogicalType()));
+                ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFields().stream();
 
         final Stream<RowField> metadataFields =
                 createRequiredMetadataKeys(schema, source).stream()
@@ -129,20 +126,20 @@ public final class DynamicSourceUtils {
 
     /** Returns true if the table is an upsert source. */
     public static boolean isUpsertSource(
-            CatalogTable catalogTable, DynamicTableSource tableSource) {
+            ResolvedCatalogTable catalogTable, DynamicTableSource tableSource) {
         if (!(tableSource instanceof ScanTableSource)) {
             return false;
         }
         ChangelogMode mode = ((ScanTableSource) tableSource).getChangelogMode();
         boolean isUpsertMode =
                 mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE);
-        boolean hasPrimaryKey = catalogTable.getSchema().getPrimaryKey().isPresent();
+        boolean hasPrimaryKey = catalogTable.getResolvedSchema().getPrimaryKey().isPresent();
         return isUpsertMode && hasPrimaryKey;
     }
 
     /** Returns true if the table source produces duplicate change events. */
     public static boolean isSourceChangeEventsDuplicate(
-            CatalogTable catalogTable, DynamicTableSource tableSource, TableConfig config) {
+            ResolvedCatalogTable catalogTable, DynamicTableSource tableSource, TableConfig config) {
         if (!(tableSource instanceof ScanTableSource)) {
             return false;
         }
@@ -165,15 +162,15 @@ public final class DynamicSourceUtils {
         return Collections.emptyMap();
     }
 
-    private static List<MetadataColumn> extractMetadataColumns(TableSchema schema) {
-        return schema.getTableColumns().stream()
+    private static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
+        return schema.getColumns().stream()
                 .filter(MetadataColumn.class::isInstance)
                 .map(MetadataColumn.class::cast)
                 .collect(Collectors.toList());
     }
 
     private static void validateAndApplyMetadata(
-            ObjectIdentifier sourceIdentifier, TableSchema schema, DynamicTableSource source) {
+            ObjectIdentifier sourceIdentifier, ResolvedSchema schema, DynamicTableSource source) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         if (metadataColumns.isEmpty()) {
@@ -195,8 +192,8 @@ public final class DynamicSourceUtils {
         final Map<String, DataType> metadataMap = metadataSource.listReadableMetadata();
         metadataColumns.forEach(
                 c -> {
-                    final String metadataKey = c.getMetadataAlias().orElse(c.getName());
-                    final LogicalType metadataType = c.getType().getLogicalType();
+                    final String metadataKey = c.getMetadataKey().orElse(c.getName());
+                    final LogicalType metadataType = c.getDataType().getLogicalType();
                     final DataType expectedMetadataDataType = metadataMap.get(metadataKey);
                     // check that metadata key is valid
                     if (expectedMetadataDataType == null) {
@@ -246,7 +243,7 @@ public final class DynamicSourceUtils {
 
     private static void validateScanSource(
             ObjectIdentifier sourceIdentifier,
-            TableSchema schema,
+            ResolvedSchema schema,
             ScanTableSource scanSource,
             boolean isStreamingMode,
             TableConfig config) {
@@ -266,7 +263,7 @@ public final class DynamicSourceUtils {
 
     private static void validateScanSourceForStreaming(
             ObjectIdentifier sourceIdentifier,
-            TableSchema schema,
+            ResolvedSchema schema,
             ScanTableSource scanSource,
             ChangelogMode changelogMode,
             TableConfig config) {
@@ -330,7 +327,8 @@ public final class DynamicSourceUtils {
         }
     }
 
-    private static void validateWatermarks(ObjectIdentifier sourceIdentifier, TableSchema schema) {
+    private static void validateWatermarks(
+            ObjectIdentifier sourceIdentifier, ResolvedSchema schema) {
         if (schema.getWatermarkSpecs().isEmpty()) {
             return;
         }

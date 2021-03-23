@@ -42,7 +42,8 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
             ResourceProfile.fromResources(1, 100);
     private static final int NUM_OF_SLOTS = 5;
     private static final DefaultResourceAllocationStrategy STRATEGY =
-            new DefaultResourceAllocationStrategy(DEFAULT_SLOT_RESOURCE, NUM_OF_SLOTS);
+            new DefaultResourceAllocationStrategy(
+                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS);
 
     @Test
     public void testFulfillRequirementWithRegisteredResources() {

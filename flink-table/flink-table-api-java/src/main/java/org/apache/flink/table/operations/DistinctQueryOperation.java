@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,8 +35,8 @@ public class DistinctQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return child.getTableSchema();
+    public ResolvedSchema getResolvedSchema() {
+        return child.getResolvedSchema();
     }
 
     @Override

@@ -24,10 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -49,12 +45,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -72,7 +65,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Range;
 
-import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.After;
 import org.junit.Before;
@@ -80,7 +72,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -94,7 +85,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
@@ -885,7 +875,7 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void suspendJobWillIncrementVertexVersions() {
+    public void suspendJobWillIncrementVertexVersions() throws Exception {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
         final ExecutionVertexID onlyExecutionVertexId =
@@ -895,7 +885,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final ExecutionVertexVersion executionVertexVersion =
                 executionVertexVersioner.getExecutionVertexVersion(onlyExecutionVertexId);
 
-        scheduler.suspend(new Exception("forced suspend"));
+        scheduler.close();
 
         assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
     }
@@ -1141,84 +1131,6 @@ public class DefaultSchedulerTest extends TestLogger {
                 lessThanOrEqualTo(updateStateTriggeringJobFailureTimeframe.upperEndpoint()));
     }
 
-    @Test
-    public void testRestoringModifiedJobFromSavepointFails() throws Exception {
-        // create savepoint data
-        final long savepointId = 42L;
-        final OperatorID operatorID = new OperatorID();
-        final File savepointFile =
-                TestUtils.createSavepointWithOperatorState(
-                        TEMPORARY_FOLDER.newFile(), savepointId, operatorID);
-
-        // set savepoint settings which don't allow non restored state
-        final SavepointRestoreSettings savepointRestoreSettings =
-                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), false);
-
-        // create a new operator
-        final JobVertex jobVertex = new JobVertex("New operator");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-
-        // this test will fail in the end due to the previously created Savepoint having a state for
-        // a given OperatorID that does not match any operator of the newly created JobGraph
-        final JobGraph jobGraphWithNewOperator =
-                TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
-                        savepointRestoreSettings, jobVertex);
-
-        try {
-            // creating the DefaultScheduler should try to restore the ExecutionGraph
-            SchedulerTestingUtils.newSchedulerBuilder(
-                            jobGraphWithNewOperator,
-                            ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                    .build();
-            fail("Expected JobMaster creation to fail because of restore failure.");
-        } catch (IllegalStateException ise) {
-            assertThat(
-                    ise,
-                    FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
-        }
-    }
-
-    @Test
-    public void testRestoringModifiedJobFromSavepointWithAllowNonRestoredStateSucceeds()
-            throws Exception {
-        // create savepoint data
-        final long savepointId = 42L;
-        final OperatorID operatorID = new OperatorID();
-        final File savepointFile =
-                TestUtils.createSavepointWithOperatorState(
-                        TEMPORARY_FOLDER.newFile(), savepointId, operatorID);
-
-        // allow for non restored state
-        final SavepointRestoreSettings savepointRestoreSettings =
-                SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), true);
-
-        // create a new operator
-        final JobVertex jobVertex = new JobVertex("New operator");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        final JobGraph jobGraphWithNewOperator =
-                TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
-                        savepointRestoreSettings, jobVertex);
-
-        final StandaloneCompletedCheckpointStore completedCheckpointStore =
-                new StandaloneCompletedCheckpointStore(1);
-        final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
-
-        SchedulerTestingUtils.newSchedulerBuilder(
-                        jobGraphWithNewOperator,
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                .setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory)
-                .build();
-
-        // creating the DefaultScheduler should have read the savepoint
-        final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint(false);
-
-        MatcherAssert.assertThat(savepoint, notNullValue());
-
-        MatcherAssert.assertThat(savepoint.getCheckpointID(), is(savepointId));
-    }
-
     private static TaskExecutionState createFailedTaskExecutionState(
             ExecutionAttemptID executionAttemptID) {
         return new TaskExecutionState(
@@ -1243,7 +1155,7 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private void waitForTermination(final DefaultScheduler scheduler) throws Exception {
-        scheduler.getTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        scheduler.getJobTerminationFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     private static JobGraph singleNonParallelJobVertexJobGraph() {

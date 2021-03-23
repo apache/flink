@@ -21,9 +21,13 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -60,11 +64,14 @@ import org.junit.Test;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -247,7 +254,60 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static TaskExecutionStateTransition createFailingStateTransition() {
+    @Test
+    public void testTransitionToStopWithSavepointState() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+            StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+                    };
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(mockedExecutionGraphWithCheckpointCoordinator)
+                            .build(ctx);
+
+            ctx.setExpectStopWithSavepoint(assertNonNull());
+            exec.stopWithSavepoint("file:///tmp/target", true);
+        }
+    }
+
+    @Test
+    public void testCheckpointSchedulerIsStoppedOnStopWithSavepoint() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+            StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+                    };
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(mockedExecutionGraphWithCheckpointCoordinator)
+                            .build(ctx);
+
+            coordinator.startCheckpointScheduler();
+
+            // we assume checkpointing to be enabled
+            assertThat(coordinator.isPeriodicCheckpointingStarted(), is(true));
+
+            ctx.setExpectStopWithSavepoint(assertNonNull());
+            exec.stopWithSavepoint("file:///tmp/target", true);
+
+            assertThat(coordinator.isPeriodicCheckpointingStarted(), is(false));
+        }
+    }
+
+    static TaskExecutionStateTransition createFailingStateTransition() {
         return new TaskExecutionStateTransition(
                 new TaskExecutionState(
                         new ExecutionAttemptID(), ExecutionState.FAILED, new RuntimeException()));
@@ -286,6 +346,20 @@ public class ExecutingTest extends TestLogger {
             assertThat(executing.getJobStatus(), is(JobStatus.RUNNING));
             assertThat(executing.getJob().getState(), is(JobStatus.RUNNING));
             assertThat(executing.getJob().getStatusTimestamp(JobStatus.FINISHED), is(0L));
+        }
+    }
+
+    @Test
+    public void testExecutingChecksForNewResourcesWhenBeingCreated() throws Exception {
+        try (MockExecutingContext context = new MockExecutingContext()) {
+            context.setCanScaleUp(() -> true);
+            context.setExpectRestarting(
+                    restartingArguments -> {
+                        // expect immediate restart on scale up
+                        assertThat(restartingArguments.getBackoffTime(), is(Duration.ZERO));
+                    });
+
+            final Executing executing = new ExecutingStateBuilder().build(context);
         }
     }
 
@@ -340,11 +414,15 @@ public class ExecutingTest extends TestLogger {
                 new StateValidator<>("failing");
         private final StateValidator<RestartingArguments> restartingStateValidator =
                 new StateValidator<>("restarting");
-        private final StateValidator<CancellingArguments> cancellingStateValidator =
+        private final StateValidator<ExecutingAndCancellingArguments> cancellingStateValidator =
                 new StateValidator<>("cancelling");
 
         private Function<Throwable, Executing.FailureResult> howToHandleFailure;
-        private Supplier<Boolean> canScaleUp;
+        private Supplier<Boolean> canScaleUp = () -> false;
+        private StateValidator<StopWithSavepointArguments> stopWithSavepointValidator =
+                new StateValidator<>("stopWithSavepoint");
+        private CompletableFuture<String> mockedStopWithSavepointOperationFuture =
+                new CompletableFuture<>();
 
         public void setExpectFailing(Consumer<FailingArguments> asserter) {
             failingStateValidator.expectInput(asserter);
@@ -354,8 +432,12 @@ public class ExecutingTest extends TestLogger {
             restartingStateValidator.expectInput(asserter);
         }
 
-        public void setExpectCancelling(Consumer<CancellingArguments> asserter) {
+        public void setExpectCancelling(Consumer<ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
+        }
+
+        public void setExpectStopWithSavepoint(Consumer<StopWithSavepointArguments> asserter) {
+            stopWithSavepointValidator.expectInput(asserter);
         }
 
         public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
@@ -374,7 +456,7 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new CancellingArguments(
+                    new ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }
@@ -420,20 +502,48 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<String> goToStopWithSavepoint(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                CheckpointScheduling checkpointScheduling,
+                CompletableFuture<String> savepointFuture) {
+            stopWithSavepointValidator.validateInput(
+                    new StopWithSavepointArguments(
+                            executionGraph,
+                            executionGraphHandler,
+                            operatorCoordinatorHandler,
+                            checkpointScheduling,
+                            savepointFuture));
+            hadStateTransition = true;
+            return mockedStopWithSavepointOperationFuture;
+        }
+
+        @Override
+        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
+            if (!hadStateTransition) {
+                action.run();
+            }
+
+            return CompletedScheduledFuture.create(null);
+        }
+
+        @Override
         public void close() throws Exception {
             super.close();
             failingStateValidator.close();
             restartingStateValidator.close();
             cancellingStateValidator.close();
+            stopWithSavepointValidator.close();
         }
     }
 
-    static class CancellingArguments {
+    static class ExecutingAndCancellingArguments {
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandle;
 
-        public CancellingArguments(
+        public ExecutingAndCancellingArguments(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandle) {
@@ -455,7 +565,23 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    static class RestartingArguments extends CancellingArguments {
+    static class StopWithSavepointArguments extends ExecutingAndCancellingArguments {
+        private final CheckpointScheduling checkpointScheduling;
+        private final CompletableFuture<String> savepointFuture;
+
+        public StopWithSavepointArguments(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandle,
+                CheckpointScheduling checkpointScheduling,
+                CompletableFuture<String> savepointFuture) {
+            super(executionGraph, executionGraphHandler, operatorCoordinatorHandle);
+            this.checkpointScheduling = checkpointScheduling;
+            this.savepointFuture = savepointFuture;
+        }
+    }
+
+    static class RestartingArguments extends ExecutingAndCancellingArguments {
         private final Duration backoffTime;
 
         public RestartingArguments(
@@ -472,7 +598,7 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    static class FailingArguments extends CancellingArguments {
+    static class FailingArguments extends ExecutingAndCancellingArguments {
         private final Throwable failureCause;
 
         public FailingArguments(

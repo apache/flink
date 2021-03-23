@@ -28,7 +28,17 @@
       }
     },
     "id" : 25,
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
@@ -98,7 +108,31 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `proctime` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
     "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
@@ -142,7 +176,31 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `proctime` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -185,7 +243,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647), `a` INT, `rowtime` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "description" : "Calc(select=[b, c, a, rowtime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
@@ -198,7 +273,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `c` VARCHAR(2147483647), `a` INT, `rowtime` TIMESTAMP(3)>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate",
@@ -243,7 +335,12 @@
         "size" : "PT10S",
         "slide" : "PT5S"
       },
-      "timeAttributeType" : "TIMESTAMP(3)",
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
@@ -253,7 +350,12 @@
         "kind" : "WindowStart",
         "reference" : {
           "name" : "w$",
-          "type" : "TIMESTAMP(3)"
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
         }
       }
     }, {
@@ -262,7 +364,12 @@
         "kind" : "WindowEnd",
         "reference" : {
           "name" : "w$",
-          "type" : "TIMESTAMP(3)"
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
         }
       }
     } ],
@@ -274,7 +381,31 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `EXPR$2` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "EXPR$1" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$2" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      } ]
+    },
     "description" : "WindowAggregate(groupBy=[b], window=[HOP(time_col=[rowtime], size=[10 s], slide=[5 s])], select=[b, COUNT(c) AS EXPR$1, SUM(a) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -309,7 +440,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `EXPR$2` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "EXPR$1" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$2" : "INT"
+      } ]
+    },
     "description" : "Calc(select=[b, EXPR$1, EXPR$2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
@@ -338,7 +479,17 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT NOT NULL, `EXPR$2` INT>",
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "EXPR$1" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$2" : "INT"
+      } ]
+    },
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, EXPR$1, EXPR$2])"
   } ],
   "edges" : [ {

@@ -27,7 +27,7 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.catalog.{Column, GenericInMemoryCatalog, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
@@ -35,11 +35,13 @@ import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
+
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -447,8 +449,8 @@ class TableEnvironmentTest {
     val tableResult = tableEnv.executeSql("SHOW CATALOGS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("catalog name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("catalog name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
       tableResult.collect())
@@ -461,8 +463,8 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("SHOW DATABASES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("database name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
       tableResult2.collect())
@@ -487,8 +489,8 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("table name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
@@ -499,11 +501,23 @@ class TableEnvironmentTest {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
+
+    val funcName = classOf[TestUDF].getName
+    val tableResult1 = tableEnv.executeSql(s"CREATE FUNCTION default_database.f1 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    val tableResult2 = tableEnv.executeSql("SHOW USER FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
+    checkData(
+      util.Arrays.asList(Row.of("f1")).iterator(),
+      tableResult2.collect())
   }
 
   @Test
@@ -1059,8 +1073,8 @@ class TableEnvironmentTest {
     val tableResult3 = tableEnv.executeSql("SHOW VIEWS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
     assertEquals(
-      TableSchema.builder().field("view name", DataTypes.STRING()).build(),
-      tableResult3.getTableSchema)
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("view1")).iterator(),
       tableResult3.collect())
@@ -1309,10 +1323,7 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(viewDDL)
 
-    val tableResult1 = tableEnv.executeSql("describe T1")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
-    checkData(
-      util.Arrays.asList(
+    val expectedResult1 = util.Arrays.asList(
         Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f2", "STRING", Boolean.box(true), null, null, null),
@@ -1342,19 +1353,24 @@ class TableEnvironmentTest {
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
         Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
-          "`ts` - INTERVAL '1' SECOND")
-      ).iterator(),
-      tableResult1.collect())
-
-    val tableResult2 = tableEnv.executeSql("describe T2")
+          "`ts` - INTERVAL '1' SECOND"))
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+    val tableResult2 = tableEnv.executeSql("desc T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    checkData(
-      util.Arrays.asList(
-        Row.of("d", "INT", Boolean.box(false), null, null, null),
-        Row.of("e", "STRING", Boolean.box(false), null, null, null),
-        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
-      ).iterator(),
-      tableResult2.collect())
+    checkData(expectedResult1.iterator(), tableResult2.collect())
+
+    val expectedResult2 = util.Arrays.asList(
+      Row.of("d", "INT", Boolean.box(false), null, null, null),
+      Row.of("e", "STRING", Boolean.box(false), null, null, null),
+      Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null))
+    val tableResult3 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult3.collect())
+    val tableResult4 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult4.collect())
 
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
     val temporaryViewDDL =
@@ -1363,13 +1379,17 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(temporaryViewDDL)
 
-    val tableResult3 = tableEnv.executeSql("describe T2")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val expectedResult3 = util.Arrays.asList(
+      Row.of("x", "INT", Boolean.box(false), null, null, null),
+      Row.of("y", "STRING", Boolean.box(false), null, null, null));
+    val tableResult5 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult5.getResultKind)
+    checkData(expectedResult3.iterator(), tableResult5.collect())
+    val tableResult6 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult6.getResultKind)
     checkData(
-      util.Arrays.asList(
-        Row.of("x", "INT", Boolean.box(false), null, null, null),
-        Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
-      tableResult3.collect())
+      expectedResult3.iterator(),
+      tableResult6.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
@@ -1382,15 +1402,15 @@ class TableEnvironmentTest {
   private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
     val showModules = tableEnv.executeSql("SHOW MODULES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
-    assertEquals(TableSchema.builder().field("module name", DataTypes.STRING()).build(),
-      showModules.getTableSchema)
+    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
+      showModules.getResolvedSchema)
 
     val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
-    assertEquals(TableSchema.builder().fields(
+    assertEquals(ResolvedSchema.physical(
       Array[String]("module name", "used"),
-      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())).build(),
-      showFullModules.getTableSchema)
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
+      showFullModules.getResolvedSchema)
 
     // show modules only list used modules
     checkData(

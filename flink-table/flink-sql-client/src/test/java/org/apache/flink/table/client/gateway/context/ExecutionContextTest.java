@@ -26,16 +26,14 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
@@ -119,8 +117,6 @@ public class ExecutionContextTest {
         assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
         assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
 
-        assertEquals(
-                TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
         assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
 
         assertEquals("failure-rate", conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
@@ -152,8 +148,6 @@ public class ExecutionContextTest {
         assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
         assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
 
-        assertEquals(
-                TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
         assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
 
         assertNull(conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
@@ -317,20 +311,19 @@ public class ExecutionContextTest {
                 new String[] {"sourcetemporaltable", "viewtemporaltable"},
                 tableEnv.listUserDefinedFunctions());
 
-        assertArrayEquals(
-                new String[] {
-                    "integerField",
-                    "stringField",
-                    "rowtimeField",
-                    "integerField0",
-                    "stringField0",
-                    "rowtimeField0"
-                },
-                tableEnv.from("TemporalTableUsage").getSchema().getFieldNames());
+        assertEquals(
+                Arrays.asList(
+                        "integerField",
+                        "stringField",
+                        "rowtimeField",
+                        "integerField0",
+                        "stringField0",
+                        "rowtimeField0"),
+                tableEnv.from("TemporalTableUsage").getResolvedSchema().getColumnNames());
 
         // Please delete this test after removing registerTableSourceInternal in SQL-CLI.
-        TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
-        LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
+        ResolvedSchema schema = tableEnv.from("EnrichmentSource").getResolvedSchema();
+        LogicalType timestampType = schema.getColumnDataTypes().get(2).getLogicalType();
         assertTrue(timestampType instanceof TimestampType);
         assertEquals(TimestampKind.ROWTIME, ((TimestampType) timestampType).getKind());
     }

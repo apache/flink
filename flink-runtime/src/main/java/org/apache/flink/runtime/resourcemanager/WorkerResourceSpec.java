@@ -19,13 +19,21 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Resource specification of a worker, mainly used by SlotManager requesting from ResourceManager.
@@ -48,13 +56,16 @@ public final class WorkerResourceSpec implements Serializable {
 
     private final int numSlots;
 
+    private final Map<String, ExternalResource> extendedResources;
+
     private WorkerResourceSpec(
             CPUResource cpuCores,
             MemorySize taskHeapSize,
             MemorySize taskOffHeapSize,
             MemorySize networkMemSize,
             MemorySize managedMemSize,
-            int numSlots) {
+            int numSlots,
+            Collection<ExternalResource> extendedResources) {
 
         this.cpuCores = Preconditions.checkNotNull(cpuCores);
         this.taskHeapSize = Preconditions.checkNotNull(taskHeapSize);
@@ -62,6 +73,13 @@ public final class WorkerResourceSpec implements Serializable {
         this.networkMemSize = Preconditions.checkNotNull(networkMemSize);
         this.managedMemSize = Preconditions.checkNotNull(managedMemSize);
         this.numSlots = numSlots;
+        this.extendedResources =
+                Preconditions.checkNotNull(extendedResources).stream()
+                        .filter(resource -> !resource.isZero())
+                        .collect(Collectors.toMap(ExternalResource::getName, Function.identity()));
+        Preconditions.checkArgument(
+                this.extendedResources.size() == extendedResources.size(),
+                "Duplicate resource name encountered in external resources.");
     }
 
     public static WorkerResourceSpec fromTaskExecutorProcessSpec(
@@ -73,19 +91,21 @@ public final class WorkerResourceSpec implements Serializable {
                 taskExecutorProcessSpec.getTaskOffHeapSize(),
                 taskExecutorProcessSpec.getNetworkMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize(),
-                taskExecutorProcessSpec.getNumSlots());
+                taskExecutorProcessSpec.getNumSlots(),
+                taskExecutorProcessSpec.getExtendedResources().values());
     }
 
     public static WorkerResourceSpec fromTotalResourceProfile(
             final ResourceProfile resourceProfile, final int numSlots) {
         Preconditions.checkNotNull(resourceProfile);
         return new WorkerResourceSpec(
-                (CPUResource) resourceProfile.getCpuCores(),
+                resourceProfile.getCpuCores(),
                 resourceProfile.getTaskHeapMemory(),
                 resourceProfile.getTaskOffHeapMemory(),
                 resourceProfile.getNetworkMemory(),
                 resourceProfile.getManagedMemory(),
-                numSlots);
+                numSlots,
+                resourceProfile.getExtendedResources().values());
     }
 
     public CPUResource getCpuCores() {
@@ -116,10 +136,20 @@ public final class WorkerResourceSpec implements Serializable {
         return numSlots;
     }
 
+    public Map<String, ExternalResource> getExtendedResources() {
+        return Collections.unmodifiableMap(extendedResources);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(
-                cpuCores, taskHeapSize, taskOffHeapSize, networkMemSize, managedMemSize, numSlots);
+                cpuCores,
+                taskHeapSize,
+                taskOffHeapSize,
+                networkMemSize,
+                managedMemSize,
+                numSlots,
+                extendedResources);
     }
 
     @Override
@@ -133,7 +163,8 @@ public final class WorkerResourceSpec implements Serializable {
                     && Objects.equals(this.taskOffHeapSize, that.taskOffHeapSize)
                     && Objects.equals(this.networkMemSize, that.networkMemSize)
                     && Objects.equals(this.managedMemSize, that.managedMemSize)
-                    && Objects.equals(this.numSlots, that.numSlots);
+                    && Objects.equals(this.numSlots, that.numSlots)
+                    && Objects.equals(this.extendedResources, that.extendedResources);
         }
         return false;
     }
@@ -153,6 +184,11 @@ public final class WorkerResourceSpec implements Serializable {
                 + managedMemSize.toHumanReadableString()
                 + ", numSlots="
                 + numSlots
+                + (extendedResources.isEmpty()
+                        ? ""
+                        : (", "
+                                + ExternalResourceUtils.generateExternalResourcesString(
+                                        extendedResources.values())))
                 + "}";
     }
 
@@ -164,6 +200,7 @@ public final class WorkerResourceSpec implements Serializable {
         private MemorySize networkMemSize = MemorySize.ZERO;
         private MemorySize managedMemSize = MemorySize.ZERO;
         private int numSlots = 1;
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
 
         public Builder() {}
 
@@ -197,6 +234,28 @@ public final class WorkerResourceSpec implements Serializable {
             return this;
         }
 
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
+            return this;
+        }
+
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<ExternalResource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExternalResource::getName, Function.identity()));
+            return this;
+        }
+
         public WorkerResourceSpec build() {
             return new WorkerResourceSpec(
                     cpuCores,
@@ -204,7 +263,8 @@ public final class WorkerResourceSpec implements Serializable {
                     taskOffHeapSize,
                     networkMemSize,
                     managedMemSize,
-                    numSlots);
+                    numSlots,
+                    extendedResources.values());
         }
     }
 }

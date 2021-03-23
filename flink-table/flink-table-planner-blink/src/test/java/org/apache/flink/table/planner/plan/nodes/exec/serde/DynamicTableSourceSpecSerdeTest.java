@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -41,6 +45,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +87,11 @@ public class DynamicTableSourceSpecSerdeTest {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        new FlinkContextImpl(
+                                TableConfig.getDefault(),
+                                null,
+                                CatalogManagerMocks.createEmptyCatalogManager(),
+                                null),
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
@@ -124,10 +133,18 @@ public class DynamicTableSourceSpecSerdeTest {
         properties1.put("schema.0.name", "a");
         properties1.put("schema.0.data-type", "BIGINT");
 
+        final CatalogTable catalogTable1 = CatalogTable.fromProperties(properties1);
+
+        final ResolvedSchema resolvedSchema1 =
+                new ResolvedSchema(
+                        Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
+                        Collections.emptyList(),
+                        null);
+
         DynamicTableSourceSpec spec1 =
                 new DynamicTableSourceSpec(
                         ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
-                        CatalogTableImpl.fromProperties(properties1),
+                        new ResolvedCatalogTable(catalogTable1, resolvedSchema1),
                         Collections.emptyList());
 
         Map<String, String> properties2 = new HashMap<>();
@@ -141,9 +158,9 @@ public class DynamicTableSourceSpecSerdeTest {
         properties2.put("schema.1.name", "b");
         properties2.put("schema.1.data-type", "INT");
         properties2.put("schema.2.name", "c");
-        properties2.put("schema.2.data-type", "VARCHAR");
+        properties2.put("schema.2.data-type", "STRING");
         properties2.put("schema.3.name", "p");
-        properties2.put("schema.3.data-type", "VARCHAR");
+        properties2.put("schema.3.data-type", "STRING");
         properties2.put("schema.4.name", "m1");
         properties2.put("schema.4.data-type", "INT");
         properties2.put("schema.5.name", "m2");
@@ -152,12 +169,27 @@ public class DynamicTableSourceSpecSerdeTest {
         properties2.put("schema.6.data-type", "TIMESTAMP(3)");
         properties2.put("readable-metadata", "m1:INT, m2:STRING");
 
+        final CatalogTable catalogTable2 = CatalogTable.fromProperties(properties2);
+
+        final ResolvedSchema resolvedSchema2 =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("a", DataTypes.BIGINT()),
+                                Column.physical("b", DataTypes.INT()),
+                                Column.physical("c", DataTypes.STRING()),
+                                Column.physical("p", DataTypes.STRING()),
+                                Column.physical("m1", DataTypes.INT()),
+                                Column.physical("m2", DataTypes.STRING()),
+                                Column.physical("ts", DataTypes.TIMESTAMP(3))),
+                        Collections.emptyList(),
+                        null);
+
         FlinkTypeFactory factory = FlinkTypeFactory.INSTANCE();
         RexBuilder rexBuilder = new RexBuilder(factory);
         DynamicTableSourceSpec spec2 =
                 new DynamicTableSourceSpec(
                         ObjectIdentifier.of("default_catalog", "default_db", "MyTable"),
-                        CatalogTableImpl.fromProperties(properties2),
+                        new ResolvedCatalogTable(catalogTable2, resolvedSchema2),
                         Arrays.asList(
                                 new ProjectPushDownSpec(
                                         new int[][] {{0}, {1}, {4}, {6}},

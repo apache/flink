@@ -16,13 +16,32 @@
 # limitations under the License.
 
 # set tableau result mode
-SET execution.result-mode = tableau;
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 
 # ==========================================================================
 # test load module
 # ==========================================================================
+
+# list default loaded and enabled module
+SHOW MODULES;
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
+!ok
+
+SHOW FULL MODULES;
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
+!ok
 
 # load core module twice
 LOAD MODULE core;
@@ -183,10 +202,7 @@ UNLOAD MODULE core;
 !info
 
 SHOW MODULES;
-+-------------+
-| module name |
-+-------------+
-0 row in set
+Empty set
 !ok
 
 SHOW FULL MODULES;

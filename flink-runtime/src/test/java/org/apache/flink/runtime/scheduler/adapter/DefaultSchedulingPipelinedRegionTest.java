@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -110,7 +110,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         e.connectNewDataSetAsInput(c, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
         e.connectNewDataSetAsInput(d, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final ExecutionGraph simpleTestGraph =
+        final DefaultExecutionGraph simpleTestGraph =
                 ExecutionGraphTestUtils.createSimpleTestGraph(a, b, c, d, e);
         final DefaultExecutionTopology topology =
                 DefaultExecutionTopology.fromExecutionGraph(simpleTestGraph);

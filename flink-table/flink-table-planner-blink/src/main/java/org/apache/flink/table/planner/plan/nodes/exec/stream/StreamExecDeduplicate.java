@@ -50,17 +50,30 @@ import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDedu
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link ExecNode} which deduplicate on keys and keeps only first row or last row. This node
  * is an optimization of {@link StreamExecRank} for some special cases. Compared to {@link
  * StreamExecRank}, this node could use mini-batch and access less state.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
+    public static final String FIELD_NAME_IS_ROWTIME = "isRowtime";
+    public static final String FIELD_NAME_KEEP_LAST_ROW = "keepLastRow";
+    public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
 
     @Experimental
     public static final ConfigOption<Boolean> TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE =
@@ -76,9 +89,16 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     + "but there will be additional overhead."
                                     + "Default is true.");
 
+    @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
+
+    @JsonProperty(FIELD_NAME_IS_ROWTIME)
     private final boolean isRowtime;
+
+    @JsonProperty(FIELD_NAME_KEEP_LAST_ROW)
     private final boolean keepLastRow;
+
+    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
     public StreamExecDeduplicate(
@@ -89,8 +109,30 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.uniqueKeys = uniqueKeys;
+        this(
+                uniqueKeys,
+                isRowtime,
+                keepLastRow,
+                generateUpdateBefore,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecDeduplicate(
+            @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
+            @JsonProperty(FIELD_NAME_IS_ROWTIME) boolean isRowtime,
+            @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.uniqueKeys = checkNotNull(uniqueKeys);
         this.isRowtime = isRowtime;
         this.keepLastRow = keepLastRow;
         this.generateUpdateBefore = generateUpdateBefore;
@@ -191,7 +233,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                         tableConfig
                                 .getConfiguration()
                                 .getLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
-                Preconditions.checkArgument(
+                checkArgument(
                         size > 0,
                         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE.key()
                                 + " should be greater than 0.");
@@ -230,7 +272,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                     break;
                 }
             }
-            Preconditions.checkArgument(rowtimeIndex >= 0);
+            checkArgument(rowtimeIndex >= 0);
             if (isMiniBatchEnabled()) {
                 CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(getMiniBatchSize());
                 RowTimeMiniBatchDeduplicateFunction processFunction =

@@ -52,12 +52,22 @@ create catalog c1 with ('type'='generic_in_memory');
 !info
 
 show catalogs;
-c1
-default_catalog
++-----------------+
+|    catalog name |
++-----------------+
+|              c1 |
+| default_catalog |
++-----------------+
+2 rows in set
 !ok
 
 show current catalog;
-default_catalog
++----------------------+
+| current catalog name |
++----------------------+
+|      default_catalog |
++----------------------+
+1 row in set
 !ok
 
 use catalog c1;
@@ -65,7 +75,12 @@ use catalog c1;
 !info
 
 show current catalog;
-c1
++----------------------+
+| current catalog name |
++----------------------+
+|                   c1 |
++----------------------+
+1 row in set
 !ok
 
 drop catalog default_catalog;
@@ -81,12 +96,22 @@ create database db1;
 !info
 
 show databases;
-default
-db1
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
++---------------+
+2 rows in set
 !ok
 
 show current database;
-default
++-----------------------+
+| current database name |
++-----------------------+
+|               default |
++-----------------------+
+1 row in set
 !ok
 
 use db1;
@@ -94,7 +119,12 @@ use db1;
 !info
 
 show current database;
-db1
++-----------------------+
+| current database name |
++-----------------------+
+|                   db1 |
++-----------------------+
+1 row in set
 !ok
 
 create database db2 comment 'db2_comment' with ('k1' = 'v1');
@@ -108,9 +138,14 @@ alter database db2 set ('k1' = 'a', 'k2' = 'b');
 # TODO: show database properties when we support DESCRIBE DATABSE
 
 show databases;
-default
-db1
-db2
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
+|           db2 |
++---------------+
+3 rows in set
 !ok
 
 drop database if exists db2;
@@ -118,8 +153,13 @@ drop database if exists db2;
 !info
 
 show databases;
-default
-db1
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
++---------------+
+2 rows in set
 !ok
 
 # ==========================================================================
@@ -163,16 +203,31 @@ use catalog hivecatalog;
 !info
 
 show current catalog;
-hivecatalog
++----------------------+
+| current catalog name |
++----------------------+
+|          hivecatalog |
++----------------------+
+1 row in set
 !ok
 
 show databases;
-additional_test_database
-default
++--------------------------+
+|            database name |
++--------------------------+
+| additional_test_database |
+|                  default |
++--------------------------+
+2 rows in set
 !ok
 
 show tables;
-param_types_table
++-------------------+
+|        table name |
++-------------------+
+| param_types_table |
++-------------------+
+1 row in set
 !ok
 
 use additional_test_database;
@@ -180,11 +235,21 @@ use additional_test_database;
 !info
 
 show tables;
-test_table
++------------+
+| table name |
++------------+
+| test_table |
++------------+
+1 row in set
 !ok
 
 show current database;
-additional_test_database
++--------------------------+
+|    current database name |
++--------------------------+
+| additional_test_database |
++--------------------------+
+1 row in set
 !ok
 
 # ==========================================================================
@@ -202,11 +267,11 @@ describe hivecatalog.`default`.param_types_table;
 3 rows in set
 !ok
 
-SET execution.type = batch;
+SET execution.runtime-mode = batch;
 [INFO] Session property has been set.
 !info
 
-SET execution.result-mode = tableau;
+SET sql-client.execution.result-mode = tableau;
 [INFO] Session property has been set.
 !info
 
@@ -236,9 +301,36 @@ create table MyTable2 (a int, b string);
 
 # hive catalog is case-insensitive
 show tables;
-mytable1
-mytable2
-test_table
++------------+
+| table name |
++------------+
+|   mytable1 |
+|   mytable2 |
+| test_table |
++------------+
+3 rows in set
+!ok
+
+show views;
+Empty set
+!ok
+
+create view MyView1 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view MyView2 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+show views;
++-----------+
+| view name |
++-----------+
+|   myview1 |
+|   myview2 |
++-----------+
+2 rows in set
 !ok
 
 # test create with full qualified name
@@ -250,6 +342,14 @@ create table c1.db1.MyTable4 (a int, b string);
 [INFO] Table has been created.
 !info
 
+create view c1.db1.MyView3 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view c1.db1.MyView4 as select 1 + 1;
+[INFO] View has been created.
+!info
+
 use catalog c1;
 [INFO] Catalog changed.
 !info
@@ -259,8 +359,25 @@ use db1;
 !info
 
 show tables;
-MyTable3
-MyTable4
++------------+
+| table name |
++------------+
+|   MyTable3 |
+|   MyTable4 |
+|    MyView3 |
+|    MyView4 |
++------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView3 |
+|   MyView4 |
++-----------+
+2 rows in set
 !ok
 
 # test create with database name
@@ -272,17 +389,46 @@ create table `default`.MyTable6 (a int, b string);
 [INFO] Table has been created.
 !info
 
+create view `default`.MyView5 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view `default`.MyView6 as select 1 + 1;
+[INFO] View has been created.
+!info
+
 use `default`;
 [INFO] Database changed.
 !info
 
 show tables;
-MyTable5
-MyTable6
++------------+
+| table name |
++------------+
+|   MyTable5 |
+|   MyTable6 |
+|    MyView5 |
+|    MyView6 |
++------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
+|   MyView6 |
++-----------+
+2 rows in set
 !ok
 
 drop table db1.MyTable3;
 [INFO] Table has been removed.
+!info
+
+drop view db1.MyView3;
+[INFO] View has been removed.
 !info
 
 use db1;
@@ -290,11 +436,30 @@ use db1;
 !info
 
 show tables;
-MyTable4
++------------+
+| table name |
++------------+
+|   MyTable4 |
+|    MyView4 |
++------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView4 |
++-----------+
+1 row in set
 !ok
 
 drop table c1.`default`.MyTable6;
 [INFO] Table has been removed.
+!info
+
+drop view c1.`default`.MyView6;
+[INFO] View has been removed.
 !info
 
 use `default`;
@@ -302,14 +467,29 @@ use `default`;
 !info
 
 show tables;
-MyTable5
++------------+
+| table name |
++------------+
+|   MyTable5 |
+|    MyView5 |
++------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
++-----------+
+1 row in set
 !ok
 
 # ==========================================================================
 # test configuration is changed (trigger new ExecutionContext)
 # ==========================================================================
 
-SET execution.result-mode = changelog;
+SET sql-client.execution.result-mode = changelog;
 [INFO] Session property has been set.
 !info
 
@@ -318,8 +498,14 @@ create table MyTable7 (a int, b string);
 !info
 
 show tables;
-MyTable5
-MyTable7
++------------+
+| table name |
++------------+
+|   MyTable5 |
+|   MyTable7 |
+|    MyView5 |
++------------+
+3 rows in set
 !ok
 
 reset;
@@ -331,5 +517,11 @@ drop table MyTable5;
 !info
 
 show tables;
-MyTable7
++------------+
+| table name |
++------------+
+|   MyTable7 |
+|    MyView5 |
++------------+
+2 rows in set
 !ok
