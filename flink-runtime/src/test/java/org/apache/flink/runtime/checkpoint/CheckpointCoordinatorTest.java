@@ -223,6 +223,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 statsTracker.createSnapshot().getHistory().getCheckpointById(checkpointId));
     }
 
+    private boolean hasNoSubState(OperatorState s) {
+        return s.getNumberCollectedStates() == 0;
+    }
+
     private void assertStatsEqual(
             long checkpointId,
             JobVertexID jobVertexID,
@@ -1061,7 +1065,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     checkpointCoordinator.getSuccessfulCheckpoints().get(0);
             assertEquals(graph.getJobID(), successNew.getJobId());
             assertEquals(checkpointIdNew, successNew.getCheckpointID());
-            assertTrue(successNew.getOperatorStates().isEmpty());
+            assertEquals(2, successNew.getOperatorStates().size());
+            assertTrue(
+                    successNew.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             // validate that the relevant tasks got a confirmation message
             for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
@@ -1228,12 +1234,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
             CompletedCheckpoint sc1 = scs.get(0);
             assertEquals(checkpointId1, sc1.getCheckpointID());
             assertEquals(graph.getJobID(), sc1.getJobId());
-            assertTrue(sc1.getOperatorStates().isEmpty());
+            assertEquals(3, sc1.getOperatorStates().size());
+            assertTrue(sc1.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             CompletedCheckpoint sc2 = scs.get(1);
             assertEquals(checkpointId2, sc2.getCheckpointID());
             assertEquals(graph.getJobID(), sc2.getJobId());
-            assertTrue(sc2.getOperatorStates().isEmpty());
+            assertEquals(3, sc2.getOperatorStates().size());
+            assertTrue(sc2.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -1946,7 +1954,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CompletedCheckpoint successNew = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
         assertEquals(graph.getJobID(), successNew.getJobId());
         assertEquals(checkpointIdNew, successNew.getCheckpointID());
-        assertTrue(successNew.getOperatorStates().isEmpty());
+        assertEquals(2, successNew.getOperatorStates().size());
+        assertTrue(successNew.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
         assertNotNull(savepointFuture.get());
 
         // validate that the first savepoint does not discard its private states.
