@@ -266,6 +266,32 @@ public class DefaultSlotTrackerTest extends TestLogger {
         assertThat(tracker.notifySlotStatus(idempotentSlotReport), is(false));
     }
 
+    @Test
+    public void testGetTaskExecutorsWithAllocatedSlotsForJob() {
+        final SlotTracker tracker = new DefaultSlotTracker();
+
+        final JobID jobId = new JobID();
+        final SlotID slotId = new SlotID(TASK_EXECUTOR_CONNECTION.getResourceID(), 0);
+
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+
+        tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+
+        tracker.notifyAllocationStart(slotId, jobId);
+        assertThat(
+                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
+                contains(TASK_EXECUTOR_CONNECTION));
+
+        tracker.notifyAllocationComplete(slotId, jobId);
+        assertThat(
+                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
+                contains(TASK_EXECUTOR_CONNECTION));
+
+        tracker.notifyFree(slotId);
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+    }
+
     private static class SlotStateTransition {
 
         private final SlotID slotId;
