@@ -36,10 +36,9 @@ class BatchPhysicalExpand(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    outputFieldNames: util.List[String],
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
-  extends Expand(cluster, traitSet, input, outputFieldNames, projects, expandIdIndex)
+  extends Expand(cluster, traitSet, input, projects, expandIdIndex)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -47,7 +46,6 @@ class BatchPhysicalExpand(
       cluster,
       traitSet,
       inputs.get(0),
-      outputFieldNames,
       projects,
       expandIdIndex
     )

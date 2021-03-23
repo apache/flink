@@ -33,13 +33,12 @@ final class LogicalExpand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    outputFieldNames: util.List[String],
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
-  extends Expand(cluster, traits, input, outputFieldNames, projects, expandIdIndex) {
+  extends Expand(cluster, traits, input, projects, expandIdIndex) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new LogicalExpand(cluster, traitSet, inputs.get(0), outputFieldNames, projects, expandIdIndex)
+    new LogicalExpand(cluster, traitSet, inputs.get(0), projects, expandIdIndex)
   }
 
 }
@@ -47,11 +46,10 @@ final class LogicalExpand(
 object LogicalExpand {
   def create(
       input: RelNode,
-      outputFieldNames: util.List[String],
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): LogicalExpand = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
-    new LogicalExpand(input.getCluster, traits, input, outputFieldNames, projects, expandIdIndex)
+    new LogicalExpand(input.getCluster, traits, input, projects, expandIdIndex)
   }
 }
 

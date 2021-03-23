@@ -18,18 +18,19 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.plan.utils.{ExpandUtil, RelExplainUtil}
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.util.Litmus
 import java.util
+import org.apache.flink.table.api.DataTypes.NULL
+import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * Relational expression that apply a number of projects to every input row,
@@ -40,7 +41,6 @@ import scala.collection.mutable.ListBuffer
   * @param cluster       cluster that this relational expression belongs to
   * @param traits        the traits of this rel
   * @param input         input relational expression
-  * @param outputFieldNames the output field names
   * @param projects      all projects, each project contains list of expressions for
   *                      the output columns
   * @param expandIdIndex expand_id('$e') field index
@@ -49,7 +49,6 @@ abstract class Expand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    val outputFieldNames: util.List[String],
     val projects: util.List[util.List[RexNode]],
     val expandIdIndex: Int)
   extends SingleRel(cluster, traits, input) {
@@ -60,13 +59,20 @@ abstract class Expand(
     if (projects.size() <= 1) {
       return litmus.fail("Expand should output more than one rows, otherwise use Project.")
     }
-    if (null == outputFieldNames) {
-      return litmus.fail("Expand should have none empty output field names.")
+    val fieldLen = projects.get(0).size()
+    if (projects.exists(_.size != fieldLen)) {
+      return litmus.fail("all projects' field count should be equal.")
     }
-    if (projects.exists(_.size != outputFieldNames.size())) {
-      return litmus.fail("project filed count is not equal to output field count.")
+
+    // do type check and derived row type info will be cached by framework
+    try {
+      deriveRowType()
+    } catch {
+      case exp: TableException =>
+        return litmus.fail(exp.getMessage)
     }
-    if (expandIdIndex < 0 || expandIdIndex >= outputFieldNames.size()) {
+
+    if (expandIdIndex < 0 || expandIdIndex >= fieldLen) {
       return litmus.fail(
         "expand_id field index should be greater than 0 and less than output field count.")
     }
@@ -84,25 +90,55 @@ abstract class Expand(
   }
 
   override def deriveRowType(): RelDataType = {
-    val fieldNullableMap = mutable.Map[Int, Boolean]()
-    projects.map {
-      project =>
-        project.zipWithIndex.map {
-          f => {
-            val nullable = fieldNullableMap.get(f._2).getOrElse(f._1.getType.isNullable)
-            fieldNullableMap.put(f._2, nullable || f._1.getType.isNullable)
-          }
+    val inputNames = input.getRowType.getFieldNames
+    val fieldNameSet = mutable.Set[String](inputNames: _*)
+    val rowTypes = mutable.ListBuffer[RelDataType]()
+    val outputNames = mutable.ListBuffer[String]()
+    val fieldLen = projects.get(0).size()
+    val inputNameRefCnt = mutable.Map[String, Int]()
+
+    (0 until fieldLen).foreach { fieldIndex =>
+      val fieldTypes = mutable.ListBuffer[RelDataType]()
+      val fieldNames = mutable.ListBuffer[String]()
+      (0 until projects.size()).foreach { projectIndex =>
+        val rexNode = projects.get(projectIndex).get(fieldIndex)
+        fieldTypes += rexNode.getType
+        rexNode match {
+          case ref: RexInputRef =>
+            fieldNames += inputNames.get(ref.getIndex)
+          case _: RexLiteral => // ignore
+          case exp@_ =>
+            throw new TableException(
+              "Expand node only support RexInputRef and RexLiteral, but got " + exp)
         }
-    }
-    val typeList = ListBuffer[RelDataType]()
-    val typeFactory = cluster.getTypeFactory
-    projects.get(0).zipWithIndex.map {
-      f => {
-        typeList
-          .add(typeFactory.createTypeWithNullability(f._1.getType, fieldNullableMap.get(f._2).get))
+      }
+      if (!fieldNames.isEmpty) {
+        val inputName = fieldNames(0)
+        val refCnt = inputNameRefCnt.getOrElse(inputName, 0) + 1
+        inputNameRefCnt.put(inputName, refCnt)
+        outputNames += ExpandUtil.buildDuplicateFieldName(
+          fieldNameSet,
+          inputName,
+          inputNameRefCnt.get(inputName).get)
+      } else if (fieldIndex == expandIdIndex) {
+        outputNames += ExpandUtil.buildUniqueFieldName(fieldNameSet, "$e")
+      } else {
+        outputNames += ExpandUtil.buildUniqueFieldName(fieldNameSet, "$f" + fieldIndex)
+      }
+
+      val leastRestrictive = input.getCluster.getTypeFactory.leastRestrictive(fieldTypes)
+      // if leastRestrictive type is null or type name is NULL means we can not support given
+      // projects with different column types (NULL type name is reserved for untyped literals only)
+      if (leastRestrictive == null || leastRestrictive.getSqlTypeName == NULL) {
+        throw new TableException(
+          "Expand node only support projects that have common types, but got a column with " +
+            "different types which can not derive a least restrictive common type: column index[" +
+            fieldIndex + "], column types[" + fieldTypes + "]")
+      } else {
+        rowTypes += leastRestrictive
       }
     }
-    typeFactory.createStructType(typeList, outputFieldNames)
+    cluster.getTypeFactory.createStructType(rowTypes, outputNames)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

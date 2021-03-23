@@ -44,7 +44,6 @@ class StreamPhysicalExpandRule
       rel.getCluster,
       newTrait,
       newInput,
-      expand.outputFieldNames,
       expand.projects,
       expand.expandIdIndex)
   }

@@ -35,17 +35,16 @@ class StreamPhysicalExpand(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    outputFieldNames: util.List[String],
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
-  extends Expand(cluster, traitSet, inputRel, outputFieldNames, projects, expandIdIndex)
+  extends Expand(cluster, traitSet, inputRel, projects, expandIdIndex)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalExpand(
-      cluster, traitSet, inputs.get(0), outputFieldNames, projects, expandIdIndex)
+      cluster, traitSet, inputs.get(0), projects, expandIdIndex)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

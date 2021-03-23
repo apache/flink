@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.util.ImmutableBitSet
+
 import java.math.BigDecimal
 import java.util
 
@@ -75,8 +77,6 @@ object ExpandUtil {
 
     // expand output fields: original input fields + expand_id field + duplicate fields
     val expandIdIdxInExpand = inputType.getFieldCount
-    val fieldNames = buildExpandFieldNames(inputType, duplicateFieldIndexes)
-
     val expandProjects = createExpandProjects(
       relBuilder.getRexBuilder,
       inputType,
@@ -84,7 +84,7 @@ object ExpandUtil {
       groupSets,
       duplicateFieldIndexes)
 
-    relBuilder.expand(fieldNames, expandProjects, expandIdIdxInExpand)
+    relBuilder.expand(expandProjects, expandIdIdxInExpand)
 
     (duplicateFieldMap, expandIdIdxInExpand)
   }
@@ -144,7 +144,7 @@ object ExpandUtil {
     * Get unique field name based on existed `allFieldNames` collection.
     * NOTES: the new unique field name will be added to existed `allFieldNames` collection.
     */
-  private def buildUniqueFieldName(
+  def buildUniqueFieldName(
       allFieldNames: util.Set[String],
       toAddFieldName: String): String = {
     var name: String = toAddFieldName
@@ -158,12 +158,27 @@ object ExpandUtil {
   }
 
   /**
+   * Generate a new field name using given source input name and its reference count, the rule is:
+   * keep it is if refCnt <= 1, else use pattern $inputName_${refCnt - 2} as the targetName to call
+   * the buildUniqueFieldName function.
+   */
+  def buildDuplicateFieldName(
+      allFieldNames: util.Set[String],
+      inputName: String,
+      refCnt: Int): String = {
+    if (refCnt <= 1) {
+      inputName
+    } else {
+      buildUniqueFieldName(allFieldNames, s"${inputName}_${refCnt - 2}")
+    }
+  }
+
+  /**
     * Create Project list for [[LogicalExpand]].
     * One input row will expand to multiple output rows, so multi projects will be created.
     *
     * @param rexBuilder Rex builder.
     * @param inputType Input row type.
-    * @param outputType Row type of [[LogicalExpand]].
     * @param groupSet The original groupSet of a aggregate before expanded.
     * @param groupSets The original groupSets of a aggregate before expanded.
     * @param duplicateFieldIndexes Fields indexes that will be output as duplicate.

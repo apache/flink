@@ -155,9 +155,6 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
         }
     }
 
-    val expandOutputFields = ExpandUtil.buildExpandFieldNames(
-      studentLogicalScan.getRowType,
-      Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       studentLogicalScan.getCluster.getRexBuilder,
       studentLogicalScan.getRowType,
@@ -168,7 +165,7 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(3)),
       Array.empty[Integer])
     val logicalExpand2 = new LogicalExpand(cluster, studentLogicalScan.getTraitSet,
-      studentLogicalScan, expandOutputFields, expandProjects, 7)
+      studentLogicalScan, expandProjects, 7)
     (0 until logicalExpand2.getRowType.getFieldCount - 1).foreach { idx =>
       assertFalse(mq.areColumnsUnique(logicalExpand2, ImmutableBitSet.of(idx, 7)))
     }

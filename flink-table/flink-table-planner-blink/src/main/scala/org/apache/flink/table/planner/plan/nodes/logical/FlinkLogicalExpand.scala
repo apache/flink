@@ -36,10 +36,9 @@ class FlinkLogicalExpand(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
-    outputFieldNames: util.List[String],
     projects: util.List[util.List[RexNode]],
     expandIdIndex: Int)
-  extends Expand(cluster, traits, input, outputFieldNames, projects, expandIdIndex)
+  extends Expand(cluster, traits, input, projects, expandIdIndex)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -47,7 +46,6 @@ class FlinkLogicalExpand(
       cluster,
       traitSet,
       inputs.get(0),
-      outputFieldNames,
       projects,
       expandIdIndex)
   }
@@ -66,7 +64,6 @@ private class FlinkLogicalExpandConverter
     val newInput = RelOptRule.convert(expand.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalExpand.create(
       newInput,
-      expand.outputFieldNames,
       expand.projects,
       expand.expandIdIndex)
   }
@@ -77,11 +74,10 @@ object FlinkLogicalExpand {
 
   def create(
       input: RelNode,
-      outputFieldNames: util.List[String],
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): FlinkLogicalExpand = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalExpand(cluster, traitSet, input, outputFieldNames, projects, expandIdIndex)
+    new FlinkLogicalExpand(cluster, traitSet, input, projects, expandIdIndex)
   }
 }
