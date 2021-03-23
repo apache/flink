@@ -63,7 +63,6 @@ public interface RuntimeContext {
      * standalone collection executor). Note that Job ID can change in particular upon manual
      * restart. The returned ID should NOT be used for any job management tasks.
      */
-    @PublicEvolving
     Optional<JobID> getJobId();
 
     /**
