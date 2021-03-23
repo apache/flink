@@ -437,6 +437,7 @@ public class MesosResourceManagerDriverTest
                     Option.empty(),
                     Option.empty(),
                     Collections.emptyList(),
+                    Option.empty(),
                     Collections.emptyMap());
         }
 
