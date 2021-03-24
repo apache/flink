@@ -167,6 +167,7 @@ class ChannelStateCheckpointWriter {
                         long size = checkpointStream.getPos() - offset;
                         offsets.computeIfAbsent(key, unused -> new StateContentMetaInfo())
                                 .withDataAdded(offset, size);
+                        NetworkActionsLogger.tracePersist(action, buffer, key, checkpointId);
                     });
         } finally {
             buffer.recycleBuffer();
