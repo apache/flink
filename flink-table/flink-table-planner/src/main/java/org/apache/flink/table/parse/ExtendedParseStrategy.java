@@ -16,31 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.parse;
+package org.apache.flink.table.parse;
 
 import org.apache.flink.table.operations.Operation;
 
-import java.util.regex.Pattern;
-
-/** Strategy to parse statement to {@link Operation}. */
-public abstract class StatementParseStrategy {
-
-    protected static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
-
-    protected Pattern pattern;
-
-    protected StatementParseStrategy(Pattern pattern) {
-        this.pattern = pattern;
-    }
+/**
+ * Strategy to parse statement to {@link Operation}. parsing some special command which can't
+ * supported by {@link CalciteParser}, e.g. {@code SET key=value} may contain special characters in
+ * key and value.
+ */
+public interface ExtendedParseStrategy {
 
     /** Determine whether the input statement is satisfied the strategy. */
-    public boolean match(String statement) {
-        return pattern.matcher(statement.trim()).matches();
-    }
+    boolean match(String statement);
 
     /** Convert the input statement to the {@link Operation}. */
-    abstract Operation convert(String statement);
+    Operation convert(String statement);
 
     /** Return hints for the given statement. */
-    abstract String[] getHints();
+    String[] getHints();
 }

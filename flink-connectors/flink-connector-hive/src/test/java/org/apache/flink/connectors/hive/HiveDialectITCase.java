@@ -37,7 +37,6 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.table.operations.command.SourceOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -139,7 +138,6 @@ public class HiveDialectITCase {
         assertThat(parser.parse("clear").get(0), instanceOf(ClearOperation.class));
         assertThat(parser.parse("SET").get(0), instanceOf(SetOperation.class));
         assertThat(parser.parse("ResET").get(0), instanceOf(ResetOperation.class));
-        assertThat(parser.parse("Source /path/to/file").get(0), instanceOf(SourceOperation.class));
         assertThat(parser.parse("Exit").get(0), instanceOf(QuitOperation.class));
     }
 

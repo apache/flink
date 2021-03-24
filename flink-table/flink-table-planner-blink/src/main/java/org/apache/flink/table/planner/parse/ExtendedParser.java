@@ -18,56 +18,43 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
-/** {@link ExtendedParser} is used for parsing some special command which can't supported by {@link CalciteParser}, e.g. {@code SET key=value} contains special characters in key and value identifier. It's also good to move some parsring here to avoid introducing new reserved keywords.  */
-public class ParseStrategyParser {
+/**
+ * {@link ExtendedParser} is used for parsing some special command which can't supported by {@link
+ * CalciteParser}, e.g. {@code SET key=value} may contain special characters in key and value. It's
+ * also a good idea to move some parsing strategy here to avoid introducing new reserved keywords.
+ */
+public class ExtendedParser {
 
-    public static final ParseStrategyParser INSTANCE = new ParseStrategyParser();
+    public static final ExtendedParser INSTANCE = new ExtendedParser();
 
-    private static final List<StatementParseStrategy> REGEX_STRATEGIES =
+    private static final List<ExtendedParseStrategy> PARSE_STRATEGIES =
             Arrays.asList(
                     ClearOperationParseStrategy.INSTANCE,
                     HelpOperationParseStrategy.INSTANCE,
                     QuitOperationParseStrategy.INSTANCE,
                     ResetOperationParseStrategy.INSTANCE,
-                    SetOperationParseStrategy.INSTANCE,
-                    SourceOperationParseStrategy.INSTANCE);
+                    SetOperationParseStrategy.INSTANCE);
 
     /**
-     * Determine whether the input statement matches any {@link StatementParseStrategy}.
-     *
-     * @param statement that command to evaluate
-     * @return whether this statement matches the strategy
-     */
-    public boolean matches(String statement) {
-        for (StatementParseStrategy strategy : REGEX_STRATEGIES) {
-            if (strategy.match(statement)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Convert the input statement to the {@link Operation}.
+     * Parse the input statement to the {@link Operation}.
      *
      * @param statement the command to evaluate
      * @return parsed operation that represents the command
      */
-    public Operation convert(String statement) {
-        for (StatementParseStrategy strategy : REGEX_STRATEGIES) {
+    public Optional<Operation> parse(String statement) {
+        for (ExtendedParseStrategy strategy : PARSE_STRATEGIES) {
             if (strategy.match(statement)) {
-                return strategy.convert(statement);
+                return Optional.of(strategy.convert(statement));
             }
         }
-        throw new TableException(
-                String.format("ParseStrategyParser fails to parse the statement: %s.", statement));
+        return Optional.empty();
     }
 
     /**
@@ -81,7 +68,7 @@ public class ParseStrategyParser {
     public String[] getCompletionHints(String statement, int cursor) {
         String normalizedStatement = statement.trim().toUpperCase();
         List<String> hints = new ArrayList<>();
-        for (StatementParseStrategy strategy : REGEX_STRATEGIES) {
+        for (ExtendedParseStrategy strategy : PARSE_STRATEGIES) {
             for (String hint : strategy.getHints()) {
                 if (hint.startsWith(normalizedStatement) && cursor < hint.length()) {
                     hints.add(getCompletionHint(normalizedStatement, hint));

@@ -24,7 +24,7 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import java.util.regex.Pattern;
 
 /** Strategy to parse statement to {@link HelpOperation}. */
-public class HelpOperationParseStrategy extends StatementParseStrategy {
+public class HelpOperationParseStrategy extends AbstractRegexParseStrategy {
 
     static final HelpOperationParseStrategy INSTANCE = new HelpOperationParseStrategy();
 

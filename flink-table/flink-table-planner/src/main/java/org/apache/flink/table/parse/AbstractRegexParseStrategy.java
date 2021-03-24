@@ -22,25 +22,19 @@ import org.apache.flink.table.operations.Operation;
 
 import java.util.regex.Pattern;
 
-/** Strategy to parse statement to {@link Operation}. */
-public abstract class StatementParseStrategy {
+/** Strategy to parse statement to {@link Operation} by regex. */
+public abstract class AbstractRegexParseStrategy implements ExtendedParseStrategy {
 
     protected static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 
     protected Pattern pattern;
 
-    protected StatementParseStrategy(Pattern pattern) {
+    protected AbstractRegexParseStrategy(Pattern pattern) {
         this.pattern = pattern;
     }
 
-    /** Determine whether the input statement is satisfied the strategy. */
+    @Override
     public boolean match(String statement) {
         return pattern.matcher(statement.trim()).matches();
     }
-
-    /** Convert the input statement to the {@link Operation}. */
-    abstract Operation convert(String statement);
-
-    /** Return hints for the given statement. */
-    abstract String[] getHints();
 }

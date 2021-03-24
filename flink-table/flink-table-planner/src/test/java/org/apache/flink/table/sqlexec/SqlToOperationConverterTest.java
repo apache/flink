@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -60,13 +59,13 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
-import org.apache.flink.table.operations.command.SourceOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.parse.CalciteParser;
 import org.apache.flink.table.planner.ParserImpl;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
@@ -715,14 +714,6 @@ public class SqlToOperationConverterTest {
                 "/path/to/test-_-jar.jar");
 
         assertFailedSetCommand("SET execution.runtime-type=");
-    }
-
-    @Test
-    public void testSourceOperation() {
-        String statement = "source  /path/to/file";
-
-        SourceOperation sourceOperation = (SourceOperation) parser.parse(statement).get(0);
-        assertEquals("/path/to/file", sourceOperation.getPath());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

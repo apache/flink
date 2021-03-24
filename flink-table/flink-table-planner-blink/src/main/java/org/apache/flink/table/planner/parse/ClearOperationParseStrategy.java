@@ -24,7 +24,7 @@ import org.apache.flink.table.operations.command.ClearOperation;
 import java.util.regex.Pattern;
 
 /** Strategy to parse statement to {@link ClearOperation}. */
-public class ClearOperationParseStrategy extends StatementParseStrategy {
+public class ClearOperationParseStrategy extends AbstractRegexParseStrategy {
 
     static final ClearOperationParseStrategy INSTANCE = new ClearOperationParseStrategy();
 
@@ -33,12 +33,12 @@ public class ClearOperationParseStrategy extends StatementParseStrategy {
     }
 
     @Override
-    Operation convert(String statement) {
+    public Operation convert(String statement) {
         return new ClearOperation();
     }
 
     @Override
-    String[] getHints() {
+    public String[] getHints() {
         return new String[] {"CLEAR"};
     }
 }

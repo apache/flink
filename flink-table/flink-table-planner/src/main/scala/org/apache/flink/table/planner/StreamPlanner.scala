@@ -35,6 +35,7 @@ import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, 
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
+import org.apache.flink.table.parse.CalciteParser
 import org.apache.flink.table.plan.StreamOptimizer
 import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel

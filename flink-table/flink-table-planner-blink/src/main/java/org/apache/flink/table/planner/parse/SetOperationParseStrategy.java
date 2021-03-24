@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Strategy to parse statement to {@link SetOperation}. */
-public class SetOperationParseStrategy extends StatementParseStrategy {
+public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
 
     static final SetOperationParseStrategy INSTANCE = new SetOperationParseStrategy();
 

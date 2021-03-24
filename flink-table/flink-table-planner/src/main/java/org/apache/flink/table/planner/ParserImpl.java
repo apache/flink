@@ -20,14 +20,14 @@ package org.apache.flink.table.planner;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.parse.ParseStrategyParser;
+import org.apache.flink.table.parse.CalciteParser;
+import org.apache.flink.table.parse.ExtendedParser;
 import org.apache.flink.table.sqlexec.SqlToOperationConverter;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -52,6 +53,7 @@ public class ParserImpl implements Parser {
     // multiple statements parsing
     private final Supplier<FlinkPlannerImpl> validatorSupplier;
     private final Supplier<CalciteParser> calciteParserSupplier;
+    private static final ExtendedParser EXTENDED_PARSER = ExtendedParser.INSTANCE;
 
     public ParserImpl(
             CatalogManager catalogManager,
@@ -62,15 +64,23 @@ public class ParserImpl implements Parser {
         this.calciteParserSupplier = calciteParserSupplier;
     }
 
+    /**
+     * When parsing statement, it first uses {@link ExtendedParser} to parse statements. If {@link
+     * ExtendedParser} fails to parse statement, it uses the {@link CalciteParser} to parse
+     * statements.
+     *
+     * @param statement input statement.
+     * @return parsed operations.
+     */
     @Override
     public List<Operation> parse(String statement) {
         CalciteParser parser = calciteParserSupplier.get();
         FlinkPlannerImpl planner = validatorSupplier.get();
         // parse the sql query
 
-        // use ParseStrategyParser to parse commands
-        if (ParseStrategyParser.INSTANCE.matches(statement)) {
-            return Collections.singletonList(ParseStrategyParser.INSTANCE.convert(statement));
+        Optional<Operation> command = EXTENDED_PARSER.parse(statement);
+        if (command.isPresent()) {
+            return Collections.singletonList(command.get());
         }
 
         SqlNode parsed = parser.parse(statement);
@@ -104,11 +114,8 @@ public class ParserImpl implements Parser {
     public String[] getCompletionHints(String statement, int position) {
         List<String> candidates =
                 new ArrayList<>(
-                        Arrays.asList(
-                                ParseStrategyParser.INSTANCE.getCompletionHints(
-                                        statement, position)));
+                        Arrays.asList(EXTENDED_PARSER.getCompletionHints(statement, position)));
 
-        // fall back to sql advisor
         SqlAdvisorValidator validator = validatorSupplier.get().getSqlAdvisorValidator();
         SqlAdvisor advisor =
                 new SqlAdvisor(validator, validatorSupplier.get().config().getParserConfig());

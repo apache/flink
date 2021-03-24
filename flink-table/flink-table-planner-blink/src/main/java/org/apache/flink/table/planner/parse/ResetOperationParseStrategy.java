@@ -24,7 +24,7 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import java.util.regex.Pattern;
 
 /** Strategy to parse statement to {@link ResetOperation}. */
-public class ResetOperationParseStrategy extends StatementParseStrategy {
+public class ResetOperationParseStrategy extends AbstractRegexParseStrategy {
 
     static final ResetOperationParseStrategy INSTANCE = new ResetOperationParseStrategy();
 

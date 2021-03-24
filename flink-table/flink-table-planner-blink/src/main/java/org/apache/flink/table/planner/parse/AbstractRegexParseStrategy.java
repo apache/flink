@@ -16,25 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.command;
+package org.apache.flink.table.planner.parse;
 
 import org.apache.flink.table.operations.Operation;
 
-/** Operation that represent SOURCE command. */
-public class SourceOperation implements Operation {
+import java.util.regex.Pattern;
 
-    private final String path;
+/** Strategy to parse statement to {@link Operation} by regex. */
+public abstract class AbstractRegexParseStrategy implements ExtendedParseStrategy {
 
-    public SourceOperation(String path) {
-        this.path = path;
-    }
+    protected static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 
-    public String getPath() {
-        return path;
+    protected Pattern pattern;
+
+    protected AbstractRegexParseStrategy(Pattern pattern) {
+        this.pattern = pattern;
     }
 
     @Override
-    public String asSummaryString() {
-        return String.format("SOURCE %s", path);
+    public boolean match(String statement) {
+        return pattern.matcher(statement.trim()).matches();
     }
 }

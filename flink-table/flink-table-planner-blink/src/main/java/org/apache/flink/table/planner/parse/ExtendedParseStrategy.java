@@ -16,29 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.parse;
+package org.apache.flink.table.planner.parse;
 
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.command.ResetOperation;
 
-import java.util.regex.Pattern;
+/**
+ * Strategy to parse statement to {@link Operation}. parsing some special command which can't
+ * supported by {@link CalciteParser}, e.g. {@code SET key=value} may contain special characters in
+ * key and value.
+ */
+public interface ExtendedParseStrategy {
 
-/** Strategy to parse statement to {@link ResetOperation}. */
-public class ResetOperationParseStrategy extends AbstractRegexParseStrategy {
+    /** Determine whether the input statement is satisfied the strategy. */
+    boolean match(String statement);
 
-    static final ResetOperationParseStrategy INSTANCE = new ResetOperationParseStrategy();
+    /** Convert the input statement to the {@link Operation}. */
+    Operation convert(String statement);
 
-    private ResetOperationParseStrategy() {
-        super(Pattern.compile("RESET", DEFAULT_PATTERN_FLAGS));
-    }
-
-    @Override
-    public Operation convert(String statement) {
-        return new ResetOperation();
-    }
-
-    @Override
-    public String[] getHints() {
-        return new String[] {"RESET"};
-    }
+    /** Return hints for the given statement. */
+    String[] getHints();
 }

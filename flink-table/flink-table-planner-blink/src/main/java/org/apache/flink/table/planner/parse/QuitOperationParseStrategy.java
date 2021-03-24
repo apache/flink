@@ -24,7 +24,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import java.util.regex.Pattern;
 
 /** Operation to parse statement to {@link QuitOperation}. */
-public class QuitOperationParseStrategy extends StatementParseStrategy {
+public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
 
     static final QuitOperationParseStrategy INSTANCE = new QuitOperationParseStrategy();
 
