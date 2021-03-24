@@ -103,7 +103,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 
     @Override
     public void onMerge(W window, OnMergeContext ctx) throws Exception {
-        // States for old windows will lost after.
+        // States for old windows will lose after the call.
         ctx.mergePartitionedState(stateDesc);
 
         // Register timer for this new window.

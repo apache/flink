@@ -18,69 +18,145 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.functions.NullByteKeySelector;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
-import java.util.Collection;
+import java.util.ArrayDeque;
+import java.util.Objects;
+import java.util.stream.StreamSupport;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link ContinuousProcessingTimeTrigger}. */
 public class ContinuousProcessingTimeTriggerTest {
+
+    private static final long NO_TIMESTAMP = Watermark.UNINITIALIZED.getTimestamp();
+
+    private static class WindowedInteger {
+        private final TimeWindow window;
+        private final int value;
+
+        public WindowedInteger(TimeWindow window, int value) {
+            this.window = window;
+            this.value = value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof WindowedInteger)) {
+                return false;
+            }
+            WindowedInteger other = (WindowedInteger) o;
+            return value == other.value && Objects.equals(window, other.window);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(window, value);
+        }
+
+        @Override
+        public String toString() {
+            return "WindowedInteger{" + "window=" + window + ", value=" + value + '}';
+        }
+    }
+
+    private static class IntegerSumWindowFunction
+            implements WindowFunction<Integer, WindowedInteger, Byte, TimeWindow> {
+        @Override
+        public void apply(
+                Byte key,
+                TimeWindow window,
+                Iterable<Integer> input,
+                Collector<WindowedInteger> out)
+                throws Exception {
+            int sum =
+                    StreamSupport.stream(input.spliterator(), false)
+                            .mapToInt(Integer::intValue)
+                            .sum();
+            out.collect(new WindowedInteger(window, sum));
+        }
+    }
+
     @Test
     public void testMergingWindows() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
-                ContinuousProcessingTimeTrigger.of(Time.seconds(2));
+                ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
 
         assertTrue(trigger.canMerge());
 
-        TriggerTestHarness<Object, TimeWindow> testHarness =
-                new TriggerTestHarness<>(trigger, new TimeWindow.Serializer());
+        ListStateDescriptor<Integer> stateDesc =
+                new ListStateDescriptor<>(
+                        "window-contents",
+                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
-        TimeWindow window1 = new TimeWindow(0, 2);
-        TimeWindow window2 = new TimeWindow(2, 4);
+        WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
+                new WindowOperator<>(
+                        ProcessingTimeSessionWindows.withGap(Time.milliseconds(10)),
+                        new TimeWindow.Serializer(),
+                        new NullByteKeySelector<>(),
+                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        stateDesc,
+                        new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
+                        trigger,
+                        0,
+                        null);
 
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(2, 4)));
-        assertEquals(2, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(0, 2)));
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(2, 4)));
+        KeyedOneInputStreamOperatorTestHarness<Byte, Integer, WindowedInteger> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, operator.getKeySelector(), BasicTypeInfo.BYTE_TYPE_INFO);
 
-        // window1 and window2 will be merged out.
-        testHarness.mergeWindows(new TimeWindow(0, 4), Lists.newArrayList(window1, window2));
-        assertEquals(1, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(0, 4)));
+        testHarness.open();
 
-        // old timers does not get chance to cleanup due to state merged out.
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(0, 2)));
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(2, 4)));
+        // window [0, 10)
+        testHarness.getProcessingTimeService().setCurrentTime(0);
+        testHarness.processElement(1, NO_TIMESTAMP);
 
-        Collection<Tuple2<TimeWindow, TriggerResult>> triggerResults =
-                testHarness.advanceProcessingTime(4);
-        assertThat(
-                triggerResults,
-                Matchers.hasItem(new Tuple2<>(new TimeWindow(0, 4), TriggerResult.FIRE)));
+        // window [2, 12) ==> [0, 12)
+        testHarness.getProcessingTimeService().setCurrentTime(2);
+        testHarness.processElement(2, NO_TIMESTAMP);
 
-        assertEquals(1, testHarness.numProcessingTimeTimers());
-        assertEquals(1, testHarness.numProcessingTimeTimers(new TimeWindow(0, 4)));
+        testHarness.getProcessingTimeService().setCurrentTime(5);
 
-        // old timers are fired and does not get chance to register due to state merged out.
-        assertEquals(0, testHarness.numProcessingTimeTimers(new TimeWindow(0, 2)));
-        assertEquals(0, testHarness.numProcessingTimeTimers(new TimeWindow(2, 4)));
+        // Merged timer should still fire.
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 12), 3), 11));
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        // Merged window should work as normal.
+        testHarness.getProcessingTimeService().setCurrentTime(9);
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        testHarness.getProcessingTimeService().setCurrentTime(10);
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 12), 3), 11));
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        // There is no on time firing for now.
+        testHarness.getProcessingTimeService().setCurrentTime(15);
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        // Window is dropped already.
+        testHarness.getProcessingTimeService().setCurrentTime(100);
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
     }
 }
