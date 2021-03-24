@@ -99,10 +99,10 @@ abstract class Expand(
     val fieldLen = projects.get(0).size()
     val inputNameRefCnt = mutable.Map[String, Int]()
 
-    (0 until fieldLen).foreach { fieldIndex =>
+    for (fieldIndex <- 0 until fieldLen) {
       val fieldTypes = mutable.ListBuffer[RelDataType]()
       val fieldNames = mutable.ListBuffer[String]()
-      (0 until projects.size()).foreach { projectIndex =>
+      for (projectIndex <- 0 until projects.size()) {
         val rexNode = projects.get(projectIndex).get(fieldIndex)
         fieldTypes += rexNode.getType
         rexNode match {
@@ -135,7 +135,7 @@ abstract class Expand(
         throw new TableException(
           "Expand node only support projects that have common types, but got a column with " +
             "different types which can not derive a least restrictive common type: column index[" +
-            fieldIndex + "], column types[" + fieldTypes + "]")
+            fieldIndex + "], column types[" + fieldTypes.mkString(",") + "]")
       } else {
         rowTypes += leastRestrictive
       }
