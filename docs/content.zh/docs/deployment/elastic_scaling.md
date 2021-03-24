@@ -98,7 +98,7 @@ In scenarios where TaskManagers are not connecting at the same time, but slowly 
 
 - **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will loose its state. Checkpointing also configures a **restart strategy**. Reactive mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.
 
-- Downscaling in Reactive Mode might cause longer stalls in your processing because Flink waits for the heartbeat between JobManager and the stopped TaskManager(s) to time-out. You will see that your Flink job is stuck in the failing state for roughly 50 seconds before redeploying your job with a lower parallelism.
+- Downscaling in Reactive Mode might cause longer stalls in your processing because Flink waits for the heartbeat between JobManager and the stopped TaskManager(s) to time out. You will see that your Flink job is stuck in the failing state for roughly 50 seconds before redeploying your job with a lower parallelism.
 
   The default timeout is configured to 50 seconds. Adjust the [`heartbeat.timeout`]({{< ref "docs/deployment/config">}}#heartbeat-timeout) configuration to a lower value, if your infrastructure permits this. Setting a low heartbeat timeout can lead to failures if a TaskManager fails to respond to a heartbeat, for example due to a network congestion or a long garbage collection pause. Note that the [`heartbeat.interval`]({{< ref "docs/deployment/config">}}#heartbeat-interval) always needs to be lower than the timeout.
 
@@ -120,7 +120,9 @@ The [limitations of Adaptive Scheduler](#limitations-1) also apply to Reactive M
 Using Adaptive Scheduler directly (not through Reactive Mode) is only advised for advanced users.
 {{< /hint >}}
 
-Adaptive Scheduler is a scheduler that can adjust the parallelism of a job based on the available slots. On start up, it requests the number of slots needed based on the parallelisms configured by the user in the streaming job. If the number of slots offered is lower than the requested slots, Adaptive Scheduler will reduce the parallelism so that it can start executing the job (or fail if insufficient slots are available). In Reactive Mode (see above) the parallelism requested is conceptually set to infinity, letting the job always use as many resources as possible. You can also use Adaptive Scheduler without Reactive Mode, but there are some practical limitations:
+The Adaptive Scheduler can adjust the parallelism of a job based on available slots. It will automatically reduce the parallelism if not enough slots are available to run the job with the originally configured parallelism; be it due to not enough resources being available at the time of submission, or TaskManager outages during the job execution. If new slots become available the job will be scaled up again, up to the configured parallelism.
+In Reactive Mode (see above) the configured parallelism is ignored and treated as if it was set to infinity, letting the job always use as many resources as possible.
+You can also use Adaptive Scheduler without Reactive Mode, but there are some practical limitations:
 - If you are using Adaptive Scheduler on a session cluster, there are no guarantees regarding the distribution of slots between multiple running jobs in the same session.
 - An active resource manager (native Kubernetes, YARN, Mesos) will request TaskManagers until the parallelism requested by the job is fulfilled, potentially allocating a lot of resources.
 
