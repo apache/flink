@@ -2065,7 +2065,7 @@ public class StreamExecutionEnvironment {
      * Adds an operator to the list of operators that should be executed when calling {@link
      * #execute}.
      *
-     * <p>When calling {@link #execute()} only the operators that where previously added to the list
+     * <p>When calling {@link #execute()} only the operators that were previously added to the list
      * are executed.
      *
      * <p>This is not meant to be used by users. The API methods that create operators must call

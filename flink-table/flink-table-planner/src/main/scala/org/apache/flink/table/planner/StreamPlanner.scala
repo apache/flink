@@ -234,7 +234,7 @@ class StreamPlanner(
           }) match {
           case Some(t) => t
           case None =>
-            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
+            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exist")
         }
 
       case outputConversion: OutputConversionModifyOperation =>

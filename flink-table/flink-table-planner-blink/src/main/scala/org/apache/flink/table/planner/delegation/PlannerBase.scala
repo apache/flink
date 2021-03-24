@@ -241,7 +241,7 @@ abstract class PlannerBase(
         } match {
           case Some(sinkRel) => sinkRel
           case None =>
-            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
+            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exist")
         }
 
       case outputConversion: OutputConversionModifyOperation =>
