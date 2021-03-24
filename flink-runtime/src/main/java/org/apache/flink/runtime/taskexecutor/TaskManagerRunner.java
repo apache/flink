@@ -416,6 +416,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
         } catch (Throwable t) {
             throwable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
             exitCode = FAILURE_EXIT_CODE;
+        } finally {
+            SecurityUtils.uninstall();
         }
 
         if (throwable != null) {

@@ -139,6 +139,8 @@ public class HistoryServer {
             LOG.error("Failed to run HistoryServer.", strippedThrowable);
             strippedThrowable.printStackTrace();
             System.exit(1);
+        } finally {
+            SecurityUtils.uninstall();
         }
     }
 
