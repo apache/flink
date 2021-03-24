@@ -21,6 +21,7 @@ package org.apache.flink.formats.json;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 
