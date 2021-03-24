@@ -335,7 +335,7 @@ public final class SliceAssigners {
 
         @Override
         public long assignSliceEnd(RowData element, ClockService clock) {
-            return element.getLong(windowEndIndex);
+            return element.getTimestamp(windowEndIndex, 3).getMillisecond();
         }
 
         @Override
@@ -374,7 +374,7 @@ public final class SliceAssigners {
         public final long assignSliceEnd(RowData element, ClockService clock) {
             final long timestamp;
             if (rowtimeIndex >= 0) {
-                timestamp = element.getLong(rowtimeIndex);
+                timestamp = element.getTimestamp(rowtimeIndex, 3).getMillisecond();
             } else {
                 // in processing time mode
                 timestamp = clock.currentProcessingTime();

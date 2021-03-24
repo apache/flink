@@ -219,7 +219,7 @@ class DeduplicateFunctionHelper {
     }
 
     private static long getRowtime(RowData input, int rowtimeIndex) {
-        return input.getLong(rowtimeIndex);
+        return input.getTimestamp(rowtimeIndex, 3).getMillisecond();
     }
 
     /** check message should be insert only. */

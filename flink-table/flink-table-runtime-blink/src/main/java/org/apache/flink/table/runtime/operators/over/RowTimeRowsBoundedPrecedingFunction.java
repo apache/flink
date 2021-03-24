@@ -158,7 +158,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
         registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
         // triggering timestamp for trigger calculation
-        long triggeringTs = input.getLong(rowTimeIdx);
+        long triggeringTs = input.getTimestamp(rowTimeIdx, 3).getMillisecond();
 
         Long lastTriggeringTs = lastTriggeringTsState.value();
         if (lastTriggeringTs == null) {

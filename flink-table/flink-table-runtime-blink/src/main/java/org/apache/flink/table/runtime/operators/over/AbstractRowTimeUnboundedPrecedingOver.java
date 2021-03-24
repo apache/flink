@@ -145,7 +145,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         // register state-cleanup timer
         registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
-        long timestamp = input.getLong(rowTimeIdx);
+        long timestamp = input.getTimestamp(rowTimeIdx, 3).getMillisecond();
         long curWatermark = ctx.timerService().currentWatermark();
 
         if (timestamp > curWatermark) {

@@ -74,12 +74,12 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
 
     @Override
     long getTimeForLeftStream(Context ctx, RowData row) {
-        return row.getLong(leftTimeIdx);
+        return row.getTimestamp(leftTimeIdx, 3).getMillisecond();
     }
 
     @Override
     long getTimeForRightStream(Context ctx, RowData row) {
-        return row.getLong(rightTimeIdx);
+        return row.getTimestamp(rightTimeIdx, 3).getMillisecond();
     }
 
     @Override

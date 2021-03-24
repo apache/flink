@@ -400,11 +400,11 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     }
 
     private long getLeftTime(RowData leftRow) {
-        return leftRow.getLong(leftTimeAttribute);
+        return leftRow.getTimestamp(leftTimeAttribute, 3).getMillisecond();
     }
 
     private long getRightTime(RowData rightRow) {
-        return rightRow.getLong(rightTimeAttribute);
+        return rightRow.getTimestamp(rightTimeAttribute, 3).getMillisecond();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -421,8 +421,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
 
         @Override
         public int compare(RowData o1, RowData o2) {
-            long o1Time = o1.getLong(timeAttribute);
-            long o2Time = o2.getLong(timeAttribute);
+            long o1Time = o1.getTimestamp(timeAttribute, 3).getMillisecond();
+            long o2Time = o2.getTimestamp(timeAttribute, 3).getMillisecond();
             return Long.compare(o1Time, o2Time);
         }
     }

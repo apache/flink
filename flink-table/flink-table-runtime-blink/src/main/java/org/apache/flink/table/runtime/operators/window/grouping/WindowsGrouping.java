@@ -213,7 +213,7 @@ public abstract class WindowsGrouping implements Closeable {
         if (isDate) {
             return row.getInt(timeIndex) * DateTimeUtils.MILLIS_PER_DAY;
         } else {
-            return row.getLong(timeIndex);
+            return row.getTimestamp(timeIndex, 3).getMillisecond();
         }
     }
 

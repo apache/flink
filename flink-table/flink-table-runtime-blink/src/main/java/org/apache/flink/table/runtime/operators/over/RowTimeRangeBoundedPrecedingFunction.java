@@ -149,7 +149,7 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
             Collector<RowData> out)
             throws Exception {
         // triggering timestamp for trigger calculation
-        long triggeringTs = input.getLong(rowTimeIdx);
+        long triggeringTs = input.getTimestamp(rowTimeIdx, 3).getMillisecond();
 
         Long lastTriggeringTs = lastTriggeringTsState.value();
         if (lastTriggeringTs == null) {

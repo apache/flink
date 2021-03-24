@@ -100,7 +100,7 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
         RowData input = element.getValue();
 
         // timestamp of the processed row
-        long rowTime = input.getLong(rowTimeIdx);
+        long rowTime = input.getTimestamp(rowTimeIdx, 3).getMillisecond();
 
         Long lastTriggeringTs = lastTriggeringTsState.value();
 
