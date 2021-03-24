@@ -42,8 +42,13 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Objects;
+
+import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /**
  * Deserialization schema from CSV to Flink types.
@@ -316,7 +321,11 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
         } else if (info.equals(Types.LOCAL_TIME)) {
             return (node) -> Time.valueOf(node.asText()).toLocalTime();
         } else if (info.equals(Types.LOCAL_DATE_TIME)) {
-            return (node) -> Timestamp.valueOf(node.asText()).toLocalDateTime();
+            return (node) -> LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_FORMAT);
+        } else if (info.equals(Types.INSTANT)) {
+            return (node) ->
+                    LocalDateTime.parse(node.asText(), SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT)
+                            .toInstant(ZoneOffset.UTC);
         } else if (info instanceof RowTypeInfo) {
             final RowTypeInfo rowTypeInfo = (RowTypeInfo) info;
             return createRowRuntimeConverter(rowTypeInfo, ignoreParseErrors, false);
