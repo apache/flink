@@ -136,6 +136,13 @@ my_table.select("add(a, b)")
 my_table.select(add(my_table.a, my_table.b))
 ```
 
+要对 UDF 函数进行单元测试，需要使用 `._func` 从 UDF 对象中抽取原来的 Python 函数。
+
+```python
+f = add._func
+assert f(1, 2) == 3
+```
+
 <a name="table-functions"></a>
 
 ## 表值函数（TableFunction）

@@ -135,6 +135,13 @@ my_table.select("add(a, b)")
 my_table.select(add(my_table.a, my_table.b))
 ```
 
+To unit test udf functions, you need to extract the original Python function from the udf object by calling `._func`.
+
+```python
+f = add._func
+assert f(1, 2) == 3
+```
+
 ## Table Functions
 Similar to a Python user-defined scalar function, a user-defined table function takes zero, one, or 
 multiple scalar values as input parameters. However in contrast to a scalar function, it can return 
