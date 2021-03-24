@@ -253,11 +253,12 @@ public final class BufferReaderWriterUtil {
 
     static void writeBuffers(FileChannel channel, long bytesExpected, ByteBuffer... buffers)
             throws IOException {
-        // The file channel implementation guarantees that all bytes are written when invoked
-        // because it is a blocking channel (the implementation mentioned it as guaranteed).
-        // However, the api docs leaves it somewhat open, so it seems to be an undocumented contract
-        // in the JRE. We build this safety net to be on the safe side.
-        if (bytesExpected < channel.write(buffers)) {
+        // The FileChannel#write method relies on the writev system call for data writing on linux.
+        // The writev system call has a limit on the maximum number of buffers can be written in one
+        // invoke whose advertised value is 1024 (see writev man page for more information), which
+        // means if more than 1024 buffers is written in one invoke, it is not guaranteed that all
+        // bytes can be written, so we build this safety net.
+        if (bytesExpected > channel.write(buffers)) {
             for (ByteBuffer buffer : buffers) {
                 writeBuffer(channel, buffer);
             }
