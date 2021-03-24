@@ -54,7 +54,7 @@ object ExpandUtil {
     //      GROUP BY GROUPING SETS ((a, b), (a, c))
     // only field 'b' and 'c' need be outputted as duplicate fields.
     val groupIdExprs = AggregateUtil.getGroupIdExprIndexes(aggCalls)
-    val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2))
+    val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>
         // filterArg should also be considered here.
@@ -64,18 +64,19 @@ object ExpandUtil {
         }
         if (groupIdExprs.contains(idx)) {
           List.empty[Integer]
-        } else if (commonGroupSet.asList().containsAll(allArgList)) {
+        } else if (commonGroupSet.containsAll(allArgList)) {
           List.empty[Integer]
         } else {
-          allArgList.diff(commonGroupSet.asList())
+          allArgList.diff(commonGroupSet)
         }
     }.intersect(groupSet.asList()).sorted.toArray[Integer]
 
     val inputType = relBuilder.peek().getRowType
+
+    val expandIdIdxInExpand = inputType.getFieldCount
     val duplicateFieldMap = buildDuplicateFieldMap(inputType, duplicateFieldIndexes)
 
     // expand output fields: original input fields + expand_id field + duplicate fields
-    val expandIdIdxInExpand = inputType.getFieldCount
     val expandProjects = createExpandProjects(
       relBuilder.getRexBuilder,
       inputType,

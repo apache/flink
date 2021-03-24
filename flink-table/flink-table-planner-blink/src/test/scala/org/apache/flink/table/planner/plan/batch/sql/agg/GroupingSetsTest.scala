@@ -23,10 +23,10 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import java.sql.Date
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
+
+import java.sql.Date
 
 class GroupingSetsTest extends TableTestBase {
 
