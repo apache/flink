@@ -275,7 +275,7 @@ public class PythonKeyedProcessOperator<OUT>
     private void processTimer(TimeDomain timeDomain, InternalTimer<Row, VoidNamespace> timer)
             throws Exception {
         long time = timer.getTimestamp();
-        Row timerKey = Row.of(timer.getKey());
+        Row timerKey = timer.getKey();
         if (timeDomain == TimeDomain.PROCESSING_TIME) {
             reusableTimerData.setField(
                     0, PythonOperatorUtils.KeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value);
