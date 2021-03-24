@@ -393,6 +393,34 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testTimeUDFParametersImplicitCast(): Unit = {
+    val data = Seq(row(
+      localDateTime("2019-09-19 08:03:09"),
+      Timestamp.valueOf("2019-09-19 08:03:09"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
+    registerCollection("MyTable", data,
+      new RowTypeInfo(LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
+      "a, b, c")
+
+    tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
+    tEnv.createTemporaryFunction("datetimeFunc", DateTimeFunction)
+    tEnv.createTemporaryFunction("instantFunc", InstantFunction)
+
+    val v1 = "2019-09-19 08:03:09.0"
+    val v2 = "2019-09-19T08:03:09"
+    checkResult(
+      "SELECT" +
+        " timestampFunc(a), datetimeFunc(b), instantFunc(c)," +
+        " timestampFunc(cast(a AS TIMESTAMP_LTZ))," +
+        " datetimeFunc(cast(b AS TIMESTAMP_LTZ))," +
+        " instantFunc(cast(c AS TIMESTAMP))" +
+        " FROM MyTable",
+      Seq(row(
+        v1, v2, Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+        v1, v2, Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
+  }
+
+  @Test
   def testBinary(): Unit = {
     val data = Seq(row(1, 2, "hehe".getBytes(StandardCharsets.UTF_8)))
     registerCollection(

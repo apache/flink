@@ -185,7 +185,7 @@ public final class LogicalTypeCasts {
                 .build();
 
         castTo(TIMESTAMP_WITHOUT_TIME_ZONE)
-                .implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE)
+                .implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 .explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
                 .build();
 
@@ -195,7 +195,7 @@ public final class LogicalTypeCasts {
                 .build();
 
         castTo(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
                 .build();
 
