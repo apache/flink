@@ -137,86 +137,87 @@ function get_compile_modules_for_stage() {
 
     case ${stage} in
         (${STAGE_CORE})
-            echo "-pl $MODULES_CORE -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_LIBRARIES})
-            echo "-pl $MODULES_LIBRARIES -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_BLINK_PLANNER})
-            echo "-pl $MODULES_BLINK_PLANNER -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_CONNECTORS})
-            echo "-pl $MODULES_CONNECTORS -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_KAFKA_GELLY})
-            echo "-pl $MODULES_KAFKA_GELLY -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_TESTS})
-            echo "-pl $MODULES_TESTS -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_MISC})
             # compile everything; using the -am switch does not work with negated module lists!
             # the negation takes precedence, thus not all required modules would be built
-            echo ""
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_PYTHON})
             # compile everything for PyFlink.
-            echo ""
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_LEGACY_SLOT_MANAGEMENT})
-            echo "-pl $MODULES_LEGACY_SLOT_MANAGEMENT -am"
+            echo "-pl flink-runtime -am"
         ;;
         (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
-            echo "-pl $MODULES_FINEGRAINED_RESOURCE_MANAGEMENT -am"
+            echo "-pl flink-runtime -am"
         ;;
     esac
 }
 
 function get_test_modules_for_stage() {
-    local stage=$1
-
-    local modules_core=$MODULES_CORE
-    local modules_libraries=$MODULES_LIBRARIES
-    local modules_blink_planner=$MODULES_BLINK_PLANNER
-    local modules_connectors=$MODULES_CONNECTORS
-    local modules_tests=$MODULES_TESTS
-    local negated_core=\!${MODULES_CORE//,/,\!}
-    local negated_libraries=\!${MODULES_LIBRARIES//,/,\!}
-    local negated_blink_planner=\!${MODULES_BLINK_PLANNER//,/,\!}
-    local negated_kafka_gelly=\!${MODULES_KAFKA_GELLY//,/,\!}
-    local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
-    local negated_tests=\!${MODULES_TESTS//,/,\!}
-    local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
-    local modules_legacy_slot_management=$MODULES_LEGACY_SLOT_MANAGEMENT
-    local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
-
-    case ${stage} in
-        (${STAGE_CORE})
-            echo "-pl $modules_core"
-        ;;
-        (${STAGE_LIBRARIES})
-            echo "-pl $modules_libraries"
-        ;;
-        (${STAGE_BLINK_PLANNER})
-            echo "-pl $modules_blink_planner"
-        ;;
-        (${STAGE_CONNECTORS})
-            echo "-pl $modules_connectors"
-        ;;
-        (${STAGE_KAFKA_GELLY})
-            echo "-pl $MODULES_KAFKA_GELLY"
-        ;;
-        (${STAGE_TESTS})
-            echo "-pl $modules_tests"
-        ;;
-        (${STAGE_MISC})
-            echo "-pl $modules_misc"
-        ;;
-        (${STAGE_LEGACY_SLOT_MANAGEMENT})
-            echo "-pl $modules_legacy_slot_management"
-        ;;
-        (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
-            echo "-pl $modules_finegrained_resource_management"
-        ;;
-    esac
+    echo "-pl flink-runtime -am"
+#    local stage=$1
+#
+#    local modules_core=$MODULES_CORE
+#    local modules_libraries=$MODULES_LIBRARIES
+#    local modules_blink_planner=$MODULES_BLINK_PLANNER
+#    local modules_connectors=$MODULES_CONNECTORS
+#    local modules_tests=$MODULES_TESTS
+#    local negated_core=\!${MODULES_CORE//,/,\!}
+#    local negated_libraries=\!${MODULES_LIBRARIES//,/,\!}
+#    local negated_blink_planner=\!${MODULES_BLINK_PLANNER//,/,\!}
+#    local negated_kafka_gelly=\!${MODULES_KAFKA_GELLY//,/,\!}
+#    local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
+#    local negated_tests=\!${MODULES_TESTS//,/,\!}
+#    local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
+#    local modules_legacy_slot_management=$MODULES_LEGACY_SLOT_MANAGEMENT
+#    local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
+#
+#    case ${stage} in
+#        (${STAGE_CORE})
+#            echo "-pl $modules_core"
+#        ;;
+#        (${STAGE_LIBRARIES})
+#            echo "-pl $modules_libraries"
+#        ;;
+#        (${STAGE_BLINK_PLANNER})
+#            echo "-pl $modules_blink_planner"
+#        ;;
+#        (${STAGE_CONNECTORS})
+#            echo "-pl $modules_connectors"
+#        ;;
+#        (${STAGE_KAFKA_GELLY})
+#            echo "-pl $MODULES_KAFKA_GELLY"
+#        ;;
+#        (${STAGE_TESTS})
+#            echo "-pl $modules_tests"
+#        ;;
+#        (${STAGE_MISC})
+#            echo "-pl $modules_misc"
+#        ;;
+#        (${STAGE_LEGACY_SLOT_MANAGEMENT})
+#            echo "-pl $modules_legacy_slot_management"
+#        ;;
+#        (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
+#            echo "-pl $modules_finegrained_resource_management"
+#        ;;
+#    esac
 }

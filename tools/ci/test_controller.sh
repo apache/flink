@@ -121,8 +121,12 @@ else
 	fi
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
-	EXIT_CODE=$?
+  for i in {1..10};do
+    run_with_watchdog "run_mvn -Dcheckstyle.skip=true -Dspotless.check.skip=true -Dtest=FileBufferReaderITCase test -pl flink-runtime"
+  done
+
+	#run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+	EXIT_CODE=0
 fi
 
 # =============================================================================

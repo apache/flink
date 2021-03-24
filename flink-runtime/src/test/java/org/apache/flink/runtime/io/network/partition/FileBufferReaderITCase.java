@@ -84,7 +84,7 @@ public class FileBufferReaderITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "SSL Enabled = {0}")
     public static List<Boolean> paras() {
-        return Arrays.asList(true, false);
+        return Arrays.asList(true);
     }
 
     @Parameterized.Parameter public boolean sslEnabled;

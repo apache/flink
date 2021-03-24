@@ -47,75 +47,79 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
-    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
+#run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
+#    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
+
+run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR \
+ -U -DskipTests -Dcheckstyle.skip=true -Dspotless-check.skip=true -pl flink-runtime -am  \
+ | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
 
-if [ $EXIT_CODE != 0 ]; then
-    echo "=============================================================================="
-    echo "Compiling Flink failed."
-    echo "=============================================================================="
+#if [ $EXIT_CODE != 0 ]; then
+#    echo "=============================================================================="
+#    echo "Compiling Flink failed."
+#    echo "=============================================================================="
+#
+#    grep "0 Unknown Licenses" target/rat.txt > /dev/null
+#
+#    if [ $? != 0 ]; then
+#        echo "License header check failure detected. Printing first 50 lines for convenience:"
+#        head -n 50 target/rat.txt
+#    fi
+#
+#    exit $EXIT_CODE
+#fi
 
-    grep "0 Unknown Licenses" target/rat.txt > /dev/null
+#echo "============ Checking Javadocs ============"
+#
+## use the same invocation as on buildbot (https://svn.apache.org/repos/infra/infrastructure/buildbot/aegis/buildmaster/master1/projects/flink.conf)
+#run_mvn javadoc:aggregate -Paggregate-scaladoc -DadditionalJOption='-Xdoclint:none' \
+#      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true \
+#      -Dheader=someTestHeader > javadoc.out
+#EXIT_CODE=$?
+#if [ $EXIT_CODE != 0 ] ; then
+#  echo "ERROR in Javadocs. Printing full output:"
+#  cat javadoc.out ; rm javadoc.out
+#  exit $EXIT_CODE
+#fi
+#
+#echo "============ Checking Scaladocs ============"
+#
+#cd flink-scala
+#run_mvn scala:doc 2> scaladoc.out
+#EXIT_CODE=$?
+#if [ $EXIT_CODE != 0 ] ; then
+#  echo "ERROR in Scaladocs. Printing full output:"
+#  cat scaladoc.out ; rm scaladoc.out
+#  exit $EXIT_CODE
+#fi
+#cd ..
 
-    if [ $? != 0 ]; then
-        echo "License header check failure detected. Printing first 50 lines for convenience:"
-        head -n 50 target/rat.txt
-    fi
+#echo "============ Checking scala suffixes ============"
+#
+#${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
 
-    exit $EXIT_CODE
-fi
+#echo "============ Checking shaded dependencies ============"
+#
+#check_shaded_artifacts
+#EXIT_CODE=$(($EXIT_CODE+$?))
+#check_shaded_artifacts_s3_fs hadoop
+#EXIT_CODE=$(($EXIT_CODE+$?))
+#check_shaded_artifacts_s3_fs presto
+#EXIT_CODE=$(($EXIT_CODE+$?))
+#check_shaded_artifacts_connector_elasticsearch 5
+#EXIT_CODE=$(($EXIT_CODE+$?))
+#check_shaded_artifacts_connector_elasticsearch 6
+#EXIT_CODE=$(($EXIT_CODE+$?))
 
-echo "============ Checking Javadocs ============"
-
-# use the same invocation as on buildbot (https://svn.apache.org/repos/infra/infrastructure/buildbot/aegis/buildmaster/master1/projects/flink.conf)
-run_mvn javadoc:aggregate -Paggregate-scaladoc -DadditionalJOption='-Xdoclint:none' \
-      -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true \
-      -Dheader=someTestHeader > javadoc.out
-EXIT_CODE=$?
-if [ $EXIT_CODE != 0 ] ; then
-  echo "ERROR in Javadocs. Printing full output:"
-  cat javadoc.out ; rm javadoc.out
-  exit $EXIT_CODE
-fi
-
-echo "============ Checking Scaladocs ============"
-
-cd flink-scala
-run_mvn scala:doc 2> scaladoc.out
-EXIT_CODE=$?
-if [ $EXIT_CODE != 0 ] ; then
-  echo "ERROR in Scaladocs. Printing full output:"
-  cat scaladoc.out ; rm scaladoc.out
-  exit $EXIT_CODE
-fi
-cd ..
-
-echo "============ Checking scala suffixes ============"
-
-${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
-
-echo "============ Checking shaded dependencies ============"
-
-check_shaded_artifacts
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_s3_fs hadoop
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_s3_fs presto
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 5
-EXIT_CODE=$(($EXIT_CODE+$?))
-check_shaded_artifacts_connector_elasticsearch 6
-EXIT_CODE=$(($EXIT_CODE+$?))
-
-echo "============ Run license check ============"
-
-find $MVN_VALIDATION_DIR
-
-if [[ ${PROFILE} != *"scala-2.12"* ]]; then
-  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
-fi
+#echo "============ Run license check ============"
+#
+#find $MVN_VALIDATION_DIR
+#
+#if [[ ${PROFILE} != *"scala-2.12"* ]]; then
+#  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) $MVN_VALIDATION_DIR || exit $?
+#fi
 
 exit $EXIT_CODE
 
