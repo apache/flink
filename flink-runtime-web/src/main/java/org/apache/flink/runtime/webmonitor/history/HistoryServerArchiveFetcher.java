@@ -302,6 +302,8 @@ class HistoryServerArchiveFetcher {
                                 events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
                                 cachedArchives.add(jobID);
                                 LOG.info("Processing archive {} finished.", jobArchivePath);
+                                updateJobOverview(webOverviewDir, webDir);
+                                events.forEach(jobArchiveEventListener::accept);
                             } catch (IOException e) {
                                 LOG.error(
                                         "Failure while fetching/processing job archive for job {}.",
