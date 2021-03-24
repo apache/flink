@@ -36,6 +36,12 @@ under the License.
 
 	<dependencies>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-format-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- core dependencies -->
 
 		<dependency>

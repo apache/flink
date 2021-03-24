@@ -40,11 +40,12 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /** Tool class used to convert from {@link RowData} to CSV-format {@link JsonNode}. * */
 @Internal
@@ -132,15 +133,21 @@ public class RowDataToCsvConverters implements Serializable {
                 return (csvMapper, container, row, pos) -> convertDate(row.getInt(pos), container);
             case TIME_WITHOUT_TIME_ZONE:
                 return (csvMapper, container, row, pos) -> convertTime(row.getInt(pos), container);
-            case TIMESTAMP_WITH_TIME_ZONE:
-                final int zonedTimestampPrecision =
-                        ((LocalZonedTimestampType) fieldType).getPrecision();
-                return (csvMapper, container, row, pos) ->
-                        convertTimestamp(row.getTimestamp(pos, zonedTimestampPrecision), container);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final int timestampPrecision = ((TimestampType) fieldType).getPrecision();
                 return (csvMapper, container, row, pos) ->
-                        convertTimestamp(row.getTimestamp(pos, timestampPrecision), container);
+                        convertTimestamp(
+                                row.getTimestamp(pos, timestampPrecision),
+                                container,
+                                SQL_TIMESTAMP_FORMAT);
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final int zonedTimestampPrecision =
+                        ((LocalZonedTimestampType) fieldType).getPrecision();
+                return (csvMapper, container, row, pos) ->
+                        convertTimestamp(
+                                row.getTimestamp(pos, zonedTimestampPrecision),
+                                container,
+                                SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT);
             case DECIMAL:
                 return createDecimalRowFieldConverter((DecimalType) fieldType);
             case ARRAY:
@@ -207,16 +214,21 @@ public class RowDataToCsvConverters implements Serializable {
             case TIME_WITHOUT_TIME_ZONE:
                 return (csvMapper, container, array, pos) ->
                         convertTime(array.getInt(pos), container);
-            case TIMESTAMP_WITH_TIME_ZONE:
-                final int zonedTimestampPrecision =
-                        ((LocalZonedTimestampType) fieldType).getPrecision();
-                return (csvMapper, container, array, pos) ->
-                        convertTimestamp(
-                                array.getTimestamp(pos, zonedTimestampPrecision), container);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final int timestampPrecision = ((TimestampType) fieldType).getPrecision();
                 return (csvMapper, container, array, pos) ->
-                        convertTimestamp(array.getTimestamp(pos, timestampPrecision), container);
+                        convertTimestamp(
+                                array.getTimestamp(pos, timestampPrecision),
+                                container,
+                                SQL_TIMESTAMP_FORMAT);
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final int localZonedTimestampPrecision =
+                        ((LocalZonedTimestampType) fieldType).getPrecision();
+                return (csvMapper, container, array, pos) ->
+                        convertTimestamp(
+                                array.getTimestamp(pos, localZonedTimestampPrecision),
+                                container,
+                                SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT);
             case DECIMAL:
                 return createDecimalArrayElementConverter((DecimalType) fieldType);
                 // we don't support ARRAY and ROW in an ARRAY, see
@@ -268,8 +280,9 @@ public class RowDataToCsvConverters implements Serializable {
         return container.textNode(ISO_LOCAL_TIME.format(time));
     }
 
-    private static JsonNode convertTimestamp(TimestampData timestamp, ContainerNode<?> container) {
-        return container.textNode(DATE_TIME_FORMATTER.format(timestamp.toLocalDateTime()));
+    private static JsonNode convertTimestamp(
+            TimestampData timestamp, ContainerNode<?> container, DateTimeFormatter formatter) {
+        return container.textNode(formatter.format(timestamp.toLocalDateTime()));
     }
 
     private static RowFieldConverter createArrayRowFieldConverter(ArrayType type) {
@@ -307,12 +320,4 @@ public class RowDataToCsvConverters implements Serializable {
             return arrayNode;
         };
     }
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .append(ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
-                    .append(ISO_LOCAL_TIME)
-                    .toFormatter();
 }

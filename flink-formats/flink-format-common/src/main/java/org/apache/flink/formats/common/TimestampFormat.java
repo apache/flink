@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.json;
+package org.apache.flink.formats.common;
 
 import org.apache.flink.annotation.Internal;
 
