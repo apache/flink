@@ -36,5 +36,8 @@ find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
 rm -rf "$FLINK_ARTIFACT_DIR/.git"
 
 # AZ Pipelines has a problem with links.
-rm "$FLINK_ARTIFACT_DIR/build-target"
+
+if [ -e "$FLINK_ARTIFACT_DIR/build-target" ];then
+  rm "$FLINK_ARTIFACT_DIR/build-target"
+fi
 
