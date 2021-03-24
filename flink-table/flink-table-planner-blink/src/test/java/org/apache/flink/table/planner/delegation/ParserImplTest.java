@@ -127,9 +127,7 @@ public class ParserImplTest {
     public void testCompletionTest() {
         verifySqlCompletion("QU", 1, new String[] {"QUIT"});
         verifySqlCompletion("SE", 1, new String[] {"SET"});
-        verifySqlCompletion("Sou", 1, new String[] {"SOURCE"});
-        verifySqlCompletion(
-                "", 0, new String[] {"CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET", "SOURCE"});
+        verifySqlCompletion("", 0, new String[] {"CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"});
 
         verifySqlCompletion("SELECT a fram b", 10, new String[] {"FETCH", "FROM"});
     }
