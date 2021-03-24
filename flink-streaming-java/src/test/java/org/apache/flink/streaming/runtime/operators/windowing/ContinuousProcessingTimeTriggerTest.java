@@ -121,6 +121,8 @@ public class ContinuousProcessingTimeTriggerTest {
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         operator, operator.getKeySelector(), BasicTypeInfo.BYTE_TYPE_INFO);
 
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+
         testHarness.open();
 
         // window [0, 10)
@@ -131,10 +133,8 @@ public class ContinuousProcessingTimeTriggerTest {
         testHarness.getProcessingTimeService().setCurrentTime(2);
         testHarness.processElement(2, NO_TIMESTAMP);
 
-        testHarness.getProcessingTimeService().setCurrentTime(5);
-
         // Merged timer should still fire.
-        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        testHarness.getProcessingTimeService().setCurrentTime(5);
         expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 12), 3), 11));
         TestHarnessUtil.assertOutputEquals(
                 "Output mismatch", expectedOutput, testHarness.getOutput());
