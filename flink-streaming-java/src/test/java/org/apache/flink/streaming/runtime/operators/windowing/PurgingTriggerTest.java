@@ -138,14 +138,12 @@ public class PurgingTriggerTest {
 
         when(mockTrigger.onEventTime(anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.FIRE_AND_PURGE);
-        testHarness.addWindow(new TimeWindow(0, 2));
         assertEquals(
                 TriggerResult.FIRE_AND_PURGE,
                 testHarness.advanceWatermark(3, new TimeWindow(0, 2)));
 
         when(mockTrigger.onEventTime(anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.PURGE);
-        testHarness.addWindow(new TimeWindow(0, 2));
         assertEquals(TriggerResult.PURGE, testHarness.advanceWatermark(4, new TimeWindow(0, 2)));
 
         doAnswer(
@@ -192,18 +190,15 @@ public class PurgingTriggerTest {
 
         when(mockTrigger.onProcessingTime(anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.FIRE_AND_PURGE);
-        testHarness.addWindow(new TimeWindow(0, 2));
         assertEquals(
                 TriggerResult.FIRE_AND_PURGE,
                 testHarness.advanceProcessingTime(3, new TimeWindow(0, 2)));
 
         when(mockTrigger.onProcessingTime(anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.PURGE);
-        testHarness.addWindow(new TimeWindow(0, 2));
         assertEquals(
                 TriggerResult.PURGE, testHarness.advanceProcessingTime(4, new TimeWindow(0, 2)));
 
-        testHarness.addWindow(new TimeWindow(0, 1));
         testHarness.mergeWindows(
                 new TimeWindow(0, 2), Collections.singletonList(new TimeWindow(0, 1)));
         verify(mockTrigger, times(1)).onMerge(anyTimeWindow(), anyOnMergeContext());

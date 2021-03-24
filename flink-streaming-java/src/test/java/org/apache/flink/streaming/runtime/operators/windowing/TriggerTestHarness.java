@@ -52,8 +52,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 /** Utility for testing {@link Trigger} behaviour. */
 public class TriggerTestHarness<T, W extends Window> {
@@ -65,7 +63,6 @@ public class TriggerTestHarness<T, W extends Window> {
 
     private final HeapKeyedStateBackend<Integer> stateBackend;
     private final TestInternalTimerService<Integer, W> internalTimerService;
-    private final Set<W> windows = new LinkedHashSet<>();
 
     public TriggerTestHarness(Trigger<T, W> trigger, TypeSerializer<W> windowSerializer)
             throws Exception {
@@ -136,20 +133,6 @@ public class TriggerTestHarness<T, W extends Window> {
         return stateBackend.numKeyValueStateEntries(window);
     }
 
-    public void addWindow(W window) {
-        windows.add(window);
-    }
-
-    private TriggerResult processTriggerResult(TriggerResult triggerResult, W window) {
-        if (!windows.contains(window)) {
-            throw new IllegalStateException("Window " + window + " does not exist");
-        }
-        if (triggerResult.isPurge()) {
-            windows.remove(window);
-        }
-        return triggerResult;
-    }
-
     /**
      * Injects one element into the trigger for the given window and returns the result of {@link
      * Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}.
@@ -158,11 +141,8 @@ public class TriggerTestHarness<T, W extends Window> {
         TestTriggerContext<Integer, W> triggerContext =
                 new TestTriggerContext<>(
                         KEY, window, internalTimerService, stateBackend, windowSerializer);
-        windows.add(window);
-        TriggerResult triggerResult =
-                trigger.onElement(
-                        element.getValue(), element.getTimestamp(), window, triggerContext);
-        return processTriggerResult(triggerResult, window);
+        return trigger.onElement(
+                element.getValue(), element.getTimestamp(), window, triggerContext);
     }
 
     /**
@@ -220,11 +200,17 @@ public class TriggerTestHarness<T, W extends Window> {
         Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
         for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
-            if (!windows.contains(timer.getNamespace())) {
-                continue;
-            }
+            TestTriggerContext<Integer, W> triggerContext =
+                    new TestTriggerContext<>(
+                            KEY,
+                            timer.getNamespace(),
+                            internalTimerService,
+                            stateBackend,
+                            windowSerializer);
 
-            TriggerResult triggerResult = invokeOnProcessingTime(timer);
+            TriggerResult triggerResult =
+                    trigger.onProcessingTime(
+                            timer.getTimestamp(), timer.getNamespace(), triggerContext);
 
             result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
         }
@@ -243,30 +229,11 @@ public class TriggerTestHarness<T, W extends Window> {
         Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
         for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
-            if (!windows.contains(timer.getNamespace())) {
-                continue;
-            }
             TriggerResult triggerResult = invokeOnEventTime(timer);
             result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
         }
 
         return result;
-    }
-
-    private TriggerResult invokeOnProcessingTime(TestInternalTimerService.Timer<Integer, W> timer)
-            throws Exception {
-        TestTriggerContext<Integer, W> triggerContext =
-                new TestTriggerContext<>(
-                        KEY,
-                        timer.getNamespace(),
-                        internalTimerService,
-                        stateBackend,
-                        windowSerializer);
-
-        TriggerResult triggerResult =
-                trigger.onProcessingTime(
-                        timer.getTimestamp(), timer.getNamespace(), triggerContext);
-        return processTriggerResult(triggerResult, timer.getNamespace());
     }
 
     private TriggerResult invokeOnEventTime(TestInternalTimerService.Timer<Integer, W> timer)
@@ -279,9 +246,7 @@ public class TriggerTestHarness<T, W extends Window> {
                         stateBackend,
                         windowSerializer);
 
-        TriggerResult triggerResult =
-                trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
-        return processTriggerResult(triggerResult, timer.getNamespace());
+        return trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
     }
 
     /**
@@ -309,13 +274,11 @@ public class TriggerTestHarness<T, W extends Window> {
                         internalTimerService,
                         stateBackend,
                         windowSerializer);
-        windows.add(targetWindow);
         trigger.onMerge(targetWindow, onMergeContext);
 
         for (W mergedWindow : mergedWindows) {
             clearTriggerState(mergedWindow);
         }
-        windows.removeAll(mergedWindows);
     }
 
     /** Calls {@link Trigger#clear(Window, Trigger.TriggerContext)} for the given window. */

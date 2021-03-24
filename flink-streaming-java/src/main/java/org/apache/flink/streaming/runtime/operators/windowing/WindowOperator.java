@@ -466,12 +466,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             mergingWindows = getMergingWindowSet();
             W stateWindow = mergingWindows.getStateWindow(triggerContext.window);
             if (stateWindow == null) {
-                // Timer firing for non-existent window, this can happen:
-                // * trigger did not clean up timers.
-                // * trigger failed to clean up timers due to state merged out.
-                //
-                // We have already cleared the merging window and therefore the Trigger state,
-                // however, so nothing to do.
+                // Timer firing for non-existent window, this can only happen if a
+                // trigger did not clean up timers. We have already cleared the merging
+                // window and therefore the Trigger state, however, so nothing to do.
                 return;
             } else {
                 windowState.setCurrentNamespace(stateWindow);
@@ -516,12 +513,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             mergingWindows = getMergingWindowSet();
             W stateWindow = mergingWindows.getStateWindow(triggerContext.window);
             if (stateWindow == null) {
-                // Timer firing for non-existent window, this can happen:
-                // * trigger did not clean up timers.
-                // * trigger failed to clean up timers due to state merged out.
-                //
-                // We have already cleared the merging window and therefore the Trigger state,
-                // however, so nothing to do.
+                // Timer firing for non-existent window, this can only happen if a
+                // trigger did not clean up timers. We have already cleared the merging
+                // window and therefore the Trigger state, however, so nothing to do.
                 return;
             } else {
                 windowState.setCurrentNamespace(stateWindow);
