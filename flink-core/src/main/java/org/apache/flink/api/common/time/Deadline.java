@@ -21,6 +21,7 @@ package org.apache.flink.api.common.time;
 import org.apache.flink.annotation.Internal;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeoutException;
 
 /** This class stores a deadline, as obtained via {@link #now()} or from {@link #plus(Duration)}. */
@@ -85,5 +86,10 @@ public class Deadline {
     /** Constructs a Deadline that is a given duration after now. */
     public static Deadline fromNow(Duration duration) {
         return new Deadline(Math.addExact(System.nanoTime(), duration.toNanos()));
+    }
+
+    @Override
+    public String toString() {
+        return LocalDateTime.now().plus(timeLeft()).toString();
     }
 }
