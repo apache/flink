@@ -201,9 +201,9 @@ under the License.
 							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
 							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
 
-                            <!-- added method to interface in 1.13 -->
-                            <exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
-                        </excludes>
+							<!-- added method to interface in 1.13 -->
+							<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
+						</excludes>
 					</parameter>
 				</configuration>
 			</plugin>
