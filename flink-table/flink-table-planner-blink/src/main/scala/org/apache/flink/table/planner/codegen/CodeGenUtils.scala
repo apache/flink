@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
@@ -116,15 +116,28 @@ object CodeGenUtils {
 
   // ----------------------------------------------------------------------------------------
 
-  private val nameCounter = new AtomicInteger
+  private val nameCounter = new AtomicLong
+
+  private def newNameSuffixNumber(): Long = {
+    val newNameCounter = nameCounter.getAndIncrement
+    if (newNameCounter < 0) {
+      // should we throw a Exception here in case duplicate suffix number ?
+      synchronized {
+        nameCounter.set(0)
+      }
+      nameCounter.getAndIncrement
+    } else {
+      newNameCounter
+    }
+  }
 
   def newName(name: String): String = {
-    s"$name$$${nameCounter.getAndIncrement}"
+    s"$name$$${newNameSuffixNumber()}"
   }
 
   def newNames(names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = nameCounter.getAndIncrement
+    val newId = newNameSuffixNumber()
     names.map(name => s"$name$$$newId")
   }
 
