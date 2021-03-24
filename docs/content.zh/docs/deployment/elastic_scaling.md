@@ -98,7 +98,7 @@ In scenarios where TaskManagers are not connecting at the same time, but slowly 
 
 - **Configure periodic checkpointing for stateful jobs**: Reactive mode restores from the latest completed checkpoint on a rescale event. If no periodic checkpointing is enabled, your program will loose its state. Checkpointing also configures a **restart strategy**. Reactive mode will respect the configured restarting strategy: If no restarting strategy is configured, reactive mode will fail your job, instead of scaling it.
 
-- Downscaling in Reactive Mode might cause longer stalls in your processing because Flink waits for the heartbeat between JobManager and the stopped TaskManager(s) to time out. You will see that your Flink job is stuck in the failing state for roughly 50 seconds before redeploying your job with a lower parallelism.
+- Downscaling in Reactive Mode might cause longer stalls in your processing because Flink waits for the heartbeat between JobManager and the stopped TaskManager(s) to time out. You will see that your Flink job is stuck for roughly 50 seconds before redeploying your job with a lower parallelism.
 
   The default timeout is configured to 50 seconds. Adjust the [`heartbeat.timeout`]({{< ref "docs/deployment/config">}}#heartbeat-timeout) configuration to a lower value, if your infrastructure permits this. Setting a low heartbeat timeout can lead to failures if a TaskManager fails to respond to a heartbeat, for example due to a network congestion or a long garbage collection pause. Note that the [`heartbeat.interval`]({{< ref "docs/deployment/config">}}#heartbeat-interval) always needs to be lower than the timeout.
 
@@ -124,7 +124,6 @@ The Adaptive Scheduler can adjust the parallelism of a job based on available sl
 In Reactive Mode (see above) the configured parallelism is ignored and treated as if it was set to infinity, letting the job always use as many resources as possible.
 You can also use Adaptive Scheduler without Reactive Mode, but there are some practical limitations:
 - If you are using Adaptive Scheduler on a session cluster, there are no guarantees regarding the distribution of slots between multiple running jobs in the same session.
-- An active resource manager (native Kubernetes, YARN, Mesos) will request TaskManagers until the parallelism requested by the job is fulfilled, potentially allocating a lot of resources.
 
 One benefit of Adpative Scheduler over the default scheduler is that it can handle TaskManager losses gracefully, since it would just scale down in these cases.
 
@@ -134,9 +133,6 @@ The following configuration parameters need to be set:
 
 - `jobmanager.scheduler: adaptive`: Change from the default scheduler to adaptive scheduler
 - `cluster.declarative-resource-management.enabled` Declarative resource management must be enabled (enabled by default).
-
-Depending on your usage scenario, we also recommend adjusting the parallelism of the job you are submitting to the adaptive scheduler. The parallelism configured determines the number of slots Adaptive Scheduler will request.
-
 
 ### Limitations
 
