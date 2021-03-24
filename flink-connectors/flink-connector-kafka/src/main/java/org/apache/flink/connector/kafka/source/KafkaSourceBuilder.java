@@ -442,14 +442,10 @@ public class KafkaSourceBuilder<OUT> {
                 true);
 
         // If the source is bounded, do not run periodic partition discovery.
-        if (maybeOverride(
+        maybeOverride(
                 KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
                 "-1",
-                boundedness == Boundedness.BOUNDED)) {
-            LOG.warn(
-                    "{} property is overridden to -1 because the source is bounded.",
-                    KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS);
-        }
+                boundedness == Boundedness.BOUNDED);
 
         // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
         maybeOverride(
