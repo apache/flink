@@ -75,7 +75,10 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
     @Override
     public void dispose() throws Exception {
         super.dispose();
-        arrowSerializer.close();
+        if (arrowSerializer != null) {
+            arrowSerializer.close();
+            arrowSerializer = null;
+        }
     }
 
     @Override
