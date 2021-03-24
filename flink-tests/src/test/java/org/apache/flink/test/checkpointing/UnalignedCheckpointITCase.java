@@ -206,7 +206,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         final int parallelism = env.getParallelism();
         final SingleOutputStreamOperator<Long> stream =
                 env.fromSource(
-                                new LongSource(minCheckpoints, parallelism, expectedRestarts),
+                                new LongSource(
+                                        minCheckpoints,
+                                        parallelism,
+                                        expectedRestarts,
+                                        env.getCheckpointInterval()),
                                 noWatermarks(),
                                 "source")
                         .slotSharingGroup(slotSharing ? "default" : "source")
@@ -232,7 +236,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
             final SingleOutputStreamOperator<Long> source =
                     env.fromSource(
-                                    new LongSource(minCheckpoints, parallelism, expectedRestarts),
+                                    new LongSource(
+                                            minCheckpoints,
+                                            parallelism,
+                                            expectedRestarts,
+                                            env.getCheckpointInterval()),
                                     noWatermarks(),
                                     "source" + inputIndex)
                             .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
@@ -262,7 +270,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
             final SingleOutputStreamOperator<Long> source =
                     env.fromSource(
-                                    new LongSource(minCheckpoints, parallelism, expectedRestarts),
+                                    new LongSource(
+                                            minCheckpoints,
+                                            parallelism,
+                                            expectedRestarts,
+                                            env.getCheckpointInterval()),
                                     noWatermarks(),
                                     "source" + inputIndex)
                             .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
@@ -301,7 +313,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .uid("failing-map")
                 .slotSharingGroup(slotSharing ? "default" : "map")
                 .partitionCustom(new ChunkDistributingPartitioner(), l -> l)
-                .addSink(new StrictOrderVerifyingSink(minCheckpoints))
+                .addSink(
+                        new StrictOrderVerifyingSink(
+                                minCheckpoints,
+                                combinedSource.getExecutionEnvironment().getCheckpointInterval()))
                 .name("sink")
                 .uid("sink")
                 .slotSharingGroup(slotSharing ? "default" : "sink");
@@ -316,8 +331,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         private boolean firstDuplicate = true;
         private boolean firstLostValue = true;
 
-        protected StrictOrderVerifyingSink(long minCheckpoints) {
-            super(minCheckpoints);
+        protected StrictOrderVerifyingSink(long minCheckpoints, long checkpointingInterval) {
+            super(minCheckpoints, checkpointingInterval);
         }
 
         @Override
@@ -376,12 +391,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             state.lastRecordInPartitions[partition] = value;
             state.numOutput++;
 
-            if (backpressure) {
-                // induce backpressure until enough checkpoints have been written
-                Thread.sleep(1);
-            }
-            // after all checkpoints have been completed, the remaining data should be flushed out
-            // fairly quickly
+            induceBackpressure();
         }
 
         static class State extends VerifyingSinkStateBase {

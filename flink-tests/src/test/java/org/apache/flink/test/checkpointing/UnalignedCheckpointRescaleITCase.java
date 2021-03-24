@@ -200,7 +200,12 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     .uid("failing-map")
                     .slotSharingGroup(slotSharing ? "default" : "failing-map")
                     .shuffle()
-                    .addSink(new VerifyingSink(minCheckpoints))
+                    .addSink(
+                            new VerifyingSink(
+                                    minCheckpoints,
+                                    combinedSource
+                                            .getExecutionEnvironment()
+                                            .getCheckpointInterval()))
                     .setParallelism(1)
                     .name("sink")
                     .uid("sink")
@@ -216,9 +221,14 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 int inputIndex,
                 FilterFunction<Long> sourceFilter) {
             return env.fromSource(
-                            new LongSource(minCheckpoints, parallelism, expectedRestarts),
+                            new LongSource(
+                                    minCheckpoints,
+                                    parallelism,
+                                    expectedRestarts,
+                                    env.getCheckpointInterval()),
                             noWatermarks(),
                             "source" + inputIndex)
+                    .uid("source" + inputIndex)
                     .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
                     .filter(sourceFilter)
                     .name("input-filter" + inputIndex)
@@ -336,8 +346,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     protected static class VerifyingSink extends VerifyingSinkBase<VerifyingSink.State> {
         private boolean firstDuplicate = true;
 
-        protected VerifyingSink(long minCheckpoints) {
-            super(minCheckpoints);
+        protected VerifyingSink(long minCheckpoints, long checkpointingInterval) {
+            super(minCheckpoints, checkpointingInterval);
         }
 
         @Override
@@ -362,12 +372,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             state.encounteredNumbers.set(intValue);
             state.numOutput++;
 
-            if (backpressure) {
-                // induce heavy backpressure until enough checkpoints have been written
-                Thread.sleep(1);
-            }
-            // after all checkpoints have been completed, the remaining data should be flushed out
-            // fairly quickly
+            induceBackpressure();
         }
 
         @Override
