@@ -534,31 +534,6 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             return None
 
 
-class DataStreamStatelessFunctionOperation(Operation):
-
-    def __init__(self, spec):
-        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
-
-    def open(self):
-        for user_defined_func in self.user_defined_funcs:
-            if hasattr(user_defined_func, 'open'):
-                runtime_context = RuntimeContext(
-                    self.spec.serialized_fn.runtime_context.task_name,
-                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
-                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
-                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
-                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
-                    self.spec.serialized_fn.runtime_context.attempt_number,
-                    {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters}
-                )
-                user_defined_func.open(runtime_context)
-
-    def generate_func(self, serialized_fn):
-        func, user_defined_func = operation_utils.extract_data_stream_stateless_function(
-            serialized_fn)
-        return func, [user_defined_func]
-
-
 class StreamingRuntimeContext(RuntimeContext):
 
     def __init__(self,
