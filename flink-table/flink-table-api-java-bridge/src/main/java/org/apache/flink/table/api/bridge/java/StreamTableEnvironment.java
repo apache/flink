@@ -36,6 +36,8 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.types.AbstractDataType;
+import org.apache.flink.types.Row;
 
 /**
  * This table environment is the entry point and central context for creating Table and SQL API
@@ -510,6 +512,50 @@ public interface StreamTableEnvironment extends TableEnvironment {
     <T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
     /**
+     * Converts the given {@link Table} into an insert-only {@link DataStream} of {@link Row Rows}.
+     *
+     * <p>TODO Describe semantics on non-insert-only tables
+     *
+     * <p>The columns of the {@link Table}'s schema are mapped into a {@link Row} with corresponding
+     * names. It is guaranteed that this will only ever produce rows with {@link
+     * org.apache.flink.types.RowKind#INSERT}.
+     *
+     * <p>If you want to convert the {@link Table} to a specific data type, use {@link
+     * #toDataStream(Table, AbstractDataType)} instead.
+     *
+     * @param table The {@link Table} to convert.
+     * @return The converted {@link DataStream}.
+     */
+    DataStream<Row> toDataStream(Table table);
+
+    /**
+     * Converts the given {@link Table} into an insert-only {@link DataStream} of a specified type.
+     *
+     * <p>TODO Describe semantics of non-insert-only tables
+     *
+     * <p>If you want to produce a {@link DataStream} of {@link Row}, you can use {@link
+     * #toDataStream(Table)} instead.
+     *
+     * @param table The {@link Table} to convert.
+     * @param dataType The data type defining the resulting {@link DataStream}.
+     * @param <T> The type of the resulting {@link DataStream}.
+     * @return The converted {@link DataStream}.
+     */
+    <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> dataType);
+
+    /**
+     * Converts the given {@link Table} into an insert-only {@link DataStream} of the given class.
+     *
+     * <p>TODO Describe semantics of non-insert-only tables
+     *
+     * @param table The {@link Table} to convert.
+     * @param clazz The class of the type of the resulting {@link DataStream}.
+     * @param <T> The type of the resulting {@link DataStream}.
+     * @return The converted {@link DataStream}.
+     */
+    <T> DataStream<T> toDataStream(Table table, Class<T> clazz);
+
+    /**
      * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
      *
      * <p>The {@link Table} must only have insert (append) changes. If the {@link Table} is also
@@ -527,7 +573,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param clazz The class of the type of the resulting {@link DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, AbstractDataType)} instead.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, Class<T> clazz);
 
     /**
@@ -549,7 +597,9 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, AbstractDataType)} instead.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
 
     /**

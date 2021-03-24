@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
@@ -35,7 +36,7 @@ import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LogicalSink}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
@@ -45,20 +46,19 @@ import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.sinks.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, DynamicSinkUtils, SelectTableSinkBase, SelectTableSinkSchemaConverter}
+import org.apache.flink.table.planner.sinks.{DataStreamDynamicTableSink, DataStreamTableSink, DynamicSinkUtils, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+import org.apache.flink.table.types.utils.{DataTypeUtils, LegacyTypeInfoDataTypeConverter}
 import org.apache.flink.table.utils.TableSchemaUtils
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 
 import java.util
-
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -274,6 +274,30 @@ abstract class PlannerBase(
           "DataStreamTableSink",
           ConnectorCatalogTable.sink(tableSink, !isStreamingMode))
 
+      case externalModification: ExternalModifyOperation =>
+        val input = getRelBuilder.queryOperation(externalModification.getChild).build()
+
+        val sinkPhysicalSchema = if (LogicalTypeChecks.isCompositeType(externalModification.getType.getLogicalType)) {
+          DataTypeUtils.expandCompositeTypeToSchema(externalModification.getType)
+        } else {
+          ResolvedSchema.of(Column.physical("f0", externalModification.getType))
+        }
+
+        // validate query schema and sink schema, and apply cast if possible
+        val query = validateSchemaAndApplyImplicitCast(
+          input,
+          TableSchema.fromResolvedSchema(sinkPhysicalSchema),
+          null,
+          getTypeFactory)
+
+        // TODO FLINK-21934 Get rid of this workaround
+        val objectIdentifier = ObjectIdentifier.of("", "", "")
+
+        val tableSchema = FlinkTypeFactory.toSchema(query.getRowType)
+        val dynamicSink = new DataStreamDynamicTableSink(externalModification.getChangelogMode, externalModification.getType)
+        val catTable = CatalogTable.of(tableSchema, null, util.List.of(), util.Map.of())
+        val resolvedTable = catalogManager.resolveCatalogBaseTable(catTable).asInstanceOf[ResolvedCatalogTable];
+        LogicalSink.create(query, objectIdentifier, resolvedTable, dynamicSink, util.Map.of(), Array())
       case _ =>
         throw new TableException(s"Unsupported ModifyOperation: $modifyOperation")
     }

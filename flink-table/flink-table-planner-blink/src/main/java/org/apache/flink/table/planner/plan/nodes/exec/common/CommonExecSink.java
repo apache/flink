@@ -44,6 +44,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkTransformationProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -126,6 +127,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final DataStream<RowData> dataStream = new DataStream<>(env, inputTransform);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
             return provider.consumeDataStream(dataStream).getTransformation();
+        } else if (runtimeProvider instanceof SinkTransformationProvider) {
+            final SinkTransformationProvider provider =
+                    (SinkTransformationProvider) runtimeProvider;
+            return provider.getTransformation(
+                    new SinkTransformationProvider.DefaultContext(
+                            inputTransform,
+                            rowtimeFieldIndex,
+                            env.getConfig().isObjectReuseEnabled()));
         } else {
             checkArgument(
                     runtimeProvider instanceof ParallelismProvider,

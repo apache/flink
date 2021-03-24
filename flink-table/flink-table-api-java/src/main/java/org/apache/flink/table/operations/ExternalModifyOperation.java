@@ -19,8 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
@@ -28,44 +27,29 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Special, internal kind of {@link ModifyOperation} that allows converting a tree of {@link
- * QueryOperation}s to a {@link Transformation} of given type described with {@link
- * TypeInformation}. This is used to convert a relational query to a datastream.
- *
- * @deprecated This will be removed with {@link
- *     org.apache.flink.table.api.bridge.java.StreamTableEnvironment#toAppendStream}.
+ * Internal operation used to convert a {@link org.apache.flink.table.api.Table} into a {@link
+ * org.apache.flink.streaming.api.datastream.DataStream}.
  */
 @Internal
-@Deprecated
-public class OutputConversionModifyOperation implements ModifyOperation {
-
-    /**
-     * Should the output type contain the change flag, and what should the flag represent
-     * (retraction or deletion).
-     */
-    public enum UpdateMode {
-        APPEND,
-        RETRACT,
-        UPSERT
-    }
+public class ExternalModifyOperation implements ModifyOperation {
 
     private final QueryOperation child;
     private final DataType type;
-    private final UpdateMode updateMode;
+    private final ChangelogMode changelogMode;
 
-    public OutputConversionModifyOperation(
-            QueryOperation child, DataType type, UpdateMode updateMode) {
+    public ExternalModifyOperation(
+            QueryOperation child, DataType type, ChangelogMode changelogMode) {
         this.child = child;
         this.type = type;
-        this.updateMode = updateMode;
-    }
-
-    public UpdateMode getUpdateMode() {
-        return updateMode;
+        this.changelogMode = changelogMode;
     }
 
     public DataType getType() {
         return type;
+    }
+
+    public ChangelogMode getChangelogMode() {
+        return changelogMode;
     }
 
     @Override
@@ -74,17 +58,16 @@ public class OutputConversionModifyOperation implements ModifyOperation {
     }
 
     @Override
+    public <R> R accept(ModifyOperationVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
+
+    @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("updateMode", updateMode);
         params.put("type", type);
 
         return OperationUtils.formatWithChildren(
                 "Output", params, Collections.singletonList(child), Operation::asSummaryString);
-    }
-
-    @Override
-    public <R> R accept(ModifyOperationVisitor<R> visitor) {
-        return visitor.visit(this);
     }
 }

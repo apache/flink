@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -40,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -54,14 +56,18 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.types.Row;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -277,6 +283,34 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     }
 
     @Override
+    public <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> dataType) {
+        final DataType resolvedDataType =
+                getCatalogManager().getDataTypeFactory().createDataType(dataType);
+        final ExternalModifyOperation modifyOperation =
+                new ExternalModifyOperation(
+                        table.getQueryOperation(), resolvedDataType, ChangelogMode.insertOnly());
+
+        return toDataStream(table, modifyOperation);
+    }
+
+    @Override
+    public <T> DataStream<T> toDataStream(Table table, Class<T> clazz) {
+        if (Row.class.equals(clazz)) {
+            // For convenience during migration from {@link toAppendStream} we handle {@link
+            // Row.class} in a compatible way
+            return (DataStream<T>) toDataStream(table);
+        }
+
+        return toDataStream(table, DataTypes.of(clazz));
+    }
+
+    @Override
+    public DataStream<Row> toDataStream(Table table) {
+        final DataType sourceType = table.getResolvedSchema().toSinkRowDataType();
+        return toDataStream(table, sourceType);
+    }
+
+    @Override
     public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
         TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
         return toAppendStream(table, typeInfo);
@@ -328,8 +362,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
     }
 
-    private <T> DataStream<T> toDataStream(
-            Table table, OutputConversionModifyOperation modifyOperation) {
+    private <T> DataStream<T> toDataStream(Table table, ModifyOperation modifyOperation) {
         List<Transformation<?>> transformations =
                 planner.translate(Collections.singletonList(modifyOperation));
 

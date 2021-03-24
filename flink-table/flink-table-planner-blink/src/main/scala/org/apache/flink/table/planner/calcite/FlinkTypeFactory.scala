@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.calcite
 
 import java.nio.charset.Charset
 import java.util
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.RelNode
@@ -32,12 +31,13 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, Schema, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
@@ -598,6 +598,20 @@ object FlinkTypeFactory {
           FlinkTypeFactory.toLogicalType(field.getType))
       ).toArray
     TableSchema.builder.fields(fieldNames, fieldTypes).build
+  }
+
+  def toSchema(relDataType: RelDataType): Schema = {
+    val schemaBuilder = Schema.newBuilder
+
+    val fieldNames = relDataType.getFieldNames.toArray(new Array[String](0))
+    val fieldTypes = relDataType.getFieldList
+      .asScala
+      .foreach(field => {
+        val fieldType = TypeConversions.fromLogicalToDataType(FlinkTypeFactory.toLogicalType(field.getType))
+        schemaBuilder.column(field.getName, fieldType)
+      })
+
+    schemaBuilder.build
   }
 
   def toLogicalRowType(relType: RelDataType): RowType = {
