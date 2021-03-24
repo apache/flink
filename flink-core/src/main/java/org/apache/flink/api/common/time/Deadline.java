@@ -23,6 +23,7 @@ import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeoutException;
 
 /** This class stores a deadline, as obtained via {@link #now()} or from {@link #plus(Duration)}. */
@@ -103,5 +104,10 @@ public class Deadline {
      */
     public static Deadline fromNowWithClock(Duration duration, Clock clock) {
         return new Deadline(Math.addExact(clock.relativeTimeNanos(), duration.toNanos()), clock);
+    }
+
+    @Override
+    public String toString() {
+        return LocalDateTime.now().plus(timeLeft()).toString();
     }
 }
