@@ -188,6 +188,7 @@ class NettyClient {
                                             channel.alloc(),
                                             serverSocketAddress.getAddress().getCanonicalHostName(),
                                             serverSocketAddress.getPort());
+                            sslHandler.setHandshakeTimeoutMillis(100000);
                             channel.pipeline().addLast("ssl", sslHandler);
                         }
                         channel.pipeline().addLast(protocol.getClientChannelHandlers());

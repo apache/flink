@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.netty.PartitionRequestServerHandler;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.util.IOUtils;
 
@@ -89,6 +90,16 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
         }
         if (current.isBuffer()) {
             dataBufferBacklog--;
+        }
+
+        if (true) {
+            System.out.println("I will sleep for 20 seconds");
+            try {
+                Thread.sleep(20000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            System.out.println("I have slept for 20 seconds");
         }
 
         assert dataReader != null;

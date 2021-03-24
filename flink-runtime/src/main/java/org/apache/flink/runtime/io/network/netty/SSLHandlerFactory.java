@@ -19,10 +19,15 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLEngine;
+
+import java.lang.reflect.Field;
 
 import static java.util.Objects.requireNonNull;
 
@@ -61,7 +66,24 @@ public class SSLHandlerFactory {
     }
 
     private SslHandler createNettySSLHandler(SSLEngine sslEngine) {
-        SslHandler sslHandler = new SslHandler(sslEngine);
+        SslHandler sslHandler =
+                new SslHandler(sslEngine) {
+
+                    @Override
+                    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+                        super.handlerAdded(ctx);
+
+                        Field field = SslHandler.class.getDeclaredField("handshakePromise");
+                        field.setAccessible(true);
+                        Promise<Channel> promise = (Promise<Channel>) field.get(this);
+
+                        System.out.println(
+                                Thread.currentThread()
+                                        + " is adding handler , done = "
+                                        + promise.isDone());
+                    }
+                };
+
         if (handshakeTimeoutMs >= 0) {
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMs);
         }

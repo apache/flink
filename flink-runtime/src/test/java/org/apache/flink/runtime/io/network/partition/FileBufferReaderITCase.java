@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -105,6 +107,8 @@ public class FileBufferReaderITCase extends TestLogger {
         } else {
             configuration = new Configuration();
         }
+        // configuration.set(CoreOptions.TMP_DIRS, "/hdd");
+        configuration.set(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 10);
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setString(
                 NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");

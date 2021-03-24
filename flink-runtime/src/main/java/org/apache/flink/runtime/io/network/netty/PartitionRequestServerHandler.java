@@ -34,11 +34,14 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
 
 /** Channel handler to initiate data transfers and dispatch backwards flowing task events. */
-class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMessage> {
+public class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMessage> {
+    public static AtomicInteger requested_count = new AtomicInteger(0);
 
     private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestServerHandler.class);
 
@@ -87,6 +90,8 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                             new CreditBasedSequenceNumberingViewReader(
                                     request.receiverId, request.credit, outboundQueue);
 
+                    requested_count.incrementAndGet();
+                    LOG.info("requested: " + requested_count.get());
                     reader.requestSubpartitionView(
                             partitionProvider, request.partitionId, request.queueIndex);
 
