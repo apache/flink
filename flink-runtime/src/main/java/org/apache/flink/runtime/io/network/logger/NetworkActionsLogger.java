@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersis
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+
 /**
  * Utility class for logging actions that happened in the network stack for debugging purposes.
  *
@@ -99,4 +101,27 @@ public class NetworkActionsLogger {
                     channelInfo);
         }
     }
+
+    private static final long MAX_EXPECTED_IO_TIME_IN_MS = 100L;
+
+    public static Closeable measureIO(String action, Object entity) {
+        if (!LOG.isDebugEnabled()) {
+            // seems to be completely inlined by JIT
+            return NO_MEASURE;
+        }
+        // adds around 100ns in a try-with-resource statement on a i7-9750H CPU @ 2.60GHz
+        long startTime = System.currentTimeMillis();
+        return () -> {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            if (elapsedTime > MAX_EXPECTED_IO_TIME_IN_MS) {
+                LOG.debug(
+                        "{} {} took unexpected long ({} ms) indicating that the checkpoint storage is overloaded.",
+                        action,
+                        entity,
+                        elapsedTime);
+            }
+        };
+    }
+
+    private static final Closeable NO_MEASURE = () -> {};
 }
