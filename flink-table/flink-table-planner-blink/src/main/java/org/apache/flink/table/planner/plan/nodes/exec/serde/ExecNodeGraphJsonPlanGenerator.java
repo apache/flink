@@ -144,6 +144,16 @@ public class ExecNodeGraphJsonPlanGenerator {
                                             "%s does not implement @JsonCreator annotation on constructor.",
                                             node.getClass().getCanonicalName()));
                         }
+                        if (node instanceof StreamExecLookupJoin) {
+                            StreamExecLookupJoin streamExecLookupJoin = (StreamExecLookupJoin) node;
+                            if (null
+                                    == streamExecLookupJoin
+                                            .getTemporalTableSourceSpec()
+                                            .getTableSourceSpec()) {
+                                throw new TableException(
+                                        "TemporalTableSourceSpec can not be serialized.");
+                            }
+                        }
                         super.visitInputs(node);
                     }
                 };
