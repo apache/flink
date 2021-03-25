@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.parse;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.ResetOperation;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Strategy to parse statement to {@link ResetOperation}. */
@@ -29,12 +31,23 @@ public class ResetOperationParseStrategy extends AbstractRegexParseStrategy {
     static final ResetOperationParseStrategy INSTANCE = new ResetOperationParseStrategy();
 
     private ResetOperationParseStrategy() {
-        super(Pattern.compile("RESET", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("RESET(\\s+(?<key>\\S+)\\s*)?", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override
     public Operation convert(String statement) {
-        return new ResetOperation();
+        Matcher matcher = pattern.matcher(statement.trim());
+        String key;
+
+        if (matcher.find()) {
+            key = matcher.group("key");
+        } else {
+            throw new TableException(
+                    String.format(
+                            "Failed to convert the statement to RESET operation: %s.", statement));
+        }
+
+        return new ResetOperation(key);
     }
 
     @Override
