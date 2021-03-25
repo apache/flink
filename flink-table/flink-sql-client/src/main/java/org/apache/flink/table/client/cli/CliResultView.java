@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.types.DataType;
 
 import org.jline.utils.AttributedString;
@@ -296,9 +295,8 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
                     // the cancellation happens in the refresh thread in order to keep the main
                     // thread
                     // responsive at all times; esp. if the cluster is not available
-                    client.getExecutor()
-                            .cancelQuery(client.getSessionId(), resultDescriptor.getResultId());
-                } catch (SqlExecutionException e) {
+                    resultDescriptor.getDynamicResult().close();
+                } catch (Exception e) {
                     // ignore further exceptions
                 }
             }

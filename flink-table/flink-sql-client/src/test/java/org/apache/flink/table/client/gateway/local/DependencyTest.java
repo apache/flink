@@ -44,11 +44,11 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
-import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
@@ -68,6 +68,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -93,7 +94,8 @@ public class DependencyTest {
         final LocalExecutor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         try {
-            final TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber1");
+            final TableResult tableResult =
+                    executeSql(executor, sessionId, "DESCRIBE TableNumber1");
             assertEquals(
                     tableResult.getResolvedSchema(),
                     ResolvedSchema.physical(
@@ -128,11 +130,11 @@ public class DependencyTest {
         final LocalExecutor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         try {
-            final Parser sqlParser = executor.getSqlParser(sessionId);
-            List<Operation> operations =
-                    sqlParser.parse("SELECT IntegerField1, StringField1 FROM TableNumber1");
+            Optional<Operation> operation =
+                    executor.parseStatement(
+                            sessionId, "SELECT IntegerField1, StringField1 FROM TableNumber1");
 
-            assertTrue(operations != null && operations.size() == 1);
+            assertTrue(operation.isPresent());
         } finally {
             executor.closeSession(sessionId);
         }
@@ -157,6 +159,12 @@ public class DependencyTest {
                         new Configuration(),
                         Collections.singletonList(new DefaultCLI()));
         return new LocalExecutor(defaultContext);
+    }
+
+    private TableResult executeSql(Executor executor, String sessionId, String sql) {
+        Operation operation = executor.parseStatement(sessionId, sql).get();
+
+        return executor.executeOperation(sessionId, operation);
     }
 
     // --------------------------------------------------------------------------------------------

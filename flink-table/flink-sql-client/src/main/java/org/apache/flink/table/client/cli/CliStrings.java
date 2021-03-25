@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
-
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -39,82 +37,81 @@ public final class CliStrings {
     public static final AttributedString MESSAGE_HELP =
             new AttributedStringBuilder()
                     .append("The following commands are available:\n\n")
-                    .append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
+                    .append(formatCommand("CLEAR", "Clears the current terminal."))
                     .append(
                             formatCommand(
-                                    SqlCommand.CREATE_TABLE,
+                                    "CREATE TABLE",
                                     "Create table under current catalog and database."))
                     .append(
                             formatCommand(
-                                    SqlCommand.DROP_TABLE,
+                                    "DROP TABLE",
                                     "Drop table with optional catalog and database. Syntax: 'DROP TABLE [IF EXISTS] <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.CREATE_VIEW,
+                                    "CREATE VIEW",
                                     "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.DESCRIBE,
+                                    "DESCRIBE",
                                     "Describes the schema of a table with the given name."))
                     .append(
                             formatCommand(
-                                    SqlCommand.DROP_VIEW,
+                                    "DROP VIEW",
                                     "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.EXPLAIN,
+                                    "EXPLAIN",
                                     "Describes the execution plan of a query or table with the given name."))
-                    .append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
+                    .append(formatCommand("HELP", "Prints the available commands."))
                     .append(
                             formatCommand(
-                                    SqlCommand.INSERT_INTO,
+                                    "INSERT INTO",
                                     "Inserts the results of a SQL SELECT query into a declared table sink."))
                     .append(
                             formatCommand(
-                                    SqlCommand.INSERT_OVERWRITE,
+                                    "INSERT OVERWRITE",
                                     "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
-                    .append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
+                    .append(formatCommand("QUIT", "Quits the SQL CLI client."))
                     .append(
                             formatCommand(
-                                    SqlCommand.RESET,
+                                    "RESET",
                                     "Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SELECT,
-                                    "Executes a SQL SELECT query on the Flink cluster."))
+                                    "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SET,
+                                    "SET",
                                     "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SHOW_FUNCTIONS,
+                                    "SHOW FUNCTIONS",
                                     "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
-                    .append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
+                    .append(formatCommand("SHOW TABLES", "Shows all registered tables."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SOURCE,
+                                    "SOURCE",
                                     "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE_CATALOG,
+                                    "USE CATALOG",
                                     "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE,
+                                    "USE",
                                     "Sets the current default database. Experimental! Syntax: 'USE <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.LOAD_MODULE,
+                                    "LOAD MODULE",
                                     "Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = "
                                             + "'<value1>' [, '<key2>' = '<value2>', ...])];'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.UNLOAD_MODULE,
+                                    "UNLOAD MODULE",
                                     "Unload a module. Syntax: 'UNLOAD MODULE <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE_MODULES,
+                                    "USE MODULES",
                                     "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
@@ -204,57 +201,7 @@ public final class CliStrings {
 
     public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
 
-    public static final String MESSAGE_TABLE_CREATED = "Table has been created.";
-
-    public static final String MESSAGE_TABLE_REMOVED = "Table has been removed.";
-
-    public static final String MESSAGE_ALTER_TABLE_SUCCEEDED = "Alter table succeeded!";
-
-    public static final String MESSAGE_ALTER_TABLE_FAILED = "Alter table failed!";
-
-    public static final String MESSAGE_VIEW_CREATED = "View has been created.";
-
-    public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
-
-    public static final String MESSAGE_ALTER_VIEW_SUCCEEDED = "Alter view succeeded!";
-
-    public static final String MESSAGE_ALTER_VIEW_FAILED = "Alter view failed!";
-
-    public static final String MESSAGE_FUNCTION_CREATED = "Function has been created.";
-
-    public static final String MESSAGE_FUNCTION_REMOVED = "Function has been removed.";
-
-    public static final String MESSAGE_ALTER_FUNCTION_SUCCEEDED = "Alter function succeeded!";
-
-    public static final String MESSAGE_ALTER_FUNCTION_FAILED = "Alter function failed!";
-
-    public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
-
-    public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
-
-    public static final String MESSAGE_DATABASE_CHANGED = "Database changed.";
-
-    public static final String MESSAGE_ALTER_DATABASE_SUCCEEDED = "Alter database succeeded!";
-
-    public static final String MESSAGE_ALTER_DATABASE_FAILED = "Alter database failed!";
-
-    public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
-
-    public static final String MESSAGE_CATALOG_REMOVED = "Catalog has been removed.";
-
-    public static final String MESSAGE_CATALOG_CHANGED = "Catalog changed.";
-
-    public static final String MESSAGE_LOAD_MODULE_SUCCEEDED = "Load module succeeded!";
-
-    public static final String MESSAGE_UNLOAD_MODULE_SUCCEEDED = "Unload module succeeded!";
-
-    public static final String MESSAGE_USE_MODULES_SUCCEEDED = "Use modules succeeded!";
-
-    public static final String MESSAGE_LOAD_MODULE_FAILED = "Load module failed!";
-
-    public static final String MESSAGE_UNLOAD_MODULE_FAILED = "Unload module failed!";
-
-    public static final String MESSAGE_USE_MODULES_FAILED = "Use modules failed!";
+    public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
 
     // --------------------------------------------------------------------------------------------
 
@@ -381,10 +328,10 @@ public final class CliStrings {
         return builder.toAttributedString();
     }
 
-    private static AttributedString formatCommand(SqlCommand cmd, String description) {
+    private static AttributedString formatCommand(String cmd, String description) {
         return new AttributedStringBuilder()
                 .style(AttributedStyle.DEFAULT.bold())
-                .append(cmd.toString())
+                .append(cmd)
                 .append("\t\t")
                 .style(AttributedStyle.DEFAULT)
                 .append(description)

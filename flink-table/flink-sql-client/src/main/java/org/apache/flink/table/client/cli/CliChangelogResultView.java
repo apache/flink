@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
@@ -106,10 +107,7 @@ public class CliChangelogResultView
         // retrieve change record
         final TypedResult<List<Row>> result;
         try {
-            result =
-                    client.getExecutor()
-                            .retrieveResultChanges(
-                                    client.getSessionId(), resultDescriptor.getResultId());
+            result = ((ChangelogResult) resultDescriptor.getDynamicResult()).retrieveChanges();
         } catch (SqlExecutionException e) {
             close(e);
             return;

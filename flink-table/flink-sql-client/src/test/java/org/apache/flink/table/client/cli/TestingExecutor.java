@@ -17,70 +17,22 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.table.operations.Operation;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A customizable {@link Executor} for testing purposes. */
 class TestingExecutor implements Executor {
 
-    private int numCancelCalls = 0;
-
-    private int numRetrieveResultChancesCalls = 0;
-    private final List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
-            resultChanges;
-
-    private int numRetrieveResultPageCalls = 0;
-    private final List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages;
-
-    private final SqlParserHelper helper;
-
-    TestingExecutor(
-            List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
-                    resultChanges,
-            List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages) {
-        this.resultChanges = resultChanges;
-        this.resultPages = resultPages;
-        helper = new SqlParserHelper();
-        helper.registerTables();
-    }
-
-    @Override
-    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-        numCancelCalls++;
-    }
-
-    @Override
-    public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-            throws SqlExecutionException {
-        return resultChanges
-                .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
-                .get();
-    }
-
-    @Override
-    public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-        return resultPages
-                .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))
-                .get();
-    }
-
-    @Override
-    public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-            throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
+    TestingExecutor() {}
 
     @Override
     public void start() throws SqlExecutionException {}
@@ -95,6 +47,11 @@ class TestingExecutor implements Executor {
 
     @Override
     public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
@@ -115,35 +72,19 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+    public TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public Parser getSqlParser(String sessionId) {
-        return helper.getSqlParser();
+    public Optional<Operation> parseStatement(String sessionId, String statement)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public List<String> completeStatement(String sessionId, String statement, int position) {
         throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public ResultDescriptor executeQuery(String sessionId, String query)
-            throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    public int getNumCancelCalls() {
-        return numCancelCalls;
-    }
-
-    public int getNumRetrieveResultChancesCalls() {
-        return numRetrieveResultChancesCalls;
-    }
-
-    public int getNumRetrieveResultPageCalls() {
-        return numRetrieveResultPageCalls;
     }
 }

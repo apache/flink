@@ -34,10 +34,13 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -71,8 +74,6 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
 @RunWith(Parameterized.class)
@@ -174,15 +175,11 @@ public class LocalExecutorITCase extends TestLogger {
 
         try {
             // start job and retrieval
-            final ResultDescriptor desc =
-                    executor.executeQuery(
+            final List<String> actualResults =
+                    retrieveChangelogResult(
+                            executor,
                             sessionId,
                             "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1");
-
-            assertFalse(desc.isMaterialized());
-
-            final List<String> actualResults =
-                    retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("+I[47, Hello World, ABC]");
@@ -227,15 +224,11 @@ public class LocalExecutorITCase extends TestLogger {
         try {
             for (int i = 0; i < 3; i++) {
                 // start job and retrieval
-                final ResultDescriptor desc =
-                        executor.executeQuery(
+                final List<String> actualResults =
+                        retrieveChangelogResult(
+                                executor,
                                 sessionId,
                                 "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
-
-                assertFalse(desc.isMaterialized());
-
-                final List<String> actualResults =
-                        retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -349,13 +342,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         try {
-            final ResultDescriptor desc =
-                    executor.executeQuery(sessionId, "SELECT *, 'ABC' FROM TestView1");
-
-            assertTrue(desc.isMaterialized());
-
             final List<String> actualResults =
-                    retrieveTableResult(executor, sessionId, desc.getResultId());
+                    retrieveTableResult(executor, sessionId, "SELECT *, 'ABC' FROM TestView1");
 
             final List<String> expectedResults = new ArrayList<>();
             expectedResults.add("+I[47, ABC]");
@@ -400,13 +388,8 @@ public class LocalExecutorITCase extends TestLogger {
 
         try {
             for (int i = 0; i < 3; i++) {
-                final ResultDescriptor desc =
-                        executor.executeQuery(sessionId, "SELECT * FROM TestView1");
-
-                assertTrue(desc.isMaterialized());
-
                 final List<String> actualResults =
-                        retrieveTableResult(executor, sessionId, desc.getResultId());
+                        retrieveTableResult(executor, sessionId, "SELECT * FROM TestView1");
 
                 TestBaseUtils.compareResultCollections(
                         expectedResults, actualResults, Comparator.naturalOrder());
@@ -439,7 +422,7 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         try {
-            executor.executeSql(sessionId, "CREATE FUNCTION LowerUDF AS 'LowerUDF'");
+            executeSql(executor, sessionId, "CREATE FUNCTION LowerUDF AS 'LowerUDF'");
             // Case 1: Registered sink
             // Case 1.1: Registered sink with uppercase insert into keyword.
             // FLINK-18302: wrong classloader when INSERT INTO with UDF
@@ -457,20 +440,19 @@ public class LocalExecutorITCase extends TestLogger {
             executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 
             // Case 2: Temporary sink
-            executor.executeSql(sessionId, "use catalog `simple-catalog`");
-            executor.executeSql(sessionId, "use default_database");
+            executeSql(executor, sessionId, "use catalog `simple-catalog`");
+            executeSql(executor, sessionId, "use default_database");
             // create temporary sink
-            executor.executeSql(
+            executeSql(
+                    executor,
                     sessionId,
                     "CREATE TEMPORARY TABLE MySink (id int, str VARCHAR) WITH ('connector' = 'COLLECTION')");
             final String statement3 = "INSERT INTO MySink select * from `test-table`";
+            executeAndVerifySinkResult(executor, sessionId, statement3, csvOutputPath);
 
             // all queries are pipelined to an in-memory sink, check it is properly registered
-            final ResultDescriptor otherCatalogDesc =
-                    executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
-
             final List<String> otherCatalogResults =
-                    retrieveTableResult(executor, sessionId, otherCatalogDesc.getResultId());
+                    retrieveTableResult(executor, sessionId, "SELECT * FROM `test-table`");
 
             TestBaseUtils.compareResultCollections(
                     SimpleCatalogFactory.TABLE_CONTENTS.stream()
@@ -512,18 +494,19 @@ public class LocalExecutorITCase extends TestLogger {
 
         try {
             // start job and retrieval
-            final ResultDescriptor desc = executor.executeQuery(sessionId, query);
-
-            assertTrue(desc.isMaterialized());
-
-            final List<String> actualResults =
-                    retrieveTableResult(executor, sessionId, desc.getResultId());
+            final List<String> actualResults = retrieveTableResult(executor, sessionId, query);
 
             TestBaseUtils.compareResultCollections(
                     expectedResults, actualResults, Comparator.naturalOrder());
         } finally {
             executor.closeSession(sessionId);
         }
+    }
+
+    private TableResult executeSql(Executor executor, String sessionId, String sql)
+            throws Exception {
+        Operation operation = executor.parseStatement(sessionId, sql).get();
+        return executor.executeOperation(sessionId, operation);
     }
 
     private void verifySinkResult(String path) throws IOException {
@@ -543,7 +526,7 @@ public class LocalExecutorITCase extends TestLogger {
     private void executeAndVerifySinkResult(
             Executor executor, String sessionId, String statement, String resultPath)
             throws Exception {
-        final TableResult tableResult = executor.executeSql(sessionId, statement);
+        final TableResult tableResult = executeSql(executor, sessionId, statement);
         checkState(tableResult.getJobClient().isPresent());
         // wait for job completion
         tableResult.await();
@@ -567,19 +550,24 @@ public class LocalExecutorITCase extends TestLogger {
         return EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
     }
 
-    private List<String> retrieveTableResult(Executor executor, String sessionId, String resultID)
-            throws InterruptedException {
+    private List<String> retrieveTableResult(Executor executor, String sessionId, String query)
+            throws Exception {
+        TableResult tableResult = executeSql(executor, sessionId, query);
+        ResultDescriptor descriptor =
+                ResultDescriptor.createResultDescriptor(
+                        executor.getSessionConfig(sessionId), tableResult);
+        MaterializedResult materializedResult = (MaterializedResult) descriptor.getDynamicResult();
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<Integer> result = executor.snapshotResult(sessionId, resultID, 2);
+            final TypedResult<Integer> result = materializedResult.snapshot(2);
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 actualResults.clear();
                 IntStream.rangeClosed(1, result.getPayload())
                         .forEach(
                                 (page) -> {
-                                    for (Row row : executor.retrieveResultPage(resultID, page)) {
+                                    for (Row row : materializedResult.retrievePage(page)) {
                                         actualResults.add(row.toString());
                                     }
                                 });
@@ -591,14 +579,18 @@ public class LocalExecutorITCase extends TestLogger {
         return actualResults;
     }
 
-    private List<String> retrieveChangelogResult(
-            Executor executor, String sessionId, String resultID) throws InterruptedException {
+    private List<String> retrieveChangelogResult(Executor executor, String sessionId, String query)
+            throws Exception {
+        TableResult tableResult = executeSql(executor, sessionId, query);
+        ResultDescriptor descriptor =
+                ResultDescriptor.createResultDescriptor(
+                        executor.getSessionConfig(sessionId), tableResult);
+        ChangelogResult changelogResult = (ChangelogResult) descriptor.getDynamicResult();
 
         final List<String> actualResults = new ArrayList<>();
         while (true) {
             Thread.sleep(50); // slow the processing down
-            final TypedResult<List<Row>> result =
-                    executor.retrieveResultChanges(sessionId, resultID);
+            final TypedResult<List<Row>> result = changelogResult.retrieveChanges();
             if (result.getType() == TypedResult.ResultType.PAYLOAD) {
                 for (Row row : result.getPayload()) {
                     actualResults.add(row.toString());
