@@ -800,6 +800,12 @@ public class KinesisDataFetcher<T> {
      * executed and all shard consuming threads will be interrupted.
      */
     public void shutdownFetcher() {
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Starting shutdown of shard consumer threads and AWS SDK resources of subtask {} ...",
+                    indexOfThisConsumerSubtask);
+        }
+
         running = false;
 
         StreamConsumerRegistrarUtil.deregisterStreamConsumers(configProps, streams);
@@ -822,6 +828,15 @@ public class KinesisDataFetcher<T> {
                     "Shutting down the shard consumer threads of subtask {} ...",
                     indexOfThisConsumerSubtask);
         }
+    }
+
+    /**
+     * Returns a flag indicating if this fetcher is running.
+     *
+     * @return true if the fetch is running, false if it has been shutdown
+     */
+    boolean isRunning() {
+        return running;
     }
 
     /**
