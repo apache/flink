@@ -55,9 +55,9 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
 
         // only capture SET
         if (operands.isEmpty()) {
-            return new SetOperation(new String[0]);
+            return new SetOperation();
         } else if (operands.size() == 2) {
-            return new SetOperation(operands.stream().map(String::trim).toArray(String[]::new));
+            return new SetOperation(operands.get(0), operands.get(1));
         } else {
             // impossible
             throw new TableException(
