@@ -81,7 +81,7 @@ public class KeyedTwoInputWithTimerRowFactory {
         reuseRunnerInput.setField(2, timestamp);
         reuseRunnerInput.setField(3, watermark);
         reuseRunnerInput.setField(4, reuseTimerData);
-        return reuseTimerData;
+        return reuseRunnerInput;
     }
 
     public static TypeInformation<Row> getRunnerInputTypeInfo(
