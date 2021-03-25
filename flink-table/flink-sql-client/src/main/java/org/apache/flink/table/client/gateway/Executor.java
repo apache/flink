@@ -19,7 +19,8 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -81,17 +82,19 @@ public interface Executor {
     void setSessionProperty(String sessionId, String key, String value)
             throws SqlExecutionException;
 
-    /** Executes a SQL statement, and return {@link TableResult} as execution result. */
-    TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
-
-    /** Returns a sql parser instance. */
-    Parser getSqlParser(String sessionId);
+    /** Parse a SQL statement to {@link Operation}. */
+    Operation parseStatement(String sessionId, String statement) throws SqlExecutionException;
 
     /** Returns a list of completion hints for the given statement at the given position. */
     List<String> completeStatement(String sessionId, String statement, int position);
 
+    /** Executes an operation, and return {@link TableResult} as execution result. */
+    TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException;
+
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
-    ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException;
+    ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+            throws SqlExecutionException;
 
     /** Asks for the next changelog results (non-blocking). */
     TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)

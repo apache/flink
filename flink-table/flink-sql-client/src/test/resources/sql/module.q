@@ -45,7 +45,7 @@ SHOW FULL MODULES;
 
 # load core module twice
 LOAD MODULE core;
-[ERROR] Could not execute SQL statement. Load module failed! Reason:
+[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: A module with name 'core' already exists
 !error
 
@@ -71,7 +71,7 @@ Was expecting one of:
 
 # load hive module with module name capitalized
 LOAD MODULE Hive;
-[ERROR] Could not execute SQL statement. Load module failed! Reason:
+[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.NoMatchingTableFactoryException: Could not find a suitable table factory for 'org.apache.flink.table.factories.ModuleFactory' in
 the classpath.
 
@@ -88,12 +88,12 @@ org.apache.flink.table.module.hive.HiveModuleFactory
 
 # load hive module with specifying type
 LOAD MODULE myhive WITH ('type' = 'hive');
-[ERROR] Could not execute SQL statement. Load module failed! Reason:
+[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Property 'type' = 'hive' is not supported since module name is used to find module
 !error
 
 LOAD MODULE hive;
-[INFO] Load module succeeded!
+[INFO] Execute statement succeed.
 !info
 
 # show enabled modules
@@ -134,13 +134,13 @@ Received a total of 1 row
 
 # use duplicate modules
 USE MODULES hive, core, hive;
-[ERROR] Could not execute SQL statement. Use modules failed! Reason:
+[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Module 'hive' appears more than once
 !error
 
 # change module resolution order
 USE MODULES hive, core;
-[INFO] Use modules succeeded!
+[INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
@@ -165,7 +165,7 @@ SHOW FULL MODULES;
 
 # disable hive module
 USE MODULES core;
-[INFO] Use modules succeeded!
+[INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
@@ -198,7 +198,7 @@ org.apache.calcite.sql.validate.SqlValidatorException: No match found for functi
 # ==========================================================================
 
 UNLOAD MODULE core;
-[INFO] Unload module succeeded!
+[INFO] Execute statement succeed.
 !info
 
 SHOW MODULES;
@@ -216,6 +216,6 @@ SHOW FULL MODULES;
 
 # unload core module twice
 UNLOAD MODULE core;
-[ERROR] Could not execute SQL statement. Unload module failed! Reason:
+[ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: No module with name 'core' exists
 !error

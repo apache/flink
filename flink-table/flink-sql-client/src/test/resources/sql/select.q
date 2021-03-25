@@ -37,7 +37,7 @@ create table src (
   'data-id' = 'non-exist',
   'failing-source' = 'true'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 SELECT UPPER(str), id FROM src;

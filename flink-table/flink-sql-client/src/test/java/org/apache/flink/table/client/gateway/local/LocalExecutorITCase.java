@@ -38,6 +38,8 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -175,7 +177,8 @@ public class LocalExecutorITCase extends TestLogger {
         try {
             // start job and retrieval
             final ResultDescriptor desc =
-                    executor.executeQuery(
+                    executeQuery(
+                            executor,
                             sessionId,
                             "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1");
 
@@ -228,7 +231,8 @@ public class LocalExecutorITCase extends TestLogger {
             for (int i = 0; i < 3; i++) {
                 // start job and retrieval
                 final ResultDescriptor desc =
-                        executor.executeQuery(
+                        executeQuery(
+                                executor,
                                 sessionId,
                                 "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
 
@@ -350,7 +354,7 @@ public class LocalExecutorITCase extends TestLogger {
 
         try {
             final ResultDescriptor desc =
-                    executor.executeQuery(sessionId, "SELECT *, 'ABC' FROM TestView1");
+                    executeQuery(executor, sessionId, "SELECT *, 'ABC' FROM TestView1");
 
             assertTrue(desc.isMaterialized());
 
@@ -401,7 +405,7 @@ public class LocalExecutorITCase extends TestLogger {
         try {
             for (int i = 0; i < 3; i++) {
                 final ResultDescriptor desc =
-                        executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+                        executeQuery(executor, sessionId, "SELECT * FROM TestView1");
 
                 assertTrue(desc.isMaterialized());
 
@@ -439,7 +443,7 @@ public class LocalExecutorITCase extends TestLogger {
         assertEquals("test-session", sessionId);
 
         try {
-            executor.executeSql(sessionId, "CREATE FUNCTION LowerUDF AS 'LowerUDF'");
+            executeSql(executor, sessionId, "CREATE FUNCTION LowerUDF AS 'LowerUDF'");
             // Case 1: Registered sink
             // Case 1.1: Registered sink with uppercase insert into keyword.
             // FLINK-18302: wrong classloader when INSERT INTO with UDF
@@ -457,17 +461,18 @@ public class LocalExecutorITCase extends TestLogger {
             executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 
             // Case 2: Temporary sink
-            executor.executeSql(sessionId, "use catalog `simple-catalog`");
-            executor.executeSql(sessionId, "use default_database");
+            executeSql(executor, sessionId, "use catalog `simple-catalog`");
+            executeSql(executor, sessionId, "use default_database");
             // create temporary sink
-            executor.executeSql(
+            executeSql(
+                    executor,
                     sessionId,
                     "CREATE TEMPORARY TABLE MySink (id int, str VARCHAR) WITH ('connector' = 'COLLECTION')");
             final String statement3 = "INSERT INTO MySink select * from `test-table`";
 
             // all queries are pipelined to an in-memory sink, check it is properly registered
             final ResultDescriptor otherCatalogDesc =
-                    executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
+                    executeQuery(executor, sessionId, "SELECT * FROM `test-table`");
 
             final List<String> otherCatalogResults =
                     retrieveTableResult(executor, sessionId, otherCatalogDesc.getResultId());
@@ -487,6 +492,16 @@ public class LocalExecutorITCase extends TestLogger {
     // --------------------------------------------------------------------------------------------
     // Helper method
     // --------------------------------------------------------------------------------------------
+
+    private TableResult executeSql(Executor executor, String sessionId, String sql) {
+        Operation operation = executor.parseStatement(sessionId, sql);
+        return executor.executeOperation(sessionId, operation);
+    }
+
+    private ResultDescriptor executeQuery(Executor executor, String sessionId, String query) {
+        Operation operation = executor.parseStatement(sessionId, query);
+        return executor.executeQuery(sessionId, (QueryOperation) operation);
+    }
 
     private LocalExecutor createLocalExecutor(Environment environment, List<URL> dependencies) {
 
@@ -512,7 +527,7 @@ public class LocalExecutorITCase extends TestLogger {
 
         try {
             // start job and retrieval
-            final ResultDescriptor desc = executor.executeQuery(sessionId, query);
+            final ResultDescriptor desc = executeQuery(executor, sessionId, query);
 
             assertTrue(desc.isMaterialized());
 
@@ -543,7 +558,7 @@ public class LocalExecutorITCase extends TestLogger {
     private void executeAndVerifySinkResult(
             Executor executor, String sessionId, String statement, String resultPath)
             throws Exception {
-        final TableResult tableResult = executor.executeSql(sessionId, statement);
+        final TableResult tableResult = executeSql(executor, sessionId, statement);
         checkState(tableResult.getJobClient().isPresent());
         // wait for job completion
         tableResult.await();

@@ -29,15 +29,12 @@ import org.jline.utils.AttributedString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.List;
 
 /** SQL code completer. */
 public class SqlCompleter implements Completer {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlCompleter.class);
-
-    public static final String[] COMMAND_HINTS = getCommandHints();
 
     private String sessionId;
 
@@ -56,17 +53,6 @@ public class SqlCompleter implements Completer {
             statement = statement.substring(0, statement.length() - 1);
         }
 
-        // handle SQL client specific commands
-        final String statementNormalized = statement.toUpperCase().trim();
-        for (String commandHint : COMMAND_HINTS) {
-            if (commandHint.startsWith(statementNormalized)
-                    && line.cursor() < commandHint.length()) {
-                candidates.add(
-                        createCandidate(getCompletionHint(statementNormalized, commandHint)));
-            }
-        }
-
-        // fallback to Table API hinting
         try {
             executor.completeStatement(sessionId, statement, line.cursor())
                     .forEach(hint -> candidates.add(createCandidate(hint)));
@@ -75,41 +61,7 @@ public class SqlCompleter implements Completer {
         }
     }
 
-    private String getCompletionHint(String statementNormalized, String commandHint) {
-        if (statementNormalized.length() == 0) {
-            return commandHint;
-        }
-        int cursorPos = statementNormalized.length() - 1;
-        int returnStartPos;
-        if (Character.isWhitespace(commandHint.charAt(cursorPos + 1))) {
-            returnStartPos = Math.min(commandHint.length() - 1, cursorPos + 2);
-        } else {
-            returnStartPos = cursorPos;
-            while (returnStartPos > 0
-                    && !Character.isWhitespace(commandHint.charAt(returnStartPos - 1))) {
-                returnStartPos--;
-            }
-        }
-
-        return commandHint.substring(returnStartPos);
-    }
-
     private Candidate createCandidate(String hint) {
         return new Candidate(AttributedString.stripAnsi(hint), hint, null, null, null, null, true);
-    }
-
-    private static String[] getCommandHints() {
-        return Arrays.stream(SqlCommandParser.SqlCommand.values())
-                .filter(SqlCommandParser.SqlCommand::hasRegexPattern)
-                .map(
-                        cmd -> {
-                            // add final ";" for convenience if no operands can follow
-                            if (cmd.hasOperands()) {
-                                return cmd.toString();
-                            } else {
-                                return cmd.toString() + ";";
-                            }
-                        })
-                .toArray(String[]::new);
     }
 }
