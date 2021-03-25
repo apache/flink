@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
