@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
@@ -45,7 +44,7 @@ import static org.junit.Assert.assertTrue;
 /** Tests for {@link ContinuousProcessingTimeTrigger}. */
 public class ContinuousProcessingTimeTriggerTest {
 
-    private static final long NO_TIMESTAMP = Watermark.UNINITIALIZED.getTimestamp();
+    private static final long NO_TIMESTAMP = -1L;
 
     private static class WindowedInteger {
         private final TimeWindow window;
