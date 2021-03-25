@@ -60,16 +60,13 @@ public class FsStateChangelogWriterFactory
      *     BatchingStateChangeStore batching}
      * @param persistSizeThreshold when reached, persist is triggered regardless of persistDelayMs
      *     (number of pending state changes from any client)
-     * @param retryPolicy to use when uploading
      */
     public FsStateChangelogWriterFactory(
-            Path basePath, long persistDelayMs, int persistSizeThreshold, RetryPolicy retryPolicy)
-            throws IOException {
+            Path basePath, long persistDelayMs, int persistSizeThreshold) throws IOException {
         this(
                 StateChangeStore.createBatchingStore(
                         persistDelayMs,
                         persistSizeThreshold,
-                        retryPolicy,
                         new StateChangeFsStore(basePath, basePath.getFileSystem())));
     }
 
@@ -111,7 +108,9 @@ public class FsStateChangelogWriterFactory
 
     @Override
     public FsStateChangelogWriter createWriter(
-            OperatorID operatorID, KeyGroupRange keyGroupRange, ChangelogCallbackExecutor executor) {
+            OperatorID operatorID,
+            KeyGroupRange keyGroupRange,
+            ChangelogCallbackExecutor executor) {
         Preconditions.checkState(store != null);
         UUID logId = new UUID(0, logIdGenerator.getAndIncrement());
         LOG.info("createWriter for operator {}/{}: {}", operatorID, keyGroupRange, logId);

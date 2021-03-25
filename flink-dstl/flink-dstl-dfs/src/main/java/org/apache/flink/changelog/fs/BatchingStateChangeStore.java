@@ -20,7 +20,6 @@ package org.apache.flink.changelog.fs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -30,8 +29,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.Thread.holdsLock;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -47,8 +48,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 class BatchingStateChangeStore implements StateChangeStore {
     private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeStore.class);
 
-    private final RetryingExecutor retryingExecutor;
-    private final RetryPolicy retryPolicy;
     private final StateChangeStore delegate;
     private final ScheduledExecutorService scheduler;
     private final long scheduleDelayMs;
@@ -60,38 +59,28 @@ class BatchingStateChangeStore implements StateChangeStore {
     @GuardedBy("scheduled")
     private long scheduledSizeInBytes;
 
-    @Nullable
     @GuardedBy("scheduled")
-    private ScheduledFuture<?> scheduledFuture;
+    private Future<?> scheduledFuture = CompletableFuture.completedFuture(null);
 
-    private volatile Throwable error;
+    private AtomicReference<Throwable> error = new AtomicReference<>(null);
 
     BatchingStateChangeStore(
-            long persistDelayMs,
-            long sizeThresholdBytes,
-            RetryPolicy retryPolicy,
-            StateChangeStore delegate) {
+            long persistDelayMs, long sizeThresholdBytes, StateChangeStore delegate) {
         this(
                 persistDelayMs,
                 sizeThresholdBytes,
-                retryPolicy,
                 delegate,
-                SchedulerFactory.create(1, "ChangelogRetryScheduler", LOG),
-                new RetryingExecutor());
+                SchedulerFactory.create(1, "ChangelogRetryScheduler", LOG));
     }
 
     BatchingStateChangeStore(
             long persistDelayMs,
             long sizeThresholdBytes,
-            RetryPolicy retryPolicy,
             StateChangeStore delegate,
-            ScheduledExecutorService scheduler,
-            RetryingExecutor retryingExecutor) {
+            ScheduledExecutorService scheduler) {
         this.scheduleDelayMs = persistDelayMs;
         this.scheduled = new LinkedList<>();
         this.scheduler = scheduler;
-        this.retryPolicy = retryPolicy;
-        this.retryingExecutor = retryingExecutor;
         this.sizeThresholdBytes = sizeThresholdBytes;
         this.delegate = delegate;
     }
@@ -99,9 +88,9 @@ class BatchingStateChangeStore implements StateChangeStore {
     @Override
     public void save(StoreTask storeTask) {
         Collection<StateChangeSet> changeSets = storeTask.changeSets;
-        if (error != null) {
+        if (error.get() != null) {
             LOG.debug("don't persist {} changesets, already failed", changeSets.size());
-            storeTask.fail(error);
+            storeTask.fail(error.get());
             return;
         }
         LOG.debug("persist {} changeSets", changeSets.size());
@@ -119,14 +108,22 @@ class BatchingStateChangeStore implements StateChangeStore {
 
     private void scheduleUploadIfNeeded() {
         checkState(holdsLock(scheduled));
+        if (scheduledFuture.isDone() || isOverSizeThresholdAndCancellationSucceded()) {
+            scheduleUpload();
+        }
+    }
+
+    private boolean isOverSizeThresholdAndCancellationSucceded() {
+        return scheduledSizeInBytes >= sizeThresholdBytes && scheduledFuture.cancel(false);
+    }
+
+    private void scheduleUpload() {
+        checkState(scheduledFuture.isDone());
+        long delay = scheduleDelayMs;
         if (scheduleDelayMs == 0 || scheduledSizeInBytes >= sizeThresholdBytes) {
-            if (scheduledFuture != null) {
-                scheduledFuture.cancel(false);
-                scheduledFuture = null;
-            }
-            drainAndSave();
-        } else if (scheduledFuture == null) {
-            scheduledFuture = scheduler.schedule(this::drainAndSave, scheduleDelayMs, MILLISECONDS);
+            scheduledFuture = scheduler.submit(this::drainAndSave);
+        } else {
+            scheduledFuture = scheduler.schedule(this::drainAndSave, delay, MILLISECONDS);
         }
     }
 
@@ -136,21 +133,23 @@ class BatchingStateChangeStore implements StateChangeStore {
             tasks = new ArrayList<>(scheduled);
             scheduled.clear();
             scheduledSizeInBytes = 0;
-            scheduledFuture = null;
         }
         try {
-            if (error != null) {
-                tasks.forEach(task -> task.fail(error));
+            if (error.get() != null) {
+                tasks.forEach(task -> task.fail(error.get()));
                 return;
             }
-            retryingExecutor.execute(retryPolicy, () -> delegate.save(tasks));
+            delegate.save(tasks);
+
+            synchronized (scheduled) {
+                scheduleUploadIfNeeded();
+            }
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
             if (findThrowable(t, IOException.class).isPresent()) {
                 LOG.warn("Caught IO exception while uploading", t);
             } else {
-                error = t;
-                throw t;
+                error.compareAndSet(null, t);
             }
         }
     }
@@ -169,7 +168,6 @@ class BatchingStateChangeStore implements StateChangeStore {
             scheduledSizeInBytes = 0;
         }
         drained.forEach(t -> t.fail(new CancellationException())); // todo: review
-        retryingExecutor.close();
         delegate.close();
     }
 }

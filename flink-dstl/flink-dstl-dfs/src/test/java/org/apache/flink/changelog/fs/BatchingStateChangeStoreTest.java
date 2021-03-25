@@ -72,7 +72,8 @@ public class BatchingStateChangeStoreTest {
                     for (int i = 0; i < numChanges; i++) {
                         List<StateChangeSet> changes = getChanges(changeSize);
                         runningSize += changes.stream().mapToLong(StateChangeSet::getSize).sum();
-                        store.save(new StoreTask(changes));
+                        StoreTask storeTask = new StoreTask(changes);
+                        store.save(storeTask);
                         expected.addAll(changes);
                         if (runningSize >= threshold) {
                             assertSaved(probe, expected);
@@ -104,12 +105,7 @@ public class BatchingStateChangeStoreTest {
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
         try (BatchingStateChangeStore store =
                 new BatchingStateChangeStore(
-                        Integer.MAX_VALUE,
-                        Integer.MAX_VALUE,
-                        RetryPolicy.NONE,
-                        probe,
-                        scheduler,
-                        new RetryingExecutor())) {
+                        Integer.MAX_VALUE, Integer.MAX_VALUE, probe, scheduler)) {
             scheduler.shutdown();
             List<StateChangeSet> changes = getChanges(4);
             store.save(new StoreTask(changes));
@@ -120,18 +116,9 @@ public class BatchingStateChangeStoreTest {
     public void testClose() throws Exception {
         TestingStateChangeStore probe = new TestingStateChangeStore();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
-        DirectScheduledExecutorService retryScheduler = new DirectScheduledExecutorService();
-        new BatchingStateChangeStore(
-                        0,
-                        0,
-                        RetryPolicy.NONE,
-                        probe,
-                        scheduler,
-                        new RetryingExecutor(retryScheduler))
-                .close();
+        new BatchingStateChangeStore(0, 0, probe, scheduler).close();
         assertTrue(probe.isClosed());
         assertTrue(scheduler.isShutdown());
-        assertTrue(retryScheduler.isShutdown());
     }
 
     private List<StateChangeSet> getChanges(int size) {
@@ -154,12 +141,7 @@ public class BatchingStateChangeStoreTest {
 
         try (BatchingStateChangeStore store =
                 new BatchingStateChangeStore(
-                        delayMs,
-                        sizeThreshold,
-                        RetryPolicy.NONE,
-                        probe,
-                        new DirectScheduledExecutorService(),
-                        new RetryingExecutor(new DirectScheduledExecutorService()))) {
+                        delayMs, sizeThreshold, probe, new DirectScheduledExecutorService())) {
             test.accept(store, probe);
         }
     }

@@ -37,12 +37,4 @@ public class FsStateChangelogOptions {
             ConfigOptions.key("dstl.dfs.batch.persist-size-threshold-kb")
                     .memoryType()
                     .defaultValue(MemorySize.parse("100Kb"));
-    public static final ConfigOption<String> RETRY_POLICY_NAME =
-            ConfigOptions.key("dstl.dfs.retry.policy-name").stringType().defaultValue("fixed");
-    public static final ConfigOption<Integer> RETRY_TIMEOUT =
-            ConfigOptions.key("dstl.dfs.retry.timeout-ms").intType().defaultValue(1000);
-    public static final ConfigOption<Integer> RETRY_MAX_ATTEMPTS =
-            ConfigOptions.key("dstl.dfs.retry.max-attempts").intType().defaultValue(3);
-    public static final ConfigOption<Integer> RETRY_DELAY_AFTER_FAILURE =
-            ConfigOptions.key("dstl.dfs.retry.delay-after-failure-ms").intType().defaultValue(500);
 }
