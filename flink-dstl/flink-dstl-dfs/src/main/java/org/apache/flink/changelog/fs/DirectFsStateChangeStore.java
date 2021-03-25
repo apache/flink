@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +39,12 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
 
+/**
+ * {@link DirectFsStateChangeStore} is performing synchronous writes to the specified {@link
+ * FileSystem}. As this class is {@link NotThreadSafe} it can not be shared across different tasks
+ * on it's own.
+ */
+@NotThreadSafe
 class DirectFsStateChangeStore implements StateChangeStore {
     private static final Logger LOG = LoggerFactory.getLogger(DirectFsStateChangeStore.class);
 

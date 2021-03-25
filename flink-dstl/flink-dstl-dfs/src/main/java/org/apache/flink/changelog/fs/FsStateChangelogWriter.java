@@ -48,6 +48,18 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * Basic implementation of {@link StateChangelogWriter}. It's main purpose is to keep track which
+ * changes are required for the given {@link #persist(SequenceNumber)} call. Especially it takes
+ * care of re-uploading changes from the previous {@link #persist(SequenceNumber)} call, if those
+ * changes haven't been yet {@link #confirm(SequenceNumber, SequenceNumber)}'ed. This is crucial as
+ * until changes are {@link #confirm(SequenceNumber, SequenceNumber)}, they still can be aborted and
+ * removed/deleted.
+ *
+ * <p>For example if checkpoint N-1 fails and is disposed, after checkpoint N has already started.
+ * In this case, when we are persisting {@link StateChangeSet}s for checkpoint N, we need to
+ * re-upload {@link StateChangeSet}s that belonged to checkpoint N-1.
+ */
 @NotThreadSafe
 class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandleStreamImpl> {
     private static final Logger LOG = LoggerFactory.getLogger(FsStateChangelogWriter.class);

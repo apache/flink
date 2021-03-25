@@ -20,6 +20,7 @@ package org.apache.flink.changelog.fs;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
+/** A simple POJO that represents a result of uploading {@link StateChangeSet}. */
 final class StoreResult {
     public final StreamStateHandle streamStateHandle;
     public final long offset;

@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link StateChangeStore} that waits for some configured amount of time before passing the
- * accumulated state changes to the actual store.
+ * accumulated state changes to the actual store. The writes are executed asynchronously.
  */
 @ThreadSafe
 class BatchingStateChangeStore implements StateChangeStore {
