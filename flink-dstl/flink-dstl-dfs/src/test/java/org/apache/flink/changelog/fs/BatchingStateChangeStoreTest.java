@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeStore.StoreTask;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -49,16 +50,12 @@ public class BatchingStateChangeStoreTest {
                 0,
                 (store, probe) -> {
                     List<StateChangeSet> changes1 = getChanges(4);
-                    save(store, changes1);
+                    store.save(new StoreTask(changes1));
                     assertSaved(probe, changes1);
                     List<StateChangeSet> changes2 = getChanges(4);
-                    save(store, changes2);
+                    store.save(new StoreTask(changes2));
                     assertSaved(probe, changes1, changes2);
                 });
-    }
-
-    private void save(BatchingStateChangeStore store, List<StateChangeSet> changeSets) {
-        store.save(new StateChangeStore.StoreTask(changeSets, unused -> {}, unused -> {}));
     }
 
     @Test
@@ -75,7 +72,7 @@ public class BatchingStateChangeStoreTest {
                     for (int i = 0; i < numChanges; i++) {
                         List<StateChangeSet> changes = getChanges(changeSize);
                         runningSize += changes.stream().mapToLong(StateChangeSet::getSize).sum();
-                        save(store, changes);
+                        store.save(new StoreTask(changes));
                         expected.addAll(changes);
                         if (runningSize >= threshold) {
                             assertSaved(probe, expected);
@@ -94,7 +91,7 @@ public class BatchingStateChangeStoreTest {
                 Integer.MAX_VALUE,
                 (store, probe) -> {
                     List<StateChangeSet> changeSets = getChanges(4);
-                    save(store, changeSets);
+                    store.save(new StoreTask(changeSets));
                     assertTrue(probe.getSaved().isEmpty());
                     Thread.sleep(delayMs * 2);
                     Assert.assertEquals(changeSets, probe.getSaved());
@@ -115,11 +112,7 @@ public class BatchingStateChangeStoreTest {
                         new RetryingExecutor())) {
             scheduler.shutdown();
             List<StateChangeSet> changes = getChanges(4);
-            try {
-                save(store, changes);
-            } finally {
-//                changes.forEach(c -> assertEquals(FAILED, c.getStatus())); todo
-            }
+            store.save(new StoreTask(changes));
         }
     }
 

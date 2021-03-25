@@ -27,7 +27,6 @@ import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory.ChangelogCallbackExecutor;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +71,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandl
         this.logId = logId;
         this.keyGroupRange = keyGroupRange;
         this.store = store;
-        this.executor = Preconditions.checkNotNull(executor);
+        this.executor = checkNotNull(executor);
     }
 
     @Override
@@ -104,24 +103,19 @@ class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandl
         Collection<StoreResult> readyToReturn = confirmed.tailMap(from, true).values();
         Collection<StateChangeSet> toUpload = changeSets.tailMap(from, true).values();
         LOG.debug("collected readyToReturn: {}, toUpload: {}", readyToReturn, toUpload);
-        CompletableFuture<StateChangelogHandleStreamImpl> future = new CompletableFuture<>();
-        store.save(createTask(readyToReturn, toUpload, future));
-        return future;
-    }
 
-    private StoreTask createTask(
-            Collection<StoreResult> readyToReturn,
-            Collection<StateChangeSet> toUpload,
-            CompletableFuture<StateChangelogHandleStreamImpl> future) {
-        return new StoreTask(
-                toUpload,
-                future::completeExceptionally,
-                results ->
-                        executor.execute(
-                                () -> {
+        StoreTask task = new StoreTask(toUpload);
+        // Handle the result result in supplied executor (mailbox) thread
+        CompletableFuture<StateChangelogHandleStreamImpl> resultFuture =
+                task.getResultFuture()
+                        .thenApplyAsync(
+                                (results) -> {
                                     results.forEach(e -> uploaded.put(e.sequenceNumber, e));
-                                    future.complete(buildHandle(results, readyToReturn));
-                                }));
+                                    return buildHandle(results, readyToReturn);
+                                },
+                                executor::execute);
+        store.save(task);
+        return resultFuture;
     }
 
     @Override
@@ -152,7 +146,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandl
     @Override
     public void reset(SequenceNumber from, SequenceNumber to) {
         LOG.debug("reset {} from {} to {}", logId, from, to);
-        //        changeSets.subMap(from, to).forEach((key, value) -> value.setAborted()); // todo
+        // todo abort uploading?
         // todo in MVP or later: cleanup if change to aborted succeeded and had non-shared state
         // For now, relying on manual cleanup.
         // If a checkpoint that is aborted uses the changes uploaded for another checkpoint

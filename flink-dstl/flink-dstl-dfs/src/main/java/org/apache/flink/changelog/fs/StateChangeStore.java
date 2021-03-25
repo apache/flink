@@ -25,7 +25,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BATCH_ENABLED;
@@ -48,24 +48,22 @@ interface StateChangeStore extends AutoCloseable {
     @ThreadSafe
     class StoreTask {
         final Collection<StateChangeSet> changeSets;
-        final Consumer<Throwable> exceptionalCompletionCallback;
-        final Consumer<List<StoreResult>> completionCallback;
+        final CompletableFuture<List<StoreResult>> resultFuture = new CompletableFuture<>();
 
-        public StoreTask(
-                Collection<StateChangeSet> changeSets,
-                Consumer<Throwable> exceptionalCompletionCallback,
-                Consumer<List<StoreResult>> completionCallback) {
+        public StoreTask(Collection<StateChangeSet> changeSets) {
             this.changeSets = changeSets;
-            this.exceptionalCompletionCallback = exceptionalCompletionCallback;
-            this.completionCallback = completionCallback;
+        }
+
+        public CompletableFuture<List<StoreResult>> getResultFuture() {
+            return resultFuture;
         }
 
         public void complete(List<StoreResult> results) {
-            completionCallback.accept(results);
+            resultFuture.complete(results);
         }
 
         public void fail(Throwable error) {
-            exceptionalCompletionCallback.accept(error);
+            resultFuture.completeExceptionally(error);
         }
 
         public long getSize() {
