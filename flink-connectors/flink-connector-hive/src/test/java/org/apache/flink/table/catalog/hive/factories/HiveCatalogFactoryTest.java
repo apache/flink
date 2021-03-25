@@ -30,6 +30,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -116,20 +117,20 @@ public class HiveCatalogFactoryTest extends TestLogger {
     @Test
     public void testCreateHiveCatalogWithIllegalHadoopConfDir() throws IOException {
         final String catalogName = "mycatalog";
-        final String illegalHadoopConfDir = " " + tempFolder.newFolder().getAbsolutePath();
+        final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
 
         try {
             final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
             catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
 
             final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
-            properties.put(CATALOG_HADOOP_CONF_DIR, illegalHadoopConfDir);
+            properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
 
             final Catalog actualCatalog =
                     TableFactoryService.find(CatalogFactory.class, properties)
                             .createCatalog(catalogName, properties);
+            Assert.fail();
         } catch (CatalogException e) {
-            assertEquals(e.getClass(), CatalogException.class);
         }
     }
 
