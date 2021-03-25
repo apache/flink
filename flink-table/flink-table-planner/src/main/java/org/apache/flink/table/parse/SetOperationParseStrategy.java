@@ -33,7 +33,7 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
     static final SetOperationParseStrategy INSTANCE = new SetOperationParseStrategy();
 
     protected SetOperationParseStrategy() {
-        super(Pattern.compile("SET(\\s+(\\S+)\\s*=\\s*(\\S+))?", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("SET(\\s+(\\S+)\\s*=(.+))?", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override

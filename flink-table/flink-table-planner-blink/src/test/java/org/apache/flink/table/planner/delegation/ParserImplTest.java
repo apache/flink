@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -39,6 +39,7 @@ import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -100,12 +101,12 @@ public class ParserImplTest {
                         TestSpec.forStatement("SET pipeline.jars = /path/to/test-_-jar.jar")
                                 .expectedSummary("SET pipeline.jars=/path/to/test-_-jar.jar"),
                         TestSpec.forStatement("USE test.db1").expectedSummary("USE test.db1"),
-                        TestSpec.forStatement("SHOW tables").expectedSummary("SHOW TABLES"));
+                        TestSpec.forStatement("SHOW tables").expectedSummary("SHOW TABLES"),
+                        TestSpec.forStatement("SET pipeline.name = ' '")
+                                .expectedSummary("SET pipeline.name = ' '"));
 
         testIllegalStatements =
-                Arrays.asList(
-                        TestSpec.forStatement("SET pipeline.name = ' '"),
-                        TestSpec.forStatement("SET execution.runtime-type="));
+                Collections.singletonList(TestSpec.forStatement("SET execution.runtime-type="));
     }
 
     @Test
@@ -118,8 +119,10 @@ public class ParserImplTest {
 
     @Test
     public void testParseIllegalStatements() {
+        thrown.expect(SqlParserException.class);
         for (TestSpec spec : testIllegalStatements) {
-            testIllegalTestSpec(spec);
+            parser.parse(spec.statement);
+            fail("Should fail.");
         }
     }
 
@@ -128,7 +131,6 @@ public class ParserImplTest {
         verifySqlCompletion("QU", 1, new String[] {"QUIT"});
         verifySqlCompletion("SE", 1, new String[] {"SET"});
         verifySqlCompletion("", 0, new String[] {"CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"});
-
         verifySqlCompletion("SELECT a fram b", 10, new String[] {"FETCH", "FROM"});
     }
 
@@ -151,12 +153,6 @@ public class ParserImplTest {
             this.expectedSummary = expectedSummary;
             return this;
         }
-    }
-
-    private void testIllegalTestSpec(TestSpec spec) {
-        thrown.expect(TableException.class);
-        parser.parse(spec.statement);
-        fail("Should fail.");
     }
 
     private void verifySqlCompletion(String statement, int position, String[] expectedHints) {
