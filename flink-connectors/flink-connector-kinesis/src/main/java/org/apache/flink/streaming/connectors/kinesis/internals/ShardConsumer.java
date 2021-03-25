@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static java.util.Optional.ofNullable;
+import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.CANCELLED;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -148,6 +149,11 @@ public class ShardConsumer<T> implements Runnable {
                     // we can close this consumer thread once we've reached the end of the
                     // subscribed shard
                     break;
+                } else if (result == CANCELLED) {
+                    final String errorMessage =
+                            "Shard consumer cancelled: " + subscribedShard.getShard().getShardId();
+                    LOG.info(errorMessage);
+                    throw new ShardConsumerCancelledException(errorMessage);
                 }
             }
         } catch (Throwable t) {
@@ -157,13 +163,15 @@ public class ShardConsumer<T> implements Runnable {
 
     /**
      * The loop in run() checks this before fetching next batch of records. Since this runnable will
-     * be executed by the ExecutorService {@code KinesisDataFetcher#shardConsumersExecutor}, the
-     * only way to close down this thread would be by calling shutdownNow() on {@code
+     * be executed by the ExecutorService {@code KinesisDataFetcher#shardConsumersExecutor}, this
+     * thread would be closed down by calling shutdownNow() on {@code
      * KinesisDataFetcher#shardConsumersExecutor} and let the executor service interrupt all
-     * currently running {@link ShardConsumer}s.
+     * currently running {@link ShardConsumer}s. The AWS SDK resources must be shutdown prior to
+     * this thread in order to preserve classpath for teardown, therefore also check to see if the
+     * fetcher is still running.
      */
     private boolean isRunning() {
-        return !Thread.interrupted();
+        return !Thread.interrupted() && fetcherRef.isRunning();
     }
 
     /**
@@ -226,5 +234,23 @@ public class ShardConsumer<T> implements Runnable {
 
         return !record.getSequenceNumber().equals(lastSequenceNum.getSequenceNumber())
                 || record.getSubSequenceNumber() > lastSequenceNum.getSubSequenceNumber();
+    }
+
+    /** An exception wrapper to indicate an error has been thrown from the shard consumer. */
+    abstract static class ShardConsumerException extends RuntimeException {
+        private static final long serialVersionUID = 7732343624482321663L;
+
+        public ShardConsumerException(final String message) {
+            super(message);
+        }
+    }
+
+    /** An exception to indicate the shard consumer has been cancelled. */
+    static class ShardConsumerCancelledException extends ShardConsumerException {
+        private static final long serialVersionUID = 2707399313569728649L;
+
+        public ShardConsumerCancelledException(final String message) {
+            super(message);
+        }
     }
 }
