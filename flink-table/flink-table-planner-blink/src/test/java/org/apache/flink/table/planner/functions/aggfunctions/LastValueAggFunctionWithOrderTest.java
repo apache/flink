@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -682,6 +683,97 @@ public final class LastValueAggFunctionWithOrderTest {
 		@Override
 		protected AggregateFunction<TimestampData, RowData> getAggregator() {
 			return new LastValueAggFunction<>(DataTypes.TIMESTAMP(3).getLogicalType());
+		}
+	}
+
+	/**
+	 * Test for {@link LocalZonedTimestampType}.
+	 */
+	public static final class LocalZonedTimestampLastValueAggFunctionWithOrderTest
+		extends LastValueAggFunctionWithOrderTestBase<TimestampData> {
+
+		@Override
+		protected List<List<TimestampData>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T15:30:00.345")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T18:45:00.678"))
+					),
+					Arrays.asList(
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T12:00:00.123")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T15:30:00.345")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-14T18:45:00.678"))
+					),
+					Arrays.asList(
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T15:30:00.345")),
+							null,
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T12:00:00.123")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T15:30:00.345")),
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-14T18:45:00.678")),
+							null
+					),
+					Arrays.asList(
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T18:00:00.345"))
+					)
+			);
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							6L,
+							2L,
+							3L
+					),
+					Arrays.asList(
+							1L,
+							2L,
+							3L
+					),
+					Arrays.asList(
+							10L,
+							2L,
+							5L,
+							3L,
+							11L,
+							7L,
+							5L
+					),
+					Arrays.asList(
+							6L,
+							9L,
+							5L
+					),
+					Arrays.asList(
+							4L,
+							3L
+					)
+			);
+		}
+
+		@Override
+		protected List<TimestampData> getExpectedResults() {
+			return Arrays.asList(
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-14T18:45:00.678")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T15:30:00.345")),
+					null,
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T18:00:00.345"))
+			);
+		}
+
+		@Override
+		protected AggregateFunction<TimestampData, RowData> getAggregator() {
+			return new LastValueAggFunction<>(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).getLogicalType());
 		}
 	}
 
