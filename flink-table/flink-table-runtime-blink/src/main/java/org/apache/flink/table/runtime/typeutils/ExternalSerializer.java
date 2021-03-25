@@ -59,15 +59,19 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
     private final TypeSerializer<I> internalSerializer;
 
+    private final boolean bidirectional;
+
     private final boolean isReuseEnabled;
 
     private transient I reuse;
 
     private transient DataStructureConverter<I, E> converter;
 
-    private ExternalSerializer(DataType dataType, TypeSerializer<I> internalSerializer) {
+    private ExternalSerializer(
+            DataType dataType, TypeSerializer<I> internalSerializer, boolean bidirectional) {
         this.dataType = dataType;
         this.internalSerializer = internalSerializer;
+        this.bidirectional = bidirectional;
         // if no data structures that use memory segments are exposed in the external data
         // structure,
         // we can reuse intermediate internal data structures
@@ -77,10 +81,19 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
     /**
      * Creates an instance of a {@link ExternalSerializer} defined by the given {@link DataType}.
+     *
+     * <p>The returned serializer is bidirectional.
      */
     public static <I, E> ExternalSerializer<I, E> of(DataType dataType) {
+        return of(dataType, true);
+    }
+
+    /**
+     * Creates an instance of a {@link ExternalSerializer} defined by the given {@link DataType}.
+     */
+    public static <I, E> ExternalSerializer<I, E> of(DataType dataType, boolean bidirectional) {
         return new ExternalSerializer<>(
-                dataType, InternalSerializers.create(dataType.getLogicalType()));
+                dataType, InternalSerializers.create(dataType.getLogicalType()), bidirectional);
     }
 
     @Override
@@ -90,7 +103,7 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
     @Override
     public TypeSerializer<E> duplicate() {
-        return new ExternalSerializer<>(dataType, internalSerializer.duplicate());
+        return new ExternalSerializer<>(dataType, internalSerializer.duplicate(), bidirectional);
     }
 
     @Override
@@ -124,8 +137,12 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
     @Override
     public void serialize(E record, DataOutputView target) throws IOException {
-        final I internalRecord = converter.toInternal(record);
-        internalSerializer.serialize(internalRecord, target);
+        if (bidirectional) {
+            final I internalRecord = converter.toInternal(record);
+            internalSerializer.serialize(internalRecord, target);
+        } else {
+            internalSerializer.serialize((I) record, target);
+        }
     }
 
     @Override
@@ -214,6 +231,8 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
         private DataType dataType;
 
+        private boolean bidirectional;
+
         public ExternalSerializerSnapshot() {
             super(ExternalSerializer.class);
         }
@@ -221,6 +240,7 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
         public ExternalSerializerSnapshot(ExternalSerializer<I, E> externalSerializer) {
             super(externalSerializer);
             this.dataType = externalSerializer.dataType;
+            this.bidirectional = externalSerializer.bidirectional;
         }
 
         @Override
@@ -256,7 +276,8 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
         @SuppressWarnings("unchecked")
         protected ExternalSerializer<I, E> createOuterSerializerWithNestedSerializers(
                 TypeSerializer<?>[] nestedSerializers) {
-            return new ExternalSerializer<>(dataType, (TypeSerializer<I>) nestedSerializers[0]);
+            return new ExternalSerializer<>(
+                    dataType, (TypeSerializer<I>) nestedSerializers[0], bidirectional);
         }
     }
 }

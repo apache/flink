@@ -64,12 +64,21 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
      * structures but serialized and deserialized into external data structures.
      */
     public static <T> ExternalTypeInfo<T> of(DataType dataType) {
-        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType);
+        return of(dataType, true);
+    }
+
+    /**
+     * Creates type information for a {@link DataType} that is possibly represented by internal data
+     * structures but serialized and deserialized into external data structures.
+     */
+    public static <T> ExternalTypeInfo<T> of(DataType dataType, boolean bidirectional) {
+        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType, bidirectional);
         return new ExternalTypeInfo<>(dataType, serializer);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> TypeSerializer<T> createExternalTypeSerializer(DataType dataType) {
+    private static <T> TypeSerializer<T> createExternalTypeSerializer(
+            DataType dataType, boolean bidirectional) {
         final LogicalType logicalType = dataType.getLogicalType();
         if (logicalType instanceof RawType) {
             final RawType<?> rawType = (RawType<?>) logicalType;
@@ -77,7 +86,7 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
                 return (TypeSerializer<T>) rawType.getTypeSerializer();
             }
         }
-        return ExternalSerializer.of(dataType);
+        return ExternalSerializer.of(dataType, bidirectional);
     }
 
     // --------------------------------------------------------------------------------------------
