@@ -51,13 +51,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * A {@link DAGProcessor} which organize {@link ExecNode}s into multiple input nodes.
+ * A {@link ExecNodeGraphProcessor} which organize {@link ExecNode}s into multiple input nodes.
  *
  * <p>For a detailed explanation of the algorithm, see appendix of the <a
  * href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design
  * doc</a>.
  */
-public class MultipleInputNodeCreationProcessor implements DAGProcessor {
+public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcessor {
 
     private final boolean isStreaming;
 
@@ -66,7 +66,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     }
 
     @Override
-    public ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context) {
+    public ExecNodeGraph process(ExecNodeGraph execGraph, ProcessorContext context) {
         if (!isStreaming) {
             // As multiple input nodes use function call to deliver records between sub-operators,
             // we cannot rely on network buffers to buffer records not yet ready to be read,
@@ -228,7 +228,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     // --------------------------------------------------------------------------------
 
     private void optimizeMultipleInputGroups(
-            List<ExecNodeWrapper> orderedWrappers, DAGProcessContext context) {
+            List<ExecNodeWrapper> orderedWrappers, ProcessorContext context) {
         // wrappers are checked in topological order from sources to sinks
         for (int i = orderedWrappers.size() - 1; i >= 0; i--) {
             ExecNodeWrapper wrapper = orderedWrappers.get(i);
@@ -429,7 +429,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
     }
 
     @VisibleForTesting
-    static boolean isChainableSource(ExecNode<?> node, DAGProcessContext context) {
+    static boolean isChainableSource(ExecNode<?> node, ProcessorContext context) {
         if (node instanceof BatchExecBoundedStreamScan) {
             BatchExecBoundedStreamScan scan = (BatchExecBoundedStreamScan) node;
             return scan.getDataStream().getTransformation() instanceof SourceTransformation;

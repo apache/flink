@@ -48,7 +48,13 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 
 ### Starting the SQL Client CLI
 
-The SQL Client scripts are also located in the binary directory of Flink. [In the future](sqlClient.html#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported. You can start the CLI by calling:
+The SQL Client scripts are also located in the binary directory of Flink. [In the future](sqlClient.html#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported, and default mode is `embedded`. You can start the CLI by calling:
+
+```bash
+./bin/sql-client.sh
+```
+
+or explicitly use `embedded` mode:
 
 ```bash
 ./bin/sql-client.sh embedded
@@ -157,11 +163,11 @@ Configuration
 The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
 
 ```text
-./bin/sql-client.sh embedded --help
+./bin/sql-client.sh --help
 
-Mode "embedded" submits Flink jobs from the local machine.
+Mode "embedded" (default) submits Flink jobs from the local machine.
 
-  Syntax: embedded [OPTIONS]
+  Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
      -d,--defaults <environment file>      The environment properties with which
                                            every new session is initialized.

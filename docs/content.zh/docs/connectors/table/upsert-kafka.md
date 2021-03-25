@@ -99,7 +99,7 @@ of all available metadata fields.
       <tr>
       <th class="text-left" style="width: 25%">参数</th>
       <th class="text-center" style="width: 10%">是否必选</th>
-      <th class="text-center" style="width: 10%">默认参数</th>
+      <th class="text-center" style="width: 10%">默认值</th>
       <th class="text-center" style="width: 10%">数据类型</th>
       <th class="text-center" style="width: 50%">描述</th>
     </tr>

@@ -61,7 +61,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  *
  * <p>This class is used in the API and catalogs to define an unresolved schema that will be
  * translated to {@link ResolvedSchema}. Some methods of this class perform basic validation,
- * however, the main validation happens during the resolution.
+ * however, the main validation happens during the resolution. Thus, an unresolved schema can be
+ * incomplete and might be enriched or merged with a different schema at a later stage.
  *
  * <p>Since an instance of this class is unresolved, it should not be directly persisted. The {@link
  * #toString()} shows only a summary of the contained objects.
@@ -117,7 +118,7 @@ public final class Schema {
         return components.stream()
                 .map(Objects::toString)
                 .map(s -> "  " + s)
-                .collect(Collectors.joining(", \n", "(\n", "\n)"));
+                .collect(Collectors.joining(",\n", "(\n", "\n)"));
     }
 
     @Override
@@ -210,6 +211,12 @@ public final class Schema {
                     "Field names and field data types must have the same length.");
             IntStream.range(0, fieldNames.size())
                     .forEach(i -> column(fieldNames.get(i), fieldDataTypes.get(i)));
+            return this;
+        }
+
+        /** Adopts all columns from the given list. */
+        public Builder fromColumns(List<UnresolvedColumn> unresolvedColumns) {
+            columns.addAll(unresolvedColumns);
             return this;
         }
 

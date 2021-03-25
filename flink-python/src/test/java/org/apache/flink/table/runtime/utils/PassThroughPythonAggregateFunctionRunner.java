@@ -86,7 +86,8 @@ public class PassThroughPythonAggregateFunctionRunner
                 jobOptions,
                 flinkMetricContainer,
                 null,
-                0.0);
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.buffer = new LinkedList<>();
         this.isBatchOverWindow = isBatchOverWindow;
         arrowSerializer = new RowDataArrowSerializer(inputType, outputType);

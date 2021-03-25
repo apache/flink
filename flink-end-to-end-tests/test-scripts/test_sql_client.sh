@@ -231,7 +231,7 @@ INSERT INTO ElasticsearchUpsertSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
@@ -259,7 +259,7 @@ INSERT INTO ElasticsearchAppendSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
@@ -291,7 +291,7 @@ INSERT INTO ElasticsearchAppendSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \

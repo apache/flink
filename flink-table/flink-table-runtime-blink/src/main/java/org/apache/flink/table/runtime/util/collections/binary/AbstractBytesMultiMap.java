@@ -99,12 +99,21 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
             long memorySize,
             PagedTypeSerializer<K> keySerializer,
             LogicalType[] valueTypes) {
+        this(owner, memoryManager, memorySize, keySerializer, valueTypes.length);
+    }
+
+    public AbstractBytesMultiMap(
+            final Object owner,
+            MemoryManager memoryManager,
+            long memorySize,
+            PagedTypeSerializer<K> keySerializer,
+            int valueArity) {
         super(owner, memoryManager, memorySize, keySerializer);
-        checkArgument(valueTypes.length > 0);
+        checkArgument(valueArity > 0);
 
         this.recordArea = new RecordArea();
         this.keySerializer = keySerializer;
-        this.valueSerializer = new BinaryRowDataSerializer(valueTypes.length);
+        this.valueSerializer = new BinaryRowDataSerializer(valueArity);
         this.reusedValue = ((RecordArea) this.recordArea).valueIterator(-1);
         this.reusedRecord = valueSerializer.createInstance();
 

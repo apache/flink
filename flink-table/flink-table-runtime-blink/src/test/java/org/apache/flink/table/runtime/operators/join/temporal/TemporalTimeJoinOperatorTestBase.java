@@ -21,11 +21,12 @@ package org.apache.flink.table.runtime.operators.join.temporal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 /** Base test class for TemporalJoinOperator. */
 abstract class TemporalTimeJoinOperatorTestBase {
@@ -59,7 +60,8 @@ abstract class TemporalTimeJoinOperatorTestBase {
     protected RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
     protected int keyIdx = 1;
-    protected BinaryRowDataKeySelector keySelector =
-            new BinaryRowDataKeySelector(new int[] {keyIdx}, rowType.toRowFieldTypes());
+    protected RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(
+                    new int[] {keyIdx}, rowType.toRowFieldTypes());
     protected TypeInformation<RowData> keyType = keySelector.getProducedType();
 }

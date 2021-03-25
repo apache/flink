@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
@@ -47,6 +48,7 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
+import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -69,6 +71,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -93,8 +96,8 @@ public class StreamTaskNetworkInputTest {
     public void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
         List<BufferOrEvent> buffers = Collections.singletonList(createDataBuffer());
 
-        VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
-        StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers);
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+        StreamTaskNetworkInput<Long> input = createStreamTaskNetworkInput(buffers);
 
         assertHasNextElement(input, output);
         assertHasNextElement(input, output);
@@ -115,8 +118,8 @@ public class StreamTaskNetworkInputTest {
         buffers.add(new BufferOrEvent(barrier, new InputChannelInfo(0, 0)));
         buffers.add(createDataBuffer());
 
-        VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
-        StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers);
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+        StreamTaskNetworkInput<Long> input = createStreamTaskNetworkInput(buffers);
 
         assertHasNextElement(input, output);
         assertEquals(0, output.getNumberOfEmittedRecords());
@@ -186,10 +189,10 @@ public class StreamTaskNetworkInputTest {
 
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
-        StreamTestSingleInputGate inputGate =
+        StreamTestSingleInputGate<Long> inputGate =
                 new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
 
-        DataOutput output = new NoOpDataOutput<>();
+        DataOutput<Long> output = new NoOpDataOutput<>();
         Map<InputChannelInfo, TestRecordDeserializer> deserializers =
                 createDeserializers(inputGate.getInputGate());
         Map<InputChannelInfo, TestRecordDeserializer> copiedDeserializers =
@@ -207,6 +210,29 @@ public class StreamTaskNetworkInputTest {
         }
     }
 
+    @Test
+    public void testInputStatusAfterEndOfRecovery() throws Exception {
+        int numInputChannels = 2;
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+
+        DataOutput<Long> output = new NoOpDataOutput<>();
+        Map<InputChannelInfo, TestRecordDeserializer> deserializers =
+                createDeserializers(inputGate.getInputGate());
+
+        StreamTaskInput<Long> input =
+                new TestStreamTaskNetworkInput(
+                        inputGate, inSerializer, numInputChannels, deserializers);
+
+        inputGate.sendElement(new StreamRecord<>(42L), 0);
+        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 0);
+        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 1);
+        assertThat(input.emitNext(output), equalTo(InputStatus.END_OF_RECOVERY));
+    }
+
     private BufferOrEvent createDataBuffer() throws IOException {
         BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
@@ -216,7 +242,7 @@ public class StreamTaskNetworkInputTest {
         return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
     }
 
-    private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {
+    private StreamTaskNetworkInput<Long> createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {
         return new StreamTaskNetworkInput<>(
                 createCheckpointedInputGate(new MockInputGate(1, buffers, false)),
                 LongSerializer.INSTANCE,
@@ -229,7 +255,8 @@ public class StreamTaskNetworkInputTest {
         return new CheckpointedInputGate(
                 inputGate,
                 new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
-                new SyncMailboxExecutor());
+                new SyncMailboxExecutor(),
+                UpstreamRecoveryTracker.forInputGate(inputGate));
     }
 
     private void serializeRecord(long value, BufferBuilder bufferBuilder) throws IOException {
@@ -244,7 +271,7 @@ public class StreamTaskNetworkInputTest {
         assertFalse(bufferBuilder.isFull());
     }
 
-    private static void assertHasNextElement(StreamTaskInput input, DataOutput output)
+    private static <T> void assertHasNextElement(StreamTaskInput<T> input, DataOutput<T> output)
             throws Exception {
         assertTrue(input.getAvailableFuture().isDone());
         InputStatus status = input.emitNext(output);

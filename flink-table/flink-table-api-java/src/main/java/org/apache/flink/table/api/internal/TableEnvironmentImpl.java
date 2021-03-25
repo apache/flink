@@ -39,7 +39,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -48,13 +47,16 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -73,8 +75,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -706,7 +708,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
 
-        return executeOperation(operations.get(0));
+        return executeInternal(operations.get(0));
     }
 
     @Override
@@ -727,18 +729,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
-            TableSchema.Builder builder = TableSchema.builder();
+            final List<Column> columns = new ArrayList<>();
             Object[] affectedRowCounts = new Long[transformations.size()];
             for (int i = 0; i < transformations.size(); ++i) {
                 // use sink identifier name as field name
-                builder.field(sinkIdentifierNames.get(i), DataTypes.BIGINT());
+                columns.add(Column.physical(sinkIdentifierNames.get(i), DataTypes.BIGINT()));
                 affectedRowCounts[i] = -1L;
             }
 
             return TableResultImpl.builder()
                     .jobClient(jobClient)
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .tableSchema(builder.build())
+                    .schema(ResolvedSchema.of(columns))
                     .data(
                             new InsertResultIterator(
                                     jobClient, Row.of(affectedRowCounts), userClassLoader))
@@ -748,8 +750,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    @Override
-    public TableResult executeInternal(QueryOperation operation) {
+    private TableResult executeQueryOperation(QueryOperation operation) {
         SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
@@ -762,7 +763,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return TableResultImpl.builder()
                     .jobClient(jobClient)
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .tableSchema(TableSchema.fromResolvedSchema(operation.getResolvedSchema()))
+                    .schema(operation.getResolvedSchema())
                     .data(resultProvider.getResultIterator())
                     .setPrintStyle(
                             TableResultImpl.PrintStyle.tableau(
@@ -806,13 +807,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof UseDatabaseOperation
                 || operation instanceof LoadModuleOperation
                 || operation instanceof UnloadModuleOperation) {
-            executeOperation(operation);
+            executeInternal(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
         }
     }
 
-    private TableResult executeOperation(Operation operation) {
+    @Override
+    public TableResult executeInternal(Operation operation) {
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof CreateTableOperation) {
@@ -1165,7 +1167,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             Collections.singletonList(((ExplainOperation) operation).getChild()));
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
+                    .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of(explanation)))
                     .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                     .build();
@@ -1174,8 +1176,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Optional<CatalogManager.TableLookupResult> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
-                return buildDescribeResult(
-                        TableSchema.fromResolvedSchema(result.get().getResolvedSchema()));
+                return buildDescribeResult(result.get().getResolvedSchema());
             } else {
                 throw new ValidationException(
                         String.format(
@@ -1183,7 +1184,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 describeTableOperation.getSqlIdentifier().asSummaryString()));
             }
         } else if (operation instanceof QueryOperation) {
-            return executeInternal((QueryOperation) operation);
+            return executeQueryOperation((QueryOperation) operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
@@ -1194,11 +1195,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             String catalogName = operation.getCatalogName();
             Map<String, String> properties = operation.getProperties();
-            final CatalogFactory factory =
-                    TableFactoryService.find(CatalogFactory.class, properties, userClassLoader);
 
-            Catalog catalog = factory.createCatalog(catalogName, properties);
+            Catalog catalog =
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            properties,
+                            tableConfig.getConfiguration(),
+                            userClassLoader);
             catalogManager.registerCatalog(catalogName, catalog);
+
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {
             throw new ValidationException(exMsg, e);
@@ -1267,13 +1272,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 rows);
     }
 
-    private TableResult buildDescribeResult(TableSchema schema) {
+    private TableResult buildDescribeResult(ResolvedSchema schema) {
         Map<String, String> fieldToWatermark =
                 schema.getWatermarkSpecs().stream()
                         .collect(
                                 Collectors.toMap(
                                         WatermarkSpec::getRowtimeAttribute,
-                                        WatermarkSpec::getWatermarkExpr));
+                                        spec -> spec.getWatermarkExpression().asSummaryString()));
 
         Map<String, String> fieldToPrimaryKey = new HashMap<>();
         schema.getPrimaryKey()
@@ -1290,10 +1295,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         });
 
         Object[][] rows =
-                schema.getTableColumns().stream()
+                schema.getColumns().stream()
                         .map(
                                 (c) -> {
-                                    final LogicalType logicalType = c.getType().getLogicalType();
+                                    final LogicalType logicalType =
+                                            c.getDataType().getLogicalType();
                                     return new Object[] {
                                         c.getName(),
                                         logicalType.copy(true).asSummaryString(),
@@ -1321,7 +1327,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResult buildResult(String[] headers, DataType[] types, Object[][] rows) {
         return TableResultImpl.builder()
                 .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                .tableSchema(TableSchema.builder().fields(headers, types).build())
+                .schema(ResolvedSchema.physical(headers, types))
                 .data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
                 .setPrintStyle(
                         TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false, false))

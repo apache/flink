@@ -68,10 +68,11 @@ class SetOperatorsITCase extends BatchTestBase {
 
     val unionTable = table1.unionAll(table2)
 
+    val schema = unionTable.getResolvedSchema.getColumnDataTypes
     assertThat(
-      unionTable.getSchema.getFieldDataTypes()(0),
+      schema.get(0),
       equalTo(DataTypes.DECIMAL(13, 3).notNull()))
-    assertThat(unionTable.getSchema.getFieldDataTypes()(1), equalTo(DataTypes.VARCHAR(3).notNull()))
+    assertThat(schema.get(1), equalTo(DataTypes.VARCHAR(3).notNull()))
 
     val results = executeQuery(unionTable)
     val expected = "12.000,\n" + "1234.123,ABC\n"

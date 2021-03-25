@@ -31,6 +31,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class SmallIntType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int PRECISION = 5;
 

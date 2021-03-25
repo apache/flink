@@ -55,6 +55,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class LocalZonedTimestampType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int MIN_PRECISION = TimestampType.MIN_PRECISION;
 

@@ -42,8 +42,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link StreamExecNode} for regular Joins.
@@ -51,11 +57,20 @@ import java.util.List;
  * <p>Regular joins are the most generic type of join in which any new records or changes to either
  * side of the join input are visible and are affecting the whole join result.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+    public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
+    public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
+    public static final String FIELD_NAME_RIGHT_UNIQUE_KEYS = "rightUniqueKeys";
 
+    @JsonProperty(FIELD_NAME_JOIN_SPEC)
     private final JoinSpec joinSpec;
+
+    @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS)
     private final List<int[]> leftUniqueKeys;
+
+    @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS)
     private final List<int[]> rightUniqueKeys;
 
     public StreamExecJoin(
@@ -66,8 +81,28 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Lists.newArrayList(leftInputProperty, rightInputProperty), outputType, description);
-        this.joinSpec = joinSpec;
+        this(
+                joinSpec,
+                leftUniqueKeys,
+                rightUniqueKeys,
+                getNewNodeId(),
+                Lists.newArrayList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecJoin(
+            @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
+            @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
+            @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS) List<int[]> rightUniqueKeys,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 2);
+        this.joinSpec = checkNotNull(joinSpec);
         this.leftUniqueKeys = leftUniqueKeys;
         this.rightUniqueKeys = rightUniqueKeys;
     }

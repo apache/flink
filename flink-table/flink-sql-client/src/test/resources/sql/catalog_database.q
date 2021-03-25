@@ -191,8 +191,7 @@ drop catalog `mod`;
 # ==========================================================================
 
 create catalog hivecatalog with (
- 'type' = 'hive',
- 'test' = 'test',  -- this makes sure we use TestHiveCatalogFactory
+ 'type' = 'hive-test',
  'hive-version' = '2.3.4'
 );
 [INFO] Catalog has been created.
@@ -311,6 +310,28 @@ show tables;
 3 rows in set
 !ok
 
+show views;
+Empty set
+!ok
+
+create view MyView1 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view MyView2 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+show views;
++-----------+
+| view name |
++-----------+
+|   myview1 |
+|   myview2 |
++-----------+
+2 rows in set
+!ok
+
 # test create with full qualified name
 create table c1.db1.MyTable3 (a int, b string);
 [INFO] Table has been created.
@@ -318,6 +339,14 @@ create table c1.db1.MyTable3 (a int, b string);
 
 create table c1.db1.MyTable4 (a int, b string);
 [INFO] Table has been created.
+!info
+
+create view c1.db1.MyView3 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view c1.db1.MyView4 as select 1 + 1;
+[INFO] View has been created.
 !info
 
 use catalog c1;
@@ -334,7 +363,19 @@ show tables;
 +------------+
 |   MyTable3 |
 |   MyTable4 |
+|    MyView3 |
+|    MyView4 |
 +------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView3 |
+|   MyView4 |
++-----------+
 2 rows in set
 !ok
 
@@ -347,6 +388,14 @@ create table `default`.MyTable6 (a int, b string);
 [INFO] Table has been created.
 !info
 
+create view `default`.MyView5 as select 1 + 1;
+[INFO] View has been created.
+!info
+
+create view `default`.MyView6 as select 1 + 1;
+[INFO] View has been created.
+!info
+
 use `default`;
 [INFO] Database changed.
 !info
@@ -357,12 +406,28 @@ show tables;
 +------------+
 |   MyTable5 |
 |   MyTable6 |
+|    MyView5 |
+|    MyView6 |
 +------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
+|   MyView6 |
++-----------+
 2 rows in set
 !ok
 
 drop table db1.MyTable3;
 [INFO] Table has been removed.
+!info
+
+drop view db1.MyView3;
+[INFO] View has been removed.
 !info
 
 use db1;
@@ -374,12 +439,26 @@ show tables;
 | table name |
 +------------+
 |   MyTable4 |
+|    MyView4 |
 +------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView4 |
++-----------+
 1 row in set
 !ok
 
 drop table c1.`default`.MyTable6;
 [INFO] Table has been removed.
+!info
+
+drop view c1.`default`.MyView6;
+[INFO] View has been removed.
 !info
 
 use `default`;
@@ -391,7 +470,17 @@ show tables;
 | table name |
 +------------+
 |   MyTable5 |
+|    MyView5 |
 +------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
++-----------+
 1 row in set
 !ok
 
@@ -413,8 +502,9 @@ show tables;
 +------------+
 |   MyTable5 |
 |   MyTable7 |
+|    MyView5 |
 +------------+
-2 rows in set
+3 rows in set
 !ok
 
 reset;
@@ -430,6 +520,7 @@ show tables;
 | table name |
 +------------+
 |   MyTable7 |
+|    MyView5 |
 +------------+
-1 row in set
+2 rows in set
 !ok

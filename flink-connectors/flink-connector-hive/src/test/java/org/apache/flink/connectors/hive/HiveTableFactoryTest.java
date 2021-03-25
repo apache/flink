@@ -25,8 +25,11 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -105,25 +108,26 @@ public class HiveTableFactoryTest {
 
     @Test
     public void testHiveTable() throws Exception {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("name", DataTypes.STRING())
-                        .field("age", DataTypes.INT())
-                        .build();
+        ResolvedSchema schema =
+                ResolvedSchema.of(
+                        Column.physical("name", DataTypes.STRING()),
+                        Column.physical("age", DataTypes.INT()));
 
         Map<String, String> properties = new HashMap<>();
         properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
         ObjectPath path = new ObjectPath("mydb", "mytable");
-        CatalogTable table = new CatalogTableImpl(schema, properties, "hive table");
+        CatalogTable table =
+                new CatalogTableImpl(
+                        TableSchema.fromResolvedSchema(schema), properties, "hive table");
         catalog.createTable(path, table, true);
 
         DynamicTableSource tableSource =
                 FactoryUtil.createTableSource(
                         catalog,
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-                        table,
+                        new ResolvedCatalogTable(table, schema),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
@@ -133,7 +137,7 @@ public class HiveTableFactoryTest {
                 FactoryUtil.createTableSink(
                         catalog,
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-                        table,
+                        new ResolvedCatalogTable(table, schema),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);

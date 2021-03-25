@@ -18,17 +18,21 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * State which describes that the scheduler is waiting for resources in order to execute the job.
@@ -40,22 +44,67 @@ class WaitingForResources implements State, ResourceConsumer {
     private final Logger log;
 
     private final ResourceCounter desiredResources;
+    private final Clock clock;
+
+    /** If set, there's an ongoing deadline waiting for a resource stabilization. */
+    @Nullable private Deadline resourceStabilizationDeadline;
+
+    private final Duration resourceStabilizationTimeout;
+
+    @Nullable private ScheduledFuture<?> resourceTimeoutFuture;
 
     WaitingForResources(
             Context context,
             Logger log,
             ResourceCounter desiredResources,
-            Duration resourceTimeout) {
+            Duration initialResourceAllocationTimeout,
+            Duration resourceStabilizationTimeout) {
+        this(
+                context,
+                log,
+                desiredResources,
+                initialResourceAllocationTimeout,
+                resourceStabilizationTimeout,
+                SystemClock.getInstance());
+    }
+
+    @VisibleForTesting
+    WaitingForResources(
+            Context context,
+            Logger log,
+            ResourceCounter desiredResources,
+            Duration initialResourceAllocationTimeout,
+            Duration resourceStabilizationTimeout,
+            Clock clock) {
         this.context = Preconditions.checkNotNull(context);
         this.log = Preconditions.checkNotNull(log);
         this.desiredResources = Preconditions.checkNotNull(desiredResources);
+        this.resourceStabilizationTimeout =
+                Preconditions.checkNotNull(resourceStabilizationTimeout);
+        this.clock = clock;
+        Preconditions.checkNotNull(initialResourceAllocationTimeout);
+
         Preconditions.checkArgument(
                 !desiredResources.isEmpty(), "Desired resources must not be empty");
 
+        Preconditions.checkArgument(
+                !resourceStabilizationTimeout.isNegative(),
+                "Resource stabilization timeout must not be negative");
+
         // since state transitions are not allowed in state constructors, schedule calls for later.
-        context.runIfState(
-                this, this::resourceTimeout, Preconditions.checkNotNull(resourceTimeout));
+        if (!initialResourceAllocationTimeout.isNegative()) {
+            resourceTimeoutFuture =
+                    context.runIfState(
+                            this, this::resourceTimeout, initialResourceAllocationTimeout);
+        }
         context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        if (resourceTimeoutFuture != null) {
+            resourceTimeoutFuture.cancel(false);
+        }
     }
 
     @Override
@@ -90,30 +139,43 @@ class WaitingForResources implements State, ResourceConsumer {
 
     @Override
     public void notifyNewResourcesAvailable() {
-        if (context.hasEnoughResources(desiredResources)) {
+        checkDesiredOrSufficientResourcesAvailable();
+    }
+
+    private void checkDesiredOrSufficientResourcesAvailable() {
+        if (context.hasDesiredResources(desiredResources)) {
             createExecutionGraphWithAvailableResources();
+            return;
+        }
+
+        if (context.hasSufficientResources()) {
+            if (resourceStabilizationDeadline == null) {
+                resourceStabilizationDeadline =
+                        Deadline.fromNowWithClock(resourceStabilizationTimeout, clock);
+            }
+            if (resourceStabilizationDeadline.isOverdue()) {
+                createExecutionGraphWithAvailableResources();
+            } else {
+                // schedule next resource check
+                context.runIfState(
+                        this,
+                        this::checkDesiredOrSufficientResourcesAvailable,
+                        resourceStabilizationDeadline.timeLeft());
+            }
+        } else {
+            // clear deadline due to insufficient resources
+            resourceStabilizationDeadline = null;
         }
     }
 
     private void resourceTimeout() {
-        log.debug("Resource timeout triggered: Creating ExecutionGraph with available resources.");
+        log.debug(
+                "Initial resource allocation timeout triggered: Creating ExecutionGraph with available resources.");
         createExecutionGraphWithAvailableResources();
     }
 
     private void createExecutionGraphWithAvailableResources() {
-        try {
-            final ExecutionGraph executionGraph =
-                    context.createExecutionGraphWithAvailableResources();
-
-            context.goToExecuting(executionGraph);
-        } catch (Exception exception) {
-            log.info(
-                    "Failed to go from {} to {} because the ExecutionGraph creation failed.",
-                    WaitingForResources.class.getSimpleName(),
-                    Executing.class.getSimpleName(),
-                    exception);
-            context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, exception));
-        }
+        context.goToCreatingExecutionGraph();
     }
 
     /** Context of the {@link WaitingForResources} state. */
@@ -126,12 +188,8 @@ class WaitingForResources implements State, ResourceConsumer {
          */
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
 
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Executing} state
-         */
-        void goToExecuting(ExecutionGraph executionGraph);
+        /** Transitions into the {@link CreatingExecutionGraph} state. */
+        void goToCreatingExecutionGraph();
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
@@ -145,20 +203,19 @@ class WaitingForResources implements State, ResourceConsumer {
                 JobStatus jobStatus, @Nullable Throwable cause);
 
         /**
-         * Checks whether we have enough resources to fulfill the desired resources.
+         * Checks whether we have the desired resources.
          *
          * @param desiredResources desiredResources describing the desired resources
          * @return {@code true} if we have enough resources; otherwise {@code false}
          */
-        boolean hasEnoughResources(ResourceCounter desiredResources);
+        boolean hasDesiredResources(ResourceCounter desiredResources);
 
         /**
-         * Creates an {@link ExecutionGraph} with the available resources.
+         * Checks if we currently have sufficient resources for executing the job.
          *
-         * @return the created {@link ExecutionGraph}
-         * @throws Exception if the creation of the {@link ExecutionGraph} fails
+         * @return {@code true} if we have sufficient resources; otherwise {@code false}
          */
-        ExecutionGraph createExecutionGraphWithAvailableResources() throws Exception;
+        boolean hasSufficientResources();
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -167,8 +224,9 @@ class WaitingForResources implements State, ResourceConsumer {
          *     the action
          * @param action action to run if the expected state equals the actual state
          * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
          */
-        void runIfState(State expectedState, Runnable action, Duration delay);
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     static class Factory implements StateFactory<WaitingForResources> {
@@ -176,17 +234,20 @@ class WaitingForResources implements State, ResourceConsumer {
         private final Context context;
         private final Logger log;
         private final ResourceCounter desiredResources;
-        private final Duration resourceTimeout;
+        private final Duration initialResourceAllocationTimeout;
+        private final Duration resourceStabilizationTimeout;
 
         public Factory(
                 Context context,
                 Logger log,
                 ResourceCounter desiredResources,
-                Duration resourceTimeout) {
+                Duration initialResourceAllocationTimeout,
+                Duration resourceStabilizationTimeout) {
             this.context = context;
             this.log = log;
             this.desiredResources = desiredResources;
-            this.resourceTimeout = resourceTimeout;
+            this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
         }
 
         public Class<WaitingForResources> getStateClass() {
@@ -194,7 +255,12 @@ class WaitingForResources implements State, ResourceConsumer {
         }
 
         public WaitingForResources getState() {
-            return new WaitingForResources(context, log, desiredResources, resourceTimeout);
+            return new WaitingForResources(
+                    context,
+                    log,
+                    desiredResources,
+                    initialResourceAllocationTimeout,
+                    resourceStabilizationTimeout);
         }
     }
 }

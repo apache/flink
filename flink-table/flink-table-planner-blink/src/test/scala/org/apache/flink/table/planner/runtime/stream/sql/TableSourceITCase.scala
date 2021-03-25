@@ -19,13 +19,15 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.FlinkMatchers.containsCause
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.utils._
+import org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Rule, Test}
 
@@ -317,5 +319,44 @@ class TableSourceITCase extends StreamingTestBase {
       "2,Rob,20000,false,2200,bob",
       "3,Mike,30000,true,3300,liz")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testSourceWatermarkInDDL(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.data3WithTimestamp)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE tableWithWatermark (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING,
+         |  `ts` TIMESTAMP(3),
+         |  WATERMARK FOR ts AS SOURCE_WATERMARK()
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'false'
+         |)
+         |""".stripMargin)
+
+
+    try {
+      tEnv.executeSql("SELECT * FROM tableWithWatermark").await()
+      fail("should fail")
+    } catch {
+      case t: Throwable =>
+        assertThat(t, containsCause(new TableException(SourceWatermarkFunction.ERROR_MESSAGE)))
+    }
+  }
+
+  @Test
+  def testSourceWatermarkInQuery(): Unit = {
+    try {
+      tEnv.executeSql("SELECT *, SOURCE_WATERMARK() FROM MyTable").print()
+      fail("should fail")
+    } catch {
+      case t: Throwable =>
+        assertThat(t, containsCause(new TableException(SourceWatermarkFunction.ERROR_MESSAGE)))
+    }
   }
 }

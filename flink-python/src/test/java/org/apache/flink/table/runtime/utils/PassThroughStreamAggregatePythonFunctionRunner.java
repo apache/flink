@@ -72,7 +72,9 @@ public class PassThroughStreamAggregatePythonFunctionRunner
                 keyedStateBackend,
                 keySerializer,
                 null,
-                0.0);
+                null,
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;
     }

@@ -21,10 +21,8 @@ package org.apache.flink.connector.jdbc.catalog.factory;
 import org.apache.flink.connector.jdbc.catalog.JdbcCatalog;
 import org.apache.flink.connector.jdbc.catalog.PostgresCatalog;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.CatalogDescriptor;
-import org.apache.flink.table.descriptors.JdbcCatalogDescriptor;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule;
@@ -33,6 +31,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -67,15 +66,20 @@ public class JdbcCatalogFactoryTest {
 
     @Test
     public void test() {
-        final CatalogDescriptor catalogDescriptor =
-                new JdbcCatalogDescriptor(
-                        PostgresCatalog.DEFAULT_DATABASE, TEST_USERNAME, TEST_PWD, baseUrl);
-
-        final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), JdbcCatalogFactoryOptions.IDENTIFIER);
+        options.put(
+                JdbcCatalogFactoryOptions.DEFAULT_DATABASE.key(), PostgresCatalog.DEFAULT_DATABASE);
+        options.put(JdbcCatalogFactoryOptions.USERNAME.key(), TEST_USERNAME);
+        options.put(JdbcCatalogFactoryOptions.PASSWORD.key(), TEST_PWD);
+        options.put(JdbcCatalogFactoryOptions.BASE_URL.key(), baseUrl);
 
         final Catalog actualCatalog =
-                TableFactoryService.find(CatalogFactory.class, properties)
-                        .createCatalog(TEST_CATALOG_NAME, properties);
+                FactoryUtil.createCatalog(
+                        TEST_CATALOG_NAME,
+                        options,
+                        null,
+                        Thread.currentThread().getContextClassLoader());
 
         checkEquals(catalog, (JdbcCatalog) actualCatalog);
 

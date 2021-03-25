@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
@@ -69,7 +70,7 @@ public interface TableResult {
             throws InterruptedException, ExecutionException, TimeoutException;
 
     /**
-     * Get the schema of result.
+     * Returns the schema of the result.
      *
      * <p>The schema of DDL, USE, EXPLAIN:
      *
@@ -107,7 +108,7 @@ public interface TableResult {
      * | type             | STRING      | field type expressed as a String                                            |
      * | null             | BOOLEAN     | field nullability: true if a field is nullable, else false                  |
      * | key              | BOOLEAN     | key constraint: 'PRI' for primary keys, 'UNQ' for unique keys, else null    |
-     * | computed column  | STRING      | computed column: string expression if a field is computed column, else null |
+     * | extras           | STRING      | extras such as computed or metadata column information, else null           |
      * | watermark        | STRING      | watermark: string expression if a field is watermark, else null             |
      * +------------------+-------------+-----------------------------------------------------------------------------+
      * </pre>
@@ -124,7 +125,20 @@ public interface TableResult {
      *
      * <p>The schema of SELECT is the selected field names and types.
      */
-    TableSchema getTableSchema();
+    ResolvedSchema getResolvedSchema();
+
+    /**
+     * Returns the schema of the result.
+     *
+     * @deprecated This method has been deprecated as part of FLIP-164. {@link TableSchema} has been
+     *     replaced by two more dedicated classes {@link Schema} and {@link ResolvedSchema}. Use
+     *     {@link Schema} for declaration in APIs. {@link ResolvedSchema} is offered by the
+     *     framework after resolution and validation.
+     */
+    @Deprecated
+    default TableSchema getTableSchema() {
+        return TableSchema.fromResolvedSchema(getResolvedSchema());
+    }
 
     /**
      * Return the {@link ResultKind} which represents the result type.

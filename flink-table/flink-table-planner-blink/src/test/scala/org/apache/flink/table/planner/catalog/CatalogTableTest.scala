@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.catalog
 
-import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment, TableSchema}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.junit.Test
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
+
 import org.junit.Assert.assertEquals
+import org.junit.Test
 
 /**
   * Unit tests around catalog table and DDL.
@@ -43,24 +45,26 @@ class CatalogTableTest {
         |  f5 TIMESTAMP(2) NOT NULL,
         |  f6 TIME,
         |  f7 DATE,
-        |  f8 VARCHAR(10) NOT NULL
+        |  f8 VARCHAR(10) NOT NULL,
+        |  c AS f3 || f8
         |) WITH (
         |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     )
 
-    val actual = tEnv.sqlQuery("SELECT * FROM t1").getSchema
-    val expected = TableSchema.builder()
-      .field("f1", DataTypes.INT())
-      .field("f2", DataTypes.BIGINT().notNull())
-      .field("f3", DataTypes.STRING())
-      .field("f4", DataTypes.DECIMAL(10, 4))
-      .field("f5", DataTypes.TIMESTAMP(2).notNull())
-      .field("f6", DataTypes.TIME())
-      .field("f7", DataTypes.DATE())
-      .field("f8", DataTypes.VARCHAR(10).notNull())
-      .build()
+    val actual = tEnv.sqlQuery("SELECT * FROM t1").getResolvedSchema
+    val expected = ResolvedSchema.of(
+      Column.physical("f1", DataTypes.INT()),
+      Column.physical("f2", DataTypes.BIGINT().notNull()),
+      Column.physical("f3", DataTypes.STRING()),
+      Column.physical("f4", DataTypes.DECIMAL(10, 4)),
+      Column.physical("f5", DataTypes.TIMESTAMP(2).notNull()),
+      Column.physical("f6", DataTypes.TIME()),
+      Column.physical("f7", DataTypes.DATE()),
+      Column.physical("f8", DataTypes.VARCHAR(10).notNull()),
+      Column.physical("c", DataTypes.STRING()) // physical because SQL is a black box for now
+    )
 
     assertEquals(expected, actual)
   }

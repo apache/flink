@@ -32,13 +32,15 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
 from pyflink.datastream.connectors import FlinkKafkaConsumer
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
+    invoke_java_object_method
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
@@ -119,6 +121,16 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         parallelism = self.env.get_max_parallelism()
 
         self.assertEqual(parallelism, 12)
+
+    def test_set_runtime_mode(self):
+        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+
+        config = invoke_java_object_method(
+            self.env._j_stream_execution_environment, "getConfiguration")
+        runtime_mode = config.getValue(
+            get_gateway().jvm.org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE)
+
+        self.assertEqual(runtime_mode, "BATCH")
 
     def test_operation_chaining(self):
         self.assertTrue(self.env.is_chaining_enabled())
@@ -568,18 +580,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
-
-    def test_batch_execution_mode(self):
-        # set the runtime execution mode to BATCH
-        JRuntimeExecutionMode = get_gateway().jvm \
-            .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
-        self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
-        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x) \
-            .add_sink(self.test_sink)
-
-        # Running jobs in Batch mode is not supported yet, it should throw an exception.
-        with self.assertRaises(Exception):
-            self.env.get_execution_plan()
 
     def tearDown(self) -> None:
         self.test_sink.clear()

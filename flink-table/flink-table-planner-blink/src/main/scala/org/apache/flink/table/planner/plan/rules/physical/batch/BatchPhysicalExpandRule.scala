@@ -44,7 +44,6 @@ class BatchPhysicalExpandRule
       rel.getCluster,
       newTrait,
       newInput,
-      rel.getRowType,
       expand.projects,
       expand.expandIdIndex)
   }

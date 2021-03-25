@@ -20,21 +20,18 @@ package org.apache.flink.formats.avro.registry.confluent;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -49,19 +46,24 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link RegistryAvroFormatFactory}. */
 public class RegistryAvroFormatFactoryTest {
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("a", DataTypes.STRING())
-                    .field("b", DataTypes.INT())
-                    .field("c", DataTypes.BOOLEAN())
-                    .build();
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("a", DataTypes.STRING()),
+                    Column.physical("b", DataTypes.INT()),
+                    Column.physical("c", DataTypes.BOOLEAN()));
+
+    private static final RowType ROW_TYPE =
+            (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
+
     private static final String SUBJECT = "test-subject";
     private static final String REGISTRY_URL = "http://localhost:8081";
 
@@ -76,14 +78,14 @@ public class RegistryAvroFormatFactoryTest {
                         AvroToRowDataConverters.createRowConverter(ROW_TYPE),
                         InternalTypeInfo.of(ROW_TYPE));
 
-        final DynamicTableSource actualSource = createTableSource(getDefaultOptions());
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, getDefaultOptions());
         assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         DeserializationSchema<RowData> actualDeser =
                 scanSourceMock.valueFormat.createRuntimeDecoder(
-                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expectedDeser, actualDeser);
     }
@@ -99,13 +101,13 @@ public class RegistryAvroFormatFactoryTest {
                                 REGISTRY_URL),
                         RowDataToAvroConverters.createConverter(ROW_TYPE));
 
-        final DynamicTableSink actualSink = createTableSink(getDefaultOptions());
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, getDefaultOptions());
         assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
         SerializationSchema<RowData> actualSer =
-                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expectedSer, actualSer);
     }
@@ -122,7 +124,7 @@ public class RegistryAvroFormatFactoryTest {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.remove("avro-confluent.schema-registry.subject"));
 
-        createTableSink(options);
+        createTableSink(SCHEMA, options);
     }
 
     // ------------------------------------------------------------------------
@@ -150,25 +152,5 @@ public class RegistryAvroFormatFactoryTest {
         options.put("avro-confluent.schema-registry.subject", SUBJECT);
         options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
         return options;
-    }
-
-    private DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock source"),
-                new Configuration(),
-                RegistryAvroFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock sink"),
-                new Configuration(),
-                RegistryAvroFormatFactoryTest.class.getClassLoader(),
-                false);
     }
 }

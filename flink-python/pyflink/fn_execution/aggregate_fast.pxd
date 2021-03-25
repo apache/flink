@@ -88,8 +88,6 @@ cdef class GroupAggFunctionBase:
     cpdef void process_element(self, InternalRow input_data)
     cpdef list finish_bundle(self)
     cpdef void on_timer(self, InternalRow key)
-    cdef bint is_retract_msg(self, InternalRowKind row_kind)
-    cdef bint is_accumulate_msg(self, InternalRowKind row_kind)
 
 cdef class GroupAggFunction(GroupAggFunctionBase):
     pass

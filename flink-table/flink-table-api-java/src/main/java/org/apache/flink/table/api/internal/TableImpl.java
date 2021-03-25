@@ -31,11 +31,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
@@ -102,13 +102,13 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(operationTree.getResolvedSchema());
+    public ResolvedSchema getResolvedSchema() {
+        return operationTree.getResolvedSchema();
     }
 
     @Override
     public void printSchema() {
-        System.out.println(getSchema());
+        System.out.println(getResolvedSchema());
     }
 
     @Override

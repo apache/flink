@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -230,6 +231,7 @@ public class HiveDynamicTableFactoryTest {
     }
 
     private DynamicTableSource getTableSource(String tableName) throws Exception {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         ObjectIdentifier tableIdentifier =
                 ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
         CatalogTable catalogTable =
@@ -237,7 +239,7 @@ public class HiveDynamicTableFactoryTest {
         return FactoryUtil.createTableSource(
                 hiveCatalog,
                 tableIdentifier,
-                catalogTable,
+                tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
                 tableEnv.getConfig().getConfiguration(),
                 Thread.currentThread().getContextClassLoader(),
                 false);

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, Logical
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import org.apache.calcite.plan.Contexts
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
@@ -62,7 +62,6 @@ object FlinkRelFactories {
   trait ExpandFactory {
     def createExpand(
         input: RelNode,
-        rowType: RelDataType,
         projects: util.List[util.List[RexNode]],
         expandIdIndex: Int): RelNode
   }
@@ -73,9 +72,10 @@ object FlinkRelFactories {
   class ExpandFactoryImpl extends ExpandFactory {
     def createExpand(
         input: RelNode,
-        rowType: RelDataType,
         projects: util.List[util.List[RexNode]],
-        expandIdIndex: Int): RelNode = LogicalExpand.create(input, rowType, projects, expandIdIndex)
+        expandIdIndex: Int): RelNode = {
+      LogicalExpand.create(input, projects, expandIdIndex)
+    }
   }
 
   /**

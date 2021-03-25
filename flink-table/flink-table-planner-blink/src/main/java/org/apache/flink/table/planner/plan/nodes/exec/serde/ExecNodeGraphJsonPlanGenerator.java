@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImpl;
@@ -48,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.Si
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
 import java.io.IOException;
@@ -124,6 +125,7 @@ public class ExecNodeGraphJsonPlanGenerator {
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
         // RexNode is used in many exec nodes, so we register its deserializer directly here
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
+        module.addDeserializer(RexLiteral.class, new RexLiteralJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
         module.addDeserializer(Duration.class, new DurationJsonDeserializer());
     }
@@ -237,16 +239,22 @@ public class ExecNodeGraphJsonPlanGenerator {
                             ((CommonExecSink) execNode).getTableSinkSpec();
                     tableSinkSpec.setReadableConfig(serdeCtx.getConfiguration());
                     tableSinkSpec.setClassLoader(serdeCtx.getClassLoader());
-                }
-                idToExecNodes.put(id, execNode);
-                if (execNode instanceof StreamExecTableSourceScan) {
-                    ((StreamExecTableSourceScan) execNode)
+                } else if (execNode instanceof StreamExecLookupJoin) {
+                    StreamExecLookupJoin streamExecLookupJoin = (StreamExecLookupJoin) execNode;
+                    if (null == streamExecLookupJoin.getTemporalTableSourceSpec()) {
+                        throw new TableException(
+                                "temporalTable can't be null, please check corresponding node.");
+                    }
+                    streamExecLookupJoin
+                            .getTemporalTableSourceSpec()
                             .getTableSourceSpec()
                             .setReadableConfig(serdeCtx.getConfiguration());
-                    ((StreamExecTableSourceScan) execNode)
+                    streamExecLookupJoin
+                            .getTemporalTableSourceSpec()
                             .getTableSourceSpec()
                             .setClassLoader(serdeCtx.getClassLoader());
                 }
+                idToExecNodes.put(id, execNode);
             }
             Map<Integer, List<ExecEdge>> idToInputEdges = new HashMap<>();
             Map<Integer, List<ExecEdge>> idToOutputEdges = new HashMap<>();

@@ -53,6 +53,9 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.removeTimeAttribu
  *   <li>{@link Expression}s have been translated to {@link ResolvedExpression}.
  *   <li>{@link AbstractDataType}s have been translated to {@link DataType}.
  * </ul>
+ *
+ * <p>This class should not be passed into a connector. It is therefore also not serializable.
+ * Instead, the {@link #toPhysicalRowDataType()} can be passed around where necessary.
  */
 @PublicEvolving
 public final class ResolvedSchema {
@@ -234,7 +237,7 @@ public final class ResolvedSchema {
         return components.stream()
                 .map(Objects::toString)
                 .map(s -> "  " + s)
-                .collect(Collectors.joining(", \n", "(\n", "\n)"));
+                .collect(Collectors.joining(",\n", "(\n", "\n)"));
     }
 
     @Override

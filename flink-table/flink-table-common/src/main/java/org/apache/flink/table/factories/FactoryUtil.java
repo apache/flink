@@ -24,11 +24,14 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -45,11 +48,13 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -57,6 +62,10 @@ public final class FactoryUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(FactoryUtil.class);
 
+    /**
+     * Describes the property version. This can be used for backwards compatibility in case the
+     * property format changes.
+     */
     public static final ConfigOption<Integer> PROPERTY_VERSION =
             ConfigOptions.key("property-version")
                     .intType()
@@ -106,7 +115,7 @@ public final class FactoryUtil {
     public static DynamicTableSource createTableSource(
             @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -140,7 +149,7 @@ public final class FactoryUtil {
     public static DynamicTableSink createTableSink(
             @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
@@ -164,6 +173,16 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link CatalogFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static CatalogFactoryHelper createCatalogFactoryHelper(
+            CatalogFactory factory, CatalogFactory.Context context) {
+        return new CatalogFactoryHelper(factory, context);
     }
 
     /**
@@ -201,12 +220,71 @@ public final class FactoryUtil {
     }
 
     /**
+     * Attempts to discover an appropriate catalog factory and creates an instance of the catalog.
+     *
+     * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
+     * CatalogFactory}. If none is found, it falls back to the new stack using {@link Factory}
+     * instead.
+     */
+    public static Catalog createCatalog(
+            String catalogName,
+            Map<String, String> options,
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
+        // Use the legacy mechanism first for compatibility
+        try {
+            final CatalogFactory legacyFactory =
+                    TableFactoryService.find(CatalogFactory.class, options, classLoader);
+            return legacyFactory.createCatalog(catalogName, options);
+        } catch (NoMatchingTableFactoryException e) {
+            // No matching legacy factory found, try using the new stack
+
+            final DefaultCatalogContext discoveryContext =
+                    new DefaultCatalogContext(catalogName, options, configuration, classLoader);
+            try {
+                final CatalogFactory factory = getCatalogFactory(discoveryContext);
+
+                // The type option is only used for discovery, we don't actually want to forward it
+                // to the catalog factory itself.
+                final Map<String, String> factoryOptions =
+                        options.entrySet().stream()
+                                .filter(
+                                        entry ->
+                                                !CommonCatalogOptions.CATALOG_TYPE
+                                                        .key()
+                                                        .equals(entry.getKey()))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                final DefaultCatalogContext context =
+                        new DefaultCatalogContext(
+                                catalogName, factoryOptions, configuration, classLoader);
+
+                return factory.createCatalog(context);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
+                                catalogName,
+                                options.entrySet().stream()
+                                        .map(
+                                                optionEntry ->
+                                                        stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue()))
+                                        .sorted()
+                                        .collect(Collectors.joining("\n"))),
+                        t);
+            }
+        }
+    }
+
+    /**
      * Discovers a factory using the given factory base class and identifier.
      *
      * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory,
      * DynamicTableFactory.Context)} {@link #createTableSource(Catalog, ObjectIdentifier,
-     * CatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link #createTableSink(Catalog,
-     * ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)} are not applicable.
+     * ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link
+     * #createTableSink(Catalog, ObjectIdentifier, ResolvedCatalogTable, ReadableConfig,
+     * ClassLoader, boolean)} are not applicable.
      */
     @SuppressWarnings("unchecked")
     public static <T extends Factory> T discoverFactory(
@@ -309,7 +387,7 @@ public final class FactoryUtil {
         if (remainingOptionKeys.size() > 0) {
             throw new ValidationException(
                     String.format(
-                            "Unsupported options found for connector '%s'.\n\n"
+                            "Unsupported options found for '%s'.\n\n"
                                     + "Unsupported options:\n\n"
                                     + "%s\n\n"
                                     + "Supported options:\n\n"
@@ -353,6 +431,19 @@ public final class FactoryUtil {
         } catch (ValidationException e) {
             throw enrichNoMatchingConnectorError(factoryClass, context, connectorOption);
         }
+    }
+
+    private static CatalogFactory getCatalogFactory(CatalogFactory.Context context) {
+        final String catalogType =
+                context.getOptions().get(CommonCatalogOptions.CATALOG_TYPE.key());
+        if (catalogType == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Catalog options do not contain an option key '%s' for discovering a catalog.",
+                            CommonCatalogOptions.CATALOG_TYPE.key()));
+        }
+
+        return discoverFactory(context.getClassLoader(), CatalogFactory.class, catalogType);
     }
 
     private static ValidationException enrichNoMatchingConnectorError(
@@ -426,6 +517,69 @@ public final class FactoryUtil {
     // --------------------------------------------------------------------------------------------
     // Helper classes
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Helper utility for catalog implementations to validate options provided by {@link
+     * CatalogFactory}.
+     */
+    @PublicEvolving
+    public static class CatalogFactoryHelper {
+
+        private final CatalogFactory catalogFactory;
+        private final CatalogFactory.Context context;
+        private final Configuration configuration;
+
+        private final Set<String> consumedOptionKeys;
+
+        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
+            this.catalogFactory = catalogFactory;
+            this.context = context;
+            this.configuration = Configuration.fromMap(context.getOptions());
+
+            consumedOptionKeys = new HashSet<>();
+            consumedOptionKeys.add(PROPERTY_VERSION.key());
+            Stream.concat(
+                            catalogFactory.requiredOptions().stream(),
+                            catalogFactory.optionalOptions().stream())
+                    .map(ConfigOption::key)
+                    .forEach(consumedOptionKeys::add);
+        }
+
+        /**
+         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option
+         * keys.
+         */
+        public void validate() {
+            validateFactoryOptions(catalogFactory, configuration);
+            validateUnconsumedKeys(
+                    catalogFactory.factoryIdentifier(), configuration.keySet(), consumedOptionKeys);
+        }
+
+        /**
+         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option keys
+         * while ignoring the options with given prefixes.
+         *
+         * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
+         * validation.
+         *
+         * @param prefixesToSkip Set of option key prefixes to skip validation
+         */
+        public void validateExcept(String... prefixesToSkip) {
+            Preconditions.checkArgument(
+                    prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
+            final List<String> prefixesList = Arrays.asList(prefixesToSkip);
+            consumedOptionKeys.addAll(
+                    configuration.keySet().stream()
+                            .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
+                            .collect(Collectors.toSet()));
+            validate();
+        }
+
+        /** Returns all options of the catalog. */
+        public ReadableConfig getOptions() {
+            return configuration;
+        }
+    }
 
     /**
      * Helper utility for discovering formats and validating all options for a {@link
@@ -630,14 +784,14 @@ public final class FactoryUtil {
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
-        private final CatalogTable catalogTable;
+        private final ResolvedCatalogTable catalogTable;
         private final ReadableConfig configuration;
         private final ClassLoader classLoader;
         private final boolean isTemporary;
 
         public DefaultDynamicTableContext(
                 ObjectIdentifier objectIdentifier,
-                CatalogTable catalogTable,
+                ResolvedCatalogTable catalogTable,
                 ReadableConfig configuration,
                 ClassLoader classLoader,
                 boolean isTemporary) {
@@ -654,7 +808,7 @@ public final class FactoryUtil {
         }
 
         @Override
-        public CatalogTable getCatalogTable() {
+        public ResolvedCatalogTable getCatalogTable() {
             return catalogTable;
         }
 
@@ -671,6 +825,45 @@ public final class FactoryUtil {
         @Override
         public boolean isTemporary() {
             return isTemporary;
+        }
+    }
+
+    /** Default implementation of {@link CatalogFactory.Context}. */
+    public static class DefaultCatalogContext implements CatalogFactory.Context {
+        private final String name;
+        private final Map<String, String> options;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+
+        public DefaultCatalogContext(
+                String name,
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.name = name;
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
         }
     }
 

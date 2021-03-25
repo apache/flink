@@ -83,6 +83,6 @@ public class StateValidator<T> {
                         fail(
                                 "No consumer has been set for "
                                         + stateName
-                                        + ". Unexpected state transition");
+                                        + ". Unexpected state transition (duplicate?)");
     }
 }

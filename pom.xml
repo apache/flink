@@ -1480,6 +1480,7 @@ under the License.
 						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
+						<exclude>flink-table/flink-sql-client/src/test/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/**/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>

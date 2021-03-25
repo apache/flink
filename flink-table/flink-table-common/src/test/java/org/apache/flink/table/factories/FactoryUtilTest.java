@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
@@ -43,8 +43,13 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
+import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link FactoryUtil}. */
@@ -138,7 +143,7 @@ public class FactoryUtilTest {
     @Test
     public void testUnconsumedOption() {
         expectError(
-                "Unsupported options found for connector 'test-connector'.\n\n"
+                "Unsupported options found for 'test-connector'.\n\n"
                         + "Unsupported options:\n\n"
                         + "this-is-also-not-consumed\n"
                         + "this-is-not-consumed\n\n"
@@ -168,14 +173,14 @@ public class FactoryUtilTest {
     @Test
     public void testAllOptions() {
         final Map<String, String> options = createAllOptions();
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
                         new DecodingFormatMock(",", false),
                         new DecodingFormatMock("|", true));
         assertEquals(expectedSource, actualSource);
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         final DynamicTableSink expectedSink =
                 new DynamicTableSinkMock(
                         "MyTarget",
@@ -192,7 +197,7 @@ public class FactoryUtilTest {
         // see TestDynamicTableSinkFactory and TestDynamicTableSourceFactory
         options.put("connector", "test");
 
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
@@ -200,7 +205,7 @@ public class FactoryUtilTest {
                         new DecodingFormatMock("|", true));
         assertEquals(expectedSource, actualSource);
 
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         final DynamicTableSink expectedSink =
                 new DynamicTableSinkMock(
                         "MyTarget",
@@ -215,11 +220,11 @@ public class FactoryUtilTest {
         final Map<String, String> options = createAllOptions();
         options.remove("key.format");
         options.remove("key.test-format.delimiter");
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock("MyTarget", null, new DecodingFormatMock("|", true));
         assertEquals(expectedSource, actualSource);
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         final DynamicTableSink expectedSink =
                 new DynamicTableSinkMock("MyTarget", 1000L, null, new EncodingFormatMock("|"));
         assertEquals(expectedSink, actualSink);
@@ -234,14 +239,14 @@ public class FactoryUtilTest {
         options.put("format", "test-format");
         options.put("test-format.delimiter", ";");
         options.put("test-format.fail-on-missing", "true");
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         final DynamicTableSource expectedSource =
                 new DynamicTableSourceMock(
                         "MyTarget",
                         new DecodingFormatMock(",", false),
                         new DecodingFormatMock(";", true));
         assertEquals(expectedSource, actualSource);
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         final DynamicTableSink expectedSink =
                 new DynamicTableSinkMock(
                         "MyTarget",
@@ -254,7 +259,7 @@ public class FactoryUtilTest {
     @Test
     public void testConnectorErrorHint() {
         try {
-            createTableSource(Collections.singletonMap("connector", "sink-only"));
+            createTableSource(SCHEMA, Collections.singletonMap("connector", "sink-only"));
             fail();
         } catch (Exception e) {
             String errorMsg =
@@ -263,13 +268,62 @@ public class FactoryUtilTest {
         }
 
         try {
-            createTableSink(Collections.singletonMap("connector", "source-only"));
+            createTableSink(SCHEMA, Collections.singletonMap("connector", "source-only"));
             fail();
         } catch (Exception e) {
             String errorMsg =
                     "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
             assertThat(e, containsCause(new ValidationException(errorMsg)));
         }
+    }
+
+    @Test
+    public void testCreateCatalog() {
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), TestCatalogFactory.IDENTIFIER);
+        options.put(TestCatalogFactory.DEFAULT_DATABASE.key(), "my-database");
+
+        final Catalog catalog =
+                FactoryUtil.createCatalog(
+                        "my-catalog",
+                        options,
+                        null,
+                        Thread.currentThread().getContextClassLoader());
+        assertTrue(catalog instanceof TestCatalogFactory.TestCatalog);
+
+        final TestCatalogFactory.TestCatalog testCatalog = (TestCatalogFactory.TestCatalog) catalog;
+        assertEquals(testCatalog.getName(), "my-catalog");
+        assertEquals(
+                testCatalog.getOptions().get(TestCatalogFactory.DEFAULT_DATABASE.key()),
+                "my-database");
+    }
+
+    @Test
+    public void testCatalogFactoryHelper() {
+        final FactoryUtil.CatalogFactoryHelper helper1 =
+                FactoryUtil.createCatalogFactoryHelper(
+                        new TestCatalogFactory(),
+                        new FactoryUtil.DefaultCatalogContext(
+                                "test",
+                                Collections.emptyMap(),
+                                null,
+                                Thread.currentThread().getContextClassLoader()));
+
+        // No error
+        helper1.validate();
+
+        final FactoryUtil.CatalogFactoryHelper helper2 =
+                FactoryUtil.createCatalogFactoryHelper(
+                        new TestCatalogFactory(),
+                        new FactoryUtil.DefaultCatalogContext(
+                                "test",
+                                Collections.singletonMap("x", "y"),
+                                null,
+                                Thread.currentThread().getContextClassLoader()));
+
+        thrown.expect(ValidationException.class);
+        thrown.expect(containsMessage("Unsupported options found for 'test-catalog'"));
+        helper2.validate();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -282,7 +336,7 @@ public class FactoryUtilTest {
     private static void testError(Consumer<Map<String, String>> optionModifier) {
         final Map<String, String> options = createAllOptions();
         optionModifier.accept(options);
-        createTableSource(options);
+        createTableSource(SCHEMA, options);
     }
 
     private static Map<String, String> createAllOptions() {
@@ -298,26 +352,6 @@ public class FactoryUtilTest {
         options.put("value.test-format.delimiter", "|");
         options.put("value.test-format.fail-on-missing", "true");
         return options;
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("cat", "db", "table"),
-                new CatalogTableMock(options),
-                new Configuration(),
-                FactoryUtilTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("cat", "db", "table"),
-                new CatalogTableMock(options),
-                new Configuration(),
-                FactoryUtilTest.class.getClassLoader(),
-                false);
     }
 
     private static class CatalogTableMock implements CatalogTable {

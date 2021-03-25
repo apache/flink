@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import java.io.Serializable;
 import java.util.List;
 
@@ -25,7 +28,12 @@ import java.util.List;
  * RankRange for Rank, including following 3 types : ConstantRankRange, ConstantRankRangeWithoutEnd,
  * VariableRankRange.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = ConstantRankRange.class),
+    @JsonSubTypes.Type(value = ConstantRankRangeWithoutEnd.class),
+    @JsonSubTypes.Type(value = VariableRankRange.class)
+})
 public interface RankRange extends Serializable {
-
     String toString(List<String> inputFieldNames);
 }

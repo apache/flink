@@ -213,6 +213,14 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
             final AllocationID allocationId, final Throwable cause, @RpcTimeout final Time timeout);
 
     /**
+     * Frees all currently inactive slot allocated for the given job.
+     *
+     * @param jobId job for which all inactive slots should be released
+     * @param timeout for the operation
+     */
+    void freeInactiveSlots(JobID jobId, @RpcTimeout Time timeout);
+
+    /**
      * Requests the file upload of the specified type to the cluster's {@link BlobServer}.
      *
      * @param fileType to upload

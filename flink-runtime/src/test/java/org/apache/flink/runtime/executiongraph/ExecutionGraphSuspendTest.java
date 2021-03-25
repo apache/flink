@@ -57,7 +57,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         // suspend
 
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         validateAllVerticesInState(eg, ExecutionState.CANCELED);
@@ -83,7 +83,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         validateAllVerticesInState(eg, ExecutionState.DEPLOYING);
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         validateCancelRpcCalls(gateway, parallelism);
@@ -109,7 +109,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         validateAllVerticesInState(eg, ExecutionState.RUNNING);
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         validateCancelRpcCalls(gateway, parallelism);
@@ -135,7 +135,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         validateCancelRpcCalls(gateway, parallelism);
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         ensureCannotLeaveSuspendedState(scheduler, gateway);
@@ -162,7 +162,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         assertEquals(JobStatus.FAILED, eg.getState());
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         // still in failed state
         assertEquals(JobStatus.FAILED, eg.getState());
@@ -187,7 +187,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         validateCancelRpcCalls(gateway, parallelism);
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
 
@@ -215,7 +215,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());
 
         // suspend
-        scheduler.suspend(new Exception("suspend"));
+        scheduler.closeAsync();
 
         // still in failed state
         assertEquals(JobStatus.CANCELED, eg.getState());
@@ -249,13 +249,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
         assertEquals(JobStatus.RESTARTING, eg.getState());
 
-        final Exception exception = new Exception("Suspended");
-
-        scheduler.suspend(exception);
+        scheduler.closeAsync();
 
         assertEquals(JobStatus.SUSPENDED, eg.getState());
-
-        assertEquals(exception, eg.getFailureCause());
 
         taskRestartExecutor.triggerScheduledTasks();
         assertEquals(JobStatus.SUSPENDED, eg.getState());
@@ -281,7 +277,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         validateNoInteractions(gateway);
 
-        scheduler.suspend(new Exception("suspend again"));
+        scheduler.closeAsync();
         assertEquals(JobStatus.SUSPENDED, eg.getState());
         validateNoInteractions(gateway);
 

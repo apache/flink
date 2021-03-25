@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.python.PythonFunctionFactory;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -28,12 +29,12 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
@@ -63,7 +64,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -311,20 +311,19 @@ public class ExecutionContextTest {
                 new String[] {"sourcetemporaltable", "viewtemporaltable"},
                 tableEnv.listUserDefinedFunctions());
 
-        assertArrayEquals(
-                new String[] {
-                    "integerField",
-                    "stringField",
-                    "rowtimeField",
-                    "integerField0",
-                    "stringField0",
-                    "rowtimeField0"
-                },
-                tableEnv.from("TemporalTableUsage").getSchema().getFieldNames());
+        assertEquals(
+                Arrays.asList(
+                        "integerField",
+                        "stringField",
+                        "rowtimeField",
+                        "integerField0",
+                        "stringField0",
+                        "rowtimeField0"),
+                tableEnv.from("TemporalTableUsage").getResolvedSchema().getColumnNames());
 
         // Please delete this test after removing registerTableSourceInternal in SQL-CLI.
-        TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
-        LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
+        ResolvedSchema schema = tableEnv.from("EnrichmentSource").getResolvedSchema();
+        LogicalType timestampType = schema.getColumnDataTypes().get(2).getLogicalType();
         assertTrue(timestampType instanceof TimestampType);
         assertEquals(TimestampKind.ROWTIME, ((TimestampType) timestampType).getKind());
     }
@@ -494,20 +493,23 @@ public class ExecutionContextTest {
     public static class TestClassLoaderCatalogFactory implements CatalogFactory {
 
         @Override
-        public Catalog createCatalog(String name, Map<String, String> properties) {
+        public String factoryIdentifier() {
+            return "test_cl_catalog";
+        }
+
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Catalog createCatalog(Context context) {
             return new TestClassLoaderCatalog("test_cl");
-        }
-
-        @Override
-        public Map<String, String> requiredContext() {
-            Map<String, String> context = new HashMap<>();
-            context.put("type", "test_cl_catalog");
-            return context;
-        }
-
-        @Override
-        public List<String> supportedProperties() {
-            return Collections.emptyList();
         }
     }
 }

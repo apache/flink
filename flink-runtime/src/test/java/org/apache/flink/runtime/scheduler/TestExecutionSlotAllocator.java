@@ -42,16 +42,22 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests =
             new HashMap<>();
 
-    private final TestingLogicalSlotBuilder logicalSlotBuilder = new TestingLogicalSlotBuilder();
+    private final TestingLogicalSlotBuilder logicalSlotBuilder;
 
     private boolean autoCompletePendingRequests = true;
 
     private final List<LogicalSlot> returnedSlots = new ArrayList<>();
 
-    public TestExecutionSlotAllocator() {}
+    public TestExecutionSlotAllocator() {
+        this(new TestingLogicalSlotBuilder());
+    }
 
     public TestExecutionSlotAllocator(TaskManagerGateway taskManagerGateway) {
-        logicalSlotBuilder.setTaskManagerGateway(taskManagerGateway);
+        this(new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway));
+    }
+
+    public TestExecutionSlotAllocator(TestingLogicalSlotBuilder logicalSlotBuilder) {
+        this.logicalSlotBuilder = logicalSlotBuilder;
     }
 
     @Override

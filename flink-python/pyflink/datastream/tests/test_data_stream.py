@@ -23,10 +23,10 @@ import uuid
 from pyflink.common import Row
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic, RuntimeContext
+from pyflink.datastream import TimeCharacteristic, RuntimeContext
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction, \
-    ReduceFunction
+    ReduceFunction, KeyedCoProcessFunction
 from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
@@ -35,46 +35,21 @@ from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, 
     AggregatingStateDescriptor
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import PyFlinkTestCase, invoke_java_object_method
+from pyflink.testing.test_case_utils import invoke_java_object_method, \
+    PyFlinkBatchTestCase, PyFlinkStreamingTestCase
 
 
-class DataStreamTests(PyFlinkTestCase):
+class DataStreamTests(object):
 
     def setUp(self) -> None:
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        getConfigurationMethod = invoke_java_object_method(
+        super(DataStreamTests, self).setUp()
+        config = invoke_java_object_method(
             self.env._j_stream_execution_environment, "getConfiguration")
-        getConfigurationMethod.setString("akka.ask.timeout", "20 s")
+        config.setString("akka.ask.timeout", "20 s")
         self.test_sink = DataStreamTestSinkFunction()
 
-    def test_data_stream_name(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        test_name = 'test_name'
-        ds.name(test_name)
-        self.assertEqual(test_name, ds.get_name())
-
-    def test_set_parallelism(self):
-        parallelism = 3
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
-        ds.set_parallelism(parallelism).add_sink(self.test_sink)
-        plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(parallelism, plan['nodes'][1]['parallelism'])
-
-    def test_set_max_parallelism(self):
-        max_parallelism = 4
-        self.env.set_parallelism(8)
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
-        ds.set_parallelism(max_parallelism).add_sink(self.test_sink)
-        plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(max_parallelism, plan['nodes'][1]['parallelism'])
-
-    def test_force_non_parallel(self):
-        self.env.set_parallelism(8)
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        ds.force_non_parallel().add_sink(self.test_sink)
-        plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(1, plan['nodes'][0]['parallelism'])
+    def tearDown(self) -> None:
+        self.test_sink.clear()
 
     def test_reduce_function_without_data_types(self):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
@@ -136,6 +111,28 @@ class DataStreamTests(PyFlinkTestCase):
         results.sort()
         self.assertEqual(expected, results)
 
+    def test_keyed_co_process_function(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1.connect(ds2) \
+            .key_by(lambda x: x[0], lambda x: x[0]) \
+            .process(MyKeyedCoProcessFunction()) \
+            .add_sink(self.test_sink)
+        self.env.execute('co_map_function_test')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('a', 1)>",
+                    "<Row('b', 1)>",
+                    "<Row('b', 2)>",
+                    "<Row('c', 1)>",
+                    "<Row('c', 2)>",
+                    "<Row('d', 1)>"]
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
     def test_connected_streams_with_dependency(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
@@ -177,7 +174,7 @@ class DataStreamTests(PyFlinkTestCase):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_key_by_on_connect_stream(self):
+    def test_key_by_and_co_map(self):
         ds1 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()])) \
             .key_by(MyKeySelector(), key_type_info=Types.INT())
@@ -189,20 +186,26 @@ class DataStreamTests(PyFlinkTestCase):
                 self.pre1 = None
                 self.pre2 = None
 
+            def open(self, runtime_context: RuntimeContext):
+                self.pre1 = runtime_context.get_state(
+                    ValueStateDescriptor("pre1", Types.STRING()))
+                self.pre2 = runtime_context.get_state(
+                    ValueStateDescriptor("pre2", Types.STRING()))
+
             def map1(self, value):
                 if value[0] == 'b':
-                    assert self.pre1 == 'a'
+                    assert self.pre1.value() == 'a'
                 if value[0] == 'd':
-                    assert self.pre1 == 'c'
-                self.pre1 = value[0]
+                    assert self.pre1.value() == 'c'
+                self.pre1.update(value[0])
                 return value
 
             def map2(self, value):
                 if value[0] == 'b':
-                    assert self.pre2 == 'a'
+                    assert self.pre2.value() == 'a'
                 if value[0] == 'd':
-                    assert self.pre2 == 'c'
-                self.pre2 = value[0]
+                    assert self.pre2.value() == 'c'
+                self.pre2.update(value[0])
                 return value
 
         ds1.connect(ds2)\
@@ -289,6 +292,22 @@ class DataStreamTests(PyFlinkTestCase):
         self.env.execute('co_flat_map_function_test')
         results = self.test_sink.get_results(False)
         expected = ['2', '2', '3', '3', '4', '4', 'b']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_key_by_and_co_flat_map(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c"), ("a", "a")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).key_by(lambda x: 1, lambda x: 1) \
+            .flat_map(MyRichCoFlatMapFunction(), output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('co_flat_map_function_test')
+        results = self.test_sink.get_results(False)
+        expected = ['2', '2', '3', '3', '4', '4', 'a', 'b', 'c']
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -575,191 +594,6 @@ class DataStreamTests(PyFlinkTestCase):
         self.assertEqual(3, len(plan['nodes']))
         self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
 
-    def test_union_stream(self):
-        ds_1 = self.env.from_collection([1, 2, 3])
-        ds_2 = self.env.from_collection([4, 5, 6])
-        ds_3 = self.env.from_collection([7, 8, 9])
-
-        united_stream = ds_3.union(ds_1, ds_2)
-
-        united_stream.map(lambda x: x + 1).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        source_ids = []
-        union_node_pre_ids = []
-        for node in exec_plan['nodes']:
-            if node['pact'] == 'Data Source':
-                source_ids.append(node['id'])
-            if node['pact'] == 'Operator':
-                for pre in node['predecessors']:
-                    union_node_pre_ids.append(pre['id'])
-
-        source_ids.sort()
-        union_node_pre_ids.sort()
-        self.assertEqual(source_ids, union_node_pre_ids)
-
-    def test_project(self):
-        ds = self.env.from_collection([[1, 2, 3, 4], [5, 6, 7, 8]],
-                                      type_info=Types.TUPLE(
-                                          [Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
-        ds.project(1, 3).map(lambda x: (x[0], x[1] + 1)).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        self.assertEqual(exec_plan['nodes'][1]['type'], 'Projection')
-
-    def test_broadcast(self):
-        ds_1 = self.env.from_collection([1, 2, 3])
-        ds_1.broadcast().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        broadcast_node = exec_plan['nodes'][1]
-        pre_ship_strategy = broadcast_node['predecessors'][0]['ship_strategy']
-        self.assertEqual(pre_ship_strategy, 'BROADCAST')
-
-    def test_rebalance(self):
-        ds_1 = self.env.from_collection([1, 2, 3])
-        ds_1.rebalance().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        rebalance_node = exec_plan['nodes'][1]
-        pre_ship_strategy = rebalance_node['predecessors'][0]['ship_strategy']
-        self.assertEqual(pre_ship_strategy, 'REBALANCE')
-
-    def test_rescale(self):
-        ds_1 = self.env.from_collection([1, 2, 3])
-        ds_1.rescale().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        rescale_node = exec_plan['nodes'][1]
-        pre_ship_strategy = rescale_node['predecessors'][0]['ship_strategy']
-        self.assertEqual(pre_ship_strategy, 'RESCALE')
-
-    def test_shuffle(self):
-        ds_1 = self.env.from_collection([1, 2, 3])
-        ds_1.shuffle().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
-        exec_plan = eval(self.env.get_execution_plan())
-        shuffle_node = exec_plan['nodes'][1]
-        pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
-        self.assertEqual(pre_ship_strategy, 'SHUFFLE')
-
-    def test_partition_custom(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
-                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        expected_num_partitions = 5
-
-        def my_partitioner(key, num_partitions):
-            assert expected_num_partitions, num_partitions
-            return key % num_partitions
-
-        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()]))\
-            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
-
-        JPartitionCustomTestMapFunction = get_gateway().jvm\
-            .org.apache.flink.python.util.PartitionCustomTestMapFunction
-        test_map_stream = DataStream(partitioned_stream
-                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
-        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
-
-        self.env.execute('test_partition_custom')
-
-    def test_keyed_stream_partitioning(self):
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
-        keyed_stream = ds.key_by(lambda x: x[1])
-        with self.assertRaises(Exception):
-            keyed_stream.shuffle()
-
-        with self.assertRaises(Exception):
-            keyed_stream.rebalance()
-
-        with self.assertRaises(Exception):
-            keyed_stream.rescale()
-
-        with self.assertRaises(Exception):
-            keyed_stream.broadcast()
-
-        with self.assertRaises(Exception):
-            keyed_stream.forward()
-
-    def test_slot_sharing_group(self):
-        source_operator_name = 'collection source'
-        map_operator_name = 'map_operator'
-        slot_sharing_group_1 = 'slot_sharing_group_1'
-        slot_sharing_group_2 = 'slot_sharing_group_2'
-        ds_1 = self.env.from_collection([1, 2, 3]).name(source_operator_name)
-        ds_1.slot_sharing_group(slot_sharing_group_1).map(lambda x: x + 1).set_parallelism(3)\
-            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2)\
-            .add_sink(self.test_sink)
-
-        j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
-
-        j_stream_nodes = list(j_generated_stream_graph.getStreamNodes().toArray())
-        for j_stream_node in j_stream_nodes:
-            if j_stream_node.getOperatorName() == source_operator_name:
-                self.assertEqual(j_stream_node.getSlotSharingGroup(), slot_sharing_group_1)
-            elif j_stream_node.getOperatorName() == map_operator_name:
-                self.assertEqual(j_stream_node.getSlotSharingGroup(), slot_sharing_group_2)
-
-    def test_chaining_strategy(self):
-        chained_operator_name_0 = "map_operator_0"
-        chained_operator_name_1 = "map_operator_1"
-        chained_operator_name_2 = "map_operator_2"
-
-        ds = self.env.from_collection([1, 2, 3])
-        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0)\
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2)\
-            .add_sink(self.test_sink)
-
-        def assert_chainable(j_stream_graph, expected_upstream_chainable,
-                             expected_downstream_chainable):
-            j_stream_nodes = list(j_stream_graph.getStreamNodes().toArray())
-            for j_stream_node in j_stream_nodes:
-                if j_stream_node.getOperatorName() == chained_operator_name_1:
-                    JStreamingJobGraphGenerator = get_gateway().jvm \
-                        .org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
-
-                    j_in_stream_edge = j_stream_node.getInEdges().get(0)
-                    upstream_chainable = JStreamingJobGraphGenerator.isChainable(j_in_stream_edge,
-                                                                                 j_stream_graph)
-                    self.assertEqual(expected_upstream_chainable, upstream_chainable)
-
-                    j_out_stream_edge = j_stream_node.getOutEdges().get(0)
-                    downstream_chainable = JStreamingJobGraphGenerator.isChainable(
-                        j_out_stream_edge, j_stream_graph)
-                    self.assertEqual(expected_downstream_chainable, downstream_chainable)
-
-        # The map_operator_1 has the same parallelism with map_operator_0 and map_operator_2, and
-        # ship_strategy for map_operator_0 and map_operator_1 is FORWARD, so the map_operator_1
-        # can be chained with map_operator_0 and map_operator_2.
-        j_generated_stream_graph = self.env._j_stream_execution_environment\
-            .getStreamGraph("test start new_chain", True)
-        assert_chainable(j_generated_stream_graph, True, True)
-
-        ds = self.env.from_collection([1, 2, 3])
-        # Start a new chain for map_operator_1
-        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).start_new_chain() \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
-            .add_sink(self.test_sink)
-
-        j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
-        # We start a new chain for map operator, therefore, it cannot be chained with upstream
-        # operator, but can be chained with downstream operator.
-        assert_chainable(j_generated_stream_graph, False, True)
-
-        ds = self.env.from_collection([1, 2, 3])
-        # Disable chaining for map_operator_1
-        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).disable_chaining() \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
-            .add_sink(self.test_sink)
-
-        j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
-        # We disable chaining for map_operator_1, therefore, it cannot be chained with
-        # upstream and downstream operators.
-        assert_chainable(j_generated_stream_graph, False, False)
-
     def test_primitive_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, 1.2, 1.30]), (2, [2.1, 2.2, 2.3]),
                                       (3, [3.1, 3.2, 3.3])],
@@ -813,53 +647,6 @@ class DataStreamTests(PyFlinkTestCase):
         results = self.test_sink.get_results()
         expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
         self.assertEqual(expected, results)
-
-    def test_timestamp_assigner_and_watermark_strategy(self):
-        self.env.set_parallelism(1)
-        self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-        data_stream = self.env.from_collection([(1, '1603708211000'),
-                                                (2, '1603708224000'),
-                                                (3, '1603708226000'),
-                                                (4, '1603708289000')],
-                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
-
-        class MyTimestampAssigner(TimestampAssigner):
-
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
-
-        class MyProcessFunction(KeyedProcessFunction):
-
-            def process_element(self, value, ctx):
-                current_timestamp = ctx.timestamp()
-                current_watermark = ctx.timer_service().current_watermark()
-                current_key = ctx.get_current_key()
-                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
-                      "current_value: {}".format(str(current_key), str(current_timestamp),
-                                                 str(current_watermark), str(value))
-
-            def on_timer(self, timestamp, ctx):
-                pass
-
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
-            .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
-            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
-            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner with keyed process function')
-        result = self.test_sink.get_results()
-        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=1, f1='1603708211000')",
-                           "current key: 2, current timestamp: 1603708224000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=2, f1='1603708224000')",
-                           "current key: 3, current timestamp: 1603708226000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=3, f1='1603708226000')",
-                           "current key: 4, current timestamp: 1603708289000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=4, f1='1603708289000')"]
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
 
     def test_process_function(self):
         self.env.set_parallelism(1)
@@ -1063,8 +850,317 @@ class DataStreamTests(PyFlinkTestCase):
         expected_result.sort()
         self.assertEqual(expected_result, result)
 
-    def tearDown(self) -> None:
-        self.test_sink.clear()
+
+class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
+    def test_data_stream_name(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        test_name = 'test_name'
+        ds.name(test_name)
+        self.assertEqual(test_name, ds.get_name())
+
+    def test_set_parallelism(self):
+        parallelism = 3
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
+        ds.set_parallelism(parallelism).add_sink(self.test_sink)
+        plan = eval(str(self.env.get_execution_plan()))
+        self.assertEqual(parallelism, plan['nodes'][1]['parallelism'])
+
+    def test_set_max_parallelism(self):
+        max_parallelism = 4
+        self.env.set_parallelism(8)
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
+        ds.set_parallelism(max_parallelism).add_sink(self.test_sink)
+        plan = eval(str(self.env.get_execution_plan()))
+        self.assertEqual(max_parallelism, plan['nodes'][1]['parallelism'])
+
+    def test_force_non_parallel(self):
+        self.env.set_parallelism(8)
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        ds.force_non_parallel().add_sink(self.test_sink)
+        plan = eval(str(self.env.get_execution_plan()))
+        self.assertEqual(1, plan['nodes'][0]['parallelism'])
+
+    def test_union_stream(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_2 = self.env.from_collection([4, 5, 6])
+        ds_3 = self.env.from_collection([7, 8, 9])
+
+        united_stream = ds_3.union(ds_1, ds_2)
+
+        united_stream.map(lambda x: x + 1).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        source_ids = []
+        union_node_pre_ids = []
+        for node in exec_plan['nodes']:
+            if node['pact'] == 'Data Source':
+                source_ids.append(node['id'])
+            if node['pact'] == 'Operator':
+                for pre in node['predecessors']:
+                    union_node_pre_ids.append(pre['id'])
+
+        source_ids.sort()
+        union_node_pre_ids.sort()
+        self.assertEqual(source_ids, union_node_pre_ids)
+
+    def test_project(self):
+        ds = self.env.from_collection([[1, 2, 3, 4], [5, 6, 7, 8]],
+                                      type_info=Types.TUPLE(
+                                          [Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
+        ds.project(1, 3).map(lambda x: (x[0], x[1] + 1)).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        self.assertEqual(exec_plan['nodes'][1]['type'], 'Projection')
+
+    def test_broadcast(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_1.broadcast().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        broadcast_node = exec_plan['nodes'][1]
+        pre_ship_strategy = broadcast_node['predecessors'][0]['ship_strategy']
+        self.assertEqual(pre_ship_strategy, 'BROADCAST')
+
+    def test_rebalance(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_1.rebalance().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        rebalance_node = exec_plan['nodes'][1]
+        pre_ship_strategy = rebalance_node['predecessors'][0]['ship_strategy']
+        self.assertEqual(pre_ship_strategy, 'REBALANCE')
+
+    def test_rescale(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_1.rescale().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        rescale_node = exec_plan['nodes'][1]
+        pre_ship_strategy = rescale_node['predecessors'][0]['ship_strategy']
+        self.assertEqual(pre_ship_strategy, 'RESCALE')
+
+    def test_shuffle(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_1.shuffle().map(lambda x: x + 1).set_parallelism(3).add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        shuffle_node = exec_plan['nodes'][1]
+        pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
+        self.assertEqual(pre_ship_strategy, 'SHUFFLE')
+
+    def test_partition_custom(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2),
+                                       ('f', 7), ('g', 7), ('h', 8), ('i', 8), ('j', 9)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        expected_num_partitions = 5
+
+        def my_partitioner(key, num_partitions):
+            assert expected_num_partitions, num_partitions
+            return key % num_partitions
+
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
+            .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
+
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
+            .org.apache.flink.python.util.PartitionCustomTestMapFunction
+        test_map_stream = DataStream(partitioned_stream
+                                     ._j_data_stream.map(JPartitionCustomTestMapFunction()))
+        test_map_stream.set_parallelism(expected_num_partitions).add_sink(self.test_sink)
+
+        self.env.execute('test_partition_custom')
+
+    def test_keyed_stream_partitioning(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
+        keyed_stream = ds.key_by(lambda x: x[1])
+        with self.assertRaises(Exception):
+            keyed_stream.shuffle()
+
+        with self.assertRaises(Exception):
+            keyed_stream.rebalance()
+
+        with self.assertRaises(Exception):
+            keyed_stream.rescale()
+
+        with self.assertRaises(Exception):
+            keyed_stream.broadcast()
+
+        with self.assertRaises(Exception):
+            keyed_stream.forward()
+
+    def test_slot_sharing_group(self):
+        source_operator_name = 'collection source'
+        map_operator_name = 'map_operator'
+        slot_sharing_group_1 = 'slot_sharing_group_1'
+        slot_sharing_group_2 = 'slot_sharing_group_2'
+        ds_1 = self.env.from_collection([1, 2, 3]).name(source_operator_name)
+        ds_1.slot_sharing_group(slot_sharing_group_1).map(lambda x: x + 1).set_parallelism(3)\
+            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2)\
+            .add_sink(self.test_sink)
+
+        j_generated_stream_graph = self.env._j_stream_execution_environment \
+            .getStreamGraph("test start new_chain", True)
+
+        j_stream_nodes = list(j_generated_stream_graph.getStreamNodes().toArray())
+        for j_stream_node in j_stream_nodes:
+            if j_stream_node.getOperatorName() == source_operator_name:
+                self.assertEqual(j_stream_node.getSlotSharingGroup(), slot_sharing_group_1)
+            elif j_stream_node.getOperatorName() == map_operator_name:
+                self.assertEqual(j_stream_node.getSlotSharingGroup(), slot_sharing_group_2)
+
+    def test_chaining_strategy(self):
+        chained_operator_name_0 = "map_operator_0"
+        chained_operator_name_1 = "map_operator_1"
+        chained_operator_name_2 = "map_operator_2"
+
+        ds = self.env.from_collection([1, 2, 3])
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2)\
+            .add_sink(self.test_sink)
+
+        def assert_chainable(j_stream_graph, expected_upstream_chainable,
+                             expected_downstream_chainable):
+            j_stream_nodes = list(j_stream_graph.getStreamNodes().toArray())
+            for j_stream_node in j_stream_nodes:
+                if j_stream_node.getOperatorName() == chained_operator_name_1:
+                    JStreamingJobGraphGenerator = get_gateway().jvm \
+                        .org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
+
+                    j_in_stream_edge = j_stream_node.getInEdges().get(0)
+                    upstream_chainable = JStreamingJobGraphGenerator.isChainable(j_in_stream_edge,
+                                                                                 j_stream_graph)
+                    self.assertEqual(expected_upstream_chainable, upstream_chainable)
+
+                    j_out_stream_edge = j_stream_node.getOutEdges().get(0)
+                    downstream_chainable = JStreamingJobGraphGenerator.isChainable(
+                        j_out_stream_edge, j_stream_graph)
+                    self.assertEqual(expected_downstream_chainable, downstream_chainable)
+
+        # The map_operator_1 has the same parallelism with map_operator_0 and map_operator_2, and
+        # ship_strategy for map_operator_0 and map_operator_1 is FORWARD, so the map_operator_1
+        # can be chained with map_operator_0 and map_operator_2.
+        j_generated_stream_graph = self.env._j_stream_execution_environment\
+            .getStreamGraph("test start new_chain", True)
+        assert_chainable(j_generated_stream_graph, True, True)
+
+        ds = self.env.from_collection([1, 2, 3])
+        # Start a new chain for map_operator_1
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).start_new_chain() \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
+            .add_sink(self.test_sink)
+
+        j_generated_stream_graph = self.env._j_stream_execution_environment \
+            .getStreamGraph("test start new_chain", True)
+        # We start a new chain for map operator, therefore, it cannot be chained with upstream
+        # operator, but can be chained with downstream operator.
+        assert_chainable(j_generated_stream_graph, False, True)
+
+        ds = self.env.from_collection([1, 2, 3])
+        # Disable chaining for map_operator_1
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).disable_chaining() \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
+            .add_sink(self.test_sink)
+
+        j_generated_stream_graph = self.env._j_stream_execution_environment \
+            .getStreamGraph("test start new_chain", True)
+        # We disable chaining for map_operator_1, therefore, it cannot be chained with
+        # upstream and downstream operators.
+        assert_chainable(j_generated_stream_graph, False, False)
+
+    def test_timestamp_assigner_and_watermark_strategy(self):
+        self.env.set_parallelism(1)
+        self.env.get_config().set_auto_watermark_interval(2000)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        data_stream = self.env.from_collection([(1, '1603708211000'),
+                                                (2, '1603708224000'),
+                                                (3, '1603708226000'),
+                                                (4, '1603708289000')],
+                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
+
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[1])
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def process_element(self, value, ctx):
+                current_timestamp = ctx.timestamp()
+                current_watermark = ctx.timer_service().current_watermark()
+                current_key = ctx.get_current_key()
+                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
+                      "current_value: {}".format(str(current_key), str(current_timestamp),
+                                                 str(current_watermark), str(value))
+
+            def on_timer(self, timestamp, ctx):
+                pass
+
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
+            .with_timestamp_assigner(MyTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
+            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('test time stamp assigner with keyed process function')
+        result = self.test_sink.get_results()
+        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
+                           "9223372036854775807, current_value: Row(f0=1, f1='1603708211000')",
+                           "current key: 2, current timestamp: 1603708224000, current watermark: "
+                           "9223372036854775807, current_value: Row(f0=2, f1='1603708224000')",
+                           "current key: 3, current timestamp: 1603708226000, current watermark: "
+                           "9223372036854775807, current_value: Row(f0=3, f1='1603708226000')",
+                           "current key: 4, current timestamp: 1603708289000, current watermark: "
+                           "9223372036854775807, current_value: Row(f0=4, f1='1603708289000')"]
+        result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
+
+
+class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
+
+    def test_timestamp_assigner_and_watermark_strategy(self):
+        self.env.set_parallelism(1)
+        self.env.get_config().set_auto_watermark_interval(2000)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        data_stream = self.env.from_collection([(1, '1603708211000'),
+                                                (2, '1603708224000'),
+                                                (3, '1603708226000'),
+                                                (4, '1603708289000')],
+                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
+
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[1])
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def process_element(self, value, ctx):
+                current_timestamp = ctx.timestamp()
+                current_watermark = ctx.timer_service().current_watermark()
+                current_key = ctx.get_current_key()
+                yield "current key: {}, current timestamp: {}, current watermark: {}, " \
+                      "current_value: {}".format(str(current_key), str(current_timestamp),
+                                                 str(current_watermark), str(value))
+
+            def on_timer(self, timestamp, ctx):
+                pass
+
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(MyTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('test time stamp assigner with keyed process function')
+        result = self.test_sink.get_results()
+        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
+                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
+                           "current key: 2, current timestamp: 1603708224000, current watermark: "
+                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
+                           "current key: 3, current timestamp: 1603708226000, current watermark: "
+                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
+                           "current key: 4, current timestamp: 1603708289000, current watermark: "
+                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
+        result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
 
 
 class MyMapFunction(MapFunction):
@@ -1110,3 +1206,49 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
     def flat_map2(self, value):
         if value[0] == 'b':
             yield value[0]
+
+
+class MyRichCoFlatMapFunction(CoFlatMapFunction):
+
+    def __init__(self):
+        self.map_state = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.map_state = runtime_context.get_map_state(
+            MapStateDescriptor("map", Types.STRING(), Types.BOOLEAN()))
+
+    def flat_map1(self, value):
+        yield str(value[0] + 1)
+        yield str(value[0] + 1)
+
+    def flat_map2(self, value):
+        if value[0] not in self.map_state:
+            self.map_state[value[0]] = True
+            yield value[0]
+
+
+class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
+
+    def __init__(self):
+        self.count_state = None
+
+    def open(self, runtime_context: RuntimeContext):
+        self.count_state = runtime_context.get_state(ValueStateDescriptor("count", Types.INT()))
+
+    def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        count = self.count_state.value()
+        if count is None:
+            count = 1
+        else:
+            count += 1
+        self.count_state.update(count)
+        return [Row(value[0], count)]
+
+    def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        count = self.count_state.value()
+        if count is None:
+            count = 1
+        else:
+            count += 1
+        self.count_state.update(count)
+        return [Row(value[0], count)]

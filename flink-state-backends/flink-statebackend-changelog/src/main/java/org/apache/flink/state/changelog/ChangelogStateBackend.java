@@ -38,6 +38,9 @@ import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
@@ -50,6 +53,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
 
     private static final long serialVersionUID = 1000L;
 
+    private static final Logger LOG = LoggerFactory.getLogger(ChangelogStateBackend.class);
+
     private final StateBackend delegatedStateBackend;
 
     public ChangelogStateBackend(StateBackend stateBackend) {
@@ -58,6 +63,10 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         Preconditions.checkArgument(
                 !(stateBackend instanceof DelegatingStateBackend),
                 "Recursive Delegation is not supported.");
+
+        LOG.info(
+                "ChangelogStateBackend is used, delegating {}.",
+                delegatedStateBackend.getClass().getSimpleName());
     }
 
     @Override

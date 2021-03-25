@@ -149,7 +149,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
     }
 
     /**
