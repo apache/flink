@@ -126,6 +126,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
                     TableFactoryService.find(CatalogFactory.class, properties)
                             .createCatalog(catalogName, properties);
             Assert.fail();
+            Assert.fail();
         } catch (CatalogException e) {
         }
     }
