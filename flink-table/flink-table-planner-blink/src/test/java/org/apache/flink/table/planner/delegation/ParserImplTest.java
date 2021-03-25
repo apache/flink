@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.Catalog;
@@ -33,24 +34,18 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.fail;
 
 /** Test for {@link ParserImpl}. */
 public class ParserImplTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     private final boolean isStreamingMode = false;
     private final TableConfig tableConfig = new TableConfig();
@@ -102,11 +97,12 @@ public class ParserImplTest {
                                 .expectedSummary("SET pipeline.jars=/path/to/test-_-jar.jar"),
                         TestSpec.forStatement("USE test.db1").expectedSummary("USE test.db1"),
                         TestSpec.forStatement("SHOW tables").expectedSummary("SHOW TABLES"),
+                        TestSpec.forStatement("SET pipeline.name = 'test name'")
+                                .expectedSummary("SET pipeline.name = test name"),
                         TestSpec.forStatement("SET pipeline.name = ' '")
-                                .expectedSummary("SET pipeline.name = ' '"));
+                                .expectedSummary("SET pipeline.name = "));
 
-        testIllegalStatements =
-                Collections.singletonList(TestSpec.forStatement("SET execution.runtime-type="));
+        testIllegalStatements = Arrays.asList(TestSpec.forStatement("SET execution.runtime-type="));
     }
 
     @Test
@@ -119,10 +115,11 @@ public class ParserImplTest {
 
     @Test
     public void testParseIllegalStatements() {
-        thrown.expect(SqlParserException.class);
         for (TestSpec spec : testIllegalStatements) {
-            parser.parse(spec.statement);
-            fail("Should fail.");
+            CommonTestUtils.assertThrows(
+                    "SQL parse failed.",
+                    SqlParserException.class,
+                    () -> parser.parse(spec.statement));
         }
     }
 

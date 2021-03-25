@@ -33,7 +33,10 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
     static final SetOperationParseStrategy INSTANCE = new SetOperationParseStrategy();
 
     protected SetOperationParseStrategy() {
-        super(Pattern.compile("SET(\\s+(\\S+)\\s*=(.+))?", DEFAULT_PATTERN_FLAGS));
+        super(
+                Pattern.compile(
+                        "SET(\\s+(?<key>\\S+)\\s*=\\s*('(?<quotedVal>[^']*)'|(?<val>\\S+)))?",
+                        DEFAULT_PATTERN_FLAGS));
     }
 
     @Override
@@ -41,19 +44,20 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
         Matcher matcher = pattern.matcher(statement.trim());
         final List<String> operands = new ArrayList<>();
         if (matcher.find()) {
-            for (int i = 0; i < matcher.groupCount(); i++) {
-                if (matcher.group(i + 1) != null) {
-                    operands.add(matcher.group(i + 1));
-                }
+            if (matcher.group("key") != null) {
+                operands.add(matcher.group("key"));
+                operands.add(
+                        matcher.group("quotedVal") != null
+                                ? matcher.group("quotedVal")
+                                : matcher.group("val"));
             }
         }
 
         // only capture SET
         if (operands.isEmpty()) {
             return new SetOperation(new String[0]);
-        } else if (operands.size() == 3) {
-            return new SetOperation(
-                    operands.subList(1, 3).stream().map(String::trim).toArray(String[]::new));
+        } else if (operands.size() == 2) {
+            return new SetOperation(operands.stream().map(String::trim).toArray(String[]::new));
         } else {
             // impossible
             throw new TableException(
