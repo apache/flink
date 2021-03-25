@@ -236,9 +236,9 @@ CREATE TABLE orders_table (
 -- streaming sql, kafka temporal join a hive dimension table. Flink will automatically reload data from the
 -- configured latest partition in the interval of 'streaming-source.monitor-interval'.
 
-SELECT * FROM orders_table AS order 
+SELECT * FROM orders_table AS o 
 JOIN dimension_table FOR SYSTEM_TIME AS OF o.proctime AS dim
-ON order.product_id = dim.product_id;
+ON o.product_id = dim.product_id;
 
 ```
 
@@ -303,9 +303,9 @@ CREATE TABLE orders_table (
 
 -- streaming sql, kafka join a hive dimension table. Flink will reload all data from dimension_table after cache ttl is expired.
 
-SELECT * FROM orders_table AS order 
+SELECT * FROM orders_table AS o 
 JOIN dimension_table FOR SYSTEM_TIME AS OF o.proctime AS dim
-ON order.product_id = dim.product_id;
+ON o.product_id = dim.product_id;
 
 ```
 Note: 
