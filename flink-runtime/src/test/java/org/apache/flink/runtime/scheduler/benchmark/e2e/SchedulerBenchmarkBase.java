@@ -51,8 +51,6 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createDefaultJobVertices;
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createJobGraph;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 
 /**
  * The base class of benchmarks related to {@link DefaultScheduler}'s creation, scheduling and
@@ -124,10 +122,8 @@ public class SchedulerBenchmarkBase {
                                                                     i,
                                                                     ResourceProfile.ANY))
                                             .collect(Collectors.toList());
-                            final Collection<SlotOffer> acceptedOffers =
-                                    slotPool.offerSlots(
-                                            taskManagerLocation, taskManagerGateway, slotOffers);
-                            assertThat(acceptedOffers, is(slotOffers));
+                            slotPool.offerSlots(
+                                    taskManagerLocation, taskManagerGateway, slotOffers);
                         },
                         mainThreadExecutor)
                 .join();
