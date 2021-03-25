@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.util.IterableUtils.flatMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple scheduling execution vertex for testing purposes. */
@@ -76,7 +76,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     @Override
     public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-        return () -> flatMap(consumedPartitionGroups, resultPartitionsById::get);
+        return IterableUtils.flatMap(consumedPartitionGroups, resultPartitionsById::get);
     }
 
     @Override

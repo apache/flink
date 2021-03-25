@@ -21,13 +21,13 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.util.IterableUtils.flatMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple implementation of {@link SchedulingResultPartition} for testing. */
@@ -84,7 +84,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     @Override
     public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
-        return () -> flatMap(consumerVertexGroups, executionVerticesById::get);
+        return IterableUtils.flatMap(consumerVertexGroups, executionVerticesById::get);
     }
 
     @Override

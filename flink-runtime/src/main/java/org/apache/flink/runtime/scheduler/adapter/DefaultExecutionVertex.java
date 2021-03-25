@@ -24,12 +24,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.apache.flink.util.IterableUtils.flatMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of {@link SchedulingExecutionVertex}. */
@@ -80,7 +80,7 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
     @Override
     public Iterable<DefaultResultPartition> getConsumedResults() {
-        return () -> flatMap(consumedPartitionGroups, resultPartitionRetriever);
+        return IterableUtils.flatMap(consumedPartitionGroups, resultPartitionRetriever);
     }
 
     @Override
