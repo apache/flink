@@ -37,14 +37,14 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
 
-class StateChangeFsStore implements StateChangeStore {
-    private static final Logger LOG = LoggerFactory.getLogger(StateChangeFsStore.class);
+class DirectFsStateChangeStore implements StateChangeStore {
+    private static final Logger LOG = LoggerFactory.getLogger(DirectFsStateChangeStore.class);
 
     private final Path basePath;
     private final FileSystem fileSystem;
     private final StateChangeFormat format;
 
-    public StateChangeFsStore(Path basePath, FileSystem fileSystem) {
+    public DirectFsStateChangeStore(Path basePath, FileSystem fileSystem) {
         this.basePath = basePath;
         this.fileSystem = fileSystem;
         this.format = new StateChangeFormat();

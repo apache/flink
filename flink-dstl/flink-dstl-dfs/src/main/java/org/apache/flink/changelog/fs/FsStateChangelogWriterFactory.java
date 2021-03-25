@@ -52,7 +52,7 @@ public class FsStateChangelogWriterFactory
 
     /**
      * Creates {@link FsStateChangelogWriterFactory client} that implements batching and retries and
-     * uses {@link StateChangeFsStore} under the hood.
+     * uses {@link DirectFsStateChangeStore} under the hood.
      *
      * @param basePath base path where to save the data
      * @param persistDelayMs how long to wait after the {@link StateChangelogWriter#persist persist}
@@ -67,7 +67,7 @@ public class FsStateChangelogWriterFactory
                 StateChangeStore.createBatchingStore(
                         persistDelayMs,
                         persistSizeThreshold,
-                        new StateChangeFsStore(basePath, basePath.getFileSystem())));
+                        new DirectFsStateChangeStore(basePath, basePath.getFileSystem())));
     }
 
     /**
@@ -92,10 +92,10 @@ public class FsStateChangelogWriterFactory
 
     /**
      * Creates {@link FsStateChangelogWriterFactory client} that uses a simple {@link
-     * StateChangeFsStore} (i.e without any batching or retrying other than on FS level).
+     * DirectFsStateChangeStore} (i.e without any batching or retrying other than on FS level).
      */
     public FsStateChangelogWriterFactory(Path basePath) throws IOException {
-        this(new StateChangeFsStore(basePath, basePath.getFileSystem()));
+        this(new DirectFsStateChangeStore(basePath, basePath.getFileSystem()));
     }
 
     /**

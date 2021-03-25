@@ -89,7 +89,7 @@ interface StateChangeStore extends AutoCloseable {
     }
 
     static StateChangeStore fromConfig(ReadableConfig config) throws IOException {
-        StateChangeFsStore store = createSimpleFsStore(new Path(config.get(BASE_PATH)));
+        DirectFsStateChangeStore store = createSimpleFsStore(new Path(config.get(BASE_PATH)));
         if (config.get(BATCH_ENABLED)) {
             return createBatchingStore(
                     config.get(PERSIST_DELAY_MS),
@@ -100,12 +100,12 @@ interface StateChangeStore extends AutoCloseable {
         }
     }
 
-    static StateChangeFsStore createSimpleFsStore(Path basePath) throws IOException {
-        return new StateChangeFsStore(basePath, basePath.getFileSystem());
+    static DirectFsStateChangeStore createSimpleFsStore(Path basePath) throws IOException {
+        return new DirectFsStateChangeStore(basePath, basePath.getFileSystem());
     }
 
     static StateChangeStore createBatchingStore(
-            long persistDelayMs, long persistSizeThreshold, StateChangeFsStore delegate) {
+            long persistDelayMs, long persistSizeThreshold, DirectFsStateChangeStore delegate) {
         return new BatchingStateChangeStore(persistDelayMs, persistSizeThreshold, delegate);
     }
 }
