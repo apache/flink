@@ -131,6 +131,12 @@ class DataStreamTests(object):
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
         ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = ds1.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds2 = ds2.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
         ds1.connect(ds2) \
             .key_by(lambda x: x[0], lambda x: x[0]) \
             .process(MyKeyedCoProcessFunction()) \
@@ -142,7 +148,8 @@ class DataStreamTests(object):
                     "<Row('b', 2)>",
                     "<Row('c', 1)>",
                     "<Row('c', 2)>",
-                    "<Row('d', 1)>"]
+                    "<Row('d', 1)>",
+                    "<Row('on_timer', 3)>"]
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -609,11 +616,6 @@ class DataStreamTests(object):
                                                 (4, '1603708289000')],
                                                type_info=Types.ROW([Types.INT(), Types.STRING()]))
 
-        class MyTimestampAssigner(TimestampAssigner):
-
-            def extract_timestamp(self, value, record_timestamp) -> int:
-                return int(value[1])
-
         class MyProcessFunction(ProcessFunction):
 
             def process_element(self, value, ctx):
@@ -623,19 +625,19 @@ class DataStreamTests(object):
                     .format(str(current_timestamp), str(current_watermark), str(value))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
-            .with_timestamp_assigner(MyTimestampAssigner())
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test process function')
         result = self.test_sink.get_results()
         expected_result = ["current timestamp: 1603708211000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=1, f1='1603708211000')",
+                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
                            "current timestamp: 1603708224000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=2, f1='1603708224000')",
+                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
                            "current timestamp: 1603708226000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=3, f1='1603708226000')",
+                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
                            "current timestamp: 1603708289000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=4, f1='1603708289000')"]
+                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)
@@ -1030,7 +1032,16 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
 
         class MyProcessFunction(KeyedProcessFunction):
 
+            def __init__(self):
+                self.timer_registered = False
+
+            def open(self, runtime_context: RuntimeContext):
+                self.timer_registered = False
+
             def process_element(self, value, ctx):
+                if not self.timer_registered:
+                    ctx.timer_service().register_event_time_timer(3)
+                    self.timer_registered = True
                 current_timestamp = ctx.timestamp()
                 current_watermark = ctx.timer_service().current_watermark()
                 current_key = ctx.get_current_key()
@@ -1039,7 +1050,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
                                                  str(current_watermark), str(value))
 
             def on_timer(self, timestamp, ctx):
-                pass
+                yield "on timer: " + str(timestamp)
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
@@ -1048,14 +1059,17 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
         result = self.test_sink.get_results()
+        # Because the watermark interval is too long, no watermark was sent before processing these
+        # data. So all current watermarks are Long.MIN_VALUE.
         expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=1, f1='1603708211000')",
+                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
                            "current key: 2, current timestamp: 1603708224000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=2, f1='1603708224000')",
+                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
                            "current key: 3, current timestamp: 1603708226000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=3, f1='1603708226000')",
+                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
                            "current key: 4, current timestamp: 1603708289000, current watermark: "
-                           "9223372036854775807, current_value: Row(f0=4, f1='1603708289000')"]
+                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')",
+                           "on timer: 3"]
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)
@@ -1237,11 +1251,16 @@ class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
 
     def __init__(self):
         self.count_state = None
+        self.timer_registered = False
 
     def open(self, runtime_context: RuntimeContext):
+        self.timer_registered = False
         self.count_state = runtime_context.get_state(ValueStateDescriptor("count", Types.INT()))
 
     def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        if not self.timer_registered:
+            ctx.timer_service().register_event_time_timer(3)
+            self.timer_registered = True
         count = self.count_state.value()
         if count is None:
             count = 1
@@ -1258,6 +1277,9 @@ class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
             count += 1
         self.count_state.update(count)
         return [Row(value[0], count)]
+
+    def on_timer(self, timestamp: int, ctx: 'KeyedCoProcessFunction.OnTimerContext'):
+        return [Row("on_timer", timestamp)]
 
 
 class MyReduceFunction(ReduceFunction):
@@ -1282,3 +1304,9 @@ class MyReduceFunction(ReduceFunction):
             assert state_value == 3
         self.state.update(state_value)
         return result_value
+
+
+class SecondColumnTimestampAssigner(TimestampAssigner):
+
+    def extract_timestamp(self, value, record_timestamp) -> int:
+        return int(value[1])
