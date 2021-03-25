@@ -50,7 +50,7 @@ CREATE TABLE hive_table (
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # list the configured configuration

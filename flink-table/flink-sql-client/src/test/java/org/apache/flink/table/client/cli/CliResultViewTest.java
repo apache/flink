@@ -26,7 +26,8 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
@@ -93,23 +94,18 @@ public class CliResultViewTest {
                         true);
 
         Thread resultViewRunner = null;
-        CliClient cli = null;
-        try {
-            cli =
-                    new CliClient(
-                            TerminalUtils.createDummyTerminal(),
-                            sessionId,
-                            executor,
-                            File.createTempFile("history", "tmp").toPath(),
-                            null);
+        try (CliClient cli =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(),
+                        sessionId,
+                        executor,
+                        File.createTempFile("history", "tmp").toPath(),
+                        null)) {
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
         } finally {
             if (resultViewRunner != null && !resultViewRunner.isInterrupted()) {
                 resultViewRunner.interrupt();
-            }
-            if (cli != null) {
-                cli.close();
             }
         }
 
@@ -161,13 +157,8 @@ public class CliResultViewTest {
                 throws SqlExecutionException {}
 
         @Override
-        public TableResult executeSql(String sessionId, String statement)
+        public Operation parseStatement(String sessionId, String statement)
                 throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
-        public Parser getSqlParser(String sessionId) {
             return null;
         }
 
@@ -177,7 +168,13 @@ public class CliResultViewTest {
         }
 
         @Override
-        public ResultDescriptor executeQuery(String sessionId, String query)
+        public TableResult executeOperation(String sessionId, Operation operation)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
                 throws SqlExecutionException {
             return null;
         }

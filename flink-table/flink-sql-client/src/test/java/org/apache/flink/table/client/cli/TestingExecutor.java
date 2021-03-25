@@ -23,7 +23,8 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -115,22 +116,24 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public Parser getSqlParser(String sessionId) {
-        return helper.getSqlParser();
-    }
-
-    @Override
     public List<String> completeStatement(String sessionId, String statement, int position) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public ResultDescriptor executeQuery(String sessionId, String query)
+    public TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public Operation parseStatement(String sessionId, String statement)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }

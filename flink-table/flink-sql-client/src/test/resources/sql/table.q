@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS orders (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # test SHOW TABLES
@@ -79,12 +79,12 @@ show tables;
 
 # test alter table name
 alter table orders rename to orders2;
-[INFO] Alter table succeeded!
+[INFO] Execute statement succeed.
 !info
 
 # test alter table properties
 alter table orders2 set ('connector' = 'kafka');
-[INFO] Alter table succeeded!
+[INFO] Execute statement succeed.
 !info
 
 # TODO: verify properties using SHOW CREATE TABLE in the future
@@ -122,7 +122,7 @@ desc orders2;
 # ==========================================================================
 
 drop table orders2;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # verify table is dropped
@@ -141,7 +141,7 @@ create temporary table tbl1 (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # TODO: warning users the table already exists
@@ -152,7 +152,7 @@ create temporary table if not exists tbl1 (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # list permanent and temporary tables together
@@ -166,7 +166,7 @@ show tables;
 !ok
 
 drop temporary table tbl1;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -174,7 +174,7 @@ drop temporary table tbl1;
 # ==========================================================================
 
 create table `mod` (`table` string, `database` string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 describe `mod`;
@@ -198,7 +198,7 @@ desc `mod`;
 !ok
 
 drop table `mod`;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;

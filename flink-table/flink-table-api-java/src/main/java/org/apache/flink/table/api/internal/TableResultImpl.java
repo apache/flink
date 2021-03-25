@@ -47,7 +47,7 @@ import java.util.concurrent.TimeoutException;
 
 /** Implementation for {@link TableResult}. */
 @Internal
-class TableResultImpl implements TableResult {
+public class TableResultImpl implements TableResult {
     public static final TableResult TABLE_RESULT_OK =
             TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS)
