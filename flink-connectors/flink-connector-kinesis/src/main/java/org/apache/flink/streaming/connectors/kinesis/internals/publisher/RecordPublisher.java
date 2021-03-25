@@ -45,7 +45,10 @@ public interface RecordPublisher {
         COMPLETE,
 
         /** There are more records to consume from this shard. */
-        INCOMPLETE
+        INCOMPLETE,
+
+        /** The record publisher has been cancelled. */
+        CANCELLED
     }
 
     /**

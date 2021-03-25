@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.SubscriptionErrorKinesisV2;
 
+import com.amazonaws.http.timers.client.SdkInterruptedException;
 import io.netty.handler.timeout.ReadTimeoutException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +55,22 @@ public class FanOutShardSubscriberTest {
         thrown.expectMessage("Error!");
 
         RuntimeException error = new RuntimeException("Error!");
+        SubscriptionErrorKinesisV2 errorKinesisV2 =
+                FakeKinesisFanOutBehavioursFactory.errorDuringSubscription(error);
+
+        FanOutShardSubscriber subscriber =
+                new FanOutShardSubscriber("consumerArn", "shardId", errorKinesisV2);
+
+        software.amazon.awssdk.services.kinesis.model.StartingPosition startingPosition =
+                software.amazon.awssdk.services.kinesis.model.StartingPosition.builder().build();
+        subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
+    }
+
+    @Test
+    public void testInterruptedErrorThrownToConsumer() throws Exception {
+        thrown.expect(FanOutShardSubscriber.FanOutSubscriberInterruptedException.class);
+
+        SdkInterruptedException error = new SdkInterruptedException(null);
         SubscriptionErrorKinesisV2 errorKinesisV2 =
                 FakeKinesisFanOutBehavioursFactory.errorDuringSubscription(error);
 
