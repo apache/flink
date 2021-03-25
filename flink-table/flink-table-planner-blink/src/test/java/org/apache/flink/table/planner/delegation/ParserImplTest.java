@@ -31,26 +31,23 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.apache.flink.table.planner.delegation.ParserImplTest.TestSpec.forStatement;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertEquals;
 
 /** Test for {@link ParserImpl}. */
 public class ParserImplTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     private final boolean isStreamingMode = false;
     private final TableConfig tableConfig = new TableConfig();
@@ -83,46 +80,41 @@ public class ParserImplTest {
                             plannerContext.createSqlExprToRexConverter(
                                     plannerContext.getTypeFactory().buildRelNodeRowType(t)));
 
-    private List<TestSpec> testLegalStatements;
-    private List<TestSpec> testIllegalStatements;
-
-    @Before
-    public void setup() {
-        testLegalStatements =
-                Arrays.asList(
-                        TestSpec.forStatement("ClEaR").expectedSummary("CLEAR"),
-                        TestSpec.forStatement("hElP").expectedSummary("HELP"),
-                        TestSpec.forStatement("qUIT").expectedSummary("QUIT"),
-                        TestSpec.forStatement("ExIT").expectedSummary("EXIT"),
-                        TestSpec.forStatement("REsEt").expectedSummary("RESET"),
-                        TestSpec.forStatement("   SEt ").expectedSummary("SET"),
-                        TestSpec.forStatement("SET execution.runtime-type=batch")
-                                .expectedSummary("SET execution.runtime-type=batch"),
-                        TestSpec.forStatement("SET pipeline.jars = /path/to/test-_-jar.jar")
-                                .expectedSummary("SET pipeline.jars=/path/to/test-_-jar.jar"),
-                        TestSpec.forStatement("USE test.db1").expectedSummary("USE test.db1"),
-                        TestSpec.forStatement("SHOW tables").expectedSummary("SHOW TABLES"),
-                        TestSpec.forStatement("SET pipeline.name = ' '")
-                                .expectedSummary("SET pipeline.name = ' '"));
-
-        testIllegalStatements =
-                Collections.singletonList(TestSpec.forStatement("SET execution.runtime-type="));
-    }
+    private static final List<TestSpec> TEST_SPECS =
+            Arrays.asList(
+                    forStatement("ClEaR").summary("CLEAR"),
+                    forStatement("hElP").summary("HELP"),
+                    forStatement("qUIT").summary("QUIT"),
+                    forStatement("ExIT").summary("QUIT"),
+                    forStatement("REsEt").summary("RESET"),
+                    forStatement("   SEt ").summary("SET"),
+                    forStatement("SET execution.runtime-type=batch")
+                            .summary("SET execution.runtime-type=batch"),
+                    forStatement("SET pipeline.jars = /path/to/test-_-jar.jar")
+                            .summary("SET pipeline.jars=/path/to/test-_-jar.jar"),
+                    forStatement("USE test.db1").summary("USE test.db1"),
+                    forStatement("SHOW tables").summary("SHOW TABLES"),
+                    forStatement("SET pipeline.name = 'test name'")
+                            .summary("SET pipeline.name=test name"),
+                    forStatement("SET pipeline.name = ' '").summary("SET pipeline.name= "),
+                    forStatement("SET execution.runtime-type=")
+                            // TODO: the exception message should be "no value defined"
+                            .error("SQL parse failed. Encountered \"-\" at line 1, column 22"));
 
     @Test
     public void testParseLegalStatements() {
-        for (TestSpec spec : testLegalStatements) {
-            Operation op = parser.parse(spec.statement).get(0);
-            Assert.assertEquals(op.asSummaryString(), op.asSummaryString());
-        }
-    }
+        for (TestSpec spec : TEST_SPECS) {
+            if (spec.expectedSummary != null) {
+                Operation op = parser.parse(spec.statement).get(0);
+                assertEquals(spec.expectedSummary, op.asSummaryString());
+            }
 
-    @Test
-    public void testParseIllegalStatements() {
-        thrown.expect(SqlParserException.class);
-        for (TestSpec spec : testIllegalStatements) {
-            parser.parse(spec.statement);
-            fail("Should fail.");
+            if (spec.expectedError != null) {
+                assertThrows(
+                        spec.expectedError,
+                        SqlParserException.class,
+                        () -> parser.parse(spec.statement));
+            }
         }
     }
 
@@ -136,10 +128,13 @@ public class ParserImplTest {
 
     // ~ Tool Methods ----------------------------------------------------------
 
-    private static class TestSpec {
+    static class TestSpec {
 
-        private String statement;
-        private String expectedSummary;
+        private final String statement;
+
+        @Nullable private String expectedSummary;
+
+        @Nullable private String expectedError;
 
         private TestSpec(String statement) {
             this.statement = statement;
@@ -149,8 +144,13 @@ public class ParserImplTest {
             return new TestSpec(statement);
         }
 
-        TestSpec expectedSummary(String expectedSummary) {
+        TestSpec summary(String expectedSummary) {
             this.expectedSummary = expectedSummary;
+            return this;
+        }
+
+        TestSpec error(String expectedError) {
+            this.expectedError = expectedError;
             return this;
         }
     }
