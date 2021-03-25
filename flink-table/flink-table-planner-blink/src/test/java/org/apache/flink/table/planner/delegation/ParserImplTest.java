@@ -87,6 +87,8 @@ public class ParserImplTest {
                     forStatement("qUIT").summary("QUIT"),
                     forStatement("ExIT").summary("QUIT"),
                     forStatement("REsEt").summary("RESET"),
+                    forStatement("REsEt execution.runtime-type")
+                            .summary("RESET execution.runtime-type"),
                     forStatement("   SEt ").summary("SET"),
                     forStatement("SET execution.runtime-type=batch")
                             .summary("SET execution.runtime-type=batch"),
