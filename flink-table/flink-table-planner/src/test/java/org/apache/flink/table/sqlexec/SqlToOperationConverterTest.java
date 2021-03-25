@@ -85,6 +85,7 @@ import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -747,8 +748,11 @@ public class SqlToOperationConverterTest {
 
     private void assertSetCommand(String statement, String... operands) {
         SetOperation operation = (SetOperation) parser.parse(statement).get(0);
+        List<String> actualOperands = new ArrayList<>();
+        operation.getKey().ifPresent(actualOperands::add);
+        operation.getValue().ifPresent(actualOperands::add);
 
-        assertArrayEquals(operands, operation.getOperands());
+        assertArrayEquals(operands, actualOperands.toArray(new String[0]));
     }
 
     private void assertFailedSetCommand(String statement) {

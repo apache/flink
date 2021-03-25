@@ -20,25 +20,45 @@ package org.apache.flink.table.operations.command;
 
 import org.apache.flink.table.operations.Operation;
 
-/** Operation to represent SET command. */
+import javax.annotation.Nullable;
+
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * Operation to represent SET command. If {@link #getKey()} and {@link #getValue()} are empty, it
+ * means show all the configurations. Otherwise, set value to the configuration key.
+ */
 public class SetOperation implements Operation {
 
-    private final String[] operands;
+    @Nullable private final String key;
+    @Nullable private final String value;
 
-    public SetOperation(String[] operands) {
-        this.operands = operands;
+    public SetOperation() {
+        this.key = null;
+        this.value = null;
     }
 
-    public String[] getOperands() {
-        return operands;
+    public SetOperation(String key, String value) {
+        this.key = checkNotNull(key);
+        this.value = checkNotNull(value);
+    }
+
+    public Optional<String> getKey() {
+        return Optional.ofNullable(key);
+    }
+
+    public Optional<String> getValue() {
+        return Optional.ofNullable(value);
     }
 
     @Override
     public String asSummaryString() {
-        if (operands.length == 0) {
+        if (key == null && value == null) {
             return "SET";
         } else {
-            return String.format("SET %s=%s", operands[0], operands[1]);
+            return String.format("SET %s=%s", key, value);
         }
     }
 }
