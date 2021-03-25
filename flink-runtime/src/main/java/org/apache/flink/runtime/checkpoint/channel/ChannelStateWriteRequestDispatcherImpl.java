@@ -54,7 +54,7 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
 
     @Override
     public void dispatch(ChannelStateWriteRequest request) throws Exception {
-        LOG.debug("process {}", request);
+        LOG.trace("process {}", request);
         try {
             dispatchInternal(request);
         } catch (Exception e) {
