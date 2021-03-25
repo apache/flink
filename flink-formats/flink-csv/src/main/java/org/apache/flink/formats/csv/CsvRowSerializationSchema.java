@@ -50,8 +50,8 @@ import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /**
  * Serialization schema that serializes an object of Flink types into a CSV bytes.

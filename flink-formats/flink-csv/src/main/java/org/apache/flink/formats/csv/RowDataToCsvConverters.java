@@ -45,8 +45,8 @@ import java.util.Arrays;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /** Tool class used to convert from {@link RowData} to CSV-format {@link JsonNode}. * */
 @Internal

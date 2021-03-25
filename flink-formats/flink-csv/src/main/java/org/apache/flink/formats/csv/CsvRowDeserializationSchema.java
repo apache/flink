@@ -47,8 +47,8 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.csv.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /**
  * Deserialization schema from CSV to Flink types.
