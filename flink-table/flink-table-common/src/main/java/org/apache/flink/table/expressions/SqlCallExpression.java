@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A call to a SQL expression.
@@ -63,6 +64,23 @@ public final class SqlCallExpression implements Expression {
     @Override
     public <R> R accept(ExpressionVisitor<R> visitor) {
         return visitor.visit(this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SqlCallExpression that = (SqlCallExpression) o;
+        return sqlExpression.equals(that.sqlExpression);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sqlExpression);
     }
 
     @Override

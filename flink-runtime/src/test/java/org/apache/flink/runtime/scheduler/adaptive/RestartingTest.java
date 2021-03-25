@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -29,6 +30,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
@@ -117,11 +119,7 @@ public class RestartingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        executionGraph,
-                        (throwable) -> {
-                            throw new RuntimeException("Error in test", throwable);
-                        });
+                new TestingOperatorCoordinatorHandler();
         executionGraph.transitionToRunning();
         return new Restarting(
                 ctx,
@@ -140,13 +138,14 @@ public class RestartingTest extends TestLogger {
     private static class MockRestartingContext extends MockStateWithExecutionGraphContext
             implements Restarting.Context {
 
-        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
-                new StateValidator<>("Cancelling");
+        private final StateValidator<ExecutingTest.ExecutingAndCancellingArguments>
+                cancellingStateValidator = new StateValidator<>("Cancelling");
 
         private final StateValidator<Void> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
 
-        public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
+        public void setExpectCancelling(
+                Consumer<ExecutingTest.ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
 
@@ -160,7 +159,7 @@ public class RestartingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new ExecutingTest.CancellingArguments(
+                    new ExecutingTest.ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }
@@ -172,10 +171,11 @@ public class RestartingTest extends TestLogger {
         }
 
         @Override
-        public void runIfState(State expectedState, Runnable action, Duration delay) {
+        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
             if (!hadStateTransition) {
                 action.run();
             }
+            return CompletedScheduledFuture.create(null);
         }
 
         @Override

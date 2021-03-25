@@ -34,6 +34,7 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -634,6 +635,15 @@ public class FineGrainedSlotManager implements SlotManager {
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
         return taskManagerTracker.getRegisteredResourceOf(instanceID);
+    }
+
+    @Override
+    public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
+        return taskManagerTracker.getRegisteredTaskManager(instanceID)
+                .map(TaskManagerInfo::getAllocatedSlots).map(Map::values)
+                .orElse(Collections.emptyList()).stream()
+                .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
+                .collect(Collectors.toList());
     }
 
     @Override

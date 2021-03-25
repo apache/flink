@@ -235,7 +235,7 @@ class DecomposeGroupingSetsRule extends RelOptRule(
 
     val (newGroupSet, duplicateFieldMap) = if (needExpand) {
       val (duplicateFieldMap, expandIdIdxInExpand) = ExpandUtil.buildExpandNode(
-        cluster, relBuilder, agg.getAggCallList, agg.getGroupSet, agg.getGroupSets)
+        relBuilder, agg.getAggCallList, agg.getGroupSet, agg.getGroupSets)
 
       // new groupSet contains original groupSet and expand_id('$e') field
       val newGroupSet = agg.getGroupSet.union(ImmutableBitSet.of(expandIdIdxInExpand))

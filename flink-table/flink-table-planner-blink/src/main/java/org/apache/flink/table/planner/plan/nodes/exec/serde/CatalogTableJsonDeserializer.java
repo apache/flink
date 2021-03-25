@@ -54,6 +54,6 @@ public class CatalogTableJsonDeserializer extends StdDeserializer<ResolvedCatalo
 
         final CatalogTable unresolvedTable = CatalogTable.fromProperties(catalogProperties);
 
-        return (ResolvedCatalogTable) catalogManager.resolveCatalogBaseTable(unresolvedTable);
+        return catalogManager.resolveCatalogTable(unresolvedTable);
     }
 }

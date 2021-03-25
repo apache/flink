@@ -24,8 +24,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -160,12 +161,12 @@ public class ConstructedAccessFunctionsITCase {
                                     + "(SELECT * FROM (VALUES(1))), "
                                     + "LATERAL TABLE(RowTableFunction()) AS t(a, b)");
             assertThat(
-                    result.getTableSchema(),
+                    result.getResolvedSchema(),
                     equalTo(
-                            TableSchema.builder()
-                                    .field("b", DataTypes.ARRAY(DataTypes.STRING()).notNull())
-                                    .field("a", DataTypes.STRING())
-                                    .build()));
+                            ResolvedSchema.of(
+                                    Column.physical(
+                                            "b", DataTypes.ARRAY(DataTypes.STRING()).notNull()),
+                                    Column.physical("a", DataTypes.STRING()))));
             try (CloseableIterator<Row> it = result.collect()) {
                 assertThat(it.next(), equalTo(Row.of(new String[] {"A", "B"}, "A")));
                 assertFalse(it.hasNext());
@@ -229,12 +230,11 @@ public class ConstructedAccessFunctionsITCase {
                             .execute();
 
             assertThat(
-                    result.getTableSchema(),
+                    result.getResolvedSchema(),
                     equalTo(
-                            TableSchema.builder()
-                                    .field("f0$nested0", BIGINT().nullable())
-                                    .field("f0$nested1", STRING().nullable())
-                                    .build()));
+                            ResolvedSchema.of(
+                                    Column.physical("f0$nested0", BIGINT().nullable()),
+                                    Column.physical("f0$nested1", STRING().nullable()))));
 
             try (CloseableIterator<Row> it = result.collect()) {
                 assertThat(it.next(), equalTo(Row.of(1L, "ABC")));

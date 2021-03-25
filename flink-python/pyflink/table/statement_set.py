@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.table import ExplainDetail
 from pyflink.table.table_result import TableResult
-from pyflink.util.utils import to_j_explain_detail_arr
+from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
 

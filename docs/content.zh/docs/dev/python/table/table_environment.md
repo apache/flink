@@ -701,6 +701,17 @@ table_env.get_config().get_configuration().set_string(
     </tr>
     <tr>
       <td>
+        <strong>use_modules(*module_names)</strong>
+      </td>
+      <td>
+        按指定列表激活在这个环境中加载的 `Module`。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.use_modules" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>list_catalogs()</strong>
       </td>
       <td>
@@ -715,10 +726,21 @@ table_env.get_config().get_configuration().set_string(
         <strong>list_modules()</strong>
       </td>
       <td>
-        获取在这个环境中注册的所有模块名称。
+        获取在这个环境中注册的所有激活的 `Module` 名称。
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_modules" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_full_modules()</strong>
+      </td>
+      <td>
+        获取在这个环境中注册的所有加载的 `Module` 名称及激活状态。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_full_modules" name="链接">}}
       </td>
     </tr>
     <tr>

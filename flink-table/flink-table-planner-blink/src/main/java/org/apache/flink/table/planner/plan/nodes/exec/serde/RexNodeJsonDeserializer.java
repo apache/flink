@@ -46,6 +46,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
@@ -60,6 +61,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ALPHA;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_LOWER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_UPPER;
@@ -86,6 +88,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_FIELD_ACCESS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_INPUT_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_LITERAL;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_PATTERN_INPUT_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.SQL_KIND_REX_CALL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -118,6 +121,8 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 return deserializeCorrelVariable(jsonNode, ctx);
             case SQL_KIND_REX_CALL:
                 return deserializeCall(jsonNode, ctx);
+            case SQL_KIND_PATTERN_INPUT_REF:
+                return deserializePatternInputRef(jsonNode, ctx);
             default:
                 throw new TableException("Cannot convert to RexNode: " + jsonNode.toPrettyString());
         }
@@ -130,6 +135,18 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         RelDataType fieldType =
                 ctx.getObjectMapper().readValue(typeNode.toPrettyString(), RelDataType.class);
         return ctx.getSerdeContext().getRexBuilder().makeInputRef(fieldType, inputIndex);
+    }
+
+    private RexNode deserializePatternInputRef(JsonNode jsonNode, FlinkDeserializationContext ctx)
+            throws JsonProcessingException {
+        int inputIndex = jsonNode.get(FIELD_NAME_INPUT_INDEX).intValue();
+        String alpha = jsonNode.get(FIELD_NAME_ALPHA).asText();
+        JsonNode typeNode = jsonNode.get(FIELD_NAME_TYPE);
+        RelDataType fieldType =
+                ctx.getObjectMapper().readValue(typeNode.toPrettyString(), RelDataType.class);
+        return ctx.getSerdeContext()
+                .getRexBuilder()
+                .makePatternFieldRef(alpha, fieldType, inputIndex);
     }
 
     private RexNode deserializeLiteral(JsonNode jsonNode, FlinkDeserializationContext ctx)
@@ -321,6 +338,21 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         SqlSyntax sqlSyntax = SqlSyntax.valueOf(jsonNode.get(FIELD_NAME_SYNTAX).asText());
         List<SqlOperator> operators = new ArrayList<>();
         ctx.getOperatorTable()
+                .lookupOperatorOverloads(
+                        new SqlIdentifier(name, new SqlParserPos(0, 0)),
+                        null, // category
+                        sqlSyntax,
+                        operators,
+                        SqlNameMatchers.liberal());
+        for (SqlOperator operator : operators) {
+            // in case different operator has the same kind, check with both name and kind.
+            if (operator.kind == sqlKind) {
+                return operator;
+            }
+        }
+
+        // try to find operator from std operator table.
+        SqlStdOperatorTable.instance()
                 .lookupOperatorOverloads(
                         new SqlIdentifier(name, new SqlParserPos(0, 0)),
                         null, // category

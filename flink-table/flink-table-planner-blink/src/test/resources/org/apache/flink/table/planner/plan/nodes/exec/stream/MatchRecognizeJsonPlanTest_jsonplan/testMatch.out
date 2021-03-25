@@ -1,0 +1,501 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.2.expr" : "PROCTIME()",
+        "schema.2.data-type" : "TIMESTAMP(3) NOT NULL",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "proctime",
+        "schema.1.name" : "name",
+        "bounded" : "false",
+        "schema.0.name" : "id",
+        "schema.1.data-type" : "VARCHAR(2147483647)"
+      }
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "id" : "BIGINT"
+      }, {
+        "name" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, name])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "PROCTIME",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ ],
+      "type" : {
+        "timestampKind" : "PROCTIME",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "id" : "BIGINT"
+      }, {
+        "name" : "VARCHAR(2147483647)"
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "id" : "BIGINT"
+      }, {
+        "name" : "VARCHAR(2147483647)"
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[single])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch",
+    "matchSpec" : {
+      "pattern" : {
+        "kind" : "REX_CALL",
+        "operator" : {
+          "name" : "",
+          "kind" : "PATTERN_CONCAT",
+          "syntax" : "BINARY"
+        },
+        "operands" : [ {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "",
+            "kind" : "PATTERN_CONCAT",
+            "syntax" : "BINARY"
+          },
+          "operands" : [ {
+            "kind" : "LITERAL",
+            "value" : "A\"",
+            "type" : {
+              "typeName" : "CHAR",
+              "nullable" : false,
+              "precision" : 2
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : "l",
+            "type" : {
+              "typeName" : "CHAR",
+              "nullable" : false,
+              "precision" : 1
+            }
+          } ],
+          "type" : {
+            "typeName" : "NULL",
+            "nullable" : true
+          }
+        }, {
+          "kind" : "LITERAL",
+          "value" : "C",
+          "type" : {
+            "typeName" : "CHAR",
+            "nullable" : false,
+            "precision" : 1
+          }
+        } ],
+        "type" : {
+          "typeName" : "NULL",
+          "nullable" : true
+        }
+      },
+      "patternDefinitions" : {
+        "A\"" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "=",
+            "kind" : "EQUALS",
+            "syntax" : "BINARY"
+          },
+          "operands" : [ {
+            "kind" : "REX_CALL",
+            "operator" : {
+              "name" : "LAST",
+              "kind" : "LAST",
+              "syntax" : "FUNCTION"
+            },
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : {
+                "typeName" : "VARCHAR",
+                "nullable" : true,
+                "precision" : 2147483647
+              }
+            }, {
+              "kind" : "LITERAL",
+              "value" : "0",
+              "type" : {
+                "typeName" : "INTEGER",
+                "nullable" : false
+              }
+            } ],
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : true,
+              "precision" : 2147483647
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : "a",
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : false,
+              "precision" : 2147483647
+            }
+          } ],
+          "type" : {
+            "typeName" : "BOOLEAN",
+            "nullable" : true
+          }
+        },
+        "l" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "=",
+            "kind" : "EQUALS",
+            "syntax" : "BINARY"
+          },
+          "operands" : [ {
+            "kind" : "REX_CALL",
+            "operator" : {
+              "name" : "LAST",
+              "kind" : "LAST",
+              "syntax" : "FUNCTION"
+            },
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : {
+                "typeName" : "VARCHAR",
+                "nullable" : true,
+                "precision" : 2147483647
+              }
+            }, {
+              "kind" : "LITERAL",
+              "value" : "0",
+              "type" : {
+                "typeName" : "INTEGER",
+                "nullable" : false
+              }
+            } ],
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : true,
+              "precision" : 2147483647
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : "b",
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : false,
+              "precision" : 2147483647
+            }
+          } ],
+          "type" : {
+            "typeName" : "BOOLEAN",
+            "nullable" : true
+          }
+        },
+        "C" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "=",
+            "kind" : "EQUALS",
+            "syntax" : "BINARY"
+          },
+          "operands" : [ {
+            "kind" : "REX_CALL",
+            "operator" : {
+              "name" : "LAST",
+              "kind" : "LAST",
+              "syntax" : "FUNCTION"
+            },
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : {
+                "typeName" : "VARCHAR",
+                "nullable" : true,
+                "precision" : 2147483647
+              }
+            }, {
+              "kind" : "LITERAL",
+              "value" : "0",
+              "type" : {
+                "typeName" : "INTEGER",
+                "nullable" : false
+              }
+            } ],
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : true,
+              "precision" : 2147483647
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : "c",
+            "type" : {
+              "typeName" : "VARCHAR",
+              "nullable" : false,
+              "precision" : 2147483647
+            }
+          } ],
+          "type" : {
+            "typeName" : "BOOLEAN",
+            "nullable" : true
+          }
+        }
+      },
+      "measures" : {
+        "aid" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "FINAL",
+            "kind" : "FINAL",
+            "syntax" : "PREFIX"
+          },
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "A\"",
+            "inputIndex" : 0,
+            "type" : {
+              "typeName" : "BIGINT",
+              "nullable" : true
+            }
+          } ],
+          "type" : {
+            "typeName" : "BIGINT",
+            "nullable" : true
+          }
+        },
+        "bid" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "FINAL",
+            "kind" : "FINAL",
+            "syntax" : "PREFIX"
+          },
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "l",
+            "inputIndex" : 0,
+            "type" : {
+              "typeName" : "BIGINT",
+              "nullable" : true
+            }
+          } ],
+          "type" : {
+            "typeName" : "BIGINT",
+            "nullable" : true
+          }
+        },
+        "cid" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "FINAL",
+            "kind" : "FINAL",
+            "syntax" : "PREFIX"
+          },
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "C",
+            "inputIndex" : 0,
+            "type" : {
+              "typeName" : "BIGINT",
+              "nullable" : true
+            }
+          } ],
+          "type" : {
+            "typeName" : "BIGINT",
+            "nullable" : true
+          }
+        }
+      },
+      "after" : {
+        "kind" : "LITERAL",
+        "value" : "SKIP_TO_NEXT_ROW",
+        "class" : "org.apache.calcite.sql.SqlMatchRecognize$AfterOption",
+        "type" : {
+          "typeName" : "SYMBOL",
+          "nullable" : false
+        }
+      },
+      "subsets" : { },
+      "allRows" : false,
+      "partition" : {
+        "fields" : [ ]
+      },
+      "orderBy" : {
+        "fields" : [ {
+          "index" : 2,
+          "isAscending" : true,
+          "nullIsLast" : false
+        } ]
+      },
+      "interval" : null
+    },
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "aid" : "BIGINT"
+      }, {
+        "bid" : "BIGINT"
+      }, {
+        "cid" : "BIGINT"
+      } ]
+    },
+    "description" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".id) AS aid, FINAL(l.id) AS bid, FINAL(C.id) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$1, 0), _UTF-16LE'a'), l==(LAST(*.$1, 0), _UTF-16LE'b'), C==(LAST(*.$1, 0), _UTF-16LE'c')}])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "sink-insert-only" : "false",
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "BIGINT",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "BIGINT"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "aid" : "BIGINT"
+      }, {
+        "bid" : "BIGINT"
+      }, {
+        "cid" : "BIGINT"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[aid, bid, cid])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

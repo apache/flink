@@ -21,12 +21,11 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.testutils.ThrowOnDoubleMemoryFreeing;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the memory manager. */
-public class MemoryManagerTest {
+public class MemoryManagerTest extends TestLogger {
 
     private static final long RANDOM_SEED = 643196033469871L;
 
@@ -53,10 +52,6 @@ public class MemoryManagerTest {
     private MemoryManager memoryManager;
 
     private Random random;
-
-    @ClassRule
-    public static ThrowOnDoubleMemoryFreeing throwOnDoubleMemoryFreeing =
-            new ThrowOnDoubleMemoryFreeing();
 
     @Before
     public void setUp() {

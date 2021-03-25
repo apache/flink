@@ -132,6 +132,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
@@ -1080,6 +1081,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
+    public void freeInactiveSlots(JobID jobId, Time timeout) {
+        log.debug("Freeing inactive slots for job {}.", jobId);
+
+        // need a copy to prevent ConcurrentModificationExceptions
+        final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+        for (TaskSlot<Task> slot : inactiveSlots) {
+            freeSlotInternal(
+                    slot.getAllocationId(),
+                    new FlinkException("Slot was re-claimed by resource manager."));
+        }
+    }
+
+    @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByType(
             FileType fileType, Time timeout) {
         final String filePath;
@@ -1745,7 +1760,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 log.error("Could not fail task {}.", executionAttemptID, t);
             }
         } else {
-            log.debug("Cannot find task to fail for execution {}.", executionAttemptID);
+            log.info(
+                    "Cannot find task to fail for execution {} with exception:",
+                    executionAttemptID,
+                    cause);
         }
     }
 

@@ -84,7 +84,13 @@ public class CheckpointedInputGateTest {
             assertFalse(gate.pollNext().isPresent());
             for (int channelIndex = 0; channelIndex < numberOfChannels - 1; channelIndex++) {
                 enqueueEndOfState(gate, channelIndex);
-                assertFalse("should align (block all channels)", gate.pollNext().isPresent());
+                Optional<BufferOrEvent> bufferOrEvent = gate.pollNext();
+                while (bufferOrEvent.isPresent()
+                        && bufferOrEvent.get().getEvent() instanceof EndOfChannelStateEvent
+                        && !gate.allChannelsRecovered()) {
+                    bufferOrEvent = gate.pollNext();
+                }
+                assertFalse("should align (block all channels)", bufferOrEvent.isPresent());
             }
 
             enqueueEndOfState(gate, numberOfChannels - 1);

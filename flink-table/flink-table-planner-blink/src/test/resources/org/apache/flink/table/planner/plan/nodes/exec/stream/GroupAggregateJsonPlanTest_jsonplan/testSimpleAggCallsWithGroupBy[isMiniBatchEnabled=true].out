@@ -51,6 +51,32 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c]]], fields=[b, a, c])",
     "inputProperties" : [ ]
   }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -102,7 +128,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -125,32 +151,7 @@
     },
     "description" : "Calc(select=[b, a, (b > 1) AS $f2, c])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 3,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "INT NOT NULL"
-      }, {
-        "a" : "BIGINT"
-      }, {
-        "$f2" : "BOOLEAN NOT NULL"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
-    "description" : "Exchange(distribution=[hash[b]])"
-  }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
@@ -203,9 +204,124 @@
       }
     } ],
     "aggCallNeedRetractions" : [ false, false, false ],
-    "generateUpdateBefore" : true,
     "needRetraction" : false,
     "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "count$0" : "BIGINT"
+      }, {
+        "max$1" : "INT"
+      }, {
+        "min$2" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0, MAX(b) FILTER $f2 AS max$1, MIN(c) AS min$2])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "count$0" : "BIGINT"
+      }, {
+        "max$1" : "INT"
+      }, {
+        "min$2" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "cnt_a",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "max_b",
+      "aggFunction" : {
+        "name" : "MAX",
+        "kind" : "MAX",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 0 ],
+      "filterArg" : 2,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "name" : "min_c",
+      "aggFunction" : {
+        "name" : "MIN",
+        "kind" : "MIN",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 3 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false, false, false ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a" : "BIGINT"
+      }, {
+        "$f2" : "BOOLEAN NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -226,7 +342,7 @@
         "min_c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt_a, MAX(b) FILTER $f2 AS max_b, MIN(c) AS min_c])"
+    "description" : "GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS cnt_a, MAX(max$1) AS max_b, MIN(min$2) AS min_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
@@ -296,7 +412,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 5,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -341,7 +457,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 6,
+    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -395,6 +511,20 @@
   }, {
     "source" : 5,
     "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },

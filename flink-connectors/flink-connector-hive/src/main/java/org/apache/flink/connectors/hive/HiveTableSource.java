@@ -37,7 +37,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -110,7 +110,7 @@ public class HiveTableSource
         this.catalogTable = Preconditions.checkNotNull(catalogTable);
         this.hiveVersion =
                 Preconditions.checkNotNull(
-                        jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
+                        jobConf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key()),
                         "Hive version is not defined");
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
     }
@@ -419,14 +419,7 @@ public class HiveTableSource
 
         /** Convert partition to HiveTablePartition. */
         public HiveTablePartition toHiveTablePartition(Partition partition) {
-            return HivePartitionUtils.toHiveTablePartition(
-                    partitionKeys,
-                    fieldNames,
-                    fieldTypes,
-                    hiveShim,
-                    tableProps,
-                    defaultPartitionName,
-                    partition);
+            return HivePartitionUtils.toHiveTablePartition(partitionKeys, tableProps, partition);
         }
 
         @Override

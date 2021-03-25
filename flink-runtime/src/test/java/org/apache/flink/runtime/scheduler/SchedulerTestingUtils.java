@@ -523,31 +523,39 @@ public class SchedulerTestingUtils {
         }
 
         public DefaultScheduler build() throws Exception {
+            final ExecutionGraphFactory executionGraphFactory =
+                    new DefaultExecutionGraphFactory(
+                            jobMasterConfiguration,
+                            userCodeLoader,
+                            new DefaultExecutionDeploymentTracker(),
+                            futureExecutor,
+                            ioExecutor,
+                            rpcTimeout,
+                            jobManagerJobMetricGroup,
+                            blobWriter,
+                            shuffleMaster,
+                            partitionTracker);
+
             return new DefaultScheduler(
                     log,
                     jobGraph,
                     ioExecutor,
                     jobMasterConfiguration,
                     componentMainThreadExecutor -> {},
-                    futureExecutor,
                     delayExecutor,
                     userCodeLoader,
                     checkpointRecoveryFactory,
-                    rpcTimeout,
-                    blobWriter,
                     jobManagerJobMetricGroup,
-                    shuffleMaster,
-                    partitionTracker,
                     schedulingStrategyFactory,
                     failoverStrategyFactory,
                     restartBackoffTimeStrategy,
                     executionVertexOperations,
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
-                    new DefaultExecutionDeploymentTracker(),
                     System.currentTimeMillis(),
                     mainThreadExecutor,
-                    jobStatusListener);
+                    jobStatusListener,
+                    executionGraphFactory);
         }
     }
 }

@@ -17,14 +17,10 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.function.BiFunctionWithException;
-import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
-import org.apache.flink.util.function.TriFunctionWithException;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,16 +31,8 @@ class TestingExecutorBuilder {
 
     private List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
             resultChangesSupplier = Collections.emptyList();
-    private List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>>
-            snapshotResultsSupplier = Collections.emptyList();
     private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier =
             Collections.emptyList();
-    private BiFunctionWithException<String, String, TableResult, SqlExecutionException>
-            setExecuteSqlConsumer = (ignoredA, ignoredB) -> null;
-    private TriFunctionWithException<String, String, String, Void, SqlExecutionException>
-            setSessionPropertyFunction = (ignoredA, ignoredB, ignoredC) -> null;
-    private FunctionWithException<String, Void, SqlExecutionException>
-            resetSessionPropertiesFunction = (ignoredA) -> null;
 
     @SafeVarargs
     public final TestingExecutorBuilder setResultChangesSupplier(
@@ -55,48 +43,13 @@ class TestingExecutorBuilder {
     }
 
     @SafeVarargs
-    public final TestingExecutorBuilder setSnapshotResultSupplier(
-            SupplierWithException<TypedResult<Integer>, SqlExecutionException>...
-                    snapshotResultsSupplier) {
-        this.snapshotResultsSupplier = Arrays.asList(snapshotResultsSupplier);
-        return this;
-    }
-
-    @SafeVarargs
     public final TestingExecutorBuilder setResultPageSupplier(
             SupplierWithException<List<Row>, SqlExecutionException>... resultPageSupplier) {
         resultPagesSupplier = Arrays.asList(resultPageSupplier);
         return this;
     }
 
-    public final TestingExecutorBuilder setExecuteSqlConsumer(
-            BiFunctionWithException<String, String, TableResult, SqlExecutionException>
-                    setExecuteUpdateConsumer) {
-        this.setExecuteSqlConsumer = setExecuteUpdateConsumer;
-        return this;
-    }
-
-    public final TestingExecutorBuilder setSessionPropertiesFunction(
-            TriFunctionWithException<String, String, String, Void, SqlExecutionException>
-                    setSessionPropertyFunction) {
-        this.setSessionPropertyFunction = setSessionPropertyFunction;
-        return this;
-    }
-
-    public final TestingExecutorBuilder resetSessionPropertiesFunction(
-            FunctionWithException<String, Void, SqlExecutionException>
-                    resetSessionPropertiesFunction) {
-        this.resetSessionPropertiesFunction = resetSessionPropertiesFunction;
-        return this;
-    }
-
     public TestingExecutor build() {
-        return new TestingExecutor(
-                resultChangesSupplier,
-                snapshotResultsSupplier,
-                resultPagesSupplier,
-                setExecuteSqlConsumer,
-                setSessionPropertyFunction,
-                resetSessionPropertiesFunction);
+        return new TestingExecutor(resultChangesSupplier, resultPagesSupplier);
     }
 }

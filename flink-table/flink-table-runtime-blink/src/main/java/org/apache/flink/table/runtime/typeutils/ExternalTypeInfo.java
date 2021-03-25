@@ -77,8 +77,7 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
                 return (TypeSerializer<T>) rawType.getTypeSerializer();
             }
         }
-        throw new UnsupportedOperationException(
-                "External type information is not fully implemented yet.");
+        return ExternalSerializer.of(dataType);
     }
 
     // --------------------------------------------------------------------------------------------

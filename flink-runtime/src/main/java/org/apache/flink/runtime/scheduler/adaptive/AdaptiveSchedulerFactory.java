@@ -34,17 +34,31 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for the adaptive scheduler. */
 public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
+
+    private final Duration initialResourceAllocationTimeout;
+    private final Duration resourceStabilizationTimeout;
+
+    public AdaptiveSchedulerFactory(
+            Duration initialResourceAllocationTimeout, Duration resourceStabilizationTimeout) {
+        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+    }
+
     @Override
     public SchedulerNG createInstance(
             Logger log,
@@ -88,29 +102,51 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getName(),
                 jobGraph.getJobID());
 
+        final SlotSharingSlotAllocator slotAllocator =
+                createSlotSharingSlotAllocator(declarativeSlotPool);
+
+        final ExecutionGraphFactory executionGraphFactory =
+                new DefaultExecutionGraphFactory(
+                        jobMasterConfiguration,
+                        userCodeLoader,
+                        executionDeploymentTracker,
+                        futureExecutor,
+                        ioExecutor,
+                        rpcTimeout,
+                        jobManagerJobMetricGroup,
+                        blobWriter,
+                        shuffleMaster,
+                        partitionTracker);
+
         return new AdaptiveScheduler(
                 jobGraph,
                 jobMasterConfiguration,
                 declarativeSlotPool,
-                futureExecutor,
+                slotAllocator,
                 ioExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
-                rpcTimeout,
-                blobWriter,
+                initialResourceAllocationTimeout,
+                resourceStabilizationTimeout,
                 jobManagerJobMetricGroup,
-                shuffleMaster,
-                partitionTracker,
                 restartBackoffTimeStrategy,
-                executionDeploymentTracker,
                 initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
-                jobStatusListener);
+                jobStatusListener,
+                executionGraphFactory);
     }
 
     @Override
     public JobManagerOptions.SchedulerType getSchedulerType() {
         return JobManagerOptions.SchedulerType.Adaptive;
+    }
+
+    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+            DeclarativeSlotPool declarativeSlotPool) {
+        return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
+                declarativeSlotPool::reserveFreeSlot,
+                declarativeSlotPool::freeReservedSlot,
+                declarativeSlotPool::containsFreeSlot);
     }
 }

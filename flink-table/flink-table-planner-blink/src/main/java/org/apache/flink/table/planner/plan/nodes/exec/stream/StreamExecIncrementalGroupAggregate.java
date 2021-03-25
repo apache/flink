@@ -28,9 +28,9 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -43,27 +43,57 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for unbounded incremental group aggregate. */
-public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase {
+
+    public static final String FIELD_NAME_PARTIAL_AGG_GROUPING = "partialAggGrouping";
+    public static final String FIELD_NAME_FINAL_AGG_GROUPING = "finalAggGrouping";
+    public static final String FIELD_NAME_PARTIAL_ORIGINAL_AGG_CALLS = "partialOriginalAggCalls";
+    public static final String FIELD_NAME_PARTIAL_AGG_CALL_NEED_RETRACTIONS =
+            "partialAggCallNeedRetractions";
+    public static final String FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE =
+            "partialLocalAggInputRowType";
+    public static final String FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION = "partialAggNeedRetraction";
 
     /** The partial agg's grouping. */
+    @JsonProperty(FIELD_NAME_PARTIAL_AGG_GROUPING)
     private final int[] partialAggGrouping;
+
     /** The final agg's grouping. */
+    @JsonProperty(FIELD_NAME_FINAL_AGG_GROUPING)
     private final int[] finalAggGrouping;
+
     /** The partial agg's original agg calls. */
+    @JsonProperty(FIELD_NAME_PARTIAL_ORIGINAL_AGG_CALLS)
     private final AggregateCall[] partialOriginalAggCalls;
+
     /** Each element indicates whether the corresponding agg call needs `retract` method. */
+    @JsonProperty(FIELD_NAME_PARTIAL_AGG_CALL_NEED_RETRACTIONS)
     private final boolean[] partialAggCallNeedRetractions;
+
     /** The input row type of this node's partial local agg. */
-    private final RowType partialLocalAggInputRowType;
+    @JsonProperty(FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE)
+    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
+    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
+    private final RowType partialLocalAggInputType;
+
     /** Whether this node consumes retraction messages. */
+    @JsonProperty(FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION)
     private final boolean partialAggNeedRetraction;
 
     public StreamExecIncrementalGroupAggregate(
@@ -71,17 +101,45 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
             int[] finalAggGrouping,
             AggregateCall[] partialOriginalAggCalls,
             boolean[] partialAggCallNeedRetractions,
-            RowType partialLocalAggInputRowType,
+            RowType partialLocalAggInputType,
             boolean partialAggNeedRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.partialAggGrouping = partialAggGrouping;
-        this.finalAggGrouping = finalAggGrouping;
-        this.partialOriginalAggCalls = partialOriginalAggCalls;
-        this.partialAggCallNeedRetractions = partialAggCallNeedRetractions;
-        this.partialLocalAggInputRowType = partialLocalAggInputRowType;
+        this(
+                partialAggGrouping,
+                finalAggGrouping,
+                partialOriginalAggCalls,
+                partialAggCallNeedRetractions,
+                partialLocalAggInputType,
+                partialAggNeedRetraction,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecIncrementalGroupAggregate(
+            @JsonProperty(FIELD_NAME_PARTIAL_AGG_GROUPING) int[] partialAggGrouping,
+            @JsonProperty(FIELD_NAME_FINAL_AGG_GROUPING) int[] finalAggGrouping,
+            @JsonProperty(FIELD_NAME_PARTIAL_ORIGINAL_AGG_CALLS)
+                    AggregateCall[] partialOriginalAggCalls,
+            @JsonProperty(FIELD_NAME_PARTIAL_AGG_CALL_NEED_RETRACTIONS)
+                    boolean[] partialAggCallNeedRetractions,
+            @JsonProperty(FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE) RowType partialLocalAggInputType,
+            @JsonProperty(FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION) boolean partialAggNeedRetraction,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        this.partialAggGrouping = checkNotNull(partialAggGrouping);
+        this.finalAggGrouping = checkNotNull(finalAggGrouping);
+        this.partialOriginalAggCalls = checkNotNull(partialOriginalAggCalls);
+        this.partialAggCallNeedRetractions = checkNotNull(partialAggCallNeedRetractions);
+        checkArgument(partialOriginalAggCalls.length == partialAggCallNeedRetractions.length);
+        this.partialLocalAggInputType = checkNotNull(partialLocalAggInputType);
         this.partialAggNeedRetraction = partialAggNeedRetraction;
     }
 
@@ -94,7 +152,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList partialLocalAggInfoList =
                 AggregateUtil.createPartialAggInfoList(
-                        partialLocalAggInputRowType,
+                        partialLocalAggInputType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(partialOriginalAggCalls)),
                         partialAggCallNeedRetractions,
                         partialAggNeedRetraction,
@@ -114,7 +172,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList incrementalAggInfo =
                 AggregateUtil.createIncrementalAggInfoList(
-                        partialLocalAggInputRowType,
+                        partialLocalAggInputType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(partialOriginalAggCalls)),
                         partialAggCallNeedRetractions,
                         partialAggNeedRetraction);
@@ -176,7 +234,7 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
                 new AggsHandlerCodeGenerator(
                         new CodeGeneratorContext(config),
                         relBuilder,
-                        JavaScalaConversionUtil.toScala(partialLocalAggInputRowType.getChildren()),
+                        JavaScalaConversionUtil.toScala(partialLocalAggInputType.getChildren()),
                         inputFieldCopy);
 
         return generator

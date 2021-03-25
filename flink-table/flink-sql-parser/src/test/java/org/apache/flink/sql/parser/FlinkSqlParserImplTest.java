@@ -56,6 +56,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+
+        sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
     /**
@@ -151,6 +153,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -190,6 +196,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
     }
 
     /**

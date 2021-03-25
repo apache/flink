@@ -22,14 +22,15 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.RowDataRecordEqualiser;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 /** Base class of tests for all kinds of processing-time DeduplicateFunction. */
 abstract class ProcTimeDeduplicateFunctionTestBase {
@@ -40,8 +41,9 @@ abstract class ProcTimeDeduplicateFunctionTestBase {
                     new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new IntType());
 
     int rowKeyIdx = 1;
-    BinaryRowDataKeySelector rowKeySelector =
-            new BinaryRowDataKeySelector(new int[] {rowKeyIdx}, inputRowType.toRowFieldTypes());
+    RowDataKeySelector rowKeySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(
+                    new int[] {rowKeyIdx}, inputRowType.toRowFieldTypes());
 
     RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(

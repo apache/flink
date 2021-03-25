@@ -18,7 +18,7 @@
 
 import { formatDate } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { JobExceptionItemInterface } from 'interfaces';
+import { ExceptionInfoInterface } from 'interfaces';
 import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
 import { JobService } from 'services';
 
@@ -30,12 +30,13 @@ import { JobService } from 'services';
 })
 export class JobExceptionsComponent implements OnInit {
   rootException = '';
-  listOfException: JobExceptionItemInterface[] = [];
+  listOfException: ExceptionInfoInterface[] = [];
   truncated = false;
   isLoading = false;
   maxExceptions = 0;
+  total = 0;
 
-  trackExceptionBy(_: number, node: JobExceptionItemInterface) {
+  trackExceptionBy(_: number, node: ExceptionInfoInterface) {
     return node.timestamp;
   }
   loadMore() {
@@ -52,13 +53,15 @@ export class JobExceptionsComponent implements OnInit {
       )
       .subscribe(data => {
         // @ts-ignore
-        if (data['root-exception']) {
-          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
+        var exceptionHistory = data.exceptionHistory
+        if (exceptionHistory.entries.length > 0) {
+          var mostRecentException = exceptionHistory.entries[0]
+          this.rootException = formatDate(mostRecentException.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + mostRecentException.stacktrace;
         } else {
           this.rootException = 'No Root Exception';
         }
-        this.truncated = data.truncated;
-        this.listOfException = data['all-exceptions'];
+        this.truncated = exceptionHistory.truncated;
+        this.listOfException = exceptionHistory.entries;
       });
   }
 

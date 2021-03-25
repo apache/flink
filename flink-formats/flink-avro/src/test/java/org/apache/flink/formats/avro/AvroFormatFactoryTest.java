@@ -20,16 +20,14 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -45,14 +43,14 @@ import static org.junit.Assert.assertEquals;
 /** Tests for the {@link AvroFormatFactory}. */
 public class AvroFormatFactoryTest extends TestLogger {
 
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("a", DataTypes.STRING())
-                    .field("b", DataTypes.INT())
-                    .field("c", DataTypes.BOOLEAN())
-                    .build();
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("a", DataTypes.STRING()),
+                    Column.physical("b", DataTypes.INT()),
+                    Column.physical("c", DataTypes.BOOLEAN()));
 
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final RowType ROW_TYPE =
+            (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
     @Test
     public void testSeDeSchema() {
@@ -61,27 +59,27 @@ public class AvroFormatFactoryTest extends TestLogger {
 
         final Map<String, String> options = getAllOptions();
 
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = FactoryMocks.createTableSource(SCHEMA, options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         DeserializationSchema<RowData> actualDeser =
                 scanSourceMock.valueFormat.createRuntimeDecoder(
-                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expectedDeser, actualDeser);
 
         final AvroRowDataSerializationSchema expectedSer =
                 new AvroRowDataSerializationSchema(ROW_TYPE);
 
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = FactoryMocks.createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
         SerializationSchema<RowData> actualSer =
-                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
         assertEquals(expectedSer, actualSer);
     }
@@ -98,25 +96,5 @@ public class AvroFormatFactoryTest extends TestLogger {
 
         options.put("format", AvroFormatFactory.IDENTIFIER);
         return options;
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock source"),
-                new Configuration(),
-                AvroFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock sink"),
-                new Configuration(),
-                AvroFormatFactoryTest.class.getClassLoader(),
-                false);
     }
 }

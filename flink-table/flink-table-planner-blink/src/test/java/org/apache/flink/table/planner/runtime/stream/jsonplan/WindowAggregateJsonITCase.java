@@ -103,14 +103,24 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
                                 + "FROM TABLE(\n"
-                                + "   TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))\n"
+                                + "   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))\n"
                                 + "GROUP BY name, window_start, window_end");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
                 Arrays.asList(
-                        "+I[a, 1]", "+I[a, 4]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),
+                        "+I[a, 1]",
+                        "+I[a, 4]",
+                        "+I[a, 5]",
+                        "+I[b, 1]",
+                        "+I[b, 1]",
+                        "+I[b, 1]",
+                        "+I[b, 1]",
+                        "+I[b, 2]",
+                        "+I[b, 2]",
+                        "+I[null, 1]",
+                        "+I[null, 1]"),
                 result);
     }
 

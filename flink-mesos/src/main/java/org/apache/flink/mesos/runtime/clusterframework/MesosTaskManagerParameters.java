@@ -135,6 +135,12 @@ public class MesosTaskManagerParameters {
                             "A comma separated list of URIs of custom artifacts to be downloaded into the sandbox"
                                     + " of Mesos workers.");
 
+    public static final ConfigOption<String> MESOS_TM_USER =
+            key("mesos.resourcemanager.tasks.user")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Unix user which mesos tasks should run as.");
+
     public static final ConfigOption<Map<String, String>> MESOS_TM_LABELS =
             key("mesos.resourcemanager.tasks.labels")
                     .mapType()
@@ -214,6 +220,8 @@ public class MesosTaskManagerParameters {
 
     private final List<String> uris;
 
+    private final Option<String> user;
+
     private final Map<String, String> mesosLabels;
 
     public MesosTaskManagerParameters(
@@ -231,6 +239,7 @@ public class MesosTaskManagerParameters {
             Option<String> bootstrapCommand,
             Option<String> taskManagerHostname,
             List<String> uris,
+            Option<String> user,
             Map<String, String> mesosLabels) {
 
         this.gpus = gpus;
@@ -247,6 +256,7 @@ public class MesosTaskManagerParameters {
         this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
         this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
         this.uris = Preconditions.checkNotNull(uris);
+        this.user = Preconditions.checkNotNull(user);
         this.mesosLabels = Preconditions.checkNotNull(mesosLabels);
     }
 
@@ -331,6 +341,11 @@ public class MesosTaskManagerParameters {
     /** Get custom artifact URIs. */
     public List<String> uris() {
         return uris;
+    }
+
+    /** Get the unix user as which mesos tasks run. */
+    public Option<String> user() {
+        return user;
     }
 
     /** Get mesos task labels. */
@@ -442,6 +457,9 @@ public class MesosTaskManagerParameters {
         Option<String> tmBootstrapCommand =
                 Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
 
+        // obtain unix user that's running mesos tasks
+        Option<String> user = Option.apply(flinkConfig.getString(MESOS_TM_USER));
+
         // obtain mesos task labels from configuration
         Map<String, String> mesosLabels =
                 flinkConfig.getOptional(MESOS_TM_LABELS).orElse(Collections.emptyMap());
@@ -461,6 +479,7 @@ public class MesosTaskManagerParameters {
                 tmBootstrapCommand,
                 taskManagerHostname,
                 uris,
+                user,
                 mesosLabels);
     }
 

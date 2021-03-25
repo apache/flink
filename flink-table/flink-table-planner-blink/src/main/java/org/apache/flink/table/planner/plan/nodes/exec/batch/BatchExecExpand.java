@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexNode;
 
+import java.util.Collections;
 import java.util.List;
 
 /** Batch {@link ExecNode} that can expand one row to multiple rows based on given projects. */
@@ -39,7 +40,8 @@ public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<R
         super(
                 projects,
                 false, // retainHeader
-                inputProperty,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }

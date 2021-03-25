@@ -78,6 +78,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             freeSlotFunction;
 
+    private final Consumer<JobID> freeInactiveSlotsConsumer;
+
     private final Consumer<ResourceID> heartbeatResourceManagerConsumer;
 
     private final Consumer<Exception> disconnectResourceManagerConsumer;
@@ -118,6 +120,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             CompletableFuture<Acknowledge>>
                     requestSlotFunction,
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
+            Consumer<JobID> freeInactiveSlotsConsumer,
             Consumer<ResourceID> heartbeatResourceManagerConsumer,
             Consumer<Exception> disconnectResourceManagerConsumer,
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
@@ -141,6 +144,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
+        this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
         this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
         this.cancelTaskFunction = cancelTaskFunction;
@@ -251,6 +255,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Time timeout) {
         return freeSlotFunction.apply(allocationId, cause);
+    }
+
+    @Override
+    public void freeInactiveSlots(JobID jobId, Time timeout) {
+        freeInactiveSlotsConsumer.accept(jobId);
     }
 
     @Override
