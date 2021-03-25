@@ -71,6 +71,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         return exceptionHistory;
     }
 
+    // hashCode and equals are necessary for the test classes deriving from
+    // RestResponseMarshallingTestBase
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -138,6 +140,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return truncated;
         }
 
+        // hashCode and equals are necessary for the test classes deriving from
+        // RestResponseMarshallingTestBase
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -238,6 +242,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return location;
         }
 
+        // hashCode and equals are necessary for the test classes deriving from
+        // RestResponseMarshallingTestBase
         @Override
         public boolean equals(Object o) {
             if (this == o) {
