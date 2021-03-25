@@ -191,7 +191,7 @@ class DataStreamTests(object):
     def test_key_by_and_co_map(self):
         ds1 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()])) \
-            .key_by(MyKeySelector(), key_type_info=Types.INT())
+            .key_by(MyKeySelector(), key_type=Types.INT())
         ds2 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
 
@@ -223,7 +223,7 @@ class DataStreamTests(object):
                 return value
 
         ds1.connect(ds2)\
-            .key_by(MyKeySelector(), MyKeySelector(), key_type_info=Types.INT())\
+            .key_by(MyKeySelector(), MyKeySelector(), key_type=Types.INT())\
             .map(AssertKeyCoMapFunction())\
             .add_sink(self.test_sink)
 
@@ -385,7 +385,7 @@ class DataStreamTests(object):
     def test_key_by_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+        keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
         with self.assertRaises(Exception):
             keyed_stream.name("keyed stream")
@@ -429,7 +429,7 @@ class DataStreamTests(object):
     def test_key_by_flat_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+        keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
         with self.assertRaises(Exception):
             keyed_stream.name("keyed stream")
@@ -518,7 +518,7 @@ class DataStreamTests(object):
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.key_by(MyKeySelector(), key_type_info=Types.INT()).key_by(lambda x: x[0])\
+        ds.key_by(MyKeySelector(), key_type=Types.INT()).key_by(lambda x: x[0])\
             .add_sink(self.test_sink)
 
         self.env.execute("test multi key by")
@@ -697,7 +697,7 @@ class DataStreamTests(object):
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(MyTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[1], key_type_info=Types.STRING()) \
+            .key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.STRING()) \
             .add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
@@ -744,7 +744,7 @@ class DataStreamTests(object):
                 self.reducing_state.add(value[0])
                 yield Row(self.reducing_state.get(), value[1])
 
-        data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) \
+        data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
             .add_sink(self.test_sink)
         self.env.execute('test_reducing_state')
@@ -788,7 +788,7 @@ class DataStreamTests(object):
                 self.aggregating_state.add(value[0])
                 yield Row(self.aggregating_state.get(), value[1])
 
-        data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) \
+        data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
             .add_sink(self.test_sink)
         self.env.execute('test_aggregating_state')
@@ -1044,7 +1044,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
-            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
+            .key_by(lambda x: x[0], key_type=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
         result = self.test_sink.get_results()
@@ -1076,7 +1076,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+        keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
         with self.assertRaises(Exception):
             keyed_stream.name("keyed stream")
@@ -1123,7 +1123,7 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(MyTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
+            .key_by(lambda x: x[0], key_type=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
         result = self.test_sink.get_results()
@@ -1155,7 +1155,7 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('c', 1), ('d', 1), ('b', 0), ('e', 1)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
+        keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
         with self.assertRaises(Exception):
             keyed_stream.name("keyed stream")

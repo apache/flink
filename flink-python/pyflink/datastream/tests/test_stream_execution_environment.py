@@ -533,7 +533,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                                           type_info=Types.ROW([Types.STRING(),
                                                                                Types.INT()]))
         from_collection_source.name("From Collection")
-        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type_info=Types.INT())
+        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
         plus_two_map_stream = keyed_stream.map(plus_two_map).name("Plus Two Map").set_parallelism(3)
 
