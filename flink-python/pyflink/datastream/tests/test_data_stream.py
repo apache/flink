@@ -51,7 +51,7 @@ class DataStreamTests(object):
     def tearDown(self) -> None:
         self.test_sink.clear()
 
-    def test_map_function_without_data_types(self):
+    def test_map(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection([('ab', decimal.Decimal(1)),
                                        ('bdc', decimal.Decimal(2)),
@@ -67,7 +67,20 @@ class DataStreamTests(object):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_map_function_with_data_types(self):
+    def test_map_with_output_type(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        ds.map(MyMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
+            .add_sink(self.test_sink)
+        self.env.execute('map_function_test')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_map_with_callable_function(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
 
@@ -84,7 +97,7 @@ class DataStreamTests(object):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_co_map_function_without_data_types(self):
+    def test_co_map(self):
         self.env.set_parallelism(1)
         ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
                                        type_info=Types.ROW([Types.INT(), Types.INT()]))
@@ -93,6 +106,20 @@ class DataStreamTests(object):
         ds1.connect(ds2).map(MyCoMapFunction()).add_sink(self.test_sink)
         self.env.execute('co_map_function_test')
         results = self.test_sink.get_results(True)
+        expected = ['2', '3', '4', 'a', 'b', 'c']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_co_map_with_output_type(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).map(MyCoMapFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('co_map_function_test')
+        results = self.test_sink.get_results(False)
         expected = ['2', '3', '4', 'a', 'b', 'c']
         expected.sort()
         results.sort()
@@ -210,23 +237,10 @@ class DataStreamTests(object):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def test_map_function_with_data_types_and_function_object(self):
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        ds.map(MyMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
-            .add_sink(self.test_sink)
-        self.env.execute('map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
-
-    def test_flat_map_function(self):
+    def test_flat_map(self):
         ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.flat_map(MyFlatMapFunction(), result_type=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(MyFlatMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
 
         self.env.execute('flat_map_test')
@@ -237,7 +251,7 @@ class DataStreamTests(object):
 
         self.assertEqual(expected, results)
 
-    def test_flat_map_function_with_function_object(self):
+    def test_flat_map_with_callable_function(self):
         ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
 
@@ -245,7 +259,7 @@ class DataStreamTests(object):
             if value[1] % 2 == 0:
                 yield value
 
-        ds.flat_map(flat_map, result_type=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(flat_map, output_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
         self.env.execute('flat_map_test')
         results = self.test_sink.get_results(False)
@@ -254,7 +268,7 @@ class DataStreamTests(object):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def test_co_flat_map_function_without_data_types(self):
+    def test_co_flat_map(self):
         self.env.set_parallelism(1)
         ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
                                        type_info=Types.ROW([Types.INT(), Types.INT()]))
@@ -268,7 +282,7 @@ class DataStreamTests(object):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_co_flat_map_function_with_data_types(self):
+    def test_co_flat_map_with_output_type(self):
         self.env.set_parallelism(1)
         ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
                                        type_info=Types.ROW([Types.INT(), Types.INT()]))
@@ -299,7 +313,7 @@ class DataStreamTests(object):
         results.sort()
         self.assertEqual(expected, results)
 
-    def test_filter_without_data_types(self):
+    def test_filter(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
         ds.filter(MyFilterFunction()).add_sink(self.test_sink)
         self.env.execute("test filter")
@@ -309,7 +323,7 @@ class DataStreamTests(object):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def test_filter_with_data_types(self):
+    def test_filter_with_lambda_function(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
                                       type_info=Types.ROW(
                                           [Types.INT(), Types.STRING(), Types.STRING()])
@@ -318,17 +332,6 @@ class DataStreamTests(object):
         self.env.execute("test filter")
         results = self.test_sink.get_results(False)
         expected = ['+I[2, Hello, Hi]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
-    def test_add_sink(self):
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.add_sink(self.test_sink)
-        self.env.execute("test_add_sink")
-        results = self.test_sink.get_results(False)
-        expected = ['+I[deeefg, 4]', '+I[bdc, 2]', '+I[ab, 1]', '+I[cfgs, 3]']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -825,7 +828,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         plan = eval(str(self.env.get_execution_plan()))
         self.assertEqual(1, plan['nodes'][0]['parallelism'])
 
-    def test_union_stream(self):
+    def test_union(self):
         ds_1 = self.env.from_collection([1, 2, 3])
         ds_2 = self.env.from_collection([4, 5, 6])
         ds_3 = self.env.from_collection([7, 8, 9])
@@ -1057,7 +1060,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected_result.sort()
         self.assertEqual(expected_result, result)
 
-    def test_reduce_function_without_data_types(self):
+    def test_reduce(self):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
         ds.key_by(lambda a: a[1]) \
