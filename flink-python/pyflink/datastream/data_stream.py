@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import uuid
+import warnings
 from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
@@ -248,6 +249,7 @@ class DataStream(object):
         ))
 
     def flat_map(self, func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
                  result_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
@@ -256,9 +258,17 @@ class DataStream(object):
         other features provided by the RichFUnction.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
+        :param output_type: The type information of output data.
         :param result_type: The type information of output data.
+                            (Deprecated, use output_type instead)
         :return: The transformed DataStream.
         """
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -269,7 +279,7 @@ class DataStream(object):
             self,
             func,  # type: ignore
             flink_fn_execution_pb2.UserDefinedDataStreamFunction.FLAT_MAP,  # type: ignore
-            result_type)
+            output_type)
         return DataStream(self._j_data_stream.transform(
             "FLAT_MAP",
             j_output_type_info,
@@ -335,7 +345,7 @@ class DataStream(object):
 
         type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)
+        data_stream = self.flat_map(FilterFlatMap(func), output_type=type_info)
         data_stream.name("Filter")
         return data_stream
 
@@ -807,8 +817,17 @@ class KeyedStream(DataStream):
                 return [self._underlying.map(value)]
         return self.process(KeyedMapFunctionWrapper(func), output_type)  # type: ignore
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], result_type: TypeInformation = None)\
+    def flat_map(self,
+                 func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
+                 result_type: TypeInformation = None) \
             -> 'DataStream':
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -828,7 +847,7 @@ class KeyedStream(DataStream):
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 yield from self._underlying.flat_map(value)
-        return self.process(KeyedFlatMapFunctionWrapper(func), result_type)  # type: ignore
+        return self.process(KeyedFlatMapFunctionWrapper(func), output_type)  # type: ignore
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
@@ -1186,13 +1205,13 @@ class ConnectedStreams(object):
 def _get_one_input_stream_operator(data_stream: DataStream,
                                    func: Union[Function, FunctionWrapper],
                                    func_type: int,
-                                   type_info: Union[TypeInformation, List] = None):
+                                   output_type: Union[TypeInformation, List] = None):
     """
     Create a Java one input stream operator.
 
     :param func: a function object that implements the Function interface.
     :param func_type: function type, supports MAP, FLAT_MAP, etc.
-    :param type_info: the data type of the function output data.
+    :param output_type: the data type of the function output data.
     :return: A Java operator which is responsible for execution user defined python function.
     """
 
@@ -1200,12 +1219,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     import cloudpickle
     serialized_func = cloudpickle.dumps(func)
     j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
-    if type_info is None:
+    if output_type is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
-    elif isinstance(type_info, list):
-        output_type_info = RowTypeInfo(type_info)
+    elif isinstance(output_type, list):
+        output_type_info = RowTypeInfo(output_type)
     else:
-        output_type_info = type_info
+        output_type_info = output_type
 
     j_output_type_info = output_type_info.get_java_type_info()
 
