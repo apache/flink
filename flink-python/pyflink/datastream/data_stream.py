@@ -287,14 +287,23 @@ class DataStream(object):
         ))
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         """
         Creates a new KeyedStream that uses the provided key for partitioning its operator states.
 
         :param key_selector: The KeySelector to be used for extracting the key for partitioning.
+        :param key_type: The type information describing the key type.
         :param key_type_info: The type information describing the key type.
+                              (Deprecated, use key_type instead)
         :return: The DataStream with partitioned state(i.e. KeyedStream).
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
+
         if callable(key_selector):
             key_selector = KeySelectorFunctionWrapper(key_selector)  # type: ignore
         if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
@@ -302,12 +311,12 @@ class DataStream(object):
 
         output_type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        if key_type_info is None:
-            key_type_info = Types.PICKLED_BYTE_ARRAY()
+        if key_type is None:
+            key_type = Types.PICKLED_BYTE_ARRAY()
 
         intermediate_map_stream = self.map(
             lambda x: Row(key_selector.get_key(x), x),  # type: ignore
-            output_type=Types.ROW([key_type_info, output_type_info]))
+            output_type=Types.ROW([key_type, output_type_info]))
         gateway = get_gateway()
         JKeyByKeySelector = gateway.jvm.KeyByKeySelector
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -315,7 +324,7 @@ class DataStream(object):
         key_stream = KeyedStream(
             intermediate_map_stream._j_data_stream.keyBy(
                 JKeyByKeySelector(),
-                Types.ROW([key_type_info]).get_java_type_info()), output_type_info,
+                Types.ROW([key_type]).get_java_type_info()), output_type_info,
             self)
         return key_stream
 
@@ -940,8 +949,9 @@ class KeyedStream(DataStream):
         return self._values().add_sink(sink_func)
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
-        return self._origin_stream.key_by(key_selector, key_type_info)
+        return self._origin_stream.key_by(key_selector, key_type, key_type_info)
 
     def process(self, func: KeyedProcessFunction,  # type: ignore
                 output_type: TypeInformation = None) -> 'DataStream':
@@ -1065,6 +1075,7 @@ class ConnectedStreams(object):
 
     def key_by(self, key_selector1: Union[Callable, KeySelector],
                key_selector2: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'ConnectedStreams':
         """
         KeyBy operation for connected data stream. Assigns keys to the elements of
@@ -1073,9 +1084,16 @@ class ConnectedStreams(object):
 
         :param key_selector1: The `KeySelector` used for grouping the first input.
         :param key_selector2: The `KeySelector` used for grouping the second input.
+        :param key_type: The type information of the common key type.
         :param key_type_info: The type information of the common key type.
+                              (Deprecated, use key_type instead)
         :return: The partitioned `ConnectedStreams`
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
 
         ds1 = self.stream1
         ds2 = self.stream2
@@ -1084,8 +1102,8 @@ class ConnectedStreams(object):
         if isinstance(self.stream2, KeyedStream):
             ds2 = self.stream2._origin_stream
         return ConnectedStreams(
-            ds1.key_by(key_selector1, key_type_info),
-            ds2.key_by(key_selector2, key_type_info))
+            ds1.key_by(key_selector1, key_type),
+            ds2.key_by(key_selector2, key_type))
 
     def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':

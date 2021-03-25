@@ -77,7 +77,7 @@ def streaming_file_sink():
     env.set_parallelism(1)
     env.from_collection(collection=[(1, 'aaa'), (2, 'bbb')]) \
         .map(lambda record: (record[0]+1, record[1].upper()),
-             result_type=Types.ROW([Types.INT(), Types.STRING()])) \
+             output_type=Types.ROW([Types.INT(), Types.STRING()])) \
         .add_sink(StreamingFileSink
                   .for_row_format('/tmp/output', SimpleStringEncoder())
                   .build())
