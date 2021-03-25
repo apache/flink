@@ -113,18 +113,22 @@ public class HiveCatalogFactoryTest extends TestLogger {
     @Test
     public void testCreateHiveCatalogWithIllegalHadoopConfDir() throws IOException {
         final String catalogName = "mycatalog";
+
         final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
 
         try {
-            final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-            catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-
-            final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
-            properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
+            final Map<String, String> options = new HashMap<>();
+            options.put(
+                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+            options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+            options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
             final Catalog actualCatalog =
-                    TableFactoryService.find(CatalogFactory.class, properties)
-                            .createCatalog(catalogName, properties);
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            options,
+                            null,
+                            Thread.currentThread().getContextClassLoader());
             Assert.fail();
         } catch (CatalogException e) {
         }
