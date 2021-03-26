@@ -878,27 +878,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     //testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:10:31' TO HOUR)", "2018-03-20 07:00:00.000")
   }
 
-  private def timestampLtz(str: String): String = {
-    val precision = extractPrecision(str)
-    timestampLtz(str, precision)
-  }
-
-  private def timestampLtz(str: String, precision: Int): String = {
-    s"CAST(TIMESTAMP '$str' AS TIMESTAMP($precision) WITH LOCAL TIME ZONE)"
-  }
-
-  // According to SQL standard, the length of second fraction is
-  // the precision of the Timestamp literal
-  private def extractPrecision(str: String): Int = {
-    val dot = str.indexOf('.')
-    if (dot == -1) {
-      0
-    } else {
-      str.length - dot - 1
-    }
-  }
-
-
   @Test
   def testTemporalShanghai(): Unit = {
     config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
@@ -1007,14 +986,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     // 1520960523000  "2018-03-14T01:02:03+0800"
     testSqlApi("TIMESTAMPADD(HOUR, +8, TIMESTAMP '2017-11-29 10:58:58.998')",
       "2017-11-29 18:58:58.998")
-
-    val sdf = new SimpleDateFormat("yyyy-MM-dd")
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-    val currMillis = System.currentTimeMillis()
-    val ts = new Timestamp(currMillis)
-    val currDateStr = sdf.format(ts)
-    testSqlApi("CURRENT_DATE", currDateStr)
-    //testSqlApi("CURRENT_TIME", "")
   }
 
   @Test

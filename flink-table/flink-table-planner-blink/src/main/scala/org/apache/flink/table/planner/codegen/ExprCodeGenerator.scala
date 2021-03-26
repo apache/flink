@@ -836,6 +836,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         StringCallGen.generateCallExpression(ctx, call.getOperator, operands, resultType)
           .getOrElse {
             FunctionGenerator
+              .getInstance(ctx.tableConfig)
               .getCallGenerator(
                 sqlOperator,
                 operands.map(expr => expr.resultType),

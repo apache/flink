@@ -80,7 +80,8 @@ public final class LocalZonedTimestampType extends LogicalType {
                     Integer.class.getName(),
                     int.class.getName(),
                     Long.class.getName(),
-                    long.class.getName());
+                    long.class.getName(),
+                    TimestampData.class.getName());
 
     private static final Class<?> DEFAULT_CONVERSION = java.time.Instant.class;
 

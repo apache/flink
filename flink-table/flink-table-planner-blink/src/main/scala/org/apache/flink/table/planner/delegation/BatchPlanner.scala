@@ -117,6 +117,7 @@ class BatchPlanner(
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
     val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
 
     val execEnv = getExecEnv
     ExecutorUtils.setBatchProperties(execEnv)

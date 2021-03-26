@@ -57,7 +57,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
 
+import java.lang.{Long => JLong}
 import java.util
+import java.util.TimeZone
+
+import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -161,16 +165,9 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    translateToPlan(execGraph)
-  }
-
-  protected def overrideEnvParallelism(): Unit = {
-    // Use config parallelism to override env parallelism.
-    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
-    if (defaultParallelism > 0) {
-      getExecEnv.getConfig.setParallelism(defaultParallelism)
-    }
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
   }
 
   /**
@@ -427,7 +424,9 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+    val jsonPlan = ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+    cleanupInternalConfigurations
+    jsonPlan
   }
 
   override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
@@ -436,7 +435,9 @@ abstract class PlannerBase(
     }
     validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
-    translateToPlan(execGraph)
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
   }
 
   protected def createSerdeContext: SerdeContext = {
@@ -458,7 +459,8 @@ abstract class PlannerBase(
    * the configuration before planner do optimization with [[ModifyOperation]] or other works.
    */
   protected def validateAndOverrideConfiguration(): Unit = {
-    if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
+    val configuration = config.getConfiguration
+    if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
       throw new IllegalArgumentException(
         "Mismatch between configured planner and actual planner. " +
           "Currently, the 'table.planner' can only be set when instantiating the " +
@@ -466,9 +468,32 @@ abstract class PlannerBase(
           "Please instantiate a new TableEnvironment if necessary.");
     }
 
+    // Add query start time to TableConfig, these config are used internally,
+    // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
+    val epochTime :JLong = System.currentTimeMillis()
+    configuration.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    val localTime :JLong =  epochTime +
+      TimeZone.getTimeZone(config.getLocalTimeZone).getOffset(epochTime)
+    configuration.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+
     getExecEnv.configure(
-      getTableConfig.getConfiguration,
+      configuration,
       Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
+
+    // Use config parallelism to override env parallelism.
+    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
+    if (defaultParallelism > 0) {
+      getExecEnv.getConfig.setParallelism(defaultParallelism)
+    }
+  }
+
+  /**
+   * Cleanup all internal configuration after plan translation finished.
+   */
+  protected def cleanupInternalConfigurations(): Unit = {
+    val configuration = config.getConfiguration
+    configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
+    configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
   }
 }
