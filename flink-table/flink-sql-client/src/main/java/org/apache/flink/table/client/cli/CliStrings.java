@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
+
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -297,13 +300,19 @@ public final class CliStrings {
                 .toAttributedString();
     }
 
-    public static AttributedString messageError(String message, Throwable t) {
-        while (t.getCause() != null
-                && t.getCause().getMessage() != null
-                && !t.getCause().getMessage().isEmpty()) {
-            t = t.getCause();
+    public static AttributedString messageError(String message, Throwable t, boolean isVerbose) {
+        String expMessage;
+        if (isVerbose) {
+            expMessage = ExceptionUtils.getStackTrace(t);
+        } else {
+            while (t.getCause() != null
+                    && t.getCause().getMessage() != null
+                    && !t.getCause().getMessage().isEmpty()) {
+                t = t.getCause();
+            }
+            expMessage = t.getMessage();
         }
-        return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+        return messageError(message, t.getClass().getName() + ": " + expMessage);
         // return messageError(message, ExceptionUtils.stringifyException(t));
     }
 

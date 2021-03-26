@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -53,6 +54,9 @@ public interface Executor {
 
     /** Lists all session properties that are defined by the executor and the session. */
     Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException;
+
+    /** Lists all session ReadableConfig that are defined by the executor and the session. */
+    ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException;
 
     /**
      * Reset all the properties for the given session identifier.

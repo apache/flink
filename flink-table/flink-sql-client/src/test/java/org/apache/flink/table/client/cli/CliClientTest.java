@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -55,6 +56,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -129,7 +131,43 @@ public class CliClientTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testSqlClientVerbose() throws Exception {
+        InputStream inputStream1 =
+                new ByteArrayInputStream("select * from test_table;\n".getBytes());
+        InputStream inputStream2 =
+                new ByteArrayInputStream(
+                        "SET sql-client.verbose = true;\nselect * from test_table;\n".getBytes());
+
+        final String output1 = getOutput(inputStream1);
+        assertTrue(
+                output1.contains(
+                                "org.apache.calcite.sql.validate.SqlValidatorException: Object 'test_table' not found")
+                        && !output1.contains(
+                                "org.apache.flink.table.client.gateway.SqlExecutionException: Invalidate SQL statement"));
+
+        final String output2 = getOutput(inputStream2);
+        assertTrue(
+                output2.contains(
+                                "org.apache.calcite.sql.validate.SqlValidatorException: Object 'test_table' not found")
+                        && output2.contains(
+                                "org.apache.flink.table.client.gateway.SqlExecutionException: Invalidate SQL statement"));
+    }
+
     // --------------------------------------------------------------------------------------------
+
+    private String getOutput(InputStream inputStream) throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
+        Path historyFilePath = historyTempFile();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+                CliClient client =
+                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            client.open();
+        }
+        return new String(outputStream.toByteArray());
+    }
 
     private void verifyUpdateSubmission(
             String statement, boolean failExecution, boolean testFailure) throws Exception {
@@ -220,6 +258,12 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
+        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            return context.getReadableConfig();
+        }
+
+        @Override
         public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
 
         @Override
@@ -228,7 +272,10 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {}
+                throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            context.set(key, value);
+        }
 
         @Override
         public TableResult executeOperation(String sessionId, Operation operation)
