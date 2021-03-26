@@ -43,13 +43,9 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
@@ -212,14 +208,6 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
     }
 
     // --------------------------------------------------------------------------------------------
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .append(ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
-                    .append(ISO_LOCAL_TIME)
-                    .toFormatter();
 
     private interface RuntimeConverter extends Serializable {
         JsonNode convert(CsvMapper csvMapper, ContainerNode<?> container, Object obj);

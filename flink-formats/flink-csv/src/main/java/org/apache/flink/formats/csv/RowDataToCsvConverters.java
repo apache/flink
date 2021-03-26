@@ -40,7 +40,6 @@ import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
@@ -215,19 +214,19 @@ public class RowDataToCsvConverters implements Serializable {
             case TIME_WITHOUT_TIME_ZONE:
                 return (csvMapper, container, array, pos) ->
                         convertTime(array.getInt(pos), container);
-            case TIMESTAMP_WITH_TIME_ZONE:
-                final int zonedTimestampPrecision =
-                        ((LocalZonedTimestampType) fieldType).getPrecision();
-                return (csvMapper, container, array, pos) ->
-                        convertTimestamp(
-                                array.getTimestamp(pos, zonedTimestampPrecision),
-                                container,
-                                SQL_TIMESTAMP_FORMAT);
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final int timestampPrecision = ((TimestampType) fieldType).getPrecision();
                 return (csvMapper, container, array, pos) ->
                         convertTimestamp(
                                 array.getTimestamp(pos, timestampPrecision),
+                                container,
+                                SQL_TIMESTAMP_FORMAT);
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final int localZonedTimestampPrecision =
+                        ((LocalZonedTimestampType) fieldType).getPrecision();
+                return (csvMapper, container, array, pos) ->
+                        convertTimestamp(
+                                array.getTimestamp(pos, localZonedTimestampPrecision),
                                 container,
                                 SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT);
             case DECIMAL:
@@ -321,12 +320,4 @@ public class RowDataToCsvConverters implements Serializable {
             return arrayNode;
         };
     }
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .append(ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
-                    .append(ISO_LOCAL_TIME)
-                    .toFormatter();
 }
