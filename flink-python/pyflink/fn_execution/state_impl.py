@@ -28,6 +28,8 @@ from typing import List, Tuple, Any, Iterable
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
+from pyflink.fn_execution.beam import beam_coder_impl_slow
+from pyflink.fn_execution.coders import TimeWindowCoder, CountWindowCoder
 from pyflink.fn_execution.internal_state import InternalKvState, N, InternalValueState, \
     InternalListState, InternalReducingState, InternalMergingState, InternalAggregatingState, \
     InternalMapState
@@ -678,9 +680,20 @@ class InternalSynchronousMapRuntimeState(object):
         self._map_state_handler = map_state_handler
         self._state_key = state_key
         self._map_key_coder = map_key_coder
-        self._map_key_coder_impl = map_key_coder.get_impl()
+        # TODO: Replace slow WindowCoderImpl with fast WindowCoderImpl
+        if isinstance(map_key_coder, TimeWindowCoder):
+            self._map_key_coder_impl = beam_coder_impl_slow.TimeWindowCoderImpl()
+        elif isinstance(map_key_coder, CountWindowCoder):
+            self._map_key_coder_impl = beam_coder_impl_slow.CountWindowCoderImpl()
+        else:
+            self._map_key_coder_impl = map_key_coder.get_impl()
         self._map_value_coder = map_value_coder
-        self._map_value_coder_impl = map_value_coder.get_impl()
+        if isinstance(map_value_coder, TimeWindowCoder):
+            self._map_value_coder_impl = beam_coder_impl_slow.TimeWindowCoderImpl()
+        elif isinstance(map_key_coder, CountWindowCoder):
+            self._map_value_coder_impl = beam_coder_impl_slow.CountWindowCoderImpl()
+        else:
+            self._map_value_coder_impl = map_value_coder.get_impl()
         self._write_cache = dict()
         self._max_write_cache_entries = max_write_cache_entries
         self._is_empty = None
@@ -878,6 +891,7 @@ class RemoteKeyedStateBackend(object):
             state_handler, map_state_read_cache_size)
         from pyflink.fn_execution.coders import FlattenRowCoder
         self._key_coder_impl = FlattenRowCoder(key_coder._field_coders).get_impl()
+        self.namespace_coder = namespace_coder
         if namespace_coder:
             self._namespace_coder_impl = namespace_coder.get_impl()
         else:

@@ -17,7 +17,7 @@
 ################################################################################
 import math
 from abc import ABC, abstractmethod
-from typing import Generic, List, Any, Iterable
+from typing import Generic, List, Any, Iterable, Set
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor, ValueState
@@ -74,6 +74,40 @@ class PanedWindowAssigner(WindowAssigner[W], ABC):
 
     @abstractmethod
     def get_last_window(self, pane: W) -> W:
+        pass
+
+
+class MergingWindowAssigner(WindowAssigner[W], ABC):
+    """
+    A WindowAssigner that can merge windows.
+    """
+
+    class MergeCallback:
+        """
+        Callback to be used in merge_windows(W, List[W], MergeCallback) for
+        specifying which windows should be merged.
+        """
+
+        @abstractmethod
+        def merge(self, merge_result: W, to_be_merged: Iterable[W]):
+            """
+            Specifies that the given windows should be merged into the result window.
+
+            :param merge_result: The resulting merged window.
+            :param to_be_merged: The list of windows that should be merged into one window.
+            """
+            pass
+
+    @abstractmethod
+    def merge_windows(self, new_window: W, sorted_windows: List[W], merge_callback: MergeCallback):
+        """
+        Determines which windows (if any) should be merged.
+
+        :param new_window: The new window.
+        :param sorted_windows: The sorted window candidates.
+        :param merge_callback: A callback that can be invoked to signal which windows should be
+            merged.
+        """
         pass
 
 
@@ -210,3 +244,71 @@ class CountSlidingWindowAssigner(WindowAssigner[CountWindow]):
 
     def __repr__(self):
         return "CountSlidingWindowAssigner(%s, %s)" % (self._size, self._slide)
+
+
+class SessionWindowAssigner(MergingWindowAssigner[TimeWindow]):
+    """
+    WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
+    overlap.
+    """
+
+    def __init__(self, session_gap: int, is_event_time: bool):
+        self._session_gap = session_gap
+        self._is_event_time = is_event_time
+
+    def merge_windows(self, new_window: W, sorted_windows: List[TimeWindow],
+                      merge_callback: MergingWindowAssigner.MergeCallback):
+        ceiling = self._ceiling_window(new_window, sorted_windows)
+        floor = self._floor_window(new_window, sorted_windows)
+        merge_result = new_window
+        merged_windows = set()
+        if ceiling:
+            merge_result = self._merge_window(merge_result, ceiling, merged_windows)
+        if floor:
+            merge_result = self._merge_window(merge_result, floor, merged_windows)
+        if merged_windows:
+            merged_windows.add(new_window)
+            merge_callback.merge(merge_result, merged_windows)
+
+    def assign_windows(self, element: List, timestamp: int) -> Iterable[TimeWindow]:
+        return [TimeWindow(timestamp, timestamp + self._session_gap)]
+
+    def is_event_time(self) -> bool:
+        return self._is_event_time
+
+    @staticmethod
+    def _ceiling_window(new_window: TimeWindow, sorted_windows: List[TimeWindow]):
+        if not sorted_windows:
+            return None
+        window_num = len(sorted_windows)
+        if sorted_windows[0] >= new_window:
+            return None
+        for i in range(window_num - 1):
+            if sorted_windows[i] <= new_window <= sorted_windows[i + 1]:
+                return sorted_windows[i]
+        return sorted_windows[window_num - 1]
+
+    @staticmethod
+    def _floor_window(new_window: TimeWindow, sorted_windows: List[TimeWindow]):
+        if not sorted_windows:
+            return None
+        window_num = len(sorted_windows)
+        if sorted_windows[window_num - 1] <= new_window:
+            return None
+        for i in range(window_num - 1):
+            if sorted_windows[i] <= new_window <= sorted_windows[i + 1]:
+                return sorted_windows[i + 1]
+        return sorted_windows[0]
+
+    # Merge curWindow and other, return a new window which covers curWindow and other if they are
+    # overlapped. Otherwise, returns the curWindow itself.
+    @staticmethod
+    def _merge_window(cur_window: TimeWindow, other: TimeWindow, merged_windows: Set[TimeWindow]):
+        if cur_window.intersects(other):
+            merged_windows.add(other)
+            return cur_window.cover(other)
+        else:
+            return cur_window
+
+    def __repr__(self):
+        return "SessionWindowAssigner(%s)" % self._session_gap

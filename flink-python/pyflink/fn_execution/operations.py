@@ -37,7 +37,8 @@ from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 from pyflink.fn_execution.window_assigner import TumblingWindowAssigner, \
-    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner
+    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner, \
+    SessionWindowAssigner
 from pyflink.fn_execution.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
     CountTrigger
 
@@ -451,8 +452,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 window_assigner = CountSlidingWindowAssigner(
                     self._window.window_size, self._window.window_slide)
         else:
-            raise Exception("General Python UDAF in Sessiong window will be implemented in "
-                            "FLINK-21630")
+            window_assigner = SessionWindowAssigner(
+                self._window.window_gap, self._window.is_row_time)
         if self._is_time_window:
             if self._window.is_row_time:
                 trigger = EventTimeTrigger()
