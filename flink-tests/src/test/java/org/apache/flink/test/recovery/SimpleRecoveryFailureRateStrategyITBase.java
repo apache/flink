@@ -43,7 +43,7 @@ public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCas
         Configuration config = new Configuration();
         config.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
         config.setInteger(
-                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 1);
+                RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 3);
         config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
                 Duration.ofSeconds(1));
