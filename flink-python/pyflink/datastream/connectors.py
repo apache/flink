@@ -22,12 +22,11 @@ from typing import Dict, List, Union
 from pyflink.common import typeinfo
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
 from pyflink.common.typeinfo import RowTypeInfo, TypeInformation
-from pyflink.datastream.functions import SourceFunction, SinkFunction
+from pyflink.datastream.functions import SourceFunction, SinkFunction, JavaFunctionWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import load_java_class, to_jarray
 
-from py4j.java_gateway import java_import
-
+from py4j.java_gateway import java_import, JavaObject
 
 __all__ = [
     'FlinkKafkaConsumer',
@@ -661,3 +660,17 @@ class OutputFileConfig(object):
 
         def build(self) -> 'OutputFileConfig':
             return OutputFileConfig(self.part_prefix, self.part_suffix)
+
+
+class Source(JavaFunctionWrapper):
+    """
+    Base class for all unified data source in Flink.
+    """
+
+    def __init__(self, source: Union[str, JavaObject]):
+        """
+        Constructor of Source.
+
+        :param source: The java Source object.
+        """
+        super(Source, self).__init__(source)
