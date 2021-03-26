@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -32,7 +31,9 @@ import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -65,7 +66,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -220,11 +220,6 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-            return null;
-        }
-
-        @Override
         public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
 
         @Override
@@ -253,15 +248,11 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public Optional<Operation> parseStatement(String sessionId, String statement)
+        public Operation parseStatement(String sessionId, String statement)
                 throws SqlExecutionException {
             receivedStatement = statement;
             List<Operation> ops = helper.getSqlParser().parse(statement);
-            if (ops.isEmpty()) {
-                return Optional.empty();
-            } else {
-                return Optional.of(ops.get(0));
-            }
+            return ops.get(0);
         }
 
         @Override
@@ -269,6 +260,35 @@ public class CliClientTest extends TestLogger {
             receivedStatement = statement;
             receivedPosition = position;
             return Arrays.asList(helper.getSqlParser().getCompletionHints(statement, position));
+        }
+
+        @Override
+        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public List<Row> retrieveResultPage(String resultId, int page)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+            // nothing to do
         }
     }
 }

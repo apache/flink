@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
@@ -281,7 +280,8 @@ public class CliClient implements AutoCloseable {
             stmt = stmt.substring(0, stmt.length() - 1).trim();
         }
         try {
-            return executor.parseStatement(sessionId, stmt);
+            Operation operation = executor.parseStatement(sessionId, stmt);
+            return Optional.of(operation);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
         }
@@ -289,7 +289,6 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callOperation(Operation operation) {
-        //
         if (operation instanceof QuitOperation) {
             // QUIT/EXIT
             callQuit();
@@ -376,16 +375,14 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callSelect(QueryOperation operation) {
-        final TableResult result;
+        final ResultDescriptor resultDesc;
         try {
-            result = executor.executeOperation(sessionId, operation);
+            resultDesc = executor.executeQuery(sessionId, operation);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
         }
 
-        ReadableConfig config = executor.getSessionConfig(sessionId);
-        ResultDescriptor resultDesc = ResultDescriptor.createResultDescriptor(config, result);
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {

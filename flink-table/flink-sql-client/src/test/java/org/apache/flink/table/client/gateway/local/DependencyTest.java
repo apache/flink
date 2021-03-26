@@ -53,6 +53,7 @@ import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -68,7 +69,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -130,11 +130,11 @@ public class DependencyTest {
         final LocalExecutor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
         try {
-            Optional<Operation> operation =
+            Operation operation =
                     executor.parseStatement(
                             sessionId, "SELECT IntegerField1, StringField1 FROM TableNumber1");
 
-            assertTrue(operation.isPresent());
+            assertTrue(operation instanceof QueryOperation);
         } finally {
             executor.closeSession(sessionId);
         }
@@ -162,8 +162,7 @@ public class DependencyTest {
     }
 
     private TableResult executeSql(Executor executor, String sessionId, String sql) {
-        Operation operation = executor.parseStatement(sessionId, sql).get();
-
+        Operation operation = executor.parseStatement(sessionId, sql);
         return executor.executeOperation(sessionId, operation);
     }
 

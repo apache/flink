@@ -24,7 +24,6 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
@@ -110,8 +109,8 @@ public class CliTableauResultView implements AutoCloseable {
     private void checkAndCleanUpQuery(boolean cleanUpQuery) {
         if (cleanUpQuery) {
             try {
-                resultDescriptor.getDynamicResult().close();
-            } catch (Exception e) {
+                sqlExecutor.cancelQuery(sessionId, resultDescriptor.getResultId());
+            } catch (SqlExecutionException e) {
                 // ignore further exceptions
             }
         }
@@ -150,7 +149,7 @@ public class CliTableauResultView implements AutoCloseable {
 
         while (true) {
             final TypedResult<List<Row>> result =
-                    ((ChangelogResult) resultDescriptor.getDynamicResult()).retrieveChanges();
+                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
 
             switch (result.getType()) {
                 case EMPTY:
