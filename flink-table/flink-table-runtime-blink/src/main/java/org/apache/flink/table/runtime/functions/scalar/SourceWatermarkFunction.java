@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
@@ -31,10 +32,14 @@ import javax.annotation.Nullable;
 public class SourceWatermarkFunction extends BuiltInScalarFunction {
 
     public static final String ERROR_MESSAGE =
-            "SOURCE_WATERMARK() is a declarative function and doesn't have concrete implementation. "
-                    + "It should only be used in WATERMARK FOR clause in CREATE TABLE DDL. "
-                    + "It must be pushed down into source and the source should emit system defined watermarks. "
-                    + "Please check the source connector implementation.";
+            String.format(
+                    "SOURCE_WATERMARK() is a declarative marker function and doesn't have concrete "
+                            + "runtime implementation. It can only be used as a single expression in a "
+                            + "WATERMARK FOR clause in the CREATE TABLE DDL. The declaration will be "
+                            + "pushed down into a table source that implements the '%s' interface. "
+                            + "The source will emit system-defined watermarks afterwards. Please "
+                            + "check the documentation whether the connector supports source watermarks.",
+                    SupportsSourceWatermark.class.getName());
 
     private static final long serialVersionUID = 1L;
 

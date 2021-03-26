@@ -58,6 +58,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -910,7 +911,8 @@ public final class TestValuesTableFactory
 
     /** Values {@link ScanTableSource} for testing that supports watermark push down. */
     private static class TestValuesScanTableSourceWithWatermarkPushDown
-            extends TestValuesScanTableSource implements SupportsWatermarkPushDown {
+            extends TestValuesScanTableSource
+            implements SupportsWatermarkPushDown, SupportsSourceWatermark {
         private final String tableName;
 
         private WatermarkStrategy<RowData> watermarkStrategy;
@@ -951,6 +953,11 @@ public final class TestValuesTableFactory
         @Override
         public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
             this.watermarkStrategy = watermarkStrategy;
+        }
+
+        @Override
+        public void applySourceWatermark() {
+            this.watermarkStrategy = WatermarkStrategy.noWatermarks();
         }
 
         @Override

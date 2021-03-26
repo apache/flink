@@ -228,6 +228,13 @@ will be called with values for the given lookup keys during runtime.
         strategy is a builder/factory for timestamp extraction and watermark generation. During the runtime, the
         watermark generator is located inside the source and is able to generate per-partition watermarks.</td>
     </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsSourceWatermark.java'>SupportsSourceWatermark</a></td>
+        <td>Enables to fully rely on the watermark strategy provided by the <code>ScanTableSource</code>
+        itself. Thus, a <code>CREATE TABLE</code> DDL is able to use <code>SOURCE_WATERMARK()</code> which
+        is a built-in marker function that will be detected by the planner and translated into a call
+        to this interface if available.</td>
+    </tr>
     </tbody>
 </table>
 

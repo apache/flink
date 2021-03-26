@@ -19,16 +19,24 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.expressions.RexNodeExpression;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.tools.RelBuilder;
+
+import javax.annotation.Nullable;
 
 /**
  * Utilities for quick access of commonly used instances (like {@link FlinkTypeFactory}) without
@@ -76,6 +84,29 @@ public final class ShortcutUtils {
 
     public static FlinkContext unwrapContext(Context context) {
         return context.unwrap(FlinkContext.class);
+    }
+
+    public static @Nullable FunctionDefinition unwrapFunctionDefinition(
+            ResolvedExpression expression) {
+        if (!(expression instanceof RexNodeExpression)) {
+            return null;
+        }
+        final RexNodeExpression rexNodeExpression = (RexNodeExpression) expression;
+        if (!(rexNodeExpression.getRexNode() instanceof RexCall)) {
+            return null;
+        }
+        return unwrapFunctionDefinition(rexNodeExpression.getRexNode());
+    }
+
+    public static @Nullable FunctionDefinition unwrapFunctionDefinition(RexNode rexNode) {
+        if (!(rexNode instanceof RexCall)) {
+            return null;
+        }
+        final RexCall call = (RexCall) rexNode;
+        if (!(call.getOperator() instanceof BridgingSqlFunction)) {
+            return null;
+        }
+        return ((BridgingSqlFunction) call.getOperator()).getDefinition();
     }
 
     private ShortcutUtils() {
