@@ -22,11 +22,18 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceWatermarkSpec;
 import org.apache.flink.table.planner.plan.abilities.source.WatermarkPushDownSpec;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
@@ -39,10 +46,14 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
+import java.util.List;
+
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition;
 
 /**
- * Base rule for interface {@link SupportsWatermarkPushDown}. It offers a util to push the {@link
- * FlinkLogicalWatermarkAssigner} into the {@link FlinkLogicalTableSourceScan}.
+ * Base rule for interface {@link SupportsWatermarkPushDown} and {@link SupportsSourceWatermark}. It
+ * offers a util to push the {@link FlinkLogicalWatermarkAssigner} into the {@link
+ * FlinkLogicalTableSourceScan}.
  */
 public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRule {
 
@@ -72,20 +83,13 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             TableConfig tableConfig,
             boolean useWatermarkAssignerRowType) {
         String digest = String.format("watermark=[%s]", watermarkExpr);
-        Duration idleTimeout =
-                tableConfig
-                        .getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
-        final long idleTimeoutMillis;
-        if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
-            idleTimeoutMillis = idleTimeout.toMillis();
-            digest = String.format("%s, idletimeout=[%s]", digest, idleTimeoutMillis);
-        } else {
-            idleTimeoutMillis = -1L;
-        }
 
-        TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        DynamicTableSource newDynamicTableSource = tableSourceTable.tableSource().copy();
+        final TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+        final DynamicTableSource newDynamicTableSource = tableSourceTable.tableSource().copy();
+
+        final boolean isSourceWatermark =
+                newDynamicTableSource instanceof SupportsSourceWatermark
+                        && hasSourceWatermarkDeclaration(watermarkExpr);
 
         final RelDataType newType;
         if (useWatermarkAssignerRowType) {
@@ -96,24 +100,68 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             newType = scan.getRowType();
         }
 
-        WatermarkPushDownSpec watermarkPushDownSpec =
-                new WatermarkPushDownSpec(
-                        watermarkExpr,
-                        idleTimeoutMillis,
-                        (RowType) FlinkTypeFactory.toLogicalType(newType));
-        watermarkPushDownSpec.apply(newDynamicTableSource, SourceAbilityContext.from(scan));
+        final RowType producedType = (RowType) FlinkTypeFactory.toLogicalType(newType);
+        final SourceAbilityContext abilityContext = SourceAbilityContext.from(scan);
+
+        final SourceAbilitySpec abilitySpec;
+        if (isSourceWatermark) {
+            final SourceWatermarkSpec sourceWatermarkSpec =
+                    new SourceWatermarkSpec(true, producedType);
+            sourceWatermarkSpec.apply(newDynamicTableSource, abilityContext);
+            abilitySpec = sourceWatermarkSpec;
+        } else {
+            final Duration idleTimeout =
+                    tableConfig
+                            .getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
+            final long idleTimeoutMillis;
+            if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
+                idleTimeoutMillis = idleTimeout.toMillis();
+                digest = String.format("%s, idletimeout=[%s]", digest, idleTimeoutMillis);
+            } else {
+                idleTimeoutMillis = -1L;
+            }
+
+            final WatermarkPushDownSpec watermarkPushDownSpec =
+                    new WatermarkPushDownSpec(watermarkExpr, idleTimeoutMillis, producedType);
+            watermarkPushDownSpec.apply(newDynamicTableSource, abilityContext);
+            abilitySpec = watermarkPushDownSpec;
+        }
+
         TableSourceTable newTableSourceTable =
                 tableSourceTable.copy(
                         newDynamicTableSource,
                         newType,
                         new String[] {digest},
-                        new SourceAbilitySpec[] {watermarkPushDownSpec});
+                        new SourceAbilitySpec[] {abilitySpec});
         return FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
     }
 
     protected boolean supportsWatermarkPushDown(FlinkLogicalTableSourceScan scan) {
         TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        return tableSourceTable != null
-                && tableSourceTable.tableSource() instanceof SupportsWatermarkPushDown;
+        if (tableSourceTable == null) {
+            return false;
+        }
+        final DynamicTableSource tableSource = tableSourceTable.tableSource();
+        return (tableSource instanceof SupportsWatermarkPushDown)
+                || (tableSource instanceof SupportsSourceWatermark
+                        && hasSourceWatermarkDeclaration(tableSourceTable));
+    }
+
+    private boolean hasSourceWatermarkDeclaration(TableSourceTable table) {
+        final ResolvedSchema schema = table.catalogTable().getResolvedSchema();
+        final List<WatermarkSpec> specs = schema.getWatermarkSpecs();
+        // we only support one watermark spec for now
+        if (specs.size() != 1) {
+            return false;
+        }
+        final ResolvedExpression watermarkExpr = specs.get(0).getWatermarkExpression();
+        final FunctionDefinition function = unwrapFunctionDefinition(watermarkExpr);
+        return function == BuiltInFunctionDefinitions.SOURCE_WATERMARK;
+    }
+
+    private boolean hasSourceWatermarkDeclaration(RexNode rexNode) {
+        final FunctionDefinition function = unwrapFunctionDefinition(rexNode);
+        return function == BuiltInFunctionDefinitions.SOURCE_WATERMARK;
     }
 }
