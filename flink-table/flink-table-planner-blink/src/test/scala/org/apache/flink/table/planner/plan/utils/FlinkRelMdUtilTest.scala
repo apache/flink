@@ -28,6 +28,13 @@ class FlinkRelMdUtilTest {
     Assert.assertEquals(
       RelMdUtil.numDistinctVals(1e5, 1e4),
       FlinkRelMdUtil.numDistinctVals(1e5, 1e4))
+
+    Assert.assertEquals(
+      BigDecimal(0.31606027941427883),
+      BigDecimal.valueOf(FlinkRelMdUtil.numDistinctVals(0.5, 0.5)))
+
+    // This case should be removed once CALCITE-4351 is fixed.
+    Assert.assertEquals(Double.NaN, RelMdUtil.numDistinctVals(0.5, 0.5))
   }
 
   @Test

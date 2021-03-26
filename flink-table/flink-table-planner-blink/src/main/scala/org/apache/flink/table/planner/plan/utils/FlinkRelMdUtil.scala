@@ -236,7 +236,7 @@ object FlinkRelMdUtil {
    */
   def numDistinctVals(domainSize: Double, numSelected: Double): Double = {
     val EPS = 1e-9
-    if (Math.abs(1 / domainSize) < EPS) {
+    if (Math.abs(1 / domainSize) < EPS || domainSize < 1) {
       // ln(1+x) ~= x for small x
       val dSize = RelMdUtil.capInfinity(domainSize)
       val numSel = RelMdUtil.capInfinity(numSelected)
