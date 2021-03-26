@@ -291,7 +291,7 @@ case class ToTimestampLtz(
       .assertNumericExpr(precision.resultType, "toTimestampLtz").isFailure) {
       return ValidationFailure(
         s"$this requires numeric type for the second input, " +
-          s"but the actual type '${numericEpochTime.resultType}'.")
+          s"but the actual type '${precision.resultType}'.")
     }
     ValidationSuccess
   }

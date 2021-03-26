@@ -1030,8 +1030,8 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     // test null value input
     testAllApis(
-      toTimestampLtz(nullOf(DataTypes.BIGINT())),
-      "TO_TIMESTAMP_LTZ(cast(NULL as BIGINT))",
+      toTimestampLtz(nullOf(DataTypes.BIGINT()), 0),
+      "TO_TIMESTAMP_LTZ(cast(NULL as BIGINT), 0)",
       nullable)
   }
 
@@ -1329,42 +1329,42 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     // INT -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100),
-      "TO_TIMESTAMP_LTZ(100)",
+      toTimestampLtz(100, 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
       "1970-01-01 08:01:40.000")
 
     // TINYINT -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100.cast(DataTypes.TINYINT())),
-      "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT))",
+      toTimestampLtz(100.cast(DataTypes.TINYINT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT), 0)",
       "1970-01-01 08:01:40.000")
 
     // BIGINT -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100.cast(DataTypes.BIGINT())),
-      "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT))",
+      toTimestampLtz(100.cast(DataTypes.BIGINT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT), 0)",
       "1970-01-01 08:01:40.000")
 
     // FLOAT -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100.01.cast(DataTypes.FLOAT())),
-      "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT))",
+      toTimestampLtz(100.01.cast(DataTypes.FLOAT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT), 0)",
       "1970-01-01 08:01:40.010")
 
     // DOUBLE -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100.123.cast(DataTypes.DOUBLE())),
-      "TO_TIMESTAMP_LTZ(CAST(100.123 AS DOUBLE))",
+      toTimestampLtz(100.123.cast(DataTypes.DOUBLE()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100.123 AS DOUBLE), 0)",
       "1970-01-01 08:01:40.123")
 
     // DECIMAL -> TIMESTAMP_LTZ
     testAllApis(
-      toTimestampLtz(100.cast(DataTypes.DECIMAL(38, 18))),
+      toTimestampLtz(100.cast(DataTypes.DECIMAL(38, 18)), 0),
       "TO_TIMESTAMP_LTZ(100, 0)",
       "1970-01-01 08:01:40.000")
     testAllApis(
-      toTimestampLtz(-100.cast(DataTypes.DECIMAL(38, 18))),
-      "TO_TIMESTAMP_LTZ(-100)",
+      toTimestampLtz(-100.cast(DataTypes.DECIMAL(38, 18)), 0),
+      "TO_TIMESTAMP_LTZ(-100, 0)",
       "1970-01-01 07:58:20.000")
 
     // keep scale
@@ -1383,8 +1383,8 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testToTimestampLtzUTC(): Unit = {
     config.setLocalTimeZone(ZoneId.of("UTC"))
     testAllApis(
-      toTimestampLtz(100),
-      "TO_TIMESTAMP_LTZ(100)",
+      toTimestampLtz(100, 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
       "1970-01-01 00:01:40.000")
 
     testAllApis(
@@ -1398,8 +1398,8 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1970-01-01 00:00:01.234")
 
     testAllApis(
-      toTimestampLtz(-100),
-      "TO_TIMESTAMP_LTZ(-100)",
+      toTimestampLtz(-100, 0),
+      "TO_TIMESTAMP_LTZ(-100, 0)",
       "1969-12-31 23:58:20.000")
   }
 
@@ -1409,62 +1409,62 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     // INT
     testAllApis(
-      toTimestampLtz(JInt.MIN_VALUE.cast(DataTypes.INT())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MIN_VALUE} AS INTEGER))",
+      toTimestampLtz(JInt.MIN_VALUE.cast(DataTypes.INT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MIN_VALUE} AS INTEGER), 0)",
       "1901-12-13 20:45:52.000")
     testAllApis(
-      toTimestampLtz(JInt.MAX_VALUE.cast(DataTypes.INT())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MAX_VALUE} AS INTEGER))",
+      toTimestampLtz(JInt.MAX_VALUE.cast(DataTypes.INT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MAX_VALUE} AS INTEGER), 0)",
       "2038-01-19 03:14:07.000")
 
     // TINYINT
     testAllApis(
-      toTimestampLtz(-128.cast(DataTypes.TINYINT())),
-      s"TO_TIMESTAMP_LTZ(CAST(-128 AS TINYINT))",
+      toTimestampLtz(-128.cast(DataTypes.TINYINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-128 AS TINYINT), 0)",
       "1969-12-31 23:57:52.000")
     testAllApis(
-      toTimestampLtz(127.cast(DataTypes.TINYINT())),
-      s"TO_TIMESTAMP_LTZ(CAST(127 AS TINYINT))",
+      toTimestampLtz(127.cast(DataTypes.TINYINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(127 AS TINYINT), 0)",
       "1970-01-01 00:02:07.000")
 
     // BIGINT
     testAllApis(
-      toTimestampLtz(JLong.MIN_VALUE.cast(DataTypes.BIGINT())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MIN_VALUE} AS BIGINT))",
+      toTimestampLtz(JLong.MIN_VALUE.cast(DataTypes.BIGINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MIN_VALUE} AS BIGINT), 0)",
       "null")
     testAllApis(
-      toTimestampLtz(JLong.MAX_VALUE.cast(DataTypes.BIGINT())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MAX_VALUE} AS BIGINT))",
+      toTimestampLtz(JLong.MAX_VALUE.cast(DataTypes.BIGINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MAX_VALUE} AS BIGINT), 0)",
       "null")
 
     // FLOAT
     testAllApis(
-      toTimestampLtz((-JFloat.MAX_VALUE).cast(DataTypes.FLOAT())),
-      s"TO_TIMESTAMP_LTZ(CAST(-${JFloat.MAX_VALUE} AS FLOAT))",
+      toTimestampLtz((-JFloat.MAX_VALUE).cast(DataTypes.FLOAT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-${JFloat.MAX_VALUE} AS FLOAT), 0)",
       "null")
     testAllApis(
-      toTimestampLtz(JFloat.MAX_VALUE.cast(DataTypes.FLOAT())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JFloat.MAX_VALUE} AS FLOAT))",
+      toTimestampLtz(JFloat.MAX_VALUE.cast(DataTypes.FLOAT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JFloat.MAX_VALUE} AS FLOAT), 0)",
       "null")
 
     // DOUBLE
     testAllApis(
-      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DOUBLE())),
-      s"TO_TIMESTAMP_LTZ(CAST(-${JDouble.MAX_VALUE} AS DOUBLE))",
+      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DOUBLE()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-${JDouble.MAX_VALUE} AS DOUBLE), 0)",
       "null")
     testAllApis(
-      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DOUBLE())),
-      s"TO_TIMESTAMP_LTZ(CAST(${JDouble.MAX_VALUE} AS DOUBLE))",
+      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DOUBLE()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JDouble.MAX_VALUE} AS DOUBLE), 0)",
       "null")
 
     // DECIMAL
     testAllApis(
-      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DECIMAL(38, 18))),
-      s"TO_TIMESTAMP_LTZ(-${JDouble.MAX_VALUE})",
+      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DECIMAL(38, 18)), 0),
+      s"TO_TIMESTAMP_LTZ(-${JDouble.MAX_VALUE}, 0)",
       "null")
     testAllApis(
-      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DECIMAL(38, 18))),
-      s"TO_TIMESTAMP_LTZ(${JDouble.MAX_VALUE})",
+      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DECIMAL(38, 18)), 0),
+      s"TO_TIMESTAMP_LTZ(${JDouble.MAX_VALUE}, 0)",
       "null")
 
     // test valid min/max epoch mills
@@ -1491,6 +1491,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "null")
 
+    // test invalid number of arguments
+    testExpectedSqlException(
+      "TO_TIMESTAMP_LTZ(123)",
+      "Invalid number of arguments to function 'TO_TIMESTAMP_LTZ'. Was expecting 2 arguments")
+
     // invalid precision
     testExpectedAllApisException(
       toTimestampLtz(12, 1),
@@ -1509,26 +1514,27 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     // invalid type for the first input
     testExpectedSqlException(
-      "TO_TIMESTAMP_LTZ('test_string_type')",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type 'TO_TIMESTAMP_LTZ(<CHAR(16)>)'." +
-        " Supported form(s): 'TO_TIMESTAMP_LTZ(<NUMERIC>)'" +
-        "\n'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
+      "TO_TIMESTAMP_LTZ('test_string_type', 0)",
+      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
+        " 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. Supported form(s):" +
+        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
       classOf[ValidationException])
     testExpectedTableApiException(
-      toTimestampLtz("test_string_type"),
+      toTimestampLtz("test_string_type", 0),
       "toTimestampLtz(test_string_type, 0) requires numeric type for the first input," +
         " but the actual type 'String'.")
 
     // invalid type for the second input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type " +
-        "'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>)'\n'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'")
+      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
+        " 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
+        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'")
+
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
       "toTimestampLtz(123, test_string_type) requires numeric type for the second input," +
-        " but the actual type 'Integer'.")
+        " but the actual type 'String'.")
   }
 
   @Test
