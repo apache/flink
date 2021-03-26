@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.TestNameProvider;
 
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +55,7 @@ import java.util.function.Function;
  */
 @Internal
 @NotThreadSafe
-class PseudoRandomValueSelector {
+public class PseudoRandomValueSelector {
     private static final Logger LOG = LoggerFactory.getLogger(PseudoRandomValueSelector.class);
 
     private final Function<Integer, Integer> randomValueSupplier;
@@ -106,7 +108,7 @@ class PseudoRandomValueSelector {
     }
 
     @VisibleForTesting
-    static Optional<String> getGitCommitId() {
+    public static Optional<String> getGitCommitId() {
         try {
             Process process = new ProcessBuilder("git", "rev-parse", "HEAD").start();
             try (InputStream input = process.getInputStream()) {
@@ -120,5 +122,12 @@ class PseudoRandomValueSelector {
             LOG.debug("Could not invoke git", e);
         }
         return Optional.empty();
+    }
+
+    public static <T> void randomize(Configuration conf, ConfigOption<T> option, T... t1) {
+        final String testName = TestNameProvider.getCurrentTestName();
+        final PseudoRandomValueSelector valueSelector =
+                PseudoRandomValueSelector.create(testName != null ? testName : "unknown");
+        valueSelector.select(conf, option, t1);
     }
 }
