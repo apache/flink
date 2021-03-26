@@ -460,6 +460,7 @@ object ScalaShellITCase {
 
   val _clusterResource = new MiniClusterResource(new MiniClusterResourceConfiguration.Builder()
       .setNumberSlotsPerTaskManager(parallelism)
+      .disallowChangelogState()
       .build())
 
   @ClassRule

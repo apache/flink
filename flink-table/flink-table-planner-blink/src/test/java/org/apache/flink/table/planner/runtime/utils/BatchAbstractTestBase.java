@@ -40,6 +40,7 @@ public class BatchAbstractTestBase extends TestLogger {
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .disallowChangelogState()
                             .build());
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();

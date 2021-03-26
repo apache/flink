@@ -85,6 +85,7 @@ public class DataStreamBatchExecutionITCase {
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .disallowChangelogState()
                             .build());
 
     /**
