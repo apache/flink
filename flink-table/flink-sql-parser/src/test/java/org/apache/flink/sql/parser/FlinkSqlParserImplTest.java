@@ -18,14 +18,13 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
-
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.error.SqlValidateException;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -1213,6 +1212,56 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testEnd() {
         sql("end").ok("END");
+    }
+
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // unsupport testExplainJsonFormat now
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // unsupport testExplainWithImpl now
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // unsupport testExplainWithoutImpl now
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // unsupport testExplainWithType now
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // unsupport testExplainWithType now
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // unsupport testExplainWithType now
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

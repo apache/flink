@@ -18,28 +18,26 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews}
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.catalog.CatalogReader
-import org.apache.flink.table.parse.CalciteParser
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.util
+import _root_.java.util.function.{Function => JFunction}
 
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
-import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
+import org.apache.calcite.sql.advise.SqlAdvisorValidator
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
+import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dql._
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.catalog.CatalogReader
+import org.apache.flink.table.parse.CalciteParser
 
-import _root_.java.lang.{Boolean => JBoolean}
-import _root_.java.util
-import _root_.java.util.function.{Function => JFunction}
-
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
@@ -53,7 +51,7 @@ class FlinkPlannerImpl(
     val catalogReaderSupplier: JFunction[JBoolean, CatalogReader],
     planner: RelOptPlanner,
     val typeFactory: FlinkTypeFactory)
-  extends ViewExpander {
+    extends ViewExpander {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -68,7 +66,16 @@ class FlinkPlannerImpl(
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       SqlValidator.Config.DEFAULT
-        .withSqlConformance(config.getParserConfig.conformance()))
+          .withSqlConformance(config.getParserConfig.conformance()))
+  }
+
+  def validate(sqlNode: SqlNode): SqlNode = {
+    val validator = getOrCreateSqlValidator()
+    validateInternal(sqlNode, validator)
+  }
+
+  def rel(validatedSqlNode: SqlNode): RelRoot = {
+    rel(validatedSqlNode, getOrCreateSqlValidator())
   }
 
   /**
@@ -100,56 +107,6 @@ class FlinkPlannerImpl(
     validator
   }
 
-  def validate(sqlNode: SqlNode): SqlNode = {
-    val validator = getOrCreateSqlValidator()
-    validateInternal(sqlNode, validator)
-  }
-
-  private def validateInternal(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
-    try {
-      sqlNode.accept(new PreValidateReWriter(
-        validator.getCatalogReader.unwrap(classOf[CatalogReader]), typeFactory))
-      // do extended validation.
-      sqlNode match {
-        case node: ExtendedSqlNode =>
-          node.validate()
-        case _ =>
-      }
-      // no need to validate row type for DDL and insert nodes.
-      if (sqlNode.getKind.belongsTo(SqlKind.DDL)
-        || sqlNode.getKind == SqlKind.INSERT
-        || sqlNode.getKind == SqlKind.CREATE_FUNCTION
-        || sqlNode.getKind == SqlKind.DROP_FUNCTION
-        || sqlNode.getKind == SqlKind.OTHER_DDL
-        || sqlNode.isInstanceOf[SqlShowCatalogs]
-        || sqlNode.isInstanceOf[SqlShowCurrentCatalog]
-        || sqlNode.isInstanceOf[SqlShowDatabases]
-        || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
-        || sqlNode.isInstanceOf[SqlShowTables]
-        || sqlNode.isInstanceOf[SqlShowFunctions]
-        || sqlNode.isInstanceOf[SqlShowViews]
-        || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
-        return sqlNode
-      }
-      sqlNode match {
-        case explain: SqlExplain =>
-          val validated = validator.validate(explain.getExplicandum)
-          explain.setOperand(0, validated)
-          explain
-        case _ =>
-          validator.validate(sqlNode)
-      }
-    }
-    catch {
-      case e: RuntimeException =>
-        throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
-    }
-  }
-
-  def rel(validatedSqlNode: SqlNode): RelRoot = {
-    rel(validatedSqlNode, getOrCreateSqlValidator())
-  }
-
   private def rel(validatedSqlNode: SqlNode, sqlValidator: FlinkCalciteSqlValidator) = {
     try {
       assert(validatedSqlNode != null)
@@ -176,12 +133,16 @@ class FlinkPlannerImpl(
     }
   }
 
+  private def createRexBuilder: RexBuilder = {
+    new RexBuilder(typeFactory)
+  }
+
   override def expandView(
       rowType: RelDataType,
       queryString: String,
       schemaPath: util.List[String],
       viewPath: util.List[String])
-    : RelRoot = {
+  : RelRoot = {
     val parsed = parser.parse(queryString)
     val originalReader = catalogReaderSupplier.apply(false)
     val readerWithPathAdjusted = new CatalogReader(
@@ -195,7 +156,48 @@ class FlinkPlannerImpl(
     rel(validated, validator)
   }
 
-  private def createRexBuilder: RexBuilder = {
-    new RexBuilder(typeFactory)
+  private def validateInternal(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
+    try {
+      sqlNode.accept(new PreValidateReWriter(
+        validator.getCatalogReader.unwrap(classOf[CatalogReader]), typeFactory))
+      // do extended validation.
+      sqlNode match {
+        case node: ExtendedSqlNode =>
+          node.validate()
+        case _ =>
+      }
+      // no need to validate row type for DDL and insert nodes.
+      if (sqlNode.getKind.belongsTo(SqlKind.DDL)
+          || sqlNode.getKind == SqlKind.INSERT
+          || sqlNode.getKind == SqlKind.CREATE_FUNCTION
+          || sqlNode.getKind == SqlKind.DROP_FUNCTION
+          || sqlNode.getKind == SqlKind.OTHER_DDL
+          || sqlNode.isInstanceOf[SqlShowCatalogs]
+          || sqlNode.isInstanceOf[SqlShowCurrentCatalog]
+          || sqlNode.isInstanceOf[SqlShowDatabases]
+          || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
+          || sqlNode.isInstanceOf[SqlShowTables]
+          || sqlNode.isInstanceOf[SqlShowFunctions]
+          || sqlNode.isInstanceOf[SqlShowViews]
+          || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
+        return sqlNode
+      }
+      sqlNode match {
+        case explain: SqlExplain =>
+          val validated = validator.validate(explain.getExplicandum)
+          explain.setOperand(0, validated)
+          explain
+        case richExplain: SqlRichExplain =>
+          val validated = validator.validate(richExplain.getStatement)
+          richExplain.setOperand(0, validated)
+          richExplain
+        case _ =>
+          validator.validate(sqlNode)
+      }
+    }
+    catch {
+      case e: RuntimeException =>
+        throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
+    }
   }
 }

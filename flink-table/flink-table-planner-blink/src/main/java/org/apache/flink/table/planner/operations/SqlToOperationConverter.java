@@ -53,6 +53,7 @@ import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
@@ -264,6 +265,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
         } else if (validated instanceof SqlExplain) {
             return Optional.of(converter.convertExplain((SqlExplain) validated));
+        } else if (validated instanceof SqlRichExplain) {
+            return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
         } else if (validated instanceof SqlRichDescribeTable) {
             return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
         } else if (validated instanceof RichSqlInsert) {
@@ -893,6 +896,12 @@ public class SqlToOperationConverter {
             throw new TableException("Only default behavior is supported now, EXPLAIN PLAN FOR xx");
         }
 
+        return new ExplainOperation(operation);
+    }
+
+    /** Convert RICHEXPLAIN statement. */
+    private Operation convertRichExplain(SqlRichExplain sqlExplain) {
+        Operation operation = convertSqlQuery(sqlExplain.getStatement());
         return new ExplainOperation(operation);
     }
 

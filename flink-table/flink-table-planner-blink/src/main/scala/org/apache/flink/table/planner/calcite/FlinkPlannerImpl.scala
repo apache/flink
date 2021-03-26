@@ -146,6 +146,10 @@ class FlinkPlannerImpl(
           val validated = validator.validate(explain.getExplicandum)
           explain.setOperand(0, validated)
           explain
+        case richExplain: SqlRichExplain =>
+          val validated = validator.validate(richExplain.getStatement)
+          richExplain.setOperand(0,validated)
+          richExplain
         case _ =>
           validator.validate(sqlNode)
       }
