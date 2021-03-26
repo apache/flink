@@ -57,15 +57,22 @@ class NonDeterministicTests extends ExpressionTestBase {
 
     assertEquals(round1.size, round2.size)
     round1.zip(round2).zipWithIndex.foreach {
-      case ((result1: String, result2: String), index: Int) => {
+      case ((result1: String, result2: String), index: Int) =>
         // CURRENT_DATE may be same between two records
         if (index == 0) {
           assert(result1 <= result2)
         } else {
           assert(result1 < result2)
         }
-      }
     }
+
+    // check CURRENT_TIMESTAMP function and CURRENT_ROW_TIMESTAMP() function
+    // should return same value for one record in stream job
+    val currentTimeStampIndex = 2
+    val currentRowTimestampIndex = 3
+    assertEquals(round1(currentTimeStampIndex), round1(currentRowTimestampIndex))
+    assertEquals(round2(currentTimeStampIndex), round2(currentRowTimestampIndex))
+
   }
 
   @Test
@@ -110,9 +117,8 @@ class NonDeterministicTests extends ExpressionTestBase {
 
     assertEquals(round1.size, round2.size)
     round1.zip(round2).foreach {
-      case (result1: String, result2: String) => {
+      case (result1: String, result2: String) =>
         assert(result1 < result2)
-      }
     }
   }
 
@@ -169,8 +175,8 @@ class NonDeterministicTests extends ExpressionTestBase {
       "true")
 
     testSqlApi(
-      s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}," +
-        s" CURRENT_ROW_TIMESTAMP()) <= 60",
+      s"TIMESTAMPDIFF(SECOND, " +
+        s"${timestampLtz(formattedCurrentTimestamp)}, CURRENT_ROW_TIMESTAMP()) <= 60",
       "true")
   }
 
