@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -44,6 +45,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
 /** Resource which starts a {@link MiniCluster} for testing purposes. */
 public class MiniClusterResource extends ExternalResource {
@@ -185,6 +188,10 @@ public class MiniClusterResource extends ExternalResource {
         // set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
         configuration.setInteger(JobManagerOptions.PORT, 0);
         configuration.setString(RestOptions.BIND_PORT, "0");
+
+        if (miniClusterResourceConfiguration.allowChangelogState()) {
+            randomize(configuration, CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+        }
 
         final MiniClusterConfiguration miniClusterConfiguration =
                 new MiniClusterConfiguration.Builder()

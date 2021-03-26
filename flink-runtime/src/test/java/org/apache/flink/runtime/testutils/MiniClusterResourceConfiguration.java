@@ -43,6 +43,8 @@ public class MiniClusterResourceConfiguration {
 
     private final MiniCluster.HaServices haServices;
 
+    private final boolean allowChangelogState;
+
     protected MiniClusterResourceConfiguration(
             Configuration configuration,
             int numberTaskManagers,
@@ -50,6 +52,24 @@ public class MiniClusterResourceConfiguration {
             Time shutdownTimeout,
             RpcServiceSharing rpcServiceSharing,
             MiniCluster.HaServices haServices) {
+        this(
+                configuration,
+                numberTaskManagers,
+                numberSlotsPerTaskManager,
+                shutdownTimeout,
+                rpcServiceSharing,
+                haServices,
+                true);
+    }
+
+    protected MiniClusterResourceConfiguration(
+            Configuration configuration,
+            int numberTaskManagers,
+            int numberSlotsPerTaskManager,
+            Time shutdownTimeout,
+            RpcServiceSharing rpcServiceSharing,
+            MiniCluster.HaServices haServices,
+            boolean allowChangelogState) {
 
         this.configuration =
                 new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
@@ -58,6 +78,7 @@ public class MiniClusterResourceConfiguration {
         this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
         this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
         this.haServices = haServices;
+        this.allowChangelogState = allowChangelogState;
     }
 
     public Configuration getConfiguration() {
@@ -84,6 +105,10 @@ public class MiniClusterResourceConfiguration {
         return haServices;
     }
 
+    public boolean allowChangelogState() {
+        return allowChangelogState;
+    }
+
     /** Builder for {@link MiniClusterResourceConfiguration}. */
     public static final class Builder {
 
@@ -94,6 +119,7 @@ public class MiniClusterResourceConfiguration {
 
         private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
+        private boolean allowChangelogState = true;
 
         public Builder setConfiguration(Configuration configuration) {
             this.configuration = configuration;
@@ -132,6 +158,11 @@ public class MiniClusterResourceConfiguration {
             return this;
         }
 
+        public Builder disallowChangelogState() {
+            this.allowChangelogState = false;
+            return this;
+        }
+
         public MiniClusterResourceConfiguration build() {
             return new MiniClusterResourceConfiguration(
                     configuration,
@@ -139,7 +170,8 @@ public class MiniClusterResourceConfiguration {
                     numberSlotsPerTaskManager,
                     shutdownTimeout,
                     rpcServiceSharing,
-                    haServices);
+                    haServices,
+                    allowChangelogState);
         }
     }
 }
