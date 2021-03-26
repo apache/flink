@@ -503,7 +503,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void disconnectJobManager(
             final JobID jobId, JobStatus jobStatus, final Exception cause) {
-        closeJobManagerConnection(jobId, cause);
+        if (jobStatus.isGloballyTerminalState()) {
+            removeJob(jobId, cause);
+        } else {
+            closeJobManagerConnection(jobId, cause);
+        }
     }
 
     @Override
@@ -865,7 +869,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         jobManagerAddress);
             } else {
                 // tell old job manager that he is no longer the job leader
-                disconnectJobManager(
+                closeJobManagerConnection(
                         oldJobManagerRegistration.getJobID(),
                         new Exception("New job leader for job " + jobId + " found."));
 
@@ -1066,7 +1070,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    protected void removeJob(JobID jobId) {
+    protected void removeJob(JobID jobId, Exception cause) {
         try {
             jobLeaderIdService.removeJob(jobId);
         } catch (Exception e) {
@@ -1077,7 +1081,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         if (jobManagerRegistrations.containsKey(jobId)) {
-            disconnectJobManager(jobId, new Exception("Job " + jobId + "was removed"));
+            closeJobManagerConnection(jobId, cause);
         }
     }
 
@@ -1086,7 +1090,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
             if (Objects.equals(jobManagerRegistration.getJobMasterId(), oldJobMasterId)) {
-                disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
+                closeJobManagerConnection(jobId, new Exception("Job leader lost leadership."));
             } else {
                 log.debug(
                         "Discarding job leader lost leadership, because a new job leader was found for job {}. ",
@@ -1418,7 +1422,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         @Override
                         public void run() {
                             if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
-                                removeJob(jobId);
+                                removeJob(
+                                        jobId,
+                                        new Exception(
+                                                "Job " + jobId + "was removed because of timeout"));
                             }
                         }
                     });
