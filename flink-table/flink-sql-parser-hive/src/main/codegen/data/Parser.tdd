@@ -89,6 +89,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowTables"
     "org.apache.flink.sql.parser.dql.SqlShowPartitions"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
+    "org.apache.flink.sql.parser.dql.SqlRichExplain"
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
@@ -537,6 +538,7 @@
     "SqlShowPartitions()"
     "SqlUnloadModule()"
     "SqlUseModules()"
+    "SqlRichExplain()"
   ]
 
   # List of methods for parsing custom literals.

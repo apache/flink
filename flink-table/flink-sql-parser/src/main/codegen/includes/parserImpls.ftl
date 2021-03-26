@@ -1569,3 +1569,17 @@ SqlEndStatementSet SqlEndStatementSet() :
         return new SqlEndStatementSet(getPos());
     }
 }
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    stmt = SqlQueryOrDml() {
+        return new SqlRichExplain(getPos(),stmt);
+    }
+}
