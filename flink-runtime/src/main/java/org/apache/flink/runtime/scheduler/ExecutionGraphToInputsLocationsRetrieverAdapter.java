@@ -30,7 +30,9 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -41,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionGraphToInputsLocationsRetrieverAdapter implements InputsLocationsRetriever {
 
     private final ExecutionGraph executionGraph;
+
+    private final Map<ConsumedPartitionGroup, List<ExecutionVertexID>> partitionGroupProducers =
+            new HashMap<>();
 
     public ExecutionGraphToInputsLocationsRetrieverAdapter(ExecutionGraph executionGraph) {
         this.executionGraph = checkNotNull(executionGraph);
@@ -55,14 +60,18 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapter implements InputsLo
 
         List<Collection<ExecutionVertexID>> resultPartitionProducers =
                 new ArrayList<>(ev.getNumberOfInputs());
-        for (ConsumedPartitionGroup consumedPartitions : ev.getAllConsumedPartitionGroups()) {
-            List<ExecutionVertexID> producers = new ArrayList<>(consumedPartitions.size());
-            for (IntermediateResultPartitionID consumedPartitionId : consumedPartitions) {
-                ExecutionVertex producer =
-                        executionGraphAccessor
-                                .getResultPartitionOrThrow(consumedPartitionId)
-                                .getProducer();
-                producers.add(producer.getID());
+        for (ConsumedPartitionGroup consumedPartitionGroup : ev.getAllConsumedPartitionGroups()) {
+            final List<ExecutionVertexID> producers =
+                    partitionGroupProducers.computeIfAbsent(
+                            consumedPartitionGroup, group -> new ArrayList<>(group.size()));
+            if (producers.isEmpty()) {
+                for (IntermediateResultPartitionID consumedPartitionId : consumedPartitionGroup) {
+                    ExecutionVertex producer =
+                            executionGraphAccessor
+                                    .getResultPartitionOrThrow(consumedPartitionId)
+                                    .getProducer();
+                    producers.add(producer.getID());
+                }
             }
             resultPartitionProducers.add(producers);
         }
