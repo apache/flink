@@ -23,8 +23,11 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
@@ -38,6 +41,14 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings("serial")
 public abstract class SimpleRecoveryITCaseBase extends TestLogger {
+
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(4)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
     @Test
     public void testFailedRunThenSuccessfulRun() throws Exception {
