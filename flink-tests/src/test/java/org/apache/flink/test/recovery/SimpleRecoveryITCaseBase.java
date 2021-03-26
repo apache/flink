@@ -130,7 +130,6 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
             env.setParallelism(4);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 100));
 
             List<Long> resultCollection =
                     env.generateSequence(1, 10)
