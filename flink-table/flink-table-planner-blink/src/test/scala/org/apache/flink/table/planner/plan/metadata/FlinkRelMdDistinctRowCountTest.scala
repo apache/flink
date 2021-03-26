@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
-import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
@@ -82,7 +81,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
       mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(0, 1), null))
 
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(Double.NaN, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
+      assertEquals(1.0, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
     }
   }
 
