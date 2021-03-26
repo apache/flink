@@ -510,12 +510,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void disconnectJobManager(
             final JobID jobId, JobStatus jobStatus, final Exception cause) {
-        closeJobManagerConnection(
-                jobId,
-                jobStatus.isGloballyTerminalState()
-                        ? ResourceRequirementHandling.CLEAR
-                        : ResourceRequirementHandling.RETAIN,
-                cause);
+        if (jobStatus.isGloballyTerminalState()) {
+            removeJob(jobId, cause);
+        } else {
+            closeJobManagerConnection(jobId, ResourceRequirementHandling.RETAIN, cause);
+        }
     }
 
     @Override
@@ -1102,7 +1101,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    protected void removeJob(JobID jobId) {
+    protected void removeJob(JobID jobId, Exception cause) {
         try {
             jobLeaderIdService.removeJob(jobId);
         } catch (Exception e) {
@@ -1113,10 +1112,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         if (jobManagerRegistrations.containsKey(jobId)) {
-            closeJobManagerConnection(
-                    jobId,
-                    ResourceRequirementHandling.CLEAR,
-                    new Exception("Job " + jobId + "was removed"));
+            closeJobManagerConnection(jobId, ResourceRequirementHandling.CLEAR, cause);
         }
     }
 
@@ -1478,7 +1474,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         @Override
                         public void run() {
                             if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
-                                removeJob(jobId);
+                                removeJob(
+                                        jobId,
+                                        new Exception(
+                                                "Job " + jobId + "was removed because of timeout"));
                             }
                         }
                     });
