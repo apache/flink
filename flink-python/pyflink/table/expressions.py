@@ -183,21 +183,22 @@ CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 def current_date() -> Expression:
     """
-    Returns the current SQL date in UTC time zone.
+    Returns the current SQL date in local time zone.
     """
     return _leaf_op("currentDate")
 
 
 def current_time() -> Expression:
     """
-    Returns the current SQL time in UTC time zone.
+    Returns the current SQL time in local time zone.
     """
     return _leaf_op("currentTime")
 
 
 def current_timestamp() -> Expression:
     """
-    Returns the current SQL timestamp in UTC time zone.
+    Returns the current SQL timestamp in local time zone,
+    the underlying function return type is TIMESTAMP_LTZ.
     """
     return _leaf_op("currentTimestamp")
 
@@ -211,7 +212,8 @@ def local_time() -> Expression:
 
 def local_timestamp() -> Expression:
     """
-    Returns the current SQL timestamp in local time zone.
+    Returns the current SQL timestamp in local time zone,
+    the underlying function return type is TIMESTAMP.
     """
     return _leaf_op("localTimestamp")
 

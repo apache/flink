@@ -1095,6 +1095,34 @@ public class SqlDateTimeUtils {
     }
 
     // --------------------------------------------------------------------------------------------
+    // TIMESTAMP to  DATE/TIME utils
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Get date from a timestamp.
+     *
+     * @param ts the timestamp in milliseconds.
+     * @return the date in days.
+     */
+    public static int getDateInDays(long ts) {
+        int days = (int) (ts / MILLIS_PER_DAY);
+        if (days < 0) {
+            days = days - 1;
+        }
+        return days;
+    }
+
+    /**
+     * Get time from a timestamp.
+     *
+     * @param ts the timestamp in milliseconds.
+     * @return the time in milliseconds.
+     */
+    public static int getTimeInMills(long ts) {
+        return (int) (ts % MILLIS_PER_DAY);
+    }
+
+    // --------------------------------------------------------------------------------------------
     // UNIX TIME
     // --------------------------------------------------------------------------------------------
 

@@ -107,6 +107,7 @@ class StreamPlanner(
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
     val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
 
     val sb = new StringBuilder
@@ -157,6 +158,8 @@ class StreamPlanner(
     validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
     val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
 
     val sb = new StringBuilder
