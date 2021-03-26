@@ -25,6 +25,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -41,7 +42,7 @@ import static org.junit.Assert.fail;
  * should restart them to verify job completion.
  */
 @SuppressWarnings("serial")
-public abstract class SimpleRecoveryITCaseBase {
+public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
     @Test
     public void testFailedRunThenSuccessfulRun() throws Exception {
