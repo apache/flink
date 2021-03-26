@@ -27,6 +27,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -58,6 +59,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
@@ -315,6 +317,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof QueryOperation) {
             // SELECT
             callSelect((QueryOperation) operation);
+        } else if (operation instanceof ExplainOperation) {
+            // EXPLAIN
+            callExplain((ExplainOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -445,6 +450,20 @@ public class CliClient implements AutoCloseable {
             return false;
         }
         return true;
+    }
+
+    public void callExplain(ExplainOperation operation) {
+        final String explanation;
+        try {
+            TableResult tableResult = executor.executeOperation(sessionId, operation);
+            explanation =
+                    Objects.requireNonNull(tableResult.collect().next().getField(0)).toString();
+        } catch (SqlExecutionException | NullPointerException e) {
+            printExecutionException(e);
+            return;
+        }
+        terminal.writer().println(explanation);
+        terminal.flush();
     }
 
     private void executeOperation(Operation operation) {
