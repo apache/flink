@@ -158,15 +158,6 @@ public class LogicalTypeCastsTest {
                         false,
                         false
                     },
-                    {
-                        new RowType(
-                                Arrays.asList(
-                                        new RowField("f1", new IntType()),
-                                        new RowField("f2", new IntType()))),
-                        new VarCharType(Integer.MAX_VALUE),
-                        false,
-                        false
-                    },
                     // test implicit cast between timestamp type and timestamp_ltz type
                     {new TimestampType(9), new TimestampType(9), true, true},
                     {new LocalZonedTimestampType(9), new LocalZonedTimestampType(9), true, true},
@@ -174,10 +165,10 @@ public class LogicalTypeCastsTest {
                     {new LocalZonedTimestampType(3), new TimestampType(3), true, true},
                     {new TimestampType(3), new LocalZonedTimestampType(6), true, true},
                     {new LocalZonedTimestampType(3), new TimestampType(6), true, true},
-                    {new TimestampType(3), new LocalZonedTimestampType(6), true, true},
-                    {new LocalZonedTimestampType(3), new TimestampType(6), true, true},
                     {new TimestampType(false, 3), new LocalZonedTimestampType(6), true, true},
                     {new LocalZonedTimestampType(false, 3), new TimestampType(6), true, true},
+                    {new TimestampType(6), new LocalZonedTimestampType(3), true, true},
+                    {new LocalZonedTimestampType(6), new TimestampType(3), true, true},
                     {
                         new RowType(
                                 Arrays.asList(

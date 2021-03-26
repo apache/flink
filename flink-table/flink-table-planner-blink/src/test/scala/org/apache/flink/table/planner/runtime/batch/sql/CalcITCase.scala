@@ -42,7 +42,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-import org.apache.flink.util.CollectionUtil
 
 import org.junit.Assert.assertEquals
 import org.junit._
@@ -394,30 +393,66 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testTimeUDFParametersImplicitCast(): Unit = {
-    val data = Seq(row(
-      localDateTime("2019-09-19 08:03:09"),
-      Timestamp.valueOf("2019-09-19 08:03:09"),
-      Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
-    registerCollection("MyTable", data,
-      new RowTypeInfo(LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
-      "a, b, c")
+    val data: Seq[Row] = Seq(row(
+      localDateTime("2019-09-19 08:03:09.123"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant)
+    )
+    val dataId = TestValuesTableFactory.registerData(data)
 
+    val ddl =
+    s"""
+        |CREATE TABLE MyTable (
+        |  ntz TIMESTAMP(3),
+        |  ltz0 TIMESTAMP_LTZ(0),
+        |  ltz3 TIMESTAMP_LTZ(3),
+        |  ltz6 TIMESTAMP_LTZ(6),
+        |  ltz9 TIMESTAMP_LTZ(9),
+        |  ltz_not_null TIMESTAMP_LTZ(3) NOT NULL
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId',
+        |  'bounded' = 'true'
+        |)
+        |""".stripMargin
+
+    tEnv.executeSql(ddl)
     tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
     tEnv.createTemporaryFunction("datetimeFunc", DateTimeFunction)
     tEnv.createTemporaryFunction("instantFunc", InstantFunction)
 
-    val v1 = "2019-09-19 08:03:09.0"
-    val v2 = "2019-09-19T08:03:09"
     checkResult(
       "SELECT" +
-        " timestampFunc(a), datetimeFunc(b), instantFunc(c)," +
-        " timestampFunc(cast(a AS TIMESTAMP_LTZ))," +
-        " datetimeFunc(cast(b AS TIMESTAMP_LTZ))," +
-        " instantFunc(cast(c AS TIMESTAMP))" +
+        " timestampFunc(ntz), datetimeFunc(ntz), instantFunc(ntz)," +
+        " timestampFunc(ltz0), datetimeFunc(ltz0), instantFunc(ltz0)," +
+        " timestampFunc(ltz3), datetimeFunc(ltz3), instantFunc(ltz3)," +
+        " timestampFunc(ltz6), datetimeFunc(ltz6), instantFunc(ltz6)," +
+        " timestampFunc(ltz9), datetimeFunc(ltz9), instantFunc(ltz9)," +
+        " timestampFunc(ltz_not_null), datetimeFunc(ltz_not_null), instantFunc(ltz_not_null)" +
         " FROM MyTable",
       Seq(row(
-        v1, v2, Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
-        v1, v2, Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
+        // ntz
+       "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz0
+        "2019-09-19 08:03:09.0", "2019-09-19T08:03:09",
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+        // ltz3
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456", "2019-09-19T08:03:09.123456",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456789", "2019-09-19T08:03:09.123456789",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+        // ltz_not_null
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant))
+    )
   }
 
   @Test
