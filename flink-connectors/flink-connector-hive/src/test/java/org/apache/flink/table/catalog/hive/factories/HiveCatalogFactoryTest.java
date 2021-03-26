@@ -22,7 +22,6 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -130,7 +129,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
                             null,
                             Thread.currentThread().getContextClassLoader());
             Assert.fail();
-        } catch (CatalogException e) {
+        } catch (ValidationException e) {
         }
     }
 
