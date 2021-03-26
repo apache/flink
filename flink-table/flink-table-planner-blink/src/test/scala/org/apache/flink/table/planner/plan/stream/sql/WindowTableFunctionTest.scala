@@ -90,7 +90,7 @@ class WindowTableFunctionTest extends TableTestBase {
     util.tableEnv.executeSql(
       """
         |CREATE VIEW v1 AS
-        |SELECT *, CURRENT_TIMESTAMP AS cur_time
+        |SELECT *, LOCALTIMESTAMP AS cur_time
         |FROM MyTable
         |""".stripMargin)
     val sql =

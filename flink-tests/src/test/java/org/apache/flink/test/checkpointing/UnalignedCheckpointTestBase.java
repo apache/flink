@@ -49,6 +49,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -60,17 +61,20 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
 
@@ -114,6 +118,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
     @Rule public ErrorCollector collector = new ErrorCollector();
+
+    @ClassRule
+    public static final LogLevelRule NETWORK_LOGGER =
+            new LogLevelRule().set(NetworkActionsLogger.class, Level.TRACE);
 
     @Nullable
     protected File execute(UnalignedSettings settings) throws Exception {
@@ -183,11 +191,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private final int minCheckpoints;
         private final int numSplits;
         private final int expectedRestarts;
+        private final long checkpointingInterval;
 
-        protected LongSource(int minCheckpoints, int numSplits, int expectedRestarts) {
+        protected LongSource(
+                int minCheckpoints,
+                int numSplits,
+                int expectedRestarts,
+                long checkpointingInterval) {
             this.minCheckpoints = minCheckpoints;
             this.numSplits = numSplits;
             this.expectedRestarts = expectedRestarts;
+            this.checkpointingInterval = checkpointingInterval;
         }
 
         @Override
@@ -198,7 +212,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Override
         public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
             return new LongSourceReader(
-                    readerContext.getIndexOfSubtask(), minCheckpoints, expectedRestarts);
+                    readerContext.getIndexOfSubtask(),
+                    minCheckpoints,
+                    expectedRestarts,
+                    checkpointingInterval);
         }
 
         @Override
@@ -233,22 +250,23 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             private final int expectedRestarts;
             private final LongCounter numInputsCounter = new LongCounter();
             private final List<LongSplit> splits = new ArrayList<>();
+            private final Duration pumpInterval;
             private int numAbortedCheckpoints;
             private int numRestarts;
             private int numCompletedCheckpoints;
-            private int numCheckpointsInThisAttempt;
-            private PollingState pollingState = PollingState.THROTTLING;
+            private boolean finishing;
+            private boolean recovered;
+            @Nullable private Deadline pumpingUntil = null;
 
-            enum PollingState {
-                THROTTLING,
-                PUMPING,
-                FINISHING
-            }
-
-            public LongSourceReader(int subtaskIndex, int minCheckpoints, int expectedRestarts) {
+            public LongSourceReader(
+                    int subtaskIndex,
+                    int minCheckpoints,
+                    int expectedRestarts,
+                    long checkpointingInterval) {
                 this.subtaskIndex = subtaskIndex;
                 this.minCheckpoints = minCheckpoints;
                 this.expectedRestarts = expectedRestarts;
+                pumpInterval = Duration.ofMillis(checkpointingInterval);
             }
 
             @Override
@@ -261,19 +279,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     split.nextNumber += split.increment;
                 }
 
-                switch (pollingState) {
-                    case FINISHING:
-                        return InputStatus.END_OF_INPUT;
-                    case THROTTLING:
-                        // throttle source as long as sink is not backpressuring (which it does only
-                        // after full recovery)
-                        Thread.sleep(1);
-                        return InputStatus.MORE_AVAILABLE;
-                    case PUMPING:
-                        return InputStatus.MORE_AVAILABLE;
-                    default:
-                        throw new IllegalStateException("Unexpected state: " + pollingState);
+                if (finishing) {
+                    return InputStatus.END_OF_INPUT;
                 }
+
+                if (pumpingUntil != null && pumpingUntil.isOverdue()) {
+                    pumpingUntil = null;
+                }
+                if (pumpingUntil == null) {
+                    Thread.sleep(1);
+                }
+                return InputStatus.MORE_AVAILABLE;
             }
 
             @Override
@@ -283,6 +299,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         splits,
                         subtaskIndex,
                         numRestarts);
+                // barrier passed, so no need to add more data for this test
+                pumpingUntil = null;
                 return splits;
             }
 
@@ -300,7 +318,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 // new checkpoint).
                 updatePollingState();
                 numCompletedCheckpoints++;
-                numCheckpointsInThisAttempt++;
+                recovered = true;
                 numAbortedCheckpoints = 0;
             }
 
@@ -312,8 +330,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     // here simply also advance completed checkpoints to avoid running into a live
                     // lock
                     numCompletedCheckpoints = minCheckpoints + 1;
-                    updatePollingState();
                 }
+                updatePollingState();
             }
 
             @Override
@@ -326,9 +344,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 this.splits.addAll(splits);
                 updatePollingState();
                 LOG.info(
-                        "Added splits {}, pollingState={} @ {} subtask ({} attempt)",
+                        "Added splits {}, finishing={}, pumping until {} @ {} subtask ({} attempt)",
                         splits,
-                        pollingState,
+                        finishing,
+                        pumpingUntil,
                         subtaskIndex,
                         numRestarts);
             }
@@ -339,22 +358,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
 
             private void updatePollingState() {
-                PollingState oldState = pollingState;
                 if (numCompletedCheckpoints >= minCheckpoints && numRestarts >= expectedRestarts) {
-                    pollingState = PollingState.FINISHING;
-                } else if (numCheckpointsInThisAttempt == 0) {
-                    // speed up recovery by throttling - use a successful checkpoint as a proxy
-                    // for a finished recovery
-                    pollingState = PollingState.THROTTLING;
-                } else {
-                    // cause backpressure
-                    pollingState = PollingState.PUMPING;
-                }
-                if (oldState != pollingState) {
+                    finishing = true;
+                    LOG.info("Finishing @ {} subtask ({} attempt)", subtaskIndex, numRestarts);
+                } else if (recovered) {
+                    // a successful checkpoint as a proxy for a finished recovery
+                    // cause backpressure until next checkpoint is added
+                    pumpingUntil = Deadline.fromNow(pumpInterval);
                     LOG.info(
-                            "Switched from {} to {} @ {} subtask ({} attempt)",
-                            oldState,
-                            pollingState,
+                            "Pumping until {} @ {} subtask ({} attempt)",
+                            pumpingUntil,
                             subtaskIndex,
                             numRestarts);
                 }
@@ -365,14 +378,13 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 if (sourceEvent instanceof SyncEvent) {
                     numRestarts = ((SyncEvent) sourceEvent).numRestarts;
                     numCompletedCheckpoints = ((SyncEvent) sourceEvent).numCheckpoints;
-                    updatePollingState();
                     LOG.info(
-                            "Set restarts={}, numCompletedCheckpoints={}, pollingState={} @ {} subtask ({} attempt)",
+                            "Set restarts={}, numCompletedCheckpoints={} @ {} subtask ({} attempt)",
                             numRestarts,
                             numCompletedCheckpoints,
-                            pollingState,
                             subtaskIndex,
                             numRestarts);
+                    updatePollingState();
                 }
             }
 
@@ -679,7 +691,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
             final LocalStreamEnvironment env =
                     StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
-            env.enableCheckpointing(100);
+            env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
             env.setParallelism(parallelism);
             env.setRestartStrategy(
@@ -871,13 +883,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private final LongCounter lostCounter = new LongCounter();
         private final LongCounter duplicatesCounter = new LongCounter();
         private final IntCounter numFailures = new IntCounter();
+        private final Duration backpressureInterval;
         private ListState<State> stateList;
         protected transient State state;
         protected final long minCheckpoints;
-        protected boolean backpressure;
+        private boolean recovered;
+        @Nullable private Deadline backpressureUntil;
 
-        protected VerifyingSinkBase(long minCheckpoints) {
+        protected VerifyingSinkBase(long minCheckpoints, long checkpointingInterval) {
             this.minCheckpoints = minCheckpoints;
+            this.backpressureInterval = Duration.ofMillis(checkpointingInterval);
         }
 
         @Override
@@ -899,30 +914,50 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                     new ListStateDescriptor<>(
                                             "state", (Class<State>) state.getClass()));
             this.state = getOnlyElement(stateList.get(), state);
-            backpressure = false;
             LOG.info(
-                    "Inducing backpressure=false @ {} subtask ({} attempt)",
+                    "Inducing no backpressure @ {} subtask ({} attempt)",
                     getRuntimeContext().getIndexOfThisSubtask(),
                     getRuntimeContext().getAttemptNumber());
         }
 
         protected abstract State createState();
 
+        protected void induceBackpressure() throws InterruptedException {
+            if (backpressureUntil != null) {
+                // induce heavy backpressure until enough checkpoints have been written
+                Thread.sleep(1);
+                if (backpressureUntil.isOverdue()) {
+                    backpressureUntil = null;
+                }
+            }
+            // after all checkpoints have been completed, the remaining data should be flushed out
+            // fairly quickly
+        }
+
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             stateList.clear();
             stateList.add(state);
+            if (recovered) {
+                backpressureUntil = Deadline.fromNow(backpressureInterval);
+            }
         }
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
+            recovered = true;
             state.completedCheckpoints++;
-            boolean backpressure = this.backpressure;
-            this.backpressure = state.completedCheckpoints < minCheckpoints;
-            if (backpressure != this.backpressure) {
+            if (state.completedCheckpoints < minCheckpoints) {
+                this.backpressureUntil = Deadline.fromNow(backpressureInterval);
                 LOG.info(
-                        "Inducing backpressure={} @ {} subtask ({} attempt)",
-                        this.backpressure,
+                        "Inducing backpressure until {} @ {} subtask ({} attempt)",
+                        backpressureUntil,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber());
+            } else {
+                this.backpressureUntil = null;
+                LOG.info(
+                        "Inducing no backpressure @ {} subtask ({} attempt)",
                         getRuntimeContext().getIndexOfThisSubtask(),
                         getRuntimeContext().getAttemptNumber());
             }

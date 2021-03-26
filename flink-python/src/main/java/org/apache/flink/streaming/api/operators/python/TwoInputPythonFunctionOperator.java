@@ -41,6 +41,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 import static org.apache.flink.streaming.api.utils.PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter;
 
 /**
@@ -145,7 +146,10 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
                 runnerOutputTypeInfo,
                 DATASTREAM_STATELESS_FUNCTION_URN,
                 getUserDefinedDataStreamFunctionProto(
-                        pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
+                        pythonFunctionInfo,
+                        getRuntimeContext(),
+                        Collections.EMPTY_MAP,
+                        inBatchExecutionMode(getKeyedStateBackend())),
                 coderUrn,
                 jobOptions,
                 getFlinkMetricContainer(),

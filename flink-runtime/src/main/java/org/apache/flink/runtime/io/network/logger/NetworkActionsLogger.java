@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersis
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+
 /**
  * Utility class for logging actions that happened in the network stack for debugging purposes.
  *
@@ -34,7 +36,6 @@ import org.slf4j.LoggerFactory;
  */
 public class NetworkActionsLogger {
     private static final Logger LOG = LoggerFactory.getLogger(NetworkActionsLogger.class);
-    private static final boolean ENABLED = LOG.isTraceEnabled();
     private static final boolean INCLUDE_HASH = true;
 
     public static void traceInput(
@@ -44,7 +45,7 @@ public class NetworkActionsLogger {
             InputChannelInfo channelInfo,
             ChannelStatePersister channelStatePersister,
             int sequenceNumber) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {}, seq {}, {} @ {}",
                     taskName,
@@ -58,7 +59,7 @@ public class NetworkActionsLogger {
 
     public static void traceOutput(
             String action, Buffer buffer, String taskName, ResultSubpartitionInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {} @ {}",
                     taskName,
@@ -70,7 +71,7 @@ public class NetworkActionsLogger {
 
     public static void traceRecover(
             String action, Buffer buffer, String taskName, InputChannelInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "[{}] {} {} @ {}",
                     taskName,
@@ -82,7 +83,7 @@ public class NetworkActionsLogger {
 
     public static void traceRecover(
             String action, BufferConsumer bufferConsumer, ResultSubpartitionInfo channelInfo) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "{} {} @ {}", action, bufferConsumer.toDebugString(INCLUDE_HASH), channelInfo);
         }
@@ -90,7 +91,7 @@ public class NetworkActionsLogger {
 
     public static void tracePersist(
             String action, Buffer buffer, Object channelInfo, long checkpointId) {
-        if (ENABLED) {
+        if (LOG.isTraceEnabled()) {
             LOG.trace(
                     "{} {}, checkpoint {} @ {}",
                     action,
@@ -99,4 +100,27 @@ public class NetworkActionsLogger {
                     channelInfo);
         }
     }
+
+    private static final long MAX_EXPECTED_IO_TIME_IN_MS = 100L;
+
+    public static Closeable measureIO(String action, Object entity) {
+        if (!LOG.isDebugEnabled()) {
+            // seems to be completely inlined by JIT
+            return NO_MEASURE;
+        }
+        // adds around 100ns in a try-with-resource statement on a i7-9750H CPU @ 2.60GHz
+        long startTime = System.currentTimeMillis();
+        return () -> {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            if (elapsedTime > MAX_EXPECTED_IO_TIME_IN_MS) {
+                LOG.debug(
+                        "{} {} took unexpected long ({} ms) indicating that the checkpoint storage is overloaded.",
+                        action,
+                        entity,
+                        elapsedTime);
+            }
+        };
+    }
+
+    private static final Closeable NO_MEASURE = () -> {};
 }

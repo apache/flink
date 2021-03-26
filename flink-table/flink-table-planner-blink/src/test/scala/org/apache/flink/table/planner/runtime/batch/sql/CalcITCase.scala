@@ -49,7 +49,7 @@ import org.junit._
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, ZoneId}
 import java.util
 
 import scala.collection.Seq
@@ -1035,8 +1035,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = TimestampData.fromLocalDateTime(
-      result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
+    val ts1 = TimestampData.fromInstant(
+      result.toList.head.getField(0).asInstanceOf[Instant]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 

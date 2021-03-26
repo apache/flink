@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 import uuid
-from typing import Callable, Union, List
+import warnings
+from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
@@ -248,6 +249,7 @@ class DataStream(object):
         ))
 
     def flat_map(self, func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
                  result_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
@@ -256,9 +258,17 @@ class DataStream(object):
         other features provided by the RichFUnction.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
+        :param output_type: The type information of output data.
         :param result_type: The type information of output data.
+                            (Deprecated, use output_type instead)
         :return: The transformed DataStream.
         """
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -269,7 +279,7 @@ class DataStream(object):
             self,
             func,  # type: ignore
             flink_fn_execution_pb2.UserDefinedDataStreamFunction.FLAT_MAP,  # type: ignore
-            result_type)
+            output_type)
         return DataStream(self._j_data_stream.transform(
             "FLAT_MAP",
             j_output_type_info,
@@ -277,14 +287,23 @@ class DataStream(object):
         ))
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         """
         Creates a new KeyedStream that uses the provided key for partitioning its operator states.
 
         :param key_selector: The KeySelector to be used for extracting the key for partitioning.
+        :param key_type: The type information describing the key type.
         :param key_type_info: The type information describing the key type.
+                              (Deprecated, use key_type instead)
         :return: The DataStream with partitioned state(i.e. KeyedStream).
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
+
         if callable(key_selector):
             key_selector = KeySelectorFunctionWrapper(key_selector)  # type: ignore
         if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
@@ -292,12 +311,12 @@ class DataStream(object):
 
         output_type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        if key_type_info is None:
-            key_type_info = Types.PICKLED_BYTE_ARRAY()
+        if key_type is None:
+            key_type = Types.PICKLED_BYTE_ARRAY()
 
         intermediate_map_stream = self.map(
             lambda x: Row(key_selector.get_key(x), x),  # type: ignore
-            output_type=Types.ROW([key_type_info, output_type_info]))
+            output_type=Types.ROW([key_type, output_type_info]))
         gateway = get_gateway()
         JKeyByKeySelector = gateway.jvm.KeyByKeySelector
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -305,7 +324,7 @@ class DataStream(object):
         key_stream = KeyedStream(
             intermediate_map_stream._j_data_stream.keyBy(
                 JKeyByKeySelector(),
-                Types.ROW([key_type_info]).get_java_type_info()), output_type_info,
+                Types.ROW([key_type]).get_java_type_info()), output_type_info,
             self)
         return key_stream
 
@@ -335,7 +354,7 @@ class DataStream(object):
 
         type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)
+        data_stream = self.flat_map(FilterFlatMap(func), output_type=type_info)
         data_stream.name("Filter")
         return data_stream
 
@@ -807,8 +826,17 @@ class KeyedStream(DataStream):
                 return [self._underlying.map(value)]
         return self.process(KeyedMapFunctionWrapper(func), output_type)  # type: ignore
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], result_type: TypeInformation = None)\
+    def flat_map(self,
+                 func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
+                 result_type: TypeInformation = None) \
             -> 'DataStream':
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -828,7 +856,7 @@ class KeyedStream(DataStream):
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 yield from self._underlying.flat_map(value)
-        return self.process(KeyedFlatMapFunctionWrapper(func), result_type)  # type: ignore
+        return self.process(KeyedFlatMapFunctionWrapper(func), output_type)  # type: ignore
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
@@ -852,28 +880,45 @@ class KeyedStream(DataStream):
                 raise TypeError("The input func must be a ReduceFunction or a callable function.")
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
-        class KeyedReduceFunctionWrapper(KeyedProcessFunction):
+        class KeyedReduceProcessFunction(KeyedProcessFunction):
 
-            def __init__(self, underlying: ReduceFunction):
-                self._underlying = underlying
-                self._reduce_state_name = "_reduce_state" + str(uuid.uuid4())
+            def __init__(self, reduce_function: ReduceFunction):
+                self._reduce_function = reduce_function
                 self._reduce_value_state = None  # type: ValueState
 
             def open(self, runtime_context: RuntimeContext):
                 self._reduce_value_state = runtime_context.get_state(
-                    ValueStateDescriptor(self._reduce_state_name, output_type))
-                self._underlying.open(runtime_context)
+                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
+                self._reduce_function.open(runtime_context)
+                from pyflink.fn_execution.operations import StreamingRuntimeContext
+                self._in_batch_execution_mode = \
+                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 reduce_value = self._reduce_value_state.value()
                 if reduce_value is not None:
-                    reduce_value = self._underlying.reduce(reduce_value, value)
+                    reduce_value = self._reduce_function.reduce(reduce_value, value)
                 else:
+                    # register a timer for emitting the result at the end when this is the
+                    # first input for this key
+                    if self._in_batch_execution_mode:
+                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
                     reduce_value = value
                 self._reduce_value_state.update(reduce_value)
-                return [reduce_value]
+                if self._in_batch_execution_mode:
+                    # only emitting the result when all the data for a key is received
+                    return []
+                else:
+                    return [reduce_value]
 
-        return self.process(KeyedReduceFunctionWrapper(func), output_type)  # type: ignore
+            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                current_value = self._reduce_value_state.value()
+                if current_value is not None:
+                    return [current_value]
+                else:
+                    return []
+
+        return self.process(KeyedReduceProcessFunction(func), output_type)  # type: ignore
 
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         if callable(func):
@@ -881,7 +926,7 @@ class KeyedStream(DataStream):
         elif not isinstance(func, FilterFunction):
             raise TypeError("The input func must be a FilterFunction or a callable function.")
 
-        class KeyedFilterFunctionWrapper(KeyedProcessFunction):
+        class KeyedFilterProcessFunction(KeyedProcessFunction):
 
             def __init__(self, underlying: FilterFunction):
                 self._underlying = underlying
@@ -898,14 +943,15 @@ class KeyedStream(DataStream):
                 else:
                     return []
         return self.process(
-            KeyedFilterFunctionWrapper(func), self._original_data_type_info)  # type: ignore
+            KeyedFilterProcessFunction(func), self._original_data_type_info)  # type: ignore
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
-        return self._origin_stream.key_by(key_selector, key_type_info)
+        return self._origin_stream.key_by(key_selector, key_type, key_type_info)
 
     def process(self, func: KeyedProcessFunction,  # type: ignore
                 output_type: TypeInformation = None) -> 'DataStream':
@@ -1029,6 +1075,7 @@ class ConnectedStreams(object):
 
     def key_by(self, key_selector1: Union[Callable, KeySelector],
                key_selector2: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'ConnectedStreams':
         """
         KeyBy operation for connected data stream. Assigns keys to the elements of
@@ -1037,9 +1084,16 @@ class ConnectedStreams(object):
 
         :param key_selector1: The `KeySelector` used for grouping the first input.
         :param key_selector2: The `KeySelector` used for grouping the second input.
+        :param key_type: The type information of the common key type.
         :param key_type_info: The type information of the common key type.
+                              (Deprecated, use key_type instead)
         :return: The partitioned `ConnectedStreams`
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
 
         ds1 = self.stream1
         ds2 = self.stream2
@@ -1048,8 +1102,8 @@ class ConnectedStreams(object):
         if isinstance(self.stream2, KeyedStream):
             ds2 = self.stream2._origin_stream
         return ConnectedStreams(
-            ds1.key_by(key_selector1, key_type_info),
-            ds2.key_by(key_selector2, key_type_info))
+            ds1.key_by(key_selector1, key_type),
+            ds2.key_by(key_selector2, key_type))
 
     def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
@@ -1068,7 +1122,7 @@ class ConnectedStreams(object):
 
         if self._is_keyed_stream():
 
-            class KeyedCoMapFunctionWrapper(KeyedCoProcessFunction):
+            class KeyedCoMapCoProcessFunction(KeyedCoProcessFunction):
                 def __init__(self, underlying: CoMapFunction):
                     self._underlying = underlying
 
@@ -1084,7 +1138,7 @@ class ConnectedStreams(object):
                 def close(self):
                     self._underlying.close()
 
-            return self.process(KeyedCoMapFunctionWrapper(func), output_type)
+            return self.process(KeyedCoMapCoProcessFunction(func), output_type)
         else:
             # get connected stream
             j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
@@ -1114,7 +1168,7 @@ class ConnectedStreams(object):
 
         if self._is_keyed_stream():
 
-            class KeyedCoFlatMapFunctionWrapper(KeyedCoProcessFunction):
+            class KeyedCoFlatMapProcessFunction(KeyedCoProcessFunction):
 
                 def __init__(self, underlying: CoFlatMapFunction):
                     self._underlying = underlying
@@ -1131,7 +1185,7 @@ class ConnectedStreams(object):
                 def close(self):
                     self._underlying.close()
 
-            return self.process(KeyedCoFlatMapFunctionWrapper(func), output_type)
+            return self.process(KeyedCoFlatMapProcessFunction(func), output_type)
         else:
             # get connected stream
             j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
@@ -1169,13 +1223,13 @@ class ConnectedStreams(object):
 def _get_one_input_stream_operator(data_stream: DataStream,
                                    func: Union[Function, FunctionWrapper],
                                    func_type: int,
-                                   type_info: Union[TypeInformation, List] = None):
+                                   output_type: Union[TypeInformation, List] = None):
     """
     Create a Java one input stream operator.
 
     :param func: a function object that implements the Function interface.
     :param func_type: function type, supports MAP, FLAT_MAP, etc.
-    :param type_info: the data type of the function output data.
+    :param output_type: the data type of the function output data.
     :return: A Java operator which is responsible for execution user defined python function.
     """
 
@@ -1183,12 +1237,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     import cloudpickle
     serialized_func = cloudpickle.dumps(func)
     j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
-    if type_info is None:
+    if output_type is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
-    elif isinstance(type_info, list):
-        output_type_info = RowTypeInfo(type_info)
+    elif isinstance(output_type, list):
+        output_type_info = RowTypeInfo(output_type)
     else:
-        output_type_info = type_info
+        output_type_info = output_type
 
     j_output_type_info = output_type_info.get_java_type_info()
 
