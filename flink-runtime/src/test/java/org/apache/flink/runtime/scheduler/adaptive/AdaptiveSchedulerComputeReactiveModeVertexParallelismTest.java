@@ -32,6 +32,9 @@ import java.util.Collections;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assume.assumeThat;
 
 /** Test vertex parallelism configuration for the {@link AdaptiveScheduler} in Reactive mode. */
 @RunWith(Parameterized.class)
@@ -79,6 +82,11 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
 
     @Test
     public void testCreateStoreWithoutAdjustedParallelism() {
+        assumeThat(
+                "max parallelism must be set",
+                maxParallelism,
+                is(not(JobVertex.MAX_PARALLELISM_DEFAULT)));
+
         JobVertex jobVertex = createNoOpVertex("test", parallelism, maxParallelism);
         VertexParallelismStore store =
                 AdaptiveScheduler.computeReactiveModeVertexParallelismStore(

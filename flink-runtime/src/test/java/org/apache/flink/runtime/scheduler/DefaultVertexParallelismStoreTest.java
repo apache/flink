@@ -24,8 +24,20 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+
 /** Tests for the {@link DefaultVertexParallelismStore}. */
 public class DefaultVertexParallelismStoreTest extends TestLogger {
+    @Test
+    public void testNotSet() {
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        assertThrows(
+                "No parallelism information set for vertex",
+                IllegalStateException.class,
+                () -> store.getParallelismInfo(new JobVertexID()));
+    }
+
     @Test
     public void testSetInfo() {
         JobVertexID id = new JobVertexID();

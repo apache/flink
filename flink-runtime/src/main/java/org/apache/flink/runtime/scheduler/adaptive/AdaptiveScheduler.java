@@ -289,7 +289,8 @@ public class AdaptiveScheduler
 
     /**
      * Creates the parallelism store for a set of vertices, optionally with a flag to leave the
-     * vertex parallelism unchanged.
+     * vertex parallelism unchanged. If the flag is set, the parallelisms must be valid for
+     * execution.
      *
      * <p>We need to set parallelism to the max possible value when requesting resources, but when
      * executing the graph we should respect what we are actually given.
@@ -363,7 +364,8 @@ public class AdaptiveScheduler
      * @param executionMode The mode of scheduler execution.
      * @return The parallelism store.
      */
-    private static VertexParallelismStore computeVertexParallelismStoreForExecution(
+    @VisibleForTesting
+    static VertexParallelismStore computeVertexParallelismStoreForExecution(
             JobGraph jobGraph, SchedulerExecutionMode executionMode) {
         if (executionMode == SchedulerExecutionMode.REACTIVE) {
             return computeReactiveModeVertexParallelismStore(jobGraph.getVertices(), false);
