@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-/** Mutability extension to the {@link VertexAttemptNumberStore}. */
-public interface MutableVertexAttemptNumberStore extends VertexAttemptNumberStore {
+/** Mutability extension to the {@link VertexParallelismStore}. */
+public interface MutableVertexParallelismStore extends VertexParallelismStore {
     /**
-     * Sets the attempt count for the given subtask of the given vertex.
+     * Sets the parallelism properties for the given vertex.
      *
-     * @param jobVertexId vertex the subtask belongs to
-     * @param subtaskIndex subtask to set the attempt number for
-     * @param attemptNumber attempt number to set
+     * @param vertexId vertex to set parallelism for
+     * @param info parallelism information for the given vertex
      */
-    void setAttemptCount(JobVertexID jobVertexId, int subtaskIndex, int attemptNumber);
+    void setParallelismInfo(JobVertexID vertexId, VertexParallelismInformation info);
 }

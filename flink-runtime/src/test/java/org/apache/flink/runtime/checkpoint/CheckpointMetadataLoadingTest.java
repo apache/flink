@@ -45,6 +45,7 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleto
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -213,7 +214,7 @@ public class CheckpointMetadataLoadingTest {
                 .thenReturn(Collections.singletonList(OperatorIDPair.generatedIDOnly(operatorId)));
 
         if (parallelism != maxParallelism) {
-            when(vertex.isMaxParallelismConfigured()).thenReturn(true);
+            when(vertex.canRescaleMaxParallelism(anyInt())).thenReturn(false);
         }
 
         Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
