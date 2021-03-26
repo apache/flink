@@ -177,7 +177,7 @@ public final class CliStrings {
 
     public static final String MESSAGE_RESET_KEY = "Session property has been reset.";
 
-    public static final String MESSAGE_SET = "Session property has been set.";
+    public static final String MESSAGE_SET_KEY = "Session property has been set.";
 
     public static final String MESSAGE_REMOVED_KEY = "The specified key is not supported anymore.";
 
@@ -193,9 +193,6 @@ public final class CliStrings {
 
     public static final String MESSAGE_STATEMENT_SUBMITTED =
             "Table update statement has been successfully submitted to the cluster:";
-
-    public static final String MESSAGE_MAX_SIZE_EXCEEDED =
-            "The given file exceeds the maximum number of characters.";
 
     public static final String MESSAGE_WILL_EXECUTE = "Executing the following statement:";
 

@@ -23,16 +23,12 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
-import org.apache.flink.table.operations.DescribeTableOperation;
-import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ShowOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
@@ -64,11 +60,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.internal.TableResultImpl.TABLE_RESULT_OK;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_DEPRECATED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_EXECUTE_STATEMENT;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
-import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
+import static org.apache.flink.table.client.config.YamlConfigUtils.getOptionNameWithDeprecatedKey;
+import static org.apache.flink.table.client.config.YamlConfigUtils.getPropertiesInPretty;
+import static org.apache.flink.table.client.config.YamlConfigUtils.isDeprecatedKey;
+import static org.apache.flink.table.client.config.YamlConfigUtils.isRemovedKey;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** SQL CLI client. */
@@ -261,7 +262,7 @@ public class CliClient implements AutoCloseable {
                 .map(
                         op -> {
                             if (op instanceof CatalogSinkModifyOperation) {
-                                return callInsert(op);
+                                return callInsert((CatalogSinkModifyOperation) op);
                             } else {
                                 printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
                                 return false;
@@ -288,55 +289,31 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callOperation(Operation operation) {
+        //
         if (operation instanceof QuitOperation) {
+            // QUIT/EXIT
             callQuit();
         } else if (operation instanceof ClearOperation) {
+            // CLEAR
             callClear();
+        } else if (operation instanceof HelpOperation) {
+            // HELP
+            callHelp();
         } else if (operation instanceof SetOperation) {
+            // SET
             callSet((SetOperation) operation);
         } else if (operation instanceof ResetOperation) {
+            // RESET
             callReset((ResetOperation) operation);
-        } else if (operation instanceof HelpOperation) {
-            callHelp();
-        }
-        // sql operation
-        else if (operation instanceof CatalogSinkModifyOperation) {
-            callInsert(operation);
-        } else if (operation instanceof ShowOperation) {
-            executeOperation(
-                    operation,
-                    result ->
-                            PrintUtils.printAsTableauForm(
-                                    result.getResolvedSchema(),
-                                    result.collect(),
-                                    terminal.writer(),
-                                    Integer.MAX_VALUE,
-                                    "",
-                                    false,
-                                    false));
-        } else if (operation instanceof ExplainOperation) {
-            executeOperation(
-                    operation,
-                    result -> {
-                        String explanation = result.collect().next().getField(0).toString();
-                        terminal.writer().println(explanation);
-                    });
-        } else if (operation instanceof DescribeTableOperation) {
-            executeOperation(
-                    operation,
-                    result ->
-                            PrintUtils.printAsTableauForm(
-                                    result.getResolvedSchema(),
-                                    result.collect(),
-                                    terminal.writer(),
-                                    Integer.MAX_VALUE,
-                                    "",
-                                    false,
-                                    false));
+        } else if (operation instanceof CatalogSinkModifyOperation) {
+            // INSERT INTO/OVERWRITE
+            callInsert((CatalogSinkModifyOperation) operation);
         } else if (operation instanceof QueryOperation) {
+            // SELECT
             callSelect((QueryOperation) operation);
         } else {
-            executeOperation(operation, tableResult -> printInfo(MESSAGE_EXECUTE_STATEMENT));
+            // fallback to default implementation
+            executeOperation(operation);
         }
     }
 
@@ -360,20 +337,7 @@ public class CliClient implements AutoCloseable {
             else {
                 String key = resetOperation.getKey().get();
                 executor.resetSessionProperty(sessionId, key);
-
-                boolean isRemovedKey = YamlConfigUtils.isRemovedKey(key);
-                boolean isDeprecatedKey = YamlConfigUtils.isDeprecatedKey(key);
-                if (isRemovedKey || isDeprecatedKey) {
-                    printRemovedOrDeprecatedKeyMessage(key);
-                }
-                // when it's not removedKey, need to print normal message
-                if (!isRemovedKey) {
-                    terminal.writer()
-                            .println(
-                                    CliStrings.messageInfo(String.format(MESSAGE_RESET_KEY, key))
-                                            .toAnsi());
-                    terminal.flush();
-                }
+                printSetResetConfigKeyMessage(key, MESSAGE_RESET_KEY);
             }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
@@ -381,44 +345,28 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callSet(SetOperation setOperation) {
-        // show all properties
-        if (!setOperation.getKey().isPresent()) {
-            final Map<String, String> properties;
-            try {
-                properties = executor.getSessionProperties(sessionId);
-            } catch (SqlExecutionException e) {
-                printExecutionException(e);
-                return;
-            }
-            if (properties.isEmpty()) {
-                terminal.writer()
-                        .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-            } else {
-                List<String> prettyEntries = YamlConfigUtils.getPropertiesInPretty(properties);
-                prettyEntries.forEach(entry -> terminal.writer().println(entry));
-            }
-            terminal.flush();
-        }
-        // set a property
-        else {
-            String key = setOperation.getKey().get().trim();
-            String value = setOperation.getValue().get().trim();
-            try {
+        try {
+            // set a property
+            if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
+                String key = setOperation.getKey().get().trim();
+                String value = setOperation.getValue().get().trim();
                 executor.setSessionProperty(sessionId, key, value);
-            } catch (SqlExecutionException e) {
-                printExecutionException(e);
-                return;
+                printSetResetConfigKeyMessage(key, MESSAGE_SET_KEY);
             }
-            boolean isRemovedKey = YamlConfigUtils.isRemovedKey(key);
-            boolean isDeprecatedKey = YamlConfigUtils.isDeprecatedKey(key);
-            if (isRemovedKey || isDeprecatedKey) {
-                printRemovedOrDeprecatedKeyMessage(key);
-            }
-            // it's not removedKey, need to print info message
-            if (!isRemovedKey) {
-                terminal.writer().println(CliStrings.messageInfo(MESSAGE_SET).toAnsi());
+            // show all properties
+            else {
+                final Map<String, String> properties = executor.getSessionProperties(sessionId);
+                if (properties.isEmpty()) {
+                    terminal.writer()
+                            .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+                } else {
+                    List<String> prettyEntries = getPropertiesInPretty(properties);
+                    prettyEntries.forEach(entry -> terminal.writer().println(entry));
+                }
                 terminal.flush();
             }
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
         }
     }
 
@@ -428,67 +376,59 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callSelect(QueryOperation operation) {
+        final TableResult result;
+        try {
+            result = executor.executeOperation(sessionId, operation);
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
+            return;
+        }
+
         ReadableConfig config = executor.getSessionConfig(sessionId);
+        ResultDescriptor resultDesc = ResultDescriptor.createResultDescriptor(config, result);
+        if (resultDesc.isTableauMode()) {
+            try (CliTableauResultView tableauResultView =
+                    new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
+                tableauResultView.displayResults();
+            } catch (SqlExecutionException e) {
+                printExecutionException(e);
+            }
+        } else {
+            final CliResultView<?> view;
+            if (resultDesc.isMaterialized()) {
+                view = new CliTableResultView(this, resultDesc);
+            } else {
+                view = new CliChangelogResultView(this, resultDesc);
+            }
 
-        executeOperation(
-                operation,
-                (tableResult) -> {
-                    ResultDescriptor resultDesc =
-                            ResultDescriptor.createResultDescriptor(config, tableResult);
-                    if (resultDesc.isTableauMode()) {
-                        try (CliTableauResultView tableauResultView =
-                                new CliTableauResultView(
-                                        terminal, executor, sessionId, resultDesc)) {
-                            tableauResultView.displayResults();
-                        } catch (SqlExecutionException e) {
-                            printExecutionException(e);
-                        }
-                    } else {
-                        final CliResultView view;
-                        if (resultDesc.isMaterialized()) {
-                            view = new CliTableResultView(this, resultDesc);
-                        } else {
-                            view = new CliChangelogResultView(this, resultDesc);
-                        }
+            // enter view
+            try {
+                view.open();
 
-                        // enter view
-                        try {
-                            view.open();
-
-                            // view left
-                            printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-                        } catch (SqlExecutionException e) {
-                            printExecutionException(e);
-                        }
-                    }
-                });
+                // view left
+                printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+            } catch (SqlExecutionException e) {
+                printExecutionException(e);
+            }
+        }
     }
 
-    private boolean callInsert(Operation operation) {
+    private boolean callInsert(CatalogSinkModifyOperation operation) {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
-        return executeOperation(
-                operation,
-                result -> {
-                    checkState(result.getJobClient().isPresent());
-                    terminal.writer()
-                            .println(
-                                    CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED)
-                                            .toAnsi());
-                    // keep compatibility with before
-                    terminal.writer()
-                            .println(
-                                    String.format(
-                                            "Job ID: %s\n",
-                                            result.getJobClient().get().getJobID().toString()));
-                });
-    }
-
-    // execute operation will flush the message to the terminal.
-    private boolean executeOperation(Operation operation, PrintStrategy printStrategy) {
         try {
             TableResult result = executor.executeOperation(sessionId, operation);
-            printStrategy.print(result);
+            checkState(result.getJobClient().isPresent());
+            terminal.writer()
+                    .println(
+                            CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED)
+                                    .toAnsi());
+            // keep compatibility with before
+            terminal.writer()
+                    .println(
+                            String.format(
+                                    "Job ID: %s\n",
+                                    result.getJobClient().get().getJobID().toString()));
             terminal.flush();
             return true;
         } catch (SqlExecutionException e) {
@@ -497,17 +437,35 @@ public class CliClient implements AutoCloseable {
         return false;
     }
 
-    // --------------------------------------------------------------------------------------------
-
-    @FunctionalInterface
-    interface PrintStrategy {
-        /** Print the result to the terminal. */
-        void print(TableResult result);
+    private void executeOperation(Operation operation) {
+        try {
+            TableResult result = executor.executeOperation(sessionId, operation);
+            if (TABLE_RESULT_OK == result) {
+                // print more meaningful message than tableau OK result
+                printInfo(MESSAGE_EXECUTE_STATEMENT);
+            } else {
+                // print tableau if result has content
+                PrintUtils.printAsTableauForm(
+                        result.getResolvedSchema(),
+                        result.collect(),
+                        terminal.writer(),
+                        Integer.MAX_VALUE,
+                        "",
+                        false,
+                        false);
+                terminal.flush();
+            }
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
+        }
     }
 
+    // --------------------------------------------------------------------------------------------
+
     private void printExecutionException(Throwable t) {
-        final String finalMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
-        terminal.writer().println(CliStrings.messageError(finalMessage, t).toAnsi());
+        final String errorMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+        LOG.warn(errorMessage, t);
+        terminal.writer().println(CliStrings.messageError(errorMessage, t).toAnsi());
         terminal.flush();
     }
 
@@ -526,15 +484,27 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
-    private void printRemovedOrDeprecatedKeyMessage(String key) {
-        String msg =
-                YamlConfigUtils.isRemovedKey(key)
-                        ? MESSAGE_REMOVED_KEY
-                        : String.format(
-                                MESSAGE_DEPRECATED_KEY,
-                                key,
-                                YamlConfigUtils.getOptionNameWithDeprecatedKey(key));
-        printWarning(msg);
+    private void printSetResetConfigKeyMessage(String key, String message) {
+        boolean isRemovedKey = isRemovedKey(key);
+        boolean isDeprecatedKey = isDeprecatedKey(key);
+
+        // print warning information if the given key is removed or deprecated
+        if (isRemovedKey || isDeprecatedKey) {
+            String warningMsg =
+                    isRemovedKey
+                            ? MESSAGE_REMOVED_KEY
+                            : String.format(
+                                    MESSAGE_DEPRECATED_KEY,
+                                    key,
+                                    getOptionNameWithDeprecatedKey(key));
+            printWarning(warningMsg);
+        }
+
+        // when the key is not removed, need to print normal message
+        if (!isRemovedKey) {
+            terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
+            terminal.flush();
+        }
     }
 
     // --------------------------------------------------------------------------------------------

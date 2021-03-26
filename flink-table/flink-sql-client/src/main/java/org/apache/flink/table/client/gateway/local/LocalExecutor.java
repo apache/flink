@@ -43,6 +43,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
  * response time to the Flink cluster. Flink jobs are not blocking.
@@ -146,7 +148,7 @@ public class LocalExecutor implements Executor {
         try {
             return context.wrapClassLoader(() -> tEnv.executeInternal(operation));
         } catch (Exception e) {
-            throw new SqlExecutionException("Could not execute operation: " + operation, e);
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
         }
     }
 
