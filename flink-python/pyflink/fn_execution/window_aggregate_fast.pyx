@@ -33,10 +33,11 @@ from pyflink.datastream.timerservice import InternalTimerServiceImpl
 from pyflink.fn_execution.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner
+from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner, \
+    MergingWindowAssigner
 from pyflink.fn_execution.window_context import WindowContext, TriggerContext, K, W
 from pyflink.fn_execution.window_process_function import GeneralWindowProcessFunction, \
-    InternalWindowProcessFunction, PanedWindowProcessFunction
+    InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
 from pyflink.fn_execution.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction
 
@@ -344,6 +345,10 @@ cdef class GroupWindowAggFunctionBase:
         if isinstance(self._window_assigner, PanedWindowAssigner):
             self._window_function = PanedWindowProcessFunction(
                 self._allowed_lateness, self._window_assigner, self._window_aggregator)
+        elif isinstance(self._window_assigner, MergingWindowAssigner):
+            self._window_function = MergingWindowProcessFunction(
+                self._allowed_lateness, self._window_assigner, self._window_aggregator,
+                self._state_backend)
         else:
             self._window_function = GeneralWindowProcessFunction(
                 self._allowed_lateness, self._window_assigner, self._window_aggregator)
