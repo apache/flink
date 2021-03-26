@@ -75,6 +75,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
@@ -282,46 +283,56 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         String fieldName = "key-grouped-priority-queue";
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
-        KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
-                backend.create(fieldName, new TestType.V1TestTypeSerializer());
+        try {
+            KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
+                    backend.create(fieldName, new TestType.V1TestTypeSerializer());
 
-        TestType elementA42 = new TestType("a", 42);
-        TestType elementA44 = new TestType("a", 44);
-        TestType elementB1 = new TestType("b", 1);
-        TestType elementB3 = new TestType("b", 3);
+            TestType elementA42 = new TestType("a", 42);
+            TestType elementA44 = new TestType("a", 44);
+            TestType elementB1 = new TestType("b", 1);
+            TestType elementB3 = new TestType("b", 3);
 
-        TestType[] elements = {
-            elementA44, elementB1, elementB1, elementB3, elementA42,
-        };
+            TestType[] elements = {
+                elementA44, elementB1, elementB1, elementB3, elementA42,
+            };
 
-        if (addAll) {
-            priorityQueue.addAll(asList(elements));
-        } else {
-            assertTrue(priorityQueue.add(elements[0]));
-            assertTrue(priorityQueue.add(elements[1]));
-            assertFalse(priorityQueue.add(elements[2]));
-            assertFalse(priorityQueue.add(elements[3]));
-            assertFalse(priorityQueue.add(elements[4]));
+            if (addAll) {
+                priorityQueue.addAll(asList(elements));
+            } else {
+                assertTrue(priorityQueue.add(elements[0]));
+                assertTrue(priorityQueue.add(elements[1]));
+                assertFalse(priorityQueue.add(elements[2]));
+                assertFalse(priorityQueue.add(elements[3]));
+                assertFalse(priorityQueue.add(elements[4]));
+            }
+            assertFalse(priorityQueue.isEmpty());
+            assertThat(
+                    priorityQueue.getSubsetForKeyGroup(1),
+                    containsInAnyOrder(elementA42, elementA44));
+            assertThat(
+                    priorityQueue.getSubsetForKeyGroup(8),
+                    containsInAnyOrder(elementB1, elementB3));
+
+            assertThat(priorityQueue.peek(), equalTo(elementB1));
+            assertThat(priorityQueue.poll(), equalTo(elementB1));
+            assertThat(priorityQueue.peek(), equalTo(elementB3));
+
+            List<TestType> actualList = new ArrayList<>();
+            try (CloseableIterator<TestType> iterator = priorityQueue.iterator()) {
+                iterator.forEachRemaining(actualList::add);
+            }
+
+            assertThat(actualList, containsInAnyOrder(elementB3, elementA42, elementA44));
+
+            assertEquals(3, priorityQueue.size());
+
+            assertFalse(priorityQueue.remove(elementB1));
+            assertTrue(priorityQueue.remove(elementB3));
+            assertThat(priorityQueue.peek(), equalTo(elementA42));
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
         }
-        assertFalse(priorityQueue.isEmpty());
-        assertThat(
-                priorityQueue.getSubsetForKeyGroup(1), containsInAnyOrder(elementA42, elementA44));
-        assertThat(priorityQueue.getSubsetForKeyGroup(8), containsInAnyOrder(elementB1, elementB3));
-
-        assertThat(priorityQueue.peek(), equalTo(elementB1));
-        assertThat(priorityQueue.poll(), equalTo(elementB1));
-        assertThat(priorityQueue.peek(), equalTo(elementB3));
-
-        List<TestType> actualList = new ArrayList<>();
-        priorityQueue.iterator().forEachRemaining(actualList::add);
-
-        assertThat(actualList, containsInAnyOrder(elementB3, elementA42, elementA44));
-
-        assertEquals(3, priorityQueue.size());
-
-        assertFalse(priorityQueue.remove(elementB1));
-        assertTrue(priorityQueue.remove(elementB3));
-        assertThat(priorityQueue.peek(), equalTo(elementA42));
     }
 
     @Test
