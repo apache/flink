@@ -57,6 +57,7 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
+    "org.apache.flink.sql.parser.dql.SqlRichExplain"
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
     "org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowDatabases"
@@ -464,6 +465,7 @@
     "SqlRichDescribeTable()"
     "SqlAlterTable()"
     "SqlShowViews()"
+    "SqlRichExplain()"
   ]
 
   # List of methods for parsing custom literals.

@@ -79,7 +79,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -254,7 +254,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> <DATABASE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <DATABASE> { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -1429,5 +1429,19 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
     )
     {
         return drop;
+    }
+}
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    stmt = SqlQueryOrDml() {
+        return new SqlRichExplain(getPos(),stmt);
     }
 }
