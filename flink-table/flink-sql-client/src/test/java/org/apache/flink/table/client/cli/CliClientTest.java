@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -214,9 +215,15 @@ public class CliClientTest extends TestLogger {
         public void closeSession(String sessionId) throws SqlExecutionException {}
 
         @Override
-        public Map<String, String> getSessionProperties(String sessionId)
+        public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
             return null;
+        }
+
+        @Override
+        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            return context.getReadableConfig();
         }
 
         @Override
@@ -228,7 +235,10 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {}
+                throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            context.set(key, value);
+        }
 
         @Override
         public TableResult executeOperation(String sessionId, Operation operation)
