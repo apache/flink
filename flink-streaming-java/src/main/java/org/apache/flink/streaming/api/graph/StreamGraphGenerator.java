@@ -301,6 +301,14 @@ public class StreamGraphGenerator {
             transform(transformation);
         }
 
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            if (node.getInEdges().stream().anyMatch(edge -> edge.getPartitioner().isPointwise())) {
+                for (StreamEdge edge : node.getInEdges()) {
+                    edge.setSupportsUnalignedCheckpoints(false);
+                }
+            }
+        }
+
         final StreamGraph builtStreamGraph = streamGraph;
 
         alreadyTransformed.clear();
