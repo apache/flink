@@ -135,8 +135,13 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
         return getSessionContext(sessionId).getConfigMap();
+    }
+
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        return getSessionContext(sessionId).getReadableConfig();
     }
 
     @Override

@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
@@ -95,8 +96,13 @@ class TestingExecutor implements Executor {
     public void closeSession(String sessionId) throws SqlExecutionException {}
 
     @Override
-    public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        return null;
     }
 
     @Override

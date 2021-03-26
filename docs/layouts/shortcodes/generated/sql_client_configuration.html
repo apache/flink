@@ -20,5 +20,11 @@
             <td><p>Enum</p>Possible values: [TABLE, CHANGELOG, TABLEAU]</td>
             <td>Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog']. The 'table' mode materializes results in memory and visualizes them in a regular, paginated table representation. The 'changelog' mode does not materialize results and visualizes the result stream that is produced by a continuous query. The 'tableau' mode is more like a traditional way which will display the results in the screen directly with a tableau format. </td>
         </tr>
+        <tr>
+            <td><h5>sql-client.verbose</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Determine whether to output the verbose output to the console. If set the option true, it will print the exception stack. Otherwise, it only output the cause.</td>
+        </tr>
     </tbody>
 </table>
