@@ -1241,7 +1241,7 @@ object ScalarOperatorGens {
         s"$method($operandTerm.getMillisecond(), $zone)"
       }
 
-    // Disable cast conversion between Numeric type and  Timestamp type
+    // Disable cast conversion between Numeric type and Timestamp type
     case (TINYINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (SMALLINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) |
@@ -1267,91 +1267,30 @@ object ScalarOperatorGens {
       }
     }
 
-    // Tinyint -> TimestampLtz
-    // Smallint -> TimestampLtz
-    // Int -> TimestampLtz
-    // Bigint -> TimestampLtz
+    // Disable cast conversion between Numeric type and TimestampLtz type
     case (TINYINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
          (SMALLINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
          (INTEGER, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (BIGINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis(((long) $operandTerm) * 1000)"
+         (BIGINT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+         (FLOAT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+         (DOUBLE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+         (DECIMAL, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TINYINT) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, SMALLINT) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTEGER) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, BIGINT) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, FLOAT) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DOUBLE) |
+         (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DECIMAL) => {
+      if (TIMESTAMP_WITH_LOCAL_TIME_ZONE.equals(targetType.getTypeRoot)) {
+        throw new ValidationException("The cast conversion from NUMERIC type" +
+          " to TIMESTAMP_LTZ type is not allowed, it's recommended to use" +
+          " TO_TIMESTAMP_LTZ(numeric_col, precision) instead.")
+      } else {
+        throw new ValidationException("The cast conversion from" +
+          " TIMESTAMP_LTZ type to NUMERIC type is not allowed.")
       }
-
-    // Float -> TimestampLtz
-    // Double -> TimestampLtz
-    case (FLOAT, TIMESTAMP_WITH_LOCAL_TIME_ZONE) |
-         (DOUBLE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-              |$TIMESTAMP_DATA.fromEpochMillis((long) ($operandTerm * 1000),
-              |(int) (($operandTerm - (int) $operandTerm) * 1000_000_000 % 1000_000))
-              """.stripMargin
-      }
-
-    // DECIMAL -> TimestampLtz
-    case (DECIMAL, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"$DECIMAL_UTIL.castToTimestamp($operandTerm)"
-      }
-
-    // TimestampLtz -> Tinyint
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TINYINT) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((byte) ($operandTerm.getMillisecond() / 1000))"
-      }
-
-    // TimestampLtz -> Smallint
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, SMALLINT) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((short) ($operandTerm.getMillisecond() / 1000))"
-      }
-
-    // TimestampLtz -> Int
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTEGER) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((int) ($operandTerm.getMillisecond() / 1000))"
-      }
-
-    // TimestampLtz -> BigInt
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, BIGINT) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((long) ($operandTerm.getMillisecond() / 1000))"
-      }
-
-    // TimestampLtz -> Float
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, FLOAT) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-             |((float) ($operandTerm.getMillisecond() / 1000.0 +
-             |$operandTerm.getNanoOfMillisecond() / 1000_000_000.0))
-          """.stripMargin
-      }
-
-    // TimestampLtz -> Double
-    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DOUBLE) =>
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-             |((double) ($operandTerm.getMillisecond() / 1000.0 +
-             |$operandTerm.getNanoOfMillisecond() / 1000_000_000.0))
-          """.stripMargin
-      }
-
-    // TimestampLtz -> Decimal
-    case  (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DECIMAL) =>
-      val dt = targetType.asInstanceOf[DecimalType]
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          s"""
-             |$DECIMAL_UTIL.castFrom(
-             |  $operandTerm, ${dt.getPrecision}, ${dt.getScale})
-           """.stripMargin
-      }
+    }
 
     // internal temporal casting
     // Date -> Integer

@@ -254,44 +254,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       "CAST(f2 AS TIMESTAMP_LTZ(3))",
       "1990-10-14 10:20:45.123")
 
-    // TINYINT -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100 AS TINYINT) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.000")
-
-    // SMALLINT -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100 AS SMALLINT) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.000")
-
-    // INT -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(100 AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.000")
-
-    // BIGINT -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100 AS BIGINT) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.000")
-
-    // FLOAT -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100.01 AS FLOAT) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.010")
-
-    // DOUBLE -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100.123 AS DOUBLE) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.123")
-
-    // DECIMAL -> TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(100.1234 as DECIMAL(38, 18)) AS TIMESTAMP_LTZ(3))",
-      "1970-01-01 08:01:40.123")
-    testSqlApi(
-      "CAST(CAST(1616490480.123 AS DECIMAL(38, 18)) AS TIMESTAMP_LTZ(9))",
-      "2021-03-23 17:08:00.123000000")
-
     // TIMESTAMP_LTZ -> TIME
     testSqlApi(
       s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS TIME)",
@@ -307,79 +269,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS TIMESTAMP(3))",
       "2018-03-14 01:02:03.000")
 
-    // TIMESTAMP_LTZ -> TINYINT
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS TINYINT)",
-      "123")
-
-    // TIMESTAMP_LTZ -> SMALLINT
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS SMALLINT)",
-      "123")
-
-    // TIMESTAMP_LTZ -> INT
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS INT)",
-      "123")
-
-    // TIMESTAMP_LTZ -> BIGINT
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS BIGINT)",
-      "123")
-
-    // TIMESTAMP_LTZ -> FLOAT
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS FLOAT)",
-      "123.123")
-
-    // TIMESTAMP_LTZ -> DOUBLE
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DOUBLE)",
-      "123.123")
-
-    // TIMESTAMP_LTZ -> DECIMAL
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DECIMAL(38, 3))",
-      "123.123")
-
-    // test precision when cast to TIMESTAMP_LTZ
-    testSqlApi(
-      "CAST(CAST(1.1234567 AS FLOAT) AS TIMESTAMP_LTZ(6))",
-      "1970-01-01 08:00:01.123456")
-    testSqlApi(
-      "CAST(CAST(1.12 AS FLOAT) AS TIMESTAMP_LTZ(6))",
-      "1970-01-01 08:00:01.120000")
-    testSqlApi(
-      "CAST(CAST(1.1234567899 AS DOUBLE) AS TIMESTAMP_LTZ(9))",
-      "1970-01-01 08:00:01.123456789")
-    testSqlApi(
-      "CAST(CAST(1.12 AS DOUBLE) AS TIMESTAMP_LTZ(6))",
-      "1970-01-01 08:00:01.120000")
-    testSqlApi(
-      "CAST(CAST(1.1234567899 AS DECIMAL(38, 18)) AS TIMESTAMP_LTZ(9))",
-      "1970-01-01 08:00:01.123456789")
-    testSqlApi(
-      "CAST(CAST(1.12 AS DECIMAL(38, 18)) AS TIMESTAMP_LTZ(6))",
-      "1970-01-01 08:00:01.120000")
-
-    // test precision when cast from TIMESTAMP_LTZ
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS FLOAT)",
-      "1.123456")
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DOUBLE)",
-      "123.123456")
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DECIMAL(38, 6))",
-      "123.123456")
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123456789")} AS DECIMAL(38, 9))",
-      "123.123456789")
-    testSqlApi(
-      s"CAST(${timestampLtz("1970-01-01 08:02:03.123456")} AS DECIMAL(38, 4))",
-      "123.1235")
-
-    // test cast between TIMESTAMP_LTZ and TIMESTAMP_LTZ
+    // test precision when cast between TIMESTAMP_LTZ and TIMESTAMP_LTZ
     testSqlApi(
       s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(3))",
       "1970-01-01 08:00:01.123")
@@ -389,14 +279,86 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(9))",
       "1970-01-01 08:00:01.123456000")
+  }
 
-    // test cast with null value
-    testSqlApi(
-      s"CAST(CAST(null AS BIGINT) AS TIMESTAMP_LTZ(3))",
-      "null")
-    testSqlApi(
-      s"CAST(CAST(null AS TIMESTAMP_LTZ(3)) AS BIGINT)",
-      "null")
+  @Test
+  def tesInvalidCastBetweenNumericAndTimestampLtz(): Unit = {
+    val castFromTimestampLtzExceptionMsg = "The cast conversion from TIMESTAMP_LTZ type to" +
+      " NUMERIC type is not allowed."
+
+    val castToTimestampLtzExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP_LTZ" +
+      " type is not allowed, it's recommended to use" +
+      " TO_TIMESTAMP_LTZ(numeric_col, precision) instead."
+
+    // TINYINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS TINYINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // SMALLINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS SMALLINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // INT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(100 AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // BIGINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS BIGINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // FLOAT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.01 AS FLOAT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // DOUBLE -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.123 AS DOUBLE) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // DECIMAL -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.1234 as DECIMAL(38, 18)) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> TINYINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS TINYINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> SMALLINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS SMALLINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> INT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS INT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> BIGINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS BIGINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> FLOAT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS FLOAT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> DOUBLE
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DOUBLE)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> DECIMAL
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DECIMAL(38, 3))",
+      castFromTimestampLtzExceptionMsg)
   }
 
   @Test
