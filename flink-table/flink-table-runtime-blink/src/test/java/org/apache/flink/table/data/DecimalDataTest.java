@@ -28,7 +28,6 @@ import static org.apache.flink.table.data.DecimalDataUtils.castFrom;
 import static org.apache.flink.table.data.DecimalDataUtils.castToBoolean;
 import static org.apache.flink.table.data.DecimalDataUtils.castToDecimal;
 import static org.apache.flink.table.data.DecimalDataUtils.castToIntegral;
-import static org.apache.flink.table.data.DecimalDataUtils.castToTimestamp;
 import static org.apache.flink.table.data.DecimalDataUtils.ceil;
 import static org.apache.flink.table.data.DecimalDataUtils.compare;
 import static org.apache.flink.table.data.DecimalDataUtils.divide;
@@ -115,7 +114,6 @@ public class DecimalDataTest {
         assertTrue(castToBoolean(castFrom(true, 5, 0)));
         assertEquals(5, castToIntegral(castFrom(5, 5, 0)));
         assertEquals(5, castToIntegral(castFrom("5", 5, 0)));
-        assertEquals(5000, castToTimestamp(castFrom("5", 5, 0)));
 
         DecimalData newDecimal = castFrom(castFrom(10, 5, 2), 10, 4);
         assertEquals(10, newDecimal.precision());
