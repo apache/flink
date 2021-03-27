@@ -108,6 +108,31 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-format-common</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 	<profiles>
 		<!-- Create SQL Client uber jars by default -->
 		<profile>
@@ -121,15 +146,21 @@ under the License.
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-jar-plugin</artifactId>
+						<artifactId>maven-shade-plugin</artifactId>
 						<executions>
 							<execution>
 								<phase>package</phase>
 								<goals>
-									<goal>jar</goal>
+									<goal>shade</goal>
 								</goals>
 								<configuration>
-									<classifier>sql-jar</classifier>
+									<artifactSet>
+										<includes>
+											<include>org.apache.flink:flink-format-common</include>
+										</includes>
+									</artifactSet>
+									<shadedArtifactAttached>true</shadedArtifactAttached>
+									<shadedClassifierName>sql-jar</shadedClassifierName>
 								</configuration>
 							</execution>
 						</executions>
@@ -138,4 +169,5 @@ under the License.
 			</build>
 		</profile>
 	</profiles>
+
 </project>
