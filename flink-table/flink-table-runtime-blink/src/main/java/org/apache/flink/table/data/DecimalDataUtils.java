@@ -38,9 +38,6 @@ import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 public final class DecimalDataUtils {
 
     private static final MathContext MC_DIVIDE = new MathContext(38, RoundingMode.HALF_UP);
-    private static final long MILLS_PER_SECOND = 1000L;
-    private static final long NANOS_PER_SECOND = 1000_000_000L;
-    private static final long NANOS_PER_MILLISECOND = 1000_000L;
 
     public static final DecimalType DECIMAL_SYSTEM_DEFAULT =
             new DecimalType(DecimalType.MAX_PRECISION, 18);
@@ -206,25 +203,6 @@ public final class DecimalDataUtils {
 
     public static boolean castToBoolean(DecimalData dec) {
         return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
-    }
-
-    public static TimestampData castToTimestamp(DecimalData dec) {
-        BigDecimal bd = dec.toBigDecimal().multiply(new BigDecimal(MILLS_PER_SECOND));
-        long mills = bd.longValue();
-        int nanos =
-                bd.remainder(BigDecimal.ONE)
-                        .multiply(new BigDecimal(NANOS_PER_MILLISECOND))
-                        .intValue();
-        return TimestampData.fromEpochMillis(mills, nanos);
-    }
-
-    public static DecimalData castFrom(TimestampData val, int precision, int scale) {
-        BigDecimal decimalSeconds =
-                new BigDecimal(val.getMillisecond())
-                        .multiply(new BigDecimal(NANOS_PER_MILLISECOND))
-                        .add(new BigDecimal(val.getNanoOfMillisecond()))
-                        .divide(new BigDecimal(NANOS_PER_SECOND));
-        return fromBigDecimal(decimalSeconds, precision, scale);
     }
 
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
