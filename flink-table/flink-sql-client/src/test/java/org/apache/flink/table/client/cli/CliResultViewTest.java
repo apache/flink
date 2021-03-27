@@ -141,7 +141,7 @@ public class CliResultViewTest {
         }
 
         @Override
-        public Map<String, String> getSessionProperties(String sessionId)
+        public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
             return null;
         }

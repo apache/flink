@@ -52,10 +52,22 @@ public interface Executor {
      */
     void closeSession(String sessionId) throws SqlExecutionException;
 
-    /** Lists all session properties that are defined by the executor and the session. */
-    Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException;
+    /**
+     * Returns a copy of {@link Map} of all session configurations that are defined by the executor
+     * and the session.
+     *
+     * <p>Both this method and {@link #getSessionConfig(String)} return the same configuration set,
+     * but different return type.
+     */
+    Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException;
 
-    /** Lists all session ReadableConfig that are defined by the executor and the session. */
+    /**
+     * Returns a {@link ReadableConfig} of all session configurations that are defined by the
+     * executor and the session.
+     *
+     * <p>Both this method and {@link #getSessionConfigMap(String)} return the same configuration
+     * set, but different return type.
+     */
     ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException;
 
     /**

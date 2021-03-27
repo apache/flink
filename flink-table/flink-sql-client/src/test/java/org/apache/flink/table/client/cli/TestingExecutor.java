@@ -96,7 +96,7 @@ class TestingExecutor implements Executor {
     public void closeSession(String sessionId) throws SqlExecutionException {}
 
     @Override
-    public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

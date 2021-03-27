@@ -252,7 +252,7 @@ public class CliClientTest extends TestLogger {
         public void closeSession(String sessionId) throws SqlExecutionException {}
 
         @Override
-        public Map<String, String> getSessionProperties(String sessionId)
+        public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
             return null;
         }

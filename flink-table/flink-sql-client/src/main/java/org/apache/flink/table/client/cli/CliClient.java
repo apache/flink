@@ -355,7 +355,7 @@ public class CliClient implements AutoCloseable {
             }
             // show all properties
             else {
-                final Map<String, String> properties = executor.getSessionProperties(sessionId);
+                final Map<String, String> properties = executor.getSessionConfigMap(sessionId);
                 if (properties.isEmpty()) {
                     terminal.writer()
                             .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
