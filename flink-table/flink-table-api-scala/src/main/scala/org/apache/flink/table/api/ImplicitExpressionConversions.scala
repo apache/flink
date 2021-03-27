@@ -462,13 +462,6 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Converts a numeric type epoch seconds to [[DataTypes#TIMESTAMP_LTZ]].
-   */
-  def toTimestampLtz(numericEpochTime: Expression): Expression = {
-    Expressions.toTimestampLtz(numericEpochTime, lit(0))
-  }
-
-  /**
    * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
    *
    * <p>The supported precision is 0 or 3:
