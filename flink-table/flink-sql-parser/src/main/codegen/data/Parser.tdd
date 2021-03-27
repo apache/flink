@@ -56,6 +56,8 @@
     "org.apache.flink.sql.parser.ddl.SqlWatermark"
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
+    "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
+    "org.apache.flink.sql.parser.dml.SqlEnd"
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
     "org.apache.flink.sql.parser.dql.SqlLoadModule"
@@ -461,6 +463,8 @@
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
     "RichSqlInsert()"
+    "SqlBeginStatementSet()"
+    "SqlEnd()"
     "SqlLoadModule()"
     "SqlShowCatalogs()"
     "SqlShowCurrentCatalogOrDatabase()"
