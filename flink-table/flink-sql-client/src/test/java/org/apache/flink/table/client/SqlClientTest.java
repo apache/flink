@@ -43,6 +43,7 @@ import java.util.Objects;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -145,5 +146,55 @@ public class SqlClientTest {
         Objects.requireNonNull(url);
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
         assertEquals(help, getStdoutString());
+    }
+
+    @Test
+    public void testErrorMessage() {
+        // prepare statements which will throw exception
+        String stmts =
+                "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
+                        + "SELECT * FROM T;\n"
+                        + "QUIT;\n";
+        System.setIn(new ByteArrayInputStream(stmts.getBytes(StandardCharsets.UTF_8)));
+        String[] args = new String[] {};
+        SqlClient.main(args);
+        String output = getStdoutString();
+        assertThat(
+                output,
+                containsString(
+                        "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'"));
+
+        // shouldn't contain error stack
+        String[] errorStack =
+                new String[] {
+                    "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
+                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                };
+        for (String stack : errorStack) {
+            assertThat(output, not(containsString(stack)));
+        }
+    }
+
+    @Test
+    public void testVerboseErrorMessage() {
+        // prepare statements which will throw exception
+        String stmts =
+                "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
+                        + "SET sql-client.verbose=true;\n"
+                        + "SELECT * FROM T;\n"
+                        + "QUIT;\n";
+        System.setIn(new ByteArrayInputStream(stmts.getBytes(StandardCharsets.UTF_8)));
+        String[] args = new String[] {};
+        SqlClient.main(args);
+        String output = getStdoutString();
+        String[] errors =
+                new String[] {
+                    "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'",
+                    "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
+                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                };
+        for (String error : errors) {
+            assertThat(output, containsString(error));
+        }
     }
 }
