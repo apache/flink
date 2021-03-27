@@ -31,7 +31,6 @@ import java.util.List;
  */
 public class SqlMultiLineParser extends DefaultParser {
 
-    private static final String EOF_CHARACTER = ";";
     private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
 
     public SqlMultiLineParser() {
@@ -41,7 +40,7 @@ public class SqlMultiLineParser extends DefaultParser {
 
     @Override
     public ParsedLine parse(String line, int cursor, ParseContext context) {
-        if (!line.trim().endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
+        if (!CliStatementSplitter.isStatementComplete(line) && context != ParseContext.COMPLETE) {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);

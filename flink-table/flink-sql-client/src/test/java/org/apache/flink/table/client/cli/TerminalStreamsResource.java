@@ -20,6 +20,8 @@ package org.apache.flink.table.client.cli;
 
 import org.junit.rules.ExternalResource;
 
+import java.io.PrintStream;
+
 /**
  * Enables {@link org.apache.flink.table.client.SqlClient} to create a default terminal using {@link
  * System#in} and {@link System#out} as the input and output stream. This can allows tests to easily
@@ -28,6 +30,7 @@ import org.junit.rules.ExternalResource;
 public class TerminalStreamsResource extends ExternalResource {
 
     public static final TerminalStreamsResource INSTANCE = new TerminalStreamsResource();
+    public static final PrintStream STD_OUT = System.out;
 
     private TerminalStreamsResource() {
         // singleton
@@ -41,5 +44,7 @@ public class TerminalStreamsResource extends ExternalResource {
     @Override
     protected void after() {
         CliClient.useSystemInOutStream = false;
+        // Reset the System.out
+        System.setOut(STD_OUT);
     }
 }
