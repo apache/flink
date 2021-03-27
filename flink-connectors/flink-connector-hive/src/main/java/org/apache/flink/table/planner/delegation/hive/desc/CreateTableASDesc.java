@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.desc;
 
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 import java.io.Serializable;
 
@@ -28,9 +28,9 @@ public class CreateTableASDesc implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final HiveParserCreateTableDesc createTableDesc;
-    private final ASTNode query;
+    private final HiveParserASTNode query;
 
-    public CreateTableASDesc(HiveParserCreateTableDesc createTableDesc, ASTNode query) {
+    public CreateTableASDesc(HiveParserCreateTableDesc createTableDesc, HiveParserASTNode query) {
         this.createTableDesc = createTableDesc;
         this.query = query;
     }
@@ -39,7 +39,7 @@ public class CreateTableASDesc implements Serializable {
         return createTableDesc;
     }
 
-    public ASTNode getQuery() {
+    public HiveParserASTNode getQuery() {
         return query;
     }
 }

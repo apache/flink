@@ -18,15 +18,14 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
-import org.apache.hadoop.hive.ql.ErrorMsg;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 /** Util class for the hive parser. */
 public class HiveParserUtils {
 
     private HiveParserUtils() {}
 
-    public static String generateErrorMessage(ASTNode ast, String message) {
+    public static String generateErrorMessage(HiveParserASTNode ast, String message) {
         StringBuilder sb = new StringBuilder();
         if (ast == null) {
             sb.append(message).append(". Cannot tell the position of null AST.");
@@ -38,8 +37,15 @@ public class HiveParserUtils {
         sb.append(" ");
         sb.append(message);
         sb.append(". Error encountered near token '");
-        sb.append(ErrorMsg.getText(ast));
+        sb.append(getText(ast));
         sb.append("'");
         return sb.toString();
+    }
+
+    private static String getText(HiveParserASTNode tree) {
+        if (tree.getChildCount() == 0) {
+            return tree.getText();
+        }
+        return getText((HiveParserASTNode) tree.getChild(tree.getChildCount() - 1));
     }
 }
