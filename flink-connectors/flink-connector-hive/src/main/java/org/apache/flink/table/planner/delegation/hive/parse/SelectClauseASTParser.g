@@ -20,7 +20,7 @@ parser grammar SelectClauseASTParser;
 options
 {
 output=AST;
-ASTLabelType=ASTNode;
+ASTLabelType=HiveParserASTNode;
 backtrack=false;
 k=3;
 }

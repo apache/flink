@@ -55,9 +55,7 @@ import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.EximUtil;
-import org.apache.hadoop.hive.ql.parse.ParseUtils;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.AddPartitionDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableAlterPartDesc;
@@ -139,7 +137,7 @@ public class HiveParserDDLSemanticAnalyzer {
         TokenToTypeName.put(HiveASTParser.TOK_DECIMAL, serdeConstants.DECIMAL_TYPE_NAME);
     }
 
-    public static String getTypeName(ASTNode node) throws SemanticException {
+    public static String getTypeName(HiveParserASTNode node) throws SemanticException {
         int token = node.getType();
         String typeName;
 
@@ -150,15 +148,15 @@ public class HiveParserDDLSemanticAnalyzer {
 
         switch (token) {
             case HiveASTParser.TOK_CHAR:
-                CharTypeInfo charTypeInfo = ParseUtils.getCharTypeInfo(node);
+                CharTypeInfo charTypeInfo = HiveASTParseUtils.getCharTypeInfo(node);
                 typeName = charTypeInfo.getQualifiedName();
                 break;
             case HiveASTParser.TOK_VARCHAR:
-                VarcharTypeInfo varcharTypeInfo = ParseUtils.getVarcharTypeInfo(node);
+                VarcharTypeInfo varcharTypeInfo = HiveASTParseUtils.getVarcharTypeInfo(node);
                 typeName = varcharTypeInfo.getQualifiedName();
                 break;
             case HiveASTParser.TOK_DECIMAL:
-                DecimalTypeInfo decTypeInfo = ParseUtils.getDecimalTypeTypeInfo(node);
+                DecimalTypeInfo decTypeInfo = HiveASTParseUtils.getDecimalTypeTypeInfo(node);
                 typeName = decTypeInfo.getQualifiedName();
                 break;
             default:
@@ -217,20 +215,20 @@ public class HiveParserDDLSemanticAnalyzer {
         return new HashSet<>();
     }
 
-    public Serializable analyzeInternal(ASTNode input) throws SemanticException {
+    public Serializable analyzeInternal(HiveParserASTNode input) throws SemanticException {
 
-        ASTNode ast = input;
+        HiveParserASTNode ast = input;
         Serializable res = null;
         switch (ast.getType()) {
             case HiveASTParser.TOK_ALTERTABLE:
                 {
-                    ast = (ASTNode) input.getChild(1);
+                    ast = (HiveParserASTNode) input.getChild(1);
                     String[] qualified =
                             HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
-                                    (ASTNode) input.getChild(0));
+                                    (HiveParserASTNode) input.getChild(0));
                     String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
                     HashMap<String, String> partSpec = null;
-                    ASTNode partSpecNode = (ASTNode) input.getChild(2);
+                    HiveParserASTNode partSpecNode = (HiveParserASTNode) input.getChild(2);
                     if (partSpecNode != null) {
                         //  We can use alter table partition rename to convert/normalize the legacy
                         // partition
@@ -362,8 +360,8 @@ public class HiveParserDDLSemanticAnalyzer {
                     } else {
                         String[] qualified =
                                 HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
-                                        (ASTNode) ast.getChild(0));
-                        ast = (ASTNode) ast.getChild(1);
+                                        (HiveParserASTNode) ast.getChild(0));
+                        ast = (HiveParserASTNode) ast.getChild(1);
                         if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_PROPERTIES) {
                             res = analyzeAlterTableProps(qualified, null, ast, true, false);
                         } else if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_DROPPROPERTIES) {
@@ -450,7 +448,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return res;
     }
 
-    private Serializable analyzeDropFunction(ASTNode ast) throws SemanticException {
+    private Serializable analyzeDropFunction(HiveParserASTNode ast) throws SemanticException {
         // ^(TOK_DROPFUNCTION identifier ifExists? $temp?)
         String functionName = ast.getChild(0).getText();
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
@@ -463,7 +461,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new HiveParserDropFunctionDesc(desc, ifExists);
     }
 
-    private Serializable analyzerCreateFunction(ASTNode ast) throws SemanticException {
+    private Serializable analyzerCreateFunction(HiveParserASTNode ast) throws SemanticException {
         // ^(TOK_CREATEFUNCTION identifier StringLiteral ({isTempFunction}? => TOK_TEMPORARY))
         String functionName = ast.getChild(0).getText().toLowerCase();
         boolean isTemporaryFunction =
@@ -488,9 +486,10 @@ public class HiveParserDDLSemanticAnalyzer {
         return new FunctionWork(desc);
     }
 
-    private Serializable analyzeCreateView(ASTNode ast) throws SemanticException {
+    private Serializable analyzeCreateView(HiveParserASTNode ast) throws SemanticException {
         String[] qualTabName =
-                HiveParserBaseSemanticAnalyzer.getQualifiedTableName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
         String dbDotTable = HiveParserBaseSemanticAnalyzer.getDotName(qualTabName);
         List<FieldSchema> cols = null;
         boolean ifNotExists = false;
@@ -498,7 +497,7 @@ public class HiveParserDDLSemanticAnalyzer {
         boolean orReplace = false;
         boolean isAlterViewAs = false;
         String comment = null;
-        ASTNode selectStmt = null;
+        HiveParserASTNode selectStmt = null;
         Map<String, String> tblProps = null;
         List<String> partColNames = null;
         boolean isMaterialized =
@@ -511,7 +510,7 @@ public class HiveParserDDLSemanticAnalyzer {
         LOG.info("Creating view " + dbDotTable + " position=" + ast.getCharPositionInLine());
         int numCh = ast.getChildCount();
         for (int num = 1; num < numCh; num++) {
-            ASTNode child = (ASTNode) ast.getChild(num);
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
             if (storageFormat.fillStorageFormat(child)) {
                 continue;
             }
@@ -537,19 +536,19 @@ public class HiveParserDDLSemanticAnalyzer {
                                     child.getChild(0).getText());
                     break;
                 case HiveASTParser.TOK_TABLEPROPERTIES:
-                    tblProps = getProps((ASTNode) child.getChild(0));
+                    tblProps = getProps((HiveParserASTNode) child.getChild(0));
                     break;
                 case HiveASTParser.TOK_TABLEROWFORMAT:
                     rowFormatParams.analyzeRowFormat(child);
                     break;
                 case HiveASTParser.TOK_TABLESERIALIZER:
-                    child = (ASTNode) child.getChild(0);
+                    child = (HiveParserASTNode) child.getChild(0);
                     storageFormat.setSerde(
                             HiveParserBaseSemanticAnalyzer.unescapeSQLString(
                                     child.getChild(0).getText()));
                     if (child.getChildCount() == 2) {
                         HiveParserBaseSemanticAnalyzer.readProps(
-                                (ASTNode) (child.getChild(1).getChild(0)),
+                                (HiveParserASTNode) (child.getChild(1).getChild(0)),
                                 storageFormat.getSerdeProps());
                     }
                     break;
@@ -577,9 +576,10 @@ public class HiveParserDDLSemanticAnalyzer {
                 dbDotTable, cols, comment, tblProps, ifNotExists, isAlterViewAs, selectStmt);
     }
 
-    private Serializable analyzeCreateTable(ASTNode ast) throws SemanticException {
+    private Serializable analyzeCreateTable(HiveParserASTNode ast) throws SemanticException {
         String[] qualifiedTabName =
-                HiveParserBaseSemanticAnalyzer.getQualifiedTableName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
         String dbDotTab = HiveParserBaseSemanticAnalyzer.getDotName(qualifiedTabName);
 
         String likeTableName = null;
@@ -598,7 +598,7 @@ public class HiveParserDDLSemanticAnalyzer {
         boolean isExt = false;
         boolean isTemporary = false;
         boolean isMaterialization = false;
-        ASTNode selectStmt = null;
+        HiveParserASTNode selectStmt = null;
         final int createTable = 0; // regular CREATE TABLE
         final int ctlt = 1; // CREATE TABLE LIKE ... (CTLT)
         final int ctas = 2; // CREATE TABLE AS SELECT ... (CTAS)
@@ -620,7 +620,7 @@ public class HiveParserDDLSemanticAnalyzer {
         // 2) CTLT or CTAS should not coexists with column list (target table schema).
         // 3) CTAS does not support partitioning (for now).
         for (int num = 1; num < numCh; num++) {
-            ASTNode child = (ASTNode) ast.getChild(num);
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
             if (storageFormat.fillStorageFormat(child)) {
                 isUserStorageFormat = true;
                 continue;
@@ -640,7 +640,7 @@ public class HiveParserDDLSemanticAnalyzer {
                     if (child.getChildCount() > 0) {
                         likeTableName =
                                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                                        (ASTNode) child.getChild(0));
+                                        (HiveParserASTNode) child.getChild(0));
                         if (likeTableName != null) {
                             if (commandType == ctas) {
                                 throw new SemanticException(
@@ -684,7 +684,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 case HiveASTParser.TOK_TABLEPARTCOLS:
                     partCols =
                             HiveParserBaseSemanticAnalyzer.getColumns(
-                                    (ASTNode) child.getChild(0), false);
+                                    (HiveParserASTNode) child.getChild(0), false);
                     break;
                 case HiveASTParser.TOK_TABLEROWFORMAT:
                     rowFormatParams.analyzeRowFormat(child);
@@ -696,16 +696,16 @@ public class HiveParserDDLSemanticAnalyzer {
                     location = EximUtil.relativeToAbsolutePath(conf, location);
                     break;
                 case HiveASTParser.TOK_TABLEPROPERTIES:
-                    tblProps = getProps((ASTNode) child.getChild(0));
+                    tblProps = getProps((HiveParserASTNode) child.getChild(0));
                     break;
                 case HiveASTParser.TOK_TABLESERIALIZER:
-                    child = (ASTNode) child.getChild(0);
+                    child = (HiveParserASTNode) child.getChild(0);
                     storageFormat.setSerde(
                             HiveParserBaseSemanticAnalyzer.unescapeSQLString(
                                     child.getChild(0).getText()));
                     if (child.getChildCount() == 2) {
                         HiveParserBaseSemanticAnalyzer.readProps(
-                                (ASTNode) (child.getChild(1).getChild(0)),
+                                (HiveParserASTNode) (child.getChild(1).getChild(0)),
                                 storageFormat.getSerdeProps());
                     }
                     break;
@@ -780,17 +780,18 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private Serializable analyzeAlterDatabaseProperties(ASTNode ast) throws SemanticException {
+    private Serializable analyzeAlterDatabaseProperties(HiveParserASTNode ast)
+            throws SemanticException {
 
         String dbName =
                 HiveParserBaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(0).getText());
         Map<String, String> dbProps = null;
 
         for (int i = 1; i < ast.getChildCount(); i++) {
-            ASTNode childNode = (ASTNode) ast.getChild(i);
+            HiveParserASTNode childNode = (HiveParserASTNode) ast.getChild(i);
             switch (childNode.getToken().getType()) {
                 case HiveASTParser.TOK_DATABASEPROPERTIES:
-                    dbProps = getProps((ASTNode) childNode.getChild(0));
+                    dbProps = getProps((HiveParserASTNode) childNode.getChild(0));
                     break;
                 default:
                     throw new SemanticException("Unrecognized token in CREATE DATABASE statement");
@@ -799,10 +800,13 @@ public class HiveParserDDLSemanticAnalyzer {
         return HiveParserAlterDatabaseDesc.alterProps(dbName, dbProps);
     }
 
-    private Serializable analyzeAlterDatabaseOwner(ASTNode ast) throws SemanticException {
-        String dbName = HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+    private Serializable analyzeAlterDatabaseOwner(HiveParserASTNode ast) throws SemanticException {
+        String dbName =
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         PrincipalDesc principalDesc =
-                HiveParserAuthorizationParseUtils.getPrincipalDesc((ASTNode) ast.getChild(1));
+                HiveParserAuthorizationParseUtils.getPrincipalDesc(
+                        (HiveParserASTNode) ast.getChild(1));
 
         // The syntax should not allow these fields to be null, but lets verify
         String nullCmdMsg = "can't be null in alter database set owner command";
@@ -816,14 +820,16 @@ public class HiveParserDDLSemanticAnalyzer {
         return HiveParserAlterDatabaseDesc.alterOwner(dbName, principalDesc);
     }
 
-    private Serializable analyzeAlterDatabaseLocation(ASTNode ast) {
-        String dbName = HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+    private Serializable analyzeAlterDatabaseLocation(HiveParserASTNode ast) {
+        String dbName =
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         String newLocation =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(1).getText());
         return HiveParserAlterDatabaseDesc.alterLocation(dbName, newLocation);
     }
 
-    private Serializable analyzeCreateDatabase(ASTNode ast) throws SemanticException {
+    private Serializable analyzeCreateDatabase(HiveParserASTNode ast) throws SemanticException {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(0).getText());
         boolean ifNotExists = false;
@@ -832,7 +838,7 @@ public class HiveParserDDLSemanticAnalyzer {
         Map<String, String> dbProps = null;
 
         for (int i = 1; i < ast.getChildCount(); i++) {
-            ASTNode childNode = (ASTNode) ast.getChild(i);
+            HiveParserASTNode childNode = (HiveParserASTNode) ast.getChild(i);
             switch (childNode.getToken().getType()) {
                 case HiveASTParser.TOK_IFNOTEXISTS:
                     ifNotExists = true;
@@ -843,7 +849,7 @@ public class HiveParserDDLSemanticAnalyzer {
                                     childNode.getChild(0).getText());
                     break;
                 case HiveASTParser.TOK_DATABASEPROPERTIES:
-                    dbProps = getProps((ASTNode) childNode.getChild(0));
+                    dbProps = getProps((HiveParserASTNode) childNode.getChild(0));
                     break;
                 case HiveASTParser.TOK_DATABASELOCATION:
                     dbLocation =
@@ -863,7 +869,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), createDatabaseDesc);
     }
 
-    private Serializable analyzeDropDatabase(ASTNode ast) throws SemanticException {
+    private Serializable analyzeDropDatabase(HiveParserASTNode ast) throws SemanticException {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(0).getText());
         boolean ifExists = false;
@@ -880,17 +886,18 @@ public class HiveParserDDLSemanticAnalyzer {
         return new HiveParserDropDatabaseDesc(dbName, ifExists, ifCascade);
     }
 
-    private Serializable analyzeSwitchDatabase(ASTNode ast) throws SemanticException {
+    private Serializable analyzeSwitchDatabase(HiveParserASTNode ast) throws SemanticException {
         String dbName =
                 HiveParserBaseSemanticAnalyzer.unescapeIdentifier(ast.getChild(0).getText());
         SwitchDatabaseDesc switchDatabaseDesc = new SwitchDatabaseDesc(dbName);
         return new DDLWork(new HashSet<>(), new HashSet<>(), switchDatabaseDesc);
     }
 
-    private Serializable analyzeDropTable(ASTNode ast, TableType expectedType)
+    private Serializable analyzeDropTable(HiveParserASTNode ast, TableType expectedType)
             throws SemanticException {
         String tableName =
-                HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);
 
         boolean ifPurge = (ast.getFirstChildWithType(HiveASTParser.KW_PURGE) != null);
@@ -946,13 +953,14 @@ public class HiveParserDDLSemanticAnalyzer {
     private Serializable analyzeAlterTableProps(
             String[] qualified,
             HashMap<String, String> partSpec,
-            ASTNode ast,
+            HiveParserASTNode ast,
             boolean expectView,
             boolean isUnset)
             throws SemanticException {
 
         String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
-        HashMap<String, String> mapProp = getProps((ASTNode) (ast.getChild(0)).getChild(0));
+        HashMap<String, String> mapProp =
+                getProps((HiveParserASTNode) (ast.getChild(0)).getChild(0));
         // we need to check if the properties are valid, especially for stats.
         // they might be changed via alter table .. update statistics or alter table .. set
         // tblproperties.
@@ -1001,29 +1009,30 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Serializable analyzeAlterTableSerdeProps(
-            ASTNode ast, String tableName, HashMap<String, String> partSpec)
+            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec)
             throws SemanticException {
-        HashMap<String, String> mapProp = getProps((ASTNode) (ast.getChild(0)).getChild(0));
+        HashMap<String, String> mapProp =
+                getProps((HiveParserASTNode) (ast.getChild(0)).getChild(0));
         return HiveParserAlterTableDesc.alterSerDe(tableName, partSpec, null, mapProp);
     }
 
     private Serializable analyzeAlterTableSerde(
-            ASTNode ast, String tableName, HashMap<String, String> partSpec) {
+            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec) {
         String serdeName =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(0).getText());
         HashMap<String, String> mapProp = null;
         if (ast.getChildCount() > 1) {
-            mapProp = getProps((ASTNode) (ast.getChild(1)).getChild(0));
+            mapProp = getProps((HiveParserASTNode) (ast.getChild(1)).getChild(0));
         }
         return HiveParserAlterTableDesc.alterSerDe(tableName, partSpec, serdeName, mapProp);
     }
 
     private Serializable analyzeAlterTableFileFormat(
-            ASTNode ast, String tableName, HashMap<String, String> partSpec)
+            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec)
             throws SemanticException {
 
         HiveParserStorageFormat format = new HiveParserStorageFormat(conf);
-        ASTNode child = (ASTNode) ast.getChild(0);
+        HiveParserASTNode child = (HiveParserASTNode) ast.getChild(0);
 
         if (!format.fillStorageFormat(child)) {
             throw new AssertionError("Unknown token " + child.getText());
@@ -1037,14 +1046,14 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Serializable analyzeAlterTableLocation(
-            ASTNode ast, String tableName, HashMap<String, String> partSpec)
+            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec)
             throws SemanticException {
         String newLocation =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(0).getText());
         return HiveParserAlterTableDesc.alterLocation(tableName, partSpec, newLocation);
     }
 
-    public static HashMap<String, String> getProps(ASTNode prop) {
+    public static HashMap<String, String> getProps(HiveParserASTNode prop) {
         // Must be deterministic order map for consistent q-test output across Java versions
         HashMap<String, String> mapProp = new LinkedHashMap<>();
         HiveParserBaseSemanticAnalyzer.readProps(prop, mapProp);
@@ -1056,19 +1065,19 @@ public class HiveParserDDLSemanticAnalyzer {
 
         // Get the fully qualified name in the ast. e.g. the ast of the form ^(DOT^(DOT a b) c) will
         // generate a name of the form a.b.c
-        public static String getFullyQualifiedName(ASTNode ast) {
+        public static String getFullyQualifiedName(HiveParserASTNode ast) {
             if (ast.getChildCount() == 0) {
                 return ast.getText();
             } else if (ast.getChildCount() == 2) {
-                return getFullyQualifiedName((ASTNode) ast.getChild(0))
+                return getFullyQualifiedName((HiveParserASTNode) ast.getChild(0))
                         + "."
-                        + getFullyQualifiedName((ASTNode) ast.getChild(1));
+                        + getFullyQualifiedName((HiveParserASTNode) ast.getChild(1));
             } else if (ast.getChildCount() == 3) {
-                return getFullyQualifiedName((ASTNode) ast.getChild(0))
+                return getFullyQualifiedName((HiveParserASTNode) ast.getChild(0))
                         + "."
-                        + getFullyQualifiedName((ASTNode) ast.getChild(1))
+                        + getFullyQualifiedName((HiveParserASTNode) ast.getChild(1))
                         + "."
-                        + getFullyQualifiedName((ASTNode) ast.getChild(2));
+                        + getFullyQualifiedName((HiveParserASTNode) ast.getChild(2));
             } else {
                 return null;
             }
@@ -1079,7 +1088,10 @@ public class HiveParserDDLSemanticAnalyzer {
         // example: lintString.$elem$.myint
         // return table name for column name if no column has been specified.
         public static String getColPath(
-                ASTNode node, String dbName, String tableName, Map<String, String> partSpec)
+                HiveParserASTNode node,
+                String dbName,
+                String tableName,
+                Map<String, String> partSpec)
                 throws SemanticException {
 
             // if this ast has only one child, then no column name specified.
@@ -1087,13 +1099,13 @@ public class HiveParserDDLSemanticAnalyzer {
                 return tableName;
             }
 
-            ASTNode columnNode = null;
+            HiveParserASTNode columnNode = null;
             // Second child node could be partitionspec or column
             if (node.getChildCount() > 1) {
                 if (partSpec == null) {
-                    columnNode = (ASTNode) node.getChild(1);
+                    columnNode = (HiveParserASTNode) node.getChild(1);
                 } else {
-                    columnNode = (ASTNode) node.getChild(2);
+                    columnNode = (HiveParserASTNode) node.getChild(2);
                 }
             }
 
@@ -1112,8 +1124,9 @@ public class HiveParserDDLSemanticAnalyzer {
 
         // get partition metadata
         public static Map<String, String> getPartitionSpec(
-                HiveCatalog db, ASTNode ast, ObjectPath tablePath) throws SemanticException {
-            ASTNode partNode = null;
+                HiveCatalog db, HiveParserASTNode ast, ObjectPath tablePath)
+                throws SemanticException {
+            HiveParserASTNode partNode = null;
             // if this ast has only one child, then no partition spec specified.
             if (ast.getChildCount() == 1) {
                 return null;
@@ -1129,7 +1142,7 @@ public class HiveParserDDLSemanticAnalyzer {
             }
 
             if (ast.getChild(1).getType() == HiveASTParser.TOK_PARTSPEC) {
-                partNode = (ASTNode) ast.getChild(1);
+                partNode = (HiveParserASTNode) ast.getChild(1);
             }
 
             if (partNode != null) {
@@ -1198,20 +1211,20 @@ public class HiveParserDDLSemanticAnalyzer {
      * specified default maptable TOK_PARTSPEC --> root node for partition spec. else columnName
      * TOK_PARTVAL b 100 id --> root node for columnName formatted
      */
-    private Serializable analyzeDescribeTable(ASTNode ast) throws SemanticException {
-        ASTNode tableTypeExpr = (ASTNode) ast.getChild(0);
+    private Serializable analyzeDescribeTable(HiveParserASTNode ast) throws SemanticException {
+        HiveParserASTNode tableTypeExpr = (HiveParserASTNode) ast.getChild(0);
 
         String dbName = null;
         String tableName;
         String colPath;
         Map<String, String> partSpec;
 
-        ASTNode tableNode;
+        HiveParserASTNode tableNode;
 
         // process the first node to extract tablename
         // tablename is either TABLENAME or DBNAME.TABLENAME if db is given
         if (tableTypeExpr.getChild(0).getType() == HiveASTParser.TOK_TABNAME) {
-            tableNode = (ASTNode) tableTypeExpr.getChild(0);
+            tableNode = (HiveParserASTNode) tableTypeExpr.getChild(0);
             if (tableNode.getChildCount() == 1) {
                 tableName = tableNode.getChild(0).getText();
             } else {
@@ -1254,7 +1267,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), descTblDesc);
     }
 
-    private Serializable analyzeDescDatabase(ASTNode ast) throws SemanticException {
+    private Serializable analyzeDescDatabase(HiveParserASTNode ast) throws SemanticException {
 
         boolean isExtended;
         String dbName;
@@ -1273,13 +1286,13 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), descDbDesc);
     }
 
-    public static HashMap<String, String> getPartSpec(ASTNode partspec) {
+    public static HashMap<String, String> getPartSpec(HiveParserASTNode partspec) {
         if (partspec == null) {
             return null;
         }
         HashMap<String, String> partSpec = new LinkedHashMap<>();
         for (int i = 0; i < partspec.getChildCount(); ++i) {
-            ASTNode partVal = (ASTNode) partspec.getChild(i);
+            HiveParserASTNode partVal = (HiveParserASTNode) partspec.getChild(i);
             String key = partVal.getChild(0).getText();
             String val = null;
             if (partVal.getChildCount() == 3) {
@@ -1293,16 +1306,17 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     public static HashMap<String, String> getValidatedPartSpec(
-            Table table, ASTNode astNode, HiveConf conf, boolean shouldBeFull)
+            Table table, HiveParserASTNode astNode, HiveConf conf, boolean shouldBeFull)
             throws SemanticException {
         // hive catalog will validate the part spec later
         return getPartSpec(astNode);
     }
 
-    private Serializable analyzeShowPartitions(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowPartitions(HiveParserASTNode ast) throws SemanticException {
         ShowPartitionsDesc showPartsDesc;
         String tableName =
-                HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         List<Map<String, String>> partSpecs = getPartitionSpecs(getTable(tableName), ast);
         // We only can have a single partition spec
         assert (partSpecs.size() <= 1);
@@ -1317,16 +1331,17 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), showPartsDesc);
     }
 
-    private Serializable analyzeShowCreateTable(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowCreateTable(HiveParserASTNode ast) throws SemanticException {
         ShowCreateTableDesc showCreateTblDesc;
         String tableName =
-                HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         showCreateTblDesc = new ShowCreateTableDesc(tableName, getResFile().toString());
 
         return new DDLWork(getInputs(), getOutputs(), showCreateTblDesc);
     }
 
-    private Serializable analyzeShowDatabases(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowDatabases(HiveParserASTNode ast) throws SemanticException {
         ShowDatabasesDesc showDatabasesDesc;
         if (ast.getChildCount() == 1) {
             String databasePattern =
@@ -1338,7 +1353,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), showDatabasesDesc);
     }
 
-    private Serializable analyzeShowTables(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowTables(HiveParserASTNode ast) throws SemanticException {
         String dbName = currentDB;
         String pattern = null;
 
@@ -1373,15 +1388,17 @@ public class HiveParserDDLSemanticAnalyzer {
         return new HiveParserShowTablesDesc(pattern, dbName, false);
     }
 
-    private Serializable analyzeShowColumns(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowColumns(HiveParserASTNode ast) throws SemanticException {
         String tableName =
-                HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         if (ast.getChildCount() > 1) {
             if (tableName.contains(".")) {
                 throw new SemanticException("Duplicates declaration for database name");
             }
             tableName =
-                    HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(1))
+                    HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                                    (HiveParserASTNode) ast.getChild(1))
                             + "."
                             + tableName;
         }
@@ -1390,10 +1407,11 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), showColumnsDesc);
     }
 
-    private Serializable analyzeShowTableStatus(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowTableStatus(HiveParserASTNode ast) throws SemanticException {
         ShowTableStatusDesc showTblStatusDesc;
         String tableNames =
-                HiveParserBaseSemanticAnalyzer.getUnescapedName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getUnescapedName(
+                        (HiveParserASTNode) ast.getChild(0));
         String dbName = currentDB;
         int children = ast.getChildCount();
         HashMap<String, String> partSpec = null;
@@ -1402,7 +1420,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 throw new SemanticException("Internal error : Invalid AST");
             }
             for (int i = 1; i < children; i++) {
-                ASTNode child = (ASTNode) ast.getChild(i);
+                HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
                 if (child.getToken().getType() == HiveASTParser.Identifier) {
                     dbName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(child.getText());
                 } else if (child.getToken().getType() == HiveASTParser.TOK_PARTSPEC) {
@@ -1426,10 +1444,12 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), showTblStatusDesc);
     }
 
-    private Serializable analyzeShowTableProperties(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowTableProperties(HiveParserASTNode ast)
+            throws SemanticException {
         ShowTblPropertiesDesc showTblPropertiesDesc;
         String[] qualified =
-                HiveParserBaseSemanticAnalyzer.getQualifiedTableName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
         String propertyName = null;
         if (ast.getChildCount() > 1) {
             propertyName =
@@ -1451,7 +1471,7 @@ public class HiveParserDDLSemanticAnalyzer {
      * @param ast The parsed command tree.
      * @throws SemanticException Parsin failed
      */
-    private Serializable analyzeShowFunctions(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowFunctions(HiveParserASTNode ast) throws SemanticException {
         ShowFunctionsDesc showFuncsDesc;
         if (ast.getChildCount() == 1) {
             String funcNames =
@@ -1466,13 +1486,13 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), showFuncsDesc);
     }
 
-    private Serializable analyzeShowConf(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowConf(HiveParserASTNode ast) throws SemanticException {
         String confName = HiveParserBaseSemanticAnalyzer.stripQuotes(ast.getChild(0).getText());
         ShowConfDesc showConfDesc = new ShowConfDesc(getResFile(), confName);
         return new DDLWork(getInputs(), getOutputs(), showConfDesc);
     }
 
-    private Serializable analyzeShowViews(ASTNode ast) throws SemanticException {
+    private Serializable analyzeShowViews(HiveParserASTNode ast) throws SemanticException {
         String dbName = currentDB;
         String pattern = null;
 
@@ -1515,7 +1535,7 @@ public class HiveParserDDLSemanticAnalyzer {
      * @param ast The parsed command tree.
      * @throws SemanticException Parsing failed
      */
-    private Serializable analyzeDescFunction(ASTNode ast) throws SemanticException {
+    private Serializable analyzeDescFunction(HiveParserASTNode ast) throws SemanticException {
         String funcName;
         boolean isExtended;
 
@@ -1533,10 +1553,11 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DDLWork(getInputs(), getOutputs(), descFuncDesc);
     }
 
-    private Serializable analyzeAlterTableRename(String[] source, ASTNode ast, boolean expectView)
-            throws SemanticException {
+    private Serializable analyzeAlterTableRename(
+            String[] source, HiveParserASTNode ast, boolean expectView) throws SemanticException {
         String[] target =
-                HiveParserBaseSemanticAnalyzer.getQualifiedTableName((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
 
         String sourceName = HiveParserBaseSemanticAnalyzer.getDotName(source);
         String targetName = HiveParserBaseSemanticAnalyzer.getDotName(target);
@@ -1545,7 +1566,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Serializable analyzeAlterTableRenameCol(
-            String[] qualified, ASTNode ast, HashMap<String, String> partSpec)
+            String[] qualified, HiveParserASTNode ast, HashMap<String, String> partSpec)
             throws SemanticException {
         String newComment = null;
         boolean first = false;
@@ -1556,10 +1577,11 @@ public class HiveParserDDLSemanticAnalyzer {
         String oldColName = ast.getChild(0).getText();
         String newColName = ast.getChild(1).getText();
         String newType =
-                HiveParserBaseSemanticAnalyzer.getTypeStringFromAST((ASTNode) ast.getChild(2));
+                HiveParserBaseSemanticAnalyzer.getTypeStringFromAST(
+                        (HiveParserASTNode) ast.getChild(2));
         int childCount = ast.getChildCount();
         for (int i = 3; i < childCount; i++) {
-            ASTNode child = (ASTNode) ast.getChild(i);
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
             switch (child.getToken().getType()) {
                 case HiveASTParser.StringLiteral:
                     newComment = HiveParserBaseSemanticAnalyzer.unescapeSQLString(child.getText());
@@ -1607,12 +1629,15 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Serializable analyzeAlterTableModifyCols(
-            String[] qualified, ASTNode ast, HashMap<String, String> partSpec, boolean replace)
+            String[] qualified,
+            HiveParserASTNode ast,
+            HashMap<String, String> partSpec,
+            boolean replace)
             throws SemanticException {
 
         String tblName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
         List<FieldSchema> newCols =
-                HiveParserBaseSemanticAnalyzer.getColumns((ASTNode) ast.getChild(0));
+                HiveParserBaseSemanticAnalyzer.getColumns((HiveParserASTNode) ast.getChild(0));
         boolean isCascade = false;
         if (null != ast.getFirstChildWithType(HiveASTParser.TOK_CASCADE)) {
             isCascade = true;
@@ -1622,7 +1647,8 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Serializable analyzeAlterTableDropParts(
-            String[] qualified, ASTNode ast, boolean expectView) throws SemanticException {
+            String[] qualified, HiveParserASTNode ast, boolean expectView)
+            throws SemanticException {
 
         boolean ifExists = ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null;
         // If the drop has to fail on non-existent partitions, we cannot batch expressions.
@@ -1637,7 +1663,7 @@ public class HiveParserDDLSemanticAnalyzer {
         // spec maps
         List<Map<String, String>> partSpecs = new ArrayList<>();
         for (int i = 0; i < ast.getChildCount(); i++) {
-            ASTNode child = (ASTNode) ast.getChild(i);
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
             if (child.getType() == HiveASTParser.TOK_PARTSPEC) {
                 partSpecs.add(getPartSpec(child));
             }
@@ -1648,7 +1674,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new DropPartitionDesc(qualified[0], qualified[1], partSpecs, ifExists);
     }
 
-    private Serializable analyzeAlterTablePartColType(String[] qualified, ASTNode ast)
+    private Serializable analyzeAlterTablePartColType(String[] qualified, HiveParserASTNode ast)
             throws SemanticException {
 
         // check if table exists.
@@ -1659,7 +1685,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
         // Alter table ... partition column ( column newtype) only takes one column at a time.
         // It must have a column name followed with type.
-        ASTNode colAst = (ASTNode) ast.getChild(0);
+        HiveParserASTNode colAst = (HiveParserASTNode) ast.getChild(0);
 
         FieldSchema newCol = new FieldSchema();
 
@@ -1668,7 +1694,7 @@ public class HiveParserDDLSemanticAnalyzer {
         newCol.setName(HiveParserBaseSemanticAnalyzer.unescapeIdentifier(name));
 
         // get column type
-        ASTNode typeChild = (ASTNode) (colAst.getChild(1));
+        HiveParserASTNode typeChild = (HiveParserASTNode) (colAst.getChild(1));
         newCol.setType(HiveParserBaseSemanticAnalyzer.getTypeStringFromAST(typeChild));
 
         if (colAst.getChildCount() == 3) {
@@ -1720,7 +1746,7 @@ public class HiveParserDDLSemanticAnalyzer {
         AddPartitionDesc addPartitionDesc =
                 new AddPartitionDesc(tab.getDbName(), tab.getTableName(), ifNotExists);
         for (int num = start; num < numCh; num++) {
-            ASTNode child = (ASTNode) ast.getChild(num);
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
             switch (child.getToken().getType()) {
                 case HiveASTParser.TOK_PARTSPEC:
                     if (currentPart != null) {
@@ -1758,7 +1784,7 @@ public class HiveParserDDLSemanticAnalyzer {
         List<Map<String, String>> partSpecs = new ArrayList<>();
         // get partition metadata if partition specified
         for (int childIndex = 0; childIndex < ast.getChildCount(); childIndex++) {
-            ASTNode partSpecNode = (ASTNode) ast.getChild(childIndex);
+            HiveParserASTNode partSpecNode = (HiveParserASTNode) ast.getChild(childIndex);
             // sanity check
             if (partSpecNode.getType() == HiveASTParser.TOK_PARTSPEC) {
                 Map<String, String> partSpec = getValidatedPartSpec(tbl, partSpecNode, conf, false);

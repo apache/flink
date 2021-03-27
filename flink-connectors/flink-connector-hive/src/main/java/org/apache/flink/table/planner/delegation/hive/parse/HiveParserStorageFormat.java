@@ -25,7 +25,6 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 
 import java.util.HashMap;
@@ -51,7 +50,7 @@ public class HiveParserStorageFormat {
      * Returns true if the passed token was a storage format token and thus was processed
      * accordingly.
      */
-    public boolean fillStorageFormat(ASTNode child) throws SemanticException {
+    public boolean fillStorageFormat(HiveParserASTNode child) throws SemanticException {
         switch (child.getToken().getType()) {
             case HiveASTParser.TOK_TABLEFILEFORMAT:
                 if (child.getChildCount() < 2) {
@@ -77,11 +76,11 @@ public class HiveParserStorageFormat {
                                 child.getChild(0).getText());
                 if (child.getChildCount() == 2) {
                     HiveParserBaseSemanticAnalyzer.readProps(
-                            (ASTNode) (child.getChild(1).getChild(0)), serdeProps);
+                            (HiveParserASTNode) (child.getChild(1).getChild(0)), serdeProps);
                 }
                 break;
             case HiveASTParser.TOK_FILEFORMAT_GENERIC:
-                ASTNode grandChild = (ASTNode) child.getChild(0);
+                HiveParserASTNode grandChild = (HiveParserASTNode) child.getChild(0);
                 genericName = (grandChild == null ? "" : grandChild.getText()).trim().toUpperCase();
                 processStorageFormat(genericName);
                 break;

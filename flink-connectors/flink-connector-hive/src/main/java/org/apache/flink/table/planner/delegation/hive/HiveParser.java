@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewD
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseException;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
@@ -49,7 +50,6 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
@@ -78,7 +78,7 @@ public class HiveParser extends ParserImpl {
             HiveReflectionUtils.tryGetMethod(
                     SessionState.class, "setupQueryCurrentTimestamp", new Class[0]);
 
-    // need to maintain the ASTNode types for DDLs
+    // need to maintain the HiveParserASTNode types for DDLs
     private static final Set<Integer> DDL_NODES;
 
     static {
@@ -201,7 +201,7 @@ public class HiveParser extends ParserImpl {
         try {
             final HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
-            final ASTNode node = HiveASTParseUtils.parse(cmd, context);
+            final HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
             if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =

@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +71,8 @@ public class HiveParserContext {
         }
     }
 
-    /** The suffix is always relative to a given ASTNode. */
-    public DestClausePrefix getDestNamePrefix(ASTNode curNode) {
+    /** The suffix is always relative to a given HiveParserASTNode. */
+    public DestClausePrefix getDestNamePrefix(HiveParserASTNode curNode) {
         assert curNode != null : "must supply curNode";
         assert curNode.getType() == HiveASTParser.TOK_INSERT_INTO
                 || curNode.getType() == HiveASTParser.TOK_DESTINATION;

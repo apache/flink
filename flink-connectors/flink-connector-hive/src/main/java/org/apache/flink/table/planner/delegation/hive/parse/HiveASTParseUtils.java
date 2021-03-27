@@ -27,7 +27,6 @@ import org.antlr.runtime.tree.Tree;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.exec.PTFUtils;
 import org.apache.hadoop.hive.ql.lib.Node;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
@@ -53,34 +52,35 @@ public class HiveASTParseUtils {
     private HiveASTParseUtils() {}
 
     /** Parses the Hive query. */
-    public static ASTNode parse(String command, HiveParserContext ctx)
+    public static HiveParserASTNode parse(String command, HiveParserContext ctx)
             throws HiveASTParseException {
         return parse(command, ctx, null);
     }
 
     /** Parses the Hive query. */
-    public static ASTNode parse(
+    public static HiveParserASTNode parse(
             String command, HiveParserContext ctx, String viewFullyQualifiedName)
             throws HiveASTParseException {
         HiveASTParseDriver pd = new HiveASTParseDriver();
-        ASTNode tree = pd.parse(command, ctx, viewFullyQualifiedName);
+        HiveParserASTNode tree = pd.parse(command, ctx, viewFullyQualifiedName);
         tree = findRootNonNullToken(tree);
         handleSetColRefs(tree);
         return tree;
     }
 
-    private static ASTNode findRootNonNullToken(ASTNode tree) {
+    private static HiveParserASTNode findRootNonNullToken(HiveParserASTNode tree) {
         while ((tree.getToken() == null) && (tree.getChildCount() > 0)) {
-            tree = (ASTNode) tree.getChild(0);
+            tree = (HiveParserASTNode) tree.getChild(0);
         }
         return tree;
     }
 
-    private static void handleSetColRefs(ASTNode tree) {
+    private static void handleSetColRefs(HiveParserASTNode tree) {
         ASTSearcher astSearcher = new ASTSearcher();
         while (true) {
             astSearcher.reset();
-            ASTNode setCols = astSearcher.depthFirstSearch(tree, HiveASTParser.TOK_SETCOLREF);
+            HiveParserASTNode setCols =
+                    astSearcher.depthFirstSearch(tree, HiveASTParser.TOK_SETCOLREF);
             if (setCols == null) {
                 break;
             }
@@ -88,7 +88,7 @@ public class HiveASTParseUtils {
         }
     }
 
-    private static void processSetColsNode(ASTNode setCols, ASTSearcher searcher) {
+    private static void processSetColsNode(HiveParserASTNode setCols, ASTSearcher searcher) {
         searcher.reset();
         CommonTree rootNode = setCols;
         while (rootNode != null && rootNode.getType() != HiveASTParser.TOK_INSERT) {
@@ -110,7 +110,7 @@ public class HiveASTParseUtils {
                 break;
             }
         }
-        if (!(fromNode instanceof ASTNode)) {
+        if (!(fromNode instanceof HiveParserASTNode)) {
             // Couldn't find the from that contains subquery; replace with ALLCOLREF.
             LOG.debug("Replacing SETCOLREF with ALLCOLREF because we couldn't find the FROM");
             setCols.token.setType(HiveASTParser.TOK_ALLCOLREF);
@@ -131,9 +131,11 @@ public class HiveASTParseUtils {
         // Note: we assume that this isn't an already malformed query;
         //       we don't check for that here - it will fail later anyway.
         // First, we find the SELECT closest to the top.
-        ASTNode select =
+        HiveParserASTNode select =
                 searcher.simpleBreadthFirstSearchAny(
-                        (ASTNode) fromNode, HiveASTParser.TOK_SELECT, HiveASTParser.TOK_SELECTDI);
+                        (HiveParserASTNode) fromNode,
+                        HiveASTParser.TOK_SELECT,
+                        HiveASTParser.TOK_SELECTDI);
         if (select == null) {
             // Couldn't find the from that contains subquery; replace with ALLCOLREF.
             LOG.debug("Replacing SETCOLREF with ALLCOLREF because we couldn't find the SELECT");
@@ -159,9 +161,9 @@ public class HiveASTParseUtils {
             }
             Tree moreToTheLeft = queryOfSelect.parent.getChild(0);
             Preconditions.checkState(moreToTheLeft != queryOfSelect);
-            ASTNode newSelect =
+            HiveParserASTNode newSelect =
                     searcher.simpleBreadthFirstSearchAny(
-                            (ASTNode) moreToTheLeft,
+                            (HiveParserASTNode) moreToTheLeft,
                             HiveASTParser.TOK_SELECT,
                             HiveASTParser.TOK_SELECTDI);
             Preconditions.checkState(newSelect != select);
@@ -170,7 +172,7 @@ public class HiveASTParseUtils {
         }
 
         // Found the proper columns.
-        List<ASTNode> newChildren = new ArrayList<>(select.getChildCount());
+        List<HiveParserASTNode> newChildren = new ArrayList<>(select.getChildCount());
         HashSet<String> aliases = new HashSet<>();
         for (int i = 0; i < select.getChildCount(); ++i) {
             Tree selExpr = select.getChild(i);
@@ -182,7 +184,7 @@ public class HiveASTParseUtils {
                 case HiveASTParser.TOK_SETCOLREF:
                     // We have a nested setcolref. Process that and start from scratch TODO: use
                     // stack?
-                    processSetColsNode((ASTNode) child, searcher);
+                    processSetColsNode((HiveParserASTNode) child, searcher);
                     processSetColsNode(setCols, searcher);
                     return;
                 case HiveASTParser.TOK_ALLCOLREF:
@@ -233,18 +235,21 @@ public class HiveASTParseUtils {
             }
         }
         // Insert search in the beginning would have failed if these parents didn't exist.
-        ASTNode parent = (ASTNode) setCols.parent.parent;
+        HiveParserASTNode parent = (HiveParserASTNode) setCols.parent.parent;
         int t = parent.getType();
         assert t == HiveASTParser.TOK_SELECT || t == HiveASTParser.TOK_SELECTDI : t;
         int ix = setCols.parent.childIndex;
         parent.deleteChild(ix);
-        for (ASTNode node : newChildren) {
+        for (HiveParserASTNode node : newChildren) {
             parent.insertChild(ix++, node);
         }
     }
 
     private static boolean createChildColumnRef(
-            Tree child, String alias, List<ASTNode> newChildren, HashSet<String> aliases) {
+            Tree child,
+            String alias,
+            List<HiveParserASTNode> newChildren,
+            HashSet<String> aliases) {
         String colAlias = child.getText();
         if (!aliases.add(colAlias)) {
             // TODO: if a side of the union has 2 columns with the same name, noone on the higher
@@ -270,37 +275,38 @@ public class HiveASTParseUtils {
         return true;
     }
 
-    public static boolean containsTokenOfType(ASTNode root, Integer... tokens) {
+    public static boolean containsTokenOfType(HiveParserASTNode root, Integer... tokens) {
         final Set<Integer> tokensToMatch = new HashSet<>(Arrays.asList(tokens));
 
         return containsTokenOfType(
                 root,
-                new PTFUtils.Predicate<ASTNode>() {
+                new PTFUtils.Predicate<HiveParserASTNode>() {
                     @Override
-                    public boolean apply(ASTNode node) {
+                    public boolean apply(HiveParserASTNode node) {
                         return tokensToMatch.contains(node.getType());
                     }
                 });
     }
 
     private static boolean containsTokenOfType(
-            ASTNode root, PTFUtils.Predicate<ASTNode> predicate) {
-        Queue<ASTNode> queue = new ArrayDeque<>();
+            HiveParserASTNode root, PTFUtils.Predicate<HiveParserASTNode> predicate) {
+        Queue<HiveParserASTNode> queue = new ArrayDeque<>();
 
         // BFS
         queue.add(root);
         while (!queue.isEmpty()) {
-            ASTNode current = queue.remove();
+            HiveParserASTNode current = queue.remove();
             // If the predicate matches, then return true.
             // Otherwise visit the next set of nodes that haven't been seen.
             if (predicate.apply(current)) {
                 return true;
             } else {
-                // Guard because ASTNode.getChildren.iterator returns null if no children available
+                // Guard because HiveParserASTNode.getChildren.iterator returns null if no children
+                // available
                 // (bug).
                 if (current.getChildCount() > 0) {
                     for (Node child : current.getChildren()) {
-                        queue.add((ASTNode) child);
+                        queue.add((HiveParserASTNode) child);
                     }
                 }
             }
@@ -311,35 +317,35 @@ public class HiveASTParseUtils {
 
     /** ASTSearcher. */
     private static class ASTSearcher {
-        private final LinkedList<ASTNode> searchQueue = new LinkedList<>();
+        private final LinkedList<HiveParserASTNode> searchQueue = new LinkedList<>();
 
-        public ASTNode depthFirstSearch(ASTNode ast, int token) {
+        public HiveParserASTNode depthFirstSearch(HiveParserASTNode ast, int token) {
             searchQueue.clear();
             searchQueue.add(ast);
             while (!searchQueue.isEmpty()) {
-                ASTNode next = searchQueue.poll();
+                HiveParserASTNode next = searchQueue.poll();
                 if (next.getType() == token) {
                     return next;
                 }
                 for (int j = 0; j < next.getChildCount(); ++j) {
-                    searchQueue.add((ASTNode) next.getChild(j));
+                    searchQueue.add((HiveParserASTNode) next.getChild(j));
                 }
             }
             return null;
         }
 
-        public ASTNode simpleBreadthFirstSearchAny(ASTNode ast, int... tokens) {
+        public HiveParserASTNode simpleBreadthFirstSearchAny(HiveParserASTNode ast, int... tokens) {
             searchQueue.clear();
             searchQueue.add(ast);
             while (!searchQueue.isEmpty()) {
-                ASTNode next = searchQueue.poll();
+                HiveParserASTNode next = searchQueue.poll();
                 for (int i = 0; i < tokens.length; ++i) {
                     if (next.getType() == tokens[i]) {
                         return next;
                     }
                 }
                 for (int i = 0; i < next.getChildCount(); ++i) {
-                    searchQueue.add((ASTNode) next.getChild(i));
+                    searchQueue.add((HiveParserASTNode) next.getChild(i));
                 }
             }
             return null;
@@ -350,7 +356,7 @@ public class HiveASTParseUtils {
         }
     }
 
-    public static CharTypeInfo getCharTypeInfo(ASTNode node) throws SemanticException {
+    public static CharTypeInfo getCharTypeInfo(HiveParserASTNode node) throws SemanticException {
         if (node.getChildCount() != 1) {
             throw new SemanticException("Bad params for type char");
         }
@@ -359,7 +365,8 @@ public class HiveASTParseUtils {
         return TypeInfoFactory.getCharTypeInfo(Integer.parseInt(lengthStr));
     }
 
-    public static VarcharTypeInfo getVarcharTypeInfo(ASTNode node) throws SemanticException {
+    public static VarcharTypeInfo getVarcharTypeInfo(HiveParserASTNode node)
+            throws SemanticException {
         if (node.getChildCount() != 1) {
             throw new SemanticException("Bad params for type varchar");
         }
@@ -368,7 +375,8 @@ public class HiveASTParseUtils {
         return TypeInfoFactory.getVarcharTypeInfo(Integer.parseInt(lengthStr));
     }
 
-    public static DecimalTypeInfo getDecimalTypeTypeInfo(ASTNode node) throws SemanticException {
+    public static DecimalTypeInfo getDecimalTypeTypeInfo(HiveParserASTNode node)
+            throws SemanticException {
         if (node.getChildCount() > 2) {
             throw new SemanticException("Bad params for type decimal");
         }

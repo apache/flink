@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.delegation.hive.desc;
 
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
+
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 
 import java.io.Serializable;
 import java.util.List;
@@ -35,7 +36,7 @@ public class HiveParserCreateViewDesc implements Serializable {
     private final Map<String, String> tblProps;
     private final boolean ifNotExists;
     private final boolean isAlterViewAs;
-    private final ASTNode query;
+    private final HiveParserASTNode query;
 
     private List<FieldSchema> schema;
     private String originalText;
@@ -48,7 +49,7 @@ public class HiveParserCreateViewDesc implements Serializable {
             Map<String, String> tblProps,
             boolean ifNotExists,
             boolean isAlterViewAs,
-            ASTNode query) {
+            HiveParserASTNode query) {
         this.compoundName = compoundName;
         this.schema = schema;
         this.comment = comment;
@@ -102,7 +103,7 @@ public class HiveParserCreateViewDesc implements Serializable {
         this.expandedText = expandedText;
     }
 
-    public ASTNode getQuery() {
+    public HiveParserASTNode getQuery() {
         return query;
     }
 

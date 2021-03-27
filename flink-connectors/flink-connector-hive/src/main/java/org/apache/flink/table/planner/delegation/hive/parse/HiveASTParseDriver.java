@@ -31,7 +31,6 @@ import org.antlr.runtime.tree.CommonTree;
 import org.antlr.runtime.tree.CommonTreeAdaptor;
 import org.antlr.runtime.tree.TreeAdaptor;
 import org.apache.hadoop.hive.ql.parse.ASTErrorNode;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,15 +121,15 @@ public class HiveASTParseDriver {
     public static final TreeAdaptor ADAPTOR =
             new CommonTreeAdaptor() {
                 /**
-                 * Creates an ASTNode for the given token. The ASTNode is a wrapper around antlr's
-                 * CommonTree class that implements the Node interface.
+                 * Creates an HiveParserASTNode for the given token. The HiveParserASTNode is a
+                 * wrapper around antlr's CommonTree class that implements the Node interface.
                  *
                  * @param payload The token.
-                 * @return Object (which is actually an ASTNode) for the token.
+                 * @return Object (which is actually an HiveParserASTNode) for the token.
                  */
                 @Override
                 public Object create(Token payload) {
-                    return new ASTNode(payload);
+                    return new HiveParserASTNode(payload);
                 }
 
                 @Override
@@ -153,7 +152,8 @@ public class HiveASTParseDriver {
      *     context is available or the context already has an existing stream
      * @return parsed AST
      */
-    public ASTNode parse(String command, HiveParserContext ctx, String viewFullyQualifiedName)
+    public HiveParserASTNode parse(
+            String command, HiveParserContext ctx, String viewFullyQualifiedName)
             throws HiveASTParseException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Parsing command: " + command);
@@ -191,7 +191,7 @@ public class HiveASTParseDriver {
             throw new HiveASTParseException(parser.errors);
         }
 
-        ASTNode tree = r.getTree();
+        HiveParserASTNode tree = r.getTree();
         tree.setUnknownTokenBoundaries();
         return tree;
     }
@@ -199,7 +199,7 @@ public class HiveASTParseDriver {
     /*
      * Parse a string as a query hint.
      */
-    public ASTNode parseHint(String command) throws HiveASTParseException {
+    public HiveParserASTNode parseHint(String command) throws HiveASTParseException {
         LOG.info("Parsing hint: " + command);
 
         HiveLexerX lexer = new HiveLexerX(new ANTLRNoCaseStringStream(command));
