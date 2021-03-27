@@ -754,9 +754,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             ReturnTypes.explicit(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3),
                             SqlTypeTransforms.FORCE_NULLABLE),
                     null,
-                    OperandTypes.or(
-                            OperandTypes.family(SqlTypeFamily.NUMERIC),
-                            OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER)),
+                    OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER),
                     SqlFunctionCategory.TIMEDATE);
 
     public static final SqlFunction TO_DATE =
