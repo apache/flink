@@ -14,6 +14,9 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                            imported into the session. It might
                                            overwrite default environment
                                            properties.
+     -f,--file <script file>               Script file that should be executed.
+                                           In this mode, the client will not
+                                           open an interactive terminal.
      -h,--help                             Show the help message with
                                            descriptions of all options.
      -hist,--history <History file path>   The file which you want to save the
@@ -101,16 +104,17 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                            tmp/cached_dir).
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
-     -u,--update <SQL update statement>    Experimental (for testing only!):
-                                           Instructs the SQL Client to
-                                           immediately execute the given update
-                                           statement after starting up. The
-                                           process is shut down after the
-                                           statement has been submitted to the
-                                           cluster and returns an appropriate
-                                           return code. Currently, this feature
-                                           is only supported for INSERT INTO
-                                           statements that declare the target
-                                           sink table.
+     -u,--update <SQL update statement>    Deprecated Experimental (for testing
+                                           only!) feature: Instructs the SQL
+                                           Client to immediately execute the
+                                           given update statement after starting
+                                           up. The process is shut down after
+                                           the statement has been submitted to
+                                           the cluster and returns an
+                                           appropriate return code. Currently,
+                                           this feature is only supported for
+                                           INSERT INTO statements that declare
+                                           the target sink table.Please use
+                                           option f to submit update statement.
 
 

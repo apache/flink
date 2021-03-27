@@ -37,7 +37,12 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -46,6 +51,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link SqlClient}. */
 public class SqlClientTest {
@@ -65,6 +71,8 @@ public class SqlClientTest {
     private Map<String, String> originalEnv;
 
     private String historyPath;
+
+    private String sqlFilePath;
 
     @Before
     public void before() throws IOException {
@@ -89,6 +97,21 @@ public class SqlClientTest {
         CommonTestUtils.setEnv(map);
 
         historyPath = tempFolder.newFile("history").toString();
+
+        // create sql file
+        File sqlFileFolder = tempFolder.newFolder("sql-file");
+        File sqlFile = new File(sqlFileFolder, "test-sql.sql");
+        if (!sqlFile.createNewFile()) {
+            throw new IOException("Can't create testing test-sql.sql file.");
+        }
+        sqlFilePath = sqlFile.getPath();
+
+        List<String> statements = Collections.singletonList("HELP;");
+        Files.write(
+                Paths.get(sqlFilePath),
+                statements,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.APPEND);
     }
 
     @After
@@ -196,5 +219,14 @@ public class SqlClientTest {
         for (String error : errors) {
             assertThat(output, containsString(error));
         }
+    }
+
+    @Test
+    public void testExecuteSqlFile() throws IOException {
+        String[] args = new String[] {"-f", sqlFilePath};
+        SqlClient.main(args);
+        final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");
+        final String help = FileUtils.readFileUtf8(new File(url.getFile()));
+        assertTrue(getStdoutString().contains(help));
     }
 }

@@ -22,14 +22,19 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalContextUtils;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -106,9 +111,28 @@ public class SqlClient {
                             SystemUtils.IS_OS_WINDOWS ? "flink-sql-history" : ".flink-sql-history");
         }
 
-        try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
-            // interactive CLI mode
-            if (options.getUpdateStatement() == null) {
+        boolean isInteractiveMode = options.getSqlFile() == null;
+        boolean hasUpdateStatement = options.getUpdateStatement() != null;
+        if (!isInteractiveMode && hasUpdateStatement) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Please use either option %s or %s. The option %s is deprecated and it's suggested to use %s instead.",
+                            CliOptionsParser.OPTION_FILE,
+                            CliOptionsParser.OPTION_UPDATE,
+                            CliOptionsParser.OPTION_UPDATE.getOpt(),
+                            CliOptionsParser.OPTION_FILE.getOpt()));
+        }
+
+        try (CliClient cli =
+                isInteractiveMode
+                        ? CliClient.createInteractiveClient(sessionId, executor, historyFilePath)
+                        : CliClient.createNonInteractiveClient(
+                                sessionId,
+                                executor,
+                                historyFilePath,
+                                readFromURL(options.getSqlFile()),
+                                null)) {
+            if (!hasUpdateStatement) {
                 cli.open();
             }
             // execute single update statement
@@ -193,6 +217,14 @@ public class SqlClient {
             System.out.println("\nShutting down the session...");
             executor.closeSession(sessionId);
             System.out.println("done.");
+        }
+    }
+
+    private String readFromURL(URL file) {
+        try {
+            return IOUtils.toString(file, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new SqlExecutionException("Work work work", e);
         }
     }
 }

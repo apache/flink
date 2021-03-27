@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -36,11 +37,13 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.utils.PrintUtils;
 
+import org.apache.commons.io.input.ReaderInputStream;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
+import org.jline.terminal.Attributes;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
@@ -54,6 +57,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -70,6 +76,8 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SUBMITTED;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_WAIT_EXECUTE;
+import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.table.client.config.YamlConfigUtils.getOptionNameWithDeprecatedKey;
 import static org.apache.flink.table.client.config.YamlConfigUtils.getPropertiesInPretty;
 import static org.apache.flink.table.client.config.YamlConfigUtils.isDeprecatedKey;
@@ -91,6 +99,8 @@ public class CliClient implements AutoCloseable {
 
     private final String prompt;
 
+    private final boolean isInteractive;
+
     private final @Nullable MaskingCallback inputTransformer;
 
     private boolean isRunning;
@@ -98,6 +108,8 @@ public class CliClient implements AutoCloseable {
     private static final int PLAIN_TERMINAL_WIDTH = 80;
 
     private static final int PLAIN_TERMINAL_HEIGHT = 30;
+
+    private static final String COMMENT_BEGIN = "--";
 
     /**
      * Creates a CLI instance with a custom terminal. Make sure to close the CLI instance afterwards
@@ -109,10 +121,12 @@ public class CliClient implements AutoCloseable {
             String sessionId,
             Executor executor,
             Path historyFilePath,
+            boolean isInteractive,
             @Nullable MaskingCallback inputTransformer) {
         this.terminal = terminal;
         this.sessionId = sessionId;
         this.executor = executor;
+        this.isInteractive = isInteractive;
         this.inputTransformer = inputTransformer;
 
         // make space from previous output and test the writer
@@ -126,6 +140,7 @@ public class CliClient implements AutoCloseable {
                         .appName(CliStrings.CLI_NAME)
                         .parser(new SqlMultiLineParser())
                         .completer(new SqlCompleter(sessionId, executor))
+                        .variable(LineReader.COMMENT_BEGIN, COMMENT_BEGIN)
                         .build();
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash
@@ -155,14 +170,6 @@ public class CliClient implements AutoCloseable {
                         .style(AttributedStyle.DEFAULT)
                         .append("> ")
                         .toAnsi();
-    }
-
-    /**
-     * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
-     * afterwards using {@link #close()}.
-     */
-    public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(createDefaultTerminal(), sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -212,7 +219,9 @@ public class CliClient implements AutoCloseable {
         isRunning = true;
 
         // print welcome
-        terminal.writer().append(CliStrings.MESSAGE_WELCOME);
+        if (isInteractive) {
+            terminal.writer().append(CliStrings.MESSAGE_WELCOME);
+        }
 
         // begin reading loop
         while (isRunning) {
@@ -225,6 +234,9 @@ public class CliClient implements AutoCloseable {
                 line = lineReader.readLine(prompt, null, inputTransformer, null);
             } catch (UserInterruptException e) {
                 // user cancelled line with Ctrl+C
+                if (!isInteractive) {
+                    isRunning = false;
+                }
                 continue;
             } catch (EndOfFileException | IOError e) {
                 // user cancelled application with Ctrl+D or kill
@@ -235,8 +247,15 @@ public class CliClient implements AutoCloseable {
             if (line == null) {
                 continue;
             }
+
             final Optional<Operation> operation = parseCommand(line);
-            operation.ifPresent(this::callOperation);
+            if (operation.isPresent()) {
+                boolean success = callOperation(operation.get());
+                if (!success && !isInteractive) {
+                    // kill the execution
+                    this.isRunning = false;
+                }
+            }
         }
     }
 
@@ -284,53 +303,76 @@ public class CliClient implements AutoCloseable {
         if (stmt.endsWith(";")) {
             stmt = stmt.substring(0, stmt.length() - 1).trim();
         }
+
+        // TODO: fix this in the TableEnvironment in FLINK-21968
+        if (stmt.startsWith(COMMENT_BEGIN)) {
+            return Optional.empty();
+        }
+
         try {
             Operation operation = executor.parseStatement(sessionId, stmt);
             return Optional.of(operation);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
+            if (!isInteractive) {
+                isRunning = false;
+            }
         }
         return Optional.empty();
     }
 
-    private void callOperation(Operation operation) {
+    private boolean callOperation(Operation operation) {
+        boolean success = false;
         if (operation instanceof QuitOperation) {
             // QUIT/EXIT
-            callQuit();
+            success = callQuit();
         } else if (operation instanceof ClearOperation) {
             // CLEAR
-            callClear();
+            success = callClear();
         } else if (operation instanceof HelpOperation) {
             // HELP
-            callHelp();
+            success = callHelp();
         } else if (operation instanceof SetOperation) {
             // SET
-            callSet((SetOperation) operation);
+            success = callSet((SetOperation) operation);
         } else if (operation instanceof ResetOperation) {
             // RESET
-            callReset((ResetOperation) operation);
+            success = callReset((ResetOperation) operation);
         } else if (operation instanceof CatalogSinkModifyOperation) {
             // INSERT INTO/OVERWRITE
             callInsert((CatalogSinkModifyOperation) operation);
         } else if (operation instanceof QueryOperation) {
             // SELECT
-            callSelect((QueryOperation) operation);
+            ResultMode mode = executor.getSessionConfig(sessionId).get(EXECUTION_RESULT_MODE);
+            if (!isInteractive && !mode.equals(TABLEAU)) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "In non-interactive mode, it only supports to use %s as value of %s when execute query. Please add 'SET %s=%s;' in the sql file.",
+                                TABLEAU,
+                                EXECUTION_RESULT_MODE.key(),
+                                EXECUTION_RESULT_MODE.key(),
+                                TABLEAU));
+            }
+            success = callSelect((QueryOperation) operation);
         } else {
             // fallback to default implementation
-            executeOperation(operation);
+            success = executeOperation(operation);
         }
+        return success;
     }
 
-    private void callQuit() {
+    private boolean callQuit() {
         printInfo(CliStrings.MESSAGE_QUIT);
         isRunning = false;
+        return true;
     }
 
-    private void callClear() {
+    private boolean callClear() {
         clearTerminal();
+        return true;
     }
 
-    private void callReset(ResetOperation resetOperation) {
+    private boolean callReset(ResetOperation resetOperation) {
         try {
             // reset all session properties
             if (!resetOperation.getKey().isPresent()) {
@@ -345,10 +387,12 @@ public class CliClient implements AutoCloseable {
             }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
+            return false;
         }
+        return true;
     }
 
-    private void callSet(SetOperation setOperation) {
+    private boolean callSet(SetOperation setOperation) {
         try {
             // set a property
             if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
@@ -371,21 +415,24 @@ public class CliClient implements AutoCloseable {
             }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
+            return false;
         }
+        return true;
     }
 
-    private void callHelp() {
+    private boolean callHelp() {
         terminal.writer().println(CliStrings.MESSAGE_HELP);
         terminal.flush();
+        return true;
     }
 
-    private void callSelect(QueryOperation operation) {
+    private boolean callSelect(QueryOperation operation) {
         final ResultDescriptor resultDesc;
         try {
             resultDesc = executor.executeQuery(sessionId, operation);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
-            return;
+            return false;
         }
 
         if (resultDesc.isTableauMode()) {
@@ -394,6 +441,7 @@ public class CliClient implements AutoCloseable {
                 tableauResultView.displayResults();
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
+                return false;
             }
         } else {
             final CliResultView<?> view;
@@ -411,8 +459,10 @@ public class CliClient implements AutoCloseable {
                 printInfo(CliStrings.MESSAGE_RESULT_QUIT);
             } catch (SqlExecutionException e) {
                 printExecutionException(e);
+                return false;
             }
         }
+        return true;
     }
 
     private boolean callInsert(CatalogSinkModifyOperation operation) {
@@ -447,7 +497,7 @@ public class CliClient implements AutoCloseable {
         return true;
     }
 
-    private void executeOperation(Operation operation) {
+    private boolean executeOperation(Operation operation) {
         try {
             TableResult result = executor.executeOperation(sessionId, operation);
             if (TABLE_RESULT_OK == result) {
@@ -467,7 +517,9 @@ public class CliClient implements AutoCloseable {
             }
         } catch (SqlExecutionException e) {
             printExecutionException(e);
+            return false;
         }
+        return true;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -520,6 +572,25 @@ public class CliClient implements AutoCloseable {
 
     // --------------------------------------------------------------------------------------------
 
+    public static CliClient createInteractiveClient(
+            String sessionId, Executor executor, Path historyFilePath) {
+        return new CliClient(
+                createInteractiveTerminal(), sessionId, executor, historyFilePath, true, null);
+    }
+
+    public static CliClient createNonInteractiveClient(
+            String sessionId,
+            Executor executor,
+            Path historyFilePath,
+            String content,
+            @Nullable MaskingCallback callback)
+            throws SqlExecutionException {
+        Terminal terminal =
+                createNonInteractiveTerminal(
+                        new ReaderInputStream(new StringReader(content), StandardCharsets.UTF_8));
+        return new CliClient(terminal, sessionId, executor, historyFilePath, false, callback);
+    }
+
     /**
      * Internal flag to use {@link System#in} and {@link System#out} stream to construct {@link
      * Terminal} for tests. This allows tests can easily mock input stream when startup {@link
@@ -527,7 +598,7 @@ public class CliClient implements AutoCloseable {
      */
     protected static boolean useSystemInOutStream = false;
 
-    private static Terminal createDefaultTerminal() {
+    static Terminal createInteractiveTerminal() {
         try {
             if (useSystemInOutStream) {
                 return TerminalBuilder.builder()
@@ -537,6 +608,20 @@ public class CliClient implements AutoCloseable {
             } else {
                 return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
             }
+        } catch (IOException e) {
+            throw new SqlClientException("Error opening command line interface.", e);
+        }
+    }
+
+    static Terminal createNonInteractiveTerminal(InputStream inputStream) {
+        try {
+            return TerminalBuilder.builder()
+                    .name(CliStrings.CLI_NAME)
+                    .dumb(true)
+                    .streams(inputStream, System.out)
+                    // clear the LocalFlag.ECHO
+                    .attributes(new Attributes())
+                    .build();
         } catch (IOException e) {
             throw new SqlClientException("Error opening command line interface.", e);
         }

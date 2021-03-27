@@ -72,6 +72,17 @@ public class CliOptionsParser {
                                     + "It might overwrite default environment properties.")
                     .build();
 
+    public static final Option OPTION_FILE =
+            Option.builder("f")
+                    .required(false)
+                    .longOpt("file")
+                    .numberOfArgs(1)
+                    .argName("script file")
+                    .desc(
+                            "Script file that should be executed. In this mode, "
+                                    + "the client will not open an interactive terminal.")
+                    .build();
+
     public static final Option OPTION_DEFAULTS =
             Option.builder("d")
                     .required(false)
@@ -107,6 +118,7 @@ public class CliOptionsParser {
                                     + "functions, table sources, or sinks. Can be used multiple times.")
                     .build();
 
+    @Deprecated
     public static final Option OPTION_UPDATE =
             Option.builder("u")
                     .required(false)
@@ -114,11 +126,14 @@ public class CliOptionsParser {
                     .numberOfArgs(1)
                     .argName("SQL update statement")
                     .desc(
-                            "Experimental (for testing only!): Instructs the SQL Client to immediately execute "
-                                    + "the given update statement after starting up. The process is shut down after the "
-                                    + "statement has been submitted to the cluster and returns an appropriate return code. "
-                                    + "Currently, this feature is only supported for INSERT INTO statements that declare "
-                                    + "the target sink table.")
+                            String.format(
+                                    "Deprecated Experimental (for testing only!) feature: Instructs the SQL Client to immediately execute "
+                                            + "the given update statement after starting up. The process is shut down after the "
+                                            + "statement has been submitted to the cluster and returns an appropriate return code. "
+                                            + "Currently, this feature is only supported for INSERT INTO statements that declare "
+                                            + "the target sink table."
+                                            + "Please use option %s to submit update statement.",
+                                    OPTION_FILE.getOpt()))
                     .build();
 
     public static final Option OPTION_HISTORY =
@@ -147,6 +162,7 @@ public class CliOptionsParser {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
         options.addOption(OPTION_ENVIRONMENT);
+        options.addOption(OPTION_FILE);
         options.addOption(OPTION_DEFAULTS);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
@@ -263,6 +279,7 @@ public class CliOptionsParser {
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
                     checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    checkUrl(line, CliOptionsParser.OPTION_FILE),
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
@@ -281,6 +298,7 @@ public class CliOptionsParser {
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
+                    null,
                     null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
@@ -301,6 +319,7 @@ public class CliOptionsParser {
                     null,
                     null,
                     checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     null,
