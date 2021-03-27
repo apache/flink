@@ -92,7 +92,7 @@ public class SqlClientTest {
     }
 
     @After
-    public void after() throws InterruptedException {
+    public void after() {
         System.setOut(originalPrintStream);
         System.setIn(originalInputStream);
         CommonTestUtils.setEnv(originalEnv);
@@ -102,43 +102,43 @@ public class SqlClientTest {
         return testOutputStream.toString();
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithOptions() {
         String[] args = new String[] {"embedded", "-hist", historyPath};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithLongOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithLongOptions() {
         String[] args = new String[] {"embedded", "--history", historyPath};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithoutOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithoutOptions() {
         String[] args = new String[] {"embedded"};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
-    @Test(timeout = 20000)
-    public void testEmptyOptions() throws InterruptedException {
+    @Test
+    public void testEmptyOptions() {
         String[] args = new String[] {};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
-    @Test(timeout = 20000)
-    public void testUnsupportedGatewayMode() throws Exception {
+    @Test
+    public void testUnsupportedGatewayMode() {
         String[] args = new String[] {"gateway"};
         thrown.expect(SqlClientException.class);
         thrown.expectMessage("Gateway mode is not supported yet.");
         SqlClient.main(args);
     }
 
-    @Test(timeout = 20000)
+    @Test
     public void testPrintHelpForUnknownMode() throws IOException {
         String[] args = new String[] {"unknown"};
         SqlClient.main(args);
