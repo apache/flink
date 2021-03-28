@@ -57,7 +57,7 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
-    "org.apache.flink.sql.parser.dml.SqlEnd"
+    "org.apache.flink.sql.parser.dml.SqlEndStatementSet"
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
     "org.apache.flink.sql.parser.dql.SqlLoadModule"
@@ -464,7 +464,7 @@
   statementParserMethods: [
     "RichSqlInsert()"
     "SqlBeginStatementSet()"
-    "SqlEnd()"
+    "SqlEndStatementSet()"
     "SqlLoadModule()"
     "SqlShowCatalogs()"
     "SqlShowCurrentCatalogOrDatabase()"

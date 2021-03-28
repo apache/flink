@@ -85,11 +85,9 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
-import org.apache.flink.table.operations.EndOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -175,7 +173,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final ModuleManager moduleManager;
     private final OperationTreeBuilder operationTreeBuilder;
     private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
-    private List<ModifyOperation> statementSetModifyOperations;
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -809,9 +806,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof UseCatalogOperation
                 || operation instanceof UseDatabaseOperation
                 || operation instanceof LoadModuleOperation
-                || operation instanceof UnloadModuleOperation
-                || operation instanceof BeginStatementSetOperation
-                || operation instanceof EndOperation) {
+                || operation instanceof UnloadModuleOperation) {
             executeInternal(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
@@ -820,15 +815,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public TableResult executeInternal(Operation operation) {
-        checkStatementSetOperation(operation);
         if (operation instanceof ModifyOperation) {
-            ModifyOperation modifyOperation = (ModifyOperation) operation;
-            if (statementSetModifyOperations == null) {
-                return executeInternal(Collections.singletonList(modifyOperation));
-            } else {
-                statementSetModifyOperations.add(modifyOperation);
-                return TableResultImpl.TABLE_RESULT_OK;
-            }
+            return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof CreateTableOperation) {
             CreateTableOperation createTableOperation = (CreateTableOperation) operation;
             if (createTableOperation.isTemporary()) {
@@ -1195,13 +1183,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 "Tables or views with the identifier '%s' doesn't exist",
                                 describeTableOperation.getSqlIdentifier().asSummaryString()));
             }
-        } else if (operation instanceof BeginStatementSetOperation) {
-            statementSetModifyOperations = new ArrayList<>();
-            return TableResultImpl.TABLE_RESULT_OK;
-        } else if (operation instanceof EndOperation) {
-            TableResult tableResult = executeInternal(statementSetModifyOperations);
-            statementSetModifyOperations = null;
-            return tableResult;
         } else if (operation instanceof QueryOperation) {
             return executeQueryOperation((QueryOperation) operation);
         } else {
@@ -1749,19 +1730,5 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             sinkIdentifierNames.add("sink" + i);
         }
         return executeInternal(transformations, sinkIdentifierNames);
-    }
-
-    /**
-     * Check whether the operation contained between statement set operation is ModifyFunction.
-     *
-     * @param operation The operation to be executed.
-     */
-    private void checkStatementSetOperation(Operation operation) {
-        if ((statementSetModifyOperations == null && operation instanceof EndOperation)
-                || (statementSetModifyOperations != null
-                        && !(operation instanceof ModifyOperation
-                                || operation instanceof EndOperation))) {
-            throw new ValidationException(getDDLOpExecuteErrorMsg(operation.asSummaryString()));
-        }
     }
 }

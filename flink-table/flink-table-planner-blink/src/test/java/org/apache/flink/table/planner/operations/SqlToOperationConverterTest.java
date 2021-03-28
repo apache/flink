@@ -47,7 +47,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
-import org.apache.flink.table.operations.EndOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -1400,10 +1400,11 @@ public class SqlToOperationConverterTest {
     public void testEnd() {
         final String sql = "END";
         Operation operation = parse(sql, SqlDialect.DEFAULT);
-        assert operation instanceof EndOperation;
-        final EndOperation endOperation = (EndOperation) operation;
+        assert operation instanceof EndStatementSetOperation;
+        final EndStatementSetOperation endStatementSetOperation =
+                (EndStatementSetOperation) operation;
 
-        assertEquals("END", endOperation.asSummaryString());
+        assertEquals("END", endStatementSetOperation.asSummaryString());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

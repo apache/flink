@@ -661,7 +661,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     try {
       // it would fail due to query and sink type mismatch
       tableEnv.executeSql("insert into dest1 select count(*) from src")
-      fail("insert is expected to fail due to type mismatch")
+      Assert.fail("insert is expected to fail due to type mismatch")
     } catch {
       case _: Exception => //expected
     }
@@ -739,73 +739,6 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     tEnv.useCatalog(currentCat)
 
     listener.close()
-  }
-
-  @Test
-  def testExecuteSqlWithCreateTableStatementSet(): Unit = {
-    tEnv.executeSql("begin statement set")
-    try {
-      val sinkPath = _tempFolder.newFolder().toString
-      tEnv.executeSql(
-        s"""
-           |create table MySink (
-           |  first string
-           |) with (
-           |  'connector' = 'filesystem',
-           |  'path' = '$sinkPath',
-           |  'format' = 'testcsv'
-           |)
-       """.stripMargin
-      )
-      fail("Statement set with create table statement should fail")
-    } catch {
-      case _: Exception => //expected
-    }
-  }
-
-  @Test
-  def testExecuteSqlWithNoInsertIntoStatementSet(): Unit = {
-    tEnv.executeSql("begin statement set")
-    try {
-      tEnv.executeSql("end")
-      fail("Statement set without insert into statement should fail")
-    } catch {
-      case _: Exception => //expected
-    }
-  }
-
-  @Test
-  def testExecuteSqlWithSingleInsertIntoStatementSet(): Unit = {
-    val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink")
-
-    tEnv.executeSql("begin statement set")
-    tEnv.executeSql("insert into MySink select first from MyTable")
-    val tableResult = tEnv.executeSql("end")
-
-    checkInsertTableResult(tableResult, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
-  }
-
-  @Test
-  def testExecuteSqlWithMultiInsertIntoStatementSet(): Unit = {
-    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
-
-    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("last"), Array(STRING)), "MySink2")
-
-    tEnv.executeSql("begin statement set")
-    tEnv.executeSql("insert into MySink1 select first from MyTable")
-    tEnv.executeSql("insert into MySink2 select last from MyTable")
-    val tableResult = tEnv.executeSql("end")
-
-    checkInsertTableResult(
-      tableResult,
-      "default_catalog.default_database.MySink1",
-      "default_catalog.default_database.MySink2")
-    assertFirstValues(sink1Path)
-    assertLastValues(sink2Path)
   }
 
   def getPersonData: List[(String, Int, Double, String)] = {

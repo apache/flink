@@ -1560,12 +1560,12 @@ SqlBeginStatementSet SqlBeginStatementSet() :
 * Parse a end statement set statement.
 * END;
 */
-SqlEnd SqlEnd() :
+SqlEndStatementSet SqlEndStatementSet() :
 {
 }
 {
     <END>
     {
-        return new SqlEnd(getPos());
+        return new SqlEndStatementSet(getPos());
     }
 }

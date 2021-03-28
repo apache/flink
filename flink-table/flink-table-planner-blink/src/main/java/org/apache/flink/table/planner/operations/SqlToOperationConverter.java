@@ -50,7 +50,7 @@ import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
-import org.apache.flink.sql.parser.dml.SqlEnd;
+import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
@@ -88,7 +88,7 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
-import org.apache.flink.table.operations.EndOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
@@ -270,9 +270,9 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
         } else if (validated instanceof SqlBeginStatementSet) {
             return Optional.of(
-                    converter.convertSqlBeginStatementSet((SqlBeginStatementSet) validated));
-        } else if (validated instanceof SqlEnd) {
-            return Optional.of(converter.convertSqlBeginStatementSet((SqlEnd) validated));
+                    converter.convertBeginStatementSet((SqlBeginStatementSet) validated));
+        } else if (validated instanceof SqlEndStatementSet) {
+            return Optional.of(converter.convertEndStatementSet((SqlEndStatementSet) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -605,13 +605,13 @@ public class SqlToOperationConverter {
     }
 
     /** Convert BEGIN STATEMENT SET statement. */
-    private Operation convertSqlBeginStatementSet(SqlBeginStatementSet sqlBeginStatementSet) {
+    private Operation convertBeginStatementSet(SqlBeginStatementSet sqlBeginStatementSet) {
         return new BeginStatementSetOperation();
     }
 
     /** Convert END statement. */
-    private Operation convertSqlBeginStatementSet(SqlEnd sqlEnd) {
-        return new EndOperation();
+    private Operation convertEndStatementSet(SqlEndStatementSet sqlEndStatementSet) {
+        return new EndStatementSetOperation();
     }
 
     /** Convert use catalog statement. */

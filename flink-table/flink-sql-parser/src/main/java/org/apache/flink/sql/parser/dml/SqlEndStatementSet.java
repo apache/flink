@@ -30,11 +30,11 @@ import java.util.Collections;
 import java.util.List;
 
 /** END. */
-public class SqlEnd extends SqlCall {
+public class SqlEndStatementSet extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("END", SqlKind.OTHER);
 
-    public SqlEnd(SqlParserPos pos) {
+    public SqlEndStatementSet(SqlParserPos pos) {
         super(pos);
     }
 
