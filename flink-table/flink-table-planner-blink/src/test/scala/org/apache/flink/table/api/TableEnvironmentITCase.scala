@@ -498,12 +498,12 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     stmtSet.addInsertSql("INSERT INTO MySink3 select last from MySink1")
     val tableResult2 = stmtSet.execute()
 
+    assertFirstValues(sink2Path)
+    assertLastValues(sink3Path)
     checkInsertTableResult(
       tableResult2,
       "default_catalog.default_database.MySink2",
       "default_catalog.default_database.MySink3" )
-    assertFirstValues(sink2Path)
-    assertLastValues(sink3Path)
 
     // Verify it's no problem to invoke await twice
     tableResult1.await()
