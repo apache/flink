@@ -84,7 +84,6 @@ under the License.
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
 		<module>flink-python</module>
-		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
