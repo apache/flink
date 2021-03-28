@@ -185,7 +185,7 @@ public class OperatorState implements CompositeStateHandle {
 
     @Override
     public int hashCode() {
-        return parallelism + 31 * Objects.hash(operatorID, operatorSubtaskStates);
+        return parallelism + 31 * Objects.hash(operatorID, coordinatorState, operatorSubtaskStates);
     }
 
     @Override
