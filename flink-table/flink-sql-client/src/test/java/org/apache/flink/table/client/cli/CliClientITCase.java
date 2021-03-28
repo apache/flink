@@ -151,19 +151,19 @@ public class CliClientITCase extends AbstractTestBase {
         String sessionId = executor.openSession("test-session");
 
         try (Terminal terminal =
-                CliClient.createNonInteractiveTerminal(
-                        new ReaderInputStream(
-                                new StringReader(sqlContent), StandardCharsets.UTF_8))) {
+                        CliClient.createNonInteractiveTerminal(
+                                new ReaderInputStream(
+                                        new StringReader(sqlContent), StandardCharsets.UTF_8));
 
-            // use interactive mode to tolerate execution error
-            CliClient client =
-                    new CliClient(
-                            terminal,
-                            sessionId,
-                            executor,
-                            historyPath,
-                            true,
-                            HideSqlStatement.INSTANCE);
+             // use interactive mode to tolerate execution error
+                CliClient client =
+                        new CliClient(
+                                terminal,
+                                sessionId,
+                                executor,
+                                historyPath,
+                                true,
+                                HideSqlStatement.INSTANCE)) {
             client.open();
             String output = new String(outputStream.toByteArray());
 

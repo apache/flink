@@ -95,16 +95,14 @@ public class CliResultViewTest {
                         true);
 
         Thread resultViewRunner = null;
-        CliClient cli = null;
-        try {
-            cli =
-                    new CliClient(
-                            TerminalUtils.createDummyTerminal(),
-                            sessionId,
-                            executor,
-                            File.createTempFile("history", "tmp").toPath(),
-                            false,
-                            null);
+        try (CliClient cli =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(),
+                        sessionId,
+                        executor,
+                        File.createTempFile("history", "tmp").toPath(),
+                        false,
+                        null)) {
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
         } finally {

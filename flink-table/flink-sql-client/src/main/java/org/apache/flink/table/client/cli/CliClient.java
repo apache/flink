@@ -46,7 +46,6 @@ import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Attributes;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
@@ -140,7 +139,6 @@ public class CliClient implements AutoCloseable {
                         .appName(CliStrings.CLI_NAME)
                         .parser(new SqlMultiLineParser())
                         .completer(new SqlCompleter(sessionId, executor))
-                        .variable(LineReader.COMMENT_BEGIN, COMMENT_BEGIN)
                         .build();
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash
@@ -229,7 +227,7 @@ public class CliClient implements AutoCloseable {
             terminal.writer().append("\n");
             terminal.flush();
 
-            final String line;
+            String line;
             try {
                 line = lineReader.readLine(prompt, null, inputTransformer, null);
             } catch (UserInterruptException e) {
@@ -239,8 +237,14 @@ public class CliClient implements AutoCloseable {
                 }
                 continue;
             } catch (EndOfFileException | IOError e) {
-                // user cancelled application with Ctrl+D or kill
-                break;
+                if (isInteractive) {
+                    // user cancelled application with Ctrl+D or kill
+                    break;
+                } else {
+                    // commit the last line
+                    isRunning = false;
+                    line = lineReader.getBuffer().toString();
+                }
             } catch (Throwable t) {
                 throw new SqlClientException("Could not read from command line.", t);
             }
@@ -248,12 +252,14 @@ public class CliClient implements AutoCloseable {
                 continue;
             }
 
-            final Optional<Operation> operation = parseCommand(line);
-            if (operation.isPresent()) {
-                boolean success = callOperation(operation.get());
-                if (!success && !isInteractive) {
+            try {
+                final Optional<Operation> operation = parseCommand(line);
+                operation.ifPresent(this::callOperation);
+            } catch (SqlExecutionException e) {
+                printExecutionException(e);
+                if (!isInteractive) {
                     // kill the execution
-                    this.isRunning = false;
+                    isRunning = false;
                 }
             }
         }
@@ -266,32 +272,6 @@ public class CliClient implements AutoCloseable {
         } catch (IOException e) {
             throw new SqlClientException("Unable to close terminal.", e);
         }
-    }
-
-    /**
-     * Submits a SQL update statement and prints status information and/or errors on the terminal.
-     *
-     * @param statement SQL update statement
-     * @return flag to indicate if the submission was successful or not
-     */
-    public boolean submitUpdate(String statement) {
-        terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
-        terminal.writer().println(new AttributedString(statement).toString());
-        terminal.flush();
-
-        final Optional<Operation> operation = parseCommand(statement);
-        // only support INSERT INTO/OVERWRITE
-        return operation
-                .map(
-                        op -> {
-                            if (op instanceof CatalogSinkModifyOperation) {
-                                return callInsert((CatalogSinkModifyOperation) op);
-                            } else {
-                                printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
-                                return false;
-                            }
-                        })
-                .orElse(false);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -309,35 +289,26 @@ public class CliClient implements AutoCloseable {
             return Optional.empty();
         }
 
-        try {
-            Operation operation = executor.parseStatement(sessionId, stmt);
-            return Optional.of(operation);
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            if (!isInteractive) {
-                isRunning = false;
-            }
-        }
-        return Optional.empty();
+        Operation operation = executor.parseStatement(sessionId, stmt);
+        return Optional.of(operation);
     }
 
-    private boolean callOperation(Operation operation) {
-        boolean success = false;
+    private void callOperation(Operation operation) {
         if (operation instanceof QuitOperation) {
             // QUIT/EXIT
-            success = callQuit();
+            callQuit();
         } else if (operation instanceof ClearOperation) {
             // CLEAR
-            success = callClear();
+            callClear();
         } else if (operation instanceof HelpOperation) {
             // HELP
-            success = callHelp();
+            callHelp();
         } else if (operation instanceof SetOperation) {
             // SET
-            success = callSet((SetOperation) operation);
+            callSet((SetOperation) operation);
         } else if (operation instanceof ResetOperation) {
             // RESET
-            success = callReset((ResetOperation) operation);
+            callReset((ResetOperation) operation);
         } else if (operation instanceof CatalogSinkModifyOperation) {
             // INSERT INTO/OVERWRITE
             callInsert((CatalogSinkModifyOperation) operation);
@@ -353,95 +324,70 @@ public class CliClient implements AutoCloseable {
                                 EXECUTION_RESULT_MODE.key(),
                                 TABLEAU));
             }
-            success = callSelect((QueryOperation) operation);
+            callSelect((QueryOperation) operation);
         } else {
             // fallback to default implementation
-            success = executeOperation(operation);
+            executeOperation(operation);
         }
-        return success;
     }
 
-    private boolean callQuit() {
+    private void callQuit() {
         printInfo(CliStrings.MESSAGE_QUIT);
         isRunning = false;
-        return true;
     }
 
-    private boolean callClear() {
+    private void callClear() {
         clearTerminal();
-        return true;
     }
 
-    private boolean callReset(ResetOperation resetOperation) {
-        try {
-            // reset all session properties
-            if (!resetOperation.getKey().isPresent()) {
-                executor.resetSessionProperties(sessionId);
-                printInfo(CliStrings.MESSAGE_RESET);
-            }
-            // reset a session property
-            else {
-                String key = resetOperation.getKey().get();
-                executor.resetSessionProperty(sessionId, key);
-                printSetResetConfigKeyMessage(key, MESSAGE_RESET_KEY);
-            }
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return false;
+    private void callReset(ResetOperation resetOperation) {
+        // reset all session properties
+        if (!resetOperation.getKey().isPresent()) {
+            executor.resetSessionProperties(sessionId);
+            printInfo(CliStrings.MESSAGE_RESET);
         }
-        return true;
-    }
-
-    private boolean callSet(SetOperation setOperation) {
-        try {
-            // set a property
-            if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
-                String key = setOperation.getKey().get().trim();
-                String value = setOperation.getValue().get().trim();
-                executor.setSessionProperty(sessionId, key, value);
-                printSetResetConfigKeyMessage(key, MESSAGE_SET_KEY);
-            }
-            // show all properties
-            else {
-                final Map<String, String> properties = executor.getSessionConfigMap(sessionId);
-                if (properties.isEmpty()) {
-                    terminal.writer()
-                            .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-                } else {
-                    List<String> prettyEntries = getPropertiesInPretty(properties);
-                    prettyEntries.forEach(entry -> terminal.writer().println(entry));
-                }
-                terminal.flush();
-            }
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return false;
+        // reset a session property
+        else {
+            String key = resetOperation.getKey().get();
+            executor.resetSessionProperty(sessionId, key);
+            printSetResetConfigKeyMessage(key, MESSAGE_RESET_KEY);
         }
-        return true;
     }
 
-    private boolean callHelp() {
+    private void callSet(SetOperation setOperation) {
+        // set a property
+        if (setOperation.getKey().isPresent() && setOperation.getValue().isPresent()) {
+            String key = setOperation.getKey().get().trim();
+            String value = setOperation.getValue().get().trim();
+            executor.setSessionProperty(sessionId, key, value);
+            printSetResetConfigKeyMessage(key, MESSAGE_SET_KEY);
+        }
+        // show all properties
+        else {
+            final Map<String, String> properties = executor.getSessionConfigMap(sessionId);
+            if (properties.isEmpty()) {
+                terminal.writer()
+                        .println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+            } else {
+                List<String> prettyEntries = getPropertiesInPretty(properties);
+                prettyEntries.forEach(entry -> terminal.writer().println(entry));
+            }
+            terminal.flush();
+        }
+    }
+
+    private void callHelp() {
         terminal.writer().println(CliStrings.MESSAGE_HELP);
         terminal.flush();
-        return true;
     }
 
-    private boolean callSelect(QueryOperation operation) {
-        final ResultDescriptor resultDesc;
-        try {
-            resultDesc = executor.executeQuery(sessionId, operation);
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return false;
-        }
+    private void callSelect(QueryOperation operation) {
+        final ResultDescriptor resultDesc = executor.executeQuery(sessionId, operation);
 
         if (resultDesc.isTableauMode()) {
             try (CliTableauResultView tableauResultView =
                     new CliTableauResultView(terminal, executor, sessionId, resultDesc)) {
                 tableauResultView.displayResults();
-            } catch (SqlExecutionException e) {
-                printExecutionException(e);
-                return false;
             }
         } else {
             final CliResultView<?> view;
@@ -452,74 +398,54 @@ public class CliClient implements AutoCloseable {
             }
 
             // enter view
-            try {
-                view.open();
+            view.open();
 
-                // view left
-                printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-            } catch (SqlExecutionException e) {
-                printExecutionException(e);
-                return false;
-            }
+            // view left
+            printInfo(CliStrings.MESSAGE_RESULT_QUIT);
         }
-        return true;
     }
 
-    private boolean callInsert(CatalogSinkModifyOperation operation) {
+    private void callInsert(CatalogSinkModifyOperation operation) {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
-        TableResult tableResult = null;
         boolean sync = executor.getSessionConfig(sessionId).get(TABLE_DML_SYNC);
         if (sync) {
             printInfo(MESSAGE_WAIT_EXECUTE);
         }
-        try {
-            tableResult = executor.executeOperation(sessionId, operation);
-            checkState(tableResult.getJobClient().isPresent());
-
-            if (sync) {
-                terminal.writer()
-                        .println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
-            } else {
-                terminal.writer()
-                        .println(CliStrings.messageInfo(MESSAGE_STATEMENT_SUBMITTED).toAnsi());
-                terminal.writer()
-                        .println(
-                                String.format(
-                                        "Job ID: %s\n",
-                                        tableResult.getJobClient().get().getJobID().toString()));
-            }
-            terminal.flush();
-        } catch (Exception e) {
-            printExecutionException(e);
-            return false;
+        TableResult tableResult = executor.executeOperation(sessionId, operation);
+        checkState(tableResult.getJobClient().isPresent());
+        if (sync) {
+            terminal.writer()
+                    .println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
+        } else {
+            terminal.writer()
+                    .println(CliStrings.messageInfo(MESSAGE_STATEMENT_SUBMITTED).toAnsi());
+            terminal.writer()
+                    .println(
+                            String.format(
+                                    "Job ID: %s\n",
+                                    tableResult.getJobClient().get().getJobID().toString()));
         }
-        return true;
+        terminal.flush();
     }
 
-    private boolean executeOperation(Operation operation) {
-        try {
-            TableResult result = executor.executeOperation(sessionId, operation);
-            if (TABLE_RESULT_OK == result) {
-                // print more meaningful message than tableau OK result
-                printInfo(MESSAGE_EXECUTE_STATEMENT);
-            } else {
-                // print tableau if result has content
-                PrintUtils.printAsTableauForm(
-                        result.getResolvedSchema(),
-                        result.collect(),
-                        terminal.writer(),
-                        Integer.MAX_VALUE,
-                        "",
-                        false,
-                        false);
-                terminal.flush();
-            }
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return false;
+    private void executeOperation(Operation operation) {
+        TableResult result = executor.executeOperation(sessionId, operation);
+        if (TABLE_RESULT_OK == result) {
+            // print more meaningful message than tableau OK result
+            printInfo(MESSAGE_EXECUTE_STATEMENT);
+        } else {
+            // print tableau if result has content
+            PrintUtils.printAsTableauForm(
+                    result.getResolvedSchema(),
+                    result.collect(),
+                    terminal.writer(),
+                    Integer.MAX_VALUE,
+                    "",
+                    false,
+                    false);
+            terminal.flush();
         }
-        return true;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -529,11 +455,6 @@ public class CliClient implements AutoCloseable {
         LOG.warn(errorMessage, t);
         boolean isVerbose = executor.getSessionConfig(sessionId).get(SqlClientOptions.VERBOSE);
         terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
-        terminal.flush();
-    }
-
-    private void printError(String message) {
-        terminal.writer().println(CliStrings.messageError(message).toAnsi());
         terminal.flush();
     }
 

@@ -111,9 +111,9 @@ public class SqlClient {
                             SystemUtils.IS_OS_WINDOWS ? "flink-sql-history" : ".flink-sql-history");
         }
 
-        boolean isInteractiveMode = options.getSqlFile() == null;
+        boolean hasSqlFile = options.getSqlFile() != null;
         boolean hasUpdateStatement = options.getUpdateStatement() != null;
-        if (!isInteractiveMode && hasUpdateStatement) {
+        if (hasSqlFile && hasUpdateStatement) {
             throw new IllegalArgumentException(
                     String.format(
                             "Please use either option %s or %s. The option %s is deprecated and it's suggested to use %s instead.",
@@ -123,6 +123,8 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
+        boolean isInteractiveMode = !hasSqlFile && !hasUpdateStatement;
+
         try (CliClient cli =
                 isInteractiveMode
                         ? CliClient.createInteractiveClient(sessionId, executor, historyFilePath)
@@ -130,19 +132,9 @@ public class SqlClient {
                                 sessionId,
                                 executor,
                                 historyFilePath,
-                                readFromURL(options.getSqlFile()),
+                                readExecutionContent(),
                                 null)) {
-            if (!hasUpdateStatement) {
-                cli.open();
-            }
-            // execute single update statement
-            else {
-                final boolean success = cli.submitUpdate(options.getUpdateStatement());
-                if (!success) {
-                    throw new SqlClientException(
-                            "Could not submit given SQL update statement to cluster.");
-                }
-            }
+            cli.open();
         }
     }
 
@@ -220,11 +212,20 @@ public class SqlClient {
         }
     }
 
+    private String readExecutionContent() {
+        if (options.getSqlFile() != null) {
+            return readFromURL(options.getSqlFile());
+        } else {
+            return options.getUpdateStatement().trim();
+        }
+    }
+
     private String readFromURL(URL file) {
         try {
             return IOUtils.toString(file, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new SqlExecutionException("Work work work", e);
+            throw new SqlExecutionException(
+                    String.format("Fail to read content from the %s.", file.getPath()), e);
         }
     }
 }

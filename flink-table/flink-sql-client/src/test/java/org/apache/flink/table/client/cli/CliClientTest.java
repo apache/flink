@@ -44,6 +44,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.io.input.ReaderInputStream;
 import org.jline.reader.Candidate;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -64,6 +65,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -72,12 +75,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.client.cli.CliClient.createNonInteractiveTerminal;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -89,7 +90,6 @@ public class CliClientTest extends TestLogger {
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
     private static final String INSERT_OVERWRITE_STATEMENT =
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
-    private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -106,9 +106,6 @@ public class CliClientTest extends TestLogger {
         // fail at executor
         verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
         verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
-
-        // fail early in client
-        verifyUpdateSubmission(SELECT_STATEMENT, false, true);
     }
 
     @Test
@@ -145,7 +142,33 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
-    public void testSqlFileContainsUnknownStatement() throws Exception {
+    public void testGetEOFinInteractiveMode() throws Exception {
+        final List<String> statements =
+                Arrays.asList("DESC MyOtherTable;", "SHOW TABLES"); // meet EOF
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+
+        executeSqlFromContent(mockExecutor, content, true);
+        // don't execute the last commands
+        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
+    }
+
+    @Test
+    public void testGetEOFinNonInteractiveMode() throws Exception {
+        final List<String> statements =
+                Arrays.asList("DESC MyOtherTable;", "SHOW TABLES"); // meet EOF
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+
+        executeSqlFromContent(mockExecutor, content, false);
+        // execute the last commands
+        assertTrue(statements.get(1).contains(mockExecutor.receivedStatement));
+    }
+
+    @Test
+    public void testUnknownStatementInNonInteractiveMode() throws Exception {
         final List<String> statements =
                 Arrays.asList(
                         "ERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
@@ -155,13 +178,13 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
 
-        executeSqlFile(mockExecutor, content);
+        executeSqlFromContent(mockExecutor, content, false);
         // don't execute other commands
         assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
     }
 
     @Test
-    public void testSqlFileContainsFailedExecution() throws Exception {
+    public void testFailedExecutionInNonInteractiveMode() throws Exception {
         final List<String> statements =
                 Arrays.asList(
                         "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
@@ -172,19 +195,19 @@ public class CliClientTest extends TestLogger {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.failExecution = true;
 
-        executeSqlFile(mockExecutor, content);
+        executeSqlFromContent(mockExecutor, content, false);
         // don't execute other commands
         assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
     }
 
     @Test
-    public void testSqlFileContainIllegalResultMode() throws Exception {
+    public void testIllegalResultModeInNonInteractiveMode() throws Exception {
         // When client executes sql file, it requires sql-client.execution.result-mode = tableau;
         // Therefore, it will get execution error and stop executing the sql follows the illegal
         // statement.
         final List<String> statements =
                 Arrays.asList(
-                        "SELECT * FROM MyOtherTable",
+                        "SELECT * FROM MyOtherTable;",
                         "HELP;",
                         "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
                         "DESC MyOtherTable;",
@@ -199,102 +222,17 @@ public class CliClientTest extends TestLogger {
                 "In non-interactive mode, it only supports to use TABLEAU as value of "
                         + "sql-client.execution.result-mode when execute query. Please add "
                         + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
-        executeSqlFile(mockExecutor, content);
+        executeSqlFromContent(mockExecutor, content, false);
     }
 
     @Test
-    public void testExecuteSqlFile() throws Exception {
-
-        final CountDownLatch cancellationCounterLatch = new CountDownLatch(1);
-
-        final List<String> statements =
-                Arrays.asList(
-                        "HELP;",
-                        "CREATE TABLE tbl("
-                                + "id INT,"
-                                + "name STRING"
-                                + ") WITH ("
-                                + "  'connector' = 'values' "
-                                + ");",
-                        "-- comments ;",
-                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
-                        "DESC MyOtherTable;",
-                        "SHOW TABLES;");
-        final int hookIndex = 3;
-
-        String content = String.join("\n", statements);
-
-        final MockExecutor mockExecutor =
-                new MockExecutor(
-                        statement -> {
-                            // client will eliminate the semicolon
-                            if (statements.get(hookIndex).contains(statement)) {
-                                cancellationCounterLatch.countDown();
-                                try {
-                                    Thread.sleep(60000);
-                                } catch (InterruptedException ex) {
-                                    // ignore
-                                }
-                            }
-                        });
-        String sessionId = mockExecutor.openSession("test-session");
-
-        Path historyFilePath = historyTempFile();
-
-        OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
-
-        try (CliClient client =
-                CliClient.createNonInteractiveClient(
-                        sessionId, mockExecutor, historyFilePath, content, null)) {
-            Thread thread = new Thread(client::open);
-            thread.start();
-
-            assertTrue(
-                    "Invalid number of cancellations.",
-                    cancellationCounterLatch.await(10, TimeUnit.SECONDS));
-            if (!thread.isInterrupted()) {
-                thread.interrupt();
-            }
-            // wait for the execution thread finish
-            Thread.sleep(1);
-        }
-
-        // read the last executed statement
-        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
+    public void testCancelExecutionInNonInteractiveMode() throws Exception {
+        verifyCancelExecution(false);
     }
 
     @Test
-    public void verifyCancelSubmitInSyncMode() throws Exception {
-        final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession("test-session");
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-
-        try (CliClient client =
-                new CliClient(
-                        TerminalUtils.createDummyTerminal(outputStream),
-                        sessionId,
-                        mockExecutor,
-                        historyTempFile(),
-                        false,
-                        null)) {
-            FutureTask<Boolean> task =
-                    new FutureTask<>(() -> client.submitUpdate(INSERT_INTO_STATEMENT));
-            Thread thread = new Thread(task);
-            thread.start();
-
-            while (!mockExecutor.isAwait) {
-                Thread.sleep(10);
-            }
-
-            thread.interrupt();
-            assertFalse(task.get());
-            assertTrue(
-                    outputStream
-                            .toString()
-                            .contains("java.lang.InterruptedException: sleep interrupted"));
-        }
+    public void testCancelExecutionInInteractiveMode() throws Exception {
+        verifyCancelExecution(true);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -302,23 +240,15 @@ public class CliClientTest extends TestLogger {
     private void verifyUpdateSubmission(
             String statement, boolean failExecution, boolean testFailure) throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
-        String sessionId = mockExecutor.openSession("test-session");
         mockExecutor.failExecution = failExecution;
 
-        try (CliClient client =
-                new CliClient(
-                        TerminalUtils.createDummyTerminal(),
-                        sessionId,
-                        mockExecutor,
-                        historyTempFile(),
-                        false,
-                        null)) {
-            if (testFailure) {
-                assertFalse(client.submitUpdate(statement));
-            } else {
-                assertTrue(client.submitUpdate(statement));
-                assertEquals(statement, mockExecutor.receivedStatement);
-            }
+        String result = executeSqlFromContent(mockExecutor, statement, false);
+
+        if (testFailure) {
+            assertTrue(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
+        } else {
+            assertFalse(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
+            assertEquals(statement, mockExecutor.receivedStatement);
         }
     }
 
@@ -351,14 +281,100 @@ public class CliClientTest extends TestLogger {
         return File.createTempFile("history", "tmp").toPath();
     }
 
-    private void executeSqlFile(MockExecutor executor, String content) throws IOException {
+    private String executeSqlFromContent(
+            MockExecutor executor, String content, boolean isInteractive) throws IOException {
         String sessionId = executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
         System.setOut(new PrintStream(outputStream));
-        try (CliClient client =
-                CliClient.createNonInteractiveClient(
-                        sessionId, executor, historyTempFile(), content, null)) {
+        try (Terminal terminal =
+                        createNonInteractiveTerminal(
+                                new ReaderInputStream(
+                                        new StringReader(content), StandardCharsets.UTF_8));
+                CliClient client =
+                        new CliClient(
+                                terminal,
+                                sessionId,
+                                executor,
+                                historyTempFile(),
+                                isInteractive,
+                                null)) {
             client.open();
+        }
+        return outputStream.toString();
+    }
+
+    private void verifyCancelExecution(boolean isInteractive) throws Exception {
+        // use quit to close the client in interactive mode
+        // add "\n" with quit to trigger commit the line
+        final List<String> statements =
+                Arrays.asList(
+                        "HELP;",
+                        "CREATE TABLE tbl("
+                                + "id INT,"
+                                + "name STRING"
+                                + ") WITH ("
+                                + "  'connector' = 'values' "
+                                + ");",
+                        "-- comments ;",
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;",
+                        "QUIT;\n");
+
+        // use table.dml-sync to keep running
+        // therefore in non-interactive mode, the last executed command is INSERT INTO
+        // otherwise the last executed command is quit;
+        final int hookIndex = 3;
+
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = true;
+
+        String sessionId = mockExecutor.openSession("test-session");
+
+        Path historyFilePath = historyTempFile();
+
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        System.setOut(new PrintStream(outputStream));
+
+        // use non-interactive terminal but interactive client
+        try (Terminal terminal =
+                        createNonInteractiveTerminal(
+                                new ReaderInputStream(
+                                        new StringReader(content), StandardCharsets.UTF_8));
+                CliClient client =
+                        new CliClient(
+                                terminal,
+                                sessionId,
+                                mockExecutor,
+                                historyFilePath,
+                                isInteractive,
+                                null)) {
+            Thread thread = new Thread(client::open);
+            thread.start();
+
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
+
+            thread.interrupt();
+
+            while (thread.isAlive()) {
+                Thread.sleep(10);
+            }
+            assertTrue(
+                    outputStream
+                            .toString()
+                            .contains("java.lang.InterruptedException: sleep interrupted"));
+        }
+
+        // read the last executed statement
+        if (isInteractive) {
+            assertTrue(
+                    statements.get(statements.size() - 1).contains(mockExecutor.receivedStatement));
+        } else {
+            assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
         }
     }
 
@@ -368,21 +384,12 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
-        public Consumer<String> hook;
         public boolean isSync = false;
         public boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
         private final SqlParserHelper helper = new SqlParserHelper();
-
-        public MockExecutor() {
-            this(x -> {});
-        }
-
-        public MockExecutor(Consumer<String> hook) {
-            this.hook = hook;
-        }
 
         @Override
         public void start() throws SqlExecutionException {}
@@ -462,11 +469,9 @@ public class CliClientTest extends TestLogger {
         public Operation parseStatement(String sessionId, String statement)
                 throws SqlExecutionException {
             receivedStatement = statement;
-            hook.accept(statement);
 
             try {
-                List<Operation> ops = helper.getSqlParser().parse(statement);
-                return ops.get(0);
+                return helper.getSqlParser().parse(statement).get(0);
             } catch (Exception ex) {
                 throw new SqlExecutionException("Parse error: " + statement, ex);
             }
