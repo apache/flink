@@ -1541,3 +1541,31 @@ SqlShowModules SqlShowModules() :
         return new SqlShowModules(startPos.plus(getPos()), requireFull);
     }
 }
+
+/**
+* Parse a start statement set statement.
+* BEGIN STATEMENT SET;
+*/
+SqlBeginStatementSet SqlBeginStatementSet() :
+{
+}
+{
+    <BEGIN> <STATEMENT> <SET>
+    {
+        return new SqlBeginStatementSet(getPos());
+    }
+}
+
+/**
+* Parse a end statement set statement.
+* END;
+*/
+SqlEndStatementSet SqlEndStatementSet() :
+{
+}
+{
+    <END>
+    {
+        return new SqlEndStatementSet(getPos());
+    }
+}
