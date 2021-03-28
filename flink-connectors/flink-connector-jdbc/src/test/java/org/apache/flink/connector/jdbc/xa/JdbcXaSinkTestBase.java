@@ -63,7 +63,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -168,8 +167,8 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
     static final RuntimeContext TEST_RUNTIME_CONTEXT =
             new RuntimeContext() {
                 @Override
-                public Optional<JobID> getJobId() {
-                    return Optional.of(new JobID());
+                public JobID getJobId() {
+                    return new JobID();
                 }
 
                 @Override

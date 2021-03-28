@@ -244,10 +244,6 @@ public class SqlDateTimeUtils {
     // --------------------------------------------------------------------------------------------
     // TO_TIMESTAMP_LTZ(numeric, precision) function supports precision 0 or 3.
     // --------------------------------------------------------------------------------------------
-    public static TimestampData toTimestampData(long v) {
-        return toTimestampData(v, 0);
-    }
-
     public static TimestampData toTimestampData(long v, int precision) {
         switch (precision) {
             case 0:
@@ -268,10 +264,6 @@ public class SqlDateTimeUtils {
         }
     }
 
-    public static TimestampData toTimestampData(double v) {
-        return toTimestampData(v, 0);
-    }
-
     public static TimestampData toTimestampData(double v, int precision) {
         switch (precision) {
             case 0:
@@ -290,10 +282,6 @@ public class SqlDateTimeUtils {
                                 + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
                                 + " the supported value is '0' for second or '3' for millisecond.");
         }
-    }
-
-    public static TimestampData toTimestampData(DecimalData v) {
-        return toTimestampData(v, 0);
     }
 
     public static TimestampData toTimestampData(DecimalData v, int precision) {

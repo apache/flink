@@ -112,6 +112,8 @@ public class CliClientITCase extends AbstractTestBase {
         replaceVars.put(
                 "$VAR_JOBMANAGER_RPC_ADDRESS",
                 miniClusterResource.getClientConfiguration().get(ADDRESS));
+        replaceVars.put("$VAR_STREAMING_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_BATCH_PATH", tempFolder.newFolder().toPath().toString());
     }
 
     @Test
@@ -164,6 +166,7 @@ public class CliClientITCase extends AbstractTestBase {
     // -------------------------------------------------------------------------------------------
 
     private static final String PROMOTE = "Flink SQL> ";
+    private static final String JOB_ID = "Job ID:";
 
     enum Tag {
         ERROR("\u001B[31;1m", "\u001B[0m", "!error"),
@@ -245,7 +248,12 @@ public class CliClientITCase extends AbstractTestBase {
                     // remove the promote prefix
                     line = line.substring(PROMOTE.length());
                 }
-                contentLines.add(line);
+                // ignore the line begin with Job ID:
+                if (!line.startsWith(JOB_ID)) {
+                    contentLines.add(line);
+                } else {
+                    contentLines.add(JOB_ID);
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.InternalConfigOptions
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -46,6 +47,7 @@ class NonDeterministicTests extends ExpressionTestBase {
       "CURRENT_DATE",
       "CURRENT_TIME",
       "CURRENT_TIMESTAMP",
+      "CURRENT_ROW_TIMESTAMP()",
       "NOW()",
       "LOCALTIME",
       "LOCALTIMESTAMP"))
@@ -55,15 +57,22 @@ class NonDeterministicTests extends ExpressionTestBase {
 
     assertEquals(round1.size, round2.size)
     round1.zip(round2).zipWithIndex.foreach {
-      case ((result1: String, result2: String), index: Int) => {
+      case ((result1: String, result2: String), index: Int) =>
         // CURRENT_DATE may be same between two records
         if (index == 0) {
           assert(result1 <= result2)
         } else {
           assert(result1 < result2)
         }
-      }
     }
+
+    // check CURRENT_TIMESTAMP function and CURRENT_ROW_TIMESTAMP() function
+    // should return same value for one record in stream job
+    val currentTimeStampIndex = 2
+    val currentRowTimestampIndex = 3
+    assertEquals(round1(currentTimeStampIndex), round1(currentRowTimestampIndex))
+    assertEquals(round2(currentTimeStampIndex), round2(currentRowTimestampIndex))
+
   }
 
   @Test
@@ -95,6 +104,22 @@ class NonDeterministicTests extends ExpressionTestBase {
     val result = evaluateFunctionResult(temporalFunctions)
     assertEquals(expected.toList.sorted, result.sorted)
 
+  }
+
+  @Test
+  def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
+    config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
+
+    val round1 = evaluateFunctionResult(temporalFunctions)
+    Thread.sleep(1 * 1000L)
+    val round2: List[String] = evaluateFunctionResult(temporalFunctions)
+
+    assertEquals(round1.size, round2.size)
+    round1.zip(round2).foreach {
+      case (result1: String, result2: String) =>
+        assert(result1 < result2)
+    }
   }
 
   @Test
@@ -147,6 +172,11 @@ class NonDeterministicTests extends ExpressionTestBase {
 
     testSqlApi(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz(formattedCurrentTimestamp)}, NOW()) <= 60",
+      "true")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, " +
+        s"${timestampLtz(formattedCurrentTimestamp)}, CURRENT_ROW_TIMESTAMP()) <= 60",
       "true")
   }
 

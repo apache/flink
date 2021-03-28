@@ -506,6 +506,12 @@ class FunctionGenerator private(config: TableConfig) {
     Seq(),
     new CurrentTimePointCallGen(false, isStreamingMode))
 
+  // CURRENT_ROW_TIMESTAMP evaluates in row-level
+  addSqlFunction(
+    CURRENT_ROW_TIMESTAMP,
+    Seq(),
+    new CurrentTimePointCallGen(false, true))
+
   addSqlFunction(
     LOCALTIME,
     Seq(),
@@ -704,10 +710,6 @@ class FunctionGenerator private(config: TableConfig) {
     dt => {
       addSqlFunctionMethod(
         TO_TIMESTAMP_LTZ,
-        Seq(dt),
-        BuiltInMethods.LONG_TO_TIMESTAMP_LTZ)
-      addSqlFunctionMethod(
-        TO_TIMESTAMP_LTZ,
         Seq(dt, INTEGER),
         BuiltInMethods.LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
 
@@ -715,17 +717,8 @@ class FunctionGenerator private(config: TableConfig) {
     dt => {
       addSqlFunctionMethod(
         TO_TIMESTAMP_LTZ,
-        Seq(dt),
-        BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ)
-      addSqlFunctionMethod(
-        TO_TIMESTAMP_LTZ,
         Seq(dt, INTEGER),
         BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP_LTZ,
-    Seq(DECIMAL),
-    BuiltInMethods.DECIMAL_TO_TIMESTAMP_LTZ)
 
   addSqlFunctionMethod(
     TO_TIMESTAMP_LTZ,
