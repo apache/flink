@@ -1205,6 +1205,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show full modules").ok("SHOW FULL MODULES");
     }
 
+    @Test
+    public void testBeginStatementSet() {
+        sql("begin statement set").ok("BEGIN STATEMENT SET");
+    }
+
+    @Test
+    public void testEnd() {
+        sql("end").ok("END");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

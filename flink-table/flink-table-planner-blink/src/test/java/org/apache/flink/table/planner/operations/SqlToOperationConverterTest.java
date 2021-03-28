@@ -45,7 +45,9 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -1381,6 +1383,28 @@ public class SqlToOperationConverterTest {
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assertThat(operation, instanceOf(CreateViewOperation.class));
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        final String sql = "BEGIN STATEMENT SET";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof BeginStatementSetOperation;
+        final BeginStatementSetOperation beginStatementSetOperation =
+                (BeginStatementSetOperation) operation;
+
+        assertEquals("BEGIN STATEMENT SET", beginStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testEnd() {
+        final String sql = "END";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof EndStatementSetOperation;
+        final EndStatementSetOperation endStatementSetOperation =
+                (EndStatementSetOperation) operation;
+
+        assertEquals("END", endStatementSetOperation.asSummaryString());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dml.{SqlBeginStatementSet, SqlEndStatementSet}
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
@@ -135,7 +136,9 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowPartitions]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]
-        || sqlNode.isInstanceOf[SqlUseModules]) {
+        || sqlNode.isInstanceOf[SqlUseModules]
+        || sqlNode.isInstanceOf[SqlBeginStatementSet]
+        || sqlNode.isInstanceOf[SqlEndStatementSet]) {
         return sqlNode
       }
       sqlNode match {
