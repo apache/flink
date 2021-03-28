@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 /** Module of default core metadata in Flink. */
 public class CoreModule implements Module {
     public static final CoreModule INSTANCE = new CoreModule();
-    private List<BuiltInFunctionDefinition> builtInFunctionDefinitions;
+    private final List<BuiltInFunctionDefinition> builtInFunctionDefinitions;
     private Set<String> funcCache;
 
     private CoreModule() {
