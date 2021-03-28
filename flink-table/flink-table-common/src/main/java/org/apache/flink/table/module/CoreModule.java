@@ -32,28 +32,29 @@ import java.util.stream.Collectors;
 /** Module of default core metadata in Flink. */
 public class CoreModule implements Module {
     public static final CoreModule INSTANCE = new CoreModule();
-    private final List<BuiltInFunctionDefinition> builtInFunctionDefinitions;
-    private Set<String> funcCache;
+    private final List<BuiltInFunctionDefinition> functionDefinitions;
+    private Set<String> functionNames;
 
     private CoreModule() {
-        this.builtInFunctionDefinitions = BuiltInFunctionDefinitions.getDefinitions();
-        this.funcCache = new HashSet<>();
+        this.functionDefinitions = BuiltInFunctionDefinitions.getDefinitions();
+        this.functionNames = new HashSet<>();
     }
 
     @Override
     public Set<String> listFunctions() {
-        if (funcCache.isEmpty()) {
-            funcCache =
-                    builtInFunctionDefinitions.stream()
-                            .map(f -> f.getName())
+        // lazy initialize
+        if (functionNames.isEmpty()) {
+            functionNames =
+                    functionDefinitions.stream()
+                            .map(BuiltInFunctionDefinition::getName)
                             .collect(Collectors.toSet());
         }
-        return funcCache;
+        return functionNames;
     }
 
     @Override
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-        return builtInFunctionDefinitions.stream()
+        return functionDefinitions.stream()
                 .filter(f -> f.getName().equalsIgnoreCase(name))
                 .findFirst()
                 .map(Function.identity());
