@@ -22,7 +22,11 @@ import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrate
 import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
 import org.apache.flink.api.common.time.Time;
 
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -70,5 +74,21 @@ public class StateTtlConfigTest {
         assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
         assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
         assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
+    }
+
+    @Test
+    public void testStateTtlConfigBuildWithNonPositiveCleanupIncrementalSize() {
+        List<Integer> illegalCleanUpSizes = Arrays.asList(0, -2);
+
+        for (Integer illegalCleanUpSize : illegalCleanUpSizes) {
+            try {
+                StateTtlConfig ttlConfig =
+                        StateTtlConfig.newBuilder(Time.seconds(1))
+                                .cleanupIncrementally(illegalCleanUpSize, false)
+                                .build();
+                Assert.fail();
+            } catch (IllegalArgumentException e) {
+            }
+        }
     }
 }
