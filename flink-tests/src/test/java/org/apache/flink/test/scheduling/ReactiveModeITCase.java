@@ -29,20 +29,16 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assume.assumeTrue;
@@ -86,71 +82,57 @@ public class ReactiveModeITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // we set maxParallelism = 1 and assert it never exceeds it
         final DataStream<String> input =
-                env.addSource(new ParallelismTrackingSource()).setMaxParallelism(1);
-        input.addSink(new ParallelismTrackingSink<>()).getTransformation().setMaxParallelism(1);
-
-        ParallelismTrackingSource.expectInstances(1);
-        ParallelismTrackingSink.expectInstances(1);
+                env.addSource(new FailOnParallelExecutionSource()).setMaxParallelism(1);
+        input.addSink(new DiscardingSink<>());
 
         env.executeAsync();
 
-        ParallelismTrackingSource.waitForInstances();
-        ParallelismTrackingSink.waitForInstances();
+        FailOnParallelExecutionSource.waitForScaleUpToParallelism(1);
     }
 
     /** Test that a job scales up when a TaskManager gets added to the cluster. */
     @Test
     public void testScaleUpOnAdditionalTaskManager() throws Exception {
+        ParallelismTrackingSource.resetParallelismTracker();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input = env.addSource(new ParallelismTrackingSource());
-        input.addSink(new ParallelismTrackingSink<>());
-
-        ParallelismTrackingSource.expectInstances(
-                NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS);
-        ParallelismTrackingSink.expectInstances(
-                NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS);
+        input.addSink(new DiscardingSink<>());
 
         env.executeAsync();
 
-        ParallelismTrackingSource.waitForInstances();
-        ParallelismTrackingSink.waitForInstances();
+        ParallelismTrackingSource.waitForScaleUpToParallelism(
+                NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS);
 
-        // expect scale up to 2 TaskManagers:
-        ParallelismTrackingSource.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
-        ParallelismTrackingSink.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
-
+        // scale up to 2 TaskManagers:
         miniClusterResource.getMiniCluster().startTaskManager();
-
-        ParallelismTrackingSource.waitForInstances();
-        ParallelismTrackingSink.waitForInstances();
+        ParallelismTrackingSource.waitForScaleUpToParallelism(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
     }
 
     @Test
     public void testScaleDownOnTaskManagerLoss() throws Exception {
+        ParallelismTrackingSource.resetParallelismTracker();
         // test preparation: ensure we have 2 TaskManagers running
         startAdditionalTaskManager();
+        log.info("2 TaskManagers running, submitting job.");
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        // configure exactly one restart to avoid restart loops in error cases
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
         final DataStream<String> input = env.addSource(new ParallelismTrackingSource());
-        input.addSink(new ParallelismTrackingSink<>());
-
-        ParallelismTrackingSource.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
-        ParallelismTrackingSink.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
+        input.addSink(new DiscardingSink<>());
 
         env.executeAsync();
 
-        ParallelismTrackingSource.waitForInstances();
-        ParallelismTrackingSink.waitForInstances();
+        ParallelismTrackingSource.waitForScaleUpToParallelism(NUMBER_SLOTS_PER_TASK_MANAGER * 2);
+
+        log.info("Job is running on both TaskManagers, terminating first TaskManager.");
 
         // scale down to 1 TaskManagers:
-        ParallelismTrackingSource.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER);
-        ParallelismTrackingSink.expectInstances(NUMBER_SLOTS_PER_TASK_MANAGER);
-
         miniClusterResource.getMiniCluster().terminateTaskManager(0).get();
 
-        ParallelismTrackingSource.waitForInstances();
-        ParallelismTrackingSink.waitForInstances();
+        ParallelismTrackingSource.waitForScaleUpToParallelism(NUMBER_SLOTS_PER_TASK_MANAGER);
+
+        log.info("Job has scaled down to one TaskManager");
     }
 
     private int getNumberOfConnectedTaskManagers() throws ExecutionException, InterruptedException {
@@ -168,22 +150,36 @@ public class ReactiveModeITCase extends TestLogger {
                 Deadline.fromNow(Duration.ofMillis(10_000L)));
     }
 
-    private static class ParallelismTrackingSource implements ParallelSourceFunction<String> {
+    /**
+     * This source is tracking its parallelism internally. We can not use a CountDownLatch with a
+     * predefined parallelism. When scheduling this source on more than one TaskManager in Reactive
+     * Mode, it can happen that the source gets scheduled once the first TaskManager registers. In
+     * this execution, the source would count down the latch by one already, but Reactive Mode would
+     * trigger a restart once the next TaskManager arrives, ultimately breaking the count of the
+     * latch.
+     *
+     * <p>This approach is a compromise that just tracks the number of running instances and allows
+     * the test to wait for a parallelism to be reached. To avoid accidentally reaching the scale
+     * while deallocating source instances, the {@link InstanceParallelismTracker} is only notifying
+     * the wait method when new instances are added, not when they are removed.
+     */
+    private static class ParallelismTrackingSource extends RichParallelSourceFunction<String> {
         private volatile boolean running = true;
 
-        private static final InstanceTracker instances = new InstanceTracker();
+        private static final InstanceParallelismTracker tracker = new InstanceParallelismTracker();
 
-        public static void expectInstances(int count) {
-            instances.expectInstances(count);
+        public static void waitForScaleUpToParallelism(int parallelism)
+                throws InterruptedException {
+            tracker.waitForScaleUpToParallelism(parallelism);
         }
 
-        public static void waitForInstances() throws InterruptedException {
-            instances.waitForInstances();
+        public static void resetParallelismTracker() {
+            tracker.reset();
         }
 
         @Override
         public void run(SourceContext<String> ctx) throws Exception {
-            instances.reportNewInstance();
+            tracker.reportNewInstance();
             while (running) {
                 synchronized (ctx.getCheckpointLock()) {
                     ctx.collect("test");
@@ -196,52 +192,91 @@ public class ReactiveModeITCase extends TestLogger {
         public void cancel() {
             running = false;
         }
+
+        @Override
+        public void close() throws Exception {
+            tracker.reportStoppedInstance();
+        }
     }
 
-    private static class ParallelismTrackingSink<T> extends RichSinkFunction<T> {
+    private static class InstanceParallelismTracker {
+        // only notify this lock on scale-up
+        private final Object lock = new Object();
 
-        private static final InstanceTracker instances = new InstanceTracker();
+        private volatile int instances = 0;
 
-        public static void expectInstances(int count) {
-            instances.expectInstances(count);
+        public void reportStoppedInstance() {
+            synchronized (lock) {
+                instances--;
+            }
         }
 
-        public static void waitForInstances() throws InterruptedException {
-            instances.waitForInstances();
+        public void reportNewInstance() {
+            synchronized (lock) {
+                instances++;
+                lock.notifyAll();
+            }
+        }
+
+        public void waitForScaleUpToParallelism(int parallelism) throws InterruptedException {
+            while (true) {
+                synchronized (lock) {
+                    if (instances == parallelism) {
+                        break;
+                    }
+                    lock.wait();
+                }
+            }
+        }
+
+        public void reset() {
+            synchronized (lock) {
+                instances = 0;
+            }
+        }
+    }
+
+    private static class FailOnParallelExecutionSource extends RichParallelSourceFunction<String> {
+        private volatile boolean running = true;
+
+        private static final InstanceParallelismTracker tracker = new InstanceParallelismTracker();
+
+        public static void waitForScaleUpToParallelism(int parallelism)
+                throws InterruptedException {
+            tracker.waitForScaleUpToParallelism(parallelism);
+        }
+
+        public static void resetParallelismTracker() {
+            tracker.reset();
         }
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            instances.reportNewInstance();
+            if (getRuntimeContext().getNumberOfParallelSubtasks() > 1) {
+                throw new IllegalStateException(
+                        "This is not supposed to be executed in parallel, despite extending the right base class.");
+            }
         }
-    }
 
-    private static class InstanceTracker {
-        private final Object lock = new Object();
-
-        @GuardedBy("lock")
-        private CountDownLatch latch = new CountDownLatch(0);
-
-        public void reportNewInstance() {
-            synchronized (lock) {
-                if (latch.getCount() == 0) {
-                    throw new RuntimeException("Test error. More instances than expected.");
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            tracker.reportNewInstance();
+            while (running) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect("test");
                 }
-                latch.countDown();
+                Thread.sleep(100);
             }
         }
 
-        public void waitForInstances() throws InterruptedException {
-            //noinspection FieldAccessNotGuarded
-            latch.await();
+        @Override
+        public void cancel() {
+            running = false;
         }
 
-        public void expectInstances(int count) {
-            synchronized (lock) {
-                Preconditions.checkState(
-                        latch.getCount() == 0, "Assuming previous latch has triggered");
-                latch = new CountDownLatch(count);
-            }
+        @Override
+        public void close() throws Exception {
+            tracker.reportStoppedInstance();
         }
     }
 }
