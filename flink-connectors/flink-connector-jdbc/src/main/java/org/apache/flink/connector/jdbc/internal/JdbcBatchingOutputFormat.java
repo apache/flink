@@ -185,7 +185,8 @@ public class JdbcBatchingOutputFormat<
                 batchCount = 0;
                 break;
             } catch (SQLException e) {
-                LOG.error("JDBC executeBatch error, retry times = {}", i, e);
+                String message = e.getMessage();
+                LOG.warn("JDBC executeBatch error, retry times = {}, error was = {}", i, message);
                 if (i >= executionOptions.getMaxRetries()) {
                     throw new IOException(e);
                 }
