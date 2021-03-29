@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
-import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -217,6 +216,27 @@ public class CliClientTest extends TestLogger {
                         + "sql-client.execution.result-mode when execute query. Please add "
                         + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
         executeSqlFromContent(mockExecutor, content);
+    }
+
+    @Test
+    public void testIllegalStatementInInitFile() throws Exception {
+        final List<String> statements =
+                Arrays.asList(
+                        "CREATE TABLE source (a int, b string) with ( 'connector' = 'values');",
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
+
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
+
+        thrown.expect(UnsupportedOperationException.class);
+        thrown.expectMessage(
+                "In init sql file, it doesn't support to execute query operation or modify operation. "
+                        + "Please use -f option to execute DML.");
+        CliClient.initializeSession(sessionId, mockExecutor, historyTempFile(), content);
     }
 
     @Test(timeout = 10000)

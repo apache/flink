@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.cli.utils;
+package org.apache.flink.table.client.cli;
+
+import org.apache.flink.table.client.SqlClientException;
 
 import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.jline.terminal.impl.DumbTerminal;
 
 import java.io.IOException;
@@ -41,6 +44,21 @@ public class TerminalUtils {
             return new DumbTerminal(new MockInputStream(), out);
         } catch (IOException e) {
             throw new RuntimeException("Unable to create dummy terminal.");
+        }
+    }
+
+    public static Terminal createInteractiveTerminal(boolean useSystemInOutStream) {
+        try {
+            if (useSystemInOutStream) {
+                return TerminalBuilder.builder()
+                        .name(CliStrings.CLI_NAME)
+                        .streams(System.in, System.out)
+                        .build();
+            } else {
+                return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
+            }
+        } catch (IOException e) {
+            throw new SqlClientException("Error opening command line interface.", e);
         }
     }
 

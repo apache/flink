@@ -111,6 +111,7 @@ public class SqlClient {
                             SystemUtils.IS_OS_WINDOWS ? "flink-sql-history" : ".flink-sql-history");
         }
 
+        boolean hasInitFile = options.getInitFile() != null;
         boolean hasSqlFile = options.getSqlFile() != null;
         boolean hasUpdateStatement = options.getUpdateStatement() != null;
         if (hasSqlFile && hasUpdateStatement) {
@@ -124,6 +125,22 @@ public class SqlClient {
         }
 
         boolean isInteractiveMode = !hasSqlFile && !hasUpdateStatement;
+        if (hasInitFile) {
+            boolean success =
+                    CliClient.initializeSession(
+                            sessionId,
+                            executor,
+                            historyFilePath,
+                            readFromURL(options.getInitFile()));
+            if (!success) {
+                // stop execution if initialization fails.
+                System.out.println(
+                        "Failed to execute init file... Please refer to the LOG for detailed error messages.");
+                return;
+            } else {
+                System.out.println("Succeed to execute init file. Enter execution phase...");
+            }
+        }
 
         try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
             if (isInteractiveMode) {

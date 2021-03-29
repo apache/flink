@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -70,8 +71,6 @@ public class SqlClientTest {
     private Map<String, String> originalEnv;
 
     private String historyPath;
-
-    private String sqlFilePath;
 
     @Before
     public void before() throws IOException {
@@ -206,22 +205,28 @@ public class SqlClientTest {
     }
 
     @Test
+    public void testInitFile() throws IOException {
+        List<String> statements =
+                Arrays.asList(
+                        "CREATE TABLE source ("
+                                + "id INT,"
+                                + "val STRING"
+                                + ") WITH ("
+                                + "  'connector' = 'values'"
+                                + ");\n",
+                        "SET key=value;\n");
+        String initFile = createSqlFile(statements, "init-sql.sql");
+
+        String[] args = new String[] {"-i", initFile};
+        SqlClient.main(args);
+
+        assertThat(getStdoutString(), containsString("Succeed to execute init file."));
+    }
+
+    @Test
     public void testExecuteSqlFile() throws IOException {
-        // create sql file
-        File sqlFileFolder = tempFolder.newFolder("sql-file");
-        File sqlFile = new File(sqlFileFolder, "test-sql.sql");
-        if (!sqlFile.createNewFile()) {
-            throw new IOException("Can't create testing test-sql.sql file.");
-        }
-        sqlFilePath = sqlFile.getPath();
-
         List<String> statements = Collections.singletonList("HELP;");
-        Files.write(
-                Paths.get(sqlFilePath),
-                statements,
-                StandardCharsets.UTF_8,
-                StandardOpenOption.APPEND);
-
+        String sqlFilePath = createSqlFile(statements, "test-sql.sql");
         String[] args = new String[] {"-f", sqlFilePath};
         SqlClient.main(args);
         final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");
@@ -231,5 +236,21 @@ public class SqlClientTest {
         for (String command : help.split("\n")) {
             assertThat(output, containsString(command));
         }
+    }
+
+    private String createSqlFile(List<String> statements, String name) throws IOException {
+        // create sql file
+        File sqlFileFolder = tempFolder.newFolder("sql-file");
+        File sqlFile = new File(sqlFileFolder, name);
+        if (!sqlFile.createNewFile()) {
+            throw new IOException(String.format("Can't create testing %s.", name));
+        }
+        String sqlFilePath = sqlFile.getPath();
+        Files.write(
+                Paths.get(sqlFilePath),
+                statements,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.APPEND);
+        return sqlFilePath;
     }
 }
