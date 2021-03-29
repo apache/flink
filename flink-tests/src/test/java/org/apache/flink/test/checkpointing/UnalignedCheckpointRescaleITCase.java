@@ -63,23 +63,10 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     private final int oldParallelism;
     private final int newParallelism;
 
-    enum Topology {
+    enum Topology implements DagCreator {
         PIPELINE {
             @Override
-            UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = 10;
-                final int numSlots = parallelism * numShuffles + 3;
-                // aim for 3 TMs
-                int slotsPerTaskManager = (numSlots + 2) / 3;
-                return new UnalignedSettings(this::createPipeline)
-                        .setParallelism(parallelism)
-                        .setSlotSharing(false)
-                        .setNumSlots(numSlots)
-                        .setSlotsPerTaskManager(slotsPerTaskManager)
-                        .setExpectedFailures(1);
-            }
-
-            private void createPipeline(
+            public void create(
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
@@ -100,20 +87,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
         MULTI_INPUT {
             @Override
-            UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = NUM_SOURCES * 10 + 1;
-                int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
-                // aim for 3 TMs
-                int slotsPerTaskManager = (numSlots + 2) / 3;
-                return new UnalignedSettings(this::createPipeline)
-                        .setParallelism(parallelism)
-                        .setSlotSharing(false)
-                        .setNumSlots(numSlots)
-                        .setSlotsPerTaskManager(slotsPerTaskManager)
-                        .setExpectedFailures(1);
-            }
-
-            private void createPipeline(
+            public void create(
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
@@ -150,20 +124,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
         UNION {
             @Override
-            UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = NUM_SOURCES * 10 + 1;
-                int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
-                // aim for 3 TMs
-                int slotsPerTaskManager = (numSlots + 2) / 3;
-                return new UnalignedSettings(this::createPipeline)
-                        .setParallelism(parallelism)
-                        .setSlotSharing(false)
-                        .setNumSlots(numSlots)
-                        .setSlotsPerTaskManager(slotsPerTaskManager)
-                        .setExpectedFailures(1);
-            }
-
-            private void createPipeline(
+            public void create(
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
@@ -191,20 +152,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
         BROADCAST {
             @Override
-            UnalignedSettings createSettings(int parallelism) {
-                int numShuffles = NUM_SOURCES * 8 + 1;
-                int numSlots = parallelism * numShuffles + 3 * NUM_SOURCES;
-                // aim for 3 TMs
-                int slotsPerTaskManager = (numSlots + 2) / 3;
-                return new UnalignedSettings(this::createPipeline)
-                        .setParallelism(parallelism)
-                        .setSlotSharing(false)
-                        .setNumSlots(numSlots)
-                        .setSlotsPerTaskManager(slotsPerTaskManager)
-                        .setExpectedFailures(1);
-            }
-
-            private void createPipeline(
+            public void create(
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
@@ -334,10 +282,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     .name("rescale" + inputIndex)
                     .uid("rescale" + inputIndex)
                     .setParallelism(Math.max(parallelism + 1, parallelism * 3 / 2))
-                    .slotSharingGroup(slotSharing ? "rescale" : ("rescale" + inputIndex));
+                    .slotSharingGroup(slotSharing ? "default" : ("rescale" + inputIndex));
         }
-
-        abstract UnalignedSettings createSettings(int parallelism);
 
         @Override
         public String toString() {
@@ -406,12 +352,18 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
     @Test
     public void shouldRescaleUnalignedCheckpoint() throws Exception {
-        final UnalignedSettings prescaleSettings = topology.createSettings(oldParallelism);
+        final UnalignedSettings prescaleSettings =
+                new UnalignedSettings(topology)
+                        .setParallelism(oldParallelism)
+                        .setExpectedFailures(1);
         prescaleSettings.setGenerateCheckpoint(true);
         final File checkpointDir = super.execute(prescaleSettings);
 
         // resume
-        final UnalignedSettings postscaleSettings = topology.createSettings(newParallelism);
+        final UnalignedSettings postscaleSettings =
+                new UnalignedSettings(topology)
+                        .setParallelism(newParallelism)
+                        .setExpectedFailures(1);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
         super.execute(postscaleSettings);
     }
