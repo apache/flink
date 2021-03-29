@@ -215,7 +215,7 @@ public final class CliStrings {
     public static final String MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET =
             "Add SQL update statement to the statement set.";
 
-    public static final String MESSAGE_WILL_EXECUTE = "Executing the SQL from the file:";
+    public static final String MESSAGE_EXECUTE_FILE = "Executing SQL from file.";
 
     public static final String MESSAGE_WAIT_EXECUTE =
             "Execute statement in sync mode. Please wait for the execution finish...";
