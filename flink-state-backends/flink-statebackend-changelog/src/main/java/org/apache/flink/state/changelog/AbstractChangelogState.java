@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for changelog state wrappers of state objects.
@@ -33,11 +34,15 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V>>
         implements InternalKvState<K, N, V> {
-    protected final S delegatedState;
 
-    AbstractChangelogState(S state) {
+    protected final S delegatedState;
+    protected final KvStateChangeLogger<V, N> changeLogger;
+    private N currentNamespace;
+
+    AbstractChangelogState(S state, KvStateChangeLogger<V, N> changeLogger) {
         checkArgument(!(state instanceof AbstractChangelogState));
-        this.delegatedState = state;
+        this.delegatedState = checkNotNull(state);
+        this.changeLogger = checkNotNull(changeLogger);
     }
 
     public S getDelegatedState() {
@@ -61,6 +66,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
 
     @Override
     public void setCurrentNamespace(N namespace) {
+        currentNamespace = namespace;
         delegatedState.setCurrentNamespace(namespace);
     }
 
@@ -82,5 +88,9 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+    }
+
+    protected N getCurrentNamespace() throws NullPointerException {
+        return checkNotNull(currentNamespace);
     }
 }

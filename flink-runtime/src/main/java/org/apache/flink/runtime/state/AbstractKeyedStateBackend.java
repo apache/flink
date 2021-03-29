@@ -383,6 +383,10 @@ public abstract class AbstractKeyedStateBackend<K>
         return false;
     }
 
+    public InternalKeyContext<K> getKeyContext() {
+        return keyContext;
+    }
+
     public interface PartitionStateFactory {
         <N, S extends State> S get(
                 final N namespace,

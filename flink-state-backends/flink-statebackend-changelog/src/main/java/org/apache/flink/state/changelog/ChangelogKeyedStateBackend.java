@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
@@ -109,6 +110,8 @@ class ChangelogKeyedStateBackend<K>
 
     private final TtlTimeProvider ttlTimeProvider;
 
+    private final StateChangelogWriter<?> stateChangelogWriter;
+
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
     private InternalKvState lastState;
@@ -119,11 +122,13 @@ class ChangelogKeyedStateBackend<K>
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
-            TtlTimeProvider ttlTimeProvider) {
+            TtlTimeProvider ttlTimeProvider,
+            StateChangelogWriter<?> stateChangelogWriter) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
+        this.stateChangelogWriter = stateChangelogWriter;
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
@@ -248,8 +253,15 @@ class ChangelogKeyedStateBackend<K>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        return new ChangelogKeyGroupedPriorityQueue<T>(
-                keyedStateBackend.create(stateName, byteOrderedElementSerializer));
+        PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
+                new PriorityQueueStateChangeLoggerImpl<>(
+                        byteOrderedElementSerializer,
+                        keyedStateBackend.getKeyContext(),
+                        stateChangelogWriter);
+        return new ChangelogKeyGroupedPriorityQueue<>(
+                keyedStateBackend.create(stateName, byteOrderedElementSerializer),
+                priorityQueueStateChangeLogger,
+                byteOrderedElementSerializer);
     }
 
     @VisibleForTesting
@@ -328,14 +340,23 @@ class ChangelogKeyedStateBackend<K>
             throw new FlinkRuntimeException(message);
         }
 
-        return stateFactory.create(
+        InternalKvState<K, N, SV> state =
                 keyedStateBackend.createInternalState(
-                        namespaceSerializer, stateDesc, snapshotTransformFactory));
+                        namespaceSerializer, stateDesc, snapshotTransformFactory);
+        KvStateChangeLoggerImpl<K, SV, N> kvStateChangeLogger =
+                new KvStateChangeLoggerImpl<>(
+                        state.getKeySerializer(),
+                        state.getNamespaceSerializer(),
+                        state.getValueSerializer(),
+                        keyedStateBackend.getKeyContext(),
+                        stateChangelogWriter);
+        return stateFactory.create(state, kvStateChangeLogger);
     }
 
     // Factory function interface
     private interface StateFactory {
-        <K, N, SV, S extends State, IS extends S> IS create(InternalKvState<K, N, SV> kvState)
+        <K, N, SV, S extends State, IS extends S> IS create(
+                InternalKvState<K, N, SV> kvState, KvStateChangeLogger<SV, N> changeLogger)
                 throws Exception;
     }
 }
