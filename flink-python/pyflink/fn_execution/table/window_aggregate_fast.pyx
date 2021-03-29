@@ -20,7 +20,7 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdlib cimport free, malloc
-from pyflink.fn_execution.aggregate_fast cimport DistinctViewDescriptor, RowKeySelector
+from pyflink.fn_execution.table.aggregate_fast cimport DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.coder_impl_fast cimport InternalRowKind
 
 import datetime
@@ -29,16 +29,16 @@ from typing import List, Dict
 
 from apache_beam.coders import PickleCoder, Coder
 
-from pyflink.datastream.timerservice import InternalTimerServiceImpl
-from pyflink.fn_execution.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
+from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner, \
+from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
-from pyflink.fn_execution.window_context import WindowContext, TriggerContext, K, W
-from pyflink.fn_execution.window_process_function import GeneralWindowProcessFunction, \
+from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
+from pyflink.fn_execution.table.window_process_function import GeneralWindowProcessFunction, \
     InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
-from pyflink.fn_execution.window_trigger import Trigger
+from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction
 
 MAX_LONG_VALUE = sys.maxsize

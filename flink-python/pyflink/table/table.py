@@ -1007,7 +1007,7 @@ class Table(object):
                 self.get_schema().to_row_data_type(),
                 timezone)
             import pyarrow as pa
-            table = pa.Table.from_batches(serializer.load_from_iterator(batches))
+            table = pa.Table.from_batches(serializer.load_from_iterable(batches))
             pdf = table.to_pandas()
 
             schema = self.get_schema()

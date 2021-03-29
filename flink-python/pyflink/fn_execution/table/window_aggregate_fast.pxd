@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 cimport libc
-from pyflink.fn_execution.aggregate_fast cimport RowKeySelector
+from pyflink.fn_execution.table.aggregate_fast cimport RowKeySelector
 from pyflink.fn_execution.coder_impl_fast cimport InternalRow
 
 cdef class NamespaceAggsHandleFunctionBase:

@@ -22,9 +22,9 @@ from typing import Generic, List, Iterable, Dict, Set
 from pyflink.common import Row
 from pyflink.datastream.state import MapState
 from pyflink.fn_execution.state_impl import LRUCache
-from pyflink.fn_execution.window_assigner import WindowAssigner, PanedWindowAssigner, \
+from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
-from pyflink.fn_execution.window_context import Context, K, W
+from pyflink.fn_execution.table.window_context import Context, K, W
 
 MAX_LONG_VALUE = sys.maxsize
 

@@ -33,7 +33,7 @@ class FunctionOperation(Operation):
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
-        self.func = self.operation.func
+        self.process_element = self.operation.process_element
         self.operation.open()
 
     def setup(self):
@@ -71,7 +71,8 @@ class FunctionOperation(Operation):
         with self.scoped_process_state:
             output_stream = self.consumer.output_stream
             for value in o.value:
-                self._value_coder_impl.encode_to_stream(self.func(value), output_stream, True)
+                self._value_coder_impl.encode_to_stream(
+                    self.process_element(value), output_stream, True)
                 output_stream.maybe_flush()
 
     def monitoring_infos(self, transform_id, tag_to_pcollection_id):

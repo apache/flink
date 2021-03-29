@@ -624,6 +624,8 @@ def from_type_info_proto(type_info):
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
                 [f.field_name for f in type_info.row_type_info.fields])
         elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
+            if type_info.collection_element_type.type_name == type_info_name.BYTE:
+                return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.BASIC_ARRAY:
             return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))

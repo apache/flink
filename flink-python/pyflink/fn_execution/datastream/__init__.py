@@ -15,25 +15,3 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-# cython: language_level=3
-
-from apache_beam.coders.coder_impl cimport StreamCoderImpl
-from apache_beam.runners.worker.operations cimport Operation
-
-from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
-
-cdef class FunctionOperation(Operation):
-    cdef Operation consumer
-    cdef bint _is_python_coder
-    cdef StreamCoderImpl _value_coder_impl
-    cdef BaseCoderImpl _output_coder
-    cdef object process_element
-    cdef object operation
-    cdef object operation_cls
-    cdef object generate_operation(self)
-
-cdef class StatelessFunctionOperation(FunctionOperation):
-    pass
-
-cdef class StatefulFunctionOperation(FunctionOperation):
-    cdef object keyed_state_backend

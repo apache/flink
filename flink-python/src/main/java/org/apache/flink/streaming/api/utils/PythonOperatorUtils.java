@@ -178,6 +178,7 @@ public enum PythonOperatorUtils {
                         dataStreamPythonFunctionInfo
                                 .getPythonFunction()
                                 .getSerializedPythonFunction()));
+        builder.setMetricEnabled(true);
         return builder.build();
     }
 

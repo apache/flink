@@ -81,6 +81,8 @@ from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
+from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
+    MergingWindowAssigner, TriggerResult, Trigger
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -108,5 +110,12 @@ __all__ = [
     'TimeCharacteristic',
     'TimeDomain',
     'ProcessFunction',
-    'TimerService'
+    'TimerService',
+    'Window',
+    'TimeWindow',
+    'CountWindow',
+    'WindowAssigner',
+    'MergingWindowAssigner',
+    'TriggerResult',
+    'Trigger'
 ]

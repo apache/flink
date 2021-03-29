@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -34,9 +33,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -45,6 +42,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.api.utils.input.KeyedInputWithTimerRowFactory;
 import org.apache.flink.streaming.api.utils.output.OutputWithTimerRowHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -64,7 +62,7 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
 @Internal
 public class PythonKeyedProcessOperator<OUT>
         extends AbstractOneInputPythonFunctionOperator<Row, OUT>
-        implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
+        implements ResultTypeQueryable<OUT>, Triggerable<Row, Object> {
 
     private static final long serialVersionUID = 1L;
 
@@ -85,6 +83,8 @@ public class PythonKeyedProcessOperator<OUT>
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
+    private final TypeSerializer namespaceSerializer;
+
     /** The TypeInformation of current key. */
     private transient TypeInformation<Row> keyTypeInfo;
 
@@ -104,13 +104,7 @@ public class PythonKeyedProcessOperator<OUT>
     private transient TypeSerializer keyTypeSerializer;
 
     /** TimerService for current operator to register or fire timer. */
-    private transient TimerService timerService;
-
-    /** Reusable row for normal data runner inputs. */
-    private transient Row reusableInput;
-
-    /** Reusable row for timer data runner inputs. */
-    private transient Row reusableTimerData;
+    private transient InternalTimerService internalTimerService;
 
     private transient LinkedList<Long> bufferedTimestamp;
 
@@ -126,6 +120,7 @@ public class PythonKeyedProcessOperator<OUT>
     /** OutputStream Wrapper. */
     private transient DataOutputViewStreamWrapper baosWrapper;
 
+    private transient KeyedInputWithTimerRowFactory runnerInputFactory;
     private transient OutputWithTimerRowHandler runnerOutputHandler;
 
     private transient Object keyForTimerService;
@@ -135,20 +130,28 @@ public class PythonKeyedProcessOperator<OUT>
             RowTypeInfo inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
+        this(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo, null);
+    }
+
+    public PythonKeyedProcessOperator(
+            Configuration config,
+            RowTypeInfo inputTypeInfo,
+            TypeInformation<OUT> outputTypeInfo,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
+            TypeSerializer namespaceSerializer) {
         super(config);
         this.jobOptions = config.toMap();
         this.inputTypeInfo = inputTypeInfo;
         this.outputTypeInfo = outputTypeInfo;
         this.pythonFunctionInfo = pythonFunctionInfo;
+        this.namespaceSerializer = namespaceSerializer;
     }
 
     @Override
     public void open() throws Exception {
         keyTypeInfo = new RowTypeInfo(((RowTypeInfo) this.inputTypeInfo).getTypeAt(0));
-        // inputType: normal data/ timer data, timerType: proc/event time, currentWatermark,
-        // keyData, real data
         runnerInputTypeInfo =
-                Types.ROW(Types.BYTE, Types.LONG, Types.LONG, keyTypeInfo, this.inputTypeInfo);
+                KeyedInputWithTimerRowFactory.getRunnerInputTypeInfo(inputTypeInfo, keyTypeInfo);
         runnerOutputTypeInfo =
                 OutputWithTimerRowHandler.getRunnerOutputTypeInfo(outputTypeInfo, keyTypeInfo);
         keyTypeSerializer =
@@ -161,23 +164,26 @@ public class PythonKeyedProcessOperator<OUT>
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         runnerOutputTypeInfo);
 
-        InternalTimerService<VoidNamespace> internalTimerService =
-                getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
-        timerService = new SimpleTimerService(internalTimerService);
-        reusableInput = new Row(5);
-        reusableTimerData = new Row(5);
+        TypeSerializer timerServiceNamespaceSerializer =
+                namespaceSerializer == null
+                        ? VoidNamespaceSerializer.INSTANCE
+                        : namespaceSerializer;
+        internalTimerService =
+                getInternalTimerService("user-timers", timerServiceNamespaceSerializer, this);
         this.bufferedTimestamp = new LinkedList<>();
 
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
+        runnerInputFactory = new KeyedInputWithTimerRowFactory();
         runnerOutputHandler =
                 new OutputWithTimerRowHandler(
                         getKeyedStateBackend(),
-                        timerService,
+                        internalTimerService,
                         new TimestampedCollector<>(output),
-                        this);
+                        this,
+                        this.namespaceSerializer);
 
         super.open();
     }
@@ -188,15 +194,15 @@ public class PythonKeyedProcessOperator<OUT>
     }
 
     @Override
-    public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
+    public void onEventTime(InternalTimer<Row, Object> timer) throws Exception {
         bufferedTimestamp.offer(timer.getTimestamp());
-        processTimer(TimeDomain.EVENT_TIME, timer.getTimestamp(), timer.getKey());
+        processTimer(TimeDomain.EVENT_TIME, timer);
     }
 
     @Override
-    public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
+    public void onProcessingTime(InternalTimer<Row, Object> timer) throws Exception {
         bufferedTimestamp.offer(Long.MIN_VALUE);
-        processTimer(TimeDomain.PROCESSING_TIME, timer.getTimestamp(), timer.getKey());
+        processTimer(TimeDomain.PROCESSING_TIME, timer);
     }
 
     @Override
@@ -218,6 +224,7 @@ public class PythonKeyedProcessOperator<OUT>
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
+                namespaceSerializer,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -253,12 +260,12 @@ public class PythonKeyedProcessOperator<OUT>
     @Override
     public void processElement(StreamRecord<Row> element) throws Exception {
         bufferedTimestamp.offer(element.getTimestamp());
-        if (element.hasTimestamp()) {
-            reusableInput.setField(1, element.getTimestamp());
-        }
-        reusableInput.setField(2, timerService.currentWatermark());
-        reusableInput.setField(4, element.getValue());
-        runnerInputSerializer.serialize(reusableInput, baosWrapper);
+        Row row =
+                runnerInputFactory.fromNormalData(
+                        element.getTimestamp(),
+                        internalTimerService.currentWatermark(),
+                        element.getValue());
+        runnerInputSerializer.serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
         elementCount++;
@@ -272,22 +279,30 @@ public class PythonKeyedProcessOperator<OUT>
      * Timestamp of the fired timer; Current watermark and the key of the timer.
      *
      * @param timeDomain The type of the timer.
-     * @param time The timestamp of the fired timer.
-     * @param key The key that is bound to this timer.
+     * @param timer The internal timer.
      * @throws Exception The runnerInputSerializer might throw exception.
      */
-    private void processTimer(TimeDomain timeDomain, long time, Row key) throws Exception {
-        if (timeDomain == TimeDomain.PROCESSING_TIME) {
-            reusableTimerData.setField(
-                    0, PythonOperatorUtils.KeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value);
+    private void processTimer(TimeDomain timeDomain, InternalTimer<Row, Object> timer)
+            throws Exception {
+        long time = timer.getTimestamp();
+        Row timerKey = timer.getKey();
+        Object namespace = timer.getNamespace();
+        byte[] encodedNamespace;
+        if (VoidNamespace.INSTANCE.equals(namespace)) {
+            encodedNamespace = null;
         } else {
-            reusableTimerData.setField(
-                    0, PythonOperatorUtils.KeyedProcessFunctionInputFlag.EVENT_TIME_TIMER.value);
+            namespaceSerializer.serialize(namespace, baosWrapper);
+            encodedNamespace = baos.toByteArray();
+            baos.reset();
         }
-        reusableTimerData.setField(1, time);
-        reusableTimerData.setField(2, timerService.currentWatermark());
-        reusableTimerData.setField(3, key);
-        runnerInputSerializer.serialize(reusableTimerData, baosWrapper);
+        Row row =
+                runnerInputFactory.fromTimer(
+                        timeDomain,
+                        time,
+                        internalTimerService.currentWatermark(),
+                        timerKey,
+                        encodedNamespace);
+        runnerInputSerializer.serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
         elementCount++;

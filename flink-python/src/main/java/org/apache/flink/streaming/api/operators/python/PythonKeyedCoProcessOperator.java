@@ -114,6 +114,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -137,9 +138,10 @@ public class PythonKeyedCoProcessOperator<OUT>
         this.runnerOutputHandler =
                 new OutputWithTimerRowHandler(
                         getKeyedStateBackend(),
-                        timerService,
+                        internalTimerService,
                         new TimestampedCollector<>(output),
-                        this);
+                        this,
+                        null);
         super.open();
     }
 
@@ -199,7 +201,8 @@ public class PythonKeyedCoProcessOperator<OUT>
                         timeDomain,
                         timer.getTimestamp(),
                         timerService.currentWatermark(),
-                        timer.getKey());
+                        timer.getKey(),
+                        null);
         getRunnerInputTypeSerializer().serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();

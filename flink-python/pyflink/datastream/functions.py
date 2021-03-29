@@ -17,7 +17,7 @@
 ################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Union, Any
+from typing import Union, Any, Generic, TypeVar, Iterable
 
 from py4j.java_gateway import JavaObject
 
@@ -27,6 +27,7 @@ from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
+from pyflink.metrics import MetricGroup
 
 __all__ = [
     'RuntimeContext',
@@ -44,10 +45,80 @@ __all__ = [
     'ProcessFunction',
     'KeyedProcessFunction',
     'KeyedCoProcessFunction',
-    'TimerService']
+    'TimerService',
+    'WindowFunction',
+    'ProcessWindowFunction']
 
 
-class RuntimeContext(object):
+W = TypeVar('W')
+W2 = TypeVar('W2')
+IN = TypeVar('IN')
+OUT = TypeVar('OUT')
+KEY = TypeVar('KEY')
+
+
+class KeyedStateStore(ABC):
+
+    @abstractmethod
+    def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
+        """
+        Gets a handle to the system's key/value state. THe key/value state is only accessible if the
+        function is executed on a KeyedStream. On each access, the state exposes the value for the
+        key of the element currently processed by the function. Each function may have multiple
+        partitioned states, addressed with different names.
+
+        Because the scope of each value is the key of the currently processed element, and the
+        elements are distributed by the Flink runtime, the system can transparently scale out and
+        redistribute the state and KeyedStream.
+        """
+        pass
+
+    @abstractmethod
+    def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
+        """
+        Gets a handle to the system's key/value list state. This state is similar to the value state
+        access, but is optimized for state that holds lists. One can add elements to the list, or
+        retrieve the list as a whle.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    @abstractmethod
+    def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
+        """
+        Gets a handle to the system's key/value map state. This state is similar to the value state
+        access, but is optimized for state that is composed of user-defined key-value pairs.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    @abstractmethod
+    def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
+        """
+        Gets a handle to the system's key/value reducing state. This state is similar to the state
+        accessed via get_state(ValueStateDescriptor), but is optimized for state that aggregates
+        values.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+    @abstractmethod
+    def get_aggregating_state(
+            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
+        """
+        Gets a handle to the system's key/value aggregating state. This state is similar to the
+        state accessed via get_state(ValueStateDescriptor), but is optimized for state that
+        aggregates values with different types.
+
+        This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+
+class RuntimeContext(KeyedStateStore):
     """
     A RuntimeContext contains information about the context in which functions are executed.
     Each parallel instance of the function will have a context through which it can access
@@ -108,60 +179,9 @@ class RuntimeContext(object):
         pass
 
     @abstractmethod
-    def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
+    def get_metrics_group(self) -> MetricGroup:
         """
-        Gets a handle to the system's key/value state. THe key/value state is only accessible if the
-        function is executed on a KeyedStream. On each access, the state exposes the value for the
-        key of the element currently processed by the function. Each function may have multiple
-        partitioned states, addressed with different names.
-
-        Because the scope of each value is the key of the currently processed element, and the
-        elements are distributed by the Flink runtime, the system can transparently scale out and
-        redistribute the state and KeyedStream.
-        """
-        pass
-
-    @abstractmethod
-    def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
-        """
-        Gets a handle to the system's key/value list state. This state is similar to the value state
-        access, but is optimized for state that holds lists. One can add elements to the list, or
-        retrieve the list as a whle.
-
-        This state is only accessible if the function is executed on a KeyedStream.
-        """
-        pass
-
-    @abstractmethod
-    def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
-        """
-        Gets a handle to the system's key/value map state. This state is similar to the value state
-        access, but is optimized for state that is composed of user-defined key-value pairs.
-
-        This state is only accessible if the function is executed on a KeyedStream.
-        """
-        pass
-
-    @abstractmethod
-    def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
-        """
-        Gets a handle to the system's key/value reducing state. This state is similar to the state
-        accessed via get_state(ValueStateDescriptor), but is optimized for state that aggregates
-        values.
-
-        This state is only accessible if the function is executed on a KeyedStream.
-        """
-        pass
-
-    @abstractmethod
-    def get_aggregating_state(
-            self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
-        """
-        Gets a handle to the system's key/value aggregating state. This state is similar to the
-        state accessed via get_state(ValueStateDescriptor), but is optimized for state that
-        aggregates values with different types.
-
-        This state is only accessible if the function is executed on a KeyedStream.
+        Gets the metric group.
         """
         pass
 
@@ -754,14 +774,6 @@ class KeyedProcessFunction(Function):
 
     Note that access to keyed state and timers (which are also scoped to a key) is only available if
     the KeyedProcessFunction is applied on a KeyedStream.
-
-    For every element in the input stream process_element(value, ctx, out) is invoked. This can
-    produce zero or more elements as output. Implementations can also query the time and set timers
-    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
-    can again produce zero or more elements as output and register further timers.
-
-    Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream.
     """
 
     class Context(ABC):
@@ -916,3 +928,206 @@ register a timer that will trigger an action in the future.
                     invocation of this method, do not store it.
         """
         pass
+
+
+class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
+    """
+    Base interface for functions that are evaluated over keyed (grouped) windows.
+    """
+
+    @abstractmethod
+    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param key: The key for which this window is evaluated.
+        :param window: The window that is being evaluated.
+        :param inputs: The elements in the window being evaluated.
+        :param out: A collector for emitting elements.
+        """
+        pass
+
+
+class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
+    """
+    Base interface for functions that are evaluated over keyed (grouped) windows using a context
+    for retrieving extra information.
+    """
+
+    class Context(ABC, Generic[W2]):
+        """
+        The context holding window metadata.
+        """
+
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
+
+    @abstractmethod
+    def process(self,
+                key: KEY,
+                content: 'ProcessWindowFunction.Context',
+                elements: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param key: The key for which this window is evaluated.
+        :param content: The context in which the window is being evaluated.
+        :param elements: The elements in the window being evaluated.
+        :return: The iterable object which produces the elements to emit.
+        """
+        pass
+
+    @abstractmethod
+    def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+        """
+        Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
+        max_timestamp + allowed_lateness).
+
+        :param context: The context to which the window is being evaluated.
+        """
+        pass
+
+
+class InternalWindowFunction(Function, Generic[IN, KEY, W]):
+
+    class InternalWindowContext(ABC):
+
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            pass
+
+        @abstractmethod
+        def current_watermark(self) -> int:
+            pass
+
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            pass
+
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            pass
+
+    @abstractmethod
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        pass
+
+    @abstractmethod
+    def clear(self, window: W, context: InternalWindowContext):
+        pass
+
+
+class InternalIterableWindowFunction(InternalWindowFunction[IN, KEY, W]):
+
+    def __init__(self, wrapped_function: WindowFunction):
+        self._wrapped_function = wrapped_function
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        return self._wrapped_function.apply(key, window, input_data)
+
+    def clear(self,
+              window: W,
+              context: InternalWindowFunction.InternalWindowContext):
+        pass
+
+
+class InternalProcessWindowContext(ProcessWindowFunction.Context[W]):
+
+    def __init__(self):
+        self._underlying = None
+        self._window = None
+
+    def window(self) -> W:
+        return self._window
+
+    def current_processing_time(self) -> int:
+        return self._underlying.current_processing_time()
+
+    def current_watermark(self) -> int:
+        return self._underlying.current_watermark()
+
+    def window_state(self) -> KeyedStateStore:
+        return self._underlying.window_state()
+
+    def global_state(self) -> KeyedStateStore:
+        return self._underlying.global_state()
+
+
+class InternalIterableProcessWindowFunction(InternalWindowFunction[IN, KEY, W]):
+
+    def __init__(self, wrapped_function: ProcessWindowFunction):
+        self._wrapped_function = wrapped_function
+        self._internal_context = \
+            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        return self._wrapped_function.process(key, self._internal_context, input_data)
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        self._wrapped_function.clear(self._internal_context)
