@@ -226,8 +226,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             Collection<RowData> rightRows = delegate.collection;
             if (rightRows == null || rightRows.isEmpty()) {
                 if (isLeftOuterJoin) {
-                    RowData outRow = new JoinedRowData(leftRow, nullRow);
-                    outRow.setRowKind(leftRow.getRowKind());
+                    RowData outRow = new JoinedRowData(leftRow.getRowKind(), leftRow, nullRow);
                     realOutput.complete(Collections.singleton(outRow));
                 } else {
                     realOutput.complete(Collections.emptyList());
@@ -235,8 +234,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             } else {
                 List<RowData> outRows = new ArrayList<>();
                 for (RowData rightRow : rightRows) {
-                    RowData outRow = new JoinedRowData(leftRow, rightRow);
-                    outRow.setRowKind(leftRow.getRowKind());
+                    RowData outRow = new JoinedRowData(leftRow.getRowKind(), leftRow, rightRow);
                     outRows.add(outRow);
                 }
                 realOutput.complete(outRows);
