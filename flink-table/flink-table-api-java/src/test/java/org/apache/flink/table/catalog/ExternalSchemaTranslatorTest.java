@@ -30,10 +30,10 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.util.Arrays;
 import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -176,7 +176,8 @@ public class ExternalSchemaTranslatorTest {
                         .build(),
                 result.getSchema());
 
-        assertArrayEquals(new int[] {1, 0, 4, 2, 5}, result.getProjections());
+        assertEquals(
+                Arrays.asList("f1", "f0", "computed", "f2", "computed2"), result.getProjections());
     }
 
     @Test
@@ -217,7 +218,7 @@ public class ExternalSchemaTranslatorTest {
                         .build(),
                 result.getSchema());
 
-        assertArrayEquals(new int[] {1, 0, 2}, result.getProjections());
+        assertEquals(Arrays.asList("f0_0", "f0", "f0_1"), result.getProjections());
     }
 
     @Test
