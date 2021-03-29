@@ -22,6 +22,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 
 import java.util.List;
@@ -43,8 +45,13 @@ public class BuildExecutionGraphBenchmark {
     public void setup(JobConfiguration jobConfiguration) throws Exception {
         jobVertices = createDefaultJobVertices(jobConfiguration);
         final JobGraph jobGraph = createJobGraph(jobConfiguration);
+        final VertexParallelismStore parallelismStore =
+                SchedulerBase.computeVertexParallelismStore(jobVertices);
         executionGraph =
-                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setVertexParallelismStore(parallelismStore)
+                        .setJobGraph(jobGraph)
+                        .build();
     }
 
     public void buildTopology() throws Exception {

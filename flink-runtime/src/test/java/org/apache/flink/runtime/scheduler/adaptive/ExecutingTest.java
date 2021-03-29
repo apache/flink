@@ -34,7 +34,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultSubtaskAttemptNumberStore;
-import org.apache.flink.runtime.executiongraph.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.executiongraph.EdgeManager;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
