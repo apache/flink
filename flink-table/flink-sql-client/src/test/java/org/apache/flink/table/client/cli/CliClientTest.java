@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
-import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -63,7 +62,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -75,8 +73,10 @@ import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link CliClient}. */
@@ -88,8 +88,6 @@ public class CliClientTest extends TestLogger {
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 
     @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Rule public TerminalStreamsResource useSystemStream = TerminalStreamsResource.INSTANCE;
 
     @Test
     public void testUpdateSubmission() throws Exception {
@@ -140,7 +138,7 @@ public class CliClientTest extends TestLogger {
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
                         new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            client.open();
+            client.executeInteractive();
             List<String> content = Files.readAllLines(historyFilePath);
             assertEquals(2, content.size());
             assertTrue(content.get(0).contains("help"));
@@ -211,12 +209,31 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "In non-interactive mode, it only supports to use TABLEAU as value of "
-                        + "sql-client.execution.result-mode when execute query. Please add "
-                        + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
-        executeSqlFromContent(mockExecutor, content);
+        String output = executeSqlFromContent(mockExecutor, content);
+        assertThat(
+                output,
+                containsString(
+                        "In non-interactive mode, it only supports to use TABLEAU as value of "
+                                + "sql-client.execution.result-mode when execute query. Please add "
+                                + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file."));
+    }
+
+    @Test
+    public void testIllegalStatementInInitFile() throws Exception {
+        final List<String> statements =
+                Arrays.asList(
+                        "CREATE TABLE source (a int, b string) with ( 'connector' = 'values');",
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
+
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
+        CliClient cliClient = new CliClient(sessionId, mockExecutor, historyTempFile());
+
+        assertFalse("Should fail", cliClient.executeInitialization(content));
     }
 
     @Test(timeout = 10000)
@@ -253,12 +270,20 @@ public class CliClientTest extends TestLogger {
         Path historyFilePath = historyTempFile();
 
         OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
 
-        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            Thread thread = new Thread(() -> client.executeSqlFile(content));
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyFilePath,
+                        null)) {
+            Thread thread =
+                    new Thread(
+                            () ->
+                                    client.executeFile(
+                                            content,
+                                            CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -329,11 +354,14 @@ public class CliClientTest extends TestLogger {
     private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
         String sessionId = executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
-        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, executor, historyTempFile(), null)) {
-            client.executeSqlFile(content);
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        executor,
+                        historyTempFile(),
+                        null)) {
+            client.executeFile(content, CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
         }
         return outputStream.toString();
     }

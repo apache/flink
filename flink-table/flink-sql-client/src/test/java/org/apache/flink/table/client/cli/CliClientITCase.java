@@ -39,7 +39,6 @@ import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -80,8 +79,6 @@ public class CliClientITCase extends AbstractTestBase {
     private static Map<String, String> replaceVars;
 
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Rule public TerminalStreamsResource useSystemStream = TerminalStreamsResource.INSTANCE;
 
     @Parameterized.Parameter public String sqlPath;
 
@@ -164,7 +161,7 @@ public class CliClientITCase extends AbstractTestBase {
                                 executor,
                                 historyPath,
                                 HideSqlStatement.INSTANCE)) {
-            client.open();
+            client.executeInteractive();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);
         }

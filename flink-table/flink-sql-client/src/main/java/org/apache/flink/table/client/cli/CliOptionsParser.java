@@ -68,8 +68,19 @@ public class CliOptionsParser {
                     .numberOfArgs(1)
                     .argName("environment file")
                     .desc(
-                            "The environment properties to be imported into the session. "
+                            "Deprecated feature: the environment properties to be imported into the session. "
                                     + "It might overwrite default environment properties.")
+                    .build();
+
+    public static final Option OPTION_INIT_FILE =
+            Option.builder("i")
+                    .required(false)
+                    .longOpt("init")
+                    .numberOfArgs(1)
+                    .argName("initialization file")
+                    .desc(
+                            "Script file that used to init the session context. "
+                                    + "If get error in execution, the sql client will exit. Notice it's not allowed to add query or insert into the init file.")
                     .build();
 
     public static final Option OPTION_FILE =
@@ -90,7 +101,7 @@ public class CliOptionsParser {
                     .numberOfArgs(1)
                     .argName("environment file")
                     .desc(
-                            "The environment properties with which every new session is initialized. "
+                            "Deprecated feature: the environment properties with which every new session is initialized. "
                                     + "Properties might be overwritten by session properties.")
                     .build();
 
@@ -162,6 +173,7 @@ public class CliOptionsParser {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
         options.addOption(OPTION_ENVIRONMENT);
+        options.addOption(OPTION_INIT_FILE);
         options.addOption(OPTION_FILE);
         options.addOption(OPTION_DEFAULTS);
         options.addOption(OPTION_JAR);
@@ -279,6 +291,7 @@ public class CliOptionsParser {
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
                     checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
                     checkUrl(line, CliOptionsParser.OPTION_FILE),
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
@@ -300,6 +313,7 @@ public class CliOptionsParser {
                     checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
                     null,
                     null,
+                    null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
@@ -319,6 +333,7 @@ public class CliOptionsParser {
                     null,
                     null,
                     checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    null,
                     null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),

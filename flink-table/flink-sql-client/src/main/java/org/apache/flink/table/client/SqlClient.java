@@ -123,13 +123,27 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        boolean isInteractiveMode = !hasSqlFile && !hasUpdateStatement;
-
         try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
-            if (isInteractiveMode) {
-                cli.open();
+            if (options.getInitFile() != null) {
+                boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
+                if (!success) {
+                    System.out.println(
+                            String.format(
+                                    "Failed to initialize from sql script: %s. Please refer to the LOG for detailed error messages.",
+                                    options.getInitFile()));
+                    return;
+                } else {
+                    System.out.println(
+                            String.format(
+                                    "Successfully initialized from sql script: %s",
+                                    options.getInitFile()));
+                }
+            }
+
+            if (!hasSqlFile && !hasUpdateStatement) {
+                cli.executeInInteractiveMode();
             } else {
-                cli.executeSqlFile(readExecutionContent());
+                cli.executeInNonInteractiveMode(readExecutionContent());
             }
         }
     }
