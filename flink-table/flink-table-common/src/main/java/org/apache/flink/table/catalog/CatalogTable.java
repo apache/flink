@@ -24,6 +24,7 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -106,5 +107,7 @@ public interface CatalogTable extends CatalogBaseTable {
      * @deprecated Only a {@link ResolvedCatalogTable} is serializable to properties.
      */
     @Deprecated
-    Map<String, String> toProperties();
+    default Map<String, String> toProperties() {
+        return Collections.emptyMap();
+    }
 }

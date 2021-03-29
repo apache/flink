@@ -104,7 +104,7 @@ class DefaultCatalogTable implements CatalogTable {
     @Override
     public Map<String, String> toProperties() {
         throw new UnsupportedOperationException(
-                "Only a resolved catalog table can be serialized into map of string properties.");
+                "Only a resolved catalog table can be serialized into a map of string properties.");
     }
 
     @Override
