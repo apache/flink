@@ -91,156 +91,148 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
     /** Test regular operation, including command line parameter parsing. */
     void runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting testDetachedMode()");
+        LOG.info("Starting testDetachedMode()");
 
-                    File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
-                    // get temporary file for reading input data for wordcount example
-                    File tmpInFile = tmp.newFile();
-                    FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
+        File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
+        // get temporary file for reading input data for wordcount example
+        File tmpInFile = tmp.newFile();
+        FileUtils.writeStringToFile(tmpInFile, WordCountData.TEXT);
 
-                    ArrayList<String> args = new ArrayList<>();
-                    args.add("-j");
-                    args.add(flinkUberjar.getAbsolutePath());
+        ArrayList<String> args = new ArrayList<>();
+        args.add("-j");
+        args.add(flinkUberjar.getAbsolutePath());
 
-                    args.add("-t");
-                    args.add(flinkLibFolder.getAbsolutePath());
+        args.add("-t");
+        args.add(flinkLibFolder.getAbsolutePath());
 
-                    args.add("-jm");
-                    args.add("768m");
+        args.add("-jm");
+        args.add("768m");
 
-                    args.add("-tm");
-                    args.add("1024m");
+        args.add("-tm");
+        args.add("1024m");
 
-                    if (securityProperties != null) {
-                        for (Map.Entry<String, String> property : securityProperties.entrySet()) {
-                            args.add("-D" + property.getKey() + "=" + property.getValue());
-                        }
-                    }
+        if (securityProperties != null) {
+            for (Map.Entry<String, String> property : securityProperties.entrySet()) {
+                args.add("-D" + property.getKey() + "=" + property.getValue());
+            }
+        }
 
-                    args.add("--name");
-                    args.add("MyCustomName");
+        args.add("--name");
+        args.add("MyCustomName");
 
-                    args.add("--applicationType");
-                    args.add("Apache Flink 1.x");
+        args.add("--applicationType");
+        args.add("Apache Flink 1.x");
 
-                    args.add("--detached");
+        args.add("--detached");
 
-                    Runner clusterRunner =
-                            startWithArgs(
-                                    args.toArray(new String[args.size()]),
-                                    "JobManager Web Interface:",
-                                    RunTypes.YARN_SESSION);
+        Runner clusterRunner =
+                startWithArgs(
+                        args.toArray(new String[args.size()]),
+                        "JobManager Web Interface:",
+                        RunTypes.YARN_SESSION);
 
-                    // before checking any strings outputted by the CLI, first give it time to
-                    // return
-                    clusterRunner.join();
+        // before checking any strings outputted by the CLI, first give it time to
+        // return
+        clusterRunner.join();
 
-                    // actually run a program, otherwise we wouldn't necessarily see any
-                    // TaskManagers
-                    // be brought up
-                    Runner jobRunner =
-                            startWithArgs(
-                                    new String[] {
-                                        "run",
-                                        "--detached",
-                                        exampleJarLocation.getAbsolutePath(),
-                                        "--input",
-                                        tmpInFile.getAbsoluteFile().toString()
-                                    },
-                                    "Job has been submitted with JobID",
-                                    RunTypes.CLI_FRONTEND);
+        // actually run a program, otherwise we wouldn't necessarily see any
+        // TaskManagers
+        // be brought up
+        Runner jobRunner =
+                startWithArgs(
+                        new String[] {
+                            "run",
+                            "--detached",
+                            exampleJarLocation.getAbsolutePath(),
+                            "--input",
+                            tmpInFile.getAbsoluteFile().toString()
+                        },
+                        "Job has been submitted with JobID",
+                        RunTypes.CLI_FRONTEND);
 
-                    jobRunner.join();
+        jobRunner.join();
 
-                    // in "new" mode we can only wait after the job is submitted, because TMs
-                    // are spun up lazily
-                    LOG.info("Waiting until two containers are running");
-                    // wait until two containers are running
-                    while (getRunningContainers() < 2) {
-                        sleep(500);
-                    }
+        // in "new" mode we can only wait after the job is submitted, because TMs
+        // are spun up lazily
+        LOG.info("Waiting until two containers are running");
+        // wait until two containers are running
+        while (getRunningContainers() < 2) {
+            sleep(500);
+        }
 
-                    // make sure we have two TMs running in either mode
-                    long startTime = System.nanoTime();
-                    while (System.nanoTime() - startTime
-                                    < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS)
-                            && !(verifyStringsInNamedLogFiles(
-                                    new String[] {"switched from state RUNNING to FINISHED"},
-                                    "jobmanager.log"))) {
-                        LOG.info("Still waiting for cluster to finish job...");
-                        sleep(500);
-                    }
+        // make sure we have two TMs running in either mode
+        long startTime = System.nanoTime();
+        while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS)
+                && !(verifyStringsInNamedLogFiles(
+                        new String[] {"switched from state RUNNING to FINISHED"},
+                        "jobmanager.log"))) {
+            LOG.info("Still waiting for cluster to finish job...");
+            sleep(500);
+        }
 
-                    LOG.info("Two containers are running. Killing the application");
+        LOG.info("Two containers are running. Killing the application");
 
-                    // kill application "externally".
-                    try {
-                        YarnClient yc = YarnClient.createYarnClient();
-                        yc.init(YARN_CONFIGURATION);
-                        yc.start();
-                        List<ApplicationReport> apps =
-                                getApplicationReportWithRetryOnNPE(
-                                        yc, EnumSet.of(YarnApplicationState.RUNNING));
-                        Assert.assertEquals(1, apps.size()); // Only one running
-                        ApplicationReport app = apps.get(0);
+        // kill application "externally".
+        try {
+            YarnClient yc = YarnClient.createYarnClient();
+            yc.init(YARN_CONFIGURATION);
+            yc.start();
+            List<ApplicationReport> apps =
+                    getApplicationReportWithRetryOnNPE(
+                            yc, EnumSet.of(YarnApplicationState.RUNNING));
+            Assert.assertEquals(1, apps.size()); // Only one running
+            ApplicationReport app = apps.get(0);
 
-                        Assert.assertEquals("MyCustomName", app.getName());
-                        Assert.assertEquals("Apache Flink 1.x", app.getApplicationType());
-                        ApplicationId id = app.getApplicationId();
-                        yc.killApplication(id);
+            Assert.assertEquals("MyCustomName", app.getName());
+            Assert.assertEquals("Apache Flink 1.x", app.getApplicationType());
+            ApplicationId id = app.getApplicationId();
+            yc.killApplication(id);
 
-                        while (getApplicationReportWithRetryOnNPE(
-                                                        yc, EnumSet.of(YarnApplicationState.KILLED))
-                                                .size()
-                                        == 0
-                                && getApplicationReportWithRetryOnNPE(
-                                                        yc,
-                                                        EnumSet.of(YarnApplicationState.FINISHED))
-                                                .size()
-                                        == 0) {
-                            sleep(500);
-                        }
-                    } catch (Throwable t) {
-                        LOG.warn("Killing failed", t);
-                        Assert.fail();
-                    } finally {
+            while (getApplicationReportWithRetryOnNPE(yc, EnumSet.of(YarnApplicationState.KILLED))
+                                    .size()
+                            == 0
+                    && getApplicationReportWithRetryOnNPE(
+                                            yc, EnumSet.of(YarnApplicationState.FINISHED))
+                                    .size()
+                            == 0) {
+                sleep(500);
+            }
+        } catch (Throwable t) {
+            LOG.warn("Killing failed", t);
+            Assert.fail();
+        } finally {
 
-                        // cleanup the yarn-properties file
-                        String confDirPath = System.getenv("FLINK_CONF_DIR");
-                        File configDirectory = new File(confDirPath);
-                        LOG.info(
-                                "testDetachedPerJobYarnClusterInternal: Using configuration directory "
-                                        + configDirectory.getAbsolutePath());
+            // cleanup the yarn-properties file
+            String confDirPath = System.getenv("FLINK_CONF_DIR");
+            File configDirectory = new File(confDirPath);
+            LOG.info(
+                    "testDetachedPerJobYarnClusterInternal: Using configuration directory "
+                            + configDirectory.getAbsolutePath());
 
-                        // load the configuration
-                        LOG.info(
-                                "testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
-                        Configuration configuration =
-                                GlobalConfiguration.loadConfiguration(
-                                        configDirectory.getAbsolutePath());
+            // load the configuration
+            LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
+            Configuration configuration =
+                    GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
-                        try {
-                            File yarnPropertiesFile =
-                                    FlinkYarnSessionCli.getYarnPropertiesLocation(
-                                            configuration.getString(
-                                                    YarnConfigOptions.PROPERTIES_FILE_LOCATION));
-                            if (yarnPropertiesFile.exists()) {
-                                LOG.info(
-                                        "testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}",
-                                        yarnPropertiesFile.getAbsolutePath());
-                                yarnPropertiesFile.delete();
-                            }
-                        } catch (Exception e) {
-                            LOG.warn(
-                                    "testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file",
-                                    e);
-                        }
-                    }
+            try {
+                File yarnPropertiesFile =
+                        FlinkYarnSessionCli.getYarnPropertiesLocation(
+                                configuration.getString(
+                                        YarnConfigOptions.PROPERTIES_FILE_LOCATION));
+                if (yarnPropertiesFile.exists()) {
+                    LOG.info(
+                            "testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}",
+                            yarnPropertiesFile.getAbsolutePath());
+                    yarnPropertiesFile.delete();
+                }
+            } catch (Exception e) {
+                LOG.warn(
+                        "testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file",
+                        e);
+            }
+        }
 
-                    LOG.info("Finished testDetachedMode()");
-                });
+        LOG.info("Finished testDetachedMode()");
     }
 
     /**
