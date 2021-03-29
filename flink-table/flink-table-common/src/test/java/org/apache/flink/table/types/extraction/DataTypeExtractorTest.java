@@ -466,7 +466,13 @@ public class DataTypeExtractorTest {
                                         DataTypes.FIELD("f8", DataTypes.STRING()),
                                         DataTypes.FIELD("f9", DataTypes.STRING()),
                                         DataTypes.FIELD("f10", DataTypes.STRING()),
-                                        DataTypes.FIELD("f11", DataTypes.INT()))));
+                                        DataTypes.FIELD("f11", DataTypes.INT()))),
+                TestSpec.forType(PojoWithUnderscore.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        PojoWithUnderscore.class,
+                                        DataTypes.FIELD("int_field", DataTypes.INT()),
+                                        DataTypes.FIELD("string_field", DataTypes.STRING()))));
     }
 
     @Parameter public TestSpec testSpec;
@@ -1066,6 +1072,29 @@ public class DataTypeExtractorTest {
                             Integer>> {
         public void eval() {
             // nothing to do
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Lenient POJO detection for fields with underscores. */
+    public static class PojoWithUnderscore {
+        // CHECKSTYLE.OFF: MemberName
+        private final String string_field;
+        private final Integer int_field;
+        // CHECKSTYLE.ON: MemberName
+
+        public PojoWithUnderscore(Integer intField, String stringField) {
+            this.int_field = intField;
+            this.string_field = stringField;
+        }
+
+        public String getStringField() {
+            return string_field;
+        }
+
+        public Integer getIntField() {
+            return int_field;
         }
     }
 }
