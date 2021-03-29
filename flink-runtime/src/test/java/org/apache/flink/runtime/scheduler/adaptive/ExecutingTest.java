@@ -164,7 +164,8 @@ public class ExecutingTest extends TestLogger {
 
             // transition EG into terminal state, which will notify the Executing state about the
             // failure (async via the supplied executor)
-            exec.getExecutionGraph().failJob(new RuntimeException("test failure"));
+            exec.getExecutionGraph()
+                    .failJob(new RuntimeException("test failure"), System.currentTimeMillis());
         }
     }
 

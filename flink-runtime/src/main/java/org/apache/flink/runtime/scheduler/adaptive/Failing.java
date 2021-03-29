@@ -42,7 +42,7 @@ class Failing extends StateWithExecutionGraph {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
 
-        getExecutionGraph().failJob(failureCause);
+        getExecutionGraph().failJob(failureCause, System.currentTimeMillis());
     }
 
     @Override

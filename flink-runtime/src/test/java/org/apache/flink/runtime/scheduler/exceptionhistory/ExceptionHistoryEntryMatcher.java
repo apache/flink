@@ -30,19 +30,7 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
 
     public static Matcher<ExceptionHistoryEntry> matchesGlobalFailure(
             Throwable expectedException, long expectedTimestamp) {
-        return matchesGlobalFailure(expectedException, expectedTimestamp, expectedTimestamp);
-    }
-
-    public static Matcher<ExceptionHistoryEntry> matchesGlobalFailure(
-            Throwable expectedException,
-            long expectedTimestampLowerBound,
-            long expectedTimestampUpperBound) {
-        return matchesFailure(
-                expectedException,
-                expectedTimestampLowerBound,
-                expectedTimestampUpperBound,
-                null,
-                null);
+        return matchesFailure(expectedException, expectedTimestamp, null, null);
     }
 
     public static Matcher<ExceptionHistoryEntry> matchesFailure(
@@ -57,23 +45,8 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
                 expectedTaskManagerLocation);
     }
 
-    public static Matcher<ExceptionHistoryEntry> matchesFailure(
-            Throwable expectedException,
-            long expectedTimestampLowerBound,
-            long expectedTimestampUpperBound,
-            String expectedTaskName,
-            TaskManagerLocation expectedTaskManagerLocation) {
-        return new ExceptionHistoryEntryMatcher(
-                expectedException,
-                expectedTimestampLowerBound,
-                expectedTimestampUpperBound,
-                expectedTaskName,
-                expectedTaskManagerLocation);
-    }
-
     private final Throwable expectedException;
-    private final long expectedTimestampLowerBound;
-    private final long expectedTimestampUpperBound;
+    private final long expectedTimestamp;
     private final String expectedTaskName;
     private final ArchivedTaskManagerLocationMatcher taskManagerLocationMatcher;
 
@@ -82,23 +55,8 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
             long expectedTimestamp,
             String expectedTaskName,
             TaskManagerLocation expectedTaskManagerLocation) {
-        this(
-                expectedException,
-                expectedTimestamp,
-                expectedTimestamp,
-                expectedTaskName,
-                expectedTaskManagerLocation);
-    }
-
-    public ExceptionHistoryEntryMatcher(
-            Throwable expectedException,
-            long expectedTimestampLowerBound,
-            long expectedTimestampUpperBound,
-            String expectedTaskName,
-            TaskManagerLocation expectedTaskManagerLocation) {
         this.expectedException = expectedException;
-        this.expectedTimestampLowerBound = expectedTimestampLowerBound;
-        this.expectedTimestampUpperBound = expectedTimestampUpperBound;
+        this.expectedTimestamp = expectedTimestamp;
         this.expectedTaskName = expectedTaskName;
         this.taskManagerLocationMatcher =
                 new ArchivedTaskManagerLocationMatcher(expectedTaskManagerLocation);
@@ -122,8 +80,7 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
             match = false;
         }
 
-        if (exceptionHistoryEntry.getTimestamp() < expectedTimestampLowerBound
-                || exceptionHistoryEntry.getTimestamp() > expectedTimestampUpperBound) {
+        if (exceptionHistoryEntry.getTimestamp() != expectedTimestamp) {
             description
                     .appendText(" actualTimestamp=")
                     .appendText(String.valueOf(exceptionHistoryEntry.getTimestamp()));
@@ -154,11 +111,9 @@ public class ExceptionHistoryEntryMatcher extends TypeSafeDiagnosingMatcher<Exce
         description
                 .appendText("expectedException=")
                 .appendText(ExceptionUtils.stringifyException(expectedException))
-                .appendText(" expectedTimestamp=[")
-                .appendText(String.valueOf(expectedTimestampLowerBound))
-                .appendText(";")
-                .appendText(String.valueOf(expectedTimestampUpperBound))
-                .appendText("] expectedTaskName=")
+                .appendText(" expectedTimestamp=")
+                .appendText(String.valueOf(expectedTimestamp))
+                .appendText(" expectedTaskName=")
                 .appendText(expectedTaskName)
                 .appendText(" expectedTaskManagerLocation=");
         taskManagerLocationMatcher.describeTo(description);
