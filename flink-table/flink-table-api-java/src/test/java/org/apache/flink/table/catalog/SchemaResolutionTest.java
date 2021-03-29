@@ -102,14 +102,14 @@ public class SchemaResolutionTest {
                         UniqueConstraint.primaryKey(
                                 "primary_constraint", Collections.singletonList("id")));
 
-        final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true, true);
+        final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true);
         {
             assertThat(actualStreamSchema, equalTo(expectedSchema));
             assertTrue(isRowtimeAttribute(getType(actualStreamSchema, "ts")));
             assertTrue(isProctimeAttribute(getType(actualStreamSchema, "proctime")));
         }
 
-        final ResolvedSchema actualBatchSchema = resolveSchema(SCHEMA, false, true);
+        final ResolvedSchema actualBatchSchema = resolveSchema(SCHEMA, false);
         {
             assertThat(actualBatchSchema, equalTo(expectedSchema));
             assertFalse(isRowtimeAttribute(getType(actualBatchSchema, "ts")));
@@ -125,12 +125,6 @@ public class SchemaResolutionTest {
         testError(
                 Schema.newBuilder().fromSchema(SCHEMA).column("id", DataTypes.STRING()).build(),
                 "Schema must not contain duplicate column names.");
-
-        testError(
-                SCHEMA,
-                "Metadata columns are not supported in a schema at the current location.",
-                true,
-                false);
 
         testError(
                 Schema.newBuilder().columnByExpression("invalid", callSql("INVALID")).build(),
@@ -316,13 +310,12 @@ public class SchemaResolutionTest {
     // --------------------------------------------------------------------------------------------
 
     private static void testError(Schema schema, String errorMessage) {
-        testError(schema, errorMessage, true, true);
+        testError(schema, errorMessage, true);
     }
 
-    private static void testError(
-            Schema schema, String errorMessage, boolean isStreaming, boolean supportsMetadata) {
+    private static void testError(Schema schema, String errorMessage, boolean isStreaming) {
         try {
-            resolveSchema(schema, isStreaming, supportsMetadata);
+            resolveSchema(schema, isStreaming);
             fail("Error message expected: " + errorMessage);
         } catch (Throwable t) {
             assertThat(t, FlinkMatchers.containsMessage(errorMessage));
@@ -330,15 +323,13 @@ public class SchemaResolutionTest {
     }
 
     private static ResolvedSchema resolveSchema(Schema schema) {
-        return resolveSchema(schema, true, true);
+        return resolveSchema(schema, true);
     }
 
-    private static ResolvedSchema resolveSchema(
-            Schema schema, boolean isStreamingMode, boolean supportsMetadata) {
+    private static ResolvedSchema resolveSchema(Schema schema, boolean isStreamingMode) {
         final SchemaResolver resolver =
                 new DefaultSchemaResolver(
                         isStreamingMode,
-                        supportsMetadata,
                         new DataTypeFactoryMock(),
                         ExpressionResolverMocks.forSqlExpression(
                                 SchemaResolutionTest::resolveSqlExpression));
