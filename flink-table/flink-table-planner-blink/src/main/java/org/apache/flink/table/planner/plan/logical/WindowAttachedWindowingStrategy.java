@@ -52,13 +52,28 @@ public class WindowAttachedWindowingStrategy extends WindowingStrategy {
         this.windowEnd = windowEnd;
     }
 
+    /**
+     * Creates a {@link WindowAttachedWindowingStrategy} which only {@link #windowEnd} is attatched.
+     */
+    public WindowAttachedWindowingStrategy(
+            WindowSpec window, LogicalType timeAttributeType, int windowEnd) {
+        super(window, timeAttributeType);
+        this.windowStart = -1;
+        this.windowEnd = windowEnd;
+    }
+
     @Override
     public String toSummaryString(String[] inputFieldNames) {
-        checkArgument(windowStart >= 0 && windowStart < inputFieldNames.length);
-        String windowing =
-                String.format(
-                        "win_start=[%s], win_end=[%s]",
-                        inputFieldNames[windowStart], inputFieldNames[windowEnd]);
+        checkArgument(windowEnd >= 0 && windowEnd < inputFieldNames.length);
+        final String windowing;
+        if (windowStart < 0) {
+            windowing = String.format("win_end=[%s]", inputFieldNames[windowEnd]);
+        } else {
+            windowing =
+                    String.format(
+                            "win_start=[%s], win_end=[%s]",
+                            inputFieldNames[windowStart], inputFieldNames[windowEnd]);
+        }
         return window.toSummaryString(windowing);
     }
 

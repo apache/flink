@@ -22,9 +22,10 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions._
-import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy
+import org.apache.flink.table.planner.plan.logical.{SliceAttachedWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
@@ -41,9 +42,10 @@ import scala.collection.JavaConverters._
  * <p>This is a global-aggregation node optimized from [[StreamPhysicalWindowAggregate]] after
  * [[TwoStageOptimizedWindowAggregateRule]] optimization.
  *
- * <p>The windowing of global window aggregate must be [[SliceAttachedWindowingStrategy]] because
- * window slicing has been applied by local window aggregate. There is no time attribute and no
- * window start/end columns on the output of local window aggregate, but slice end.
+ * <p>The windowing of global window aggregate must be [[SliceAttachedWindowingStrategy]] or
+ * [[WindowAttachedWindowingStrategy]] because windowing or slicing has been applied by
+ * local window aggregate. There is no time attribute and no window start columns on
+ * the output of local window aggregate, but slice end.
  *
  * @see [[TwoStageOptimizedWindowAggregateRule]]
  * @see [[StreamPhysicalWindowAggregate]]
@@ -55,7 +57,7 @@ class StreamPhysicalGlobalWindowAggregate(
     val inputRowTypeOfLocalAgg: RelDataType,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
-    val windowing: SliceAttachedWindowingStrategy,
+    val windowing: WindowingStrategy,
     val namedWindowProperties: Seq[PlannerNamedWindowProperty])
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
@@ -110,6 +112,14 @@ class StreamPhysicalGlobalWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
+    if (!windowing.isInstanceOf[SliceAttachedWindowingStrategy] &&
+        !windowing.isInstanceOf[WindowAttachedWindowingStrategy]) {
+      throw new TableException("Global window aggregate should only accept " +
+        "SliceAttachedWindowingStrategy or WindowAttachedWindowingStrategy, " +
+        s"but got ${windowing.getClass.getSimpleName}. " +
+        "This should never happen, please open an issue.")
+    }
+
     new StreamExecGlobalWindowAggregate(
       grouping,
       aggCalls.toArray,

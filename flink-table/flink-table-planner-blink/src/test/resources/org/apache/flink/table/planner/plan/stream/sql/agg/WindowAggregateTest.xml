@@ -94,7 +94,7 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()], EXPR$3=[SUM($2)], EXPR$4=[MAX
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, EXPR$2, EXPR$3, EXPR$4, wAvg, uv])
-+- GlobalWindowAggregate(window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[COUNT(count1$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, MAX(max$2) AS EXPR$4, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[COUNT(count1$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, MAX(max$2) AS EXPR$4, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[single])
       +- LocalWindowAggregate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f3 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
          +- Calc(select=[window_start, window_end, d, IS TRUE(>(b, 1000)) AS $f3, b, e, c], where=[>=(window_start, 2021-01-01 10:10:00:TIMESTAMP(3))])
@@ -178,11 +178,11 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$4], EXPR$3=[$5], uv=[$6])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, $f3 AS EXPR$2, $f4 AS EXPR$3, $f5 AS uv])
-+- GlobalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, MAX(max$1) AS $f4, $SUM0(sum$2) AS $f5, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, MAX(max$1) AS $f4, $SUM0(sum$2) AS $f5, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
       +- LocalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, $e, $SUM0($f7) AS sum$0, MAX($f8_0) AS max$1, $SUM0($f9_0) AS sum$2, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, b, window_start, window_end, $e, $f8, $f9, $f5 AS $f7, $f6 AS $f8_0, $f7 AS $f9_0])
-            +- GlobalWindowAggregate(groupBy=[a, b, $e, $f8, $f9], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, b, $e, $f8, $f9, COUNT(count1$0) AS $f5, MAX(max$1) AS $f6, COUNT(distinct$0 count$2) AS $f7, start('w$) AS window_start, end('w$) AS window_end])
+            +- GlobalWindowAggregate(groupBy=[a, b, $e, $f8, $f9], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, b, $e, $f8, $f9, COUNT(count1$0) AS $f5, MAX(max$1) AS $f6, COUNT(distinct$0 count$2) AS $f7, start('w$) AS window_start, end('w$) AS window_end])
                +- Exchange(distribution=[hash[a, b, $e, $f8, $f9]])
                   +- LocalWindowAggregate(groupBy=[a, b, $e, $f8, $f9], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, $e, $f8, $f9, COUNT(*) FILTER $g_3 AS count1$0, MAX(d) FILTER $g_1 AS max$1, COUNT(distinct$0 window_time) FILTER $g_2 AS count$2, DISTINCT(window_time) AS distinct$0, slice_end('w$) AS $slice_end])
                      +- Calc(select=[a, b, window_start, window_end, d, $f5, window_time, $e, $f8, $f9, =($e_0, 3) AS $g_3, AND(=($e_0, 1), $f5) AS $g_1, =($e_0, 2) AS $g_2])
@@ -278,7 +278,7 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()], EXPR$3=[SUM($2)], EXPR$4=[MAX
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[window_start, window_end, EXPR$2, EXPR$3, EXPR$4, wAvg, uv])
-+- GlobalWindowAggregate(window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[COUNT(count1$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, MAX(max$2) AS EXPR$4, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[COUNT(count1$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, MAX(max$2) AS EXPR$4, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[single])
       +- LocalWindowAggregate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[COUNT(*) AS count1$0, SUM(len) AS sum$1, MAX(d) FILTER $f4 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
          +- Calc(select=[window_start, window_end, EXPR$0 AS len, d, IS TRUE(>(b, 1000)) AS $f4, b, e, c])
@@ -656,7 +656,7 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
-+- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(win_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0($f5) AS sum$0, SUM($f6_0) AS sum$1, MAX($f7_0) AS max$2, $SUM0($f8) AS sum$3, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
@@ -817,7 +817,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$4], uv=[$5])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, $f3 AS EXPR$2, $f4 AS uv])
-+- GlobalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, $SUM0(sum$1) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(win_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, $SUM0(sum$1) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
       +- LocalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, b, $e, $SUM0($f6_0) AS sum$0, $SUM0($f7) AS sum$1, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, b, window_start, window_end, $e, $f6, $f4 AS $f6_0, $f5 AS $f7])
@@ -1178,7 +1178,7 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
-+- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, COUNT(count1$4) AS window_start, start('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a], window=[HOP(win_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, COUNT(count1$4) AS window_start, start('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- LocalWindowAggregate(groupBy=[a], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, $SUM0($f5) AS sum$0, SUM($f6_0) AS sum$1, MAX($f7_0) AS max$2, $SUM0($f8) AS sum$3, COUNT(*) AS count1$4, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
@@ -1339,7 +1339,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$4], uv=[$5])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, $f3 AS EXPR$2, $f4 AS uv])
-+- GlobalWindowAggregate(groupBy=[a, b, $e], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, $SUM0(sum$1) AS $f4, COUNT(count1$2) AS window_start, start('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a, b, $e], window=[HOP(win_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, $SUM0(sum$1) AS $f4, COUNT(count1$2) AS window_start, start('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
       +- LocalWindowAggregate(groupBy=[a, b, $e], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, b, $e, $SUM0($f6_0) AS sum$0, $SUM0($f7) AS sum$1, COUNT(*) AS count1$2, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, b, window_start, window_end, $e, $f6, $f4 AS $f6_0, $f5 AS $f7])
@@ -1891,11 +1891,11 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[MAX($3) FILTER $4]
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5])
-+- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, $SUM0(sum$0) AS $f1, MAX(max$1) AS $f2, $SUM0(sum$2) AS $f3, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, $SUM0(sum$0) AS $f1, MAX(max$1) AS $f2, $SUM0(sum$2) AS $f3, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, $SUM0($f5) AS sum$0, MAX($f6_0) AS max$1, $SUM0($f7_0) AS sum$2, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0])
-            +- GlobalWindowAggregate(groupBy=[a, $f6, $f7], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, $f6, $f7, COUNT(count1$0) AS $f3, MAX(max$1) AS $f4, COUNT(distinct$0 count$2) AS $f5, start('w$) AS window_start, end('w$) AS window_end])
+            +- GlobalWindowAggregate(groupBy=[a, $f6, $f7], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, $f6, $f7, COUNT(count1$0) AS $f3, MAX(max$1) AS $f4, COUNT(distinct$0 count$2) AS $f5, start('w$) AS window_start, end('w$) AS window_end])
                +- Exchange(distribution=[hash[a, $f6, $f7]])
                   +- LocalWindowAggregate(groupBy=[a, $f6, $f7], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, $f6, $f7, COUNT(*) FILTER $g_3 AS count1$0, MAX(d) FILTER $g_1 AS max$1, COUNT(distinct$0 window_time) FILTER $g_2 AS count$2, DISTINCT(window_time) AS distinct$0, slice_end('w$) AS $slice_end])
                      +- Calc(select=[a, window_start, window_end, d, $f4, window_time, $f6, $f7, =($e, 3) AS $g_3, AND(=($e, 1), $f4) AS $g_1, =($e, 2) AS $g_2])
@@ -1980,7 +1980,7 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
-+- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, $SUM0(sum$0) AS $f1, SUM(sum$1) AS $f2, MAX(max$2) AS $f3, $SUM0(sum$3) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a]])
       +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, $SUM0($f5) AS sum$0, SUM($f6_0) AS sum$1, MAX($f7_0) AS max$2, $SUM0($f8) AS sum$3, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
@@ -2254,7 +2254,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$4], EXPR$3=[$5], EXPR$4=[$6], uv=[$7])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, $f3 AS EXPR$2, $f4 AS EXPR$3, $f5 AS EXPR$4, $f6 AS uv])
-+- GlobalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, SUM(sum$1) AS $f4, MAX(max$2) AS $f5, $SUM0(sum$3) AS $f6, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(win_end=[$slice_end], size=[15 min])], select=[a, b, $e, $SUM0(sum$0) AS $f3, SUM(sum$1) AS $f4, MAX(max$2) AS $f5, $SUM0(sum$3) AS $f6, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
       +- LocalWindowAggregate(groupBy=[a, b, $e], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, b, $e, $SUM0($f7) AS sum$0, SUM($f8_0) AS sum$1, MAX($f9_0) AS max$2, $SUM0($f10) AS sum$3, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, b, window_start, window_end, $e, $f8, $f9, $f5 AS $f7, $f6 AS $f8_0, $f7 AS $f9_0, $f8_0 AS $f10])

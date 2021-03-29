@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
@@ -105,6 +107,7 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
     public void onMatch(RelOptRuleCall call) {
         final StreamPhysicalWindowAggregate windowAgg = call.rel(0);
         final RelNode realInput = call.rel(2);
+        final WindowingStrategy windowing = windowAgg.windowing();
 
         RelTraitSet localTraitSet =
                 realInput
@@ -118,7 +121,7 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
                         realInput,
                         windowAgg.grouping(),
                         windowAgg.aggCalls(),
-                        windowAgg.windowing());
+                        windowing);
 
         // grouping keys is forwarded by local agg, use indices instead of groupings
         int[] globalGrouping = IntStream.range(0, windowAgg.grouping().length).toArray();
@@ -128,12 +131,19 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
                 FlinkExpandConversionRule.satisfyDistribution(
                         FlinkConventions.STREAM_PHYSICAL(), localAgg, globalDistribution);
         RelTraitSet globalAggProvidedTraitSet = windowAgg.getTraitSet();
-        SliceAttachedWindowingStrategy globalWindowing =
-                new SliceAttachedWindowingStrategy(
-                        windowAgg.windowing().getWindow(),
-                        windowAgg.windowing().getTimeAttributeType(),
-                        // we put sliceEnd at the end of local output fields
-                        localAgg.getRowType().getFieldCount() - 1);
+
+        // we put sliceEnd at the end of local output fields
+        int sliceEndIndex = localAgg.getRowType().getFieldCount() - 1;
+        final WindowingStrategy globalWindowing;
+        if (windowing instanceof TimeAttributeWindowingStrategy) {
+            globalWindowing =
+                    new SliceAttachedWindowingStrategy(
+                            windowing.getWindow(), windowing.getTimeAttributeType(), sliceEndIndex);
+        } else {
+            globalWindowing =
+                    new WindowAttachedWindowingStrategy(
+                            windowing.getWindow(), windowing.getTimeAttributeType(), sliceEndIndex);
+        }
 
         StreamPhysicalGlobalWindowAggregate globalAgg =
                 new StreamPhysicalGlobalWindowAggregate(
