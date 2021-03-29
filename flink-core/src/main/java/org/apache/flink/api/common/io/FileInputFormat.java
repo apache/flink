@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -235,7 +236,12 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
     protected FileInputFormat(Path filePath) {
         if (filePath != null) {
-            setFilePath(filePath);
+            // support glob
+            setFilePath(filePath.getParent());
+            setFilesFilter(
+                    new GlobFilePathFilter(
+                            Collections.singletonList(filePath.getPath()),
+                            Collections.emptyList()));
         }
     }
 
