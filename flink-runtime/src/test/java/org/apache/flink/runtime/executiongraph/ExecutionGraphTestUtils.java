@@ -501,12 +501,14 @@ public class ExecutionGraphTestUtils {
                 assertEquals(inputJobVertices.size(), ev.getNumberOfInputs());
 
                 for (int i = 0; i < inputJobVertices.size(); i++) {
-                    ConsumedPartitionGroup consumedPartitions = ev.getConsumedPartitions(i);
+                    ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(i);
                     assertEquals(
-                            inputJobVertices.get(i).getParallelism(), consumedPartitions.size());
+                            inputJobVertices.get(i).getParallelism(),
+                            consumedPartitionGroup.size());
 
                     int expectedPartitionNum = 0;
-                    for (IntermediateResultPartitionID consumedPartitionId : consumedPartitions) {
+                    for (IntermediateResultPartitionID consumedPartitionId :
+                            consumedPartitionGroup) {
                         assertEquals(
                                 expectedPartitionNum, consumedPartitionId.getPartitionNumber());
 

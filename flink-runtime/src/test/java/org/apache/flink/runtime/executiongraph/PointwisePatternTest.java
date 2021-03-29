@@ -51,7 +51,7 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitions(0);
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
             assertEquals(1, consumedPartitionGroup.size());
 
             assertEquals(
@@ -69,7 +69,7 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitions(0);
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
             assertEquals(2, consumedPartitionGroup.size());
 
             int idx = 0;
@@ -90,7 +90,7 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitions(0);
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
             assertEquals(3, consumedPartitionGroup.size());
 
             int idx = 0;
@@ -111,12 +111,12 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitions = ev.getConsumedPartitions(0);
-            assertEquals(1, consumedPartitions.size());
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
+            assertEquals(1, consumedPartitionGroup.size());
 
             assertEquals(
                     ev.getParallelSubtaskIndex() / 2,
-                    consumedPartitions.getFirst().getPartitionNumber());
+                    consumedPartitionGroup.getFirst().getPartitionNumber());
         }
     }
 
@@ -129,12 +129,12 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitions = ev.getConsumedPartitions(0);
-            assertEquals(1, consumedPartitions.size());
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
+            assertEquals(1, consumedPartitionGroup.size());
 
             assertEquals(
                     ev.getParallelSubtaskIndex() / 7,
-                    consumedPartitions.getFirst().getPartitionNumber());
+                    consumedPartitionGroup.getFirst().getPartitionNumber());
         }
     }
 
@@ -192,10 +192,10 @@ public class PointwisePatternTest {
         for (ExecutionVertex ev : target.getTaskVertices()) {
             assertEquals(1, ev.getNumberOfInputs());
 
-            ConsumedPartitionGroup consumedPartitions = ev.getConsumedPartitions(0);
-            assertEquals(1, consumedPartitions.size());
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
+            assertEquals(1, consumedPartitionGroup.size());
 
-            timesUsed[consumedPartitions.getFirst().getPartitionNumber()]++;
+            timesUsed[consumedPartitionGroup.getFirst().getPartitionNumber()]++;
         }
 
         for (int used : timesUsed) {
@@ -276,12 +276,14 @@ public class PointwisePatternTest {
         for (int vertexIndex = 0; vertexIndex < target.getTaskVertices().length; vertexIndex++) {
 
             ExecutionVertex ev = target.getTaskVertices()[vertexIndex];
-            ConsumedPartitionGroup partitionIds = ev.getConsumedPartitions(0);
+            ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(0);
 
-            assertEquals(expectedConsumedPartitionNumber[vertexIndex].length, partitionIds.size());
+            assertEquals(
+                    expectedConsumedPartitionNumber[vertexIndex].length,
+                    consumedPartitionGroup.size());
 
             int partitionIndex = 0;
-            for (IntermediateResultPartitionID partitionId : partitionIds) {
+            for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
                 assertEquals(
                         expectedConsumedPartitionNumber[vertexIndex][partitionIndex++],
                         partitionId.getPartitionNumber());

@@ -213,7 +213,7 @@ public class ExecutionVertex
                 .getConsumedPartitionGroupsForVertex(executionVertexId);
     }
 
-    public ConsumedPartitionGroup getConsumedPartitions(int input) {
+    public ConsumedPartitionGroup getConsumedPartitionGroup(int input) {
         final List<ConsumedPartitionGroup> allConsumedPartitions = getAllConsumedPartitionGroups();
 
         if (input < 0 || input >= allConsumedPartitions.size()) {
