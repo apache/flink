@@ -87,6 +87,11 @@ public class HiveParserContext {
         viewsTokenRewriteStreams = new HashMap<>();
     }
 
+    // Find whether we should execute the current query due to explain.
+    public boolean isExplainSkipExecution() {
+        return false;
+    }
+
     public Path getMRTmpPath(URI uri) {
         return null;
     }
