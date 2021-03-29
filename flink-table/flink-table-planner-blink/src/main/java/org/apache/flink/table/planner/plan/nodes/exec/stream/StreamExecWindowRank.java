@@ -141,30 +141,21 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
             case ROW_NUMBER:
                 break;
             case RANK:
-                throw new TableException("RANK() on window rank is not supported currently.");
+                throw new TableException(
+                        "RANK() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.");
             case DENSE_RANK:
-                throw new TableException("DENSE_RANK() on window rank is not supported currently.");
+                throw new TableException(
+                        "DENSE_RANK() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.");
             default:
                 throw new TableException(
                         String.format(
-                                "Rank function %s on window rank is not supported currently.",
+                                "%s() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.",
                                 rankType));
-        }
-
-        // validate rank range
-        ConstantRankRange constantRankRange;
-        if (rankRange instanceof ConstantRankRange) {
-            constantRankRange = (ConstantRankRange) rankRange;
-        } else {
-            throw new TableException(
-                    String.format(
-                            "Rank strategy %s on window rank is not supported currently.",
-                            rankRange));
         }
 
         // validate window strategy
         if (!windowing.isRowtime()) {
-            throw new TableException("PROC-TIME on window rank is not supported currently.");
+            throw new TableException("Processing time Window TopN is not supported yet.");
         }
         int windowEndIndex;
         if (windowing instanceof WindowAttachedWindowingStrategy) {
@@ -175,10 +166,22 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         }
 
         ExecEdge inputEdge = getInputEdges().get(0);
+        RowType inputType = (RowType) inputEdge.getOutputType();
+
+        // validate rank range
+        ConstantRankRange constantRankRange;
+        if (rankRange instanceof ConstantRankRange) {
+            constantRankRange = (ConstantRankRange) rankRange;
+        } else {
+            throw new TableException(
+                    String.format(
+                            "Rank strategy %s is not supported on window rank currently.",
+                            rankRange.toString(inputType.getFieldNames())));
+        }
+
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        RowType inputType = (RowType) inputEdge.getOutputType();
         InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputType);
         int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =

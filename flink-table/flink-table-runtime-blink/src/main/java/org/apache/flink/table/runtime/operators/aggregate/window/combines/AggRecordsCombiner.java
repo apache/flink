@@ -42,7 +42,7 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutab
  * An implementation of {@link WindowCombineFunction} that accumulates input records into the window
  * accumulator state.
  */
-public final class CombineRecordsFunction implements WindowCombineFunction {
+public final class AggRecordsCombiner implements WindowCombineFunction {
 
     /** The service to register event-time or processing-time timers. */
     private final InternalTimerService<Long> timerService;
@@ -68,7 +68,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
-    public CombineRecordsFunction(
+    public AggRecordsCombiner(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
@@ -144,7 +144,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
     // Factory
     // ----------------------------------------------------------------------------------------
 
-    /** Factory to create {@link CombineRecordsFunction}. */
+    /** Factory to create {@link AggRecordsCombiner}. */
     public static final class Factory implements WindowCombineFunction.Factory {
 
         private static final long serialVersionUID = 1L;
@@ -177,7 +177,7 @@ public final class CombineRecordsFunction implements WindowCombineFunction {
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
             boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
-            return new CombineRecordsFunction(
+            return new AggRecordsCombiner(
                     timerService,
                     stateBackend::setCurrentKey,
                     windowValueState,

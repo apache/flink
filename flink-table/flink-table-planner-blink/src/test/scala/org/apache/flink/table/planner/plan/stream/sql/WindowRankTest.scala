@@ -204,7 +204,7 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
     util.verifyExplain(sql)
   }
 
@@ -265,7 +265,7 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
     util.verifyExplain(sql)
   }
 
@@ -330,7 +330,7 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("PROC-TIME on window rank is not supported currently.")
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
     util.verifyExplain(sql)
   }
 
@@ -435,7 +435,8 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("RANK() on window rank is not supported currently.")
+    thrown.expectMessage(
+      "RANK() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.")
     util.verifyExplain(sql)
   }
 
@@ -466,7 +467,9 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("DENSE_RANK() on window rank is not supported currently.")
+    thrown.expectMessage(
+      "DENSE_RANK() function is not supported on Window TopN currently, " +
+        "only ROW_NUMBER() is supported.")
     util.verifyExplain(sql)
   }
 
@@ -498,7 +501,7 @@ class WindowRankTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Rank strategy rankEnd=$7 on window rank is not supported currently.")
+    thrown.expectMessage("Rank strategy rankEnd=max_b is not supported on window rank currently.")
     util.verifyExplain(sql)
   }
 }

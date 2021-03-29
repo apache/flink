@@ -23,7 +23,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.rank.window.combines.CombineRecordsFunction;
+import org.apache.flink.table.runtime.operators.rank.window.combines.TopNRecordsCombiner;
 import org.apache.flink.table.runtime.operators.rank.window.processors.WindowRankProcessor;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
@@ -131,7 +131,7 @@ public class WindowRankOperatorBuilder {
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer);
         final WindowCombineFunction.Factory combinerFactory =
-                new CombineRecordsFunction.Factory(
+                new TopNRecordsCombiner.Factory(
                         generatedSortKeyComparator,
                         sortKeySelector,
                         keySerializer,
