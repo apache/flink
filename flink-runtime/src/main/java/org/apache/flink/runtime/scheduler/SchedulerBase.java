@@ -403,9 +403,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                 .transitionState(ExecutionState.SCHEDULED));
     }
 
-    protected void setGlobalFailureCause(@Nullable final Throwable cause) {
+    protected void setGlobalFailureCause(@Nullable final Throwable cause, long timestamp) {
         if (cause != null) {
-            executionGraph.initFailureCause(cause);
+            executionGraph.initFailureCause(cause, timestamp);
         }
     }
 
@@ -413,9 +413,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return mainThreadExecutor;
     }
 
-    protected void failJob(Throwable cause) {
+    protected void failJob(Throwable cause, long timestamp) {
         incrementVersionsOfAllVertices();
-        executionGraph.failJob(cause);
+        executionGraph.failJob(cause, timestamp);
         getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
 
@@ -570,9 +570,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                     executionVertexId,
                     rootEntry.getExceptionAsString());
         } else {
-            // fallback in case of a global fail over - no failed state is set and, therefore, no
-            // timestamp was taken
-            archiveGlobalFailure(failureHandlingResult.getError(), System.currentTimeMillis());
+            archiveGlobalFailure(
+                    failureHandlingResult.getError(), failureHandlingResult.getTimestamp());
         }
     }
 

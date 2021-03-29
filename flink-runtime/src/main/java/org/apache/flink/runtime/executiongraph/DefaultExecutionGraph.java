@@ -905,7 +905,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             // stay in a terminal state
             return;
         } else if (transitionState(state, JobStatus.SUSPENDED, suspensionCause)) {
-            initFailureCause(suspensionCause);
+            initFailureCause(suspensionCause, System.currentTimeMillis());
 
             incrementRestarts();
 
@@ -1045,9 +1045,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void initFailureCause(Throwable t) {
+    public void initFailureCause(Throwable t, long timestamp) {
         this.failureCause = t;
-        this.failureInfo = new ErrorInfo(t, System.currentTimeMillis());
+        this.failureInfo = new ErrorInfo(t, timestamp);
     }
 
     // ------------------------------------------------------------------------
@@ -1136,13 +1136,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void failJob(Throwable cause) {
+    public void failJob(Throwable cause, long timestamp) {
         if (state == JobStatus.FAILING || state.isTerminalState()) {
             return;
         }
 
         transitionState(JobStatus.FAILING, cause);
-        initFailureCause(cause);
+        initFailureCause(cause, timestamp);
 
         FutureUtils.assertNoException(
                 cancelVerticesAsync()
