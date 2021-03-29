@@ -199,10 +199,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private void handleTaskFailure(
             final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
-        setGlobalFailureCause(error);
+        final long timestamp = System.currentTimeMillis();
+        setGlobalFailureCause(error, timestamp);
         notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
         final FailureHandlingResult failureHandlingResult =
-                executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
+                executionFailureHandler.getFailureHandlingResult(
+                        executionVertexId, error, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
@@ -217,11 +219,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     @Override
     public void handleGlobalFailure(final Throwable error) {
-        setGlobalFailureCause(error);
+        final long timestamp = System.currentTimeMillis();
+        setGlobalFailureCause(error, timestamp);
 
         log.info("Trying to recover from a global failure.", error);
         final FailureHandlingResult failureHandlingResult =
-                executionFailureHandler.getGlobalFailureHandlingResult(error);
+                executionFailureHandler.getGlobalFailureHandlingResult(error, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
@@ -229,7 +232,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         if (failureHandlingResult.canRestart()) {
             restartTasksWithDelay(failureHandlingResult);
         } else {
-            failJob(failureHandlingResult.getError());
+            failJob(failureHandlingResult.getError(), failureHandlingResult.getTimestamp());
         }
     }
 

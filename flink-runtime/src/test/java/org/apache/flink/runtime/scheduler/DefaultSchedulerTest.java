@@ -857,7 +857,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final ExecutionVertexVersion executionVertexVersion =
                 executionVertexVersioner.getExecutionVertexVersion(onlyExecutionVertexId);
 
-        scheduler.failJob(new FlinkException("Test failure."));
+        scheduler.failJob(new FlinkException("Test failure."), System.currentTimeMillis());
 
         assertTrue(executionVertexVersioner.isModified(executionVertexVersion));
     }
@@ -1064,7 +1064,9 @@ public class DefaultSchedulerTest extends TestLogger {
         final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
         assertThat(
                 failure,
-                ExceptionHistoryEntryMatcher.matchesGlobalFailure(expectedException, start, end));
+                ExceptionHistoryEntryMatcher.matchesGlobalFailure(
+                        expectedException,
+                        scheduler.getExecutionGraph().getFailureInfo().getTimestamp()));
         assertThat(failure.getConcurrentExceptions(), IsEmptyIterable.emptyIterable());
     }
 

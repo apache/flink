@@ -126,7 +126,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void failJob(Throwable cause) {
+    public void failJob(Throwable cause, long timestamp) {
         transitionToState(JobStatus.FAILING);
     }
 
@@ -330,7 +330,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void initFailureCause(Throwable t) {
+    public void initFailureCause(Throwable t, long timestamp) {
         throw new UnsupportedOperationException();
     }
 

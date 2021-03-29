@@ -60,7 +60,9 @@ public class StateWithExecutionGraphTest extends TestLogger {
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
 
             // transition to FAILED
-            testingExecutionGraph.failJob(new FlinkException("Transition job to FAILED state"));
+            testingExecutionGraph.failJob(
+                    new FlinkException("Transition job to FAILED state"),
+                    System.currentTimeMillis());
             testingExecutionGraph.completeTerminationFuture(JobStatus.FAILED);
 
             assertThat(testingExecutionGraph.getState(), is(JobStatus.FAILED));
