@@ -81,6 +81,7 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
                                 Checkpoints.storeCheckpointMetadata(metadata, out);
                                 CompletedCheckpointStorageLocation finalizedLocation =
                                         out.closeAndFinalizeCheckpoint();
+                                targetLocation.commitMetadata();
                                 return finalizedLocation.getExternalPointer();
                             }
                         });

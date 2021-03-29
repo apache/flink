@@ -54,4 +54,12 @@ public interface CheckpointStorageLocation extends CheckpointStreamFactory {
      * simply return {@link CheckpointStorageLocationReference#getDefault()}.
      */
     CheckpointStorageLocationReference getLocationReference();
+
+
+    /**
+     * Commit the temporary metadata file to the formal file.
+     *
+     * @throws IOException Thrown, if the stream cannot be opened due to an I/O error.
+     */
+    default void commitMetadata() throws IOException {}
 }

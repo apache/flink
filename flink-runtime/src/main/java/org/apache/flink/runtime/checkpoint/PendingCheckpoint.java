@@ -321,6 +321,7 @@ public class PendingCheckpoint implements Checkpoint {
                         targetLocation.createMetadataOutputStream()) {
                     Checkpoints.storeCheckpointMetadata(savepoint, out);
                     finalizedLocation = out.closeAndFinalizeCheckpoint();
+                    targetLocation.commitMetadata();
                 }
 
                 CompletedCheckpoint completed =
