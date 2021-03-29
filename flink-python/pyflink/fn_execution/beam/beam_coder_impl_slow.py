@@ -29,7 +29,7 @@ from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, c
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.common import Row, RowKind
-from pyflink.fn_execution.window import TimeWindow, CountWindow
+from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 ROW_KIND_BIT_SIZE = 2

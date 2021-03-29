@@ -66,13 +66,13 @@ else:
                 sources=["pyflink/fn_execution/coder_impl_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.aggregate_fast",
-                sources=["pyflink/fn_execution/aggregate_fast.pyx"],
-                include_dirs=["pyflink/fn_execution/"]),
+                name="pyflink.fn_execution.table.aggregate_fast",
+                sources=["pyflink/fn_execution/table/aggregate_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/table/"]),
             Extension(
-                name="pyflink.fn_execution.window_aggregate_fast",
-                sources=["pyflink/fn_execution/window_aggregate_fast.pyx"],
-                include_dirs=["pyflink/fn_execution/"]),
+                name="pyflink.fn_execution.table.window_aggregate_fast",
+                sources=["pyflink/fn_execution/table/window_aggregate_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/table/"]),
             Extension(
                 name="pyflink.fn_execution.stream",
                 sources=["pyflink/fn_execution/stream.pyx"],
@@ -98,13 +98,13 @@ else:
                     sources=["pyflink/fn_execution/coder_impl_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
-                    name="pyflink.fn_execution.aggregate_fast",
-                    sources=["pyflink/fn_execution/aggregate_fast.c"],
-                    include_dirs=["pyflink/fn_execution/"]),
+                    name="pyflink.fn_execution.table.aggregate_fast",
+                    sources=["pyflink/fn_execution/table/aggregate_fast.c"],
+                    include_dirs=["pyflink/fn_execution/table/"]),
                 Extension(
-                    name="pyflink.fn_execution.window_aggregate_fast",
-                    sources=["pyflink/fn_execution/window_aggregate_fast.c"],
-                    include_dirs=["pyflink/fn_execution/"]),
+                    name="pyflink.fn_execution.table.window_aggregate_fast",
+                    sources=["pyflink/fn_execution/table/window_aggregate_fast.c"],
+                    include_dirs=["pyflink/fn_execution/table/"]),
                 Extension(
                     name="pyflink.fn_execution.stream",
                     sources=["pyflink/fn_execution/stream.c"],
@@ -279,6 +279,8 @@ run sdist.
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
+                'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
                 'pyflink.ml',

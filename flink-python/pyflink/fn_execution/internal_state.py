@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List, Iterable
+from typing import Generic, TypeVar, List, Iterable, Collection
 
 from pyflink.datastream.state import State, ValueState, AppendingState, MergingState, ListState, \
     AggregatingState, ReducingState, MapState
@@ -74,7 +74,7 @@ class InternalMergingState(InternalAppendingState[N, IN, OUT], MergingState[IN, 
     """
 
     @abstractmethod
-    def merge_namespaces(self, target: N, sources: Iterable[N]) -> None:
+    def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
         """
         Merges the state of the current key for the given source namespaces into the state of the
         target namespace.

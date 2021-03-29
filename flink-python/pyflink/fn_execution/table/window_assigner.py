@@ -21,8 +21,8 @@ from typing import Generic, List, Any, Iterable, Set
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor, ValueState
-from pyflink.fn_execution.window import TimeWindow, CountWindow
-from pyflink.fn_execution.window_context import Context, W
+from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution.table.window_context import Context, W
 
 
 class WindowAssigner(Generic[W], ABC):

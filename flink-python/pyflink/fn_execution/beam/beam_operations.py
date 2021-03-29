@@ -108,7 +108,7 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
-        operations.KeyedProcessFunctionOperation)
+        operations.DataStreamKeyedStatefulOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
@@ -169,7 +169,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             consumers,
             internal_operation_cls,
             keyed_state_backend)
-    elif internal_operation_cls == operations.KeyedProcessFunctionOperation:
+    elif internal_operation_cls == operations.DataStreamKeyedStatefulOperation:
         key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,

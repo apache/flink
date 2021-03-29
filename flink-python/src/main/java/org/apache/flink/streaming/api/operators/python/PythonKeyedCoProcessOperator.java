@@ -28,9 +28,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -67,7 +65,7 @@ public class PythonKeyedCoProcessOperator<OUT>
     private final TypeInformation<OUT> outputTypeInfo;
 
     /** TimerService for current operator to register or fire timer. */
-    private transient TimerService timerService;
+    private transient InternalTimerService<VoidNamespace> internalTimerService;
 
     private transient KeyedTwoInputWithTimerRowFactory runnerInputFactory;
     private transient OutputWithTimerRowHandler runnerOutputHandler;
@@ -114,6 +112,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -130,16 +129,16 @@ public class PythonKeyedCoProcessOperator<OUT>
 
     @Override
     public void open() throws Exception {
-        InternalTimerService<VoidNamespace> internalTimerService =
+        this.internalTimerService =
                 getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
-        timerService = new SimpleTimerService(internalTimerService);
         this.runnerInputFactory = new KeyedTwoInputWithTimerRowFactory();
         this.runnerOutputHandler =
                 new OutputWithTimerRowHandler(
                         getKeyedStateBackend(),
-                        timerService,
+                        internalTimerService,
                         new TimestampedCollector<>(output),
-                        this);
+                        this,
+                        VoidNamespaceSerializer.INSTANCE);
         super.open();
     }
 
@@ -198,8 +197,9 @@ public class PythonKeyedCoProcessOperator<OUT>
                 runnerInputFactory.fromTimer(
                         timeDomain,
                         timer.getTimestamp(),
-                        timerService.currentWatermark(),
-                        timer.getKey());
+                        internalTimerService.currentWatermark(),
+                        timer.getKey(),
+                        null);
         getRunnerInputTypeSerializer().serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
@@ -214,7 +214,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 runnerInputFactory.fromNormalData(
                         isLeft,
                         element.getTimestamp(),
-                        timerService.currentWatermark(),
+                        internalTimerService.currentWatermark(),
                         element.getValue());
         getRunnerInputTypeSerializer().serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());

@@ -19,12 +19,13 @@ import collections
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import partial
+from io import BytesIO
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
 from apache_beam.transforms import userstate
-from typing import List, Tuple, Any, Iterable
+from typing import List, Tuple, Any, Dict, Collection
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
@@ -156,8 +157,8 @@ class SynchronousMergingRuntimeState(SynchronousBagKvRuntimeState, InternalMergi
         super(SynchronousMergingRuntimeState, self).__init__(
             name, value_coder, remote_state_backend)
 
-    def merge_namespaces(self, target: N, sources: Iterable[N]) -> None:
-        raise Exception("This method will be implemented in FLINK-21631")
+    def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
+        self._remote_state_backend.merge_namespaces(self, target, sources)
 
 
 class SynchronousListRuntimeState(SynchronousMergingRuntimeState, InternalListState):
@@ -500,11 +501,14 @@ class CachingMapStateHandler(object):
         return self._check_empty_raw(state_key)
 
     def clear(self, state_key):
+        self.clear_read_cache(state_key)
+        return self._underlying.clear(state_key)
+
+    def clear_read_cache(self, state_key):
         cache_token = self._get_cache_token()
         if cache_token:
             cache_key = self._convert_to_cache_key(state_key)
             self._state_cache.evict(cache_key, cache_token)
-        return self._underlying.clear(state_key)
 
     def get_cached_iterators_num(self):
         return self._cached_iterator_num
@@ -879,6 +883,8 @@ class RemoteKeyedStateBackend(object):
     A keyed state backend provides methods for managing keyed state.
     """
 
+    MERGE_NAMESAPCES_MARK = "merge_namespaces"
+
     def __init__(self,
                  state_handler,
                  key_coder,
@@ -898,7 +904,7 @@ class RemoteKeyedStateBackend(object):
             self._namespace_coder_impl = None
         self._state_cache_size = state_cache_size
         self._map_state_write_cache_size = map_state_write_cache_size
-        self._all_states = {}
+        self._all_states = {}  # type: Dict[str, SynchronousKvRuntimeState]
         self._internal_state_cache = LRUCache(self._state_cache_size, None)
         self._internal_state_cache.set_on_evict(
             lambda key, value: self.commit_internal_state(value))
@@ -992,12 +998,8 @@ class RemoteKeyedStateBackend(object):
         if isinstance(state_spec, userstate.BagStateSpec):
             bag_state = SynchronousBagRuntimeState(
                 self._state_handler,
-                state_key=beam_fn_api_pb2.StateKey(
-                    bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                        transform_id="",
-                        window=encoded_namespace,
-                        user_state_id=state_spec.name,
-                        key=self._encoded_current_key)),
+                state_key=self.get_bag_state_key(
+                    state_spec.name, self._encoded_current_key, encoded_namespace),
                 value_coder=state_spec.coder)
             return bag_state
         else:
@@ -1052,13 +1054,59 @@ class RemoteKeyedStateBackend(object):
         for internal_state in self._internal_state_cache:
             self.commit_internal_state(internal_state)
         for name, state in self._all_states.items():
-            if (name, self._encoded_current_key) not in self._internal_state_cache:
+            if (name, self._encoded_current_key, self._encode_namespace(state.namespace)) \
+                    not in self._internal_state_cache:
                 self.commit_internal_state(state._internal_state)
 
     def clear_cached_iterators(self):
         if self._map_state_handler.get_cached_iterators_num() > 0:
             self._clear_iterator_mark.multimap_side_input.key = self._encoded_current_key
             self._map_state_handler.clear(self._clear_iterator_mark)
+
+    def merge_namespaces(self, state: SynchronousMergingRuntimeState, target, sources):
+        state.set_current_namespace(target)
+        self.commit_internal_state(state.get_internal_state())
+        encoded_target_namespace = self._encode_namespace(target)
+        encoded_namespaces = [encoded_target_namespace]
+        for source in sources:
+            encoded_namespaces.append(self._encode_namespace(source))
+        self.clear_state_cache(state, encoded_namespaces)
+
+        state_key = self.get_bag_state_key(
+            state.name, self._encoded_current_key, encoded_target_namespace)
+        state_key.bag_user_state.transform_id = self.MERGE_NAMESAPCES_MARK
+
+        encoded_namespaces_writer = BytesIO()
+        encoded_namespaces_writer.write(len(sources).to_bytes(4, 'big'))
+        for encoded_namespace in encoded_namespaces:
+            encoded_namespaces_writer.write(encoded_namespace)
+        sources_bytes = encoded_namespaces_writer.getvalue()
+        to_await = self._map_state_handler._underlying.append_raw(state_key, sources_bytes)
+        if to_await:
+            to_await.get()
+
+    def clear_state_cache(self, state: SynchronousMergingRuntimeState, encoded_namespaces):
+        name = state.name
+        for encoded_namespace in encoded_namespaces:
+            if (name, self._encoded_current_key, encoded_namespace) in self._internal_state_cache:
+                # commit and clear the write cache
+                self._internal_state_cache.evict(
+                    (name, self._encoded_current_key, encoded_namespace))
+                # currently all the SynchronousMergingRuntimeState is based on bag state
+                state_key = self.get_bag_state_key(
+                    name, self._encoded_current_key, encoded_namespace)
+                # clear the read cache, the read cache is shared between map state handler and bag
+                # state handler. So we can use the map state handler instead.
+                self._map_state_handler.clear_read_cache(state_key)
+
+    @staticmethod
+    def get_bag_state_key(name, encoded_key, encoded_namespace):
+        return beam_fn_api_pb2.StateKey(
+            bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+                transform_id="",
+                window=encoded_namespace,
+                user_state_id=name,
+                key=encoded_key))
 
     @staticmethod
     def commit_internal_state(internal_state):

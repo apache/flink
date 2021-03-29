@@ -87,6 +87,7 @@ message UserDefinedDataStreamFunction {
     KEYED_PROCESS = 5;
     KEYED_CO_PROCESS = 6;
     TIMESTAMP_ASSIGNER = 7;
+    WINDOW = 8;
   }
 
   message JobParameter {

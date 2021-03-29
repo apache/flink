@@ -932,7 +932,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 
@@ -948,7 +948,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 

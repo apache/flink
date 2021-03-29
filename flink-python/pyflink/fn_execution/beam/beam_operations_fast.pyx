@@ -47,7 +47,7 @@ cdef class FunctionOperation(Operation):
 
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
-        self.func = self.operation.func
+        self.process_element = self.operation.process_element
         self.operation.open()
 
     cpdef start(self):
@@ -72,7 +72,7 @@ cdef class FunctionOperation(Operation):
             if self._is_python_coder:
                 for value in o.value:
                     self._value_coder_impl.encode_to_stream(
-                        self.func(value), self.consumer.output_stream, True)
+                        self.process_element(value), self.consumer.output_stream, True)
                     self.consumer.output_stream.maybe_flush()
             else:
                 input_stream_wrapper = o.value
@@ -81,7 +81,7 @@ cdef class FunctionOperation(Operation):
                 output_stream = BeamOutputStream(self.consumer.output_stream)
                 while input_stream.available():
                     input_data = input_coder.decode_from_stream(input_stream)
-                    result = self.func(input_data)
+                    result = self.process_element(input_data)
                     self._output_coder.encode_to_stream(result, output_stream)
                 output_stream.flush()
 

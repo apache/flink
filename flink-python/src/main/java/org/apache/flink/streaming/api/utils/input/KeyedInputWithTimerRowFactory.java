@@ -25,36 +25,29 @@ import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.types.Row;
 
 /**
- * This factory produces runner input row for two input operators which need to send the timer
+ * This factory produces runner input row for one input operators which need to send the timer
  * trigger event to python side.
  */
-public class KeyedTwoInputWithTimerRowFactory {
+public class KeyedInputWithTimerRowFactory {
 
-    /** Reusable row for normal data runner inputs. */
-    private final Row reuseNormalData;
+    protected final Row reuseRunnerInput;
 
-    private final KeyedInputWithTimerRowFactory oneInputFactory;
+    /** Reusable row for timer data runner inputs. */
+    protected final Row reuseTimerData;
 
-    public KeyedTwoInputWithTimerRowFactory() {
-        this.reuseNormalData = new Row(3);
-        this.oneInputFactory = new KeyedInputWithTimerRowFactory();
+    public KeyedInputWithTimerRowFactory() {
+        this.reuseRunnerInput = new Row(5);
+        this.reuseTimerData = new Row(3);
     }
 
-    public Row fromNormalData(boolean isLeft, long timestamp, long watermark, Row userInput) {
-        reuseNormalData.setField(0, isLeft);
-        if (isLeft) {
-            // The input row is a tuple of key and value.
-            reuseNormalData.setField(1, userInput);
-            // need to set null since it is a reuse row.
-            reuseNormalData.setField(2, null);
-        } else {
-            // need to set null since it is a reuse row.
-            reuseNormalData.setField(1, null);
-            // The input row is a tuple of key and value.
-            reuseNormalData.setField(2, userInput);
-        }
+    public Row fromNormalData(long timestamp, long watermark, Row reuseNormalData) {
+        reuseRunnerInput.setField(0, RunnerInputType.NORMAL_RECORD.value);
+        reuseRunnerInput.setField(1, reuseNormalData);
+        reuseRunnerInput.setField(2, timestamp);
+        reuseRunnerInput.setField(3, watermark);
+        reuseRunnerInput.setField(4, null);
 
-        return oneInputFactory.fromNormalData(timestamp, watermark, reuseNormalData);
+        return reuseRunnerInput;
     }
 
     public Row fromTimer(
@@ -63,19 +56,24 @@ public class KeyedTwoInputWithTimerRowFactory {
             long watermark,
             Row key,
             byte[] encodedNamespace) {
-        return oneInputFactory.fromTimer(timeDomain, timestamp, watermark, key, encodedNamespace);
+        if (timeDomain == TimeDomain.PROCESSING_TIME) {
+            reuseTimerData.setField(0, TimerType.PROCESSING_TIME.value);
+        } else {
+            reuseTimerData.setField(0, TimerType.EVENT_TIME.value);
+        }
+        reuseTimerData.setField(1, key);
+        reuseTimerData.setField(2, encodedNamespace);
+
+        reuseRunnerInput.setField(0, RunnerInputType.TRIGGER_TIMER.value);
+        reuseRunnerInput.setField(1, null);
+        reuseRunnerInput.setField(2, timestamp);
+        reuseRunnerInput.setField(3, watermark);
+        reuseRunnerInput.setField(4, reuseTimerData);
+        return reuseRunnerInput;
     }
 
     public static TypeInformation<Row> getRunnerInputTypeInfo(
-            TypeInformation<Row> userInputType1,
-            TypeInformation<Row> userInputType2,
-            TypeInformation<Row> keyType) {
-        // leftInput, rightInput structure:
-        // [key, userInput]
-
-        // structure: [isLeftUserInput, leftInput, rightInput]
-        RowTypeInfo normalDataTypeInfo =
-                new RowTypeInfo(Types.BOOLEAN, userInputType1, userInputType2);
+            TypeInformation<Row> normalDataTypeInfo, TypeInformation<Row> keyType) {
 
         // structure: [timerType, key, serializedNamespace]
         RowTypeInfo timerDataTypeInfo =

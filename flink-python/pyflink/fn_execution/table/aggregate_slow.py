@@ -21,7 +21,7 @@ from typing import List, Dict, Iterable
 from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
-from pyflink.fn_execution.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
+from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext, TableAggregateFunction

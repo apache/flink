@@ -42,19 +42,6 @@ public enum PythonOperatorUtils {
 
     private static final byte[] RECORD_SPLITER = new byte[] {0x00};
 
-    /** The Flag for PythonKeyedProcessFunction input data. */
-    public enum KeyedProcessFunctionInputFlag {
-        EVENT_TIME_TIMER((byte) 0),
-        PROC_TIME_TIMER((byte) 1),
-        NORMAL_DATA((byte) 2);
-
-        public final byte value;
-
-        KeyedProcessFunctionInputFlag(byte value) {
-            this.value = value;
-        }
-    }
-
     public static FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(
             PythonFunctionInfo pythonFunctionInfo) {
         FlinkFnApi.UserDefinedFunction.Builder builder =
@@ -178,6 +165,7 @@ public enum PythonOperatorUtils {
                         dataStreamPythonFunctionInfo
                                 .getPythonFunction()
                                 .getSerializedPythonFunction()));
+        builder.setMetricEnabled(true);
         return builder.build();
     }
 
