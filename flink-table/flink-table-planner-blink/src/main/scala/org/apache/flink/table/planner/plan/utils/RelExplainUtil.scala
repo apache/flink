@@ -752,7 +752,7 @@ object RelExplainUtil {
    * @deprecated please use [[streamWindowAggregationToString()]] instead.
    */
   @Deprecated
-  def streamWindowAggregationToString(
+  def legacyStreamWindowAggregationToString(
       inputType: RelDataType,
       grouping: Array[Int],
       rowType: RelDataType,
