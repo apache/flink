@@ -188,9 +188,8 @@ public class HiveASTParseUtils {
                     return;
                 case HiveASTParser.TOK_ALLCOLREF:
                     // We should find an alias of this insert and do (alias).*. This however won't
-                    // fix e.g.
-                    // positional order by alias case, cause we'd still have a star on the top
-                    // level. Bail.
+                    // fix e.g. positional order by alias case, cause we'd still have a star on the
+                    // top level. Bail.
                     LOG.debug("Replacing SETCOLREF with ALLCOLREF because of nested ALLCOLREF");
                     setCols.token.setType(HiveASTParser.TOK_ALLCOLREF);
                     return;
@@ -221,8 +220,7 @@ public class HiveASTParseUtils {
                 default:
                     // Not really sure how to refer to this (or if we can).
                     // TODO: We could find a different from branch for the union, that might have an
-                    // alias?
-                    //       Or we could add an alias here to refer to, but that might break other
+                    // alias? Or we could add an alias here to refer to, but that might break other
                     // branches.
                     LOG.debug(
                             "Replacing SETCOLREF with ALLCOLREF because of the nested node "
