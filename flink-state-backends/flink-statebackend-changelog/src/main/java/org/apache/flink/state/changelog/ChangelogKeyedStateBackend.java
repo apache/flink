@@ -43,6 +43,8 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
@@ -257,7 +259,9 @@ class ChangelogKeyedStateBackend<K>
                 new PriorityQueueStateChangeLoggerImpl<>(
                         byteOrderedElementSerializer,
                         keyedStateBackend.getKeyContext(),
-                        stateChangelogWriter);
+                        stateChangelogWriter,
+                        new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                stateName, byteOrderedElementSerializer));
         return new ChangelogKeyGroupedPriorityQueue<>(
                 keyedStateBackend.create(stateName, byteOrderedElementSerializer),
                 priorityQueueStateChangeLogger,
@@ -339,6 +343,14 @@ class ChangelogKeyedStateBackend<K>
                             stateDesc.getClass(), this.getClass());
             throw new FlinkRuntimeException(message);
         }
+        RegisteredKeyValueStateBackendMetaInfo<N, SV> meta =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        stateDesc.getType(),
+                        stateDesc.getName(),
+                        namespaceSerializer,
+                        stateDesc.getSerializer(),
+                        (StateSnapshotTransformer.StateSnapshotTransformFactory<SV>)
+                                snapshotTransformFactory);
 
         InternalKvState<K, N, SV> state =
                 keyedStateBackend.createInternalState(
@@ -349,7 +361,8 @@ class ChangelogKeyedStateBackend<K>
                         state.getNamespaceSerializer(),
                         state.getValueSerializer(),
                         keyedStateBackend.getKeyContext(),
-                        stateChangelogWriter);
+                        stateChangelogWriter,
+                        meta);
         return stateFactory.create(state, kvStateChangeLogger);
     }
 
