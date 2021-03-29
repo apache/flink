@@ -26,14 +26,15 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.typeutils.DataViewUtils
@@ -245,6 +246,32 @@ object AggregateUtil extends Enumeration {
       aggCallNeedRetractions,
       needInputCount,
       isStateBackendDataViews = true)
+  }
+
+  def deriveWindowAggregateInfoList(
+      inputRowType: RowType,
+      aggCalls: Seq[AggregateCall],
+      windowSpec: WindowSpec,
+      isStateBackendDataViews: Boolean): AggregateInfoList = {
+    // Hopping window requires additional COUNT(*) to determine  whether to register next timer
+    // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
+    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec]
+    val aggSize = if (needInputCount) {
+      // we may insert a count(*) when need input count
+      aggCalls.length + 1
+    } else {
+      aggCalls.length
+    }
+    // TODO: derive retraction flags from ChangelogMode trait when we support retraction for window
+    val aggCallNeedRetractions = new Array[Boolean](aggSize)
+    transformToAggregateInfoList(
+      inputRowType,
+      aggCalls,
+      aggCallNeedRetractions,
+      orderKeyIndexes = null,
+      needInputCount,
+      isStateBackendDataViews,
+      needDistinctInfo = true)
   }
 
   def transformToBatchAggregateFunctions(
@@ -842,7 +869,7 @@ object AggregateUtil extends Enumeration {
   def needRetraction(agg: StreamPhysicalRel): Boolean = {
     // need to call `retract()` if input contains update or delete
     val modifyKindSetTrait = agg.getInput(0).getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-    if (modifyKindSetTrait == null) {
+    if (modifyKindSetTrait == null || modifyKindSetTrait == ModifyKindSetTrait.EMPTY) {
       // FlinkChangelogModeInferenceProgram is not applied yet, false as default
       false
     } else {

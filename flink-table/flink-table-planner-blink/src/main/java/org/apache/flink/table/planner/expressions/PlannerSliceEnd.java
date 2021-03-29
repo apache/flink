@@ -19,22 +19,28 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-/** The interface that describes window's property. */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "kind")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = PlannerProctimeAttribute.class),
-    @JsonSubTypes.Type(value = PlannerRowtimeAttribute.class),
-    @JsonSubTypes.Type(value = PlannerWindowStart.class),
-    @JsonSubTypes.Type(value = PlannerWindowEnd.class),
-    @JsonSubTypes.Type(value = PlannerSliceEnd.class)
-})
-public interface PlannerWindowProperty {
+/** Slice end property. */
+@JsonTypeName("SliceEnd")
+public class PlannerSliceEnd extends AbstractPlannerWindowProperty {
 
-    @JsonIgnore
-    LogicalType getResultType();
+    @JsonCreator
+    public PlannerSliceEnd(@JsonProperty(FIELD_NAME_REFERENCE) PlannerWindowReference reference) {
+        super(reference);
+    }
+
+    @Override
+    public LogicalType getResultType() {
+        return new TimestampType(3);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("slice_end(%s)", reference);
+    }
 }

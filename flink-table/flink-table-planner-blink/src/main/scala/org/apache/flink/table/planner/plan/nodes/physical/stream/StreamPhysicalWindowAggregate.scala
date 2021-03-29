@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -57,6 +56,12 @@ class StreamPhysicalWindowAggregate(
     val namedWindowProperties: Seq[PlannerNamedWindowProperty])
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
+
+  lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveWindowAggregateInfoList(
+    FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
+    aggCalls,
+    windowing.getWindow,
+    isStateBackendDataViews = true)
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
@@ -92,12 +97,12 @@ class StreamPhysicalWindowAggregate(
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))
-      .item("select", RelExplainUtil.streamWindowAggregationToString(
+      .item("select", RelExplainUtil.streamGroupAggregationToString(
         inputRowType,
-        grouping,
         getRowType,
-        aggCalls,
-        namedWindowProperties))
+        aggInfoList,
+        grouping,
+        windowProperties = namedWindowProperties))
   }
 
   override def copy(
@@ -115,14 +120,7 @@ class StreamPhysicalWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val conf = FlinkRelOptUtil.getTableConfigFromContext(this).getConfiguration
-    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
-      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
-      throw new TableException("Currently, window table function based aggregate doesn't " +
-        s"support early-fire and late-fire configuration " +
-        s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +
-        s"'${TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key()}'.")
-    }
+    checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
     new StreamExecWindowAggregate(
       grouping,
       aggCalls.toArray,
