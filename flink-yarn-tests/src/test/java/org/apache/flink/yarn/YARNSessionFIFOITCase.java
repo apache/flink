@@ -18,8 +18,10 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -44,12 +46,12 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.hamcrest.Matchers.containsString;
@@ -152,33 +154,31 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
         jobRunner.join();
 
+        final Duration timeout = Duration.ofMinutes(1);
+        final long testConditionIntervalInMillis = 500;
         // in "new" mode we can only wait after the job is submitted, because TMs
         // are spun up lazily
-        LOG.info("Waiting until two containers are running");
         // wait until two containers are running
-        while (getRunningContainers() < 2) {
-            sleep(500);
-        }
+        LOG.info("Waiting until two containers are running");
+        CommonTestUtils.waitUntilCondition(
+                () -> getRunningContainers() >= 2,
+                Deadline.fromNow(timeout),
+                testConditionIntervalInMillis,
+                "We didn't reach the state of two containers running (instead: "
+                        + getRunningContainers()
+                        + ")");
 
-        // make sure we have two TMs running in either mode
-        final long timeoutInSecs = 20;
-        long startTime = System.nanoTime();
-        while (System.nanoTime() - startTime
-                        < TimeUnit.NANOSECONDS.convert(timeoutInSecs, TimeUnit.SECONDS)
-                && !(verifyStringsInNamedLogFiles(
-                        new String[] {"switched from state RUNNING to FINISHED"},
-                        "jobmanager.log"))) {
-            LOG.info("Still waiting for cluster to finish job...");
-            sleep(500);
-        }
-
-        if (!verifyStringsInNamedLogFiles(
-                new String[] {"switched from state RUNNING to FINISHED"}, "jobmanager.log")) {
-            Assert.fail(
-                    "The deployed job didn't finish on time reaching the timeout of "
-                            + timeoutInSecs
-                            + " seconds. The application will be cancelled forcefully.");
-        }
+        LOG.info("Waiting until the job reaches FINISHED state");
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        verifyStringsInNamedLogFiles(
+                                new String[] {"switched from state RUNNING to FINISHED"},
+                                "jobmanager.log"),
+                Deadline.fromNow(timeout),
+                testConditionIntervalInMillis,
+                "The deployed job didn't finish on time reaching the timeout of "
+                        + timeout
+                        + " seconds. The application will be cancelled forcefully.");
 
         // kill application "externally".
         try {
@@ -196,15 +196,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
             ApplicationId id = app.getApplicationId();
             yc.killApplication(id);
 
-            while (getApplicationReportWithRetryOnNPE(yc, EnumSet.of(YarnApplicationState.KILLED))
-                                    .size()
-                            == 0
-                    && getApplicationReportWithRetryOnNPE(
-                                            yc, EnumSet.of(YarnApplicationState.FINISHED))
-                                    .size()
-                            == 0) {
-                sleep(500);
-            }
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            !getApplicationReportWithRetryOnNPE(
+                                            yc,
+                                            EnumSet.of(
+                                                    YarnApplicationState.KILLED,
+                                                    YarnApplicationState.FINISHED))
+                                    .isEmpty(),
+                    Deadline.fromNow(timeout),
+                    testConditionIntervalInMillis);
         } catch (Throwable t) {
             LOG.warn("Killing failed", t);
             Assert.fail();
