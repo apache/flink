@@ -113,13 +113,13 @@ public class PartitionDescriptor implements Serializable {
         // If no consumers are known at this point, we use a single subpartition, otherwise we have
         // one for each consuming sub task.
         int numberOfSubpartitions = 1;
-        List<ConsumerVertexGroup> consumers = partition.getConsumers();
-        if (!consumers.isEmpty() && !consumers.get(0).isEmpty()) {
-            if (consumers.size() > 1) {
+        List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
+        if (!consumerVertexGroups.isEmpty() && !consumerVertexGroups.get(0).isEmpty()) {
+            if (consumerVertexGroups.size() > 1) {
                 throw new IllegalStateException(
                         "Currently, only a single consumer group per partition is supported.");
             }
-            numberOfSubpartitions = consumers.get(0).size();
+            numberOfSubpartitions = consumerVertexGroups.get(0).size();
         }
         IntermediateResult result = partition.getIntermediateResult();
         return new PartitionDescriptor(

@@ -473,11 +473,11 @@ public class Execution
     private static int getPartitionMaxParallelism(
             IntermediateResultPartition partition,
             Function<ExecutionVertexID, ExecutionVertex> getVertexById) {
-        final List<ConsumerVertexGroup> consumers = partition.getConsumers();
+        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
         Preconditions.checkArgument(
-                consumers.size() == 1,
+                consumerVertexGroups.size() == 1,
                 "Currently there has to be exactly one consumer in real jobs");
-        final ConsumerVertexGroup consumerVertexGroup = consumers.get(0);
+        final ConsumerVertexGroup consumerVertexGroup = consumerVertexGroups.get(0);
         return getVertexById
                 .apply(consumerVertexGroup.getFirst())
                 .getJobVertex()
@@ -696,19 +696,19 @@ public class Execution
 
     private void updatePartitionConsumers(final IntermediateResultPartition partition) {
 
-        final List<ConsumerVertexGroup> allConsumers = partition.getConsumers();
+        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
 
-        if (allConsumers.size() == 0) {
+        if (consumerVertexGroups.size() == 0) {
             return;
         }
-        if (allConsumers.size() > 1) {
+        if (consumerVertexGroups.size() > 1) {
             fail(
                     new IllegalStateException(
                             "Currently, only a single consumer group per partition is supported."));
             return;
         }
 
-        for (ExecutionVertexID consumerVertexId : allConsumers.get(0)) {
+        for (ExecutionVertexID consumerVertexId : consumerVertexGroups.get(0)) {
             final ExecutionVertex consumerVertex =
                     vertex.getExecutionGraphAccessor().getExecutionVertexOrThrow(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
