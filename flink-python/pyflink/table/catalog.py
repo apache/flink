@@ -1138,7 +1138,6 @@ class JdbcCatalog(Catalog):
         assert pwd is not None
         assert base_url is not None
 
-        from pyflink.java_gateway import get_gateway
         gateway = get_gateway()
 
         j_jdbc_catalog = gateway.jvm.org.apache.flink.connector.jdbc.catalog.JdbcCatalog(
