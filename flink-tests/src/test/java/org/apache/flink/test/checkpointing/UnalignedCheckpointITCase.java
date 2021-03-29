@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -46,9 +47,13 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
+import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
+import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
@@ -99,87 +104,158 @@ import static org.hamcrest.Matchers.equalTo;
 @RunWith(Parameterized.class)
 @Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
 public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
+    enum Topology implements DagCreator {
+        PIPELINE {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+                final int parallelism = env.getParallelism();
+                final SingleOutputStreamOperator<Long> stream =
+                        env.fromSource(
+                                        new LongSource(
+                                                minCheckpoints,
+                                                parallelism,
+                                                expectedRestarts,
+                                                env.getCheckpointInterval()),
+                                        noWatermarks(),
+                                        "source")
+                                .slotSharingGroup(slotSharing ? "default" : "source")
+                                .disableChaining()
+                                .map(i -> checkHeader(i))
+                                .name("forward")
+                                .uid("forward")
+                                .slotSharingGroup(slotSharing ? "default" : "forward")
+                                .keyBy(i -> withoutHeader(i) % parallelism * parallelism)
+                                .process(new KeyedIdentityFunction())
+                                .name("keyed")
+                                .uid("keyed");
+                addFailingPipeline(minCheckpoints, slotSharing, stream);
+            }
+        },
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Object[][] parameters() {
-        return new Object[][] {
-            new Object[] {
-                "non-parallel pipeline with local channels", createPipelineSettings(1, 1, true)
-            },
-            new Object[] {
-                "non-parallel pipeline with remote channels", createPipelineSettings(1, 1, false)
-            },
-            new Object[] {
-                "parallel pipeline with local channels, p = 5", createPipelineSettings(5, 5, true)
-            },
-            new Object[] {
-                "parallel pipeline with remote channels, p = 5", createPipelineSettings(5, 1, false)
-            },
-            new Object[] {
-                "parallel pipeline with mixed channels, p = 5", createPipelineSettings(5, 3, true)
-            },
-            new Object[] {
-                "parallel pipeline with mixed channels, p = 20",
-                createPipelineSettings(20, 10, true)
-            },
-            new Object[] {
-                "parallel pipeline with mixed channels, p = 20, timeout=1",
-                createPipelineSettings(20, 10, true, 1)
-            },
-            new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
-            new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
-            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
-            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
+        MULTI_INPUT {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+                final int parallelism = env.getParallelism();
+                DataStream<Long> combinedSource = null;
+                for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
+                    final SingleOutputStreamOperator<Long> source =
+                            env.fromSource(
+                                            new LongSource(
+                                                    minCheckpoints,
+                                                    parallelism,
+                                                    expectedRestarts,
+                                                    env.getCheckpointInterval()),
+                                            noWatermarks(),
+                                            "source" + inputIndex)
+                                    .slotSharingGroup(
+                                            slotSharing ? "default" : ("source" + inputIndex))
+                                    .disableChaining();
+                    combinedSource =
+                            combinedSource == null
+                                    ? source
+                                    : combinedSource
+                                            .connect(source)
+                                            .flatMap(new MinEmittingFunction())
+                                            .name("min" + inputIndex)
+                                            .uid("min" + inputIndex)
+                                            .slotSharingGroup(
+                                                    slotSharing ? "default" : ("min" + inputIndex));
+                }
+
+                addFailingPipeline(minCheckpoints, slotSharing, combinedSource);
+            }
+        },
+
+        UNION {
+            @Override
+            public void create(
+                    StreamExecutionEnvironment env,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedRestarts) {
+                final int parallelism = env.getParallelism();
+                DataStream<Long> combinedSource = null;
+                for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
+                    final SingleOutputStreamOperator<Long> source =
+                            env.fromSource(
+                                            new LongSource(
+                                                    minCheckpoints,
+                                                    parallelism,
+                                                    expectedRestarts,
+                                                    env.getCheckpointInterval()),
+                                            noWatermarks(),
+                                            "source" + inputIndex)
+                                    .slotSharingGroup(
+                                            slotSharing ? "default" : ("source" + inputIndex))
+                                    .disableChaining();
+                    combinedSource = combinedSource == null ? source : combinedSource.union(source);
+                }
+
+                final SingleOutputStreamOperator<Long> deduplicated =
+                        combinedSource
+                                .partitionCustom(
+                                        (key, numPartitions) ->
+                                                (int) (withoutHeader(key) % numPartitions),
+                                        l -> l)
+                                .flatMap(new CountingMapFunction(NUM_SOURCES));
+                addFailingPipeline(minCheckpoints, slotSharing, deduplicated);
+            }
         };
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
     }
 
-    private static UnalignedSettings createPipelineSettings(
-            int parallelism, int slotsPerTaskManager, boolean slotSharing) {
-        return createPipelineSettings(parallelism, slotsPerTaskManager, slotSharing, 0);
+    @Parameterized.Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
+    public static Object[][] parameters() {
+        Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
+
+        Object[][] runs = {
+            new Object[] {Topology.PIPELINE, 1, LOCAL},
+            new Object[] {Topology.PIPELINE, 1, REMOTE},
+            new Object[] {Topology.PIPELINE, 5, LOCAL},
+            new Object[] {Topology.PIPELINE, 5, REMOTE},
+            new Object[] {Topology.PIPELINE, 20},
+            new Object[] {Topology.PIPELINE, 20, MIXED, 1},
+            new Object[] {Topology.MULTI_INPUT, 5},
+            new Object[] {Topology.MULTI_INPUT, 10},
+            new Object[] {Topology.UNION, 5},
+            new Object[] {Topology.UNION, 10},
+        };
+        return Stream.of(runs)
+                .map(params -> addDefaults(params, defaults))
+                .toArray(Object[][]::new);
     }
 
-    private static UnalignedSettings createPipelineSettings(
-            int parallelism, int slotsPerTaskManager, boolean slotSharing, int timeout) {
-        int numShuffles = 4;
-        return new UnalignedSettings(UnalignedCheckpointITCase::createPipeline)
-                .setParallelism(parallelism)
-                .setSlotSharing(slotSharing)
-                .setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
-                .setSlotsPerTaskManager(slotsPerTaskManager)
-                .setExpectedFailures(5)
-                .setFailuresAfterSourceFinishes(1)
-                .setAlignmentTimeout(timeout);
-    }
-
-    private static UnalignedSettings createCogroupSettings(int parallelism) {
-        int numShuffles = 10;
-        return new UnalignedSettings(UnalignedCheckpointITCase::createMultipleInputTopology)
-                .setParallelism(parallelism)
-                .setSlotSharing(true)
-                .setNumSlots(parallelism * numShuffles)
-                .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5)
-                .setFailuresAfterSourceFinishes(1);
-    }
-
-    private static UnalignedSettings createUnionSettings(int parallelism) {
-        int numShuffles = 6;
-        return new UnalignedSettings(UnalignedCheckpointITCase::createUnionTopology)
-                .setParallelism(parallelism)
-                .setSlotSharing(true)
-                .setNumSlots(parallelism * numShuffles)
-                .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5)
-                .setFailuresAfterSourceFinishes(1);
+    private static Object[] addDefaults(Object[] params, Object[] defaults) {
+        return ArrayUtils.addAll(
+                params, ArrayUtils.subarray(defaults, params.length, defaults.length));
     }
 
     private final UnalignedSettings settings;
 
-    public UnalignedCheckpointITCase(String desc, UnalignedSettings settings) {
-        this.settings = settings;
+    public UnalignedCheckpointITCase(
+            Topology topology, int parallelism, ChannelType channelType, int timeout) {
+        settings =
+                new UnalignedSettings(topology)
+                        .setParallelism(parallelism)
+                        .setChannelTypes(channelType)
+                        .setExpectedFailures(5)
+                        .setFailuresAfterSourceFinishes(1)
+                        .setAlignmentTimeout(timeout);
     }
 
-    @Test(timeout = 60_000)
+    @Test
     public void execute() throws Exception {
         execute(settings);
     }
@@ -196,99 +272,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 "NUM_FAILURES",
                 result.<Integer>getAccumulatorResult(NUM_FAILURES),
                 equalTo(settings.expectedFailures));
-    }
-
-    private static void createPipeline(
-            StreamExecutionEnvironment env,
-            int minCheckpoints,
-            boolean slotSharing,
-            int expectedRestarts) {
-        final int parallelism = env.getParallelism();
-        final SingleOutputStreamOperator<Long> stream =
-                env.fromSource(
-                                new LongSource(
-                                        minCheckpoints,
-                                        parallelism,
-                                        expectedRestarts,
-                                        env.getCheckpointInterval()),
-                                noWatermarks(),
-                                "source")
-                        .slotSharingGroup(slotSharing ? "default" : "source")
-                        .disableChaining()
-                        .map(i -> checkHeader(i))
-                        .name("forward")
-                        .uid("forward")
-                        .slotSharingGroup(slotSharing ? "default" : "forward")
-                        .keyBy(i -> withoutHeader(i) % parallelism * parallelism)
-                        .process(new KeyedIdentityFunction())
-                        .name("keyed")
-                        .uid("keyed");
-        addFailingPipeline(minCheckpoints, slotSharing, stream);
-    }
-
-    private static void createMultipleInputTopology(
-            StreamExecutionEnvironment env,
-            int minCheckpoints,
-            boolean slotSharing,
-            int expectedRestarts) {
-        final int parallelism = env.getParallelism();
-        DataStream<Long> combinedSource = null;
-        for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
-            final SingleOutputStreamOperator<Long> source =
-                    env.fromSource(
-                                    new LongSource(
-                                            minCheckpoints,
-                                            parallelism,
-                                            expectedRestarts,
-                                            env.getCheckpointInterval()),
-                                    noWatermarks(),
-                                    "source" + inputIndex)
-                            .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
-                            .disableChaining();
-            combinedSource =
-                    combinedSource == null
-                            ? source
-                            : combinedSource
-                                    .connect(source)
-                                    .flatMap(new MinEmittingFunction())
-                                    .name("min" + inputIndex)
-                                    .uid("min" + inputIndex)
-                                    .slotSharingGroup(
-                                            slotSharing ? "default" : ("min" + inputIndex));
-        }
-
-        addFailingPipeline(minCheckpoints, slotSharing, combinedSource);
-    }
-
-    private static void createUnionTopology(
-            StreamExecutionEnvironment env,
-            int minCheckpoints,
-            boolean slotSharing,
-            int expectedRestarts) {
-        final int parallelism = env.getParallelism();
-        DataStream<Long> combinedSource = null;
-        for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
-            final SingleOutputStreamOperator<Long> source =
-                    env.fromSource(
-                                    new LongSource(
-                                            minCheckpoints,
-                                            parallelism,
-                                            expectedRestarts,
-                                            env.getCheckpointInterval()),
-                                    noWatermarks(),
-                                    "source" + inputIndex)
-                            .slotSharingGroup(slotSharing ? "default" : ("source" + inputIndex))
-                            .disableChaining();
-            combinedSource = combinedSource == null ? source : combinedSource.union(source);
-        }
-
-        final SingleOutputStreamOperator<Long> deduplicated =
-                combinedSource
-                        .partitionCustom(
-                                (key, numPartitions) -> (int) (withoutHeader(key) % numPartitions),
-                                l -> l)
-                        .flatMap(new CountingMapFunction(NUM_SOURCES));
-        addFailingPipeline(minCheckpoints, slotSharing, deduplicated);
     }
 
     private static DataStreamSink<Long> addFailingPipeline(
@@ -311,7 +294,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                 state -> state.runNumber == 4))
                 .name("failing-map")
                 .uid("failing-map")
-                .slotSharingGroup(slotSharing ? "default" : "map")
+                .slotSharingGroup(slotSharing ? "default" : "failing-map")
                 .partitionCustom(new ChunkDistributingPartitioner(), l -> l)
                 .addSink(
                         new StrictOrderVerifyingSink(
