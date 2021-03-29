@@ -44,7 +44,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.io.input.ReaderInputStream;
 import org.jline.reader.Candidate;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -65,8 +64,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -77,7 +74,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
-import static org.apache.flink.table.client.cli.CliClient.createNonInteractiveTerminal;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -131,27 +127,13 @@ public class CliClientTest extends TestLogger {
         try (Terminal terminal =
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
-                        new CliClient(
-                                terminal, sessionId, mockExecutor, historyFilePath, false, null)) {
+                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
             client.open();
             List<String> content = Files.readAllLines(historyFilePath);
             assertEquals(2, content.size());
             assertTrue(content.get(0).contains("help"));
             assertTrue(content.get(1).contains("use catalog cat"));
         }
-    }
-
-    @Test
-    public void testGetEOFinInteractiveMode() throws Exception {
-        final List<String> statements =
-                Arrays.asList("DESC MyOtherTable;", "SHOW TABLES"); // meet EOF
-        String content = String.join("\n", statements);
-
-        final MockExecutor mockExecutor = new MockExecutor();
-
-        executeSqlFromContent(mockExecutor, content, true);
-        // don't execute the last commands
-        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
     }
 
     @Test
@@ -162,7 +144,7 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
 
-        executeSqlFromContent(mockExecutor, content, false);
+        executeSqlFromContent(mockExecutor, content);
         // execute the last commands
         assertTrue(statements.get(1).contains(mockExecutor.receivedStatement));
     }
@@ -178,7 +160,7 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
 
-        executeSqlFromContent(mockExecutor, content, false);
+        executeSqlFromContent(mockExecutor, content);
         // don't execute other commands
         assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
     }
@@ -195,7 +177,7 @@ public class CliClientTest extends TestLogger {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.failExecution = true;
 
-        executeSqlFromContent(mockExecutor, content, false);
+        executeSqlFromContent(mockExecutor, content);
         // don't execute other commands
         assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
     }
@@ -222,17 +204,12 @@ public class CliClientTest extends TestLogger {
                 "In non-interactive mode, it only supports to use TABLEAU as value of "
                         + "sql-client.execution.result-mode when execute query. Please add "
                         + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
-        executeSqlFromContent(mockExecutor, content, false);
+        executeSqlFromContent(mockExecutor, content);
     }
 
     @Test
     public void testCancelExecutionInNonInteractiveMode() throws Exception {
-        verifyCancelExecution(false);
-    }
-
-    @Test
-    public void testCancelExecutionInInteractiveMode() throws Exception {
-        verifyCancelExecution(true);
+        verifyCancelExecution();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -242,7 +219,7 @@ public class CliClientTest extends TestLogger {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.failExecution = failExecution;
 
-        String result = executeSqlFromContent(mockExecutor, statement, false);
+        String result = executeSqlFromContent(mockExecutor, statement);
 
         if (testFailure) {
             assertTrue(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
@@ -281,29 +258,19 @@ public class CliClientTest extends TestLogger {
         return File.createTempFile("history", "tmp").toPath();
     }
 
-    private String executeSqlFromContent(
-            MockExecutor executor, String content, boolean isInteractive) throws IOException {
+    private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
         String sessionId = executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
         System.setOut(new PrintStream(outputStream));
-        try (Terminal terminal =
-                        createNonInteractiveTerminal(
-                                new ReaderInputStream(
-                                        new StringReader(content), StandardCharsets.UTF_8));
+        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
                 CliClient client =
-                        new CliClient(
-                                terminal,
-                                sessionId,
-                                executor,
-                                historyTempFile(),
-                                isInteractive,
-                                null)) {
-            client.open();
+                        new CliClient(terminal, sessionId, executor, historyTempFile(), null)) {
+            client.executeSqlFile(content);
         }
         return outputStream.toString();
     }
 
-    private void verifyCancelExecution(boolean isInteractive) throws Exception {
+    private void verifyCancelExecution() throws Exception {
         // use quit to close the client in interactive mode
         // add "\n" with quit to trigger commit the line
         final List<String> statements =
@@ -341,19 +308,10 @@ public class CliClientTest extends TestLogger {
         System.setOut(new PrintStream(outputStream));
 
         // use non-interactive terminal but interactive client
-        try (Terminal terminal =
-                        createNonInteractiveTerminal(
-                                new ReaderInputStream(
-                                        new StringReader(content), StandardCharsets.UTF_8));
+        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
                 CliClient client =
-                        new CliClient(
-                                terminal,
-                                sessionId,
-                                mockExecutor,
-                                historyFilePath,
-                                isInteractive,
-                                null)) {
-            Thread thread = new Thread(client::open);
+                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            Thread thread = new Thread(() -> client.executeSqlFile(content));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -372,12 +330,7 @@ public class CliClientTest extends TestLogger {
         }
 
         // read the last executed statement
-        if (isInteractive) {
-            assertTrue(
-                    statements.get(statements.size() - 1).contains(mockExecutor.receivedStatement));
-        } else {
-            assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
-        }
+        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
     // --------------------------------------------------------------------------------------------

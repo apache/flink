@@ -125,16 +125,12 @@ public class SqlClient {
 
         boolean isInteractiveMode = !hasSqlFile && !hasUpdateStatement;
 
-        try (CliClient cli =
-                isInteractiveMode
-                        ? CliClient.createInteractiveClient(sessionId, executor, historyFilePath)
-                        : CliClient.createNonInteractiveClient(
-                                sessionId,
-                                executor,
-                                historyFilePath,
-                                readExecutionContent(),
-                                null)) {
-            cli.open();
+        try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
+            if (isInteractiveMode) {
+                cli.open();
+            } else {
+                cli.executeSqlFile(readExecutionContent());
+            }
         }
     }
 

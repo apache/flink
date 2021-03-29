@@ -22,9 +22,7 @@ import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.impl.DefaultParser;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Multi-line parser for parsing an arbitrary number of SQL lines until a line ends with ';'.
@@ -33,9 +31,7 @@ import java.util.stream.Collectors;
  */
 public class SqlMultiLineParser extends DefaultParser {
 
-    private static final String EOF_CHARACTER = ";";
     private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
-    private static final String MASK = "--.*$";
 
     public SqlMultiLineParser() {
         setEscapeChars(null);
@@ -44,12 +40,7 @@ public class SqlMultiLineParser extends DefaultParser {
 
     @Override
     public ParsedLine parse(String line, int cursor, ParseContext context) {
-        // LineReaderImpl#acceptLine use '\n' as delimiter
-        String maskedLine =
-                Arrays.stream(line.split("\n"))
-                        .map(l -> l.replaceAll("--.*$", ""))
-                        .collect(Collectors.joining("\n"));
-        if (!maskedLine.endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
+        if (!CliStatementSplitter.isStatementComplete(line) && context != ParseContext.COMPLETE) {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);

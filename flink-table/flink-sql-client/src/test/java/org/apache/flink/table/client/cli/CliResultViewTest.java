@@ -101,7 +101,6 @@ public class CliResultViewTest {
                         sessionId,
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
-                        false,
                         null)) {
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();

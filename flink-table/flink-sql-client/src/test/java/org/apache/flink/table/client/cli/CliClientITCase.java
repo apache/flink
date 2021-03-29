@@ -32,10 +32,10 @@ import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilte
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
+import org.jline.terminal.impl.DumbTerminal;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -45,11 +45,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -137,7 +138,7 @@ public class CliClientITCase extends AbstractTestBase {
      * @return the printed results on SQL Client
      */
     private List<Result> runSqlStatements(List<String> statements) throws IOException {
-        final String sqlContent = String.join("", statements);
+        final String sqlContent = String.join("\n", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
                         new Environment(),
@@ -145,31 +146,21 @@ public class CliClientITCase extends AbstractTestBase {
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
-
+        InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream, true));
         String sessionId = executor.openSession("test-session");
 
-        try (Terminal terminal =
-                        CliClient.createNonInteractiveTerminal(
-                                new ReaderInputStream(
-                                        new StringReader(sqlContent), StandardCharsets.UTF_8));
-
-                // use interactive mode to tolerate execution error
+        try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
                                 terminal,
                                 sessionId,
                                 executor,
                                 historyPath,
-                                true,
                                 HideSqlStatement.INSTANCE)) {
             client.open();
             String output = new String(outputStream.toByteArray());
-
-            String cleanedOutput =
-                    output.replaceAll("\u001B\\[\\?2004[lh]", ""); // clear cursor prompt && enter
-            return normalizeOutput(cleanedOutput);
+            return normalizeOutput(output);
         }
     }
 
@@ -177,7 +168,7 @@ public class CliClientITCase extends AbstractTestBase {
     // Utility
     // -------------------------------------------------------------------------------------------
 
-    private static final String PROMOTE = "\u001B[32mFlink SQL\u001B[0m> ";
+    private static final String PROMOTE = "Flink SQL> ";
     private static final String JOB_ID = "Job ID:";
 
     enum Tag {
@@ -240,14 +231,14 @@ public class CliClientITCase extends AbstractTestBase {
 
     private static List<Result> normalizeOutput(String output) {
         List<Result> results = new ArrayList<>();
+        // remove welcome message
+        String str = output.substring(output.indexOf(PROMOTE));
         List<String> contentLines = new ArrayList<>();
         boolean reachFirstPromote = false;
-        boolean ignoreStartup = true;
-        try (BufferedReader reader = new BufferedReader(new StringReader(output))) {
+        try (BufferedReader reader = new BufferedReader(new StringReader(str))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.contains(PROMOTE)) {
-                    ignoreStartup = false;
+                if (line.startsWith(PROMOTE)) {
                     if (reachFirstPromote) {
                         // begin a new result, put current result into list
                         results.add(convertToResult(contentLines));
@@ -257,10 +248,8 @@ public class CliClientITCase extends AbstractTestBase {
                         // start to consume a new result
                         reachFirstPromote = true;
                     }
-                    continue;
-                }
-                if (ignoreStartup) {
-                    continue;
+                    // remove the promote prefix
+                    line = line.substring(PROMOTE.length());
                 }
                 // ignore the line begin with Job ID:
                 if (!line.startsWith(JOB_ID)) {
