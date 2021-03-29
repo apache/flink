@@ -140,9 +140,9 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         Map<Integer, Integer> mapInputPartitionCounts = new HashMap<>();
         for (ExecutionVertex mapTaskVertex : mapTaskVertices) {
             assertEquals(1, mapTaskVertex.getNumberOfInputs());
-            assertEquals(1, mapTaskVertex.getConsumedPartitions(0).size());
+            assertEquals(1, mapTaskVertex.getConsumedPartitionGroup(0).size());
             IntermediateResultPartitionID consumedPartitionId =
-                    mapTaskVertex.getConsumedPartitions(0).getFirst();
+                    mapTaskVertex.getConsumedPartitionGroup(0).getFirst();
             assertEquals(
                     sourceVertex.getID(),
                     mapTaskVertex
@@ -174,9 +174,9 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         Set<Integer> mapSubpartitions = new HashSet<>();
         for (ExecutionVertex sinkTaskVertex : sinkTaskVertices) {
             assertEquals(1, sinkTaskVertex.getNumberOfInputs());
-            assertEquals(2, sinkTaskVertex.getConsumedPartitions(0).size());
+            assertEquals(2, sinkTaskVertex.getConsumedPartitionGroup(0).size());
             for (IntermediateResultPartitionID consumedPartitionId :
-                    sinkTaskVertex.getConsumedPartitions(0)) {
+                    sinkTaskVertex.getConsumedPartitionGroup(0)) {
                 IntermediateResultPartition consumedPartition =
                         executionGraphAccessor.getResultPartitionOrThrow(consumedPartitionId);
                 assertEquals(mapVertex.getID(), consumedPartition.getProducer().getJobvertexId());
