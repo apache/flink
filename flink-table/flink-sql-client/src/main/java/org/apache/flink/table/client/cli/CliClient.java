@@ -108,8 +108,6 @@ public class CliClient implements AutoCloseable {
 
     private static final int PLAIN_TERMINAL_HEIGHT = 30;
 
-    private static final String COMMENT_BEGIN = "--";
-
     /**
      * Creates a CLI instance with a custom terminal. Make sure to close the CLI instance afterwards
      * using {@link #close()}.
@@ -284,11 +282,6 @@ public class CliClient implements AutoCloseable {
             stmt = stmt.substring(0, stmt.length() - 1).trim();
         }
 
-        // TODO: fix this in the TableEnvironment in FLINK-21968
-        if (stmt.startsWith(COMMENT_BEGIN)) {
-            return Optional.empty();
-        }
-
         Operation operation = executor.parseStatement(sessionId, stmt);
         return Optional.of(operation);
     }
@@ -415,11 +408,9 @@ public class CliClient implements AutoCloseable {
         TableResult tableResult = executor.executeOperation(sessionId, operation);
         checkState(tableResult.getJobClient().isPresent());
         if (sync) {
-            terminal.writer()
-                    .println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
+            terminal.writer().println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
         } else {
-            terminal.writer()
-                    .println(CliStrings.messageInfo(MESSAGE_STATEMENT_SUBMITTED).toAnsi());
+            terminal.writer().println(CliStrings.messageInfo(MESSAGE_STATEMENT_SUBMITTED).toAnsi());
             terminal.writer()
                     .println(
                             String.format(

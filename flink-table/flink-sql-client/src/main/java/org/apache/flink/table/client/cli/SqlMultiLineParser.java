@@ -33,6 +33,7 @@ public class SqlMultiLineParser extends DefaultParser {
 
     private static final String EOF_CHARACTER = ";";
     private static final String NEW_LINE_PROMPT = ""; // results in simple '>' output
+    private static final String MASK = "--.*$";
 
     public SqlMultiLineParser() {
         setEscapeChars(null);
@@ -41,7 +42,8 @@ public class SqlMultiLineParser extends DefaultParser {
 
     @Override
     public ParsedLine parse(String line, int cursor, ParseContext context) {
-        if (!line.trim().endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
+        String maskedLine = line.replaceAll(MASK, "").trim();
+        if (!maskedLine.endsWith(EOF_CHARACTER) && context != ParseContext.COMPLETE) {
             throw new EOFError(-1, -1, "New line without EOF character.", NEW_LINE_PROMPT);
         }
         final ArgumentList parsedLine = (ArgumentList) super.parse(line, cursor, context);

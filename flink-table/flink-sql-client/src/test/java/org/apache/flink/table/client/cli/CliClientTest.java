@@ -309,14 +309,16 @@ public class CliClientTest extends TestLogger {
         final List<String> statements =
                 Arrays.asList(
                         "HELP;",
-                        "CREATE TABLE tbl("
-                                + "id INT,"
-                                + "name STRING"
-                                + ") WITH ("
-                                + "  'connector' = 'values' "
-                                + ");",
-                        "-- comments ;",
-                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "CREATE TABLE tbl( -- comment\n"
+                                + "-- comment with ;\n"
+                                + "id INT,\n"
+                                + "name STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ");\n",
+                        "INSERT INTO \n"
+                                + "--COMMENT ; \n"
+                                + "MyOtherTable VALUES (1, 101), (2, 102);",
                         "DESC MyOtherTable;",
                         "SHOW TABLES;",
                         "QUIT;\n");
@@ -324,7 +326,7 @@ public class CliClientTest extends TestLogger {
         // use table.dml-sync to keep running
         // therefore in non-interactive mode, the last executed command is INSERT INTO
         // otherwise the last executed command is quit;
-        final int hookIndex = 3;
+        final int hookIndex = 2;
 
         String content = String.join("\n", statements);
 

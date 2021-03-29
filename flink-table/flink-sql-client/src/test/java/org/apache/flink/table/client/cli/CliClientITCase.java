@@ -155,7 +155,7 @@ public class CliClientITCase extends AbstractTestBase {
                                 new ReaderInputStream(
                                         new StringReader(sqlContent), StandardCharsets.UTF_8));
 
-             // use interactive mode to tolerate execution error
+                // use interactive mode to tolerate execution error
                 CliClient client =
                         new CliClient(
                                 terminal,
