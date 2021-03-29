@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNodeOrigin;
+
 import org.antlr.runtime.tree.Tree;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 
 /** Util class for the hive parser. */
 public class HiveParserUtils {

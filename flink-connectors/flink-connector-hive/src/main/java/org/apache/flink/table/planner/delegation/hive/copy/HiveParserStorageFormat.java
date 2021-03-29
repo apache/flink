@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -115,7 +116,7 @@ public class HiveParserStorageFormat {
         }
     }
 
-    protected void fillDefaultStorageFormat(boolean isExternal, boolean isMaterializedView)
+    public void fillDefaultStorageFormat(boolean isExternal, boolean isMaterializedView)
             throws SemanticException {
         if ((inputFormat == null) && (storageHandler == null)) {
             String defaultFormat;

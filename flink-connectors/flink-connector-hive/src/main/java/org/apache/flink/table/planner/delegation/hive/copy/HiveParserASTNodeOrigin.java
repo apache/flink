@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
 /** Counterpart of hive's org.apache.hadoop.hive.ql.parse.ASTNodeOrigin. */
 public class HiveParserASTNodeOrigin {

@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.flink.table.planner.delegation.hive.HiveParserContext;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTHintParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTLexer;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CharStream;

@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 /** Counterpart of hive's org.apache.hadoop.hive.ql.optimizer.calcite.translator.ASTBuilder. */
 public class HiveParserASTBuilder {

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.flink.table.planner.delegation.hive.HiveParserASTBuilder;
-import org.apache.flink.table.planner.delegation.hive.HiveParserContext;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.tree.CommonTree;

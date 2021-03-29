@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
 
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.conf.Configuration;

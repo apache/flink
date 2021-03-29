@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.antlr.runtime.BaseRecognizer;
 import org.antlr.runtime.RecognitionException;
@@ -28,13 +28,13 @@ public class HiveASTParseError {
     private final RecognitionException re;
     private final String[] tokenNames;
 
-    HiveASTParseError(BaseRecognizer br, RecognitionException re, String[] tokenNames) {
+    public HiveASTParseError(BaseRecognizer br, RecognitionException re, String[] tokenNames) {
         this.br = br;
         this.re = re;
         this.tokenNames = tokenNames;
     }
 
-    String getMessage() {
+    public String getMessage() {
         return br.getErrorHeader(re) + " " + br.getErrorMessage(re, tokenNames);
     }
 }
