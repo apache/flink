@@ -20,8 +20,8 @@ from typing import Generic
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor
-from pyflink.fn_execution.window import TimeWindow, CountWindow
-from pyflink.fn_execution.window_context import TriggerContext, W
+from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution.table.window_context import TriggerContext, W
 
 
 class Trigger(Generic[W], ABC):

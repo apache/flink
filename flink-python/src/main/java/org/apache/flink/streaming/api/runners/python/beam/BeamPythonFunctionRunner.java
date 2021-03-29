@@ -46,6 +46,7 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.table.data.RowData;
@@ -97,10 +98,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -604,6 +607,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static class SimpleStateRequestHandler implements StateRequestHandler {
 
         private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
+        private static final String MERGE_NAMESPACES_MARK = "merge_namespaces";
 
         // map state GET request flags
         private static final byte GET_FLAG = 0;
@@ -789,10 +793,29 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 BeamFnApi.StateRequest request) throws Exception {
 
             ListState<byte[]> partitionedState = getListState(request);
-            // get values
-            byte[] valueBytes = request.getAppend().getData().toByteArray();
-            partitionedState.add(valueBytes);
-
+            if (request.getStateKey()
+                    .getBagUserState()
+                    .getTransformId()
+                    .equals(MERGE_NAMESPACES_MARK)) {
+                // get namespaces to merge
+                byte[] namespacesBytes = request.getAppend().getData().toByteArray();
+                bais.setBuffer(namespacesBytes, 0, namespacesBytes.length);
+                int namespaceCount = baisWrapper.readInt();
+                Set<Object> namespaces = new HashSet<>();
+                for (int i = 0; i < namespaceCount; i++) {
+                    namespaces.add(namespaceSerializer.deserialize(baisWrapper));
+                }
+                byte[] targetNamespaceByte =
+                        request.getStateKey().getBagUserState().getWindow().toByteArray();
+                bais.setBuffer(targetNamespaceByte, 0, targetNamespaceByte.length);
+                Object targetNamespace = namespaceSerializer.deserialize(baisWrapper);
+                ((InternalMergingState) partitionedState)
+                        .mergeNamespaces(targetNamespace, namespaces);
+            } else {
+                // get values
+                byte[] valueBytes = request.getAppend().getData().toByteArray();
+                partitionedState.add(valueBytes);
+            }
             return CompletableFuture.completedFuture(
                     BeamFnApi.StateResponse.newBuilder()
                             .setId(request.getId())

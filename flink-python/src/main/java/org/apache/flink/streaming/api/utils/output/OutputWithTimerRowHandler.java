@@ -20,58 +20,88 @@ package org.apache.flink.streaming.api.utils.output;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.types.Row;
+
+import java.io.IOException;
 
 /** This handler can accepts the runner output which contains timer registration event. */
 public class OutputWithTimerRowHandler {
 
     private final KeyedStateBackend<Row> keyedStateBackend;
-    private final TimerService timerService;
+    private final InternalTimerService internalTimerService;
     private final TimestampedCollector collector;
     private final KeyContext keyContext;
+    private final TypeSerializer namespaceSerializer;
+    private final ByteArrayInputStreamWithPos bais;
+    private final DataInputViewStreamWrapper baisWrapper;
 
     public OutputWithTimerRowHandler(
             KeyedStateBackend<Row> keyedStateBackend,
-            TimerService timerService,
+            InternalTimerService internalTimerService,
             TimestampedCollector collector,
-            KeyContext keyContext) {
+            KeyContext keyContext,
+            TypeSerializer namespaceSerializer) {
         this.keyedStateBackend = keyedStateBackend;
-        this.timerService = timerService;
+        this.internalTimerService = internalTimerService;
         this.collector = collector;
         this.keyContext = keyContext;
+        this.namespaceSerializer = namespaceSerializer;
+        this.bais = new ByteArrayInputStreamWithPos();
+        this.baisWrapper = new DataInputViewStreamWrapper(bais);
     }
 
-    public void accept(Row runnerOutput, long timestamp) {
-        if (runnerOutput.getField(0) == null) {
-            // null represents normal data
-            onData(timestamp, runnerOutput.getField(3));
-        } else {
-            TimerOperandType operandType =
-                    TimerOperandType.valueOf((byte) runnerOutput.getField(0));
-            onTimerOperation(
-                    operandType, (long) runnerOutput.getField(1), (Row) runnerOutput.getField(2));
+    public void accept(Row runnerOutput, long timestamp) throws IOException {
+        switch (RunnerOutputType.valueOf((byte) runnerOutput.getField(0))) {
+            case NORMAL_RECORD:
+                onData(timestamp, runnerOutput.getField(1));
+                break;
+            case TIMER_OPERATION:
+                Row timerData = (Row) runnerOutput.getField(2);
+                assert timerData != null;
+
+                TimerOperandType operandType =
+                        TimerOperandType.valueOf((byte) timerData.getField(0));
+                Row key = (Row) timerData.getField(1);
+                long time = (long) timerData.getField(2);
+                byte[] encodedNamespace = (byte[]) timerData.getField(3);
+                assert encodedNamespace != null;
+
+                bais.setBuffer(encodedNamespace, 0, encodedNamespace.length);
+                Object namespace;
+                if (namespaceSerializer instanceof VoidNamespaceSerializer) {
+                    namespace = VoidNamespace.INSTANCE;
+                } else {
+                    namespace = namespaceSerializer.deserialize(baisWrapper);
+                }
+                onTimerOperation(operandType, time, key, namespace);
         }
     }
 
-    private void onTimerOperation(TimerOperandType operandType, long time, Row key) {
+    private void onTimerOperation(
+            TimerOperandType operandType, long time, Row key, Object namespace) {
         synchronized (keyedStateBackend) {
             keyContext.setCurrentKey(key);
             switch (operandType) {
                 case REGISTER_EVENT_TIMER:
-                    timerService.registerEventTimeTimer(time);
+                    internalTimerService.registerEventTimeTimer(namespace, time);
                     break;
                 case REGISTER_PROC_TIMER:
-                    timerService.registerProcessingTimeTimer(time);
+                    internalTimerService.registerProcessingTimeTimer(namespace, time);
                     break;
                 case DELETE_EVENT_TIMER:
-                    timerService.deleteEventTimeTimer(time);
+                    internalTimerService.deleteEventTimeTimer(namespace, time);
                     break;
                 case DELETE_PROC_TIMER:
-                    timerService.deleteProcessingTimeTimer(time);
+                    internalTimerService.deleteProcessingTimeTimer(namespace, time);
             }
         }
     }
@@ -87,8 +117,11 @@ public class OutputWithTimerRowHandler {
 
     public static TypeInformation<Row> getRunnerOutputTypeInfo(
             TypeInformation<?> outputType, TypeInformation<Row> keyType) {
-        // structure: [timerOperandType, timestamp, key, userOutput]
-        // for more details about the output flag, see `TimerOperandType`
-        return Types.ROW(Types.BYTE, Types.LONG, keyType, outputType);
+        // structure: [runnerOutputType, normal_data, timer_data]
+        // timer data structure: [timerOperandType, key, timestamp, encoded_namespace]
+        return Types.ROW(
+                Types.BYTE,
+                outputType,
+                Types.ROW(Types.BYTE, keyType, Types.LONG, Types.PRIMITIVE_ARRAY(Types.BYTE)));
     }
 }

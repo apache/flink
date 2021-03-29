@@ -28,7 +28,7 @@ import decimal
 import pickle
 
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
-from pyflink.fn_execution.window import TimeWindow, CountWindow
+from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.table import Row
 from pyflink.table.types import RowKind
 

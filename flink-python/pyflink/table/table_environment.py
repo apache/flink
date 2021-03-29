@@ -1437,7 +1437,7 @@ class TableEnvironment(object):
         serializer = BatchedSerializer(self._serializer)
         try:
             with temp_file:
-                serializer.dump_to_stream(elements, temp_file)
+                serializer.serialize(elements, temp_file)
             row_type_info = _to_java_type(schema)
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
@@ -1530,7 +1530,7 @@ class TableEnvironment(object):
         data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
-                serializer.dump_to_stream(data, temp_file)
+                serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
             data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\

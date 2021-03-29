@@ -155,6 +155,7 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
                 getFlinkMetricContainer(),
                 null,
                 null,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(

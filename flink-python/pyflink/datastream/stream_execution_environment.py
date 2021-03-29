@@ -780,7 +780,7 @@ class StreamExecutionEnvironment(object):
         try:
             with temp_file:
                 # dumps elements to a temporary file by pickle serializer.
-                serializer.dump_to_stream(elements, temp_file)
+                serializer.serialize(elements, temp_file)
             gateway = get_gateway()
             # if user does not defined the element data types, read the pickled data as a byte array
             # list.
