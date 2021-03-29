@@ -161,8 +161,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
         }
 
         // make sure we have two TMs running in either mode
+        final long timeoutInSecs = 10;
         long startTime = System.nanoTime();
-        while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS)
+        while (System.nanoTime() - startTime
+                        < TimeUnit.NANOSECONDS.convert(timeoutInSecs, TimeUnit.SECONDS)
                 && !(verifyStringsInNamedLogFiles(
                         new String[] {"switched from state RUNNING to FINISHED"},
                         "jobmanager.log"))) {
@@ -170,7 +172,13 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
             sleep(500);
         }
 
-        LOG.info("Two containers are running. Killing the application");
+        if (!verifyStringsInNamedLogFiles(
+                new String[] {"switched from state RUNNING to FINISHED"}, "jobmanager.log")) {
+            Assert.fail(
+                    "The deployed job didn't finish on time reaching the timeout of "
+                            + timeoutInSecs
+                            + " seconds. The application will be cancelled forcefully.");
+        }
 
         // kill application "externally".
         try {
