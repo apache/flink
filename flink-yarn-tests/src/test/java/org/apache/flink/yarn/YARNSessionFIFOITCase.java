@@ -161,7 +161,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
         }
 
         // make sure we have two TMs running in either mode
-        final long timeoutInSecs = 10;
+        final long timeoutInSecs = 20;
         long startTime = System.nanoTime();
         while (System.nanoTime() - startTime
                         < TimeUnit.NANOSECONDS.convert(timeoutInSecs, TimeUnit.SECONDS)
