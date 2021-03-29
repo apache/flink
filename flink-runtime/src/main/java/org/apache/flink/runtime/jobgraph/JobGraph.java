@@ -419,15 +419,13 @@ public class JobGraph implements Serializable {
 
         // start by finding the vertices with no input edges
         // and the ones with disconnected inputs (that refer to some standalone data set)
-        {
-            Iterator<JobVertex> iter = remaining.iterator();
-            while (iter.hasNext()) {
-                JobVertex vertex = iter.next();
+        Iterator<JobVertex> iter = remaining.iterator();
+        while (iter.hasNext()) {
+            JobVertex vertex = iter.next();
 
-                if (vertex.hasNoConnectedInputs()) {
-                    sorted.add(vertex);
-                    iter.remove();
-                }
+            if (vertex.hasNoConnectedInputs()) {
+                sorted.add(vertex);
+                iter.remove();
             }
         }
 
