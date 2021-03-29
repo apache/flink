@@ -27,7 +27,7 @@
         "schema.0.name" : "a"
       }
     },
-    "id" : 41,
+    "id" : 43,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -100,7 +100,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 42,
+    "id" : 44,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -168,7 +168,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 43,
+    "id" : 45,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -235,7 +235,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 44,
+    "id" : 46,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -263,37 +263,7 @@
     },
     "description" : "Calc(select=[b, c, a, rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 45,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      }, {
-        "a" : "INT"
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      } ]
-    },
-    "description" : "Exchange(distribution=[hash[b]])"
-  }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate",
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$2",
@@ -344,6 +314,105 @@
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
+    "id" : 47,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "count$0" : "BIGINT"
+      }, {
+        "sum$1" : "INT"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 48,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "count$0" : "BIGINT"
+      }, {
+        "sum$1" : "INT"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "EXPR$2",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "EXPR$3",
+      "aggFunction" : {
+        "name" : "SUM",
+        "kind" : "SUM",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    } ],
+    "windowing" : {
+      "strategy" : "SliceAttached",
+      "window" : {
+        "type" : "CumulativeWindow",
+        "maxSize" : "PT15S",
+        "step" : "PT5S"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "sliceEnd" : 3,
+      "isRowtime" : true
+    },
     "namedWindowProperties" : [ {
       "name" : "window_start",
       "property" : {
@@ -373,7 +442,7 @@
         }
       }
     } ],
-    "id" : 46,
+    "id" : 49,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -406,7 +475,7 @@
         }
       } ]
     },
-    "description" : "WindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS EXPR$2, SUM(a) AS EXPR$3, start('w$) AS window_start, end('w$) AS window_end])"
+    "description" : "GlobalWindowAggregate(groupBy=[b], window=[CUMULATE(slice_end=[$slice_end], max_size=[15 s], step=[5 s])], select=[b, COUNT(count$0) AS EXPR$2, SUM(sum$1) AS EXPR$3, start('w$) AS window_start, end('w$) AS window_end])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
@@ -440,7 +509,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 47,
+    "id" : 50,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -488,7 +557,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 48,
+    "id" : 51,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -517,20 +586,6 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2, EXPR$3])"
   } ],
   "edges" : [ {
-    "source" : 41,
-    "target" : 42,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 42,
-    "target" : 43,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
     "source" : 43,
     "target" : 44,
     "shuffle" : {
@@ -561,6 +616,27 @@
   }, {
     "source" : 47,
     "target" : 48,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 48,
+    "target" : 49,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 49,
+    "target" : 50,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 50,
+    "target" : 51,
     "shuffle" : {
       "type" : "FORWARD"
     },
