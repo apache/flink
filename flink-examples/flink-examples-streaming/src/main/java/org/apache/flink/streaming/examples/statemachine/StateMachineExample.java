@@ -62,7 +62,6 @@ public class StateMachineExample {
         System.out.println("Options for both the above setups: ");
         System.out.println("\t[--backend <hashmap|rocks>]");
         System.out.println("\t[--checkpoint-dir <filepath>]");
-        System.out.println("\t[--async-checkpoints <true|false>]");
         System.out.println("\t[--incremental-checkpoints <true|false>]");
         System.out.println("\t[--output <filepath> OR null for stdout]");
         System.out.println();
@@ -79,8 +78,7 @@ public class StateMachineExample {
         final String stateBackend = params.get("backend", "memory");
         if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
-            boolean asyncCheckpoints = params.getBoolean("async-checkpoints", false);
-            env.setStateBackend(new HashMapStateBackend(asyncCheckpoints));
+            env.setStateBackend(new HashMapStateBackend());
             env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
         } else if ("rocks".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");

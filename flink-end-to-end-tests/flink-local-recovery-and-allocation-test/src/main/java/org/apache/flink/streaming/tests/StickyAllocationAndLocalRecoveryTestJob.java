@@ -70,8 +70,6 @@ import java.util.Set;
  *       default <code>file</code>.
  *   <li>killJvmOnFail: flag that determines whether or not an artificial failure induced by the
  *       test kills the JVM or not.
- *   <li>asyncCheckpoints: flag for async checkpoints with file state backend, default <code>true
- *       </code>.
  *   <li>incrementalCheckpoints: flag for incremental checkpoint with rocks state backend, default
  *       <code>false</code>.
  *   <li>delay: sleep delay to throttle down the production of the source, default 0.
@@ -110,8 +108,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
         String stateBackend = pt.get("stateBackend", "hashmap");
         if ("hashmap".equals(stateBackend)) {
-            boolean asyncCheckpoints = pt.getBoolean("asyncCheckpoints", true);
-            env.setStateBackend(new HashMapStateBackend(asyncCheckpoints));
+            env.setStateBackend(new HashMapStateBackend());
         } else if ("rocks".equals(stateBackend)) {
             boolean incrementalCheckpoints = pt.getBoolean("incrementalCheckpoints", false);
             env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
