@@ -162,16 +162,12 @@ public final class CatalogManager {
     public void initSchemaResolver(
             boolean isStreamingMode, ExpressionResolverBuilder expressionResolverBuilder) {
         this.schemaResolver =
-                new DefaultSchemaResolver(
-                        isStreamingMode, true, typeFactory, expressionResolverBuilder);
+                new DefaultSchemaResolver(isStreamingMode, typeFactory, expressionResolverBuilder);
     }
 
-    /**
-     * Returns a {@link SchemaResolver} for creating {@link ResolvedSchema} from {@link Schema}
-     * context-aware.
-     */
-    public SchemaResolver getSchemaResolver(boolean supportsMetadata) {
-        return schemaResolver.withMetadata(supportsMetadata);
+    /** Returns a {@link SchemaResolver} for creating {@link ResolvedSchema} from {@link Schema}. */
+    public SchemaResolver getSchemaResolver() {
+        return schemaResolver;
     }
 
     /** Returns a factory for creating fully resolved data types that can be used for planning. */

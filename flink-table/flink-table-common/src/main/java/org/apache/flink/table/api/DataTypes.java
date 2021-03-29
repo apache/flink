@@ -138,6 +138,7 @@ public final class DataTypes {
      * by the API. At other locations, a {@link DataTypeFactory} is provided.
      */
     public static UnresolvedDataType of(Class<?> unresolvedClass) {
+        Preconditions.checkNotNull(unresolvedClass, "Unresolved class name must not be null.");
         return new UnresolvedDataType(
                 () -> String.format("'%s'", unresolvedClass.getName()),
                 (factory) -> factory.createDataType(unresolvedClass));
@@ -154,6 +155,7 @@ public final class DataTypes {
      * by the API. At other locations, a {@link DataTypeFactory} is provided.
      */
     public static UnresolvedDataType of(String unresolvedName) {
+        Preconditions.checkNotNull(unresolvedName, "Unresolved name must not be null.");
         return new UnresolvedDataType(
                 () -> unresolvedName, (factory) -> factory.createDataType(unresolvedName));
     }
@@ -173,6 +175,7 @@ public final class DataTypes {
      * by the API. At other locations, a {@link DataTypeFactory} is provided.
      */
     public static UnresolvedDataType of(TypeInformation<?> typeInfo) {
+        Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
         return new UnresolvedDataType(
                 () -> String.format("'%s'", typeInfo.toString()),
                 (factory) -> factory.createDataType(typeInfo));

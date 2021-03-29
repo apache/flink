@@ -63,24 +63,16 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalTyp
 class DefaultSchemaResolver implements SchemaResolver {
 
     private final boolean isStreamingMode;
-    private final boolean supportsMetadata;
     private final DataTypeFactory dataTypeFactory;
     private final ExpressionResolverBuilder resolverBuilder;
 
     DefaultSchemaResolver(
             boolean isStreamingMode,
-            boolean supportsMetadata,
             DataTypeFactory dataTypeFactory,
             ExpressionResolverBuilder resolverBuilder) {
         this.isStreamingMode = isStreamingMode;
-        this.supportsMetadata = supportsMetadata;
         this.dataTypeFactory = dataTypeFactory;
         this.resolverBuilder = resolverBuilder;
-    }
-
-    public SchemaResolver withMetadata(boolean supportsMetadata) {
-        return new DefaultSchemaResolver(
-                isStreamingMode, supportsMetadata, dataTypeFactory, resolverBuilder);
     }
 
     @Override
@@ -96,16 +88,6 @@ class DefaultSchemaResolver implements SchemaResolver {
                 resolvePrimaryKey(schema.getPrimaryKey().orElse(null), columnsWithRowtime);
 
         return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey);
-    }
-
-    @Override
-    public boolean isStreamingMode() {
-        return isStreamingMode;
-    }
-
-    @Override
-    public boolean supportsMetadata() {
-        return supportsMetadata;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -151,10 +133,6 @@ class DefaultSchemaResolver implements SchemaResolver {
     }
 
     private MetadataColumn resolveMetadataColumn(UnresolvedMetadataColumn unresolvedColumn) {
-        if (!supportsMetadata) {
-            throw new ValidationException(
-                    "Metadata columns are not supported in a schema at the current location.");
-        }
         return Column.metadata(
                 unresolvedColumn.getName(),
                 dataTypeFactory.createDataType(unresolvedColumn.getDataType()),
