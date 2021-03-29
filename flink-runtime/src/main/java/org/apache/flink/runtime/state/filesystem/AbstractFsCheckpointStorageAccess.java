@@ -85,6 +85,9 @@ public abstract class AbstractFsCheckpointStorageAccess implements CheckpointSto
     /** The name of the metadata files in checkpoints / savepoints. */
     public static final String METADATA_FILE_NAME = "_metadata";
 
+    /** The name of the temporary metadata files in checkpoints / savepoints. */
+    public static final String TEMP_METADATA_FILE_NAME = "._metadata_temp";
+
     /** The magic number that is put in front of any reference. */
     private static final byte[] REFERENCE_MAGIC_NUMBER = new byte[] {0x05, 0x5F, 0x3F, 0x18};
 
