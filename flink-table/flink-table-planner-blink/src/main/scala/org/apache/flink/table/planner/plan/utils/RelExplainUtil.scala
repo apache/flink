@@ -261,15 +261,53 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
+  def streamWindowAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean = false,
+      isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey = None,
+      windowProperties,
+      isLocal,
+      isGlobal)
+  }
+
   def streamGroupAggregationToString(
       inputRowType: RelDataType,
       outputRowType: RelDataType,
       aggInfoList: AggregateInfoList,
       grouping: Array[Int],
       shuffleKey: Option[Array[Int]] = None,
-      windowProperties: Seq[PlannerNamedWindowProperty] = Seq(),
       isLocal: Boolean = false,
       isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey,
+      windowProperties = Seq(),
+      isLocal,
+      isGlobal)
+  }
+
+  private def stringifyStreamAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      shuffleKey: Option[Array[Int]],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean,
+      isGlobal: Boolean): String = {
 
     val aggInfos = aggInfoList.aggInfos
     val actualAggInfos = aggInfoList.getActualAggregateInfos
@@ -710,6 +748,10 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
+  /**
+   * @deprecated please use [[streamWindowAggregationToString()]] instead.
+   */
+  @Deprecated
   def streamWindowAggregationToString(
       inputType: RelDataType,
       grouping: Array[Int],

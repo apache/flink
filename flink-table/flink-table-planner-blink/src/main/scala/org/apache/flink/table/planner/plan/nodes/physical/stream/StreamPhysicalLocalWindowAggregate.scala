@@ -79,12 +79,12 @@ class StreamPhysicalLocalWindowAggregate(
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
+      .item("select", RelExplainUtil.streamWindowAggregationToString(
         inputRowType,
         getRowType,
         aggInfoList,
         grouping,
-        windowProperties = namedProperties,
+        namedProperties,
         isLocal = true))
   }
 

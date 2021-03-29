@@ -23,10 +23,9 @@ import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, P
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -66,29 +65,13 @@ class StreamPhysicalWindowAggregate(
   override def requireWatermark: Boolean = windowing.isRowtime
 
   override def deriveRowType(): RelDataType = {
-    val groupSet = ImmutableBitSet.of(grouping: _*)
-    val baseType = Aggregate.deriveRowType(
-      cluster.getTypeFactory,
-      getInput.getRowType,
-      false,
-      groupSet,
-      Collections.singletonList(groupSet),
-      aggCalls.asJava)
-    val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val builder = typeFactory.builder
-    builder.addAll(baseType.getFieldList)
-    namedWindowProperties.foreach { namedProp =>
-      // use types from windowing strategy which keeps the precision and timestamp type
-      // cast the type to not null type, because window properties should never be null
-      val timeType = namedProp.getProperty match {
-        case _: PlannerWindowStart | _: PlannerWindowEnd =>
-          LogicalTypeUtils.removeTimeAttributes(windowing.getTimeAttributeType).copy(false)
-        case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
-          windowing.getTimeAttributeType.copy(false)
-      }
-      builder.add(namedProp.getName, typeFactory.createFieldTypeFromLogicalType(timeType))
-    }
-    builder.build()
+    WindowUtil.deriveWindowAggregateRowType(
+      grouping,
+      aggCalls,
+      windowing,
+      namedWindowProperties,
+      inputRel.getRowType,
+      cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -97,12 +80,12 @@ class StreamPhysicalWindowAggregate(
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
+      .item("select", RelExplainUtil.streamWindowAggregationToString(
         inputRowType,
         getRowType,
         aggInfoList,
         grouping,
-        windowProperties = namedWindowProperties))
+        namedWindowProperties))
   }
 
   override def copy(
