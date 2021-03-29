@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.hadoop.hive.ql.exec.PTFUtils;
 import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.Order;

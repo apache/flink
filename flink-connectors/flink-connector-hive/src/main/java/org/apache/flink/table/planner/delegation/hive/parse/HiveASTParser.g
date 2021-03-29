@@ -414,12 +414,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseError;
 }
 
 
 @members {
-  ArrayList<HiveASTParseError> errors = new ArrayList<>();
+  public ArrayList<HiveASTParseError> errors = new ArrayList<>();
   Stack msgs = new Stack<String>();
 
   private static HashMap<String, String> xlateMap;

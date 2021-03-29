@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.desc;
 
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 
 import java.io.Serializable;
 
