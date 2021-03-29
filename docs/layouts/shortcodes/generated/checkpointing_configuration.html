@@ -15,12 +15,6 @@
             <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <span markdown="span">`StateBackendFactory`</span>. If a factory is specified it is instantiated via its zero argument constructor and its <span markdown="span">`StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)`</span> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.async</h5></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>Option whether the state backend should use an asynchronous snapshot method where possible and configurable. Some state backends may not support asynchronous snapshots, or only support asynchronous snapshots, and ignore this option.</td>
-        </tr>
-        <tr>
             <td><h5>state.backend.incremental</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

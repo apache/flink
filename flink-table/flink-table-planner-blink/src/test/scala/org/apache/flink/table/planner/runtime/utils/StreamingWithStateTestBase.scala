@@ -66,7 +66,6 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
-        conf.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, true)
         env.setStateBackend(new MemoryStateBackend(
           "file://" + baseCheckpointPath, null).configure(conf, classLoader))
       case ROCKSDB_BACKEND =>
