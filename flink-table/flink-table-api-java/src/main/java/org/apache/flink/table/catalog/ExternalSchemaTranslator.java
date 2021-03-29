@@ -99,19 +99,24 @@ public final class ExternalSchemaTranslator {
                 patchDataTypeFromDeclaredSchema(dataTypeFactory, inputDataType, declaredColumns);
         final Schema patchedSchema =
                 createPatchedSchema(isTopLevelRecord, patchedDataType, declaredSchema);
-        final int[] projections = extractProjections(patchedSchema, declaredSchema);
+        final List<String> projections = extractProjections(patchedSchema, declaredSchema);
         return new InputResult(patchedDataType, isTopLevelRecord, patchedSchema, projections);
     }
 
-    private static int[] extractProjections(Schema patchedSchema, Schema declaredSchema) {
+    private static @Nullable List<String> extractProjections(
+            Schema patchedSchema, Schema declaredSchema) {
         final List<String> patchedColumns =
                 patchedSchema.getColumns().stream()
                         .map(UnresolvedColumn::getName)
                         .collect(Collectors.toList());
-        return declaredSchema.getColumns().stream()
-                .map(UnresolvedColumn::getName)
-                .mapToInt(patchedColumns::indexOf)
-                .toArray();
+        final List<String> declaredColumns =
+                declaredSchema.getColumns().stream()
+                        .map(UnresolvedColumn::getName)
+                        .collect(Collectors.toList());
+        if (patchedColumns.equals(declaredColumns)) {
+            return null;
+        }
+        return declaredColumns;
     }
 
     private static Schema createPatchedSchema(
@@ -300,13 +305,13 @@ public final class ExternalSchemaTranslator {
          * List of indices to adjust the presents and order of columns from {@link #schema} for the
          * final column structure.
          */
-        private final @Nullable int[] projections;
+        private final @Nullable List<String> projections;
 
         private InputResult(
                 DataType physicalDataType,
                 boolean isTopLevelRecord,
                 Schema schema,
-                @Nullable int[] projections) {
+                @Nullable List<String> projections) {
             this.physicalDataType = physicalDataType;
             this.isTopLevelRecord = isTopLevelRecord;
             this.schema = schema;
@@ -325,7 +330,7 @@ public final class ExternalSchemaTranslator {
             return schema;
         }
 
-        public @Nullable int[] getProjections() {
+        public @Nullable List<String> getProjections() {
             return projections;
         }
     }
