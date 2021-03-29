@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.parse;
+package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionExpression;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionSpec;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserPTFInvocationSpec.PartitionExpression;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserPTFInvocationSpec.PartitionSpec;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 
 import org.antlr.runtime.tree.Tree;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -1091,7 +1093,7 @@ public class HiveParserBaseSemanticAnalyzer {
             return nullFormat;
         }
 
-        protected void analyzeRowFormat(HiveParserASTNode child) throws SemanticException {
+        public void analyzeRowFormat(HiveParserASTNode child) throws SemanticException {
             child = (HiveParserASTNode) child.getChild(0);
             int numChildRowFormat = child.getChildCount();
             for (int numC = 0; numC < numChildRowFormat; numC++) {

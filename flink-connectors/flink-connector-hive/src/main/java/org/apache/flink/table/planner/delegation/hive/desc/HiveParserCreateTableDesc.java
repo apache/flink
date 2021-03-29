@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.delegation.hive.desc;
 
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserBaseSemanticAnalyzer;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveParserStorageFormat;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 

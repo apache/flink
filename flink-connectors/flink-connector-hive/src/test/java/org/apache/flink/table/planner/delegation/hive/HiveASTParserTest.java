@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseUtils;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 
 import org.apache.hadoop.hive.conf.HiveConf;
