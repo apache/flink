@@ -26,7 +26,9 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -46,7 +48,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -182,9 +183,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     boolean slotSharing,
                     int expectedRestarts) {
                 final int parallelism = env.getParallelism();
-                DataStream<Long> combinedSource = null;
+                DataStream<Tuple2<Integer, Long>> combinedSource = null;
                 for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
-                    final SingleOutputStreamOperator<Long> source =
+                    int finalInputIndex = inputIndex;
+                    final SingleOutputStreamOperator<Tuple2<Integer, Long>> source =
                             env.fromSource(
                                             new LongSource(
                                                     minCheckpoints,
@@ -195,17 +197,22 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                             "source" + inputIndex)
                                     .slotSharingGroup(
                                             slotSharing ? "default" : ("source" + inputIndex))
+                                    .map(i -> new Tuple2<>(finalInputIndex, checkHeader(i)))
+                                    .returns(
+                                            TypeInformation.of(
+                                                    new TypeHint<Tuple2<Integer, Long>>() {}))
+                                    .slotSharingGroup(
+                                            slotSharing ? "default" : ("source" + inputIndex))
                                     .disableChaining();
                     combinedSource = combinedSource == null ? source : combinedSource.union(source);
                 }
 
                 final SingleOutputStreamOperator<Long> deduplicated =
                         combinedSource
-                                .partitionCustom(
-                                        (key, numPartitions) ->
-                                                (int) (withoutHeader(key) % numPartitions),
-                                        l -> l)
-                                .flatMap(new CountingMapFunction(NUM_SOURCES));
+                                .flatMap(new SourceAwareMinEmittingFunction(NUM_SOURCES))
+                                .name("min")
+                                .uid("min")
+                                .slotSharingGroup(slotSharing ? "default" : "min");
                 addFailingPipeline(minCheckpoints, slotSharing, deduplicated);
             }
         };
@@ -407,45 +414,60 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         }
     }
 
-    private static class CountingMapFunction extends RichFlatMapFunction<Long, Long>
+    private static class SourceAwareMinEmittingFunction
+            extends RichFlatMapFunction<Tuple2<Integer, Long>, Long>
             implements CheckpointedFunction {
-        private BitSet seenRecords;
+        private final int numSources;
+        private State state;
 
-        private final int withdrawnCount;
+        private ListState<State> stateList;
 
-        private ListState<BitSet> stateList;
-
-        public CountingMapFunction(int numSources) {
-            withdrawnCount = numSources - 1;
+        public SourceAwareMinEmittingFunction(int numSources) {
+            this.numSources = numSources;
         }
 
         @Override
-        public void flatMap(Long value, Collector<Long> out) throws Exception {
-            long baseValue = withoutHeader(value);
-            final int offset = StrictMath.toIntExact(baseValue * withdrawnCount);
-            for (int index = 0; index < withdrawnCount; index++) {
-                if (!seenRecords.get(index + offset)) {
-                    seenRecords.set(index + offset);
+        public void flatMap(Tuple2<Integer, Long> sourceValue, Collector<Long> out)
+                throws Exception {
+            int source = sourceValue.f0;
+            long value = withoutHeader(sourceValue.f1);
+            int partition = (int) (value % getRuntimeContext().getNumberOfParallelSubtasks());
+            state.lastValues[source][partition] = value;
+            for (int index = 0; index < numSources; index++) {
+                if (state.lastValues[index][partition] < value) {
                     return;
                 }
             }
-            out.collect(value);
+            out.collect(sourceValue.f1);
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             stateList.clear();
-            stateList.add(seenRecords);
+            stateList.add(state);
         }
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
             stateList =
                     context.getOperatorStateStore()
-                            .getListState(
-                                    new ListStateDescriptor<>(
-                                            "state", new GenericTypeInfo<>(BitSet.class)));
-            seenRecords = getOnlyElement(stateList.get(), new BitSet());
+                            .getListState(new ListStateDescriptor<>("state", State.class));
+            state =
+                    getOnlyElement(
+                            stateList.get(),
+                            new State(
+                                    numSources, getRuntimeContext().getNumberOfParallelSubtasks()));
+        }
+
+        private static class State {
+            private final long[][] lastValues;
+
+            public State(int numSources, int numberOfParallelSubtasks) {
+                this.lastValues = new long[numSources][numberOfParallelSubtasks];
+                for (long[] lastValue : lastValues) {
+                    Arrays.fill(lastValue, Long.MIN_VALUE);
+                }
+            }
         }
     }
 }
