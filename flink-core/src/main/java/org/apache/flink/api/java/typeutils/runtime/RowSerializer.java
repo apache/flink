@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.BigDecSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,6 +37,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Objects;
@@ -160,8 +163,15 @@ public final class RowSerializer extends TypeSerializer<Row> {
         for (int i = 0; i < length; i++) {
             final Object fromField = from.getField(i);
             if (fromField != null) {
-                final Object copy = fieldSerializers[i].copy(fromField);
-                fieldByPosition[i] = copy;
+                if (fromField.getClass().equals(BigInteger.class)
+                        & fieldSerializers[i].getClass().equals(BigDecSerializer.class)) {
+                    final BigDecimal fromFieldDecimal = new BigDecimal((BigInteger) fromField, 20);
+                    final Object copy = fieldSerializers[i].copy(fromFieldDecimal);
+                    fieldByPosition[i] = copy;
+                } else {
+                    final Object copy = fieldSerializers[i].copy(fromField);
+                    fieldByPosition[i] = copy;
+                }
             }
         }
         return RowUtils.createRowWithNamedPositions(
@@ -177,8 +187,15 @@ public final class RowSerializer extends TypeSerializer<Row> {
             final int targetPos = getPositionByName(fieldName);
             final Object fromField = from.getField(fieldName);
             if (fromField != null) {
-                final Object copy = fieldSerializers[targetPos].copy(fromField);
-                newRow.setField(fieldName, copy);
+                if (fromField.getClass().equals(BigInteger.class)
+                        & fieldSerializers[targetPos].getClass().equals(BigDecSerializer.class)) {
+                    final BigDecimal fromFieldDecimal = new BigDecimal((BigInteger) fromField, 20);
+                    final Object copy = fieldSerializers[targetPos].copy(fromFieldDecimal);
+                    newRow.setField(fieldName, copy);
+                } else {
+                    final Object copy = fieldSerializers[targetPos].copy(fromField);
+                    newRow.setField(fieldName, copy);
+                }
             } else {
                 newRow.setField(fieldName, null);
             }
