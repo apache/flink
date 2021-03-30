@@ -21,35 +21,58 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvgWithMerge, WeightedAvg}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc1
-import org.apache.flink.table.planner.utils.TableTestBase
-import org.junit.Test
+import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
+import org.junit.Assume.assumeTrue
+import org.junit.{Before, Test}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+
+import java.util
 
 /**
  * Tests for window aggregates based on window table-valued function.
  */
-class WindowAggregateTest extends TableTestBase {
+@RunWith(classOf[Parameterized])
+class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
-  util.tableEnv.executeSql(
-    s"""
-       |CREATE TABLE MyTable (
-       |  a INT,
-       |  b BIGINT,
-       |  c STRING NOT NULL,
-       |  d DECIMAL(10, 3),
-       |  e BIGINT,
-       |  rowtime TIMESTAMP(3),
-       |  proctime as PROCTIME(),
-       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-       |) with (
-       |  'connector' = 'values'
-       |)
-       |""".stripMargin)
+
+  /**
+   * Some tests are not need to test on both mode, because they can't apply two-phase optimization.
+   * In order to reduce xml plan size, we can just test on the default mode,
+   * i.e. TWO_PHASE (on streaming).
+   */
+  private val isTwoPhase = aggPhaseEnforcer == AggregatePhaseStrategy.TWO_PHASE
+
+  @Before
+  def before(): Unit = {
+    util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
+    util.addTemporarySystemFunction("weightedAvgWithoutMerge", classOf[WeightedAvg])
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  a INT,
+         |  b BIGINT,
+         |  c STRING NOT NULL,
+         |  d DECIMAL(10, 3),
+         |  e BIGINT,
+         |  rowtime TIMESTAMP(3),
+         |  proctime as PROCTIME(),
+         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+         |) with (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+
+    // set agg-phase strategy
+    util.tableEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+      aggPhaseEnforcer.toString)
+  }
 
   @Test
   def testTumble_OnRowtime(): Unit = {
@@ -72,6 +95,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testTumble_OnProctime(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -303,6 +327,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testTumble_DoNotSplitProcessingTimeWindow(): Unit = {
+    assumeTrue(isTwoPhase)
     // the processing-time window aggregate with distinct shouldn't be split into two-level agg
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
@@ -339,6 +364,27 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testTumble_UdafWithoutMerge(): Unit = {
+    assumeTrue(isTwoPhase)
+    // the window aggregation shouldn't be split into local-global window aggregation
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvgWithoutMerge(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCumulate_OnRowtime(): Unit = {
     val sql =
       """
@@ -360,6 +406,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCumulate_OnProctime(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -421,6 +468,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testHop_OnProctime(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -555,6 +603,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_GroupOnOnlyStart(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -572,6 +621,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_PythonAggregateCall(): Unit = {
+    assumeTrue(isTwoPhase)
     util.tableEnv.createTemporaryFunction("python_agg", classOf[TestPythonAggregateFunction])
     val sql =
       """
@@ -685,6 +735,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_GroupingSetsWithoutWindowStartEnd(): Unit = {
+    assumeTrue(isTwoPhase)
     // Cannot translate to window aggregate because group keys don't contain both window_start
     // and window_end
     val sql =
@@ -700,6 +751,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_GroupingSetsOnlyWithWindowStart(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -760,6 +812,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_CubeWithoutWindowStartEnd(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -774,6 +827,7 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testCantTranslateToWindowAgg_RollupWithoutWindowStartEnd(): Unit = {
+    assumeTrue(isTwoPhase)
     val sql =
       """
         |SELECT
@@ -945,5 +999,15 @@ class WindowAggregateTest extends TableTestBase {
         |GROUP BY ROLLUP (a, b), window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+}
+
+object WindowAggregateTest {
+  @Parameterized.Parameters(name = "aggPhaseEnforcer={0}")
+  def parameters(): util.Collection[Array[Any]] = {
+    util.Arrays.asList(
+      Array(AggregatePhaseStrategy.ONE_PHASE),
+      Array(AggregatePhaseStrategy.TWO_PHASE)
+    )
   }
 }

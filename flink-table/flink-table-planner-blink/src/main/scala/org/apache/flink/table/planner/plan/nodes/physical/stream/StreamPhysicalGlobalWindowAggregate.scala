@@ -19,36 +19,43 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
+import org.apache.flink.table.planner.expressions._
+import org.apache.flink.table.planner.plan.logical.{SliceAttachedWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.util.Litmus
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 
 /**
- * Streaming window aggregate physical node which will be translate to window aggregate operator.
+ * Streaming global window aggregate physical node.
  *
- * Note: The differences between [[StreamPhysicalWindowAggregate]] and
- * [[StreamPhysicalGroupWindowAggregate]] is that, [[StreamPhysicalWindowAggregate]] is translated
- * from window TVF syntax, but the other is from the legacy GROUP WINDOW FUNCTION syntax.
- * In the long future, [[StreamPhysicalGroupWindowAggregate]] will be dropped.
+ * <p>This is a global-aggregation node optimized from [[StreamPhysicalWindowAggregate]] after
+ * [[TwoStageOptimizedWindowAggregateRule]] optimization.
+ *
+ * <p>The windowing of global window aggregate must be [[SliceAttachedWindowingStrategy]] or
+ * [[WindowAttachedWindowingStrategy]] because windowing or slicing has been applied by
+ * local window aggregate. There is no time attribute and no window start columns on
+ * the output of local window aggregate, but slice end.
+ *
+ * @see [[TwoStageOptimizedWindowAggregateRule]]
+ * @see [[StreamPhysicalWindowAggregate]]
  */
-class StreamPhysicalWindowAggregate(
+class StreamPhysicalGlobalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
+    val inputRowTypeOfLocalAgg: RelDataType,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
     val windowing: WindowingStrategy,
@@ -56,11 +63,25 @@ class StreamPhysicalWindowAggregate(
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
-  lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveWindowAggregateInfoList(
-    FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
+  private lazy val aggInfoList = AggregateUtil.deriveWindowAggregateInfoList(
+    FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
     aggCalls,
     windowing.getWindow,
     isStateBackendDataViews = true)
+
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    windowing match {
+      case _: WindowAttachedWindowingStrategy | _: SliceAttachedWindowingStrategy =>
+      // pass
+      case _ =>
+        return litmus.fail("StreamPhysicalGlobalWindowAggregate should only accepts " +
+          "WindowAttachedWindowingStrategy and SliceAttachedWindowingStrategy, " +
+          s"but got ${windowing.getClass.getSimpleName}. " +
+          "This should never happen, please open an issue.")
+    }
+    super.isValid(litmus, context)
+  }
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
@@ -85,16 +106,18 @@ class StreamPhysicalWindowAggregate(
         getRowType,
         aggInfoList,
         grouping,
-        namedWindowProperties))
+        namedWindowProperties,
+        isGlobal = true))
   }
 
   override def copy(
       traitSet: RelTraitSet,
       inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalWindowAggregate(
+    new StreamPhysicalGlobalWindowAggregate(
       cluster,
       traitSet,
       inputs.get(0),
+      inputRowTypeOfLocalAgg,
       grouping,
       aggCalls,
       windowing,
@@ -104,7 +127,7 @@ class StreamPhysicalWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
-    new StreamExecWindowAggregate(
+    new StreamExecGlobalWindowAggregate(
       grouping,
       aggCalls.toArray,
       windowing,
