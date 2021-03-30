@@ -165,15 +165,15 @@ class EmbeddedRocksDBStateBackendTests(PyFlinkTestCase):
                          "org.apache.flink.contrib.streaming.state."
                          "DefaultConfigurableOptionsFactory")
 
-    def test_get_set_number_of_transfering_threads(self):
+    def test_get_set_number_of_transfer_threads(self):
 
         state_backend = EmbeddedRocksDBStateBackend()
 
-        self.assertEqual(state_backend.get_number_of_transfering_threads(), 1)
+        self.assertEqual(state_backend.get_number_of_transfer_threads(), 4)
 
-        state_backend.set_number_of_transfering_threads(4)
+        state_backend.set_number_of_transfer_threads(8)
 
-        self.assertEqual(state_backend.get_number_of_transfering_threads(), 4)
+        self.assertEqual(state_backend.get_number_of_transfer_threads(), 8)
 
 
 class RocksDBStateBackendTests(PyFlinkTestCase):

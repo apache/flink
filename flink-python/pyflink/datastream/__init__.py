@@ -75,7 +75,11 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           SinkFunction)
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
-                                              PredefinedOptions)
+                                              PredefinedOptions, HashMapStateBackend,
+                                              EmbeddedRocksDBStateBackend)
+from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
+                                                   FileSystemCheckpointStorage,
+                                                   CustomCheckpointStorage)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
@@ -108,6 +112,10 @@ __all__ = [
     'RocksDBStateBackend',
     'CustomStateBackend',
     'PredefinedOptions',
+    'CheckpointStorage',
+    'JobManagerCheckpointStorage',
+    'FileSystemCheckpointStorage',
+    'CustomCheckpointStorage',
     'ExternalizedCheckpointCleanup',
     'TimeCharacteristic',
     'TimeDomain',
