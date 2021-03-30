@@ -24,6 +24,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
@@ -128,6 +129,12 @@ class TestingExecutor implements Executor {
 
     @Override
     public TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
