@@ -28,6 +28,8 @@ import java.time.Duration;
 public class DayTimeIntervalDurationConverter
         implements DataStructureConverter<Long, java.time.Duration> {
 
+    public static DayTimeIntervalDurationConverter INSTANCE = new DayTimeIntervalDurationConverter();
+
     private static final long serialVersionUID = 1L;
 
     @Override
