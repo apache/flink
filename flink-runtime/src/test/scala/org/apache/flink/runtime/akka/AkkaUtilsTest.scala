@@ -37,16 +37,6 @@ class AkkaUtilsTest
   with Matchers
   with BeforeAndAfterAll {
 
-  test("getAkkaConfig should validate transport heartbeats") {
-    val configuration = new Configuration()
-    configuration.setString(
-      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
-      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.defaultValue())
-    intercept[IllegalConfigurationException] {
-      AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
-    }
-  }
-
   test("getHostFromAkkaURL should return the correct host from a remote Akka URL") {
     val host = "127.0.0.1"
     val port = 1234
