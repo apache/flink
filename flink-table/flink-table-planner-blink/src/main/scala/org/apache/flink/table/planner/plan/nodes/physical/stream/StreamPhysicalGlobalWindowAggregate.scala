@@ -133,6 +133,7 @@ class StreamPhysicalGlobalWindowAggregate(
       windowing,
       namedWindowProperties.toArray,
       InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

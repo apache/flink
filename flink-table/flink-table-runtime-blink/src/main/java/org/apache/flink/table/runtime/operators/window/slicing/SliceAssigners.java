@@ -95,6 +95,23 @@ public final class SliceAssigners {
         return new WindowedSliceAssigner(windowEndIndex, innerAssigner);
     }
 
+    /**
+     * Creates a {@link SliceAssigner} that assigns elements which has been attached slice end
+     * timestamp.
+     *
+     * @param sliceEndIndex the index of slice end field in the input row, mustn't be a negative
+     *     value.
+     * @param innerAssigner the inner assigner which assigns the attached windows
+     */
+    public static SliceAssigner sliced(int sliceEndIndex, SliceAssigner innerAssigner) {
+        if (innerAssigner instanceof SliceSharedAssigner) {
+            return new SlicedSharedSliceAssigner(
+                    sliceEndIndex, (SliceSharedAssigner) innerAssigner);
+        } else {
+            return new SlicedUnsharedSliceAssigner(sliceEndIndex, innerAssigner);
+        }
+    }
+
     // ------—------—------—------—------—------—------—------—------—------—------—------—------—
     // Slice Assigners
     // ------—------—------—------—------—------—------—------—------—------—------—------—------—
@@ -143,6 +160,11 @@ public final class SliceAssigners {
         public Iterable<Long> expiredSlices(long windowEnd) {
             reuseExpiredList.reset(windowEnd);
             return reuseExpiredList;
+        }
+
+        @Override
+        public long getSliceEndInterval() {
+            return size;
         }
     }
 
@@ -202,6 +224,11 @@ public final class SliceAssigners {
             long firstSliceEnd = windowStart + sliceSize;
             reuseExpiredList.reset(firstSliceEnd);
             return reuseExpiredList;
+        }
+
+        @Override
+        public long getSliceEndInterval() {
+            return sliceSize;
         }
 
         @Override
@@ -290,6 +317,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getSliceEndInterval() {
+            return step;
+        }
+
+        @Override
         public void mergeSlices(long sliceEnd, MergeCallback callback) throws Exception {
             long windowStart = getWindowStart(sliceEnd);
             long firstSliceEnd = windowStart + step;
@@ -350,8 +382,97 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getSliceEndInterval() {
+            return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
         public boolean isEventTime() {
             // it always works in event-time mode if input row has been attached windows
+            return true;
+        }
+    }
+
+    /**
+     * The {@link SliceAssigner} for elements have been attached slice end timestamp, and the slices
+     * are shared.
+     */
+    public static final class SlicedSharedSliceAssigner extends AbstractSlicedSliceAssigner
+            implements SliceSharedAssigner {
+        private static final long serialVersionUID = 1L;
+        private final SliceSharedAssigner innerSharedAssigner;
+
+        public SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner innerAssigner) {
+            super(sliceEndIndex, innerAssigner);
+            this.innerSharedAssigner = innerAssigner;
+        }
+
+        @Override
+        public void mergeSlices(long sliceEnd, MergeCallback callback) throws Exception {
+            innerSharedAssigner.mergeSlices(sliceEnd, callback);
+        }
+
+        @Override
+        public Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty) {
+            return innerSharedAssigner.nextTriggerWindow(windowEnd, isWindowEmpty);
+        }
+    }
+
+    /**
+     * The {@link SliceAssigner} for elements have been attached slice end timestamp, but the slices
+     * are not shared, i.e. the assigned slice is equal to the final window.
+     */
+    public static final class SlicedUnsharedSliceAssigner extends AbstractSlicedSliceAssigner
+            implements SliceUnsharedAssigner {
+
+        private static final long serialVersionUID = 1L;
+
+        public SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner innerAssigner) {
+            super(sliceEndIndex, innerAssigner);
+        }
+    }
+
+    /**
+     * A basic implementation of {@link SliceAssigner} for elements have been attached window start
+     * and end timestamps.
+     */
+    private abstract static class AbstractSlicedSliceAssigner implements SliceAssigner {
+        private static final long serialVersionUID = 1L;
+
+        private final int sliceEndIndex;
+        protected final SliceAssigner innerAssigner;
+
+        public AbstractSlicedSliceAssigner(int sliceEndIndex, SliceAssigner innerAssigner) {
+            checkArgument(
+                    sliceEndIndex >= 0,
+                    "Windowed slice assigner must have a positive window end index.");
+            this.sliceEndIndex = sliceEndIndex;
+            this.innerAssigner = innerAssigner;
+        }
+
+        @Override
+        public long assignSliceEnd(RowData element, ClockService clock) {
+            return element.getLong(sliceEndIndex);
+        }
+
+        @Override
+        public long getWindowStart(long windowEnd) {
+            return innerAssigner.getWindowStart(windowEnd);
+        }
+
+        @Override
+        public Iterable<Long> expiredSlices(long windowEnd) {
+            return innerAssigner.expiredSlices(windowEnd);
+        }
+
+        @Override
+        public long getSliceEndInterval() {
+            return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
+        public boolean isEventTime() {
+            // it always works in event-time mode if input row has been attached slices
             return true;
         }
     }

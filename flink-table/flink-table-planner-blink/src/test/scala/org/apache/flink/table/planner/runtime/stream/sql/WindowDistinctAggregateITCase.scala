@@ -174,11 +174,6 @@ class WindowDistinctAggregateITCase(
 
     tEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinct)
-
-    // TODO: [FLINK-22011] test both one-phase and two-phase for this test class
-    tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      "ONE_PHASE")
   }
 
   @Test

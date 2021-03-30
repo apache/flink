@@ -25,8 +25,10 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -34,9 +36,13 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
+import java.util
+
+import scala.collection.JavaConversions._
+
 @RunWith(classOf[Parameterized])
-class WindowAggregateITCase(mode: StateBackendMode)
-  extends StreamingWithStateTestBase(mode) {
+class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBackendMode)
+  extends StreamingWithStateTestBase(state) {
 
   // -------------------------------------------------------------------------------
   // Expected output data for TUMBLE WINDOW tests
@@ -151,10 +157,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
         |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
-    // TODO: [FLINK-22011] test both one-phase and two-phase for this test class
     tEnv.getConfig.getConfiguration.setString(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      "ONE_PHASE")
+      aggPhase.toString)
   }
 
   @Test
@@ -631,5 +636,16 @@ class WindowAggregateITCase(mode: StateBackendMode)
     assertEquals(
       CumulateWindowRollupExpectedData.sorted.mkString("\n"),
       sink.getAppendResults.sorted.mkString("\n"))
+  }
+}
+
+object WindowAggregateITCase {
+  @Parameterized.Parameters(name = "AggPhase={0}, StateBackend={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(ONE_PHASE, HEAP_BACKEND),
+      Array(TWO_PHASE, HEAP_BACKEND),
+      Array(ONE_PHASE, ROCKSDB_BACKEND),
+      Array(TWO_PHASE, ROCKSDB_BACKEND))
   }
 }

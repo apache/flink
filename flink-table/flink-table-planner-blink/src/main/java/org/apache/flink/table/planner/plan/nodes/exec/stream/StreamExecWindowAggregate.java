@@ -43,11 +43,9 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -214,11 +212,5 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner);
-    }
-
-    private static LogicalType[] convertToLogicalTypes(DataType[] dataTypes) {
-        return Arrays.stream(dataTypes)
-                .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
-                .toArray(LogicalType[]::new);
     }
 }

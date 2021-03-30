@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -57,11 +56,6 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         put("failing-source", "true");
                     }
                 });
-
-        // TODO: [FLINK-22011] remove this option to test default two-phase mode
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
     }
 
     @Test
