@@ -25,6 +25,7 @@ import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, T
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.planner.connectors.{SelectTableSinkBase, StreamSelectTableSink}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
@@ -33,7 +34,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}

@@ -28,8 +28,8 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.sources.DynamicSourceUtils;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
