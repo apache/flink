@@ -226,7 +226,10 @@ public class SqlClientTest {
         SqlClient.main(args);
         final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
-        // TODO: escape test to trigger test
-        //        assertTrue(getStdoutString().contains(help));
+        final String output = getStdoutString();
+
+        for (String command : help.split("\n")) {
+            assertThat(output, containsString(command));
+        }
     }
 }

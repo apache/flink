@@ -34,7 +34,12 @@ public class CliStatementSplitter {
 
     public static boolean isStatementComplete(String statement) {
         String[] lines = statement.split("\n");
-        return isEndOfStatement(lines[lines.length - 1]);
+        // fix input statement is "\n"
+        if (lines.length == 0) {
+            return false;
+        } else {
+            return isEndOfStatement(lines[lines.length - 1]);
+        }
     }
 
     public static List<String> splitContent(String content) {
@@ -57,6 +62,6 @@ public class CliStatementSplitter {
     }
 
     private static boolean isEndOfStatement(String line) {
-        return line.replaceAll(MASK, "").endsWith(";");
+        return line.replaceAll(MASK, "").trim().endsWith(";");
     }
 }

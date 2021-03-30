@@ -317,6 +317,10 @@ public class CliClient implements AutoCloseable {
             stmt = stmt.substring(0, stmt.length() - 1).trim();
         }
 
+        if (stmt.isEmpty()) {
+            return Optional.empty();
+        }
+
         Operation operation = executor.parseStatement(sessionId, stmt);
         return Optional.of(operation);
     }

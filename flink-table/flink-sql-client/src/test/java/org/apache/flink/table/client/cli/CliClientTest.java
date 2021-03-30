@@ -105,6 +105,18 @@ public class CliClientTest extends TestLogger {
     }
 
     @Test
+    public void testExecuteSqlFile() throws Exception {
+        MockExecutor executor = new MockExecutor();
+        executeSqlFromContent(
+                executor,
+                String.join(
+                        ";\n",
+                        Arrays.asList(
+                                INSERT_INTO_STATEMENT, "", INSERT_OVERWRITE_STATEMENT, "\n")));
+        assertEquals(INSERT_OVERWRITE_STATEMENT, executor.receivedStatement);
+    }
+
+    @Test
     public void testSqlCompletion() throws IOException {
         verifySqlCompletion("", 0, Arrays.asList("CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"));
         verifySqlCompletion("SELE", 4, Collections.emptyList());
