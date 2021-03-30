@@ -334,12 +334,7 @@
       }, {
         "count1$2" : "BIGINT"
       }, {
-        "$slice_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "$slice_end" : "BIGINT"
       } ]
     },
     "description" : "LocalWindowAggregate(groupBy=[b], window=[HOP(time_col=[rowtime], size=[10 s], slide=[5 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, COUNT(*) AS count1$2, slice_end('w$) AS $slice_end])"
@@ -366,12 +361,7 @@
       }, {
         "count1$2" : "BIGINT"
       }, {
-        "$slice_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "$slice_end" : "BIGINT"
       } ]
     },
     "description" : "Exchange(distribution=[hash[b]])"
@@ -464,6 +454,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,

@@ -267,7 +267,7 @@ object WindowUtil {
     val groupingTypes = grouping
       .map(inputRowType.getFieldList.get(_).getType)
       .map(FlinkTypeFactory.toLogicalType)
-    val sliceEndType = Array(DataTypes.TIMESTAMP(3).getLogicalType)
+    val sliceEndType = Array(DataTypes.BIGINT().getLogicalType)
 
     val groupingNames = grouping.map(inputRowType.getFieldNames.get(_))
     val accFieldNames = inferAggAccumulatorNames(aggInfoList)

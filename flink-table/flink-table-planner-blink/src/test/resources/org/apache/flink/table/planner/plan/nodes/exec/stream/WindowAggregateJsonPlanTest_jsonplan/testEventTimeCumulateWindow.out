@@ -332,12 +332,7 @@
       }, {
         "sum$1" : "INT"
       }, {
-        "$slice_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "$slice_end" : "BIGINT"
       } ]
     },
     "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
@@ -362,12 +357,7 @@
       }, {
         "sum$1" : "INT"
       }, {
-        "$slice_end" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "$slice_end" : "BIGINT"
       } ]
     },
     "description" : "Exchange(distribution=[hash[b]])"
@@ -460,6 +450,24 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "a" : "INT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
