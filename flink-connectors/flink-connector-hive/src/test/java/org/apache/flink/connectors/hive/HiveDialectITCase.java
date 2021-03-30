@@ -263,7 +263,7 @@ public class HiveDialectITCase {
         Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
         tableEnv.executeSql(
                 "create table tbl (x int,y int not null disable novalidate rely,z int not null disable novalidate norely,"
-                        + "constraint pk_name primary key (x) rely)");
+                        + "constraint pk_name primary key (x) disable rely)");
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
         TableSchema tableSchema = catalogTable.getSchema();
@@ -278,6 +278,27 @@ public class HiveDialectITCase {
         assertTrue(
                 "NORELY NOT NULL shouldn't be reflected in schema",
                 tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+    }
+
+    @Test
+    public void testCreateTableAs() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql("create table tbl1 as select x from src group by x").await();
+        Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
+        assertEquals(1, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("int", hiveTable.getSd().getCols().get(0).getType());
+        tableEnv.executeSql(
+                        "create table default.tbl2 stored as orc as select x,max(y) as m from src group by x order by x limit 1")
+                .await();
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
+        assertEquals(2, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("m", hiveTable.getSd().getCols().get(1).getName());
+        assertEquals(
+                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
     }
 
     @Test
@@ -545,7 +566,8 @@ public class HiveDialectITCase {
     public void testFunction() throws Exception {
         // create function
         tableEnv.executeSql(
-                String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
+                String.format(
+                        "create function default.my_abs as '%s'", GenericUDFAbs.class.getName()));
         List<Row> functions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
         assertTrue(functions.toString().contains("my_abs"));

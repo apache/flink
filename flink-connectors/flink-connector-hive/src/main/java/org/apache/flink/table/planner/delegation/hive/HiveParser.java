@@ -27,7 +27,13 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
+import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ddl.CreateTableASOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -38,13 +44,16 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -52,6 +61,7 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
@@ -62,6 +72,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -79,6 +90,9 @@ public class HiveParser extends ParserImpl {
     private static final Method setCurrentTSMethod =
             HiveReflectionUtils.tryGetMethod(
                     SessionState.class, "setupQueryCurrentTimestamp", new Class[0]);
+    private static final Method getCurrentTSMethod =
+            HiveReflectionUtils.tryGetMethod(
+                    SessionState.class, "getQueryCurrentTimestamp", new Class[0]);
 
     // need to maintain the HiveParserASTNode types for DDLs
     private static final Set<Integer> DDL_NODES;
@@ -153,6 +167,8 @@ public class HiveParser extends ParserImpl {
     private final PlannerContext plannerContext;
     private final FlinkCalciteCatalogReader catalogReader;
     private final FrameworkConfig frameworkConfig;
+    private final SqlFunctionConverter funcConverter;
+    private final HiveParserDMLHelper dmlHelper;
 
     HiveParser(
             CatalogManager catalogManager,
@@ -172,6 +188,12 @@ public class HiveParser extends ParserImpl {
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase());
         this.frameworkConfig = plannerContext.createFrameworkConfig();
+        this.funcConverter =
+                new SqlFunctionConverter(
+                        plannerContext.getCluster(),
+                        frameworkConfig.getOperatorTable(),
+                        catalogReader.nameMatcher());
+        this.dmlHelper = new HiveParserDMLHelper(plannerContext, funcConverter, catalogManager);
     }
 
     @Override
@@ -192,6 +214,8 @@ public class HiveParser extends ParserImpl {
         try {
             // creates SessionState
             startSessionState(hiveConf, catalogManager);
+            // We override Hive's grouping function. Refer to the implementation for more details.
+            hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
             return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
         } finally {
             clearSessionState(hiveConf);
@@ -204,6 +228,7 @@ public class HiveParser extends ParserImpl {
             final HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
             final HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
+            Operation operation;
             if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
@@ -216,14 +241,48 @@ public class HiveParser extends ParserImpl {
                 DDLOperationConverter ddlConverter =
                         new DDLOperationConverter(this, getCatalogManager(), hiveShim);
                 if (work instanceof HiveParserCreateViewDesc) {
-                    return super.parse(cmd);
+                    // analyze and expand the view query
+                    analyzeCreateView(
+                            (HiveParserCreateViewDesc) work, context, queryState, hiveShim);
                 } else if (work instanceof CreateTableASDesc) {
-                    throw new SemanticException("CREATE TABLE AS not supported yet");
+                    // analyze the query
+                    CreateTableASDesc ctasDesc = (CreateTableASDesc) work;
+                    HiveParserCalcitePlanner calcitePlanner =
+                            createCalcitePlanner(context, queryState, hiveShim);
+                    calcitePlanner.setCtasDesc(ctasDesc);
+                    RelNode queryRelNode = calcitePlanner.genLogicalPlan(ctasDesc.getQuery());
+                    // create a table to represent the dest table
+                    HiveParserCreateTableDesc createTableDesc = ctasDesc.getCreateTableDesc();
+                    String[] dbTblName = createTableDesc.getCompoundName().split("\\.");
+                    Table destTable = new Table(Table.getEmptyTable(dbTblName[0], dbTblName[1]));
+                    destTable.getSd().setCols(createTableDesc.getCols());
+                    // create the insert operation
+                    CatalogSinkModifyOperation insertOperation =
+                            dmlHelper.createInsertOperation(
+                                    queryRelNode,
+                                    destTable,
+                                    Collections.emptyMap(),
+                                    Collections.emptyList(),
+                                    false);
+                    CreateTableOperation createTableOperation =
+                            (CreateTableOperation)
+                                    ddlConverter.convert(
+                                            ((CreateTableASDesc) work).getCreateTableDesc());
+                    return Collections.singletonList(
+                            new CreateTableASOperation(createTableOperation, insertOperation));
                 }
                 return Collections.singletonList(ddlConverter.convert(work));
             } else {
-                return super.parse(cmd);
+                final boolean explain = node.getType() == HiveASTParser.TOK_EXPLAIN;
+                // first child is the underlying explicandum
+                HiveParserASTNode input = explain ? (HiveParserASTNode) node.getChild(0) : node;
+                operation = analyzeSql(context, hiveConf, hiveShim, input);
+                // explain an nop is also considered nop
+                if (explain && !(operation instanceof NopOperation)) {
+                    operation = new ExplainOperation(operation);
+                }
             }
+            return Collections.singletonList(operation);
         } catch (HiveASTParseException e) {
             // ParseException can happen for flink-specific statements, e.g. catalog DDLs
             try {
@@ -236,10 +295,56 @@ public class HiveParser extends ParserImpl {
         }
     }
 
+    private HiveParserCalcitePlanner createCalcitePlanner(
+            HiveParserContext context, HiveParserQueryState queryState, HiveShim hiveShim)
+            throws SemanticException {
+        HiveParserCalcitePlanner calciteAnalyzer =
+                new HiveParserCalcitePlanner(
+                        queryState,
+                        plannerContext,
+                        catalogReader,
+                        frameworkConfig,
+                        getCatalogManager(),
+                        hiveShim);
+        calciteAnalyzer.initCtx(context);
+        calciteAnalyzer.init(false);
+        return calciteAnalyzer;
+    }
+
+    private void analyzeCreateView(
+            HiveParserCreateViewDesc desc,
+            HiveParserContext context,
+            HiveParserQueryState queryState,
+            HiveShim hiveShim)
+            throws SemanticException {
+        HiveParserCalcitePlanner calciteAnalyzer =
+                createCalcitePlanner(context, queryState, hiveShim);
+        calciteAnalyzer.setCreateViewDesc(desc);
+        calciteAnalyzer.genLogicalPlan(desc.getQuery());
+    }
+
+    private Operation analyzeSql(
+            HiveParserContext context, HiveConf hiveConf, HiveShim hiveShim, HiveParserASTNode node)
+            throws SemanticException {
+        HiveParserCalcitePlanner analyzer =
+                createCalcitePlanner(context, new HiveParserQueryState(hiveConf), hiveShim);
+        RelNode relNode = analyzer.genLogicalPlan(node);
+        if (relNode == null) {
+            return new NopOperation();
+        }
+
+        // if not a query, treat it as an insert
+        if (!analyzer.getQB().getIsQuery()) {
+            return dmlHelper.createInsertOperation(analyzer, relNode);
+        } else {
+            return new PlannerQueryOperation(relNode);
+        }
+    }
+
     private void startSessionState(HiveConf hiveConf, CatalogManager catalogManager) {
         final ClassLoader contextCL = Thread.currentThread().getContextClassLoader();
         try {
-            SessionState sessionState = new HiveParserSessionState(hiveConf, contextCL);
+            HiveParserSessionState sessionState = new HiveParserSessionState(hiveConf, contextCL);
             sessionState.initTxnMgr(hiveConf);
             sessionState.setCurrentDatabase(catalogManager.getCurrentDatabase());
             // some Hive functions needs the timestamp
@@ -253,13 +358,17 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private static void setCurrentTimestamp(SessionState sessionState) {
+    private static void setCurrentTimestamp(HiveParserSessionState sessionState) {
         if (setCurrentTSMethod != null) {
             try {
                 setCurrentTSMethod.invoke(sessionState);
+                sessionState.hiveParserCurrentTS =
+                        (Timestamp) getCurrentTSMethod.invoke(sessionState);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new FlinkHiveException("Failed to set current timestamp for session", e);
             }
+        } else {
+            sessionState.hiveParserCurrentTS = new Timestamp(System.currentTimeMillis());
         }
     }
 
@@ -282,12 +391,14 @@ public class HiveParser extends ParserImpl {
     }
 
     /** Sub-class of SessionState to meet our needs. */
-    private static class HiveParserSessionState extends SessionState {
+    public static class HiveParserSessionState extends SessionState {
 
         private static final Class registryClz;
         private static final Method getRegistry;
         private static final Method clearRegistry;
         private static final Method closeRegistryLoaders;
+
+        private Timestamp hiveParserCurrentTS;
 
         static {
             registryClz =
@@ -334,6 +445,10 @@ public class HiveParser extends ParserImpl {
             FileUtils.deleteDirectoryQuietly(resourceDir);
             detachSession();
             Hive.closeCurrent();
+        }
+
+        public Timestamp getHiveParserCurrentTS() {
+            return hiveParserCurrentTS;
         }
 
         private void clearSessionRegistry() {
