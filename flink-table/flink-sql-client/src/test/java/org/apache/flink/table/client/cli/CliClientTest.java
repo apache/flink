@@ -221,7 +221,63 @@ public class CliClientTest extends TestLogger {
 
     @Test
     public void testCancelExecutionInNonInteractiveMode() throws Exception {
-        verifyCancelExecution();
+        // add "\n" with quit to trigger commit the line
+        final List<String> statements =
+                Arrays.asList(
+                        "HELP;",
+                        "CREATE TABLE tbl( -- comment\n"
+                                + "-- comment with ;\n"
+                                + "id INT,\n"
+                                + "name STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ");\n",
+                        "INSERT INTO \n"
+                                + "--COMMENT ; \n"
+                                + "MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;",
+                        "QUIT;\n");
+
+        // use table.dml-sync to keep running
+        // therefore in non-interactive mode, the last executed command is INSERT INTO
+        final int hookIndex = 2;
+
+        String content = String.join("\n", statements);
+
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = true;
+
+        String sessionId = mockExecutor.openSession("test-session");
+
+        Path historyFilePath = historyTempFile();
+
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        System.setOut(new PrintStream(outputStream));
+
+        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
+                CliClient client =
+                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            Thread thread = new Thread(() -> client.executeSqlFile(content));
+            thread.start();
+
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
+
+            thread.interrupt();
+
+            while (thread.isAlive()) {
+                Thread.sleep(10);
+            }
+            assertTrue(
+                    outputStream
+                            .toString()
+                            .contains("java.lang.InterruptedException: sleep interrupted"));
+        }
+
+        // read the last executed statement
+        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -280,69 +336,6 @@ public class CliClientTest extends TestLogger {
             client.executeSqlFile(content);
         }
         return outputStream.toString();
-    }
-
-    private void verifyCancelExecution() throws Exception {
-        // use quit to close the client in interactive mode
-        // add "\n" with quit to trigger commit the line
-        final List<String> statements =
-                Arrays.asList(
-                        "HELP;",
-                        "CREATE TABLE tbl( -- comment\n"
-                                + "-- comment with ;\n"
-                                + "id INT,\n"
-                                + "name STRING\n"
-                                + ") WITH (\n"
-                                + "  'connector' = 'values'\n"
-                                + ");\n",
-                        "INSERT INTO \n"
-                                + "--COMMENT ; \n"
-                                + "MyOtherTable VALUES (1, 101), (2, 102);",
-                        "DESC MyOtherTable;",
-                        "SHOW TABLES;",
-                        "QUIT;\n");
-
-        // use table.dml-sync to keep running
-        // therefore in non-interactive mode, the last executed command is INSERT INTO
-        // otherwise the last executed command is quit;
-        final int hookIndex = 2;
-
-        String content = String.join("\n", statements);
-
-        final MockExecutor mockExecutor = new MockExecutor();
-        mockExecutor.isSync = true;
-
-        String sessionId = mockExecutor.openSession("test-session");
-
-        Path historyFilePath = historyTempFile();
-
-        OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
-
-        // use non-interactive terminal but interactive client
-        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            Thread thread = new Thread(() -> client.executeSqlFile(content));
-            thread.start();
-
-            while (!mockExecutor.isAwait) {
-                Thread.sleep(10);
-            }
-
-            thread.interrupt();
-
-            while (thread.isAlive()) {
-                Thread.sleep(10);
-            }
-            assertTrue(
-                    outputStream
-                            .toString()
-                            .contains("java.lang.InterruptedException: sleep interrupted"));
-        }
-
-        // read the last executed statement
-        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
     // --------------------------------------------------------------------------------------------

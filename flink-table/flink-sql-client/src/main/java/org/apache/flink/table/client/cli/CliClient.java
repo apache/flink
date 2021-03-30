@@ -317,7 +317,8 @@ public class CliClient implements AutoCloseable {
             stmt = stmt.substring(0, stmt.length() - 1).trim();
         }
 
-        if (stmt.isEmpty()) {
+        // meet bad case, e.g ";\n"
+        if (stmt.trim().isEmpty()) {
             return Optional.empty();
         }
 
@@ -326,7 +327,6 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callOperation(Operation operation, ExecutionMode mode) {
-
         validate(operation, mode);
 
         if (operation instanceof QuitOperation) {
