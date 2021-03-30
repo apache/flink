@@ -19,21 +19,39 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.plan.utils.AggregateUtil;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.tools.RelBuilder;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -99,8 +117,60 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         final TableConfig config = planner.getTableConfig();
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing);
 
-        // TODO: implement translate in follow-up issues, we have to call createSliceAssigner and
-        //  return a non-null transformation to make plan tests passed.
-        return inputTransform;
+        final AggregateInfoList aggInfoList =
+                AggregateUtil.deriveWindowAggregateInfoList(
+                        inputRowType,
+                        JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        windowing.getWindow(),
+                        false); // isStateBackendDataViews
+
+        final GeneratedNamespaceAggsHandleFunction<Long> generatedAggsHandler =
+                createAggsHandler(
+                        sliceAssigner,
+                        aggInfoList,
+                        config,
+                        planner.getRelBuilder(),
+                        inputRowType.getChildren());
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+
+        final OneInputStreamOperator<RowData, RowData> localAggOperator =
+                new LocalSlicingWindowAggOperator(
+                        selector,
+                        sliceAssigner,
+                        (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer(),
+                        new RowDataSerializer(inputRowType),
+                        generatedAggsHandler);
+
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                getDescription(),
+                SimpleOperatorFactory.of(localAggOperator),
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism(),
+                // use less memory here to let the chained head operator can have more memory
+                WINDOW_AGG_MEMORY_RATIO / 2);
+    }
+
+    private GeneratedNamespaceAggsHandleFunction<Long> createAggsHandler(
+            SliceAssigner sliceAssigner,
+            AggregateInfoList aggInfoList,
+            TableConfig config,
+            RelBuilder relBuilder,
+            List<LogicalType> fieldTypes) {
+        final AggsHandlerCodeGenerator generator =
+                new AggsHandlerCodeGenerator(
+                                new CodeGeneratorContext(config),
+                                relBuilder,
+                                JavaScalaConversionUtil.toScala(fieldTypes),
+                                true) // copyInputField
+                        .needAccumulate()
+                        .needMerge(0, true, null);
+
+        return generator.generateNamespaceAggsHandler(
+                "LocalWindowAggsHandler",
+                aggInfoList,
+                JavaScalaConversionUtil.toScala(Collections.emptyList()),
+                sliceAssigner);
     }
 }

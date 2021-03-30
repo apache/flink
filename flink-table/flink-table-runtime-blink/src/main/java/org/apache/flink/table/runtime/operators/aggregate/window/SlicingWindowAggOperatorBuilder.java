@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggRecordsCombiner;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.GlobalAggAccCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
@@ -64,6 +65,8 @@ public class SlicingWindowAggOperatorBuilder {
     private PagedTypeSerializer<RowData> keySerializer;
     private TypeSerializer<RowData> accSerializer;
     private GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction;
     private int indexOfCountStart = -1;
 
     public SlicingWindowAggOperatorBuilder inputSerializer(
@@ -91,6 +94,18 @@ public class SlicingWindowAggOperatorBuilder {
         return this;
     }
 
+    public SlicingWindowAggOperatorBuilder globalAggregate(
+            GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<Long> stateGeneratedAggregateFunction,
+            TypeSerializer<RowData> accSerializer) {
+        this.localGeneratedAggregateFunction = localGeneratedAggregateFunction;
+        this.globalGeneratedAggregateFunction = globalGeneratedAggregateFunction;
+        this.generatedAggregateFunction = stateGeneratedAggregateFunction;
+        this.accSerializer = accSerializer;
+        return this;
+    }
+
     /**
      * Specify the index position of the COUNT(*) value in the accumulator buffer. This is only
      * required for Hopping windows which uses this to determine whether the window is empty and
@@ -111,9 +126,20 @@ public class SlicingWindowAggOperatorBuilder {
         checkNotNull(generatedAggregateFunction);
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer);
-        final WindowCombineFunction.Factory combinerFactory =
-                new AggRecordsCombiner.Factory(
-                        generatedAggregateFunction, keySerializer, inputSerializer);
+        final WindowCombineFunction.Factory combinerFactory;
+        if (localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null) {
+            combinerFactory =
+                    new GlobalAggAccCombiner.Factory(
+                            localGeneratedAggregateFunction,
+                            globalGeneratedAggregateFunction,
+                            keySerializer,
+                            inputSerializer);
+        } else {
+            combinerFactory =
+                    new AggRecordsCombiner.Factory(
+                            generatedAggregateFunction, keySerializer, inputSerializer);
+        }
+
         final SlicingWindowProcessor<Long> windowProcessor;
         if (assigner instanceof SliceSharedAssigner) {
             windowProcessor =
