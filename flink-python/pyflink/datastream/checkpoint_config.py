@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Optional
 
 from pyflink.common import Duration
+from pyflink.datastream.checkpoint_storage import CheckpointStorage, _from_j_checkpoint_storage
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
@@ -375,6 +376,44 @@ class CheckpointConfig(object):
         :return: True, if unaligned checkpoints are forced, false otherwise.
         """
         return self._j_checkpoint_config.isForceUnalignedCheckpoints()
+
+    def set_checkpoint_storage(self, storage: CheckpointStorage) -> 'CheckpointConfig':
+        """
+        Checkpoint storage defines how stat backends checkpoint their state for fault
+        tolerance in streaming applications. Various implementations store their checkpoints
+        in different fashions and have different requirements and availability guarantees.
+
+        For example, `JobManagerCheckpointStorage` stores checkpoints in the memory of the
+        JobManager. It is lightweight and without additional dependencies but is not highly
+        available and only supports small state sizes. This checkpoint storage policy is convenient
+        for local testing and development.
+
+        The `FileSystemCheckpointStorage` stores checkpoints in a filesystem. For systems like
+        HDFS, NFS Drivs, S3, and GCS, this storage policy supports large state size, in the
+        magnitude of many terabytes while providing a highly available foundation for stateful
+        applications. This checkpoint storage policy is recommended for most production deployments.
+        """
+        self._j_checkpoint_config.setCheckpointStorage(storage._j_checkpoint_storage)
+        return self
+
+    def set_checkpoint_storage_dir(self, checkpoint_path: str) -> 'CheckpointConfig':
+        """
+        Configures the application to write out checkpoint snapshots to the configured directory.
+        See `FileSystemCheckpointStorage` for more details on checkpointing to a file system.
+        """
+        self._j_checkpoint_config.setCheckpointStorage(checkpoint_path)
+        return self
+
+    def get_checkpoint_storage(self) -> Optional[CheckpointStorage]:
+        """
+        The checkpoint storage that has been configured for the Job, or None if
+        none has been set.
+        """
+        j_storage = self._j_checkpoint_config.getCheckpointStorage()
+        if j_storage is None:
+            return None
+        else:
+            return _from_j_checkpoint_storage(j_storage)
 
 
 class ExternalizedCheckpointCleanup(Enum):
