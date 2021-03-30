@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -486,8 +487,8 @@ public class ExecutionVertex
         partition.markDataProduced();
     }
 
-    void cachePartitionInfo(PartitionInfo partitionInfo) {
-        getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
+    void cachePartitionInfo(Collection<PartitionInfo> partitionInfos) {
+        getCurrentExecutionAttempt().cachePartitionInfo(partitionInfos);
     }
 
     /** Returns all blocking result partitions whose receivers can be scheduled/updated. */
