@@ -18,11 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.logical.{SliceAttachedWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
@@ -31,6 +26,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.util.Litmus
 
 import java.util
 
@@ -67,6 +68,20 @@ class StreamPhysicalGlobalWindowAggregate(
     aggCalls,
     windowing.getWindow,
     isStateBackendDataViews = true)
+
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    windowing match {
+      case _: WindowAttachedWindowingStrategy | _: SliceAttachedWindowingStrategy =>
+      // pass
+      case _ =>
+        return litmus.fail("StreamPhysicalGlobalWindowAggregate should only accepts " +
+          "WindowAttachedWindowingStrategy and SliceAttachedWindowingStrategy, " +
+          s"but got ${windowing.getClass.getSimpleName}. " +
+          "This should never happen, please open an issue.")
+    }
+    super.isValid(litmus, context)
+  }
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
@@ -112,14 +127,6 @@ class StreamPhysicalGlobalWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
-    if (!windowing.isInstanceOf[SliceAttachedWindowingStrategy] &&
-        !windowing.isInstanceOf[WindowAttachedWindowingStrategy]) {
-      throw new TableException("Global window aggregate should only accept " +
-        "SliceAttachedWindowingStrategy or WindowAttachedWindowingStrategy, " +
-        s"but got ${windowing.getClass.getSimpleName}. " +
-        "This should never happen, please open an issue.")
-    }
-
     new StreamExecGlobalWindowAggregate(
       grouping,
       aggCalls.toArray,

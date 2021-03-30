@@ -332,7 +332,12 @@
       }, {
         "sum$1" : "INT"
       }, {
-        "$slice_end" : "BIGINT"
+        "$slice_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
       } ]
     },
     "description" : "LocalWindowAggregate(groupBy=[b], window=[CUMULATE(time_col=[rowtime], max_size=[15 s], step=[5 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])"
@@ -357,7 +362,12 @@
       }, {
         "sum$1" : "INT"
       }, {
-        "$slice_end" : "BIGINT"
+        "$slice_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
       } ]
     },
     "description" : "Exchange(distribution=[hash[b]])"

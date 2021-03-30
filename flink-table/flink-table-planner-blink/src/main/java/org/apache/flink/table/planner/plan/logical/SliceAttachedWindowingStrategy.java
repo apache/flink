@@ -46,12 +46,13 @@ public class SliceAttachedWindowingStrategy extends WindowingStrategy {
             @JsonProperty(value = FIELD_NAME_TIME_ATTRIBUTE_TYPE) LogicalType timeAttributeType,
             @JsonProperty(FIELD_NAME_SLICE_END) int sliceEnd) {
         super(window, timeAttributeType);
+        checkArgument(sliceEnd >= 0);
         this.sliceEnd = sliceEnd;
     }
 
     @Override
     public String toSummaryString(String[] inputFieldNames) {
-        checkArgument(sliceEnd >= 0 && sliceEnd < inputFieldNames.length);
+        checkArgument(sliceEnd < inputFieldNames.length);
         String windowing = String.format("slice_end=[%s]", inputFieldNames[sliceEnd]);
         return window.toSummaryString(windowing);
     }

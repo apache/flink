@@ -132,17 +132,17 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
                         FlinkConventions.STREAM_PHYSICAL(), localAgg, globalDistribution);
         RelTraitSet globalAggProvidedTraitSet = windowAgg.getTraitSet();
 
-        // we put sliceEnd at the end of local output fields
-        int sliceEndIndex = localAgg.getRowType().getFieldCount() - 1;
+        // we put sliceEnd/windowEnd at the end of local output fields
+        int endIndex = localAgg.getRowType().getFieldCount() - 1;
         final WindowingStrategy globalWindowing;
         if (windowing instanceof TimeAttributeWindowingStrategy) {
             globalWindowing =
                     new SliceAttachedWindowingStrategy(
-                            windowing.getWindow(), windowing.getTimeAttributeType(), sliceEndIndex);
+                            windowing.getWindow(), windowing.getTimeAttributeType(), endIndex);
         } else {
             globalWindowing =
                     new WindowAttachedWindowingStrategy(
-                            windowing.getWindow(), windowing.getTimeAttributeType(), sliceEndIndex);
+                            windowing.getWindow(), windowing.getTimeAttributeType(), endIndex);
         }
 
         StreamPhysicalGlobalWindowAggregate globalAgg =

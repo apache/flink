@@ -18,18 +18,20 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerSliceEnd, PlannerWindowReference}
+import org.apache.flink.table.planner.plan.logical.{TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
+import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerSliceEnd, PlannerWindowReference}
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate
-import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
-import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.calcite.util.Litmus
 
 import java.util
 
@@ -60,12 +62,32 @@ class StreamPhysicalLocalWindowAggregate(
     windowing.getWindow,
     isStateBackendDataViews = false)
 
+  private lazy val endPropertyName = if (windowing.isInstanceOf[WindowAttachedWindowingStrategy]) {
+    "window_end"
+  } else {
+    "slice_end"
+  }
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    windowing match {
+      case _: WindowAttachedWindowingStrategy | _: TimeAttributeWindowingStrategy =>
+        // pass
+      case _ =>
+        return litmus.fail("StreamPhysicalLocalWindowAggregate should only accepts " +
+          "WindowAttachedWindowingStrategy and TimeAttributeWindowingStrategy, " +
+          s"but got ${windowing.getClass.getSimpleName}. " +
+          "This should never happen, please open an issue.")
+    }
+    super.isValid(litmus, context)
+  }
+
   override def requireWatermark: Boolean = windowing.isRowtime
 
   override def deriveRowType(): RelDataType = {
     WindowUtil.deriveLocalWindowAggregateRowType(
       aggInfoList,
       grouping,
+      endPropertyName,
       inputRel.getRowType,
       getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
   }
@@ -75,7 +97,7 @@ class StreamPhysicalLocalWindowAggregate(
     val inputFieldNames = inputRowType.getFieldNames.asScala.toArray
     val windowRef = new PlannerWindowReference("w$", windowing.getTimeAttributeType)
     val namedProperties = Seq(
-      new PlannerNamedWindowProperty("slice_end", new PlannerSliceEnd(windowRef)))
+      new PlannerNamedWindowProperty(endPropertyName, new PlannerSliceEnd(windowRef)))
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))

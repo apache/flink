@@ -260,17 +260,18 @@ object WindowUtil {
   def deriveLocalWindowAggregateRowType(
       aggInfoList: AggregateInfoList,
       grouping: Array[Int],
+      endPropertyName: String,
       inputRowType: RelDataType,
       typeFactory: FlinkTypeFactory): RelDataType = {
     val accTypes = aggInfoList.getAccTypes
     val groupingTypes = grouping
       .map(inputRowType.getFieldList.get(_).getType)
       .map(FlinkTypeFactory.toLogicalType)
-    val sliceEndType = Array(DataTypes.BIGINT().getLogicalType)
+    val sliceEndType = Array(DataTypes.TIMESTAMP(3).getLogicalType)
 
     val groupingNames = grouping.map(inputRowType.getFieldNames.get(_))
     val accFieldNames = inferAggAccumulatorNames(aggInfoList)
-    val sliceEndName = Array("$slice_end")
+    val sliceEndName = Array(s"$$$endPropertyName")
 
     typeFactory.buildRelNodeRowType(
       groupingNames ++ accFieldNames ++ sliceEndName,
