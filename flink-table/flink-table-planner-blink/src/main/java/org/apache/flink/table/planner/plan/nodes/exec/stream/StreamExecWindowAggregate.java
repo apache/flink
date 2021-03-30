@@ -23,19 +23,12 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerWindowProperty;
-import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
-import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
-import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
-import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
-import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
-import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -49,7 +42,6 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -65,7 +57,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -80,7 +71,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
  * StreamExecGroupWindowAggregate} will be dropped.
  */
-public class StreamExecWindowAggregate extends StreamExecAggregateBase {
+public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
@@ -149,17 +140,12 @@ public class StreamExecWindowAggregate extends StreamExecAggregateBase {
 
         // Hopping window requires additional COUNT(*) to determine whether to register next timer
         // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
-        final boolean needInputCount = sliceAssigner instanceof SliceAssigners.HoppingSliceAssigner;
-        final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
-        Arrays.fill(aggCallNeedRetractions, false);
         final AggregateInfoList aggInfoList =
-                AggregateUtil.transformToStreamAggregateInfoList(
+                AggregateUtil.deriveWindowAggregateInfoList(
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
-                        aggCallNeedRetractions,
-                        needInputCount,
-                        true, // isStateBackendDataViews
-                        true); // needDistinctInfo
+                        windowing.getWindow(),
+                        true); // isStateBackendDataViews
 
         final GeneratedNamespaceAggsHandleFunction<Long> generatedAggsHandler =
                 createAggsHandler(
@@ -228,70 +214,6 @@ public class StreamExecWindowAggregate extends StreamExecAggregateBase {
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Utilities
-    // ------------------------------------------------------------------------------------------
-
-    private static SliceAssigner createSliceAssigner(WindowingStrategy windowingStrategy) {
-        WindowSpec windowSpec = windowingStrategy.getWindow();
-        if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
-            int windowEndIndex =
-                    ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowEnd();
-            // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
-            return SliceAssigners.windowed(windowEndIndex, innerAssigner);
-
-        } else if (windowingStrategy instanceof TimeAttributeWindowingStrategy) {
-            final int timeAttributeIndex;
-            if (windowingStrategy.isRowtime()) {
-                timeAttributeIndex =
-                        ((TimeAttributeWindowingStrategy) windowingStrategy)
-                                .getTimeAttributeIndex();
-            } else {
-                timeAttributeIndex = -1;
-            }
-            return createSliceAssigner(windowSpec, timeAttributeIndex);
-
-        } else {
-            throw new UnsupportedOperationException(windowingStrategy + " is not supported yet.");
-        }
-    }
-
-    private static SliceAssigner createSliceAssigner(
-            WindowSpec windowSpec, int timeAttributeIndex) {
-        if (windowSpec instanceof TumblingWindowSpec) {
-            Duration size = ((TumblingWindowSpec) windowSpec).getSize();
-            return SliceAssigners.tumbling(timeAttributeIndex, size);
-
-        } else if (windowSpec instanceof HoppingWindowSpec) {
-            Duration size = ((HoppingWindowSpec) windowSpec).getSize();
-            Duration slide = ((HoppingWindowSpec) windowSpec).getSlide();
-            if (size.toMillis() % slide.toMillis() != 0) {
-                throw new TableException(
-                        String.format(
-                                "HOP table function based aggregate requires size must be an "
-                                        + "integral multiple of slide, but got size %s ms and slide %s ms",
-                                size.toMillis(), slide.toMillis()));
-            }
-            return SliceAssigners.hopping(timeAttributeIndex, size, slide);
-
-        } else if (windowSpec instanceof CumulativeWindowSpec) {
-            Duration maxSize = ((CumulativeWindowSpec) windowSpec).getMaxSize();
-            Duration step = ((CumulativeWindowSpec) windowSpec).getStep();
-            if (maxSize.toMillis() % step.toMillis() != 0) {
-                throw new TableException(
-                        String.format(
-                                "CUMULATE table function based aggregate requires maxSize must be an "
-                                        + "integral multiple of step, but got maxSize %s ms and step %s ms",
-                                maxSize.toMillis(), step.toMillis()));
-            }
-            return SliceAssigners.cumulative(timeAttributeIndex, maxSize, step);
-
-        } else {
-            throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
-        }
     }
 
     private static LogicalType[] convertToLogicalTypes(DataType[] dataTypes) {

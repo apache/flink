@@ -19,64 +19,84 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerSliceEnd, PlannerWindowReference}
+import org.apache.flink.table.planner.plan.logical.{TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.util.Litmus
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 
 /**
- * Streaming window aggregate physical node which will be translate to window aggregate operator.
+ * Streaming local window aggregate physical node.
  *
- * Note: The differences between [[StreamPhysicalWindowAggregate]] and
- * [[StreamPhysicalGroupWindowAggregate]] is that, [[StreamPhysicalWindowAggregate]] is translated
- * from window TVF syntax, but the other is from the legacy GROUP WINDOW FUNCTION syntax.
- * In the long future, [[StreamPhysicalGroupWindowAggregate]] will be dropped.
+ * <p>This is a local-aggregation node optimized from [[StreamPhysicalWindowAggregate]] after
+ * [[TwoStageOptimizedWindowAggregateRule]] optimization.
+ *
+ * @see [[TwoStageOptimizedWindowAggregateRule]]
+ * @see [[StreamPhysicalWindowAggregate]]
  */
-class StreamPhysicalWindowAggregate(
+class StreamPhysicalLocalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
-    val windowing: WindowingStrategy,
-    val namedWindowProperties: Seq[PlannerNamedWindowProperty])
+    val windowing: WindowingStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
-  lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveWindowAggregateInfoList(
+  private lazy val aggInfoList = AggregateUtil.deriveWindowAggregateInfoList(
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     windowing.getWindow,
-    isStateBackendDataViews = true)
+    isStateBackendDataViews = false)
+
+  private lazy val endPropertyName = windowing match {
+    case _: WindowAttachedWindowingStrategy => "window_end"
+    case _: TimeAttributeWindowingStrategy => "slice_end"
+  }
+
+  override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
+    windowing match {
+      case _: WindowAttachedWindowingStrategy | _: TimeAttributeWindowingStrategy =>
+        // pass
+      case _ =>
+        return litmus.fail("StreamPhysicalLocalWindowAggregate should only accepts " +
+          "WindowAttachedWindowingStrategy and TimeAttributeWindowingStrategy, " +
+          s"but got ${windowing.getClass.getSimpleName}. " +
+          "This should never happen, please open an issue.")
+    }
+    super.isValid(litmus, context)
+  }
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
   override def deriveRowType(): RelDataType = {
-    WindowUtil.deriveWindowAggregateRowType(
+    WindowUtil.deriveLocalWindowAggregateRowType(
+      aggInfoList,
       grouping,
-      aggCalls,
-      windowing,
-      namedWindowProperties,
+      endPropertyName,
       inputRel.getRowType,
-      cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
+      getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
     val inputFieldNames = inputRowType.getFieldNames.asScala.toArray
+    val windowRef = new PlannerWindowReference("w$", windowing.getTimeAttributeType)
+    val namedProperties = Seq(
+      new PlannerNamedWindowProperty(endPropertyName, new PlannerSliceEnd(windowRef)))
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .item("window", windowing.toSummaryString(inputFieldNames))
@@ -85,30 +105,29 @@ class StreamPhysicalWindowAggregate(
         getRowType,
         aggInfoList,
         grouping,
-        namedWindowProperties))
+        namedProperties,
+        isLocal = true))
   }
 
   override def copy(
       traitSet: RelTraitSet,
       inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalWindowAggregate(
+    new StreamPhysicalLocalWindowAggregate(
       cluster,
       traitSet,
       inputs.get(0),
       grouping,
       aggCalls,
-      windowing,
-      namedWindowProperties
+      windowing
     )
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
-    new StreamExecWindowAggregate(
+    new StreamExecLocalWindowAggregate(
       grouping,
       aggCalls.toArray,
       windowing,
-      namedWindowProperties.toArray,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

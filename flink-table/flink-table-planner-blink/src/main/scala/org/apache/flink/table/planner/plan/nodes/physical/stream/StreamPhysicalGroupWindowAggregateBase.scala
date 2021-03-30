@@ -63,7 +63,7 @@ abstract class StreamPhysicalGroupWindowAggregateBase(
       .item("window", window)
       .itemIf("properties", namedWindowProperties.map(_.getName).mkString(", "),
         namedWindowProperties.nonEmpty)
-      .item("select", RelExplainUtil.streamWindowAggregationToString(
+      .item("select", RelExplainUtil.legacyStreamWindowAggregationToString(
         inputRowType,
         grouping,
         outputRowType,

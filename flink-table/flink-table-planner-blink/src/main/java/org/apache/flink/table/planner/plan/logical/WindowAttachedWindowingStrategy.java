@@ -48,17 +48,35 @@ public class WindowAttachedWindowingStrategy extends WindowingStrategy {
             @JsonProperty(FIELD_NAME_WINDOW_START) int windowStart,
             @JsonProperty(FIELD_NAME_WINDOW_END) int windowEnd) {
         super(window, timeAttributeType);
+        checkArgument(windowEnd >= 0 && windowStart >= 0);
         this.windowStart = windowStart;
+        this.windowEnd = windowEnd;
+    }
+
+    /**
+     * Creates a {@link WindowAttachedWindowingStrategy} which only {@link #windowEnd} is attatched.
+     */
+    public WindowAttachedWindowingStrategy(
+            WindowSpec window, LogicalType timeAttributeType, int windowEnd) {
+        super(window, timeAttributeType);
+        checkArgument(windowEnd >= 0);
+        this.windowStart = -1;
         this.windowEnd = windowEnd;
     }
 
     @Override
     public String toSummaryString(String[] inputFieldNames) {
-        checkArgument(windowStart >= 0 && windowStart < inputFieldNames.length);
-        String windowing =
-                String.format(
-                        "win_start=[%s], win_end=[%s]",
-                        inputFieldNames[windowStart], inputFieldNames[windowEnd]);
+        checkArgument(windowEnd < inputFieldNames.length);
+        final String windowing;
+        if (windowStart < 0) {
+            windowing = String.format("win_end=[%s]", inputFieldNames[windowEnd]);
+        } else {
+            checkArgument(windowStart < inputFieldNames.length);
+            windowing =
+                    String.format(
+                            "win_start=[%s], win_end=[%s]",
+                            inputFieldNames[windowStart], inputFieldNames[windowEnd]);
+        }
         return window.toSummaryString(windowing);
     }
 

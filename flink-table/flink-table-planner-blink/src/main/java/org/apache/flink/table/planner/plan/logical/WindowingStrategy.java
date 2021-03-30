@@ -34,7 +34,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "strategy")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = TimeAttributeWindowingStrategy.class),
-    @JsonSubTypes.Type(value = WindowAttachedWindowingStrategy.class)
+    @JsonSubTypes.Type(value = WindowAttachedWindowingStrategy.class),
+    @JsonSubTypes.Type(value = SliceAttachedWindowingStrategy.class)
 })
 public abstract class WindowingStrategy {
     public static final String FIELD_NAME_WINDOW = "window";
