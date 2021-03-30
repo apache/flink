@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
@@ -106,6 +107,10 @@ public interface Executor {
 
     /** Executes an operation, and return {@link TableResult} as execution result. */
     TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException;
+
+    /** Executes modify operations, and return {@link TableResult} as execution result. */
+    TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
             throws SqlExecutionException;
 
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */

@@ -27,8 +27,11 @@ import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -58,6 +61,8 @@ import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -71,6 +76,8 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_FINISH_STATEM
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SET_END_CALL_ERROR;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SUBMITTED;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_WAIT_EXECUTE;
 import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
@@ -99,6 +106,10 @@ public class CliClient implements AutoCloseable {
     private final @Nullable MaskingCallback inputTransformer;
 
     private boolean isRunning;
+
+    private boolean isStatementSetMode;
+
+    private List<ModifyOperation> statementSetOperations;
 
     private static final int PLAIN_TERMINAL_WIDTH = 80;
 
@@ -258,9 +269,8 @@ public class CliClient implements AutoCloseable {
      * Submits content from Sql file and prints status information and/or errors on the terminal.
      *
      * @param content SQL file content
-     * @return flag to indicate if the submission was successful or not
      */
-    public boolean executeSqlFile(String content) {
+    public void executeSqlFile(String content) {
         terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
@@ -269,10 +279,9 @@ public class CliClient implements AutoCloseable {
 
             if (!executeStatement(statement, ExecutionMode.NON_INTERACTIVE)) {
                 // cancel execution when meet error or ctrl + C;
-                return false;
+                return;
             }
         }
-        return true;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -331,6 +340,15 @@ public class CliClient implements AutoCloseable {
     private void callOperation(Operation operation, ExecutionMode mode) {
         validate(operation, mode);
 
+        // check the current operation is allowed in STATEMENT SET.
+        if (isStatementSetMode) {
+            if (!(operation instanceof CatalogSinkModifyOperation
+                    || operation instanceof EndStatementSetOperation)) {
+                printError(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
+                return;
+            }
+        }
+
         if (operation instanceof QuitOperation) {
             // QUIT/EXIT
             callQuit();
@@ -355,6 +373,12 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof ExplainOperation) {
             // EXPLAIN
             callExplain((ExplainOperation) operation);
+        } else if (operation instanceof BeginStatementSetOperation) {
+            // BEGIN STATEMENT SET
+            callBeginStatementSet();
+        } else if (operation instanceof EndStatementSetOperation) {
+            // END
+            callEndStatementSet();
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -436,14 +460,24 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callInsert(CatalogSinkModifyOperation operation) {
+        if (isStatementSetMode) {
+            statementSetOperations.add(operation);
+            printInfo(CliStrings.MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET);
+        } else {
+            callInserts(Collections.singletonList(operation));
+        }
+    }
+
+    private void callInserts(List<ModifyOperation> operations) {
         printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
         boolean sync = executor.getSessionConfig(sessionId).get(TABLE_DML_SYNC);
         if (sync) {
             printInfo(MESSAGE_WAIT_EXECUTE);
         }
-        TableResult tableResult = executor.executeOperation(sessionId, operation);
+        TableResult tableResult = executor.executeModifyOperations(sessionId, operations);
         checkState(tableResult.getJobClient().isPresent());
+
         if (sync) {
             terminal.writer().println(CliStrings.messageInfo(MESSAGE_FINISH_STATEMENT).toAnsi());
         } else {
@@ -472,6 +506,22 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
+    private void callBeginStatementSet() {
+        isStatementSetMode = true;
+        statementSetOperations = new ArrayList<>();
+        printInfo(CliStrings.MESSAGE_BEGIN_STATEMENT_SET);
+    }
+
+    private void callEndStatementSet() {
+        if (isStatementSetMode) {
+            isStatementSetMode = false;
+            callInserts(statementSetOperations);
+            statementSetOperations = null;
+        } else {
+            printError(MESSAGE_STATEMENT_SET_END_CALL_ERROR);
+        }
+    }
+
     private void executeOperation(Operation operation) {
         TableResult result = executor.executeOperation(sessionId, operation);
         if (TABLE_RESULT_OK == result) {
@@ -498,6 +548,11 @@ public class CliClient implements AutoCloseable {
         LOG.warn(errorMessage, t);
         boolean isVerbose = executor.getSessionConfig(sessionId).get(SqlClientOptions.VERBOSE);
         terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
+        terminal.flush();
+    }
+
+    private void printError(String message) {
+        terminal.writer().println(CliStrings.messageError(message).toAnsi());
         terminal.flush();
     }
 

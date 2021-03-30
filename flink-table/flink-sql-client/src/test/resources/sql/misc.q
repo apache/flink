@@ -41,6 +41,8 @@ USE		Sets the current default database. Experimental! Syntax: 'USE <name>;'
 LOAD MODULE		Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = '<value1>' [, '<key2>' = '<value2>', ...])];'
 UNLOAD MODULE		Unload a module. Syntax: 'UNLOAD MODULE <name>;'
 USE MODULES		Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'
+BEGIN STATEMENT SET		Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'
+END		Ends a statement set. Syntax: 'END;'
 
 Hint: Make sure that a statement ends with ';' for finalizing (multi-line) statements.
 !ok
