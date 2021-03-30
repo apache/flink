@@ -214,6 +214,32 @@ public class KafkaOptions {
                     .withDescription(
                             "Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
+    // Disable this feature by default
+    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
+            ConfigOptions.key("sink.buffer-flush.max-rows")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "The max size of buffered records before flush. "
+                                    + "When the sink receives many updates on the same key, the buffer will retain the last record of the same key. "
+                                    + "This can help to reduce data shuffling and avoid possible tombstone messages to Kafka topic."
+                                    + "Can be set to '0' to disable it."
+                                    + "Note both 'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
+                                    + "must be set to be greater than zero to enable sink buffer flushing.");
+
+    // Disable this feature by default
+    public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
+            ConfigOptions.key("sink.buffer-flush.interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0))
+                    .withDescription(
+                            "The flush interval mills, over this time, asynchronous threads will flush data. "
+                                    + "When the sink receives many updates on the same key, the buffer will retain the last record of the same key. "
+                                    + "This can help to reduce data shuffling and avoid possible tombstone messages to Kafka topic."
+                                    + "Can be set to '0' to disable it. "
+                                    + "Note both 'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
+                                    + "must be set to be greater than zero to enable sink buffer flushing.");
+
     private static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
             ConfigOptions.key("schema-registry.subject").stringType().noDefaultValue();
 

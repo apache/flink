@@ -350,6 +350,7 @@ public class KafkaDynamicTableFactory
             Integer parallelism) {
         return new KafkaDynamicSink(
                 physicalDataType,
+                physicalDataType,
                 keyEncodingFormat,
                 valueEncodingFormat,
                 keyProjection,
@@ -360,6 +361,7 @@ public class KafkaDynamicTableFactory
                 partitioner,
                 semantic,
                 false,
+                SinkBufferFlushMode.DISABLED,
                 parallelism);
     }
 }
