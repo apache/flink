@@ -1614,7 +1614,7 @@ SqlNode SqlRichExplain() :
     SqlNode stmt;
 }
 {
-    <EXPLAIN> (<PLAN> <FOR>)*
+    <EXPLAIN> [ <PLAN> <FOR> ]
     stmt = SqlQueryOrDml() {
         return new SqlRichExplain(getPos(),stmt);
     }

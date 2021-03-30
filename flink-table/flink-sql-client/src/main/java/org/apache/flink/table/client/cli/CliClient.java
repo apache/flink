@@ -456,6 +456,7 @@ public class CliClient implements AutoCloseable {
         final String explanation;
         try {
             TableResult tableResult = executor.executeOperation(sessionId, operation);
+            // show raw content instead of tableau style
             explanation =
                     Objects.requireNonNull(tableResult.collect().next().getField(0)).toString();
         } catch (SqlExecutionException | NullPointerException e) {

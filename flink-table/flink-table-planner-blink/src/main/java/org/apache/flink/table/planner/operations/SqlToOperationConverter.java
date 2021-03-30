@@ -881,7 +881,7 @@ public class SqlToOperationConverter {
         return new ShowViewsOperation();
     }
 
-    /** Convert RICHEXPLAIN statement. */
+    /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
         Operation operation = convertSqlQuery(sqlExplain.getStatement());
         return new ExplainOperation(operation);
