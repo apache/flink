@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
@@ -109,6 +110,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     /** Parallelism of the physical Kafka producer. * */
     protected final @Nullable Integer parallelism;
 
+    protected final SinkFunctionProviderCreator sinkFunctionCreator;
+
     public KafkaDynamicSink(
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
@@ -120,6 +123,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
             KafkaSinkSemantic semantic,
+            SinkFunctionProviderCreator sinkFunctionCreator,
             boolean upsertMode,
             @Nullable Integer parallelism) {
         // Format attributes
@@ -143,6 +147,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         this.partitioner = partitioner;
         this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
         this.upsertMode = upsertMode;
+        this.sinkFunctionCreator = sinkFunctionCreator;
         this.parallelism = parallelism;
     }
 
@@ -162,7 +167,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         final FlinkKafkaProducer<RowData> kafkaProducer =
                 createKafkaProducer(keySerialization, valueSerialization);
 
-        return SinkFunctionProvider.of(kafkaProducer, parallelism);
+        return sinkFunctionCreator.create(kafkaProducer, parallelism);
     }
 
     @Override
@@ -192,6 +197,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         properties,
                         partitioner,
                         semantic,
+                        sinkFunctionCreator,
                         upsertMode,
                         parallelism);
         copy.metadataKeys = metadataKeys;
@@ -242,6 +248,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 partitioner,
                 semantic,
                 upsertMode,
+                sinkFunctionCreator,
                 parallelism);
     }
 
@@ -402,6 +409,15 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         @Override
         public byte[] value() {
             return value;
+        }
+    }
+
+    @FunctionalInterface
+    interface SinkFunctionProviderCreator {
+        SinkFunctionProvider create(RichSinkFunction producer, Integer parallelism);
+
+        static SinkFunctionProviderCreator defaultCreator() {
+            return SinkFunctionProvider::of;
         }
     }
 }

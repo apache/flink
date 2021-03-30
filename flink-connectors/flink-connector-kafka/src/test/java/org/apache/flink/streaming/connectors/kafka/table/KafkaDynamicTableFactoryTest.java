@@ -895,6 +895,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 properties,
                 partitioner,
                 semantic,
+                KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
                 false,
                 parallelism);
     }

@@ -57,6 +57,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
@@ -359,6 +360,7 @@ public class KafkaDynamicTableFactory
                 properties,
                 partitioner,
                 semantic,
+                defaultCreator(),
                 false,
                 parallelism);
     }

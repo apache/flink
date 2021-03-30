@@ -57,6 +57,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -119,20 +120,23 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         UPSERT_KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
     }
 
+    static EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
+            new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
+    static EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
+            new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
+
+    static DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat =
+            new TestFormatFactory.DecodingFormatMock(
+                    ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
+    static DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+            new TestFormatFactory.DecodingFormatMock(
+                    ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
+
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testTableSource() {
         final DataType producedDataType = SOURCE_SCHEMA.toPhysicalRowDataType();
-
-        DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat =
-                new TestFormatFactory.DecodingFormatMock(
-                        ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
-
-        DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
-                new TestFormatFactory.DecodingFormatMock(
-                        ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
-
         // Construct table source using options and table source factory
         final DynamicTableSource actualSource =
                 createTableSource(SOURCE_SCHEMA, getFullSourceOptions());
@@ -161,11 +165,6 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
     @Test
     public void testTableSink() {
-        EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
-                new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
-        EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
-                new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
-
         // Construct table sink using options and table sink factory.
         final DynamicTableSink actualSink = createTableSink(SINK_SCHEMA, getFullSinkOptions());
 
@@ -179,6 +178,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
+                        KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
                         null);
 
         // Test sink format.
@@ -195,16 +195,17 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testTableSinkWithParallelism() {
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getFullSinkOptions(), options -> options.put("sink.parallelism", "100"));
-        final DynamicTableSink actualSink = createTableSink(SINK_SCHEMA, modifiedOptions);
-
-        EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
-                new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
-        EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
-                new TestFormatFactory.EncodingFormatMock(",", ChangelogMode.insertOnly());
+    public void testBufferedTableSink() {
+        // Construct table sink using options and table sink factory.
+        final DynamicTableSink actualSink =
+                createTableSink(
+                        SINK_SCHEMA,
+                        getModifiedOptions(
+                                getFullSinkOptions(),
+                                options -> {
+                                    options.put("sink.buffer-flush.max-rows", "100");
+                                    options.put("sink.buffer-flush.interval", "1000");
+                                }));
 
         final DynamicTableSink expectedSink =
                 createExpectedSink(
@@ -216,6 +217,44 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
+                        BufferedUpsertKafkaSinkFunction.createBufferedSinkFunction(
+                                SINK_SCHEMA.toPhysicalRowDataType(),
+                                SINK_KEY_FIELDS,
+                                100,
+                                Duration.ofMillis(1000)),
+                        null);
+
+        // Test sink format.
+        final KafkaDynamicSink actualUpsertKafkaSink = (KafkaDynamicSink) actualSink;
+        assertEquals(expectedSink, actualSink);
+
+        // Test kafka producer.
+        DynamicTableSink.SinkRuntimeProvider provider =
+                actualUpsertKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
+        assertThat(provider, instanceOf(SinkFunctionProvider.class));
+        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+        final SinkFunction<RowData> sinkFunction = sinkFunctionProvider.createSinkFunction();
+        assertThat(sinkFunction, instanceOf(BufferedUpsertKafkaSinkFunction.class));
+    }
+
+    @Test
+    public void testTableSinkWithParallelism() {
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getFullSinkOptions(), options -> options.put("sink.parallelism", "100"));
+        final DynamicTableSink actualSink = createTableSink(SINK_SCHEMA, modifiedOptions);
+
+        final DynamicTableSink expectedSink =
+                createExpectedSink(
+                        SINK_SCHEMA.toPhysicalRowDataType(),
+                        keyEncodingFormat,
+                        valueEncodingFormat,
+                        SINK_KEY_FIELDS,
+                        SINK_VALUE_FIELDS,
+                        null,
+                        SINK_TOPIC,
+                        UPSERT_KAFKA_SINK_PROPERTIES,
+                        KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
                         100);
         assertEquals(expectedSink, actualSink);
 
@@ -546,6 +585,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             String keyPrefix,
             String topic,
             Properties properties,
+            KafkaDynamicSink.SinkFunctionProviderCreator creator,
             Integer parallelism) {
         return new KafkaDynamicSink(
                 consumedDataType,
@@ -558,6 +598,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 properties,
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
+                creator,
                 true,
                 parallelism);
     }

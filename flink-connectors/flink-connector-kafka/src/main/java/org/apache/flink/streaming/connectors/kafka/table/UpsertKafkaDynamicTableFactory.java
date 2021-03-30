@@ -43,6 +43,7 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -50,10 +51,13 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_BOOTSTRAP_SERVERS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
@@ -89,6 +93,8 @@ public class UpsertKafkaDynamicTableFactory
         options.add(KEY_FIELDS_PREFIX);
         options.add(VALUE_FIELDS_INCLUDE);
         options.add(FactoryUtil.SINK_PARALLELISM);
+        options.add(SINK_BUFFER_FLUSH_INTERVAL);
+        options.add(SINK_BUFFER_FLUSH_MAX_ROWS);
         return options;
     }
 
@@ -155,6 +161,20 @@ public class UpsertKafkaDynamicTableFactory
 
         Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
 
+        KafkaDynamicSink.SinkFunctionProviderCreator creator;
+        Duration interval = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL);
+        Integer batchSize = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        if (batchSize > 0 && interval.toMillis() > 0) {
+            creator =
+                    BufferedUpsertKafkaSinkFunction.createBufferedSinkFunction(
+                            schema.toPhysicalRowDataType(),
+                            keyValueProjections.f0,
+                            batchSize,
+                            interval);
+        } else {
+            creator = defaultCreator();
+        }
+
         // use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
         // it will use hash partition if key is set else in round-robin behaviour.
         return new KafkaDynamicSink(
@@ -168,6 +188,7 @@ public class UpsertKafkaDynamicTableFactory
                 properties,
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
+                creator,
                 true,
                 parallelism);
     }

@@ -214,6 +214,24 @@ public class KafkaOptions {
                     .withDescription(
                             "Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
+    // Disable this feature by default
+    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
+            ConfigOptions.key("sink.buffer-flush.max-rows")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "the flush max size (includes all append, upsert and delete records), over this number"
+                                    + " of records, will flush data. The default value is 100.");
+
+    // Disable this feature by default
+    public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
+            ConfigOptions.key("sink.buffer-flush.interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0))
+                    .withDescription(
+                            "the flush interval mills, over this time, asynchronous threads will flush data. The "
+                                    + "default value is 1s.");
+
     private static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
             ConfigOptions.key("schema-registry.subject").stringType().noDefaultValue();
 
