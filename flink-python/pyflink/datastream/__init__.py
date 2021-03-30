@@ -101,6 +101,8 @@ __all__ = [
     'SourceFunction',
     'StateBackend',
     'MapFunction',
+    'HashMapStateBackend',
+    'EmbeddedRocksDBStateBackend',
     'MemoryStateBackend',
     'FsStateBackend',
     'RocksDBStateBackend',

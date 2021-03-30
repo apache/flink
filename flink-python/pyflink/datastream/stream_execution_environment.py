@@ -293,7 +293,7 @@ class StreamExecutionEnvironment(object):
         Example:
         ::
 
-            >>> env.set_state_backend(RocksDBStateBackend("file://var/checkpoints/"))
+            >>> env.set_state_backend(EmbeddedRocksDBStateBackend())
 
         :param state_backend: The :class:`StateBackend`.
         :return: This object.
@@ -352,6 +352,32 @@ class StreamExecutionEnvironment(object):
         """
         j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
         return j_ternary_boolean.getAsBoolean()
+
+    def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
+        """
+        Sets the default savepoint directory, where savepoints will be written to if none
+        is explicitly provided when triggered.
+
+        Example:
+        ::
+
+            >>> env.set_default_savepoint_directory("hdfs://savepoints")
+
+        :param directory The savepoint directory
+        :return: This object.
+        """
+        self._j_stream_execution_environment.setDefaultSavepointDirectory(directory)
+        return self
+
+    def get_default_savepoint_directory(self) -> Optional[str]:
+        """
+        Gets the default savepoint directory for this Job.
+        """
+        j_path = self._j_stream_execution_environment.getDefaultSavepointDirectory()
+        if j_path is None:
+            return None
+        else:
+            return j_path.toString()
 
     def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
         """
