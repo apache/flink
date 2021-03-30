@@ -9,7 +9,7 @@ https://flink.apache.org/ is also generated from the files found here.
 ### Build the site locally
 
 Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
-system.
+system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
 
 From this directory:
 
