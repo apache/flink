@@ -96,21 +96,6 @@ public class SqlClientTest {
         CommonTestUtils.setEnv(map);
 
         historyPath = tempFolder.newFile("history").toString();
-
-        // create sql file
-        File sqlFileFolder = tempFolder.newFolder("sql-file");
-        File sqlFile = new File(sqlFileFolder, "test-sql.sql");
-        if (!sqlFile.createNewFile()) {
-            throw new IOException("Can't create testing test-sql.sql file.");
-        }
-        sqlFilePath = sqlFile.getPath();
-
-        List<String> statements = Collections.singletonList("HELP;");
-        Files.write(
-                Paths.get(sqlFilePath),
-                statements,
-                StandardCharsets.UTF_8,
-                StandardOpenOption.APPEND);
     }
 
     @After
@@ -222,6 +207,22 @@ public class SqlClientTest {
 
     @Test
     public void testExecuteSqlFile() throws IOException {
+
+        // create sql file
+        File sqlFileFolder = tempFolder.newFolder("sql-file");
+        File sqlFile = new File(sqlFileFolder, "test-sql.sql");
+        if (!sqlFile.createNewFile()) {
+            throw new IOException("Can't create testing test-sql.sql file.");
+        }
+        sqlFilePath = sqlFile.getPath();
+
+        List<String> statements = Collections.singletonList("HELP;");
+        Files.write(
+                Paths.get(sqlFilePath),
+                statements,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.APPEND);
+
         String[] args = new String[] {"-f", sqlFilePath};
         SqlClient.main(args);
         final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");

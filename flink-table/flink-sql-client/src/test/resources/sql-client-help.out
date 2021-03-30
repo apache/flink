@@ -115,6 +115,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                            this feature is only supported for
                                            INSERT INTO statements that declare
                                            the target sink table.Please use
-                                           option f to submit update statement.
+                                           option -f to submit update statement.
 
 

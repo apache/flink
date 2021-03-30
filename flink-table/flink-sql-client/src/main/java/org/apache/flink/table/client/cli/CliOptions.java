@@ -20,6 +20,8 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.util.List;
 
@@ -79,7 +81,7 @@ public class CliOptions {
         return defaults;
     }
 
-    public URL getSqlFile() {
+    public @Nullable URL getSqlFile() {
         return sqlFile;
     }
 

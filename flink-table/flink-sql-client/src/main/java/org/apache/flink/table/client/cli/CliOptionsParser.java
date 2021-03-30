@@ -132,7 +132,7 @@ public class CliOptionsParser {
                                             + "statement has been submitted to the cluster and returns an appropriate return code. "
                                             + "Currently, this feature is only supported for INSERT INTO statements that declare "
                                             + "the target sink table."
-                                            + "Please use option %s to submit update statement.",
+                                            + "Please use option -%s to submit update statement.",
                                     OPTION_FILE.getOpt()))
                     .build();
 
