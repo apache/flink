@@ -52,9 +52,6 @@ public enum ExecutionState {
 
     DEPLOYING,
 
-    /** Restoring last possible valid state of the task if it has it. */
-    RECOVERING,
-
     RUNNING,
 
     /**
@@ -71,7 +68,10 @@ public enum ExecutionState {
 
     FAILED,
 
-    RECONCILING;
+    RECONCILING,
+
+    /** Restoring last possible valid state of the task if it has it. */
+    RECOVERING;
 
     public boolean isTerminal() {
         return this == FINISHED || this == CANCELED || this == FAILED;
