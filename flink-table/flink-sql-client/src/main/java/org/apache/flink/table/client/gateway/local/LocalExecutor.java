@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
@@ -210,6 +211,19 @@ public class LocalExecutor implements Executor {
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
             return context.wrapClassLoader(() -> tEnv.executeInternal(operation));
+        } catch (Exception e) {
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
+        }
+    }
+
+    @Override
+    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+            throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext(sessionId);
+        final TableEnvironmentInternal tEnv =
+                (TableEnvironmentInternal) context.getTableEnvironment();
+        try {
+            return context.wrapClassLoader(() -> tEnv.executeInternal(operations));
         } catch (Exception e) {
             throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
         }

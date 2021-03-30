@@ -115,6 +115,11 @@ public final class CliStrings {
                             formatCommand(
                                     "USE MODULES",
                                     "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
+                    .append(
+                            formatCommand(
+                                    "BEGIN STATEMENT SET",
+                                    "Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'"))
+                    .append(formatCommand("END", "Ends a statement set. Syntax: 'END;'"))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
@@ -174,6 +179,12 @@ public final class CliStrings {
 
     public static final String MESSAGE_SQL_EXECUTION_ERROR = "Could not execute SQL statement.";
 
+    public static final String MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR =
+            "Only INSERT statement is allowed in Statement Set.";
+
+    public static final String MESSAGE_STATEMENT_SET_END_CALL_ERROR =
+            "No Statement Set to submit, \"END;\" command should be used after \"BEGIN STATEMENT SET;\".";
+
     public static final String MESSAGE_RESET =
             "All session properties have been set to their default values.";
 
@@ -197,7 +208,12 @@ public final class CliStrings {
             "Complete execution of the SQL update statement.";
 
     public static final String MESSAGE_STATEMENT_SUBMITTED =
-            "Table update statement has been successfully submitted to the cluster:";
+            "SQL update statement has been successfully submitted to the cluster:";
+
+    public static final String MESSAGE_BEGIN_STATEMENT_SET = "Begin a statement set.";
+
+    public static final String MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET =
+            "Add SQL update statement to the statement set.";
 
     public static final String MESSAGE_WILL_EXECUTE = "Executing the SQL from the file:";
 

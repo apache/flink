@@ -219,7 +219,7 @@ public class CliClientTest extends TestLogger {
         executeSqlFromContent(mockExecutor, content);
     }
 
-    @Test
+    @Test(timeout = 10000)
     public void testCancelExecutionInNonInteractiveMode() throws Exception {
         // add "\n" with quit to trigger commit the line
         final List<String> statements =
@@ -410,7 +410,7 @@ public class CliClientTest extends TestLogger {
                 if (isSync) {
                     isAwait = true;
                     try {
-                        Thread.sleep(Long.MAX_VALUE);
+                        Thread.sleep(60_000L);
                     } catch (InterruptedException e) {
                         throw new SqlExecutionException("Fail to execute", e);
                     }
@@ -423,6 +423,28 @@ public class CliClientTest extends TestLogger {
                                 Collections.singletonList(Row.of(-1L)).iterator()));
             }
             return TestTableResult.TABLE_RESULT_OK;
+        }
+
+        @Override
+        public TableResult executeModifyOperations(
+                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
+            if (failExecution) {
+                throw new SqlExecutionException("Fail execution.");
+            }
+            if (isSync) {
+                isAwait = true;
+                try {
+                    Thread.sleep(60_000L);
+                } catch (InterruptedException e) {
+                    throw new SqlExecutionException("Fail to execute", e);
+                }
+            }
+            return new TestTableResult(
+                    new TestingJobClient(),
+                    ResultKind.SUCCESS_WITH_CONTENT,
+                    ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
+                    CloseableIterator.adapterForIterator(
+                            Collections.singletonList(Row.of(-1L)).iterator()));
         }
 
         @Override
