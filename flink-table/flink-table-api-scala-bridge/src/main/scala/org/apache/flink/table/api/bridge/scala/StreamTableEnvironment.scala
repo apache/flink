@@ -20,12 +20,15 @@ package org.apache.flink.table.api.bridge.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.types.{Row, RowKind}
 
 /**
   * This table environment is the entry point and central context for creating Table and SQL
@@ -104,16 +107,151 @@ trait StreamTableEnvironment extends TableEnvironment {
     f: TableAggregateFunction[T, ACC]): Unit
 
   /**
-    * Converts the given [[DataStream]] into a [[Table]].
-    *
-    * The field names of the [[Table]] are automatically derived from the type of the
-    * [[DataStream]].
-    *
-    * @param dataStream The [[DataStream]] to be converted.
-    * @tparam T The type of the [[DataStream]].
-    * @return The converted [[Table]].
-    */
+   * Converts the given [[DataStream]] into a [[Table]].
+   *
+   * Column names and types of the [[Table]] are automatically derived from the [[TypeInformation]]
+   * of the [[DataStream]]. If the outermost record's [[TypeInformation]] is a [[CompositeType]],
+   * it will be flattened in the first level. [[TypeInformation]] that cannot be represented as one
+   * of the listed [[DataTypes]] will be treated as a black-box
+   * [[DataTypes.RAW(Class, TypeSerializer)]] type. Thus, composite nested fields will not be
+   * accessible.
+   *
+   * Since the DataStream API does not support changelog processing natively, this method
+   * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
+   * type [[Row]] must describe [[RowKind.INSERT]] changes.
+   *
+   * By default, the stream record's timestamp and watermarks are not propagated unless
+   * explicitly declared via [[fromDataStream(DataStream, Schema)]].
+   *
+   * @param dataStream The [[DataStream]] to be converted.
+   * @tparam T The external type of the [[DataStream]].
+   * @return The converted [[Table]].
+   */
   def fromDataStream[T](dataStream: DataStream[T]): Table
+
+  /**
+   * Converts the given [[DataStream]] into a [[Table]].
+   *
+   * Column names and types of the [[Table]] are automatically derived from the [[TypeInformation]]
+   * of the [[DataStream]]. If the outermost record's [[TypeInformation]] is a [[CompositeType]],
+   * it will be flattened in the first level. [[TypeInformation]] that cannot be represented as one
+   * of the listed [[DataTypes]] will be treated as a black-box
+   * [[DataTypes.RAW(Class, TypeSerializer)]] type. Thus, composite nested fields will not be
+   * accessible.
+   *
+   * Since the DataStream API does not support changelog processing natively, this method
+   * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
+   * type [[Row]] must describe [[RowKind.INSERT]] changes.
+   *
+   * By default, the stream record's timestamp and watermarks are not propagated unless
+   * explicitly declared.
+   *
+   * This method allows to declare a [[Schema]] for the resulting table. The declaration is
+   * similar to a `CREATE TABLE` DDL in SQL and allows to:
+   *
+   * - enrich or overwrite automatically derived columns with a custom [[DataType]]
+   * - reorder columns
+   * - add computed or metadata columns next to the physical columns
+   * - access a stream record's timestamp
+   * - declare a watermark strategy or propagate the [[DataStream]] watermarks
+   *
+   * It is possible to declare a schema without physical/regular columns. In this case, those
+   * columns will be automatically derived and implicitly put at the beginning of the schema
+   * declaration.
+   *
+   * The following examples illustrate common schema declarations and their semantics:
+   *
+   * {{{
+   *     // given a DataStream of a case class with (f0: String, f1: BigDecimal)
+   *
+   *     // === EXAMPLE 1 ===
+   *
+   *     // no physical columns defined, they will be derived automatically,
+   *     // e.g. BigDecimal becomes DECIMAL(38, 18)
+   *
+   *     Schema.newBuilder()
+   *         .columnByExpression("c1", "f1 + 42")
+   *         .columnByExpression("c2", "f1 - 1")
+   *         .build()
+   *
+   *     // equal to: CREATE TABLE (f0 STRING, f1 DECIMAL(38, 18), c1 AS f1 + 42, c2 AS f1 - 1)
+   *
+   *     // === EXAMPLE 2 ===
+   *
+   *     // physical columns defined, input fields and columns will be mapped by name,
+   *     // columns are reordered and their data type overwritten,
+   *     // all columns must be defined to show up in the final table's schema
+   *
+   *     Schema.newBuilder()
+   *         .column("f1", "DECIMAL(10, 2)")
+   *         .columnByExpression("c", "f1 - 1")
+   *         .column("f0", "STRING")
+   *         .build()
+   *
+   *     // equal to: CREATE TABLE (f1 DECIMAL(10, 2), c AS f1 - 1, f0 STRING)
+   *
+   *     // === EXAMPLE 3 ===
+   *
+   *     // timestamp and watermarks can be added from the DataStream API,
+   *     // physical columns will be derived automatically
+   *
+   *     Schema.newBuilder()
+   *         .columnByMetadata("rowtime", "TIMESTAMP(3)") // extract timestamp into a table column
+   *         .watermark("rowtime", "SOURCE_WATERMARK()")  // declare watermarks propagation
+   *         .build()
+   *
+   *     // equal to:
+   *     //     CREATE TABLE (
+   *     //        f0 STRING,
+   *     //        f1 DECIMAL(38, 18),
+   *     //        rowtime TIMESTAMP(3) METADATA,
+   *     //        WATERMARK FOR rowtime AS SOURCE_WATERMARK()
+   *     //     )
+   * }}}
+   *
+   * @param dataStream The [[DataStream]] to be converted.
+   * @param schema customized schema for the final table.
+   * @tparam T The external type of the [[DataStream]].
+   * @return The converted [[Table]].
+   */
+  def fromDataStream[T](dataStream: DataStream[T], schema: Schema): Table
+
+  /**
+   * Creates a view from the given [[DataStream]] in a given path.
+   * Registered tables can be referenced in SQL queries.
+   *
+   * See [[fromDataStream(DataStream)]] for more information on how a [[DataStream]] is translated
+   * into a table.
+   *
+   * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+   * it will be inaccessible in the current session. To make the permanent object available again
+   * you can drop the corresponding temporary object.
+   *
+   * @param path The path under which the [[DataStream]] is created.
+   *             See also the [[TableEnvironment]] class description for the format of the path.
+   * @param dataStream The [[DataStream]] out of which to create the view.
+   * @tparam T The type of the [[DataStream]].
+   */
+  def createTemporaryView[T](path: String, dataStream: DataStream[T]): Unit
+
+  /**
+   * Creates a view from the given [[DataStream]] in a given path.
+   * Registered tables can be referenced in SQL queries.
+   *
+   * See [[fromDataStream(DataStream, Schema)]] for more information on how a [[DataStream]] is
+   * translated into a table.
+   *
+   * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+   * it will be inaccessible in the current session. To make the permanent object available again
+   * you can drop the corresponding temporary object.
+   *
+   * @param path The path under which the [[DataStream]] is created.
+   *             See also the [[TableEnvironment]] class description for the format of the path.
+   * @param schema customized schema for the final table.
+   * @param dataStream The [[DataStream]] out of which to create the view.
+   * @tparam T The type of the [[DataStream]].
+   */
+  def createTemporaryView[T](path: String, dataStream: DataStream[T], schema: Schema): Unit
 
   /**
     * Converts the given [[DataStream]] into a [[Table]] with specified field names.
@@ -189,24 +327,6 @@ trait StreamTableEnvironment extends TableEnvironment {
     */
   @deprecated
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit
-
-  /**
-    * Creates a view from the given [[DataStream]] in a given path.
-    * Registered tables can be referenced in SQL queries.
-    *
-    * The field names of the [[Table]] are automatically derived
-    * from the type of the [[DataStream]].
-    *
-    * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-    * it will be inaccessible in the current session. To make the permanent object available again
-    * you can drop the corresponding temporary object.
-    *
-    * @param path The path under which the [[DataStream]] is created.
-    *             See also the [[TableEnvironment]] class description for the format of the path.
-    * @param dataStream The [[DataStream]] out of which to create the view.
-    * @tparam T The type of the [[DataStream]].
-    */
-  def createTemporaryView[T](path: String, dataStream: DataStream[T]): Unit
 
   /**
     * Creates a view from the given [[DataStream]] in a given path with specified field names.
@@ -339,7 +459,7 @@ trait StreamTableEnvironment extends TableEnvironment {
     * by update or delete changes, the conversion will fail.
     *
     * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and Scala Tuple types: Fields are mapped by position, field
+    * - [[Row]] and Scala Tuple types: Fields are mapped by position, field
     * types must match.
     * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
     *

@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
-import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
@@ -47,7 +46,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -75,8 +73,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 public final class DynamicSinkUtils {
 
     /**
-     * Similar to {@link CatalogSourceTable#toRel(RelOptTable.ToRelContext)}, converts a given
-     * {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if necessary.
+     * Converts a given {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if
+     * necessary.
      */
     public static RelNode toRel(
             FlinkRelBuilder relBuilder,

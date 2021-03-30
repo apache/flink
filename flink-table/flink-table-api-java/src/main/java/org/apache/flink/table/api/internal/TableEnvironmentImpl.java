@@ -145,6 +145,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -477,6 +478,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public void createTemporaryView(String path, Table view) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(view, "Table view must not be null.");
         UnresolvedIdentifier identifier = getParser().parseIdentifier(path);
         createTemporaryView(identifier, view);
     }
@@ -1436,6 +1439,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public CatalogManager getCatalogManager() {
         return catalogManager;
+    }
+
+    @Override
+    public OperationTreeBuilder getOperationTreeBuilder() {
+        return operationTreeBuilder;
     }
 
     /**

@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.sources.TransformationScanProvider;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -93,6 +94,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            transformation.setOutputType(outputTypeInfo);
+            return transformation;
+        } else if (provider instanceof TransformationScanProvider) {
+            final Transformation<RowData> transformation =
+                    ((TransformationScanProvider) provider).createTransformation();
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else {

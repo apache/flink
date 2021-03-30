@@ -19,19 +19,29 @@
 package org.apache.flink.table.planner.sources;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -39,6 +49,13 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
+
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +69,79 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 /** Utilities for dealing with {@link DynamicTableSource}. */
 @Internal
 public final class DynamicSourceUtils {
+
+    /**
+     * Converts a given {@link DataStream} to a {@link RelNode}. It adds helper projections if
+     * necessary.
+     */
+    public static RelNode convertDataStreamToRel(
+            boolean isStreamingMode,
+            ReadableConfig config,
+            FlinkRelBuilder relBuilder,
+            ObjectIdentifier identifier,
+            ResolvedSchema schema,
+            DataStream<?> dataStream,
+            DataType physicalDataType,
+            boolean isTopLevelRecord,
+            ChangelogMode changelogMode) {
+        final CatalogTable unresolvedTable = new ExternalCatalogTable(schema);
+        final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
+        final DynamicTableSource tableSource =
+                new ExternalDynamicSource<>(
+                        identifier, dataStream, physicalDataType, isTopLevelRecord, changelogMode);
+        return convertSourceToRel(
+                isStreamingMode,
+                config,
+                relBuilder,
+                identifier,
+                catalogTable,
+                FlinkStatistic.UNKNOWN(),
+                Collections.emptyList(),
+                tableSource);
+    }
+
+    /**
+     * Converts a given {@link DynamicTableSource} to a {@link RelNode}. It adds helper projections
+     * if necessary.
+     */
+    public static RelNode convertSourceToRel(
+            boolean isStreamingMode,
+            ReadableConfig config,
+            FlinkRelBuilder relBuilder,
+            ObjectIdentifier identifier,
+            ResolvedCatalogTable catalogTable,
+            FlinkStatistic statistic,
+            List<RelHint> hints,
+            DynamicTableSource tableSource) {
+
+        // 1. prepare table source
+        prepareDynamicSource(identifier, catalogTable, tableSource, isStreamingMode, config);
+
+        // 2. push table scan
+        pushTableScan(
+                isStreamingMode,
+                relBuilder,
+                identifier,
+                catalogTable,
+                statistic,
+                hints,
+                tableSource);
+
+        // 3. push project for non-physical columns
+        final ResolvedSchema schema = catalogTable.getResolvedSchema();
+        if (!schema.getColumns().stream().allMatch(Column::isPhysical)) {
+            pushMetadataProjection(relBuilder, schema);
+            pushGeneratedProjection(relBuilder, schema);
+        }
+
+        // 4. push watermark assigner
+        if (isStreamingMode && !schema.getWatermarkSpecs().isEmpty()) {
+            pushWatermarkAssigner(relBuilder, schema);
+        }
+
+        return relBuilder.build();
+    }
+
     /**
      * Prepares the given {@link DynamicTableSource}. It check whether the source is compatible with
      * the given schema and applies initial parameters.
@@ -61,7 +151,7 @@ public final class DynamicSourceUtils {
             ResolvedCatalogTable table,
             DynamicTableSource source,
             boolean isStreamingMode,
-            TableConfig config) {
+            ReadableConfig config) {
         final ResolvedSchema schema = table.getResolvedSchema();
 
         validateAndApplyMetadata(sourceIdentifier, schema, source);
@@ -82,7 +172,7 @@ public final class DynamicSourceUtils {
      *
      * <p>This method assumes that source and schema have been validated via {@link
      * #prepareDynamicSource(ObjectIdentifier, ResolvedCatalogTable, DynamicTableSource, boolean,
-     * TableConfig)}.
+     * ReadableConfig)}.
      */
     public static List<String> createRequiredMetadataKeys(
             ResolvedSchema schema, DynamicTableSource source) {
@@ -154,6 +244,117 @@ public final class DynamicSourceUtils {
     }
 
     // --------------------------------------------------------------------------------------------
+
+    /** Creates a specialized node for assigning watermarks. */
+    private static void pushWatermarkAssigner(FlinkRelBuilder relBuilder, ResolvedSchema schema) {
+        final ExpressionConverter converter = new ExpressionConverter(relBuilder);
+        final RelDataType inputRelDataType = relBuilder.peek().getRowType();
+
+        final WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
+
+        final String rowtimeColumn = watermarkSpec.getRowtimeAttribute();
+        final int rowtimeColumnIdx = inputRelDataType.getFieldNames().indexOf(rowtimeColumn);
+
+        final RexNode watermarkRexNode = watermarkSpec.getWatermarkExpression().accept(converter);
+
+        relBuilder.watermark(rowtimeColumnIdx, watermarkRexNode);
+    }
+
+    /** Creates a projection that adds computed columns and finalizes the the table schema. */
+    private static void pushGeneratedProjection(FlinkRelBuilder relBuilder, ResolvedSchema schema) {
+        final ExpressionConverter converter = new ExpressionConverter(relBuilder);
+        final List<RexNode> projection =
+                schema.getColumns().stream()
+                        .map(
+                                c -> {
+                                    if (c instanceof Column.ComputedColumn) {
+                                        final Column.ComputedColumn computedColumn =
+                                                (Column.ComputedColumn) c;
+                                        return computedColumn.getExpression().accept(converter);
+                                    } else {
+                                        return relBuilder.field(c.getName());
+                                    }
+                                })
+                        .collect(Collectors.toList());
+
+        relBuilder.projectNamed(
+                projection,
+                schema.getColumns().stream().map(Column::getName).collect(Collectors.toList()),
+                true);
+    }
+
+    /**
+     * Creates a projection that reorders physical and metadata columns according to the given
+     * schema. It casts metadata columns into the expected data type to be accessed by computed
+     * columns in the next step. Computed columns are ignored here.
+     *
+     * @see SupportsReadingMetadata
+     */
+    private static void pushMetadataProjection(FlinkRelBuilder relBuilder, ResolvedSchema schema) {
+        final RexBuilder rexBuilder = relBuilder.getRexBuilder();
+
+        final List<String> fieldNames =
+                schema.getColumns().stream()
+                        .filter(c -> !(c instanceof Column.ComputedColumn))
+                        .map(Column::getName)
+                        .collect(Collectors.toList());
+
+        final List<RexNode> fieldNodes =
+                schema.getColumns().stream()
+                        .filter(c -> !(c instanceof Column.ComputedColumn))
+                        .map(
+                                c -> {
+                                    final RelDataType relDataType =
+                                            relBuilder
+                                                    .getTypeFactory()
+                                                    .createFieldTypeFromLogicalType(
+                                                            c.getDataType().getLogicalType());
+                                    if (c instanceof MetadataColumn) {
+                                        final MetadataColumn metadataColumn = (MetadataColumn) c;
+                                        final String metadataKey =
+                                                metadataColumn
+                                                        .getMetadataKey()
+                                                        .orElse(metadataColumn.getName());
+                                        return rexBuilder.makeAbstractCast(
+                                                relDataType, relBuilder.field(metadataKey));
+                                    } else {
+                                        return relBuilder.field(c.getName());
+                                    }
+                                })
+                        .collect(Collectors.toList());
+
+        relBuilder.projectNamed(fieldNodes, fieldNames, true);
+    }
+
+    private static void pushTableScan(
+            boolean isStreamingMode,
+            FlinkRelBuilder relBuilder,
+            ObjectIdentifier identifier,
+            ResolvedCatalogTable catalogTable,
+            FlinkStatistic statistic,
+            List<RelHint> hints,
+            DynamicTableSource tableSource) {
+        final RowType producedType =
+                createProducedType(catalogTable.getResolvedSchema(), tableSource);
+        final RelDataType producedRelDataType =
+                relBuilder.getTypeFactory().buildRelNodeRowType(producedType);
+
+        final TableSourceTable tableSourceTable =
+                new TableSourceTable(
+                        relBuilder.getRelOptSchema(),
+                        identifier,
+                        producedRelDataType,
+                        statistic,
+                        tableSource,
+                        isStreamingMode,
+                        catalogTable,
+                        new String[0],
+                        new SourceAbilitySpec[0]);
+
+        final LogicalTableScan scan =
+                LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable, hints);
+        relBuilder.push(scan);
+    }
 
     private static Map<String, DataType> extractMetadataMap(DynamicTableSource source) {
         if (source instanceof SupportsReadingMetadata) {
@@ -246,7 +447,7 @@ public final class DynamicSourceUtils {
             ResolvedSchema schema,
             ScanTableSource scanSource,
             boolean isStreamingMode,
-            TableConfig config) {
+            ReadableConfig config) {
         final ScanRuntimeProvider provider =
                 scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         final ChangelogMode changelogMode = scanSource.getChangelogMode();
@@ -266,7 +467,7 @@ public final class DynamicSourceUtils {
             ResolvedSchema schema,
             ScanTableSource scanSource,
             ChangelogMode changelogMode,
-            TableConfig config) {
+            ReadableConfig config) {
         // sanity check for produced ChangelogMode
         final boolean hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE);
         final boolean hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER);
@@ -290,10 +491,8 @@ public final class DynamicSourceUtils {
                             scanSource.getClass().getName()));
         } else if (!changelogMode.containsOnly(RowKind.INSERT)) {
             // CDC mode (non-upsert mode and non-insert-only mode)
-            boolean changeEventsDuplicate =
-                    config.getConfiguration()
-                            .getBoolean(
-                                    ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
+            final boolean changeEventsDuplicate =
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
             if (changeEventsDuplicate && !schema.getPrimaryKey().isPresent()) {
                 throw new TableException(
                         String.format(
