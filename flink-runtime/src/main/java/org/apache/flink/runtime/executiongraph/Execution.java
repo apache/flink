@@ -717,11 +717,13 @@ public class Execution
             final ExecutionState consumerState = consumer.getState();
 
             // ----------------------------------------------------------------
-            // Consumer is running => send update message now
+            // Consumer is recovering or running => send update message now
             // Consumer is deploying => cache the partition info which would be
             // sent after switching to running
             // ----------------------------------------------------------------
-            if (consumerState == DEPLOYING || consumerState == RUNNING) {
+            if (consumerState == DEPLOYING
+                    || consumerState == RUNNING
+                    || consumerState == RECOVERING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
