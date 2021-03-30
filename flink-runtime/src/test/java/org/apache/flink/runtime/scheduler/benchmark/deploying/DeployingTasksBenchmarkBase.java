@@ -18,20 +18,16 @@
 
 package org.apache.flink.runtime.scheduler.benchmark.deploying;
 
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createAndInitExecutionGraph;
 import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUtils.createDefaultJobVertices;
@@ -41,7 +37,6 @@ public class DeployingTasksBenchmarkBase {
 
     List<JobVertex> jobVertices;
     ExecutionGraph executionGraph;
-    BlockingQueue<TaskDeploymentDescriptor> taskDeploymentDescriptors;
 
     public void createAndSetupExecutionGraph(JobConfiguration jobConfiguration) throws Exception {
 
@@ -49,14 +44,7 @@ public class DeployingTasksBenchmarkBase {
 
         executionGraph = createAndInitExecutionGraph(jobVertices, jobConfiguration);
 
-        taskDeploymentDescriptors = new ArrayBlockingQueue<>(jobConfiguration.getParallelism() * 2);
-
-        final SimpleAckingTaskManagerGateway taskManagerGateway =
-                new SimpleAckingTaskManagerGateway();
-        taskManagerGateway.setSubmitConsumer(taskDeploymentDescriptors::offer);
-
-        final TestingLogicalSlotBuilder slotBuilder =
-                new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway);
+        final TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 
         for (ExecutionJobVertex ejv : executionGraph.getVerticesTopologically()) {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
