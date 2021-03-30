@@ -77,7 +77,7 @@ public class OutputWithTimerRowHandler {
 
                 bais.setBuffer(encodedNamespace, 0, encodedNamespace.length);
                 Object namespace;
-                if (namespaceSerializer == VoidNamespaceSerializer.INSTANCE) {
+                if (namespaceSerializer instanceof VoidNamespaceSerializer) {
                     namespace = VoidNamespace.INSTANCE;
                 } else {
                     namespace = namespaceSerializer.deserialize(baisWrapper);

@@ -34,7 +34,7 @@ from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
-    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner \
+    CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner, \
     SessionWindowAssigner
 from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
     CountTrigger
