@@ -82,7 +82,7 @@ public class AlternatingCheckpointsTest {
     @Test
     public void testChannelUnblockedAfterDifferentBarriers() throws Exception {
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 3, getTestBarrierHandlerFactory(new ValidatingCheckpointHandler()))
                         .build();
         long barrierId = 1L;
@@ -125,7 +125,7 @@ public class AlternatingCheckpointsTest {
     public void testChannelResetOnNewBarrier() throws Exception {
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 2, getTestBarrierHandlerFactory(new ValidatingCheckpointHandler()))
                         .withChannelStateWriter(stateWriter)
                         .withRemoteChannels()
@@ -160,7 +160,7 @@ public class AlternatingCheckpointsTest {
     public void testSwitchToUnalignedByUpstream() throws Exception {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(2, getTestBarrierHandlerFactory(target))
+                new TestCheckpointedInputGateBuilder(2, getTestBarrierHandlerFactory(target))
                         .build()) {
 
             CheckpointBarrier aligned =
@@ -199,7 +199,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 123;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .build()) {
 
@@ -228,7 +228,7 @@ public class AlternatingCheckpointsTest {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         long alignmentTimeOut = 100L;
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -268,7 +268,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .build()) {
 
@@ -286,7 +286,7 @@ public class AlternatingCheckpointsTest {
     public void testTimeoutAlignment() throws Exception {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(2, getTestBarrierHandlerFactory(target))
+                new TestCheckpointedInputGateBuilder(2, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
@@ -299,7 +299,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 3;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -357,7 +357,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -387,7 +387,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -413,7 +413,7 @@ public class AlternatingCheckpointsTest {
         int numberOfChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numberOfChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withSyncExecutor()
@@ -433,7 +433,7 @@ public class AlternatingCheckpointsTest {
         int numberOfChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numberOfChannels, getTestBarrierHandlerFactory(target))
                         .withTestChannels()
                         .withSyncExecutor()
@@ -463,7 +463,7 @@ public class AlternatingCheckpointsTest {
         int numberOfChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numberOfChannels, getTestBarrierHandlerFactory(target))
                         .withTestChannels()
                         .withSyncExecutor()
@@ -484,7 +484,7 @@ public class AlternatingCheckpointsTest {
         int numberOfChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numberOfChannels, getTestBarrierHandlerFactory(target))
                         .withTestChannels()
                         .withSyncExecutor()
@@ -515,7 +515,7 @@ public class AlternatingCheckpointsTest {
                 };
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numberOfChannels,
                                 TestBarrierHandlerFactory.forTarget(target)
                                         .withActionRegistration(clockWithDelayedActions)
@@ -539,7 +539,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -574,7 +574,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -612,7 +612,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         try (CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -656,7 +656,7 @@ public class AlternatingCheckpointsTest {
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(3, getTestBarrierHandlerFactory(target))
+                new TestCheckpointedInputGateBuilder(3, getTestBarrierHandlerFactory(target))
                         .withChannelStateWriter(channelStateWriter)
                         .withRemoteChannels()
                         .withMailboxExecutor()
@@ -702,7 +702,7 @@ public class AlternatingCheckpointsTest {
         int bufferSize = 1000;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .build();
 
@@ -775,7 +775,7 @@ public class AlternatingCheckpointsTest {
         int numChannels = 1;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
         CheckpointedInputGate gate =
-                TestCheckpointedInputGateBuilder.builder(
+                new TestCheckpointedInputGateBuilder(
                                 numChannels, getTestBarrierHandlerFactory(target))
                         .build();
 

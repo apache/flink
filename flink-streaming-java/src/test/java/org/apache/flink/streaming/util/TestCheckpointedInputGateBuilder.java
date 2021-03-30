@@ -44,17 +44,12 @@ public class TestCheckpointedInputGateBuilder {
     private SupplierWithException<SingleInputGate, IOException> gateBuilder = this::buildTestGate;
     private MailboxExecutor mailboxExecutor;
 
-    private TestCheckpointedInputGateBuilder(
+    public TestCheckpointedInputGateBuilder(
             int numChannels, TestBarrierHandlerFactory barrierHandler) {
         this.numChannels = numChannels;
         this.barrierHandlerFactory = barrierHandler;
 
         this.mailboxExecutor = new SyncMailboxExecutor();
-    }
-
-    public static TestCheckpointedInputGateBuilder builder(
-            int numChannels, TestBarrierHandlerFactory barrierHandlerFactory) {
-        return new TestCheckpointedInputGateBuilder(numChannels, barrierHandlerFactory);
     }
 
     /**
