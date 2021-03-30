@@ -995,9 +995,9 @@ class Table(object):
         gateway = get_gateway()
         max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
             .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
-        batches = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
+        batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
-        if batches.hasNext():
+        if batches_iterator.hasNext():
             import pytz
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
@@ -1007,7 +1007,7 @@ class Table(object):
                 self.get_schema().to_row_data_type(),
                 timezone)
             import pyarrow as pa
-            table = pa.Table.from_batches(serializer.load_from_iterable(batches))
+            table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
             pdf = table.to_pandas()
 
             schema = self.get_schema()

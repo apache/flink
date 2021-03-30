@@ -943,7 +943,6 @@ class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
         :param key: The key for which this window is evaluated.
         :param window: The window that is being evaluated.
         :param inputs: The elements in the window being evaluated.
-        :param out: A collector for emitting elements.
         """
         pass
 

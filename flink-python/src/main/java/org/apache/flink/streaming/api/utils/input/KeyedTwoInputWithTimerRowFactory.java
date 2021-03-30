@@ -21,24 +21,23 @@ package org.apache.flink.streaming.api.utils.input;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.types.Row;
 
 /**
  * This factory produces runner input row for two input operators which need to send the timer
  * trigger event to python side.
  */
-public class KeyedTwoInputWithTimerRowFactory extends KeyedInputWithTimerRowFactory {
+public class KeyedTwoInputWithTimerRowFactory {
 
     /** Reusable row for normal data runner inputs. */
     private final Row reuseNormalData;
 
+    private final KeyedInputWithTimerRowFactory oneInputFactory;
+
     public KeyedTwoInputWithTimerRowFactory() {
         this.reuseNormalData = new Row(3);
-    }
-
-    @Override
-    public Row fromNormalData(long timestamp, long watermark, Row userInput) {
-        throw new UnsupportedOperationException("Use another from normal data method instead.");
+        this.oneInputFactory = new KeyedInputWithTimerRowFactory();
     }
 
     public Row fromNormalData(boolean isLeft, long timestamp, long watermark, Row userInput) {
@@ -55,13 +54,16 @@ public class KeyedTwoInputWithTimerRowFactory extends KeyedInputWithTimerRowFact
             reuseNormalData.setField(2, userInput);
         }
 
-        reuseRunnerInput.setField(0, RunnerInputType.NORMAL_RECORD.value);
-        reuseRunnerInput.setField(1, reuseNormalData);
-        reuseRunnerInput.setField(2, timestamp);
-        reuseRunnerInput.setField(3, watermark);
-        reuseRunnerInput.setField(4, null);
+        return oneInputFactory.fromNormalData(timestamp, watermark, reuseNormalData);
+    }
 
-        return reuseRunnerInput;
+    public Row fromTimer(
+            TimeDomain timeDomain,
+            long timestamp,
+            long watermark,
+            Row key,
+            byte[] encodedNamespace) {
+        return oneInputFactory.fromTimer(timeDomain, timestamp, watermark, key, encodedNamespace);
     }
 
     public static TypeInformation<Row> getRunnerInputTypeInfo(

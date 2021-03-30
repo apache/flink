@@ -801,7 +801,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 byte[] namespacesBytes = request.getAppend().getData().toByteArray();
                 bais.setBuffer(namespacesBytes, 0, namespacesBytes.length);
                 int namespaceCount = baisWrapper.readInt();
-                Set namespaces = new HashSet();
+                Set<Object> namespaces = new HashSet<>();
                 for (int i = 0; i < namespaceCount; i++) {
                     namespaces.add(namespaceSerializer.deserialize(baisWrapper));
                 }

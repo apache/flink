@@ -130,7 +130,12 @@ public class PythonKeyedProcessOperator<OUT>
             RowTypeInfo inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        this(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo, null);
+        this(
+                config,
+                inputTypeInfo,
+                outputTypeInfo,
+                pythonFunctionInfo,
+                VoidNamespaceSerializer.INSTANCE);
     }
 
     public PythonKeyedProcessOperator(
@@ -164,12 +169,7 @@ public class PythonKeyedProcessOperator<OUT>
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         runnerOutputTypeInfo);
 
-        TypeSerializer timerServiceNamespaceSerializer =
-                namespaceSerializer == null
-                        ? VoidNamespaceSerializer.INSTANCE
-                        : namespaceSerializer;
-        internalTimerService =
-                getInternalTimerService("user-timers", timerServiceNamespaceSerializer, this);
+        internalTimerService = getInternalTimerService("user-timers", namespaceSerializer, this);
         this.bufferedTimestamp = new LinkedList<>();
 
         bais = new ByteArrayInputStreamWithPos();

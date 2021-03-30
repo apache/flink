@@ -21,6 +21,7 @@ from enum import Enum
 from typing import Any, Tuple, Dict, List
 
 from pyflink.common import Row
+from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import RuntimeContext
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.fn_execution import flink_fn_execution_pb2, pickle
@@ -331,7 +332,7 @@ def extract_keyed_stateful_function(user_defined_function_proto,
         on_timer_ctx = InternalKeyedProcessFunctionOnTimerContext(timer_service)
         ctx = InternalKeyedProcessFunctionContext(timer_service)
         process_function = payload
-        output_factory = RowWithTimerOutputFactory()
+        output_factory = RowWithTimerOutputFactory(VoidNamespaceSerializer())
 
         def open_func():
             if hasattr(process_function, "open"):

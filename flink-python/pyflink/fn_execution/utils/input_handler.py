@@ -149,7 +149,7 @@ class TwoInputRowWithTimerHandler(RowWithTimerInputHandler):
         """
         :type context: InternalKeyedProcessFunctionContext
         :type timer_context: InternalKeyedProcessFunctionOnTimerContext
-        :type internal_collector: TimerServiceImpl
+        :type timer_service: TimerServiceImpl
         :type state_backend: RemoteKeyedStateBackend
         :type keyed_co_process_function: KeyedCoProcessFunction
         :type output_factory: RowWithTimerOutputFactory
@@ -186,14 +186,12 @@ class TwoInputRowWithTimerHandler(RowWithTimerInputHandler):
 
         yield from self._emit_output(output_result)
 
-    def on_event_time(
-            self, internal_timer: InternalTimer) -> Iterable:
+    def on_event_time(self, internal_timer: InternalTimer) -> Iterable:
         yield from self._on_timer(TimeDomain.EVENT_TIME,
                                   internal_timer.get_key(),
                                   internal_timer.get_timestamp())
 
-    def on_processing_time(
-            self, internal_timer: InternalTimer) -> Iterable:
+    def on_processing_time(self, internal_timer: InternalTimer) -> Iterable:
         yield from self._on_timer(TimeDomain.PROCESSING_TIME,
                                   internal_timer.get_key(),
                                   internal_timer.get_timestamp())

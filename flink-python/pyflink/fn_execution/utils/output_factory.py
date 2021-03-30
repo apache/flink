@@ -21,7 +21,7 @@ from io import BytesIO
 from typing import List, Tuple, Iterable
 
 from pyflink.common import Row
-from pyflink.common.serializer import TypeSerializer, VoidNamespaceSerializer
+from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.timerservice_impl import TimerOperandType
 
@@ -33,11 +33,8 @@ class RunnerOutputType(Enum):
 
 class RowWithTimerOutputFactory(object):
 
-    def __init__(self, namespace_serializer: TypeSerializer = None):
-        if namespace_serializer is None:
-            self._namespace_serializer = VoidNamespaceSerializer()
-        else:
-            self._namespace_serializer = namespace_serializer
+    def __init__(self, namespace_serializer: TypeSerializer):
+        self._namespace_serializer = namespace_serializer
 
     def from_timers(self, timers: List[Tuple[TimerOperandType, InternalTimer]]) -> Iterable[Row]:
         result = []

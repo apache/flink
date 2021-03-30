@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -76,10 +77,10 @@ public class OutputWithTimerRowHandler {
 
                 bais.setBuffer(encodedNamespace, 0, encodedNamespace.length);
                 Object namespace;
-                if (namespaceSerializer != null) {
-                    namespace = namespaceSerializer.deserialize(baisWrapper);
-                } else {
+                if (namespaceSerializer == VoidNamespaceSerializer.INSTANCE) {
                     namespace = VoidNamespace.INSTANCE;
+                } else {
+                    namespace = namespaceSerializer.deserialize(baisWrapper);
                 }
                 onTimerOperation(operandType, time, key, namespace);
         }
