@@ -117,6 +117,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils.COL_DELIMITER;
@@ -387,12 +388,15 @@ public class DDLOperationConverter {
                 trait = HiveDDLUtils.relyConstraint(trait);
             }
             props.put(PK_CONSTRAINT_TRAIT, String.valueOf(trait));
-            uniqueConstraint =
-                    UniqueConstraint.primaryKey(
-                            primaryKey.getConstraintName(),
-                            desc.getPrimaryKeys().stream()
-                                    .map(PrimaryKey::getPk)
-                                    .collect(Collectors.toList()));
+            List<String> pkCols =
+                    desc.getPrimaryKeys().stream()
+                            .map(PrimaryKey::getPk)
+                            .collect(Collectors.toList());
+            String constraintName = primaryKey.getConstraintName();
+            if (constraintName == null) {
+                constraintName = pkCols.stream().collect(Collectors.joining("_", "PK_", ""));
+            }
+            uniqueConstraint = UniqueConstraint.primaryKey(constraintName, pkCols);
         }
         // NOT NULL constraints
         List<String> notNullCols = new ArrayList<>();
@@ -428,12 +432,13 @@ public class DDLOperationConverter {
             props.put(TABLE_LOCATION_URI, desc.getLocation());
         }
         ObjectIdentifier identifier = parseObjectIdentifier(desc.getCompoundName());
+        Set<String> notNullColSet = new HashSet<>(notNullCols);
+        if (uniqueConstraint != null) {
+            notNullColSet.addAll(uniqueConstraint.getColumns());
+        }
         TableSchema tableSchema =
                 HiveTableUtil.createTableSchema(
-                        desc.getCols(),
-                        desc.getPartCols(),
-                        new HashSet<>(notNullCols),
-                        uniqueConstraint);
+                        desc.getCols(), desc.getPartCols(), notNullColSet, uniqueConstraint);
         return new CreateTableOperation(
                 identifier,
                 new CatalogTableImpl(

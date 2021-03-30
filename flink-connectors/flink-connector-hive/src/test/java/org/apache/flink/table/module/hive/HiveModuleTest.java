@@ -80,28 +80,28 @@ public class HiveModuleTest {
     private void verifyNumBuiltInFunctions(String hiveVersion, HiveModule hiveModule) {
         switch (hiveVersion) {
             case HIVE_VERSION_V1_0_1:
-                assertEquals(197, hiveModule.listFunctions().size());
+                assertEquals(195, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V1_1_0:
-                assertEquals(202, hiveModule.listFunctions().size());
+                assertEquals(200, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V1_2_1:
                 assertEquals(222, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V2_0_0:
-                assertEquals(233, hiveModule.listFunctions().size());
+                assertEquals(231, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V2_1_1:
-                assertEquals(243, hiveModule.listFunctions().size());
+                assertEquals(241, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V2_2_0:
-                assertEquals(259, hiveModule.listFunctions().size());
+                assertEquals(256, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V2_3_4:
-                assertEquals(277, hiveModule.listFunctions().size());
+                assertEquals(274, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V3_1_1:
-                assertEquals(296, hiveModule.listFunctions().size());
+                assertEquals(293, hiveModule.listFunctions().size());
                 break;
             default:
                 fail("Unknown test version " + hiveVersion);

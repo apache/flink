@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
+import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.util.Preconditions;
 
@@ -27,9 +28,12 @@ import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.exec.PTFUtils;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -351,6 +355,19 @@ public class HiveASTParseUtils {
         public void reset() {
             searchQueue.clear();
         }
+    }
+
+    public static ExprNodeDesc createConversionCast(
+            ExprNodeDesc column, PrimitiveTypeInfo tableFieldTypeInfo) throws SemanticException {
+        // Get base type, since type string may be parameterized
+        String baseType = TypeInfoUtils.getBaseName(tableFieldTypeInfo.getTypeName());
+
+        // If the type cast UDF is for a parameterized type, then it should implement
+        // the SettableUDF interface so that we can pass in the params.
+        // Not sure if this is the cleanest solution, but there does need to be a way
+        // to provide the type params to the type cast.
+        return HiveParserTypeCheckProcFactory.DefaultExprProcessor.getFuncExprNodeDescWithUdfData(
+                baseType, tableFieldTypeInfo, column);
     }
 
     public static CharTypeInfo getCharTypeInfo(HiveParserASTNode node) throws SemanticException {

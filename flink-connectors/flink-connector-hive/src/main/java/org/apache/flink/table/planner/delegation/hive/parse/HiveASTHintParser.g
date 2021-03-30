@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ /** Counterpart of hive's HintParser.g. */
 parser grammar HiveASTHintParser;
 
 options

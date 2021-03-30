@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ /** Counterpart of hive's HiveParser.g. */
 parser grammar HiveASTParser;
 
 options
@@ -2192,13 +2193,13 @@ relySpecification
     |  (KW_NORELY)? -> ^(TOK_NORELY)
     ;
 
-createConstraint
+tableConstraint
 @init { pushMsg("pk or uk or nn constraint", state); }
 @after { popMsg(state); }
-    : (KW_CONSTRAINT constraintName=identifier)? tableConstraintType pkCols=columnParenthesesList constraintOptsCreate?
+    : (KW_CONSTRAINT constraintName=identifier)? tableConstraintType pkCols=columnParenthesesList constraintTraits
     -> {$constraintName.tree != null}?
-            ^(tableConstraintType $pkCols ^(TOK_CONSTRAINT_NAME $constraintName) constraintOptsCreate?)
-    -> ^(tableConstraintType $pkCols constraintOptsCreate?)
+            ^(tableConstraintType $pkCols ^(TOK_CONSTRAINT_NAME $constraintName) constraintTraits)
+    -> ^(tableConstraintType $pkCols constraintTraits)
     ;
 
 alterConstraintWithName
@@ -2206,15 +2207,6 @@ alterConstraintWithName
 @after { popMsg(state); }
     : KW_CONSTRAINT constraintName=identifier tableConstraintType pkCols=columnParenthesesList constraintOptsAlter?
     -> ^(tableConstraintType $pkCols ^(TOK_CONSTRAINT_NAME $constraintName) constraintOptsAlter?)
-    ;
-
-createForeignKey
-@init { pushMsg("foreign key", state); }
-@after { popMsg(state); }
-    : (KW_CONSTRAINT constraintName=identifier)? KW_FOREIGN KW_KEY fkCols=columnParenthesesList  KW_REFERENCES tabName=tableName parCols=columnParenthesesList constraintOptsCreate?
-    -> {$constraintName.tree != null}?
-            ^(TOK_FOREIGN_KEY ^(TOK_CONSTRAINT_NAME $constraintName) $fkCols $tabName $parCols constraintOptsCreate?)
-    -> ^(TOK_FOREIGN_KEY $fkCols $tabName $parCols constraintOptsCreate?)
     ;
 
 alterForeignKeyWithName
@@ -2342,44 +2334,25 @@ columnNameTypeOrConstraint
     | ( columnNameTypeConstraint )
     ;
 
-tableConstraint
-@init { pushMsg("table constraint", state); }
-@after { popMsg(state); }
-    : ( createForeignKey )
-    | ( createConstraint )
-    ;
-
 columnNameTypeConstraint
 @init { pushMsg("column specification", state); }
 @after { popMsg(state); }
-    : colName=identifier colType columnConstraint[$colName.tree]? (KW_COMMENT comment=StringLiteral)?
+    : colName=identifier colType colConstraint? (KW_COMMENT comment=StringLiteral)?
     -> {containExcludedCharForCreateTableColumnName($colName.text)}? {throwColumnNameException()}
-    -> ^(TOK_TABCOL $colName colType $comment? columnConstraint?)
-    ;
-
-columnConstraint[CommonTree fkColName]
-@init { pushMsg("column constraint", state); }
-@after { popMsg(state); }
-    : ( foreignKeyConstraint[$fkColName] )
-    | ( colConstraint )
-    ;
-
-foreignKeyConstraint[CommonTree fkColName]
-@init { pushMsg("column constraint", state); }
-@after { popMsg(state); }
-    : (KW_CONSTRAINT constraintName=identifier)? KW_REFERENCES tabName=tableName LPAREN colName=columnName RPAREN constraintOptsCreate?
-    -> {$constraintName.tree != null}?
-	            ^(TOK_FOREIGN_KEY ^(TOK_CONSTRAINT_NAME $constraintName) ^(TOK_TABCOLNAME {$fkColName}) $tabName ^(TOK_TABCOLNAME $colName) constraintOptsCreate?)
-    -> ^(TOK_FOREIGN_KEY ^(TOK_TABCOLNAME {$fkColName}) $tabName ^(TOK_TABCOLNAME $colName) constraintOptsCreate?)
+    -> ^(TOK_TABCOL $colName colType $comment? colConstraint?)
     ;
 
 colConstraint
 @init { pushMsg("column constraint", state); }
 @after { popMsg(state); }
-    : (KW_CONSTRAINT constraintName=identifier)? columnConstraintType constraintOptsCreate?
-    -> {$constraintName.tree != null}?
-            ^(columnConstraintType ^(TOK_CONSTRAINT_NAME $constraintName) constraintOptsCreate?)
-    -> ^(columnConstraintType constraintOptsCreate?)
+    : KW_NOT KW_NULL constraintTraits
+    -> ^(TOK_NOT_NULL constraintTraits)
+    ;
+
+constraintTraits
+@init { pushMsg("constraint traits", state); }
+@after { popMsg(state); }
+    : enableSpecification? validateSpecification? relySpecification
     ;
 
 alterColumnConstraint[CommonTree fkColName]

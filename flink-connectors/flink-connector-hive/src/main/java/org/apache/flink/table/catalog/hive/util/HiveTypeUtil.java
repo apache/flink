@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -357,6 +358,11 @@ public class HiveTypeUtil {
                 }
             }
             return TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+        }
+
+        @Override
+        public TypeInfo visit(NullType nullType) {
+            return TypeInfoFactory.voidTypeInfo;
         }
 
         @Override

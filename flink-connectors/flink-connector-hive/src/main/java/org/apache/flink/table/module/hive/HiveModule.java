@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
@@ -46,6 +47,7 @@ public class HiveModule implements Module {
                     new HashSet<>(
                             Arrays.asList(
                                     "count",
+                                    "cume_dist",
                                     "current_date",
                                     "current_timestamp",
                                     "dense_rank",
@@ -53,6 +55,7 @@ public class HiveModule implements Module {
                                     "lag",
                                     "last_value",
                                     "lead",
+                                    "ntile",
                                     "rank",
                                     "row_number",
                                     "hop",
@@ -60,6 +63,7 @@ public class HiveModule implements Module {
                                     "hop_proctime",
                                     "hop_rowtime",
                                     "hop_start",
+                                    "percent_rank",
                                     "session",
                                     "session_end",
                                     "session_proctime",
@@ -96,6 +100,7 @@ public class HiveModule implements Module {
         if (functionNames.isEmpty()) {
             functionNames = hiveShim.listBuiltInFunctions();
             functionNames.removeAll(BUILT_IN_FUNC_BLACKLIST);
+            functionNames.add("grouping");
         }
         return functionNames;
     }
@@ -105,6 +110,13 @@ public class HiveModule implements Module {
         if (BUILT_IN_FUNC_BLACKLIST.contains(name)) {
             return Optional.empty();
         }
+        // We override Hive's grouping function. Refer to the implementation for more details.
+        if (name.equalsIgnoreCase("grouping")) {
+            return Optional.of(
+                    factory.createFunctionDefinitionFromHiveFunction(
+                            name, HiveGenericUDFGrouping.class.getName()));
+        }
+
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);
 
         return info.map(
