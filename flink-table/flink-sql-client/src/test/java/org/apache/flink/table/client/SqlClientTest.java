@@ -207,7 +207,6 @@ public class SqlClientTest {
 
     @Test
     public void testExecuteSqlFile() throws IOException {
-
         // create sql file
         File sqlFileFolder = tempFolder.newFolder("sql-file");
         File sqlFile = new File(sqlFileFolder, "test-sql.sql");
