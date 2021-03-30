@@ -139,6 +139,15 @@ public class HiveASTParserTest {
         assertDDLType(HiveASTParser.TOK_SHOWFUNCTIONS, "show functions");
     }
 
+    @Test
+    public void testConstraints() throws Exception {
+        assertDDLType(
+                HiveASTParser.TOK_CREATETABLE,
+                "create table foo (x int not null norely,y string not null disable validate)",
+                "create table foo(x int,y int, primary key(x) enable rely)",
+                "create table foo(x int,y decimal, constraint pk primary key (x,y))");
+    }
+
     private void assertDDLType(int type, String... sqls) throws Exception {
         for (String sql : sqls) {
             HiveParserContext parserContext = new HiveParserContext(hiveConf);
