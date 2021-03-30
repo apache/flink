@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
+import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
@@ -30,15 +31,22 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The base class for window aggregate {@link ExecNode}. */
 public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateBase {
+
+    public static final long WINDOW_AGG_MEMORY_RATIO = 100;
+    public static final String FIELD_NAME_WINDOWING = "windowing";
+    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
     protected StreamExecWindowAggregateBase(
             int id,
@@ -61,6 +69,12 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             // we don't need time attribute to assign windows, use a magic value in this case
             SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
             return SliceAssigners.windowed(windowEndIndex, innerAssigner);
+
+        } else if (windowingStrategy instanceof SliceAttachedWindowingStrategy) {
+            int sliceEndIndex = ((SliceAttachedWindowingStrategy) windowingStrategy).getSliceEnd();
+            // we don't need time attribute to assign windows, use a magic value in this case
+            SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
+            return SliceAssigners.sliced(sliceEndIndex, innerAssigner);
 
         } else if (windowingStrategy instanceof TimeAttributeWindowingStrategy) {
             final int timeAttributeIndex;
@@ -110,5 +124,11 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
         } else {
             throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
         }
+    }
+
+    protected LogicalType[] convertToLogicalTypes(DataType[] dataTypes) {
+        return Arrays.stream(dataTypes)
+                .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
+                .toArray(LogicalType[]::new);
     }
 }

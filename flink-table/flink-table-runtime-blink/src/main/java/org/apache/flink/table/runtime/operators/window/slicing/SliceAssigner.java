@@ -55,6 +55,12 @@ public interface SliceAssigner extends Serializable {
     Iterable<Long> expiredSlices(long windowEnd);
 
     /**
+     * Returns the interval of slice ends, i.e. the step size to advance of the slice end when a new
+     * slice assigned.
+     */
+    long getSliceEndInterval();
+
+    /**
      * Returns {@code true} if elements are assigned to windows based on event time, {@code false}
      * based on processing time.
      */
