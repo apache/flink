@@ -135,8 +135,8 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 (as we will see later, you can create several states, and they have to have unique names so
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
-want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
-a `ReducingStateDescriptor`, or a `MapStateDescriptor`.
+want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`, 
+an `AggregatingStateDescriptor`, a `ReducingStateDescriptor`, or a `MapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
 Please see [here]({{< ref "docs/dev/datastream/user_defined_functions" >}}#rich-functions) for
