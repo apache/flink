@@ -61,9 +61,8 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
             state.unblockAllChannels();
             return new AlternatingWaitingForFirstBarrier(state.getInputs());
         } else if (controller.isTimedOut(checkpointBarrier)) {
-            state.removeFromBlocked(channelInfo);
             return alignmentTimeout(controller, checkpointBarrier)
-                    .barrierReceived(controller, channelInfo, checkpointBarrier);
+                    .barrierReceived(controller, channelInfo, checkpointBarrier.asUnaligned());
         }
 
         return transitionAfterBarrierReceived(state);
