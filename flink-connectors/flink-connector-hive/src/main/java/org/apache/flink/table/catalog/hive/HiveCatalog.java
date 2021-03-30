@@ -103,6 +103,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -223,6 +224,16 @@ public class HiveCatalog extends AbstractCatalog {
             }
         } else {
             hadoopConf = getHadoopConfiguration(hadoopConfDir);
+            if (hadoopConf == null) {
+                String possiableUsedConfFiles =
+                        "core-site.xml | hdfs-site.xml | yarn-site.xml | mapred-site.xml";
+                throw new CatalogException(
+                        "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
+                        new FileNotFoundException(
+                                "Please check the path none of the conf files ("
+                                        + possiableUsedConfFiles
+                                        + ") exist in the folder."));
+            }
         }
         if (hadoopConf == null) {
             hadoopConf = new Configuration();
