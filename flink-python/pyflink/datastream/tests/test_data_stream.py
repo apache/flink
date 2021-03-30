@@ -44,7 +44,7 @@ from pyflink.testing.test_case_utils import invoke_java_object_method, \
     PyFlinkBatchTestCase, PyFlinkStreamingTestCase
 
 
-class DataStreamTests(PyFlinkStreamingTestCase):
+class DataStreamTests(object):
 
     def setUp(self) -> None:
         super(DataStreamTests, self).setUp()
@@ -817,7 +817,7 @@ class DataStreamTests(PyFlinkStreamingTestCase):
 
         self.env.execute('test_count_window')
         result = self.test_sink.get_results()
-        expected_result = ['(9,hi)', '(12,hello)']
+        expected_result = ['(hello,12)', '(hi,9)']
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)
