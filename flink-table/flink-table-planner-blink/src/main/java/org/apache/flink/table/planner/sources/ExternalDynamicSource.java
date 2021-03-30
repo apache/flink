@@ -88,7 +88,7 @@ final class ExternalDynamicSource<E>
 
     @Override
     public String asSummaryString() {
-        return null;
+        return generateOperatorName();
     }
 
     @Override
@@ -135,9 +135,7 @@ final class ExternalDynamicSource<E>
 
     @Override
     public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
-        if (metadataKeys.contains(ROWTIME_METADATA_KEY)) {
-            attachRowtime = true;
-        }
+        attachRowtime = metadataKeys.contains(ROWTIME_METADATA_KEY);
     }
 
     @Override

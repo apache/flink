@@ -104,8 +104,8 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
   def verifyTable(resultTable: Table, expected: String): Unit
 
   def verifySchema(resultTable: Table, fields: Seq[(String, TypeInformation[_])]): Unit = {
-    val actual = resultTable.getSchema
-    val expected = new TableSchema(fields.map(_._1).toArray, fields.map(_._2).toArray)
+    val actual = resultTable.getSchema.toRowType
+    val expected = new TableSchema(fields.map(_._1).toArray, fields.map(_._2).toArray).toRowType
     assertEquals(expected, actual)
   }
 

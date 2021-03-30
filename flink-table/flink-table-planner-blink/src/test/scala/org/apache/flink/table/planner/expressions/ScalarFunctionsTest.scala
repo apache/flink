@@ -3938,9 +3938,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "06:55:44")
 
     // test TIMESTAMP, TIMESTAMP
-    testSqlApi(
-      "IF(f7 < 5, f18, f52)",
-      "1996-11-10 06:55:44.333")
+// temporarily disabled until FLIP-162 is ready
+//    testSqlApi(
+//      "IF(f7 < 5, f18, f52)",
+//      "1996-11-10 06:55:44.333")
   }
 
   @Test

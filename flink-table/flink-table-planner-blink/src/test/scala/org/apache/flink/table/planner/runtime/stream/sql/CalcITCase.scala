@@ -220,7 +220,7 @@ class CalcITCase extends StreamingTestBase {
       ((0, 0), "0"),
       ((1, 1), "1"),
       ((2, 2), "2")
-    )))
+    )), '_1, '_2)
     tEnv.registerTable("MyTable", table)
 
     val result = tEnv.sqlQuery(sqlQuery)

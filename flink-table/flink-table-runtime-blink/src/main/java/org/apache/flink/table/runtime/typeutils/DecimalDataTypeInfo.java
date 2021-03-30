@@ -22,13 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.DataTypeQueryable;
 
 import java.util.Arrays;
 
 /** TypeInformation for {@link DecimalData}. */
 @Internal
-public class DecimalDataTypeInfo extends TypeInformation<DecimalData> {
+public class DecimalDataTypeInfo extends TypeInformation<DecimalData> implements DataTypeQueryable {
 
     private static final long serialVersionUID = 1L;
 
@@ -43,6 +46,11 @@ public class DecimalDataTypeInfo extends TypeInformation<DecimalData> {
     public DecimalDataTypeInfo(int precision, int scale) {
         this.precision = precision;
         this.scale = scale;
+    }
+
+    @Override
+    public DataType getDataType() {
+        return DataTypes.DECIMAL(precision, scale).bridgedTo(DecimalData.class);
     }
 
     @Override

@@ -94,7 +94,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @Test
   def testSelectStar(): Unit = {
-    val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv).select('*)
+    val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv, '_1, '_2).select('*)
 
     val sink = new TestingAppendSink
     ds.toAppendStream[Row].addSink(sink)
@@ -520,7 +520,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ((0, 0), "0"),
       ((1, 1), "1"),
       ((2, 2), "2")
-    ))).select('*)
+    )), '_1, '_2).select('*)
 
     val sink = new TestingAppendSink
     table.toAppendStream[Row].addSink(sink)

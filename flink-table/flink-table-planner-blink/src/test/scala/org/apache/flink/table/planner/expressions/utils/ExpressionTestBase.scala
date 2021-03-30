@@ -31,6 +31,7 @@ import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMap
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, ValidationException}
 import org.apache.flink.table.data.RowData
@@ -47,6 +48,7 @@ import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
@@ -98,7 +100,7 @@ abstract class ExpressionTestBase {
   def prepare(): Unit = {
     if (containsLegacyTypes) {
       val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
-      tEnv.createTemporaryView(tableName, ds)
+      tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
       functions.foreach(f => tEnv.registerFunction(f._1, f._2))
     } else {
       tEnv.createTemporaryView(tableName, tEnv.fromValues(resolvedDataType))

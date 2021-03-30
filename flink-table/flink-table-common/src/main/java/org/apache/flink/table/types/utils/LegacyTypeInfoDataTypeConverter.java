@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
@@ -59,6 +60,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
@@ -171,13 +173,14 @@ public final class LegacyTypeInfoDataTypeConverter {
             return convertToRowType((RowTypeInfo) typeInfo);
         } else if (typeInfo instanceof ObjectArrayTypeInfo) {
             return convertToArrayType(
-                    typeInfo.getTypeClass(), ((ObjectArrayTypeInfo) typeInfo).getComponentInfo());
+                    typeInfo.getTypeClass(),
+                    ((ObjectArrayTypeInfo<?, ?>) typeInfo).getComponentInfo());
         } else if (typeInfo instanceof BasicArrayTypeInfo) {
             return createLegacyType(LogicalTypeRoot.ARRAY, typeInfo);
         } else if (typeInfo instanceof MultisetTypeInfo) {
-            return convertToMultisetType(((MultisetTypeInfo) typeInfo).getElementTypeInfo());
+            return convertToMultisetType(((MultisetTypeInfo<?>) typeInfo).getElementTypeInfo());
         } else if (typeInfo instanceof MapTypeInfo) {
-            return convertToMapType((MapTypeInfo) typeInfo);
+            return convertToMapType((MapTypeInfo<?, ?>) typeInfo);
         } else if (typeInfo instanceof CompositeType || isRowData(typeInfo)) {
             return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
         }
@@ -193,7 +196,10 @@ public final class LegacyTypeInfoDataTypeConverter {
 
         // check in the map but relax the nullability constraint as every not null data type can be
         // stored in the corresponding nullable type information
-        final TypeInformation<?> foundTypeInfo = dataTypeTypeInfoMap.get(dataType.nullable());
+        final TypeInformation<?> foundTypeInfo =
+                dataTypeTypeInfoMap.get(
+                        dataType.nullable()
+                                .bridgedTo(primitiveToWrapper(dataType.getConversionClass())));
         if (foundTypeInfo != null) {
             return foundTypeInfo;
         }
@@ -338,7 +344,7 @@ public final class LegacyTypeInfoDataTypeConverter {
                 toLegacyTypeInfo(collectionDataType.getElementDataType()));
     }
 
-    private static DataType convertToMultisetType(TypeInformation elementTypeInfo) {
+    private static DataType convertToMultisetType(TypeInformation<?> elementTypeInfo) {
         return DataTypes.MULTISET(toDataType(elementTypeInfo)).bridgedTo(Map.class);
     }
 
@@ -352,7 +358,7 @@ public final class LegacyTypeInfoDataTypeConverter {
         return new MultisetTypeInfo<>(toLegacyTypeInfo(collectionDataType.getElementDataType()));
     }
 
-    private static DataType convertToMapType(MapTypeInfo typeInfo) {
+    private static DataType convertToMapType(MapTypeInfo<?, ?> typeInfo) {
         return DataTypes.MAP(
                         toDataType(typeInfo.getKeyTypeInfo()),
                         toDataType(typeInfo.getValueTypeInfo()))
@@ -375,20 +381,21 @@ public final class LegacyTypeInfoDataTypeConverter {
     }
 
     private static TypeInformation<?> convertToLegacyTypeInfo(DataType dataType) {
-        return ((LegacyTypeInformationType) dataType.getLogicalType()).getTypeInformation();
+        return ((LegacyTypeInformationType<?>) dataType.getLogicalType()).getTypeInformation();
     }
 
     private static boolean canConvertToRawTypeInfo(DataType dataType) {
-        return dataType.getLogicalType() instanceof TypeInformationRawType
-                && dataType.getConversionClass()
-                        .equals(
-                                ((TypeInformationRawType) dataType.getLogicalType())
-                                        .getTypeInformation()
-                                        .getTypeClass());
+        final LogicalType type = dataType.getLogicalType();
+        return hasRoot(type, LogicalTypeRoot.RAW)
+                && dataType.getConversionClass() == type.getDefaultConversion();
     }
 
     private static TypeInformation<?> convertToRawTypeInfo(DataType dataType) {
-        return ((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation();
+        final LogicalType type = dataType.getLogicalType();
+        if (type instanceof TypeInformationRawType) {
+            return ((TypeInformationRawType<?>) dataType.getLogicalType()).getTypeInformation();
+        }
+        return new GenericTypeInfo<>(type.getDefaultConversion());
     }
 
     /**
