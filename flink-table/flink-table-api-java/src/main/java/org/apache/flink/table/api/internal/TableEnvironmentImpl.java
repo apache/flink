@@ -91,6 +91,7 @@ import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SelectSinkOperation;
@@ -673,12 +674,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     "Unsupported SQL query! explainSql() only accepts a single SQL query.");
         }
 
-        return planner.explain(operations, extraDetails);
+        return explainInternal(operations, extraDetails);
     }
 
     @Override
     public String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
-        return planner.explain(operations, extraDetails);
+        operations =
+                operations.stream()
+                        .filter(o -> !(o instanceof NopOperation))
+                        .collect(Collectors.toList());
+        // hive parser may generate an NopOperation, in which case we just return an
+        // empty string as the plan
+        if (operations.isEmpty()) {
+            return "";
+        } else {
+            return planner.explain(operations, extraDetails);
+        }
     }
 
     @Override
@@ -821,7 +832,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof UseCatalogOperation
                 || operation instanceof UseDatabaseOperation
                 || operation instanceof LoadModuleOperation
-                || operation instanceof UnloadModuleOperation) {
+                || operation instanceof UnloadModuleOperation
+                || operation instanceof NopOperation) {
             executeInternal(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
@@ -1178,7 +1190,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof ExplainOperation) {
             String explanation =
-                    planner.explain(
+                    explainInternal(
                             Collections.singletonList(((ExplainOperation) operation).getChild()));
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
@@ -1203,6 +1215,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof CreateTableASOperation) {
             executeInternal(((CreateTableASOperation) operation).getCreateTableOperation());
             return executeInternal(((CreateTableASOperation) operation).getInsertOperation());
+        } else if (operation instanceof NopOperation) {
+            return TableResultImpl.TABLE_RESULT_OK;
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
