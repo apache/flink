@@ -721,9 +721,7 @@ public class Execution
             // Consumer is deploying => cache the partition info which would be
             // sent after switching to running
             // ----------------------------------------------------------------
-            if (consumerState == DEPLOYING
-                    || consumerState == RUNNING
-                    || consumerState == RECOVERING) {
+            if (consumerState == DEPLOYING || consumerState == RUNNING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
