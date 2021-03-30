@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
@@ -197,6 +198,14 @@ public class FileInputFormatTest {
         Configuration conf = new Configuration();
         conf.setString("input.file.path", filePath);
         format.configure(conf);
+    }
+
+    @Test
+    public void testGlobs() throws IOException {
+        String globed = "/path/to/temp*file";
+        String file = "/path/to/temporaryfile";
+        final DummyFileInputFormat fileInputFormat = new DummyFileInputFormat(new Path(globed));
+        Assert.assertTrue(fileInputFormat.acceptFile(new DummyFileStatus(new Path(file))));
     }
 
     // ------------------------------------------------------------------------
@@ -849,8 +858,58 @@ public class FileInputFormatTest {
         }
     }
 
+    private static class DummyFileStatus implements FileStatus {
+
+        private final Path filePath;
+
+        public DummyFileStatus(Path filePath) {
+            this.filePath = filePath;
+        }
+
+        @Override
+        public long getLen() {
+            return 0;
+        }
+
+        @Override
+        public long getBlockSize() {
+            return 0;
+        }
+
+        @Override
+        public short getReplication() {
+            return 0;
+        }
+
+        @Override
+        public long getModificationTime() {
+            return 0;
+        }
+
+        @Override
+        public long getAccessTime() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDir() {
+            return false;
+        }
+
+        @Override
+        public Path getPath() {
+            return filePath;
+        }
+    }
+
     private class DummyFileInputFormat extends FileInputFormat<IntValue> {
         private static final long serialVersionUID = 1L;
+
+        private DummyFileInputFormat() {}
+
+        private DummyFileInputFormat(Path filePath) {
+            super(filePath);
+        }
 
         @Override
         public boolean reachedEnd() throws IOException {
