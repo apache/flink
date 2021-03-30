@@ -62,10 +62,9 @@ class StreamPhysicalLocalWindowAggregate(
     windowing.getWindow,
     isStateBackendDataViews = false)
 
-  private lazy val endPropertyName = if (windowing.isInstanceOf[WindowAttachedWindowingStrategy]) {
-    "window_end"
-  } else {
-    "slice_end"
+  private lazy val endPropertyName = windowing match {
+    case _: WindowAttachedWindowingStrategy => "window_end"
+    case _: TimeAttributeWindowingStrategy => "slice_end"
   }
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
