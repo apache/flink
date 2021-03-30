@@ -21,10 +21,14 @@ package org.apache.flink.table.api.bridge.java;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -36,6 +40,9 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 /**
  * This table environment is the entry point and central context for creating Table and SQL API
@@ -202,14 +209,151 @@ public interface StreamTableEnvironment extends TableEnvironment {
     /**
      * Converts the given {@link DataStream} into a {@link Table}.
      *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
+     * <p>Column names and types of the {@link Table} are automatically derived from the {@link
+     * TypeInformation} of the {@link DataStream}. If the outermost record's {@link TypeInformation}
+     * is a {@link CompositeType}, it will be flattened in the first level. {@link TypeInformation}
+     * that cannot be represented as one of the listed {@link DataTypes} will be treated as a
+     * black-box {@link DataTypes#RAW(Class, TypeSerializer)} type. Thus, composite nested fields
+     * will not be accessible.
+     *
+     * <p>Since the DataStream API does not support changelog processing natively, this method
+     * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
+     * type {@link Row} must describe {@link RowKind#INSERT} changes.
+     *
+     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
+     * explicitly declared via {@link #fromDataStream(DataStream, Schema)}.
      *
      * @param dataStream The {@link DataStream} to be converted.
-     * @param <T> The type of the {@link DataStream}.
+     * @param <T> The external type of the {@link DataStream}.
      * @return The converted {@link Table}.
      */
     <T> Table fromDataStream(DataStream<T> dataStream);
+
+    /**
+     * Converts the given {@link DataStream} into a {@link Table}.
+     *
+     * <p>Column names and types of the {@link Table} are automatically derived from the {@link
+     * TypeInformation} of the {@link DataStream}. If the outermost record's {@link TypeInformation}
+     * is a {@link CompositeType}, it will be flattened in the first level. {@link TypeInformation}
+     * that cannot be represented as one of the listed {@link DataTypes} will be treated as a
+     * black-box {@link DataTypes#RAW(Class, TypeSerializer)} type. Thus, composite nested fields
+     * will not be accessible.
+     *
+     * <p>Since the DataStream API does not support changelog processing natively, this method
+     * assumes append-only/insert-only semantics during the stream-to-table conversion. Records of
+     * class {@link Row} must describe {@link RowKind#INSERT} changes.
+     *
+     * <p>By default, the stream record's timestamp and watermarks are not propagated unless
+     * explicitly declared.
+     *
+     * <p>This method allows to declare a {@link Schema} for the resulting table. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>enrich or overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>reorder columns
+     *   <li>add computed or metadata columns next to the physical columns
+     *   <li>access a stream record's timestamp
+     *   <li>declare a watermark strategy or propagate the {@link DataStream} watermarks
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
+     * <p>The following examples illustrate common schema declarations and their semantics:
+     *
+     * <pre>
+     *     // given a DataStream of Tuple2 < String , BigDecimal >
+     *
+     *     // === EXAMPLE 1 ===
+     *
+     *     // no physical columns defined, they will be derived automatically,
+     *     // e.g. BigDecimal becomes DECIMAL(38, 18)
+     *
+     *     Schema.newBuilder()
+     *         .columnByExpression("c1", "f1 + 42")
+     *         .columnByExpression("c2", "f1 - 1")
+     *         .build()
+     *
+     *     // equal to: CREATE TABLE (f0 STRING, f1 DECIMAL(38, 18), c1 AS f1 + 42, c2 AS f1 - 1)
+     *
+     *     // === EXAMPLE 2 ===
+     *
+     *     // physical columns defined, input fields and columns will be mapped by name,
+     *     // columns are reordered and their data type overwritten,
+     *     // all columns must be defined to show up in the final table's schema
+     *
+     *     Schema.newBuilder()
+     *         .column("f1", "DECIMAL(10, 2)")
+     *         .columnByExpression("c", "f1 - 1")
+     *         .column("f0", "STRING")
+     *         .build()
+     *
+     *     // equal to: CREATE TABLE (f1 DECIMAL(10, 2), c AS f1 - 1, f0 STRING)
+     *
+     *     // === EXAMPLE 3 ===
+     *
+     *     // timestamp and watermarks can be added from the DataStream API,
+     *     // physical columns will be derived automatically
+     *
+     *     Schema.newBuilder()
+     *         .columnByMetadata("rowtime", "TIMESTAMP(3)") // extract timestamp into a table column
+     *         .watermark("rowtime", "SOURCE_WATERMARK()")  // declare watermarks propagation
+     *         .build()
+     *
+     *     // equal to:
+     *     //     CREATE TABLE (
+     *     //        f0 STRING,
+     *     //        f1 DECIMAL(38, 18),
+     *     //        rowtime TIMESTAMP(3) METADATA,
+     *     //        WATERMARK FOR rowtime AS SOURCE_WATERMARK()
+     *     //     )
+     * </pre>
+     *
+     * @param dataStream The {@link DataStream} to be converted.
+     * @param schema customized schema for the final table.
+     * @param <T> The external type of the {@link DataStream}.
+     * @return The converted {@link Table}.
+     */
+    <T> Table fromDataStream(DataStream<T> dataStream, Schema schema);
+
+    /**
+     * Creates a view from the given {@link DataStream} in a given path. Registered views can be
+     * referenced in SQL queries.
+     *
+     * <p>See {@link #fromDataStream(DataStream)} for more information on how a {@link DataStream}
+     * is translated into a table.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * you can drop the corresponding temporary object.
+     *
+     * @param path The path under which the {@link DataStream} is created. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param dataStream The {@link DataStream} out of which to create the view.
+     * @param <T> The type of the {@link DataStream}.
+     */
+    <T> void createTemporaryView(String path, DataStream<T> dataStream);
+
+    /**
+     * Creates a view from the given {@link DataStream} in a given path. Registered views can be
+     * referenced in SQL queries.
+     *
+     * <p>See {@link #fromDataStream(DataStream, Schema)} for more information on how a {@link
+     * DataStream} is translated into a table.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * you can drop the corresponding temporary object.
+     *
+     * @param path The path under which the {@link DataStream} is created. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param schema customized schema for the final table.
+     * @param dataStream The {@link DataStream} out of which to create the view.
+     * @param <T> The type of the {@link DataStream}.
+     */
+    <T> void createTemporaryView(String path, DataStream<T> dataStream, Schema schema);
 
     /**
      * Converts the given {@link DataStream} into a {@link Table} with specified field names.
@@ -328,24 +472,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     @Deprecated
     <T> void registerDataStream(String name, DataStream<T> dataStream);
-
-    /**
-     * Creates a view from the given {@link DataStream} in a given path. Registered views can be
-     * referenced in SQL queries.
-     *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * you can drop the corresponding temporary object.
-     *
-     * @param path The path under which the {@link DataStream} is created. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
-     * @param dataStream The {@link DataStream} out of which to create the view.
-     * @param <T> The type of the {@link DataStream}.
-     */
-    <T> void createTemporaryView(String path, DataStream<T> dataStream);
 
     /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.
@@ -518,8 +644,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
      *
      * <ul>
-     *   <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-     *       types: Fields are mapped by position, field types must match.
+     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
+     *       by position, field types must match.
      *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
      * </ul>
      *
@@ -539,8 +665,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
      *
      * <ul>
-     *   <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-     *       types: Fields are mapped by position, field types must match.
+     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
+     *       by position, field types must match.
      *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
      * </ul>
      *
@@ -563,8 +689,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
      *
      * <ul>
-     *   <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-     *       types: Fields are mapped by position, field types must match.
+     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
+     *       by position, field types must match.
      *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
      * </ul>
      *
@@ -586,8 +712,8 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
      *
      * <ul>
-     *   <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-     *       types: Fields are mapped by position, field types must match.
+     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
+     *       by position, field types must match.
      *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
      * </ul>
      *

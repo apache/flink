@@ -50,6 +50,7 @@ import org.apache.flink.table.operations.DataSetQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.JavaExternalQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.PlannerQueryOperation;
@@ -57,6 +58,7 @@ import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
+import org.apache.flink.table.operations.ScalaExternalQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -380,6 +382,28 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                         dataStreamQueryOperation.getFieldIndices(),
                         TableSchema.fromResolvedSchema(
                                 dataStreamQueryOperation.getResolvedSchema()));
+            }
+            // best effort support of FLIP-136 in old planner
+            else if (other instanceof JavaExternalQueryOperation) {
+                JavaExternalQueryOperation<?> externalQueryOperation =
+                        (JavaExternalQueryOperation<?>) other;
+                return convertToDataStreamScan(
+                        externalQueryOperation.getDataStream(),
+                        IntStream.range(
+                                        0,
+                                        externalQueryOperation.getDataStream().getType().getArity())
+                                .toArray(),
+                        TableSchema.fromResolvedSchema(externalQueryOperation.getResolvedSchema()));
+            } else if (other instanceof ScalaExternalQueryOperation) {
+                ScalaExternalQueryOperation<?> externalQueryOperation =
+                        (ScalaExternalQueryOperation<?>) other;
+                return convertToDataStreamScan(
+                        externalQueryOperation.getDataStream(),
+                        IntStream.range(
+                                        0,
+                                        externalQueryOperation.getDataStream().getType().getArity())
+                                .toArray(),
+                        TableSchema.fromResolvedSchema(externalQueryOperation.getResolvedSchema()));
             }
 
             throw new TableException("Unknown table operation: " + other);
