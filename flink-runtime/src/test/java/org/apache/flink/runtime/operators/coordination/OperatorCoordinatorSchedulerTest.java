@@ -677,8 +677,6 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 new ComponentMainThreadExecutorServiceAdapter(
                         (ScheduledExecutorService) executor, Thread.currentThread());
 
-        SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor);
-
         final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
                         ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
