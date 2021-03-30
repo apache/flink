@@ -505,8 +505,8 @@ public class Task
     public boolean isBackPressured() {
         if (invokable == null
                 || consumableNotifyingPartitionWriters.length == 0
-                || executionState != ExecutionState.RECOVERING
-                || executionState != ExecutionState.RUNNING) {
+                || (executionState != ExecutionState.RECOVERING
+                        && executionState != ExecutionState.RUNNING)) {
             return false;
         }
         for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
@@ -833,11 +833,10 @@ public class Task
                     }
                 }
 
-                // transition into our final state. we should be either in DEPLOYING, RUNNING,
-                // CANCELING, or FAILED
+                // transition into our final state. we should be either in DEPLOYING, RECOVERING,
+                // RUNNING, CANCELING, or FAILED
                 // loop for multiple retries during concurrent state changes via calls to cancel()
-                // or
-                // to failExternally()
+                // or to failExternally()
                 while (true) {
                     ExecutionState current = this.executionState;
 
