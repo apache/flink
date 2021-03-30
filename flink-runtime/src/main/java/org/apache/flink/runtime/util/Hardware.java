@@ -27,6 +27,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.InvocationTargetException;
@@ -154,7 +155,7 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), Charset.forName("UFT-8")));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -191,7 +192,7 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.physmem");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), Charset.forName("UTF-8")));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -234,7 +235,7 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("wmic memorychip get capacity");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), Charset.forName("UTF-8")));
 
             String line = bi.readLine();
             if (line == null) {
