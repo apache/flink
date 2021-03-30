@@ -55,7 +55,7 @@ import org.apache.calcite.tools.FrameworkConfig
 
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap, ArrayList => JArrayList}
+import _root_.java.util.{Optional, ArrayList => JArrayList, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -282,6 +282,10 @@ abstract class TableEnvImpl(
 
   override def getCatalog(catalogName: String): Optional[Catalog] = {
     catalogManager.getCatalog(catalogName)
+  }
+
+  override def getOperationTreeBuilder: OperationTreeBuilder = {
+    operationTreeBuilder
   }
 
   override def loadModule(moduleName: String, module: Module): Unit = {

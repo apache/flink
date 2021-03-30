@@ -26,19 +26,22 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, ExternalSchemaTranslator, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier, UnresolvedIdentifier}
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation}
+import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation, ScalaExternalQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+import org.apache.flink.util.Preconditions
+
+import javax.annotation.Nullable
 
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
@@ -72,9 +75,74 @@ class StreamTableEnvironmentImpl (
   with org.apache.flink.table.api.bridge.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    val queryOperation = asQueryOperation(dataStream, None)
-    createTable(queryOperation)
+    fromDataStreamInternal(dataStream.javaStream, null, null)
   }
+
+  override def fromDataStream[T](dataStream: DataStream[T], schema: Schema): Table = {
+    fromDataStreamInternal(dataStream.javaStream, schema, null)
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T]): Unit = {
+    createTemporaryView(path, fromDataStreamInternal(dataStream.javaStream, null, path))
+  }
+
+  override def createTemporaryView[T](
+      path: String,
+      dataStream: DataStream[T],
+      schema: Schema): Unit = {
+    createTemporaryView(path, fromDataStreamInternal(dataStream.javaStream, schema, path))
+  }
+
+  def fromDataStreamInternal[T](
+            dataStream: JDataStream[T],
+            @Nullable schema: Schema,
+            @Nullable viewPath: String): Table = {
+        Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+        val catalogManager = getCatalogManager
+        val schemaResolver = catalogManager.getSchemaResolver
+        val operationTreeBuilder = getOperationTreeBuilder
+
+        val unresolvedIdentifier = if (viewPath != null) {
+            getParser.parseIdentifier(viewPath)
+        } else {
+            UnresolvedIdentifier.of("Unregistered_DataStream_" + dataStream.getId)
+        }
+        val objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier)
+
+        val schemaTranslationResult =
+                ExternalSchemaTranslator.fromExternal(
+                        catalogManager.getDataTypeFactory, dataStream.getType, schema)
+
+        val resolvedSchema =
+                schemaTranslationResult.getSchema.resolve(schemaResolver)
+
+        val scanOperation =
+                new ScalaExternalQueryOperation(
+                        objectIdentifier,
+                        dataStream,
+                        schemaTranslationResult.getPhysicalDataType,
+                        schemaTranslationResult.isTopLevelRecord,
+                        ChangelogMode.insertOnly(),
+                        resolvedSchema)
+
+        val projections = schemaTranslationResult.getProjections
+        if (projections == null) {
+            return createTable(scanOperation)
+        }
+
+        val projectOperation =
+                operationTreeBuilder.project(
+                        util.Arrays.asList(
+                          projections
+                            .asScala
+                            .map(ApiExpressionUtils.unresolvedRef).toArray),
+                        scanOperation)
+
+        createTable(projectOperation)
+    }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
     val queryOperation = asQueryOperation(dataStream, Some(fields.toList.asJava))
@@ -234,12 +302,6 @@ class StreamTableEnvironmentImpl (
       )
     case _ =>
       queryOperation
-  }
-
-  override def createTemporaryView[T](
-      path: String,
-      dataStream: DataStream[T]): Unit = {
-    createTemporaryView(path, fromDataStream(dataStream))
   }
 
   override def createTemporaryView[T](
