@@ -29,6 +29,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.DataTypeQueryable;
 
 import java.lang.reflect.Constructor;
 import java.util.Objects;
@@ -45,7 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 @Deprecated
-public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
+public final class TimeIntervalTypeInfo<T> extends TypeInformation<T>
+        implements AtomicType<T>, DataTypeQueryable {
 
     private static final long serialVersionUID = -1816179424364825258L;
 
@@ -66,6 +69,16 @@ public final class TimeIntervalTypeInfo<T> extends TypeInformation<T> implements
         this.clazz = checkNotNull(clazz);
         this.serializer = checkNotNull(serializer);
         this.comparatorClass = checkNotNull(comparatorClass);
+    }
+
+    @Override
+    public DataType getDataType() {
+        if (clazz == Long.class) {
+            return DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(Long.class);
+        } else if (clazz == Integer.class) {
+            return DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class);
+        }
+        throw new UnsupportedOperationException("Unsupported interval type info.");
     }
 
     @Override
