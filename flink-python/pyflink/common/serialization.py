@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from py4j.java_gateway import java_import, JavaObject
+from py4j.java_gateway import java_import
 from pyflink.common import typeinfo
 from pyflink.common.typeinfo import TypeInformation
 
 from pyflink.util.java_utils import load_java_class
 
 from pyflink.java_gateway import get_gateway
-from typing import Union
 
 
 class SerializationSchema(object):
@@ -371,26 +370,19 @@ class AvroRowSerializationSchema(SerializationSchema):
 
 class Encoder(object):
     """
-    A `Encoder` is used by the streaming file sink to perform the actual writing
-    of the incoming elements to the files in a bucket.
+    Encoder is used by the file sink to perform the actual writing of the
+    incoming elements to the files in a bucket.
     """
 
-    def __init__(self, j_encoder: Union[str, JavaObject]):
-        if isinstance(j_encoder, str):
-            j_encoder_class = get_gateway().jvm.__getattr__(j_encoder)
-            j_encoder = j_encoder_class()
-        self.j_encoder = j_encoder
+    def __init__(self, j_encoder):
+        self._j_encoder = j_encoder
 
-    def get_java_encoder(self):
-        return self.j_encoder
-
-
-class SimpleStringEncoder(Encoder):
-    """
-    A simple `Encoder` that uses `toString()` on the input elements and
-    writes them to the output bucket file separated by newline.
-    """
-    def __init__(self, charset_name: str = "UTF-8"):
-        j_encoder = get_gateway().\
-            jvm.org.apache.flink.api.common.serialization.SimpleStringEncoder(charset_name)
-        super(SimpleStringEncoder, self).__init__(j_encoder)
+    @staticmethod
+    def simple_string_encoder(charset_name: str = "UTF-8") -> 'Encoder':
+        """
+        A simple Encoder that uses toString() on the input elements and writes them to
+        the output bucket file separated by newline.
+        """
+        j_encoder = get_gateway().jvm.org.apache.flink.api.common.serialization.\
+            SimpleStringEncoder(charset_name)
+        return Encoder(j_encoder)

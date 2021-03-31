@@ -24,12 +24,11 @@ from pyflink.common.serialization import DeserializationSchema, Encoder, Seriali
 from pyflink.common.typeinfo import RowTypeInfo, TypeInformation
 from pyflink.datastream.functions import SourceFunction, SinkFunction, JavaFunctionWrapper
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import load_java_class, to_jarray
+from pyflink.util.java_utils import to_jarray
 
-from py4j.java_gateway import java_import, JavaObject
+from py4j.java_gateway import JavaObject
 
 __all__ = [
-    'DefaultRollingPolicy',
     'FileEnumeratorProvider',
     'FileSource',
     'FileSourceBuilder',
@@ -42,6 +41,7 @@ __all__ = [
     'NumberSequenceSource',
     'OutputFileConfig',
     'RollingPolicy',
+    'Sink',
     'Source',
     'StreamFormat',
     'StreamingFileSink']
@@ -484,80 +484,103 @@ class JdbcExecutionOptions(object):
 
 class RollingPolicy(object):
     """
-    The policy based on which a `Bucket` in the `StreamingFileSink`
-    rolls its currently open part file and opens a new one.
+    The policy based on which a Bucket in the FileSink rolls its currently
+    open part file and opens a new one.
     """
 
-    def __init__(self, j_policy):
-        self.j_policy = j_policy
-
-
-class DefaultRollingPolicy(RollingPolicy):
-    """
-    The default implementation of the `RollingPolicy`.
-    """
-
-    def __init__(self, j_policy):
-        super(DefaultRollingPolicy, self).__init__(j_policy)
+    def __init__(self, j_rolling_policy):
+        self._j_rolling_policy = j_rolling_policy
 
     @staticmethod
-    def builder() -> 'DefaultRollingPolicy.PolicyBuilder':
+    def default_rolling_policy(
+            part_size: int = 1024 * 1024 * 128,
+            rollover_interval: int = 60 * 1000,
+            inactivity_interval: int = 60 * 1000) -> 'RollingPolicy':
         """
-        Creates a new `PolicyBuilder` that is used to configure and build
-        an instance of `DefaultRollingPolicy`.
+        Returns the default implementation of the RollingPolicy.
+
+        This policy rolls a part file if:
+
+            - there is no open part file,
+            - the current file has reached the maximum bucket size (by default 128MB),
+            - the current file is older than the roll over interval (by default 60 sec), or
+            - the current file has not been written to for more than the allowed inactivityTime (by
+              default 60 sec).
+
+        :param part_size: The maximum part file size before rolling.
+        :param rollover_interval: The maximum time duration a part file can stay open before
+                                  rolling.
+        :param inactivity_interval: The time duration of allowed inactivity after which a part file
+                                    will have to roll.
         """
-        return DefaultRollingPolicy.PolicyBuilder()
+        JDefaultRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions.\
+            sink.filesystem.rollingpolicies.DefaultRollingPolicy
+        j_rolling_policy = JDefaultRollingPolicy.builder()\
+            .withMaxPartSize(part_size) \
+            .withRolloverInterval(rollover_interval) \
+            .withInactivityInterval(inactivity_interval) \
+            .build()
+        return RollingPolicy(j_rolling_policy)
 
-    class PolicyBuilder(object):
+    @staticmethod
+    def on_checkpoint_rolling_policy() -> 'RollingPolicy':
         """
-        A helper class that holds the configuration properties for the `DefaultRollingPolicy`.
-        The `PolicyBuilder.build()` method must be called to instantiate the policy.
+        Returns a RollingPolicy which rolls (ONLY) on every checkpoint.
         """
+        JOnCheckpointRollingPolicy = get_gateway().jvm.org.apache.flink.streaming.api.functions. \
+            sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy
+        return RollingPolicy(JOnCheckpointRollingPolicy.build())
 
-        def __init__(self):
-            self.part_size = 1024 * 1024 * 128
-            self.rollover_interval = 60 * 1000
-            self.inactivity_interval = 60 * 1000
 
-        def with_max_part_size(self, size: int) -> 'DefaultRollingPolicy.PolicyBuilder':
-            """
-            Sets the part size above which a part file will have to roll.
+class BucketAssigner(object):
+    """
+    A BucketAssigner is used with a file sink to determine the bucket each incoming element should
+    be put into.
 
-            :param size: the allowed part size.
-            """
-            assert size > 0
-            self.part_size = size
-            return self
+    The StreamingFileSink can be writing to many buckets at a time, and it is responsible
+    for managing a set of active buckets. Whenever a new element arrives it will ask the
+    BucketAssigner for the bucket the element should fall in. The BucketAssigner can, for
+    example, determine buckets based on system time.
+    """
 
-        def with_inactivity_interval(self, interval: int) -> 'DefaultRollingPolicy.PolicyBuilder':
-            """
-            Sets the interval of allowed inactivity after which a part file will have to roll.
+    def __init__(self, j_bucket_assigner):
+        self._j_bucket_assigner = j_bucket_assigner
 
-            :param interval: the allowed inactivity interval.
-            """
-            assert interval > 0
-            self.inactivity_interval = interval
-            return self
+    @staticmethod
+    def base_path_bucket_assigner() -> 'BucketAssigner':
+        """
+        Creates a BucketAssigner that does not perform any bucketing of files. All files are
+        written to the base path.
+        """
+        return BucketAssigner(get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.
+                              filesystem.bucketassigners.BasePathBucketAssigner())
 
-        def with_rollover_interval(self, interval) -> 'DefaultRollingPolicy.PolicyBuilder':
-            """
-            Sets the max time a part file can stay open before having to roll.
+    @staticmethod
+    def date_time_bucket_assigner(format_str: str = "yyyy-MM-dd--HH", timezone_id: str = None):
+        """
+        Creates a BucketAssigner that assigns to buckets based on current system time.
 
-            :param interval: the desired rollover interval.
-            """
-            self.rollover_interval = interval
-            return self
+        It will create directories of the following form: /{basePath}/{dateTimePath}/}.
+        The basePath is the path that was specified as a base path when creating the new bucket.
+        The dateTimePath is determined based on the current system time and the user provided format
+        string.
 
-        def build(self) -> 'DefaultRollingPolicy':
-            """
-            Creates the actual policy.
-            """
-            j_builder = get_gateway().jvm.org.apache.flink.streaming.api.\
-                functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy.create()
-            j_builder = j_builder.withMaxPartSize(self.part_size)
-            j_builder = j_builder.withInactivityInterval(self.inactivity_interval)
-            j_builder = j_builder.withRolloverInterval(self.rollover_interval)
-            return DefaultRollingPolicy(j_builder.build())
+        The Java DateTimeFormatter is used to derive a date string from the current system time and
+        the date format string. The default format string is "yyyy-MM-dd--HH" so the rolling files
+        will have a granularity of hours.
+
+        :param format_str: The format string used to determine the bucket id.
+        :param timezone_id: The timezone id, either an abbreviation such as "PST", a full name
+                            such as "America/Los_Angeles", or a custom timezone_id such as
+                            "GMT-8:00". Th e default time zone will b used if it's None.
+        """
+        if timezone_id is not None and isinstance(timezone_id, str):
+            j_timezone = get_gateway().jvm.java.time.ZoneId.of(timezone_id)
+        else:
+            j_timezone = get_gateway().jvm.java.time.ZoneId.systemDefault()
+        return BucketAssigner(
+            get_gateway().jvm.org.apache.flink.streaming.api.functions.sink.
+            filesystem.bucketassigners.DateTimeBucketAssigner(format_str, j_timezone))
 
 
 class StreamingFileSink(SinkFunction):
@@ -590,24 +613,22 @@ class StreamingFileSink(SinkFunction):
 
         def with_bucket_assigner(
                 self,
-                assigner_class_name: str) -> 'StreamingFileSink.DefaultRowFormatBuilder':
-            gateway = get_gateway()
-            java_import(gateway.jvm, assigner_class_name)
-            j_record_class = load_java_class(assigner_class_name)
-            self.j_default_row_format_builder.withBucketAssigner(j_record_class)
+                bucket_assigner: BucketAssigner) -> 'StreamingFileSink.DefaultRowFormatBuilder':
+            self.j_default_row_format_builder.withBucketAssigner(bucket_assigner._j_bucket_assigner)
             return self
 
         def with_rolling_policy(
                 self,
                 policy: RollingPolicy) -> 'StreamingFileSink.DefaultRowFormatBuilder':
-            self.j_default_row_format_builder.withRollingPolicy(policy.j_policy)
+            self.j_default_row_format_builder.withRollingPolicy(policy._j_rolling_policy)
             return self
 
         def with_output_file_config(
             self,
             output_file_config: 'OutputFileConfig') \
                 -> 'StreamingFileSink.DefaultRowFormatBuilder':
-            self.j_default_row_format_builder.withOutputFileConfig(output_file_config.j_obj)
+            self.j_default_row_format_builder.withOutputFileConfig(
+                output_file_config._j_output_file_config)
             return self
 
         def build(self) -> 'StreamingFileSink':
@@ -618,7 +639,7 @@ class StreamingFileSink(SinkFunction):
     def for_row_format(base_path: str, encoder: Encoder) -> 'DefaultRowFormatBuilder':
         j_path = get_gateway().jvm.org.apache.flink.core.fs.Path(base_path)
         j_default_row_format_builder = get_gateway().jvm.org.apache.flink.streaming.api.\
-            functions.sink.filesystem.StreamingFileSink.forRowFormat(j_path, encoder.j_encoder)
+            functions.sink.filesystem.StreamingFileSink.forRowFormat(j_path, encoder._j_encoder)
         return StreamingFileSink.DefaultRowFormatBuilder(j_default_row_format_builder)
 
 
@@ -633,20 +654,20 @@ class OutputFileConfig(object):
         return OutputFileConfig.OutputFileConfigBuilder()
 
     def __init__(self, part_prefix: str, part_suffix: str):
-        self.j_obj = get_gateway().jvm.org.apache.flink.streaming.api.\
+        self._j_output_file_config = get_gateway().jvm.org.apache.flink.streaming.api.\
             functions.sink.filesystem.OutputFileConfig(part_prefix, part_suffix)
 
     def get_part_prefix(self) -> str:
         """
         The prefix for the part name.
         """
-        return self.j_obj.getPartPrefix()
+        return self._j_output_file_config.getPartPrefix()
 
     def get_part_suffix(self) -> str:
         """
         The suffix for the part name.
         """
-        return self.j_obj.getPartSuffix()
+        return self._j_output_file_config.getPartSuffix()
 
     class OutputFileConfigBuilder(object):
         """
@@ -681,6 +702,20 @@ class Source(JavaFunctionWrapper):
         :param source: The java Source object.
         """
         super(Source, self).__init__(source)
+
+
+class Sink(JavaFunctionWrapper):
+    """
+    Base class for all unified data sink in Flink.
+    """
+
+    def __init__(self, sink: Union[str, JavaObject]):
+        """
+        Constructor of Sink.
+
+        :param sink: The java Sink object.
+        """
+        super(Sink, self).__init__(sink)
 
 
 class StreamFormat(object):
@@ -948,3 +983,93 @@ class NumberSequenceSource(Source):
             NumberSequenceSource
         j_seq_source = JNumberSequenceSource(start, end)
         super(NumberSequenceSource, self).__init__(source=j_seq_source)
+
+
+class FileSink(Sink):
+    """
+    A unified sink that emits its input elements to FileSystem files within buckets. This
+    sink achieves exactly-once semantics for both BATCH and STREAMING.
+
+    When creating the sink a basePath must be specified. The base directory contains one
+    directory for every bucket. The bucket directories themselves contain several part files, with
+    at least one for each parallel subtask of the sink which is writing data to that bucket.
+    These part files contain the actual output data.
+
+    The sink uses a BucketAssigner to determine in which bucket directory each element
+    should be written to inside the base directory. The BucketAssigner can, for example, roll
+    on every checkpoint or use time or a property of the element to determine the bucket directory.
+    The default BucketAssigner is a DateTimeBucketAssigner which will create one new
+    bucket every hour. You can specify a custom BucketAssigner using the
+    :func:`~pyflink.datastream.connectors.FileSink.RowFormatBuilder.with_bucket_assigner`,
+    after calling :class:`~pyflink.datastream.connectors.FileSink.for_row_format`.
+
+    The names of the part files could be defined using OutputFileConfig. This
+    configuration contains a part prefix and a part suffix that will be used with a random uid
+    assigned to each subtask of the sink and a rolling counter to determine the file names. For
+    example with a prefix "prefix" and a suffix ".ext", a file named {@code
+    "prefix-81fc4980-a6af-41c8-9937-9939408a734b-17.ext"} contains the data from subtask with uid
+    {@code 81fc4980-a6af-41c8-9937-9939408a734b} of the sink and is the {@code 17th} part-file
+    created by that subtask.
+
+    Part files roll based on the user-specified RollingPolicy. By default, a DefaultRollingPolicy
+    is used for row-encoded sink output; a OnCheckpointRollingPolicy is
+    used for bulk-encoded sink output.
+
+    In some scenarios, the open buckets are required to change based on time. In these cases, the
+    user can specify a bucket_check_interval (by default 1m) and the sink will check
+    periodically and roll the part file if the specified rolling policy says so.
+
+    Part files can be in one of three states: in-progress, pending or finished. The reason for this
+    is how the sink works to provide exactly-once semantics and fault-tolerance. The part file that
+    is currently being written to is in-progress. Once a part file is closed for writing it becomes
+    pending. When a checkpoint is successful (for STREAMING) or at the end of the job (for BATCH)
+    the currently pending files will be moved to finished.
+
+    For STREAMING in order to guarantee exactly-once semantics in case of a failure, the
+    sink should roll back to the state it had when that last successful checkpoint occurred. To this
+    end, when restoring, the restored files in pending state are transferred into the finished state
+    while any in-progress files are rolled back, so that they do not contain data that arrived after
+    the checkpoint from which we restore.
+    """
+
+    def __init__(self, j_file_sink):
+        super(FileSink, self).__init__(sink=j_file_sink)
+
+    class RowFormatBuilder(object):
+        """
+        Builder for the vanilla FileSink using a row format.
+        """
+
+        def __init__(self, j_row_format_builder):
+            self._j_row_format_builder = j_row_format_builder
+
+        def with_bucket_check_interval(self, interval: int):
+            """
+            :param interval: The check interval in milliseconds.
+            """
+            self._j_row_format_builder.withBucketCheckInterval(interval)
+            return self
+
+        def with_bucket_assigner(self, bucket_assigner: BucketAssigner):
+            self._j_row_format_builder.withBucketAssigner(bucket_assigner._j_bucket_assigner)
+            return self
+
+        def with_rolling_policy(self, rolling_policy: RollingPolicy):
+            self._j_row_format_builder.withRollingPolicy(rolling_policy._j_rolling_policy)
+            return self
+
+        def with_output_file_config(self, output_file_config: OutputFileConfig):
+            self._j_row_format_builder.withOutputFileConfig(
+                output_file_config._j_output_file_config)
+            return self
+
+        def build(self):
+            return FileSink(self._j_row_format_builder.build())
+
+    @staticmethod
+    def for_row_format(base_path: str, encoder: Encoder) -> 'FileSink.RowFormatBuilder':
+        JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
+        JFileSink = get_gateway().jvm.org.apache.flink.connector.file.sink.FileSink
+
+        return FileSink.RowFormatBuilder(
+            JFileSink.forRowFormat(JPath(base_path), encoder._j_encoder))
