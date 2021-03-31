@@ -212,6 +212,9 @@ public final class CliStrings {
 
     public static final String MESSAGE_BEGIN_STATEMENT_SET = "Begin a statement set.";
 
+    public static final String MESSAGE_NO_STATEMENT_IN_STATEMENT_SET =
+            "No statement in the statement set, skip submit.";
+
     public static final String MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET =
             "Add SQL update statement to the statement set.";
 

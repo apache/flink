@@ -157,3 +157,11 @@ SELECT * FROM BatchTable;
 +-------------+----------------------+
 Received a total of 7 rows
 !ok
+
+BEGIN STATEMENT SET;
+[INFO] Begin a statement set.
+!info
+
+END;
+[INFO] No statement in the statement set, skip submit.
+!info
