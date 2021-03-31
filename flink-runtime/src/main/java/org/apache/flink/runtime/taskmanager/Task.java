@@ -1395,7 +1395,9 @@ public class Task
             throws FlinkException {
         final AbstractInvokable invokable = this.invokable;
 
-        if (invokable == null || executionState != ExecutionState.RUNNING) {
+        if (invokable == null
+                || (executionState != ExecutionState.RUNNING
+                        && executionState != ExecutionState.RECOVERING)) {
             throw new TaskNotRunningException("Task is not yet running.");
         }
 
@@ -1404,7 +1406,8 @@ public class Task
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 
-            if (getExecutionState() == ExecutionState.RUNNING) {
+            if (getExecutionState() == ExecutionState.RUNNING
+                    || getExecutionState() == ExecutionState.RECOVERING) {
                 FlinkException e = new FlinkException("Error while handling operator event", t);
                 failExternally(e);
                 throw e;
