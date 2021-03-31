@@ -68,7 +68,7 @@ public class BufferedUpsertSinkFunctionTest {
     private static final int keyIndices = 0;
     private static final int TIMESTAMP_INDICES = 5;
     private static final int BATCH_SIZE = 4;
-    private static final Duration FLUSH_INTERVAL = Duration.ofMillis(60_000);
+    private static final Duration FLUSH_INTERVAL = Duration.ofMillis(Long.MAX_VALUE);
 
     public static final RowData[] TEST_DATA = {
         GenericRowData.ofKind(
