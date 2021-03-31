@@ -89,33 +89,26 @@ def construct_log_settings():
 
 def construct_classpath():
     flink_home = _find_flink_home()
-    flink_lib_directory = None
-    flink_opt_directory = None
-    if 'FLINK_LIB_DIR' in os.environ:
-        flink_lib_directory = os.path.realpath(os.environ['FLINK_LIB_DIR'])
-    if 'FLINK_OPT_DIR' in os.environ:
-        flink_opt_directory = os.path.realpath(os.environ['FLINK_OPT_DIR'])
     # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
     # using the tainted value and might allow an attacker to access, modify, or test the existence
     # of critical or sensitive files.
     real_flink_home = os.path.realpath(flink_home)
+    if 'FLINK_LIB_DIR' in os.environ:
+        flink_lib_directory = os.path.realpath(os.environ['FLINK_LIB_DIR'])
+    else:
+        flink_lib_directory = os.path.join(real_flink_home, "lib")
+    if 'FLINK_OPT_DIR' in os.environ:
+        flink_opt_directory = os.path.realpath(os.environ['FLINK_OPT_DIR'])
+    else:
+        flink_opt_directory = os.path.join(real_flink_home, "opt")
     if on_windows():
         # The command length is limited on Windows. To avoid the problem we should shorten the
         # command length as much as possible.
-        if flink_lib_directory is not None:
-            lib_jars = os.path.join(flink_lib_directory, "*")
-        else:
-            lib_jars = os.path.join(real_flink_home, "lib", "*")
+        lib_jars = os.path.join(flink_lib_directory, "*")
     else:
-        if flink_lib_directory is not None:
-            lib_jars = os.pathsep.join(glob.glob(os.path.join(flink_lib_directory, "*.jar")))
-        else:
-            lib_jars = os.pathsep.join(glob.glob(os.path.join(real_flink_home, "lib", "*.jar")))
+        lib_jars = os.pathsep.join(glob.glob(os.path.join(flink_lib_directory, "*.jar")))
 
-    if flink_opt_directory is not None:
-        flink_python_jars = glob.glob(os.path.join(flink_opt_directory, "flink-python*.jar"))
-    else:
-        flink_python_jars = glob.glob(os.path.join(real_flink_home, "opt", "flink-python*.jar"))
+    flink_python_jars = glob.glob(os.path.join(flink_opt_directory, "flink-python*.jar"))
     if len(flink_python_jars) < 1:
         print("The flink-python jar is not found in the opt folder of the FLINK_HOME: %s" %
               flink_home)
@@ -214,9 +207,6 @@ def launch_gateway_server_process(env, args):
     if "FLINK_TESTING" in env:
         download_apache_avro()
         classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        # use the script in the directory of flink-python/bin in case of testing
-        env["PYFLINK_UDF_RUNNER_DIR"] = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
     program_args = construct_program_args(args)
     if program_args.cluster_type == "local":
         command = [java_executable] + log_settings + ["-cp", classpath, program_args.main_class] \

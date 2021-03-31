@@ -39,7 +39,7 @@ docker cp "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" master:/tmp/
 docker cp "${REQUIREMENTS_PATH}" master:/tmp/
 docker cp "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" master:/tmp/
 PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
-PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache_flink_libraries-*.tar.gz)
+PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache-flink-libraries-*.tar.gz)
 docker cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" master:/tmp/
 docker cp "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_PACKAGE_FILE}" master:/tmp/
 

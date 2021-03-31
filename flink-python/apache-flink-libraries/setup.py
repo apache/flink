@@ -55,19 +55,17 @@ pyflink_directory = os.path.join(this_directory, "pyflink")
 if in_flink_source:
     remove_if_exists(pyflink_directory)
     os.mkdir(pyflink_directory)
-version_file = os.path.join(this_directory, 'pyflink/version.py')
+    version_file = os.path.join(this_directory, '../pyflink/version.py')
+else:
+    version_file = os.path.join(this_directory, 'pyflink/version.py')
 
 try:
     exec(open(version_file).read())
 except IOError:
-    try:
-        version_file = os.path.join(this_directory, '../pyflink/version.py')
-        exec(open(version_file).read())
-    except IOError:
-        print("Failed to load PyFlink version file for packaging. " +
-              "'%s' not found!" % version_file,
-              file=sys.stderr)
-        sys.exit(-1)
+    print("Failed to load PyFlink version file for packaging. " +
+          "'%s' not found!" % version_file,
+          file=sys.stderr)
+    sys.exit(-1)
 VERSION = __version__  # noqa
 
 with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
@@ -80,6 +78,7 @@ OPT_TEMP_PATH = os.path.join(TEMP_PATH, "opt")
 CONF_TEMP_PATH = os.path.join(TEMP_PATH, "conf")
 LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
 PLUGINS_TEMP_PATH = os.path.join(TEMP_PATH, "plugins")
+SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
 LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
 NOTICE_FILE_TEMP_PATH = os.path.join(this_directory, "NOTICE")
@@ -110,7 +109,7 @@ run sdist.
       mvn -DskipTests clean package
     Building the source dist is done in the flink-python directory:
       cd flink-python
-      cd dev
+      cd apache-flink-libraries
       python setup.py sdist
       pip install dist/*.tar.gz"""
 
@@ -122,6 +121,7 @@ run sdist.
             find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
         PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
+        SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_HOME, "LICENSE")
         README_FILE_PATH = os.path.join(FLINK_HOME, "README.txt")
@@ -159,6 +159,11 @@ run sdist.
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
             copy(VERSION_FILE_PATH, VERSION_FILE_TEMP_PATH)
 
+        os.mkdir(SCRIPTS_TEMP_PATH)
+        bin_jars = glob.glob(os.path.join(SCRIPTS_PATH, "*.jar"))
+        for bin_jar in bin_jars:
+            copy(bin_jar, os.path.join(SCRIPTS_TEMP_PATH, os.path.basename(bin_jar)))
+
         if exist_licenses and platform.system() != "Windows":
             # regenerate the licenses directory and NOTICE file as we only copy part of the
             # flink binary distribution.
@@ -177,17 +182,20 @@ run sdist.
         exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
 
     PACKAGES = ['pyflink',
+                'pyflink.bin',
                 'pyflink.lib',
                 'pyflink.opt',
                 'pyflink.plugins']
 
     PACKAGE_DIR = {
+        'pyflink.bin': TEMP_PATH + '/bin',
         'pyflink.lib': TEMP_PATH + '/lib',
         'pyflink.opt': TEMP_PATH + '/opt',
         'pyflink.plugins': TEMP_PATH + '/plugins'}
 
     PACKAGE_DATA = {
         'pyflink': ['README.txt', 'version.py'],
+        'pyflink.bin': ['*.jar'],
         'pyflink.lib': ['*.jar'],
         'pyflink.opt': ['*.*', '*/*'],
         'pyflink.plugins': ['*', '*/*']}
@@ -198,7 +206,7 @@ run sdist.
         PACKAGE_DATA['pyflink.licenses'] = ['*']
 
     setup(
-        name='apache_flink_libraries',
+        name='apache-flink-libraries',
         version=VERSION,
         packages=PACKAGES,
         include_package_data=True,
@@ -209,7 +217,7 @@ run sdist.
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.6',
-        description='Apache Flink Python API',
+        description='Apache Flink Libraries',
         long_description=long_description,
         long_description_content_type='text/markdown',
         classifiers=[

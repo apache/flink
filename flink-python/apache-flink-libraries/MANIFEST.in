@@ -17,6 +17,7 @@
 ################################################################################
 
 global-exclude *.py[cod] __pycache__ .DS_Store
+graft deps/bin
 graft deps/lib
 recursive-include deps/opt *
 recursive-include deps/plugins *
