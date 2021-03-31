@@ -166,6 +166,11 @@ barrier. This will make all registered event-time timers fire, thus flushing out
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
 shut down. This allows the job to finish processing all in-flight data.
 
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+Use the <code class="highlighter-rouge">--drain</code> flag if you want to terminate the job permanently.
+If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
+</p>
+
 #### Cancelling a Job Ungracefully
 
 Cancelling a job can be achieved through the `cancel` action:
