@@ -128,6 +128,9 @@ public class IteratorSourceReader<
 
         // non-null queue signals splits were assigned, in this case no splits
         remainingSplits = new ArrayDeque<>();
+
+        // set availability so that pollNext is actually called
+        availability.complete(null);
     }
 
     @Override
