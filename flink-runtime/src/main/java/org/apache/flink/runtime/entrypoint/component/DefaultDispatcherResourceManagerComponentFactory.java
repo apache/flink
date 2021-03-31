@@ -45,6 +45,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerProcessContext;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.rest.RestEndpointFactory;
 import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
@@ -173,10 +174,9 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final String hostname = RpcUtils.getHostname(rpcService);
 
-            resourceManager =
-                    resourceManagerFactory.createResourceManager(
+            final ResourceManagerProcessContext rmProcessContext =
+                    resourceManagerFactory.createResourceManagerProcessContext(
                             configuration,
-                            ResourceID.generate(),
                             rpcService,
                             highAvailabilityServices,
                             heartbeatServices,
@@ -186,6 +186,10 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             metricRegistry,
                             hostname,
                             ioExecutor);
+
+            resourceManager =
+                    resourceManagerFactory.createResourceManager(
+                            rmProcessContext, ResourceID.generate());
 
             final HistoryServerArchivist historyServerArchivist =
                     HistoryServerArchivist.createHistoryServerArchivist(
