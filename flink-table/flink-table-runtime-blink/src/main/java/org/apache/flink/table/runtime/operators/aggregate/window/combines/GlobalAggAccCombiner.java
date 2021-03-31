@@ -137,17 +137,14 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         private final GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler;
         private final GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler;
         private final TypeSerializer<RowData> keySerializer;
-        private final TypeSerializer<RowData> recordSerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler,
                 GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler,
-                TypeSerializer<RowData> keySerializer,
-                TypeSerializer<RowData> recordSerializer) {
+                TypeSerializer<RowData> keySerializer) {
             this.genLocalAggsHandler = genLocalAggsHandler;
             this.genGlobalAggsHandler = genGlobalAggsHandler;
             this.keySerializer = keySerializer;
-            this.recordSerializer = recordSerializer;
         }
 
         @Override

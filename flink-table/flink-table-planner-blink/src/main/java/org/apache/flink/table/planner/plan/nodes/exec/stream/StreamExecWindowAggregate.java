@@ -215,7 +215,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                                 .toArray(PlannerWindowProperty[]::new));
 
         return generator.generateNamespaceAggsHandler(
-                "GroupingWindowAggsHandler",
+                "WindowAggsHandler",
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
                 sliceAssigner,

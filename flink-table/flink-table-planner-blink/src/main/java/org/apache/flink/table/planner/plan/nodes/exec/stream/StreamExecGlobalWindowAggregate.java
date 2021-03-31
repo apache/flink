@@ -158,6 +158,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         windowing.getWindow(),
                         true); // isStateBackendDataViews
 
+        // handler used to merge multiple local accumulators into one accumulator,
+        // where the accumulators are all on memory
         final GeneratedNamespaceAggsHandleFunction<Long> localAggsHandler =
                 createAggsHandler(
                         "LocalWindowAggsHandler",
@@ -170,6 +172,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         planner.getRelBuilder(),
                         shiftTimeZone);
 
+        // handler used to merge the single local accumulator (on memory) into state accumulator
         final GeneratedNamespaceAggsHandleFunction<Long> globalAggsHandler =
                 createAggsHandler(
                         "GlobalWindowAggsHandler",
@@ -182,6 +185,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         planner.getRelBuilder(),
                         shiftTimeZone);
 
+        // handler used to merge state accumulators for merging slices into window,
+        // e.g. Hop and Cumulate
         final GeneratedNamespaceAggsHandleFunction<Long> stateAggsHandler =
                 createAggsHandler(
                         "StateWindowAggsHandler",
