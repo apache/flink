@@ -393,7 +393,10 @@ public final class SliceAssigners {
         }
     }
 
-    /** The {@link SliceAssigner} for elements have been attached slice end timestamp. */
+    /**
+     * The {@link SliceAssigner} for elements have been attached slice end timestamp, and the slices
+     * are shared.
+     */
     public static final class SlicedSharedSliceAssigner extends AbstractSlicedSliceAssigner
             implements SliceSharedAssigner {
         private static final long serialVersionUID = 1L;
@@ -415,6 +418,10 @@ public final class SliceAssigners {
         }
     }
 
+    /**
+     * The {@link SliceAssigner} for elements have been attached slice end timestamp, but the slices
+     * are not shared, i.e. the assigned slice is equal to the final window.
+     */
     public static final class SlicedUnsharedSliceAssigner extends AbstractSlicedSliceAssigner
             implements SliceUnsharedAssigner {
 
