@@ -595,6 +595,21 @@ public class FutureUtils {
     }
 
     // ------------------------------------------------------------------------
+    //  Delayed completion
+    // ------------------------------------------------------------------------
+
+    /**
+     * Asynchronously completes the future after a certain delay.
+     *
+     * @param future The future to complete.
+     * @param success The element to complete the future with.
+     * @param delay The delay after which the future should be completed.
+     */
+    public static <T> void completeDelayed(CompletableFuture<T> future, T success, Duration delay) {
+        Delayer.delay(() -> future.complete(success), delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    // ------------------------------------------------------------------------
     //  Future actions
     // ------------------------------------------------------------------------
 
