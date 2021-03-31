@@ -153,6 +153,10 @@ class ConnectorTests(PyFlinkTestCase):
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.test_sink = DataStreamTestSinkFunction()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-files')
+
+    def tearDown(self) -> None:
+        self.test_sink.clear()
 
     def test_stream_file_sink(self):
         self.env.set_parallelism(2)
@@ -189,17 +193,6 @@ class ConnectorTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def tearDown(self) -> None:
-        self.test_sink.clear()
-
-
-class FlinkFileSourceTest(PyFlinkTestCase):
-
-    def setUp(self):
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-files')
-
     def test_file_source(self):
         stream_format = StreamFormat.text_line_format()
         paths = ["/tmp/1.txt", "/tmp/2.txt"]
@@ -223,10 +216,7 @@ class FlinkFileSourceTest(PyFlinkTestCase):
         self.assertEqual(str(input_paths[0]), paths[0])
         self.assertEqual(str(input_paths[1]), paths[1])
 
-
-class NumberSequenceSourceTest(PyFlinkTestCase):
-
-    def test_file_source(self):
+    def test_seq_source(self):
         seq_source = NumberSequenceSource(1, 10)
 
         seq_source_clz = load_java_class(
