@@ -45,7 +45,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
 public class DataStreamJavaITCase extends AbstractTestBase {
@@ -205,7 +207,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
     private static void testResult(TableResult result, Row... expectedRows) {
         final List<Row> actualRows = CollectionUtil.iteratorToList(result.collect());
-        assertEquals(Arrays.asList(expectedRows), actualRows);
+        assertThat(actualRows, containsInAnyOrder(expectedRows));
     }
 
     // --------------------------------------------------------------------------------------------

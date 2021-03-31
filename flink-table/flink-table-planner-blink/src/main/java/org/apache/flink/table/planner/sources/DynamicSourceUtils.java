@@ -250,6 +250,7 @@ public final class DynamicSourceUtils {
         final ExpressionConverter converter = new ExpressionConverter(relBuilder);
         final RelDataType inputRelDataType = relBuilder.peek().getRowType();
 
+        // schema resolver has checked before that only one spec exists
         final WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
 
         final String rowtimeColumn = watermarkSpec.getRowtimeAttribute();
