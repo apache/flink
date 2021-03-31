@@ -229,13 +229,18 @@ abstract class PlannerBase(
               catalogSink.getStaticPartitions.toMap)
 
           case (table, sink: DynamicTableSink) =>
-            DynamicSinkUtils.toRel(getRelBuilder, input, catalogSink, sink, table)
+            DynamicSinkUtils.convertSinkToRel(getRelBuilder, input, catalogSink, sink, table)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>
             throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
         }
 
+      case externalModifyOperation: ExternalModifyOperation =>
+        val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
+        DynamicSinkUtils.convertExternalToRel(getRelBuilder, input, externalModifyOperation)
+
+      // legacy
       case outputConversion: OutputConversionModifyOperation =>
         val input = getRelBuilder.queryOperation(outputConversion.getChild).build()
         val (needUpdateBefore, withChangeFlag) = outputConversion.getUpdateMode match {

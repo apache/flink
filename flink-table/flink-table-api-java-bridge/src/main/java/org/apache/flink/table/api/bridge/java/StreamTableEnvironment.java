@@ -21,6 +21,7 @@ package org.apache.flink.table.api.bridge.java;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -40,6 +41,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -354,6 +356,102 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param <T> The type of the {@link DataStream}.
      */
     <T> void createTemporaryView(String path, DataStream<T> dataStream, Schema schema);
+
+    /**
+     * Converts the given {@link Table} into a {@link DataStream}.
+     *
+     * <p>Since the DataStream API does not support changelog processing natively, this method
+     * assumes append-only/insert-only semantics during the table-to-stream conversion. The records
+     * of class {@link Row} will always describe {@link RowKind#INSERT} changes. Updating tables are
+     * not supported by this method and will produce an exception.
+     *
+     * <p>If you want to convert the {@link Table} to a specific class or data type, use {@link
+     * #toDataStream(Table, Class)} or {@link #toDataStream(Table, AbstractDataType)} instead.
+     *
+     * <p>Note that the type system of the table ecosystem is richer than the one of the DataStream
+     * API. The table runtime will make sure to properly serialize the output records to the first
+     * operator of the DataStream API. Afterwards, the {@link Types} semantics of the DataStream API
+     * need to be considered.
+     *
+     * <p>If the input table contains a single rowtime column, it will be propagated into a stream
+     * record's timestamp. Watermarks will be propagated as well.
+     *
+     * @param table The {@link Table} to convert.
+     * @return The converted {@link DataStream}.
+     * @see #toDataStream(Table, AbstractDataType)
+     */
+    DataStream<Row> toDataStream(Table table);
+
+    /**
+     * Converts the given {@link Table} into a {@link DataStream} of the given {@link Class}.
+     *
+     * <p>See {@link #toDataStream(Table, AbstractDataType)} for more information on how a {@link
+     * Table} is translated into a {@link DataStream}.
+     *
+     * <p>This method is a shortcut for:
+     *
+     * <pre>
+     *     tableEnv.toDataStream(table, DataTypes.of(class))
+     * </pre>
+     *
+     * <p>Calling this method with a class of {@link Row} will redirect to {@link
+     * #toDataStream(Table)}.
+     *
+     * @param table The {@link Table} to convert.
+     * @param targetClass The {@link Class} that decides about the final external representation in
+     *     {@link DataStream} records.
+     * @param <T> External record.
+     * @return The converted {@link DataStream}.
+     */
+    <T> DataStream<T> toDataStream(Table table, Class<T> targetClass);
+
+    /**
+     * Converts the given {@link Table} into a {@link DataStream} of the given {@link DataType}.
+     *
+     * <p>The given {@link DataType} is used to configure the table runtime to convert columns and
+     * internal data structures to the desired representation. The following example shows how to
+     * convert the table columns into the fields of a POJO type.
+     *
+     * <pre>
+     *     // given a Table of (name STRING, age INT)
+     *
+     *     public static class MyPojo {
+     *         public String name;
+     *         public Integer age;
+     *
+     *         // default constructor for DataStream API
+     *         public MyPojo() {}
+     *
+     *         // fully assigning constructor for field order in Table API
+     *         public MyPojo(String name, Integer age) {
+     *             this.name = name;
+     *             this.age = age;
+     *         }
+     *     }
+     *
+     *     tableEnv.toDataStream(table, DataTypes.of(MyPojo.class));
+     * </pre>
+     *
+     * <p>Since the DataStream API does not support changelog processing natively, this method
+     * assumes append-only/insert-only semantics during the table-to-stream conversion. Updating
+     * tables are not supported by this method and will produce an exception.
+     *
+     * <p>Note that the type system of the table ecosystem is richer than the one of the DataStream
+     * API. The table runtime will make sure to properly serialize the output records to the first
+     * operator of the DataStream API. Afterwards, the {@link Types} semantics of the DataStream API
+     * need to be considered.
+     *
+     * <p>If the input table contains a single rowtime column, it will be propagated into a stream
+     * record's timestamp. Watermarks will be propagated as well.
+     *
+     * @param table The {@link Table} to convert.
+     * @param targetDataType The {@link DataType} that decides about the final external
+     *     representation in {@link DataStream} records.
+     * @param <T> External record.
+     * @return The converted {@link DataStream}.
+     * @see #toDataStream(Table)
+     */
+    <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> targetDataType);
 
     /**
      * Converts the given {@link DataStream} into a {@link Table} with specified field names.

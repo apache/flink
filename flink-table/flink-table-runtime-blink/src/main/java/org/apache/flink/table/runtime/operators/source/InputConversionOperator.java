@@ -41,8 +41,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 public final class InputConversionOperator<E> extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<E, RowData> {
 
-    private transient StreamRecord<RowData> outRecord;
-
     private final DataStructureConverter converter;
 
     private final boolean requiresWrapping;
@@ -52,6 +50,8 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
     private final boolean propagateWatermark;
 
     private final boolean isInsertOnly;
+
+    private transient StreamRecord<RowData> outRecord;
 
     public InputConversionOperator(
             DataStructureConverter converter,

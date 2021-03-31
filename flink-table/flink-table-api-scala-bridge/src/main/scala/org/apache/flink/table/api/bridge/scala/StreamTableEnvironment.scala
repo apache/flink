@@ -27,7 +27,7 @@ import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
-import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.types.{Row, RowKind}
 
 /**
@@ -252,6 +252,89 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @tparam T The type of the [[DataStream]].
    */
   def createTemporaryView[T](path: String, dataStream: DataStream[T], schema: Schema): Unit
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]].
+   *
+   * Since the DataStream API does not support changelog processing natively, this method
+   * assumes append-only/insert-only semantics during the table-to-stream conversion. The records
+   * of class [[Row]] will always describe [[RowKind.INSERT]] changes. Updating tables are
+   * not supported by this method and will produce an exception.
+   *
+   * If you want to convert the [[Table]] to a specific class or data type, use
+   * [[toDataStream(Table, Class)]] or [[toDataStream(Table, AbstractDataType)]] instead.
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream
+   * API. The table runtime will make sure to properly serialize the output records to the first
+   * operator of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]]
+   * semantics of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well.
+   *
+   * @param table The [[Table]] to convert.
+   * @return The converted [[DataStream]].
+   * @see [[toDataStream(Table, AbstractDataType)]]
+   */
+  def toDataStream(table: Table): DataStream[Row]
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of the given [[Class]].
+   *
+   * See [[toDataStream(Table, AbstractDataType)]] for more information on how a
+   * Table} is translated into a DataStream}.
+   *
+   * This method is a shortcut for:
+   *
+   * {{{
+   *     tableEnv.toDataStream(table, DataTypes.of(class))
+   * }}}
+   *
+   * Calling this method with a class of [[Row]] will redirect to [[toDataStream(Table)]].
+   *
+   * @param table       The [[Table]] to convert.
+   * @param targetClass The [[Class]] that decides about the final external representation in
+   *                    [[DataStream]] records.
+   * @tparam T External record.
+   * @return The converted [[DataStream]].
+   */
+  def toDataStream[T](table: Table, targetClass: Class[T]): DataStream[T]
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of the given [[DataType]].
+   *
+   * The given [[DataType]] is used to configure the table runtime to convert columns and
+   * internal data structures to the desired representation. The following example shows how to
+   * convert the table columns into the fields of a POJO type.
+   *
+   * {{{
+   *     // given a Table of (name STRING, age INT)
+   *
+   *     case class MyPojo(var name: String, var age: java.lang.Integer)
+   *
+   *     tableEnv.toDataStream(table, DataTypes.of(MyPojo.class))
+   * }}}
+   *
+   * Since the DataStream API does not support changelog processing natively, this method
+   * assumes append-only/insert-only semantics during the table-to-stream conversion. Updating
+   * tables are not supported by this method and will produce an exception.
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream
+   * API. The table runtime will make sure to properly serialize the output records to the first
+   * operator of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]]
+   * semantics of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well.
+   *
+   * @param table          The [[Table]] to convert.
+   * @param targetDataType The [[DataType]] that decides about the final external
+   *                       representation in [[DataStream]] records.
+   * @tparam T External record.
+   * @return The converted [[DataStream]].
+   * @see [[toDataStream(Table)]]
+   */
+  def toDataStream[T](table: Table, targetDataType: AbstractDataType[_]): DataStream[T]
 
   /**
     * Converts the given [[DataStream]] into a [[Table]] with specified field names.
