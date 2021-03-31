@@ -212,25 +212,30 @@ public class CliClient implements AutoCloseable {
 
         try {
             executeInteractive();
-        } catch (Exception e) {
+        } finally {
             closeTerminal();
-            throw e;
         }
     }
 
     public void executeInNonInteractiveMode(String content) {
-        terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
-        executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
-        closeTerminal();
+        try {
+            terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
+            executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
+        } finally {
+            closeTerminal();
+        }
     }
 
     public boolean executeInitialization(String content) {
-        OutputStream outputStream = new ByteArrayOutputStream(256);
-        terminal = TerminalUtils.createDummyTerminal(outputStream);
-        boolean success = executeFile(content, ExecutionMode.INITIALIZATION);
-        LOG.info(outputStream.toString());
-        closeTerminal();
-        return success;
+        try {
+            OutputStream outputStream = new ByteArrayOutputStream(256);
+            terminal = TerminalUtils.createDummyTerminal(outputStream);
+            boolean success = executeFile(content, ExecutionMode.INITIALIZATION);
+            LOG.info(outputStream.toString());
+            return success;
+        } finally {
+            closeTerminal();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -253,7 +258,6 @@ public class CliClient implements AutoCloseable {
     void executeInteractive() {
         isRunning = true;
         LineReader lineReader = createLineReader(terminal);
-        // begin reading loop
 
         // make space from previous output and test the writer
         terminal.writer().println();
@@ -262,6 +266,7 @@ public class CliClient implements AutoCloseable {
         // print welcome
         terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
+        // begin reading loop
         while (isRunning) {
             // make some space to previous command
             terminal.writer().append("\n");
@@ -296,7 +301,10 @@ public class CliClient implements AutoCloseable {
         terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EXECUTE_FILE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
-            terminal.writer().println(new AttributedString(statement).toString());
+            terminal.writer()
+                    .println(
+                            new AttributedString(String.format("%s%s", prompt, statement))
+                                    .toString());
             terminal.flush();
 
             if (!executeStatement(statement, mode)) {
@@ -611,7 +619,7 @@ public class CliClient implements AutoCloseable {
             terminal.close();
             terminal = null;
         } catch (IOException e) {
-            throw new SqlClientException("Unable to close terminal.", e);
+            // ignore
         }
     }
 

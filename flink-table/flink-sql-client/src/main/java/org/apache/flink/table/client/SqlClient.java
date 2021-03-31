@@ -135,7 +135,7 @@ public class SqlClient {
                 } else {
                     System.out.println(
                             String.format(
-                                    "Successfully initialized from sql script: %s.",
+                                    "Successfully initialized from sql script: %s",
                                     options.getInitFile()));
                 }
             }
