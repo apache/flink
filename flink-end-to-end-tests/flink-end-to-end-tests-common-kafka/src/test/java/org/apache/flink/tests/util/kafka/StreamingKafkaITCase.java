@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** End-to-end test for the kafka connectors. */
@@ -62,6 +64,13 @@ public class StreamingKafkaITCase extends TestLogger {
     private final Path kafkaExampleJar;
 
     private final String kafkaVersion;
+
+    @Rule
+    public final Timeout timeout =
+            Timeout.builder()
+                    .withTimeout(3, TimeUnit.MINUTES)
+                    .withLookingForStuckThread(true)
+                    .build();
 
     @Rule public final KafkaResource kafka;
 
