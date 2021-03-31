@@ -25,6 +25,7 @@ from pyflink.datastream.window import TimeWindowSerializer, CountWindowSerialize
     Trigger, WindowOperationDescriptor
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.datastream.connectors import Sink
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
@@ -617,6 +618,18 @@ class DataStream(object):
         :return: The closed DataStream.
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
+
+    def sink_to(self, sink: Sink) -> 'DataStreamSink':
+        """
+        Adds the given sink to this DataStream. Only streams with sinks added will be
+        executed once the
+        :func:`~pyflink.datastream.stream_execution_environment.StreamExecutionEnvironment.execute`
+        method is called.
+
+        :param sink: The user defined sink.
+        :return: The closed DataStream.
+        """
+        return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
 
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
             -> Union['CloseableIterator', list]:
