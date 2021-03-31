@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,38 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint.component;
+package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Testing implementation of {@link DispatcherResourceManagerComponent.ResourceManagerService}. */
-public class TestingResourceManagerService
-        implements DispatcherResourceManagerComponent.ResourceManagerService {
-    private final ResourceManagerGateway resourceManagerGateway;
+/** Implementation of {@link ResourceManagerService} for testing purpose. */
+public class TestingResourceManagerService implements ResourceManagerService {
 
     private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> deregisterApplicationFuture;
     private final boolean completeTerminationFutureOnClose;
 
     private TestingResourceManagerService(
-            ResourceManagerGateway resourceManagerGateway,
             CompletableFuture<Void> terminationFuture,
+            CompletableFuture<Void> deregisterApplicationFuture,
             boolean completeTerminationFutureOnClose) {
-        this.resourceManagerGateway = resourceManagerGateway;
         this.terminationFuture = terminationFuture;
+        this.deregisterApplicationFuture = deregisterApplicationFuture;
         this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
     }
 
     @Override
-    public ResourceManagerGateway getGateway() {
-        return resourceManagerGateway;
-    }
+    public void start() throws Exception {}
 
     @Override
     public CompletableFuture<Void> getTerminationFuture() {
         return terminationFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> deregisterApplication(
+            ApplicationStatus applicationStatus, @Nullable String diagnostics) {
+        return deregisterApplicationFuture;
     }
 
     @Override
@@ -62,30 +67,33 @@ public class TestingResourceManagerService
         return new Builder();
     }
 
-    /** Builder for {@link TestingResourceManagerService}. */
     public static final class Builder {
-        private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
         private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private CompletableFuture<Void> deregisterApplicationFuture =
+                FutureUtils.completedVoidFuture();
         private boolean completeTerminationFutureOnClose = true;
-
-        public Builder setResourceManagerGateway(ResourceManagerGateway resourceManagerGateway) {
-            this.resourceManagerGateway = resourceManagerGateway;
-            return this;
-        }
 
         public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
             this.terminationFuture = terminationFuture;
             return this;
         }
 
+        public Builder setDeregisterApplicationFuture(
+                CompletableFuture<Void> deregisterApplicationFuture) {
+            this.deregisterApplicationFuture = deregisterApplicationFuture;
+            return this;
+        }
+
         public Builder withManualTerminationFutureCompletion() {
-            completeTerminationFutureOnClose = false;
+            this.completeTerminationFutureOnClose = false;
             return this;
         }
 
         public TestingResourceManagerService build() {
             return new TestingResourceManagerService(
-                    resourceManagerGateway, terminationFuture, completeTerminationFutureOnClose);
+                    terminationFuture,
+                    deregisterApplicationFuture,
+                    completeTerminationFutureOnClose);
         }
     }
 }

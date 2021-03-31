@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.runner.TestingDispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.resourcemanager.TestingResourceManagerService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
