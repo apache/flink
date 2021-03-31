@@ -955,7 +955,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     void failGlobalIfExecutionIsStillRunning(Throwable cause, ExecutionAttemptID failingAttempt) {
         final Execution failedExecution = currentExecutions.get(failingAttempt);
-        if (failedExecution != null && failedExecution.getState() == ExecutionState.RUNNING) {
+        if (failedExecution != null
+                && (failedExecution.getState() == ExecutionState.RUNNING
+                        || failedExecution.getState() == ExecutionState.RECOVERING)) {
             failGlobal(cause);
         } else {
             LOG.debug(

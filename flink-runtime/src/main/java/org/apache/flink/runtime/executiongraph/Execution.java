@@ -856,7 +856,7 @@ public class Execution
             OperatorID operatorId, SerializedValue<OperatorEvent> event) {
         final LogicalSlot slot = assignedResource;
 
-        if (slot != null && getState() == RUNNING) {
+        if (slot != null && (getState() == RUNNING || getState() == RECOVERING)) {
             final TaskExecutorOperatorEventGateway eventGateway = slot.getTaskManagerGateway();
             return eventGateway.sendOperatorEventToTask(getAttemptId(), operatorId, event);
         } else {
