@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
@@ -38,7 +38,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
@@ -1404,4 +1404,43 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testFilterPushDownWithInterval(): Unit = {
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.TIMESTAMP)
+      .field("b", DataTypes.TIMESTAMP)
+      .build()
+
+    val data = List(
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01")))
+
+    TestLegacyFilterableTableSource.createTemporaryTable(
+      tEnv,
+      schema,
+      "myTable",
+      isBounded = true,
+      data,
+      List("a", "b"))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00"))))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(YEAR, 2, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
+  }
 }
