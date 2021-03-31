@@ -50,7 +50,6 @@ import java.util.Map;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -133,7 +132,7 @@ public class BufferedUpsertSinkFunctionTest {
     @Test
     public void testWriteData() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        BufferedUpsertSinkFunction bufferedSink = createBufferedSink(new MockedSinkFunction());
+        BufferedUpsertSinkFunction bufferedSink = createBufferedSink(sinkFunction);
 
         // write 3 records which doesn't trigger batch size
         writeData(bufferedSink, TEST_DATA, 0, 3);
@@ -264,8 +263,6 @@ public class BufferedUpsertSinkFunctionTest {
 
     private void writeData(BufferedUpsertSinkFunction sink, RowData[] data, int startPos, int size)
             throws Exception {
-        checkArgument(startPos > 0 && startPos < data.length);
-        checkArgument(size > startPos && size < data.length);
         for (int i = startPos; i < startPos + size; i++) {
             RowData row = data[i];
             long rowtime = row.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
