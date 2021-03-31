@@ -27,6 +27,42 @@
             <td>The maximum time in ms for the client to establish a TCP connection.</td>
         </tr>
         <tr>
+            <td><h5>rest.flamegraph.cleanup-interval</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>Time after which cached stats are cleaned up if not accessed. It can be specified using notation: "100 s", "10 m".</td>
+        </tr>
+        <tr>
+            <td><h5>rest.flamegraph.delay-between-samples</h5></td>
+            <td style="word-wrap: break-word;">50 ms</td>
+            <td>Duration</td>
+            <td>Delay between individual stack trace samples taken for building a FlameGraph. It can be specified using notation: "100 ms", "1 s".</td>
+        </tr>
+        <tr>
+            <td><h5>rest.flamegraph.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables the experimental flame graph feature.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.flamegraph.num-samples</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Number of samples to take to build a FlameGraph.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.flamegraph.refresh-interval</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Time after which available stats are deprecated and need to be refreshed (by resampling).  It can be specified using notation: "30 s", "1 m".</td>
+        </tr>
+        <tr>
+            <td><h5>rest.flamegraph.stack-depth</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Maximum depth of stack traces used to create FlameGraphs.</td>
+        </tr>
+        <tr>
             <td><h5>rest.idleness-timeout</h5></td>
             <td style="word-wrap: break-word;">300000</td>
             <td>Long</td>

@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -139,6 +139,7 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoStats;
 import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTrackerBuilder;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -237,32 +238,24 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         }
 
         final Duration flameGraphCleanUpInterval =
-                clusterConfiguration.get(WebOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
+                clusterConfiguration.get(RestOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
         final ThreadInfoRequestCoordinator threadInfoRequestCoordinator =
                 new ThreadInfoRequestCoordinator(executor, akkaTimeout);
-        final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> vertexThreadInfoTracker =
-                JobVertexThreadInfoTracker.newBuilder(
-                                resourceManagerRetriever, Function.identity(), executor)
-                        .setCoordinator(threadInfoRequestCoordinator)
-                        .setCleanUpInterval(flameGraphCleanUpInterval)
-                        .setNumSamples(
-                                clusterConfiguration.getInteger(WebOptions.FLAMEGRAPH_NUM_SAMPLES))
-                        .setStatsRefreshInterval(
-                                clusterConfiguration.get(WebOptions.FLAMEGRAPH_REFRESH_INTERVAL))
-                        .setDelayBetweenSamples(
-                                clusterConfiguration.get(WebOptions.FLAMEGRAPH_DELAY))
-                        .setMaxThreadInfoDepth(
-                                clusterConfiguration.getInteger(
-                                        WebOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
-                        .build();
 
-        executor.scheduleWithFixedDelay(
-                vertexThreadInfoTracker::cleanUpVertexStatsCache,
-                flameGraphCleanUpInterval.toMillis(),
-                flameGraphCleanUpInterval.toMillis(),
-                TimeUnit.MILLISECONDS);
-
-        return vertexThreadInfoTracker;
+        return JobVertexThreadInfoTrackerBuilder.newBuilder(
+                        resourceManagerRetriever,
+                        Function.identity(),
+                        executor,
+                        restConfiguration.getTimeout())
+                .setCoordinator(threadInfoRequestCoordinator)
+                .setCleanUpInterval(flameGraphCleanUpInterval)
+                .setNumSamples(clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
+                .setStatsRefreshInterval(
+                        clusterConfiguration.get(RestOptions.FLAMEGRAPH_REFRESH_INTERVAL))
+                .setDelayBetweenSamples(clusterConfiguration.get(RestOptions.FLAMEGRAPH_DELAY))
+                .setMaxThreadInfoDepth(
+                        clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
+                .build();
     }
 
     @Override
@@ -277,9 +270,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         final boolean hasWebSubmissionHandlers = !webSubmissionHandlers.isEmpty();
 
         final Time timeout = restConfiguration.getTimeout();
-
-        final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> vertexThreadInfoTracker =
-                initializeThreadInfoTracker(executor);
 
         ClusterOverviewHandler clusterOverviewHandler =
                 new ClusterOverviewHandler(
@@ -564,15 +554,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         JobVertexBackPressureHeaders.getInstance(),
                         metricFetcher);
 
-        final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
-                new JobVertexFlameGraphHandler(
-                        leaderRetriever,
-                        timeout,
-                        responseHeaders,
-                        executionGraphCache,
-                        executor,
-                        vertexThreadInfoTracker);
-
         final JobCancellationHandler jobCancelTerminationHandler =
                 new JobCancellationHandler(
                         leaderRetriever,
@@ -757,10 +738,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobVertexBackPressureHandler.getMessageHeaders(),
                         jobVertexBackPressureHandler));
-        handlers.add(
-                Tuple2.of(
-                        jobVertexFlameGraphHandler.getMessageHeaders(),
-                        jobVertexFlameGraphHandler));
+
+        if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
+            final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
+                    new JobVertexFlameGraphHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            executionGraphCache,
+                            executor,
+                            initializeThreadInfoTracker(executor));
+            handlers.add(
+                    Tuple2.of(
+                            jobVertexFlameGraphHandler.getMessageHeaders(),
+                            jobVertexFlameGraphHandler));
+        }
 
         handlers.add(
                 Tuple2.of(

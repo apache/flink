@@ -19,26 +19,28 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Samples thread infos of tasks. */
-class ThreadInfoSampleService {
+class ThreadInfoSampleService implements Closeable {
 
-    private final ScheduledExecutor scheduledExecutor;
+    private final ScheduledExecutorService scheduledExecutor;
 
-    ThreadInfoSampleService(final ScheduledExecutor scheduledExecutor) {
+    ThreadInfoSampleService(final ScheduledExecutorService scheduledExecutor) {
         this.scheduledExecutor =
                 checkNotNull(scheduledExecutor, "scheduledExecutor must not be null");
     }
@@ -55,16 +57,20 @@ class ThreadInfoSampleService {
         checkNotNull(task, "task must not be null");
         checkNotNull(requestParams, "requestParams must not be null");
 
-        return requestThreadInfoSamples(
-                task,
-                requestParams.getNumSamples(),
-                requestParams.getDelayBetweenSamples(),
-                requestParams.getMaxStackTraceDepth(),
-                new ArrayList<>(requestParams.getNumSamples()),
-                new CompletableFuture<>());
+        CompletableFuture<List<ThreadInfoSample>> resultFuture = new CompletableFuture<>();
+        scheduledExecutor.execute(
+                () ->
+                        requestThreadInfoSamples(
+                                task,
+                                requestParams.getNumSamples(),
+                                requestParams.getDelayBetweenSamples(),
+                                requestParams.getMaxStackTraceDepth(),
+                                new ArrayList<>(requestParams.getNumSamples()),
+                                resultFuture));
+        return resultFuture;
     }
 
-    private CompletableFuture<List<ThreadInfoSample>> requestThreadInfoSamples(
+    private void requestThreadInfoSamples(
             final SampleableTask task,
             final int numSamples,
             final Duration delayBetweenSamples,
@@ -80,7 +86,6 @@ class ThreadInfoSampleService {
             currentTraces.add(threadInfoSample.get());
         } else if (!currentTraces.isEmpty()) {
             resultFuture.complete(currentTraces);
-            return resultFuture;
         } else {
             resultFuture.completeExceptionally(
                     new IllegalStateException(
@@ -104,6 +109,10 @@ class ThreadInfoSampleService {
         } else {
             resultFuture.complete(currentTraces);
         }
-        return resultFuture;
+    }
+
+    @Override
+    public void close() throws IOException {
+        scheduledExecutor.shutdownNow();
     }
 }

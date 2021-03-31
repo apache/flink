@@ -18,20 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecution;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.webmonitor.stats.TaskStatsRequestCoordinator;
 
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -59,7 +58,7 @@ public class ThreadInfoRequestCoordinator
      * from given subtasks. A thread info response of a subtask in turn consists of {@code
      * numSamples}, collected with {@code delayBetweenSamples} milliseconds delay between them.
      *
-     * @param subtasksWithGateways Execution vertices together with TaskExecutors running them.
+     * @param executionWithGateways Execution vertices together with TaskExecutors running them.
      * @param numSamples Number of thread info samples to collect from each subtask.
      * @param delayBetweenSamples Delay between consecutive samples (ms).
      * @param maxStackTraceDepth Maximum depth of the stack traces collected within thread info
@@ -67,35 +66,20 @@ public class ThreadInfoRequestCoordinator
      * @return A future of the completed thread info stats.
      */
     public CompletableFuture<JobVertexThreadInfoStats> triggerThreadInfoRequest(
-            List<Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>>
-                    subtasksWithGateways,
+            Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+                    executionWithGateways,
             int numSamples,
             Duration delayBetweenSamples,
             int maxStackTraceDepth) {
 
-        checkNotNull(subtasksWithGateways, "Tasks to sample");
-        checkArgument(subtasksWithGateways.size() > 0, "No tasks to sample");
+        checkNotNull(executionWithGateways, "Tasks to sample");
+        checkArgument(executionWithGateways.size() > 0, "No tasks to sample");
         checkArgument(numSamples >= 1, "No number of samples");
         checkArgument(maxStackTraceDepth >= 0, "Negative maximum stack trace depth");
 
         // Execution IDs of running tasks
-        List<ExecutionAttemptID> runningSubtasksIds = new ArrayList<>();
-
-        // Check that all tasks are RUNNING before triggering anything. The
-        // triggering can still fail.
-        for (Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>
-                executionsWithGateway : subtasksWithGateways) {
-            AccessExecution execution = executionsWithGateway.f0.getCurrentExecutionAttempt();
-            if (execution != null && execution.getState() == ExecutionState.RUNNING) {
-                runningSubtasksIds.add(execution.getAttemptId());
-            } else {
-                return FutureUtils.completedExceptionally(
-                        new IllegalStateException(
-                                "Task "
-                                        + executionsWithGateway.f0.getTaskNameWithSubtaskIndex()
-                                        + " is not running."));
-            }
-        }
+        Collection<ExecutionAttemptID> runningSubtasksIds =
+                Collections.unmodifiableSet(executionWithGateways.keySet());
 
         synchronized (lock) {
             if (isShutDown) {
@@ -114,7 +98,7 @@ public class ThreadInfoRequestCoordinator
             // messages to the task managers, but only wait for the responses
             // and then ignore them.
             long expectedDuration = numSamples * delayBetweenSamples.toMillis();
-            Duration timeout = Duration.ofMillis(expectedDuration + requestTimeout.toMillis());
+            Time timeout = Time.milliseconds(expectedDuration + requestTimeout.toMillis());
 
             // Add the pending request before scheduling the discard task to
             // prevent races with removing it again.
@@ -124,7 +108,7 @@ public class ThreadInfoRequestCoordinator
                     new ThreadInfoSamplesRequest(
                             requestId, numSamples, delayBetweenSamples, maxStackTraceDepth);
 
-            requestThreadInfo(subtasksWithGateways, requestParams, timeout);
+            requestThreadInfo(executionWithGateways, requestParams, timeout);
 
             return pending.getStatsFuture();
         }
@@ -135,32 +119,30 @@ public class ThreadInfoRequestCoordinator
      * return within timeout.
      */
     private void requestThreadInfo(
-            List<Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>>
-                    subtasksWithGateways,
+            Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+                    executionWithGateways,
             ThreadInfoSamplesRequest requestParams,
-            Duration timeout) {
+            Time timeout) {
 
         // Trigger samples collection from all subtasks
-        for (Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>
-                executionWithGateway : subtasksWithGateways) {
+        for (Map.Entry<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+                executionWithGateway : executionWithGateways.entrySet()) {
 
-            CompletableFuture<TaskExecutorGateway> executorGatewayFuture = executionWithGateway.f1;
-
-            ExecutionAttemptID taskExecutionAttemptId =
-                    executionWithGateway.f0.getCurrentExecutionAttempt().getAttemptId();
+            CompletableFuture<TaskExecutorThreadInfoGateway> executorGatewayFuture =
+                    executionWithGateway.getValue();
 
             CompletableFuture<TaskThreadInfoResponse> threadInfo =
                     executorGatewayFuture.thenCompose(
                             executorGateway ->
                                     executorGateway.requestThreadInfoSamples(
-                                            taskExecutionAttemptId, requestParams, timeout));
+                                            executionWithGateway.getKey(), requestParams, timeout));
 
             threadInfo.whenCompleteAsync(
                     (TaskThreadInfoResponse threadInfoSamplesResponse, Throwable throwable) -> {
                         if (threadInfoSamplesResponse != null) {
                             handleSuccessfulResponse(
-                                    threadInfoSamplesResponse.getRequestId(),
-                                    threadInfoSamplesResponse.getExecutionAttemptID(),
+                                    requestParams.getRequestId(),
+                                    executionWithGateway.getKey(),
                                     threadInfoSamplesResponse.getSamples());
                         } else {
                             handleFailedResponse(requestParams.getRequestId(), throwable);
@@ -175,7 +157,7 @@ public class ThreadInfoRequestCoordinator
     private static class PendingThreadInfoRequest
             extends PendingStatsRequest<List<ThreadInfoSample>, JobVertexThreadInfoStats> {
 
-        PendingThreadInfoRequest(int requestId, List<ExecutionAttemptID> tasksToCollect) {
+        PendingThreadInfoRequest(int requestId, Collection<ExecutionAttemptID> tasksToCollect) {
             super(requestId, tasksToCollect);
         }
 

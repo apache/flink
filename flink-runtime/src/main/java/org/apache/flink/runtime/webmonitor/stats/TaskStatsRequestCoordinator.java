@@ -32,9 +32,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +68,7 @@ public class TaskStatsRequestCoordinator<T, V> {
     protected final Map<Integer, PendingStatsRequest<T, V>> pendingRequests = new HashMap<>();
 
     /** A list of recent request IDs to identify late messages vs. invalid ones. */
+    @GuardedBy("lock")
     protected final ArrayDeque<Integer> recentPendingRequestIds =
             new ArrayDeque<>(NUM_GHOST_SAMPLE_IDS);
 
@@ -106,11 +107,7 @@ public class TaskStatsRequestCoordinator<T, V> {
 
             PendingStatsRequest<T, V> pendingRequest = pendingRequests.remove(requestId);
             if (pendingRequest != null) {
-                if (cause != null) {
-                    log.info("Cancelling request " + requestId, cause);
-                } else {
-                    log.info("Cancelling request {}", requestId);
-                }
+                log.info("Cancelling request {}", requestId, cause);
 
                 pendingRequest.discard(cause);
                 rememberRecentRequestId(requestId);
@@ -238,7 +235,8 @@ public class TaskStatsRequestCoordinator<T, V> {
          * @param requestId ID of the request.
          * @param tasksToCollect tasks from which the stats responses are expected.
          */
-        protected PendingStatsRequest(int requestId, List<ExecutionAttemptID> tasksToCollect) {
+        protected PendingStatsRequest(
+                int requestId, Collection<ExecutionAttemptID> tasksToCollect) {
             this.requestId = requestId;
             this.startTime = System.currentTimeMillis();
             this.pendingTasks = new HashSet<>(tasksToCollect);

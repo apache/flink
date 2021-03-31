@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
-import org.apache.flink.runtime.webmonitor.stats.Statistics;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 
-import java.io.Serializable;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
@@ -28,24 +32,33 @@ import java.util.List;
  *
  * <p>Statistics are gathered by sampling stack traces of running tasks.
  */
-public class JobVertexFlameGraph implements Serializable, Statistics {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class JobVertexFlameGraph implements ResponseBody {
 
-    private static final long serialVersionUID = 1L;
+    private static final String FIELD_NAME_END_TIMESTAMP = "endTimestamp";
+    private static final String FIELD_NAME_DATA = "data";
 
     /** End time stamp of the corresponding sample. */
+    @JsonProperty(FIELD_NAME_END_TIMESTAMP)
     private final long endTimestamp;
 
+    @JsonProperty(FIELD_NAME_DATA)
     private final Node root;
 
-    public JobVertexFlameGraph(long endTimestamp, Node root) {
+    @JsonCreator
+    public JobVertexFlameGraph(
+            @JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp,
+            @JsonProperty(FIELD_NAME_DATA) Node root) {
         this.endTimestamp = endTimestamp;
         this.root = root;
     }
 
+    @JsonIgnore
     public long getEndTime() {
         return endTimestamp;
     }
 
+    @JsonIgnore
     public Node getRoot() {
         return root;
     }
@@ -55,34 +68,60 @@ public class JobVertexFlameGraph implements Serializable, Statistics {
         return "OperatorFlameGraph: endTimestamp=" + endTimestamp + "\n" + getRoot().toString();
     }
 
+    public static JobVertexFlameGraph empty() {
+        return new JobVertexFlameGraph(-1, null);
+    }
+
     /** Graph node. */
     public static class Node {
 
-        private final String name;
-        private final int value;
+        // These field names are required by the library used in the WebUI.
+        private static final String FIELD_NAME_NAME = "name";
+        private static final String FIELD_NAME_VALUE = "value";
+        private static final String FIELD_NAME_CHILDREN = "children";
+
+        @JsonProperty(FIELD_NAME_NAME)
+        private final String stackTraceLocation;
+
+        @JsonProperty(FIELD_NAME_VALUE)
+        private final int hitCount;
+
+        @JsonProperty(FIELD_NAME_CHILDREN)
         private final List<Node> children;
 
-        Node(String name, int value, List<Node> children) {
-            this.name = name;
-            this.value = value;
+        @JsonCreator
+        Node(
+                @JsonProperty(FIELD_NAME_NAME) String stackTraceLocation,
+                @JsonProperty(FIELD_NAME_VALUE) int hitCount,
+                @JsonProperty(FIELD_NAME_CHILDREN) List<Node> children) {
+            this.stackTraceLocation = stackTraceLocation;
+            this.hitCount = hitCount;
             this.children = children;
         }
 
-        public String getName() {
-            return name;
+        @JsonIgnore
+        public String getStackTraceLocation() {
+            return stackTraceLocation;
         }
 
-        public int getValue() {
-            return value;
+        @JsonIgnore
+        public int getHitCount() {
+            return hitCount;
         }
 
+        @JsonIgnore
         public List<Node> getChildren() {
             return children;
         }
 
         @Override
         public String toString() {
-            return getName() + ": " + getValue() + "\n" + "\t" + toStringChildren();
+            return getStackTraceLocation()
+                    + ": "
+                    + getHitCount()
+                    + "\n"
+                    + "\t"
+                    + toStringChildren();
         }
 
         private String toStringChildren() {

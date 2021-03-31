@@ -49,7 +49,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -313,7 +312,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
             ExecutionAttemptID taskExecutionAttemptId,
             ThreadInfoSamplesRequest threadInfoSamplesRequest,
-            Duration timeout) {
+            Time timeout) {
         return requestThreadInfoSamplesSupplier.get();
     }
 

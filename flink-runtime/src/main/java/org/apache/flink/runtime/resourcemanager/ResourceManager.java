@@ -74,6 +74,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -848,13 +849,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<TaskExecutorGateway> requestTaskExecutorGateway(
-            ResourceID resourceId) {
+    public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
+            ResourceID taskManagerId, Time timeout) {
 
-        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
-            return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(resourceId));
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
         } else {
             return CompletableFuture.completedFuture(taskExecutor.getTaskExecutorGateway());
         }

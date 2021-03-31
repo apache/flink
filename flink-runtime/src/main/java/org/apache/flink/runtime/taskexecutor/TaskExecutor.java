@@ -125,6 +125,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
@@ -147,7 +148,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ThreadInfo;
 import java.net.InetSocketAddress;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -164,6 +164,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -319,8 +321,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.resourceManagerHeartbeatManager =
                 createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
 
-        this.threadInfoSampleService =
-                new ThreadInfoSampleService(rpcService.getScheduledExecutor());
+        ExecutorThreadFactory sampleThreadFactory =
+                new ExecutorThreadFactory.Builder()
+                        .setPoolName("flink-thread-info-sampler")
+                        .build();
+        ScheduledExecutorService sampleExecutor =
+                Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
+        this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -475,6 +482,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         Exception exception = null;
 
         try {
+            threadInfoSampleService.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        try {
             jobLeaderService.stop();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -512,7 +525,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
             final ExecutionAttemptID taskExecutionAttemptId,
             final ThreadInfoSamplesRequest requestParams,
-            final Duration timeout) {
+            final Time timeout) {
 
         final Task task = taskSlotTable.getTask(taskExecutionAttemptId);
         if (task == null) {
@@ -528,10 +541,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 threadInfoSampleService.requestThreadInfoSamples(
                         SampleableTaskAdapter.fromTask(task), requestParams);
 
-        return stackTracesFuture.thenApply(
-                stackTraces ->
-                        new TaskThreadInfoResponse(
-                                requestParams.getRequestId(), taskExecutionAttemptId, stackTraces));
+        return stackTracesFuture.thenApply(TaskThreadInfoResponse::new);
     }
 
     // ----------------------------------------------------------------------

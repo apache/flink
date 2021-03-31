@@ -99,12 +99,12 @@ public class JobVertexFlameGraphFactory {
 
         private final Map<String, NodeBuilder> children = new HashMap<>();
 
-        private final String name;
+        private final String stackTraceLocation;
 
         private int hitCount = 0;
 
-        NodeBuilder(String name) {
-            this.name = name;
+        NodeBuilder(String stackTraceLocation) {
+            this.stackTraceLocation = stackTraceLocation;
         }
 
         NodeBuilder addChild(String name) {
@@ -118,12 +118,12 @@ public class JobVertexFlameGraphFactory {
         }
 
         private JobVertexFlameGraph.Node toNode() {
-            final List<JobVertexFlameGraph.Node> childrenNodes = new ArrayList<>();
+            final List<JobVertexFlameGraph.Node> childrenNodes = new ArrayList<>(children.size());
             for (NodeBuilder builderChild : children.values()) {
                 childrenNodes.add(builderChild.toNode());
             }
             return new JobVertexFlameGraph.Node(
-                    name, hitCount, Collections.unmodifiableList(childrenNodes));
+                    stackTraceLocation, hitCount, Collections.unmodifiableList(childrenNodes));
         }
     }
 }
