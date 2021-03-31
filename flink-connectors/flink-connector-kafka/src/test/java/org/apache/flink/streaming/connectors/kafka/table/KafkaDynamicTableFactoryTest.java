@@ -886,6 +886,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             @Nullable Integer parallelism) {
         return new KafkaDynamicSink(
                 physicalDataType,
+                physicalDataType,
                 keyEncodingFormat,
                 valueEncodingFormat,
                 keyProjection,
@@ -895,8 +896,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 properties,
                 partitioner,
                 semantic,
-                KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
                 false,
+                null,
+                null,
                 parallelism);
     }
 

@@ -57,7 +57,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
@@ -351,6 +350,7 @@ public class KafkaDynamicTableFactory
             Integer parallelism) {
         return new KafkaDynamicSink(
                 physicalDataType,
+                physicalDataType,
                 keyEncodingFormat,
                 valueEncodingFormat,
                 keyProjection,
@@ -360,8 +360,9 @@ public class KafkaDynamicTableFactory
                 properties,
                 partitioner,
                 semantic,
-                defaultCreator(),
                 false,
+                null,
+                null,
                 parallelism);
     }
 }

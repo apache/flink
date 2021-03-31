@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
@@ -42,6 +41,7 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,6 +66,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     // --------------------------------------------------------------------------------------------
     // Format attributes
     // --------------------------------------------------------------------------------------------
+
+    /** Data type of consumed data type. */
+    protected DataType consumedDataType;
 
     /** Data type to configure the formats. */
     protected final DataType physicalDataType;
@@ -107,12 +110,17 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
      */
     protected final boolean upsertMode;
 
+    /** Size of the max batch to buffer in upsert mode. */
+    protected final Integer batchSize;
+
+    /** Interval to flush the data into the batch in upsert mode. */
+    protected final Duration batchInterval;
+
     /** Parallelism of the physical Kafka producer. * */
     protected final @Nullable Integer parallelism;
 
-    protected final SinkFunctionProviderCreator sinkFunctionCreator;
-
     public KafkaDynamicSink(
+            DataType consumedDataType,
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat,
@@ -123,10 +131,14 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
             KafkaSinkSemantic semantic,
-            SinkFunctionProviderCreator sinkFunctionCreator,
             boolean upsertMode,
+            @Nullable Integer batchSize,
+            @Nullable Duration batchInterval,
             @Nullable Integer parallelism) {
         // Format attributes
+        this.consumedDataType =
+                Preconditions.checkNotNull(
+                        consumedDataType, "Consumed data type must not be null.");
         this.physicalDataType =
                 Preconditions.checkNotNull(
                         physicalDataType, "Physical data type must not be null.");
@@ -147,7 +159,12 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         this.partitioner = partitioner;
         this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
         this.upsertMode = upsertMode;
-        this.sinkFunctionCreator = sinkFunctionCreator;
+        this.batchSize = batchSize;
+        this.batchInterval = batchInterval;
+        if (!upsertMode && (batchSize != null || batchInterval != null)) {
+            throw new IllegalArgumentException(
+                    "In non-upsert mode, it doesn't allow to set batch size or batch interval.");
+        }
         this.parallelism = parallelism;
     }
 
@@ -167,7 +184,19 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         final FlinkKafkaProducer<RowData> kafkaProducer =
                 createKafkaProducer(keySerialization, valueSerialization);
 
-        return sinkFunctionCreator.create(kafkaProducer, parallelism);
+        if (useBufferedSink()) {
+            BufferedUpsertSinkFunction buffedSinkFunction =
+                    new BufferedUpsertSinkFunction(
+                            kafkaProducer,
+                            physicalDataType,
+                            keyProjection,
+                            context.createTypeInformation(consumedDataType),
+                            batchSize,
+                            batchInterval);
+            return SinkFunctionProvider.of(buffedSinkFunction, parallelism);
+        } else {
+            return SinkFunctionProvider.of(kafkaProducer, parallelism);
+        }
     }
 
     @Override
@@ -181,12 +210,14 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     @Override
     public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
         this.metadataKeys = metadataKeys;
+        this.consumedDataType = consumedDataType;
     }
 
     @Override
     public DynamicTableSink copy() {
         final KafkaDynamicSink copy =
                 new KafkaDynamicSink(
+                        consumedDataType,
                         physicalDataType,
                         keyEncodingFormat,
                         valueEncodingFormat,
@@ -197,8 +228,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         properties,
                         partitioner,
                         semantic,
-                        sinkFunctionCreator,
                         upsertMode,
+                        batchSize,
+                        batchInterval,
                         parallelism);
         copy.metadataKeys = metadataKeys;
         return copy;
@@ -219,6 +251,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         }
         final KafkaDynamicSink that = (KafkaDynamicSink) o;
         return Objects.equals(metadataKeys, that.metadataKeys)
+                && Objects.equals(consumedDataType, that.consumedDataType)
                 && Objects.equals(physicalDataType, that.physicalDataType)
                 && Objects.equals(keyEncodingFormat, that.keyEncodingFormat)
                 && Objects.equals(valueEncodingFormat, that.valueEncodingFormat)
@@ -230,6 +263,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 && Objects.equals(partitioner, that.partitioner)
                 && Objects.equals(semantic, that.semantic)
                 && Objects.equals(upsertMode, that.upsertMode)
+                && Objects.equals(batchSize, that.batchSize)
+                && Objects.equals(batchInterval, that.batchInterval)
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -237,6 +272,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     public int hashCode() {
         return Objects.hash(
                 metadataKeys,
+                consumedDataType,
                 physicalDataType,
                 keyEncodingFormat,
                 valueEncodingFormat,
@@ -248,7 +284,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 partitioner,
                 semantic,
                 upsertMode,
-                sinkFunctionCreator,
+                batchSize,
+                batchInterval,
                 parallelism);
     }
 
@@ -325,6 +362,15 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }
         return format.createRuntimeEncoder(context, physicalFormatDataType);
+    }
+
+    private boolean useBufferedSink() {
+        if (!upsertMode) {
+            return false;
+        }
+
+        return (batchSize != null && batchSize > 1)
+                && (batchInterval != null && batchInterval.toMillis() > 0);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -409,15 +455,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         @Override
         public byte[] value() {
             return value;
-        }
-    }
-
-    @FunctionalInterface
-    interface SinkFunctionProviderCreator {
-        SinkFunctionProvider create(RichSinkFunction producer, Integer parallelism);
-
-        static SinkFunctionProviderCreator defaultCreator() {
-            return SinkFunctionProvider::of;
         }
     }
 }

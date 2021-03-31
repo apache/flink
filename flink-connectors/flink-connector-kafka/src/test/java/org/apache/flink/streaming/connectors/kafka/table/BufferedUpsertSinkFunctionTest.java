@@ -18,13 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -32,6 +35,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 
 import org.junit.Test;
 
@@ -49,8 +53,8 @@ import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.junit.Assert.assertEquals;
 
-/** Test for {@link BufferedUpsertKafkaSinkFunction}. */
-public class BufferedUpsertKafkaSinkFunctionTest {
+/** Test for {@link BufferedUpsertSinkFunction}. */
+public class BufferedUpsertSinkFunctionTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -125,10 +129,6 @@ public class BufferedUpsertKafkaSinkFunctionTest {
                 TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))
     };
 
-    private static KafkaDynamicSink.SinkFunctionProviderCreator creator =
-            BufferedUpsertKafkaSinkFunction.createBufferedSinkFunction(
-                    SCHEMA.toSinkRowDataType(), new int[] {keyIndices}, BATCH_SIZE, FLUSH_INTERVAL);
-
     @Test
     public void testWirteData() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
@@ -175,8 +175,7 @@ public class BufferedUpsertKafkaSinkFunctionTest {
     @Test
     public void testFlushDataWhenCheckpointing() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        BufferedUpsertKafkaSinkFunction bufferedFunction =
-                createBufferedSinkAndWriteData(sinkFunction);
+        BufferedUpsertSinkFunction bufferedFunction = createBufferedSinkAndWriteData(sinkFunction);
 
         bufferedFunction.snapshotState(null);
 
@@ -228,12 +227,22 @@ public class BufferedUpsertKafkaSinkFunctionTest {
 
     // --------------------------------------------------------------------------------------------
 
-    private BufferedUpsertKafkaSinkFunction createBufferedSinkAndWriteData(
+    @SuppressWarnings("unchecked")
+    private BufferedUpsertSinkFunction createBufferedSinkAndWriteData(
             MockedSinkFunction sinkFunction) throws Exception {
-        BufferedUpsertKafkaSinkFunction bufferedSinkFunction =
-                (BufferedUpsertKafkaSinkFunction)
-                        creator.create(sinkFunction, 1).createSinkFunction();
+        TypeInformation<RowData> typeInformation =
+                (TypeInformation<RowData>)
+                        new SinkRuntimeProviderContext(false)
+                                .createTypeInformation(SCHEMA.toPhysicalRowDataType());
 
+        BufferedUpsertSinkFunction bufferedSinkFunction =
+                new BufferedUpsertSinkFunction(
+                        sinkFunction,
+                        SCHEMA.toPhysicalRowDataType(),
+                        new int[] {keyIndices},
+                        typeInformation,
+                        BATCH_SIZE,
+                        FLUSH_INTERVAL);
         bufferedSinkFunction.open(new Configuration());
 
         for (RowData row : TEST_DATA) {
@@ -270,30 +279,35 @@ public class BufferedUpsertKafkaSinkFunctionTest {
         transient List<RowData> rowDataCollectors;
 
         @Override
+        public RuntimeContext getRuntimeContext() {
+            return new MockStreamingRuntimeContext(true, 1, 1);
+        }
+
+        @Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             rowDataCollectors = new ArrayList<>();
         }
 
         @Override
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        public void notifyCheckpointComplete(long checkpointId) {
             // do nothing
         }
 
         @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        public void snapshotState(FunctionSnapshotContext context) {
             // do nothing
         }
 
         @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {
+        public void initializeState(FunctionInitializationContext context) {
             // do nothing
         }
 
         @Override
-        public void invoke(RowData value, Context context) throws Exception {
+        public void invoke(RowData value, Context context) {
             assertEquals(
-                    value.getTimestamp(5, 3).toInstant(),
+                    value.getTimestamp(TIMESTAMP_INDICES, 3).toInstant(),
                     Instant.ofEpochMilli(context.timestamp()));
             rowDataCollectors.add(value);
         }

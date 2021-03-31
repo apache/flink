@@ -178,7 +178,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
+                        0,
+                        Duration.ofMillis(0),
                         null);
 
         // Test sink format.
@@ -217,11 +218,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        BufferedUpsertKafkaSinkFunction.createBufferedSinkFunction(
-                                SINK_SCHEMA.toPhysicalRowDataType(),
-                                SINK_KEY_FIELDS,
-                                100,
-                                Duration.ofMillis(1000)),
+                        100,
+                        Duration.ofMillis(1000),
                         null);
 
         // Test sink format.
@@ -234,7 +232,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         assertThat(provider, instanceOf(SinkFunctionProvider.class));
         final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
         final SinkFunction<RowData> sinkFunction = sinkFunctionProvider.createSinkFunction();
-        assertThat(sinkFunction, instanceOf(BufferedUpsertKafkaSinkFunction.class));
+        assertThat(sinkFunction, instanceOf(BufferedUpsertSinkFunction.class));
     }
 
     @Test
@@ -254,7 +252,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator(),
+                        0,
+                        Duration.ofMillis(0),
                         100);
         assertEquals(expectedSink, actualSink);
 
@@ -585,9 +584,11 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             String keyPrefix,
             String topic,
             Properties properties,
-            KafkaDynamicSink.SinkFunctionProviderCreator creator,
+            Integer batchSize,
+            Duration batchInterval,
             Integer parallelism) {
         return new KafkaDynamicSink(
+                consumedDataType,
                 consumedDataType,
                 keyEncodingFormat,
                 new UpsertKafkaDynamicTableFactory.EncodingFormatWrapper(valueEncodingFormat),
@@ -598,8 +599,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 properties,
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
-                creator,
                 true,
+                batchSize,
+                batchInterval,
                 parallelism);
     }
 }

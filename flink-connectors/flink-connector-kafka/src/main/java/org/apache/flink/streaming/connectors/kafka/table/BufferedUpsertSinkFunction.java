@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -27,8 +29,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -51,16 +51,19 @@ import java.util.function.Function;
 import static org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.createProjectedRow;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The wrapper of the {@link RichSinkFunction}. It will buffer the data and emit when the buffer is
  * full or timer is triggered or checkpointing.
  */
-public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
+public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
         implements CheckpointedFunction, CheckpointListener {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(BufferedUpsertKafkaSinkFunction.class);
+    private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(BufferedUpsertSinkFunction.class);
 
     // --------------------------------------------------------------------------------------------
     // Config
@@ -68,9 +71,10 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
 
     private final RichSinkFunction<RowData> producer;
     private final Integer batchMaxRowNums;
-    private final Duration batchIntervalMs;
+    private final Duration batchInterval;
     private final DataType physicalDataType;
     private final int[] keyProjection;
+    private final TypeInformation<RowData> consumedRowDataTypeInfo;
     private boolean closed;
 
     // --------------------------------------------------------------------------------------------
@@ -91,33 +95,27 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     private transient ScheduledFuture<?> scheduledFuture;
     private transient volatile Exception flushException;
 
-    public static KafkaDynamicSink.SinkFunctionProviderCreator createBufferedSinkFunction(
-            DataType dataType,
-            int[] keyProjection,
-            Integer batchMaxRowNums,
-            Duration batchIntervalMs) {
-        return (producer, parallelism) ->
-                SinkFunctionProvider.of(
-                        new BufferedUpsertKafkaSinkFunction(
-                                producer,
-                                dataType,
-                                keyProjection,
-                                batchMaxRowNums,
-                                batchIntervalMs),
-                        parallelism);
-    }
-
-    private BufferedUpsertKafkaSinkFunction(
+    public BufferedUpsertSinkFunction(
             RichSinkFunction<RowData> producer,
             DataType physicalDataType,
             int[] keyProjection,
+            TypeInformation<RowData> consumedRowDataTypeInfo,
             Integer batchMaxRowNums,
-            Duration batchIntervalMs) {
-        this.producer = producer;
-        this.physicalDataType = physicalDataType;
-        this.keyProjection = keyProjection;
+            Duration batchInterval) {
+        checkArgument(
+                batchInterval != null && batchInterval.toMillis() > 0,
+                "Batch interval must not be null and larger than 0.");
+        checkArgument(
+                batchMaxRowNums != null && batchMaxRowNums > 1,
+                "Batch max row number must not be null and larger than 1.");
+
+        this.producer = checkNotNull(producer, "Producer must not be null.");
+        this.physicalDataType =
+                checkNotNull(physicalDataType, "Physical data type must not be null.");
+        this.keyProjection = checkNotNull(keyProjection, "key projection must not be null.");
+        this.consumedRowDataTypeInfo = consumedRowDataTypeInfo;
         this.batchMaxRowNums = batchMaxRowNums;
-        this.batchIntervalMs = batchIntervalMs;
+        this.batchInterval = batchInterval;
     }
 
     @Override
@@ -137,15 +135,13 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
                                                 fields.get(targetField), targetField))
                         .toArray(RowData.FieldGetter[]::new);
         this.keyExtractor = rowData -> createProjectedRow(rowData, RowKind.INSERT, keyFieldGetters);
+
+        TypeSerializer<RowData> typeSerializer =
+                consumedRowDataTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
         this.valueCopier =
-                rowData -> {
-                    GenericRowData copiedRowData =
-                            new GenericRowData(rowData.getRowKind(), rowData.getArity());
-                    for (int i = 0; i < rowData.getArity(); i++) {
-                        copiedRowData.setField(i, ((GenericRowData) rowData).getField(i));
-                    }
-                    return copiedRowData;
-                };
+                getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()
+                        ? Function.identity()
+                        : typeSerializer::copy;
 
         // register timer
         this.scheduler =
@@ -154,7 +150,7 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
         this.scheduledFuture =
                 this.scheduler.scheduleWithFixedDelay(
                         () -> {
-                            synchronized (BufferedUpsertKafkaSinkFunction.this) {
+                            synchronized (BufferedUpsertSinkFunction.this) {
                                 if (!closed) {
                                     try {
                                         flush();
@@ -164,8 +160,8 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
                                 }
                             }
                         },
-                        batchIntervalMs.toMillis(),
-                        batchIntervalMs.toMillis(),
+                        batchInterval.toMillis(),
+                        batchInterval.toMillis(),
                         TimeUnit.MILLISECONDS);
 
         producer.open(parameters);
@@ -195,10 +191,9 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     }
 
     @Override
-    public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        flush();
-        if (producer instanceof CheckpointedFunction) {
-            ((CheckpointedFunction) producer).snapshotState(context);
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (producer instanceof CheckpointListener) {
+            ((CheckpointListener) producer).notifyCheckpointAborted(checkpointId);
         }
     }
 
@@ -228,6 +223,14 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     }
 
     @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        flush();
+        if (producer instanceof CheckpointedFunction) {
+            ((CheckpointedFunction) producer).snapshotState(context);
+        }
+    }
+
+    @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
         if (producer instanceof CheckpointedFunction) {
             ((CheckpointedFunction) producer).initializeState(context);
@@ -237,15 +240,11 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     // --------------------------------------------------------------------------------------------
 
     private synchronized void addToBuffer(RowData row, Long timestamp) throws Exception {
+        checkFlushException();
         if (batchCount >= batchMaxRowNums) {
             flush();
         }
-        writeRecord(row, timestamp);
-    }
 
-    /** Flush the data into the inner sink function and send the data into the sink. */
-    private synchronized void writeRecord(RowData row, Long timestamp) {
-        System.out.println(row);
         RowData key = keyExtractor.apply(row);
         RowData value = valueCopier.apply(row);
         reduceBuffer.put(key, new Tuple2<>(changeFlag(value), timestamp));
@@ -253,9 +252,9 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     }
 
     private synchronized void flush() throws Exception {
+        checkFlushException();
         for (Tuple2<RowData, Long> value : reduceBuffer.values()) {
             wrappedContext.setTimestamp(value.f1);
-            System.out.println(value.f0);
             producer.invoke(value.f0, wrappedContext);
         }
         reduceBuffer.clear();
@@ -286,10 +285,9 @@ public class BufferedUpsertKafkaSinkFunction extends RichSinkFunction<RowData>
     /**
      * Wrapper of {@link Context}.
      *
-     * <p>When records arrives, the {@link BufferedUpsertKafkaSinkFunction} updates the current
-     * {@link Context} and memorize the timestamp with the records. When flushing, the {@link
-     * BufferedUpsertKafkaSinkFunction} will emit the records in the buffer with memorized
-     * timestamp.
+     * <p>When records arrives, the {@link BufferedUpsertSinkFunction} updates the current {@link
+     * Context} and memorize the timestamp with the records. When flushing, the {@link
+     * BufferedUpsertSinkFunction} will emit the records in the buffer with memorized timestamp.
      */
     private static class WrappedContext implements Context {
 

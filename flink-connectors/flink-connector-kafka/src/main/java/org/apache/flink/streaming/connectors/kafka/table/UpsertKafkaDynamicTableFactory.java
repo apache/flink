@@ -51,7 +51,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.SinkFunctionProviderCreator.defaultCreator;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
@@ -111,7 +110,7 @@ public class UpsertKafkaDynamicTableFactory
         // Validate the option data type.
         helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
         TableSchema schema = context.getCatalogTable().getSchema();
-        validateTableOptions(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
+        validateSource(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
@@ -152,7 +151,7 @@ public class UpsertKafkaDynamicTableFactory
         // Validate the option data type.
         helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
         TableSchema schema = context.getCatalogTable().getSchema();
-        validateTableOptions(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
+        validateSink(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
@@ -161,23 +160,13 @@ public class UpsertKafkaDynamicTableFactory
 
         Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
 
-        KafkaDynamicSink.SinkFunctionProviderCreator creator;
         Duration interval = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL);
         Integer batchSize = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
-        if (batchSize > 0 && interval.toMillis() > 0) {
-            creator =
-                    BufferedUpsertKafkaSinkFunction.createBufferedSinkFunction(
-                            schema.toPhysicalRowDataType(),
-                            keyValueProjections.f0,
-                            batchSize,
-                            interval);
-        } else {
-            creator = defaultCreator();
-        }
 
         // use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
         // it will use hash partition if key is set else in round-robin behaviour.
         return new KafkaDynamicSink(
+                schema.toPhysicalRowDataType(),
                 schema.toPhysicalRowDataType(),
                 keyEncodingFormat,
                 new EncodingFormatWrapper(valueEncodingFormat),
@@ -188,8 +177,9 @@ public class UpsertKafkaDynamicTableFactory
                 properties,
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
-                creator,
                 true,
+                batchSize,
+                interval,
                 parallelism);
     }
 
@@ -213,11 +203,27 @@ public class UpsertKafkaDynamicTableFactory
     // Validation
     // --------------------------------------------------------------------------------------------
 
-    private static void validateTableOptions(
+    private static void validateSource(
             ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
         validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(schema);
+    }
+
+    private static void validateSink(
+            ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
+        validateTopic(tableOptions);
+        validateFormat(keyFormat, valueFormat, tableOptions);
+        validatePKConstraints(schema);
+        if ((tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS) > 1
+                        && tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis() > 0)
+                || (tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis() == 0
+                        && tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS) <= 1)) {
+            throw new ValidationException(
+                    String.format(
+                            "Please set %s larger than 1 and %s not zero if use buffered sink.",
+                            SINK_BUFFER_FLUSH_MAX_ROWS.key(), SINK_BUFFER_FLUSH_INTERVAL.key()));
+        }
     }
 
     private static void validateTopic(ReadableConfig tableOptions) {
