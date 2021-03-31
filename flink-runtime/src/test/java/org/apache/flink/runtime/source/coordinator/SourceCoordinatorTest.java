@@ -31,7 +31,7 @@ import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorCheckpointSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -160,14 +160,16 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         restoredCoordinator.resetToCheckpoint(100L, bytes);
         MockSplitEnumerator restoredEnumerator =
                 (MockSplitEnumerator) restoredCoordinator.getEnumerator();
-        SourceCoordinatorContext restoredContext = restoredCoordinator.getContext();
+        SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
         assertEquals(
                 "2 splits should have been assigned to reader 0",
                 4,
                 restoredEnumerator.getUnassignedSplits().size());
         assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
-        assertEquals(1, restoredContext.registeredReaders().size());
-        assertTrue(restoredContext.registeredReaders().containsKey(0));
+        assertEquals(
+                "Registered readers should not be recovered by restoring",
+                0,
+                restoredContext.registeredReaders().size());
     }
 
     @Test
@@ -376,7 +378,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 new SourceCoordinatorProvider<>("testOperator", context.getOperatorId(), source, 1);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
-        coordinator.resetToCheckpoint(1L, createEmptyCheckpoint(1L));
+        coordinator.resetToCheckpoint(1L, createEmptyCheckpoint());
         coordinator.start();
 
         final ClassLoaderTestEnumerator enumerator = source.restoreEnumeratorFuture.get();
@@ -387,9 +389,81 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         coordinator.close();
     }
 
+    @Test
+    public void testSerdeBackwardCompatibility() throws Exception {
+        // Preparation
+        sourceCoordinator.start();
+        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
+
+        // Make sure the reader has been registered and the split has been assigned
+        check(
+                () -> {
+                    assertTrue(sourceCoordinator.getContext().registeredReaders().containsKey(0));
+                    assertEquals(
+                            "2 splits should have been assigned to reader 0",
+                            4,
+                            getEnumerator().getUnassignedSplits().size());
+                });
+
+        // Build checkpoint data with serde version 0
+        final byte[] checkpointDataForV0Serde = createCheckpointDataWithSerdeV0(sourceCoordinator);
+
+        // Restore from checkpoint data with serde version 0 to test backward compatibility
+        SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
+        restoredCoordinator.resetToCheckpoint(15213L, checkpointDataForV0Serde);
+        MockSplitEnumerator restoredEnumerator =
+                (MockSplitEnumerator) restoredCoordinator.getEnumerator();
+        SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
+
+        // Check if enumerator is restored correctly
+        assertEquals(
+                "2 splits should have been assigned to reader 0",
+                4,
+                restoredEnumerator.getUnassignedSplits().size());
+        assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
+        assertEquals(
+                "Registered readers should not be recovered by restoring",
+                0,
+                restoredContext.registeredReaders().size());
+    }
+
     // ------------------------------------------------------------------------
     //  test helpers
     // ------------------------------------------------------------------------
+
+    @SuppressWarnings("unchecked")
+    private byte[] createCheckpointDataWithSerdeV0(SourceCoordinator<?, ?> sourceCoordinator)
+            throws Exception {
+
+        final DataOutputSerializer serializer = new DataOutputSerializer(32);
+
+        serializer.writeInt(SourceCoordinatorSerdeUtils.VERSION_0);
+
+        final MockSplitEnumeratorCheckpointSerializer enumChkptSerializer =
+                new MockSplitEnumeratorCheckpointSerializer();
+
+        serializer.writeInt(enumChkptSerializer.getVersion());
+
+        final byte[] serializedEnumChkpt =
+                enumChkptSerializer.serialize(
+                        ((SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>)
+                                        sourceCoordinator)
+                                .getEnumerator()
+                                .snapshotState());
+
+        serializer.writeInt(serializedEnumChkpt.length);
+
+        serializer.write(serializedEnumChkpt);
+
+        // Version 0 wrote number of reader, see FLINK-21452
+        serializer.writeInt(0);
+
+        // Version 0 wrote split assignment tracker
+        serializer.writeInt(0); // SplitSerializer version used in assignment tracker
+        serializer.writeInt(0); // Number of checkpoint in assignment tracker
+
+        return serializer.getCopyOfBuffer();
+    }
 
     private void check(Runnable runnable) {
         try {
@@ -399,23 +473,9 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         }
     }
 
-    private static byte[] createEmptyCheckpoint(long checkpointId) throws Exception {
-        try (SourceCoordinatorContext<MockSourceSplit> emptyContext =
-                new SourceCoordinatorContext<>(
-                        Executors.newDirectExecutorService(),
-                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-                                "test", SourceCoordinatorProviderTest.class.getClassLoader()),
-                        1,
-                        new MockOperatorCoordinatorContext(new OperatorID(), 0),
-                        new MockSourceSplitSerializer())) {
-
-            return SourceCoordinator.writeCheckpointBytes(
-                    checkpointId,
-                    Collections.emptySet(),
-                    emptyContext,
-                    new MockSplitEnumeratorCheckpointSerializer(),
-                    new MockSourceSplitSerializer());
-        }
+    private static byte[] createEmptyCheckpoint() throws Exception {
+        return SourceCoordinator.writeCheckpointBytes(
+                Collections.emptySet(), new MockSplitEnumeratorCheckpointSerializer());
     }
 
     // ------------------------------------------------------------------------

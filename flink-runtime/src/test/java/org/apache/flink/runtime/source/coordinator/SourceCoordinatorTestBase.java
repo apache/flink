@@ -45,11 +45,12 @@ public abstract class SourceCoordinatorTestBase {
     protected static final OperatorID TEST_OPERATOR_ID = new OperatorID(1234L, 5678L);
     protected static final int NUM_SUBTASKS = 3;
 
+    protected SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
     protected ExecutorService coordinatorExecutor;
     protected MockOperatorCoordinatorContext operatorCoordinatorContext;
     protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
     protected SourceCoordinatorContext<MockSourceSplit> context;
-    protected SourceCoordinator<?, ?> sourceCoordinator;
+    protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> sourceCoordinator;
     private MockSplitEnumerator enumerator;
 
     @Before
@@ -58,24 +59,13 @@ public abstract class SourceCoordinatorTestBase {
                 new MockOperatorCoordinatorContext(TEST_OPERATOR_ID, NUM_SUBTASKS);
         splitSplitAssignmentTracker = new SplitAssignmentTracker<>();
         String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
-        SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
+        coordinatorThreadFactory =
                 new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, getClass().getClassLoader());
 
         coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
-        context =
-                new SourceCoordinatorContext<>(
-                        coordinatorExecutor,
-                        Executors.newScheduledThreadPool(
-                                1,
-                                new ExecutorThreadFactory(
-                                        coordinatorThreadFactory.getCoordinatorThreadName()
-                                                + "-worker")),
-                        coordinatorThreadFactory,
-                        operatorCoordinatorContext,
-                        new MockSourceSplitSerializer(),
-                        splitSplitAssignmentTracker);
         sourceCoordinator = getNewSourceCoordinator();
+        context = sourceCoordinator.getContext();
     }
 
     @After
@@ -96,10 +86,25 @@ public abstract class SourceCoordinatorTestBase {
 
     // --------------------------
 
-    protected SourceCoordinator getNewSourceCoordinator() throws Exception {
+    protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator()
+            throws Exception {
         Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
                 new MockSource(Boundedness.BOUNDED, NUM_SUBTASKS * 2);
 
-        return new SourceCoordinator<>(OPERATOR_NAME, coordinatorExecutor, mockSource, context);
+        return new SourceCoordinator<>(
+                OPERATOR_NAME, coordinatorExecutor, mockSource, getNewSourceCoordinatorContext());
+    }
+
+    protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext() {
+        return new SourceCoordinatorContext<>(
+                coordinatorExecutor,
+                Executors.newScheduledThreadPool(
+                        1,
+                        new ExecutorThreadFactory(
+                                coordinatorThreadFactory.getCoordinatorThreadName() + "-worker")),
+                coordinatorThreadFactory,
+                operatorCoordinatorContext,
+                new MockSourceSplitSerializer(),
+                splitSplitAssignmentTracker);
     }
 }
