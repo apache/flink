@@ -34,11 +34,15 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.ddl.AlterOperation;
+import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.PrintUtils;
 
 import org.jline.reader.EndOfFileException;
@@ -320,21 +324,35 @@ public class CliClient implements AutoCloseable {
 
     private void validate(Operation operation, ExecutionMode executionMode) {
         if (executionMode.equals(ExecutionMode.INITIALIZATION)) {
-            if (operation instanceof QueryOperation || operation instanceof ModifyOperation) {
-                throw new UnsupportedOperationException(
-                        "In init sql file, it doesn't support to execute query operation or modify operation. "
-                                + "Please use -f option to execute DML.");
+            if (!(operation instanceof SetOperation)
+                    && !(operation instanceof CreateOperation)
+                    && !(operation instanceof DropOperation)
+                    && !(operation instanceof UseOperation)
+                    && !(operation instanceof AlterOperation)) {
+                throw new SqlExecutionException(
+                        "In init sql file, it only supports to use DDL operation and SET operation. "
+                                + "Please use -f option to execute other types of SQL.");
             }
         } else if (executionMode.equals(ExecutionMode.NON_INTERACTIVE_EXECUTION)) {
             ResultMode mode = executor.getSessionConfig(sessionId).get(EXECUTION_RESULT_MODE);
             if (operation instanceof QueryOperation && !mode.equals(TABLEAU)) {
-                throw new IllegalArgumentException(
+                throw new SqlExecutionException(
                         String.format(
                                 "In non-interactive mode, it only supports to use %s as value of %s when execute query. Please add 'SET %s=%s;' in the sql file.",
                                 TABLEAU,
                                 EXECUTION_RESULT_MODE.key(),
                                 EXECUTION_RESULT_MODE.key(),
                                 TABLEAU));
+            }
+        }
+
+        // check the current operation is allowed in STATEMENT SET.
+        if (isStatementSetMode) {
+            if (!(operation instanceof CatalogSinkModifyOperation
+                    || operation instanceof EndStatementSetOperation)) {
+                // It's up to invoker of the executeStatement to determine whether to continue
+                // execution
+                throw new SqlExecutionException(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
             }
         }
     }
@@ -358,15 +376,6 @@ public class CliClient implements AutoCloseable {
 
     private void callOperation(Operation operation, ExecutionMode mode) {
         validate(operation, mode);
-
-        // check the current operation is allowed in STATEMENT SET.
-        if (isStatementSetMode) {
-            if (!(operation instanceof CatalogSinkModifyOperation
-                    || operation instanceof EndStatementSetOperation)) {
-                printError(MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR);
-                return;
-            }
-        }
 
         if (operation instanceof QuitOperation) {
             // QUIT/EXIT
@@ -511,16 +520,10 @@ public class CliClient implements AutoCloseable {
     }
 
     public void callExplain(ExplainOperation operation) {
-        final String explanation;
-        try {
-            TableResult tableResult = executor.executeOperation(sessionId, operation);
-            // show raw content instead of tableau style
-            explanation =
-                    Objects.requireNonNull(tableResult.collect().next().getField(0)).toString();
-        } catch (SqlExecutionException | NullPointerException e) {
-            printExecutionException(e);
-            return;
-        }
+        TableResult tableResult = executor.executeOperation(sessionId, operation);
+        // show raw content instead of tableau style
+        final String explanation =
+                Objects.requireNonNull(tableResult.collect().next().getField(0)).toString();
         terminal.writer().println(explanation);
         terminal.flush();
     }
@@ -537,7 +540,7 @@ public class CliClient implements AutoCloseable {
             callInserts(statementSetOperations);
             statementSetOperations = null;
         } else {
-            printError(MESSAGE_STATEMENT_SET_END_CALL_ERROR);
+            throw new SqlExecutionException(MESSAGE_STATEMENT_SET_END_CALL_ERROR);
         }
     }
 
@@ -567,11 +570,6 @@ public class CliClient implements AutoCloseable {
         LOG.warn(errorMessage, t);
         boolean isVerbose = executor.getSessionConfig(sessionId).get(SqlClientOptions.VERBOSE);
         terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
-        terminal.flush();
-    }
-
-    private void printError(String message) {
-        terminal.writer().println(CliStrings.messageError(message).toAnsi());
         terminal.flush();
     }
 

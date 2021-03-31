@@ -74,8 +74,10 @@ import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link CliClient}. */
@@ -210,12 +212,13 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "In non-interactive mode, it only supports to use TABLEAU as value of "
-                        + "sql-client.execution.result-mode when execute query. Please add "
-                        + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
-        executeSqlFromContent(mockExecutor, content);
+        String output = executeSqlFromContent(mockExecutor, content);
+        assertThat(
+                output,
+                containsString(
+                        "In non-interactive mode, it only supports to use TABLEAU as value of "
+                                + "sql-client.execution.result-mode when execute query. Please add "
+                                + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file."));
     }
 
     @Test
@@ -232,11 +235,9 @@ public class CliClientTest extends TestLogger {
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
 
-        thrown.expect(UnsupportedOperationException.class);
-        thrown.expectMessage(
-                "In init sql file, it doesn't support to execute query operation or modify operation. "
-                        + "Please use -f option to execute DML.");
-        CliClient.initializeSession(sessionId, mockExecutor, historyTempFile(), content);
+        assertFalse(
+                "Should fail",
+                CliClient.initializeSession(sessionId, mockExecutor, historyTempFile(), content));
     }
 
     @Test(timeout = 10000)
