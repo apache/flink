@@ -897,8 +897,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 partitioner,
                 semantic,
                 false,
-                null,
-                null,
+                SinkBufferFlushMode.DISABLED,
                 parallelism);
     }
 

@@ -348,7 +348,7 @@ public class TestUtils {
     }
 
     /** A mock {@link SinkFunction.Context} to be used in the tests. */
-    public static class MockSinkContext implements SinkFunction.Context {
+    static class MockSinkContext implements SinkFunction.Context {
 
         @Nullable private Long elementTimestamp;
 
@@ -356,8 +356,7 @@ public class TestUtils {
 
         private long processingTime;
 
-        public MockSinkContext(
-                @Nullable Long elementTimestamp, long watermark, long processingTime) {
+        MockSinkContext(@Nullable Long elementTimestamp, long watermark, long processingTime) {
             this.elementTimestamp = elementTimestamp;
             this.watermark = watermark;
             this.processingTime = processingTime;

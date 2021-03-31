@@ -361,8 +361,7 @@ public class KafkaDynamicTableFactory
                 partitioner,
                 semantic,
                 false,
-                null,
-                null,
+                SinkBufferFlushMode.DISABLED,
                 parallelism);
     }
 }

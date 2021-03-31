@@ -160,8 +160,10 @@ public class UpsertKafkaDynamicTableFactory
 
         Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
 
-        Duration interval = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL);
-        Integer batchSize = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        int batchSize = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        Duration batchInterval = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL);
+        SinkBufferFlushMode flushMode =
+                new SinkBufferFlushMode(batchSize, batchInterval.toMillis());
 
         // use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
         // it will use hash partition if key is set else in round-robin behaviour.
@@ -178,8 +180,7 @@ public class UpsertKafkaDynamicTableFactory
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
                 true,
-                batchSize,
-                interval,
+                flushMode,
                 parallelism);
     }
 
@@ -215,15 +216,7 @@ public class UpsertKafkaDynamicTableFactory
         validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(schema);
-        if ((tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS) > 1
-                        && tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis() > 0)
-                || (tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis() == 0
-                        && tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS) <= 1)) {
-            throw new ValidationException(
-                    String.format(
-                            "Please set %s larger than 1 and %s not zero if use buffered sink.",
-                            SINK_BUFFER_FLUSH_MAX_ROWS.key(), SINK_BUFFER_FLUSH_INTERVAL.key()));
-        }
+        validateSinkBufferFlush(tableOptions);
     }
 
     private static void validateTopic(ReadableConfig tableOptions) {
@@ -262,6 +255,24 @@ public class UpsertKafkaDynamicTableFactory
                             + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
                             + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.");
         }
+    }
+
+    private static void validateSinkBufferFlush(ReadableConfig tableOptions) {
+        int flushMaxRows = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        long flushIntervalMs = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis();
+        if (flushMaxRows > 0 && flushIntervalMs > 0) {
+            // flush is enabled
+            return;
+        }
+        if (flushMaxRows <= 0 && flushIntervalMs <= 0) {
+            // flush is disabled
+            return;
+        }
+        // one of them is set which is not allowed
+        throw new ValidationException(
+                String.format(
+                        "'%s' and '%s' must be set to be greater than zero together to enable sink buffer flushing.",
+                        SINK_BUFFER_FLUSH_MAX_ROWS.key(), SINK_BUFFER_FLUSH_INTERVAL.key()));
     }
 
     // --------------------------------------------------------------------------------------------

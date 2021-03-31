@@ -37,7 +37,6 @@ import org.apache.flink.types.RowKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -70,8 +69,8 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
     // --------------------------------------------------------------------------------------------
 
     private final RichSinkFunction<RowData> producer;
-    private final Integer batchMaxRowNums;
-    private final Duration batchInterval;
+    private final int batchMaxRowNums;
+    private final long batchIntervalMs;
     private final DataType physicalDataType;
     private final int[] keyProjection;
     private final TypeInformation<RowData> consumedRowDataTypeInfo;
@@ -100,22 +99,15 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
             DataType physicalDataType,
             int[] keyProjection,
             TypeInformation<RowData> consumedRowDataTypeInfo,
-            Integer batchMaxRowNums,
-            Duration batchInterval) {
-        checkArgument(
-                batchInterval != null && batchInterval.toMillis() > 0,
-                "Batch interval must not be null and larger than 0.");
-        checkArgument(
-                batchMaxRowNums != null && batchMaxRowNums > 1,
-                "Batch max row number must not be null and larger than 1.");
-
+            SinkBufferFlushMode bufferFlushMode) {
+        checkArgument(bufferFlushMode != null && bufferFlushMode.isEnabled());
         this.producer = checkNotNull(producer, "Producer must not be null.");
         this.physicalDataType =
                 checkNotNull(physicalDataType, "Physical data type must not be null.");
         this.keyProjection = checkNotNull(keyProjection, "key projection must not be null.");
         this.consumedRowDataTypeInfo = consumedRowDataTypeInfo;
-        this.batchMaxRowNums = batchMaxRowNums;
-        this.batchInterval = batchInterval;
+        this.batchMaxRowNums = bufferFlushMode.getBatchSize();
+        this.batchIntervalMs = bufferFlushMode.getBatchIntervalMs();
     }
 
     @Override
@@ -160,8 +152,8 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
                                 }
                             }
                         },
-                        batchInterval.toMillis(),
-                        batchInterval.toMillis(),
+                        batchIntervalMs,
+                        batchIntervalMs,
                         TimeUnit.MILLISECONDS);
 
         producer.open(parameters);
@@ -241,14 +233,15 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
 
     private synchronized void addToBuffer(RowData row, Long timestamp) throws Exception {
         checkFlushException();
-        if (batchCount >= batchMaxRowNums) {
-            flush();
-        }
 
         RowData key = keyExtractor.apply(row);
         RowData value = valueCopier.apply(row);
         reduceBuffer.put(key, new Tuple2<>(changeFlag(value), timestamp));
         batchCount++;
+
+        if (batchCount >= batchMaxRowNums) {
+            flush();
+        }
     }
 
     private synchronized void flush() throws Exception {

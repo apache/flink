@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
+import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
@@ -39,7 +39,6 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 
 import org.junit.Test;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +50,9 @@ import java.util.Map;
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link BufferedUpsertSinkFunction}. */
 public class BufferedUpsertSinkFunctionTest {
@@ -63,12 +64,12 @@ public class BufferedUpsertSinkFunctionTest {
                     Column.physical("author", DataTypes.STRING()),
                     Column.physical("price", DataTypes.DOUBLE()),
                     Column.physical("qty", DataTypes.INT()),
-                    Column.physical("ts", DataTypes.TIMESTAMP(3)));
+                    Column.physical("ts", DataTypes.TIMESTAMP_LTZ(3)));
 
     private static final int keyIndices = 0;
     private static final int TIMESTAMP_INDICES = 5;
-    private static final int BATCH_SIZE = 4;
-    private static final Duration FLUSH_INTERVAL = Duration.ofMillis(Long.MAX_VALUE);
+    private static final SinkBufferFlushMode BUFFER_FLUSH_MODE =
+            new SinkBufferFlushMode(4, Long.MAX_VALUE);
 
     public static final RowData[] TEST_DATA = {
         GenericRowData.ofKind(
@@ -130,9 +131,16 @@ public class BufferedUpsertSinkFunctionTest {
     };
 
     @Test
-    public void testWirteData() throws Exception {
+    public void testWriteData() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        createBufferedSinkAndWriteData(sinkFunction);
+        BufferedUpsertSinkFunction bufferedSink = createBufferedSink(new MockedSinkFunction());
+
+        // write 3 records which doesn't trigger batch size
+        writeData(bufferedSink, TEST_DATA, 0, 3);
+        assertTrue(sinkFunction.rowDataCollectors.isEmpty());
+
+        // write one more record, and should flush the buffer
+        writeData(bufferedSink, TEST_DATA, 3, 1);
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -170,13 +178,20 @@ public class BufferedUpsertSinkFunctionTest {
                                 TimestampData.fromInstant(Instant.parse("2021-03-30T18:00:00Z")))));
 
         compareCompactedResult(expected, sinkFunction.rowDataCollectors);
+
+        sinkFunction.rowDataCollectors.clear();
+        // write remaining data, and they are still buffered
+        writeData(bufferedSink, TEST_DATA, 4, 3);
+        assertTrue(sinkFunction.rowDataCollectors.isEmpty());
     }
 
     @Test
     public void testFlushDataWhenCheckpointing() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        BufferedUpsertSinkFunction bufferedFunction = createBufferedSinkAndWriteData(sinkFunction);
-
+        BufferedUpsertSinkFunction bufferedFunction = createBufferedSink(sinkFunction);
+        // write all data, there should be 3 records are still buffered
+        writeData(bufferedFunction, TEST_DATA, 0, TEST_DATA.length);
+        // snapshot should flush the buffer
         bufferedFunction.snapshotState(null);
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
@@ -228,8 +243,8 @@ public class BufferedUpsertSinkFunctionTest {
     // --------------------------------------------------------------------------------------------
 
     @SuppressWarnings("unchecked")
-    private BufferedUpsertSinkFunction createBufferedSinkAndWriteData(
-            MockedSinkFunction sinkFunction) throws Exception {
+    private BufferedUpsertSinkFunction createBufferedSink(MockedSinkFunction sinkFunction)
+            throws Exception {
         TypeInformation<RowData> typeInformation =
                 (TypeInformation<RowData>)
                         new SinkRuntimeProviderContext(false)
@@ -241,19 +256,21 @@ public class BufferedUpsertSinkFunctionTest {
                         SCHEMA.toPhysicalRowDataType(),
                         new int[] {keyIndices},
                         typeInformation,
-                        BATCH_SIZE,
-                        FLUSH_INTERVAL);
+                        BUFFER_FLUSH_MODE);
         bufferedSinkFunction.open(new Configuration());
 
-        for (RowData row : TEST_DATA) {
-            bufferedSinkFunction.invoke(
-                    row,
-                    new TestUtils.MockSinkContext(
-                            row.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond(),
-                            Long.MIN_VALUE,
-                            Long.MIN_VALUE));
-        }
         return bufferedSinkFunction;
+    }
+
+    private void writeData(BufferedUpsertSinkFunction sink, RowData[] data, int startPos, int size)
+            throws Exception {
+        checkArgument(startPos > 0 && startPos < data.length);
+        checkArgument(size > startPos && size < data.length);
+        for (int i = startPos; i < startPos + size; i++) {
+            RowData row = data[i];
+            long rowtime = row.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
+            sink.invoke(row, SinkContextUtil.forTimestamp(rowtime));
+        }
     }
 
     private void compareCompactedResult(
@@ -273,9 +290,10 @@ public class BufferedUpsertSinkFunctionTest {
 
     // --------------------------------------------------------------------------------------------
 
-    static class MockedSinkFunction extends RichSinkFunction<RowData>
+    private static class MockedSinkFunction extends RichSinkFunction<RowData>
             implements CheckpointedFunction, CheckpointListener {
 
+        private static final long serialVersionUID = 1L;
         transient List<RowData> rowDataCollectors;
 
         @Override

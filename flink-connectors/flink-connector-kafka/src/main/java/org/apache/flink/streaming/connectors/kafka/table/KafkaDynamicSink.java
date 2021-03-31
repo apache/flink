@@ -35,13 +35,11 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,6 +49,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Stream;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A version-agnostic Kafka {@link DynamicTableSink}. */
 @Internal
@@ -110,11 +110,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
      */
     protected final boolean upsertMode;
 
-    /** Size of the max batch to buffer in upsert mode. */
-    protected final Integer batchSize;
-
-    /** Interval to flush the data into the batch in upsert mode. */
-    protected final Duration batchInterval;
+    /** Sink buffer flush config which only supported in upsert mode now. */
+    protected final SinkBufferFlushMode flushMode;
 
     /** Parallelism of the physical Kafka producer. * */
     protected final @Nullable Integer parallelism;
@@ -132,38 +129,31 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
             KafkaSinkSemantic semantic,
             boolean upsertMode,
-            @Nullable Integer batchSize,
-            @Nullable Duration batchInterval,
+            SinkBufferFlushMode flushMode,
             @Nullable Integer parallelism) {
         // Format attributes
         this.consumedDataType =
-                Preconditions.checkNotNull(
-                        consumedDataType, "Consumed data type must not be null.");
+                checkNotNull(consumedDataType, "Consumed data type must not be null.");
         this.physicalDataType =
-                Preconditions.checkNotNull(
-                        physicalDataType, "Physical data type must not be null.");
+                checkNotNull(physicalDataType, "Physical data type must not be null.");
         this.keyEncodingFormat = keyEncodingFormat;
         this.valueEncodingFormat =
-                Preconditions.checkNotNull(
-                        valueEncodingFormat, "Value encoding format must not be null.");
-        this.keyProjection =
-                Preconditions.checkNotNull(keyProjection, "Key projection must not be null.");
-        this.valueProjection =
-                Preconditions.checkNotNull(valueProjection, "Value projection must not be null.");
+                checkNotNull(valueEncodingFormat, "Value encoding format must not be null.");
+        this.keyProjection = checkNotNull(keyProjection, "Key projection must not be null.");
+        this.valueProjection = checkNotNull(valueProjection, "Value projection must not be null.");
         this.keyPrefix = keyPrefix;
         // Mutable attributes
         this.metadataKeys = Collections.emptyList();
         // Kafka-specific attributes
-        this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
-        this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
+        this.topic = checkNotNull(topic, "Topic must not be null.");
+        this.properties = checkNotNull(properties, "Properties must not be null.");
         this.partitioner = partitioner;
-        this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
+        this.semantic = checkNotNull(semantic, "Semantic must not be null.");
         this.upsertMode = upsertMode;
-        this.batchSize = batchSize;
-        this.batchInterval = batchInterval;
-        if (!upsertMode && (batchSize != null || batchInterval != null)) {
+        this.flushMode = checkNotNull(flushMode);
+        if (flushMode.isEnabled() && !upsertMode) {
             throw new IllegalArgumentException(
-                    "In non-upsert mode, it doesn't allow to set batch size or batch interval.");
+                    "Sink buffer flush is only supported in upsert-kafka.");
         }
         this.parallelism = parallelism;
     }
@@ -184,15 +174,14 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         final FlinkKafkaProducer<RowData> kafkaProducer =
                 createKafkaProducer(keySerialization, valueSerialization);
 
-        if (useBufferedSink()) {
+        if (flushMode.isEnabled() && upsertMode) {
             BufferedUpsertSinkFunction buffedSinkFunction =
                     new BufferedUpsertSinkFunction(
                             kafkaProducer,
                             physicalDataType,
                             keyProjection,
                             context.createTypeInformation(consumedDataType),
-                            batchSize,
-                            batchInterval);
+                            flushMode);
             return SinkFunctionProvider.of(buffedSinkFunction, parallelism);
         } else {
             return SinkFunctionProvider.of(kafkaProducer, parallelism);
@@ -229,8 +218,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         partitioner,
                         semantic,
                         upsertMode,
-                        batchSize,
-                        batchInterval,
+                        flushMode,
                         parallelism);
         copy.metadataKeys = metadataKeys;
         return copy;
@@ -263,8 +251,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 && Objects.equals(partitioner, that.partitioner)
                 && Objects.equals(semantic, that.semantic)
                 && Objects.equals(upsertMode, that.upsertMode)
-                && Objects.equals(batchSize, that.batchSize)
-                && Objects.equals(batchInterval, that.batchInterval)
+                && Objects.equals(flushMode, that.flushMode)
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -284,8 +271,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 partitioner,
                 semantic,
                 upsertMode,
-                batchSize,
-                batchInterval,
+                flushMode,
                 parallelism);
     }
 
@@ -362,15 +348,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }
         return format.createRuntimeEncoder(context, physicalFormatDataType);
-    }
-
-    private boolean useBufferedSink() {
-        if (!upsertMode) {
-            return false;
-        }
-
-        return (batchSize != null && batchSize > 1)
-                && (batchInterval != null && batchInterval.toMillis() > 0);
     }
 
     // --------------------------------------------------------------------------------------------

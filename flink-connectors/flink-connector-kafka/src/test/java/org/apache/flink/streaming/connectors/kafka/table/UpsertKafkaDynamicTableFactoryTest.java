@@ -57,7 +57,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -178,8 +177,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        0,
-                        Duration.ofMillis(0),
+                        SinkBufferFlushMode.DISABLED,
                         null);
 
         // Test sink format.
@@ -205,7 +203,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                                 getFullSinkOptions(),
                                 options -> {
                                     options.put("sink.buffer-flush.max-rows", "100");
-                                    options.put("sink.buffer-flush.interval", "1000");
+                                    options.put("sink.buffer-flush.interval", "1s");
                                 }));
 
         final DynamicTableSink expectedSink =
@@ -218,8 +216,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        100,
-                        Duration.ofMillis(1000),
+                        new SinkBufferFlushMode(100, 1000L),
                         null);
 
         // Test sink format.
@@ -252,8 +249,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                         null,
                         SINK_TOPIC,
                         UPSERT_KAFKA_SINK_PROPERTIES,
-                        0,
-                        Duration.ofMillis(0),
+                        SinkBufferFlushMode.DISABLED,
                         100);
         assertEquals(expectedSink, actualSink);
 
@@ -460,6 +456,25 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                                         "I;UA;UB;D")));
     }
 
+    @Test
+    public void testInvalidSinkBufferFlush() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new ValidationException(
+                                "'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
+                                        + "must be set to be greater than zero together to enable"
+                                        + " sink buffer flushing.")));
+        createTableSink(
+                SINK_SCHEMA,
+                getModifiedOptions(
+                        getFullSinkOptions(),
+                        options -> {
+                            options.put("sink.buffer-flush.max-rows", "0");
+                            options.put("sink.buffer-flush.interval", "1s");
+                        }));
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
@@ -584,8 +599,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             String keyPrefix,
             String topic,
             Properties properties,
-            Integer batchSize,
-            Duration batchInterval,
+            SinkBufferFlushMode flushMode,
             Integer parallelism) {
         return new KafkaDynamicSink(
                 consumedDataType,
@@ -600,8 +614,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
                 true,
-                batchSize,
-                batchInterval,
+                flushMode,
                 parallelism);
     }
 }
