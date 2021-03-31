@@ -31,7 +31,6 @@ import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,7 +48,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /** End-to-end test for the kafka connectors. */
-@Ignore // disabled because of stalling
 @RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
 public class StreamingKafkaITCase extends TestLogger {
