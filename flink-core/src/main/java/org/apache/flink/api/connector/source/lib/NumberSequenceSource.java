@@ -106,9 +106,11 @@ public class NumberSequenceSource
 
         int splitId = 1;
         for (NumberSequenceIterator seq : subSequences) {
-            splits.add(
-                    new NumberSequenceSplit(
-                            String.valueOf(splitId++), seq.getCurrent(), seq.getTo()));
+            if (seq.hasNext()) {
+                splits.add(
+                        new NumberSequenceSplit(
+                                String.valueOf(splitId++), seq.getCurrent(), seq.getTo()));
+            }
         }
 
         return new IteratorSourceEnumerator<>(enumContext, splits);
