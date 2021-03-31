@@ -544,71 +544,67 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         init();
 
         // save the work of reloading state, etc, if the task is already canceled
-        if (canceled) {
-            throw new CancelTaskException();
-        }
+        ensureNotCanceled();
 
         // -------- Invoke --------
         LOG.debug("Invoking {}", getName());
 
         // we need to make sure that any triggers scheduled in open() cannot be
         // executed before all operators are opened
-        CompletableFuture<Void> allGatesRecoveredFuture =
-                actionExecutor.call(
-                        () -> {
-                            SequentialChannelStateReader reader =
-                                    getEnvironment()
-                                            .getTaskStateManager()
-                                            .getSequentialChannelStateReader();
-                            reader.readOutputData(
-                                    getEnvironment().getAllWriters(),
-                                    !configuration.isGraphContainingLoops());
-
-                            operatorChain.initializeStateAndOpenOperators(
-                                    createStreamTaskStateInitializer());
-
-                            IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
-                            channelIOExecutor.execute(
-                                    () -> {
-                                        try {
-                                            reader.readInputData(inputGates);
-                                        } catch (Exception e) {
-                                            asyncExceptionHandler.handleAsyncException(
-                                                    "Unable to read channel state", e);
-                                        }
-                                    });
-
-                            List<CompletableFuture<?>> recoveredFutures =
-                                    new ArrayList<>(inputGates.length);
-                            for (InputGate inputGate : inputGates) {
-                                recoveredFutures.add(inputGate.getStateConsumedFuture());
-
-                                inputGate
-                                        .getStateConsumedFuture()
-                                        .thenRun(
-                                                () ->
-                                                        mainMailboxExecutor.execute(
-                                                                inputGate::requestPartitions,
-                                                                "Input gate request partitions"));
-                            }
-
-                            return CompletableFuture.allOf(
-                                            recoveredFutures.toArray(new CompletableFuture[0]))
-                                    .thenRun(mailboxProcessor::suspend);
-                        });
+        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
 
         // Run mailbox until all gates will be recovered.
         mailboxProcessor.runMailboxLoop();
 
-        if (canceled) {
-            throw new CancelTaskException();
-        }
+        ensureNotCanceled();
 
         checkState(
                 allGatesRecoveredFuture.isDone(),
                 "Mailbox loop interrupted before recovery was finished.");
 
         isRunning = true;
+    }
+
+    private CompletableFuture<Void> restoreGates() throws Exception {
+        SequentialChannelStateReader reader =
+                getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
+        reader.readOutputData(
+                getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
+
+        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+
+        IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+        channelIOExecutor.execute(
+                () -> {
+                    try {
+                        reader.readInputData(inputGates);
+                    } catch (Exception e) {
+                        asyncExceptionHandler.handleAsyncException(
+                                "Unable to read channel state", e);
+                    }
+                });
+
+        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
+        for (InputGate inputGate : inputGates) {
+            recoveredFutures.add(inputGate.getStateConsumedFuture());
+
+            inputGate
+                    .getStateConsumedFuture()
+                    .thenRun(
+                            () ->
+                                    mainMailboxExecutor.execute(
+                                            inputGate::requestPartitions,
+                                            "Input gate request partitions"));
+        }
+
+        return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
+                .thenRun(mailboxProcessor::suspend);
+    }
+
+    private void ensureNotCanceled() {
+        if (canceled) {
+            throw new CancelTaskException();
+        }
     }
 
     @Override
@@ -621,18 +617,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             }
 
             // final check to exit early before starting to run
-            if (canceled) {
-                throw new CancelTaskException();
-            }
+            ensureNotCanceled();
 
             // let the task do its work
             runMailboxLoop();
 
             // if this left the run() method cleanly despite the fact that this was canceled,
             // make sure the "clean shutdown" is not attempted
-            if (canceled) {
-                throw new CancelTaskException();
-            }
+            ensureNotCanceled();
 
             afterInvoke();
         } catch (Throwable invokeException) {
