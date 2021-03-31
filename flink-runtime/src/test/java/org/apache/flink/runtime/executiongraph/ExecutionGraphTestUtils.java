@@ -347,9 +347,14 @@ public class ExecutionGraphTestUtils {
     }
 
     public static JobVertex createNoOpVertex(String name, int parallelism) {
+        return createNoOpVertex(name, parallelism, JobVertex.MAX_PARALLELISM_DEFAULT);
+    }
+
+    public static JobVertex createNoOpVertex(String name, int parallelism, int maxParallelism) {
         JobVertex vertex = new JobVertex(name);
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(parallelism);
+        vertex.setMaxParallelism(maxParallelism);
         return vertex;
     }
 

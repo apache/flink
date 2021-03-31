@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
@@ -79,6 +81,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
@@ -239,6 +242,61 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         }
     }
 
+    /**
+     * Compute the {@link VertexParallelismStore} for all given vertices, which will set defaults
+     * and ensure that the returned store contains valid parallelisms.
+     *
+     * @param vertices the vertices to compute parallelism for
+     * @return the computed parallelism store
+     */
+    public static VertexParallelismStore computeVertexParallelismStore(
+            Iterable<JobVertex> vertices) {
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        for (JobVertex vertex : vertices) {
+            int parallelism = vertex.getParallelism();
+            if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
+                parallelism = 1;
+            }
+
+            int maxParallelism = vertex.getMaxParallelism();
+            final boolean autoConfigured;
+            // if no max parallelism was configured by the user, we calculate and set a default
+            if (maxParallelism == JobVertex.MAX_PARALLELISM_DEFAULT) {
+                maxParallelism = KeyGroupRangeAssignment.computeDefaultMaxParallelism(parallelism);
+                autoConfigured = true;
+            } else {
+                autoConfigured = false;
+            }
+
+            VertexParallelismInformation parallelismInfo =
+                    new DefaultVertexParallelismInfo(
+                            parallelism,
+                            maxParallelism,
+                            // Allow rescaling if the max parallelism was not set explicitly by the
+                            // user
+                            (newMax) ->
+                                    autoConfigured
+                                            ? Optional.empty()
+                                            : Optional.of(
+                                                    "Cannot override a configured max parallelism."));
+            store.setParallelismInfo(vertex.getID(), parallelismInfo);
+        }
+
+        return store;
+    }
+
+    /**
+     * Compute the {@link VertexParallelismStore} for all vertices of a given job graph, which will
+     * set defaults and ensure that the returned store contains valid parallelisms.
+     *
+     * @param jobGraph the job graph to retrieve vertices from
+     * @return the computed parallelism store
+     */
+    public static VertexParallelismStore computeVertexParallelismStore(JobGraph jobGraph) {
+        return computeVertexParallelismStore(jobGraph.getVertices());
+    }
+
     private ExecutionGraph createAndRestoreExecutionGraph(
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
@@ -258,6 +316,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                 jobGraph.getJobType()),
                         initializationTimestamp,
                         new DefaultVertexAttemptNumberStore(),
+                        computeVertexParallelismStore(jobGraph),
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
