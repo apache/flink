@@ -276,6 +276,13 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             return;
         }
 
+        // if checkpoint has been previously unaligned, but was forced to be aligned (pointwise
+        // connection), revert it here so that it can jump over output data
+        if (options.getAlignment() == CheckpointOptions.AlignmentType.FORCED_ALIGNED) {
+            options = options.withUnalignedSupported();
+            initInputsCheckpoint(metadata.getCheckpointId(), options);
+        }
+
         // Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
         //           The pre-barrier work should be nothing or minimal in the common case.
         operatorChain.prepareSnapshotPreBarrier(metadata.getCheckpointId());
@@ -375,7 +382,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     @Override
-    public void initCheckpoint(long id, CheckpointOptions checkpointOptions)
+    public void initInputsCheckpoint(long id, CheckpointOptions checkpointOptions)
             throws CheckpointException {
         if (checkpointOptions.isUnalignedCheckpoint()) {
             channelStateWriter.start(id, checkpointOptions);

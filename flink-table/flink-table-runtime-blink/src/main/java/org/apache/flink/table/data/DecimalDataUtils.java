@@ -205,10 +205,6 @@ public final class DecimalDataUtils {
         return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
     }
 
-    public static long castToTimestamp(DecimalData dec) {
-        return (long) (doubleValue(dec) * 1000);
-    }
-
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
     }

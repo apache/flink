@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
@@ -38,18 +38,17 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-import org.apache.flink.util.CollectionUtil
 
 import org.junit.Assert.assertEquals
 import org.junit._
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, ZoneId}
 import java.util
 
 import scala.collection.Seq
@@ -390,6 +389,70 @@ class CalcITCase extends BatchTestBase {
         v3, v4, v3, v4,
         localDateTime("2019-09-19 08:03:09"),
         Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
+  }
+
+  @Test
+  def testTimeUDFParametersImplicitCast(): Unit = {
+    val data: Seq[Row] = Seq(row(
+      localDateTime("2019-09-19 08:03:09.123"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant)
+    )
+    val dataId = TestValuesTableFactory.registerData(data)
+
+    val ddl =
+    s"""
+        |CREATE TABLE MyTable (
+        |  ntz TIMESTAMP(3),
+        |  ltz0 TIMESTAMP_LTZ(0),
+        |  ltz3 TIMESTAMP_LTZ(3),
+        |  ltz6 TIMESTAMP_LTZ(6),
+        |  ltz9 TIMESTAMP_LTZ(9),
+        |  ltz_not_null TIMESTAMP_LTZ(3) NOT NULL
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId',
+        |  'bounded' = 'true'
+        |)
+        |""".stripMargin
+
+    tEnv.executeSql(ddl)
+    tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
+    tEnv.createTemporaryFunction("datetimeFunc", DateTimeFunction)
+    tEnv.createTemporaryFunction("instantFunc", InstantFunction)
+
+    checkResult(
+      "SELECT" +
+        " timestampFunc(ntz), datetimeFunc(ntz), instantFunc(ntz)," +
+        " timestampFunc(ltz0), datetimeFunc(ltz0), instantFunc(ltz0)," +
+        " timestampFunc(ltz3), datetimeFunc(ltz3), instantFunc(ltz3)," +
+        " timestampFunc(ltz6), datetimeFunc(ltz6), instantFunc(ltz6)," +
+        " timestampFunc(ltz9), datetimeFunc(ltz9), instantFunc(ltz9)," +
+        " timestampFunc(ltz_not_null), datetimeFunc(ltz_not_null), instantFunc(ltz_not_null)" +
+        " FROM MyTable",
+      Seq(row(
+        // ntz
+       "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz0
+        "2019-09-19 08:03:09.0", "2019-09-19T08:03:09",
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+        // ltz3
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456", "2019-09-19T08:03:09.123456",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456789", "2019-09-19T08:03:09.123456789",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+        // ltz_not_null
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant))
+    )
   }
 
   @Test
@@ -1035,8 +1098,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = TimestampData.fromLocalDateTime(
-      result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
+    val ts1 = TimestampData.fromInstant(
+      result.toList.head.getField(0).asInstanceOf[Instant]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 
@@ -1341,4 +1404,43 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testFilterPushDownWithInterval(): Unit = {
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.TIMESTAMP)
+      .field("b", DataTypes.TIMESTAMP)
+      .build()
+
+    val data = List(
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01")))
+
+    TestLegacyFilterableTableSource.createTemporaryTable(
+      tEnv,
+      schema,
+      "myTable",
+      isBounded = true,
+      data,
+      List("a", "b"))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00"))))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(YEAR, 2, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
+  }
 }

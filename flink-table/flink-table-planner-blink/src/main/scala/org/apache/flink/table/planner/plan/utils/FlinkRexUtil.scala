@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.{JList, JSet}
+import org.apache.flink.table.planner.JList
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -353,6 +353,17 @@ object FlinkRexUtil {
         }
       }
     })
+
+  /** Expands the RexProgram to projection list and condition. */
+  def expandRexProgram(program: RexProgram): (Seq[RexNode], Option[RexNode]) = {
+    val projection = program.getProjectList.map(program.expandLocalRef)
+    val filter = if (program.getCondition != null) {
+      Some(program.expandLocalRef(program.getCondition))
+    } else {
+      None
+    }
+    (projection, filter)
+  }
 
   /** Expands the SEARCH into normal disjunctions recursively. */
   def expandSearch(

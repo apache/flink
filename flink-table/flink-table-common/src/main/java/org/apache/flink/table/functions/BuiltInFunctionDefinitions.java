@@ -111,6 +111,16 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IfNullFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition SOURCE_WATERMARK =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("SOURCE_WATERMARK")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Logic functions
     // --------------------------------------------------------------------------------------------
@@ -1107,6 +1117,13 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTimestamp")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
+    public static final BuiltInFunctionDefinition CURRENT_ROW_TIMESTAMP =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("currentRowTimestamp")
                     .kind(SCALAR)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();

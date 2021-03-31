@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.jdbc.table;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
@@ -26,18 +25,22 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -48,15 +51,16 @@ import static org.junit.Assert.fail;
  */
 public class JdbcDynamicTableFactoryTest {
 
-    private static final TableSchema schema =
-            TableSchema.builder()
-                    .field("aaa", DataTypes.INT().notNull())
-                    .field("bbb", DataTypes.STRING().notNull())
-                    .field("ccc", DataTypes.DOUBLE())
-                    .field("ddd", DataTypes.DECIMAL(31, 18))
-                    .field("eee", DataTypes.TIMESTAMP(3))
-                    .primaryKey("bbb", "aaa")
-                    .build();
+    private static final ResolvedSchema SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("aaa", DataTypes.INT().notNull()),
+                            Column.physical("bbb", DataTypes.STRING().notNull()),
+                            Column.physical("ccc", DataTypes.DOUBLE()),
+                            Column.physical("ddd", DataTypes.DECIMAL(31, 18)),
+                            Column.physical("eee", DataTypes.TIMESTAMP(3))),
+                    Collections.emptyList(),
+                    UniqueConstraint.primaryKey("name", Arrays.asList("bbb", "aaa")));
 
     @Test
     public void testJdbcCommonProperties() {
@@ -67,7 +71,7 @@ public class JdbcDynamicTableFactoryTest {
         properties.put("connection.max-retry-timeout", "120s");
 
         // validation for source
-        DynamicTableSource actualSource = createTableSource(properties);
+        DynamicTableSource actualSource = createTableSource(SCHEMA, properties);
         JdbcOptions options =
                 JdbcOptions.builder()
                         .setDBUrl("jdbc:derby:memory:mydb")
@@ -85,11 +89,14 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSource expectedSource =
                 new JdbcDynamicTableSource(
-                        options, JdbcReadOptions.builder().build(), lookupOptions, schema);
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
         assertEquals(expectedSource, actualSource);
 
         // validation for sink
-        DynamicTableSink actualSink = createTableSink(properties);
+        DynamicTableSink actualSink = createTableSink(SCHEMA, properties);
         // default flush configurations
         JdbcExecutionOptions executionOptions =
                 JdbcExecutionOptions.builder()
@@ -101,11 +108,15 @@ public class JdbcDynamicTableFactoryTest {
                 JdbcDmlOptions.builder()
                         .withTableName(options.getTableName())
                         .withDialect(options.getDialect())
-                        .withFieldNames(schema.getFieldNames())
+                        .withFieldNames(SCHEMA.getColumnNames().toArray(new String[0]))
                         .withKeyFields("bbb", "aaa")
                         .build();
         JdbcDynamicTableSink expectedSink =
-                new JdbcDynamicTableSink(options, executionOptions, dmlOptions, schema);
+                new JdbcDynamicTableSink(
+                        options,
+                        executionOptions,
+                        dmlOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
         assertEquals(expectedSink, actualSink);
     }
 
@@ -119,7 +130,7 @@ public class JdbcDynamicTableFactoryTest {
         properties.put("scan.fetch-size", "20");
         properties.put("scan.auto-commit", "false");
 
-        DynamicTableSource actual = createTableSource(properties);
+        DynamicTableSource actual = createTableSource(SCHEMA, properties);
 
         JdbcOptions options =
                 JdbcOptions.builder()
@@ -142,7 +153,11 @@ public class JdbcDynamicTableFactoryTest {
                         .setMaxRetryTimes(3)
                         .build();
         JdbcDynamicTableSource expected =
-                new JdbcDynamicTableSource(options, readOptions, lookupOptions, schema);
+                new JdbcDynamicTableSource(
+                        options,
+                        readOptions,
+                        lookupOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
 
         assertEquals(expected, actual);
     }
@@ -154,7 +169,7 @@ public class JdbcDynamicTableFactoryTest {
         properties.put("lookup.cache.ttl", "10s");
         properties.put("lookup.max-retries", "10");
 
-        DynamicTableSource actual = createTableSource(properties);
+        DynamicTableSource actual = createTableSource(SCHEMA, properties);
 
         JdbcOptions options =
                 JdbcOptions.builder()
@@ -169,7 +184,10 @@ public class JdbcDynamicTableFactoryTest {
                         .build();
         JdbcDynamicTableSource expected =
                 new JdbcDynamicTableSource(
-                        options, JdbcReadOptions.builder().build(), lookupOptions, schema);
+                        options,
+                        JdbcReadOptions.builder().build(),
+                        lookupOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
 
         assertEquals(expected, actual);
     }
@@ -181,7 +199,7 @@ public class JdbcDynamicTableFactoryTest {
         properties.put("sink.buffer-flush.interval", "2min");
         properties.put("sink.max-retries", "5");
 
-        DynamicTableSink actual = createTableSink(properties);
+        DynamicTableSink actual = createTableSink(SCHEMA, properties);
 
         JdbcOptions options =
                 JdbcOptions.builder()
@@ -198,12 +216,16 @@ public class JdbcDynamicTableFactoryTest {
                 JdbcDmlOptions.builder()
                         .withTableName(options.getTableName())
                         .withDialect(options.getDialect())
-                        .withFieldNames(schema.getFieldNames())
+                        .withFieldNames(SCHEMA.getColumnNames().toArray(new String[0]))
                         .withKeyFields("bbb", "aaa")
                         .build();
 
         JdbcDynamicTableSink expected =
-                new JdbcDynamicTableSink(options, executionOptions, dmlOptions, schema);
+                new JdbcDynamicTableSink(
+                        options,
+                        executionOptions,
+                        dmlOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
 
         assertEquals(expected, actual);
     }
@@ -213,7 +235,7 @@ public class JdbcDynamicTableFactoryTest {
         Map<String, String> properties = getAllOptions();
         properties.put("sink.parallelism", "2");
 
-        DynamicTableSink actual = createTableSink(properties);
+        DynamicTableSink actual = createTableSink(SCHEMA, properties);
 
         JdbcOptions options =
                 JdbcOptions.builder()
@@ -231,12 +253,16 @@ public class JdbcDynamicTableFactoryTest {
                 JdbcDmlOptions.builder()
                         .withTableName(options.getTableName())
                         .withDialect(options.getDialect())
-                        .withFieldNames(schema.getFieldNames())
+                        .withFieldNames(SCHEMA.getColumnNames().toArray(new String[0]))
                         .withKeyFields("bbb", "aaa")
                         .build();
 
         JdbcDynamicTableSink expected =
-                new JdbcDynamicTableSink(options, executionOptions, dmlOptions, schema);
+                new JdbcDynamicTableSink(
+                        options,
+                        executionOptions,
+                        dmlOptions,
+                        TableSchema.fromResolvedSchema(SCHEMA));
 
         assertEquals(expected, actual);
     }
@@ -248,7 +274,7 @@ public class JdbcDynamicTableFactoryTest {
             Map<String, String> properties = getAllOptions();
             properties.put("password", "pass");
 
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -266,7 +292,7 @@ public class JdbcDynamicTableFactoryTest {
             properties.put("scan.partition.lower-bound", "-10");
             properties.put("scan.partition.upper-bound", "100");
 
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -288,7 +314,7 @@ public class JdbcDynamicTableFactoryTest {
             properties.put("scan.partition.upper-bound", "-10");
             properties.put("scan.partition.num", "10");
 
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -304,7 +330,7 @@ public class JdbcDynamicTableFactoryTest {
             Map<String, String> properties = getAllOptions();
             properties.put("lookup.cache.max-rows", "10");
 
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -321,7 +347,7 @@ public class JdbcDynamicTableFactoryTest {
             Map<String, String> properties = getAllOptions();
             properties.put("lookup.cache.ttl", "1s");
 
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -337,7 +363,7 @@ public class JdbcDynamicTableFactoryTest {
         try {
             Map<String, String> properties = getAllOptions();
             properties.put("lookup.max-retries", "-1");
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -351,7 +377,7 @@ public class JdbcDynamicTableFactoryTest {
         try {
             Map<String, String> properties = getAllOptions();
             properties.put("sink.max-retries", "-1");
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -365,7 +391,7 @@ public class JdbcDynamicTableFactoryTest {
         try {
             Map<String, String> properties = getAllOptions();
             properties.put("connection.max-retry-timeout", "100ms");
-            createTableSource(properties);
+            createTableSource(SCHEMA, properties);
             fail("exception expected");
         } catch (Throwable t) {
             assertTrue(
@@ -382,25 +408,5 @@ public class JdbcDynamicTableFactoryTest {
         options.put("url", "jdbc:derby:memory:mydb");
         options.put("table-name", "mytable");
         return options;
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock source"),
-                new Configuration(),
-                JdbcDynamicTableFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock sink"),
-                new Configuration(),
-                JdbcDynamicTableFactoryTest.class.getClassLoader(),
-                false);
     }
 }

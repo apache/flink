@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
@@ -35,12 +34,11 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -50,6 +48,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
@@ -80,6 +79,8 @@ import java.util.regex.Pattern;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.AVRO_CONFLUENT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.DEBEZIUM_AVRO_CONFLUENT;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -148,26 +149,33 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                     "partition:%d,offset:%d;partition:%d,offset:%d",
                     PARTITION_0, OFFSET_0, PARTITION_1, OFFSET_1);
 
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .add(TableColumn.physical(NAME, DataTypes.STRING()))
-                    .add(TableColumn.physical(COUNT, DataTypes.DECIMAL(38, 18)))
-                    .add(TableColumn.physical(TIME, DataTypes.TIMESTAMP(3)))
-                    .add(
-                            TableColumn.computed(
+    private static final ResolvedSchema SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical(NAME, DataTypes.STRING().notNull()),
+                            Column.physical(COUNT, DataTypes.DECIMAL(38, 18)),
+                            Column.physical(TIME, DataTypes.TIMESTAMP(3)),
+                            Column.computed(
                                     COMPUTED_COLUMN_NAME,
-                                    COMPUTED_COLUMN_DATATYPE,
-                                    COMPUTED_COLUMN_EXPRESSION))
-                    .watermark(TIME, WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
-                    .build();
+                                    ResolvedExpressionMock.of(
+                                            COMPUTED_COLUMN_DATATYPE, COMPUTED_COLUMN_EXPRESSION))),
+                    Collections.singletonList(
+                            WatermarkSpec.of(
+                                    TIME,
+                                    ResolvedExpressionMock.of(
+                                            WATERMARK_DATATYPE, WATERMARK_EXPRESSION))),
+                    null);
 
-    private static final TableSchema SCHEMA_WITH_METADATA =
-            TableSchema.builder()
-                    .add(TableColumn.physical(NAME, DataTypes.STRING()))
-                    .add(TableColumn.physical(COUNT, DataTypes.DECIMAL(38, 18)))
-                    .add(TableColumn.metadata(TIME, DataTypes.TIMESTAMP(3), "timestamp"))
-                    .add(TableColumn.metadata(METADATA, DataTypes.STRING(), "value.metadata_2"))
-                    .build();
+    private static final ResolvedSchema SCHEMA_WITH_METADATA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical(NAME, DataTypes.STRING()),
+                            Column.physical(COUNT, DataTypes.DECIMAL(38, 18)),
+                            Column.metadata(TIME, DataTypes.TIMESTAMP(3), "timestamp", false),
+                            Column.metadata(
+                                    METADATA, DataTypes.STRING(), "value.metadata_2", false)),
+                    Collections.emptyList(),
+                    null);
 
     private static final DataType SCHEMA_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
@@ -290,7 +298,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
         final DecodingFormatMock keyDecodingFormat = new DecodingFormatMock("#", false);
         keyDecodingFormat.producedDataType =
-                DataTypes.ROW(DataTypes.FIELD(NAME, DataTypes.STRING())).notNull();
+                DataTypes.ROW(DataTypes.FIELD(NAME, DataTypes.STRING().notNull())).notNull();
 
         final DecodingFormatMock valueDecodingFormat = new DecodingFormatMock("|", false);
         valueDecodingFormat.producedDataType =
@@ -327,7 +335,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         // initialize stateful testing formats
         actualKafkaSource.applyReadableMetadata(
                 Arrays.asList("timestamp", "value.metadata_2"),
-                SCHEMA_WITH_METADATA.toRowDataType());
+                SCHEMA_WITH_METADATA.toSourceRowDataType());
         actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 
         final DecodingFormatMock expectedKeyFormat =
@@ -364,7 +372,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         StartupMode.GROUP_OFFSETS,
                         Collections.emptyMap(),
                         0);
-        expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toRowDataType();
+        expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toSourceRowDataType();
         expectedKafkaSource.metadataKeys = Collections.singletonList("timestamp");
 
         assertEquals(actualSource, expectedKafkaSource);
@@ -411,7 +419,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
         final EncodingFormatMock keyEncodingFormat = new EncodingFormatMock("#");
         keyEncodingFormat.consumedDataType =
-                DataTypes.ROW(DataTypes.FIELD(NAME, DataTypes.STRING())).notNull();
+                DataTypes.ROW(DataTypes.FIELD(NAME, DataTypes.STRING().notNull())).notNull();
 
         final EncodingFormatMock valueEncodingFormat = new EncodingFormatMock("|");
         valueEncodingFormat.consumedDataType =
@@ -776,18 +784,11 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
     @Test
     public void testPrimaryKeyValidation() {
-        final TableSchema pkSchema =
-                TableSchema.builder()
-                        .field(NAME, DataTypes.STRING().notNull())
-                        .field(COUNT, DataTypes.DECIMAL(38, 18))
-                        .field(TIME, DataTypes.TIMESTAMP(3))
-                        .field(
-                                COMPUTED_COLUMN_NAME,
-                                COMPUTED_COLUMN_DATATYPE,
-                                COMPUTED_COLUMN_EXPRESSION)
-                        .watermark(TIME, WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
-                        .primaryKey(NAME)
-                        .build();
+        final ResolvedSchema pkSchema =
+                new ResolvedSchema(
+                        SCHEMA.getColumns(),
+                        SCHEMA.getWatermarkSpecs(),
+                        UniqueConstraint.primaryKey(NAME, Collections.singletonList(NAME)));
 
         Map<String, String> sinkOptions =
                 getModifiedOptions(
@@ -807,7 +808,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             fail();
         } catch (Throwable t) {
             String error =
-                    "The Kafka table 'default.default.sinkTable' with 'test-format' format"
+                    "The Kafka table 'default.default.t1' with 'test-format' format"
                             + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
                             + " guarantee the semantic of primary key.";
             assertEquals(error, t.getCause().getMessage());
@@ -831,7 +832,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             fail();
         } catch (Throwable t) {
             String error =
-                    "The Kafka table 'default.default.scanTable' with 'test-format' format"
+                    "The Kafka table 'default.default.t1' with 'test-format' format"
                             + " doesn't support defining PRIMARY KEY constraint on the table, because it can't"
                             + " guarantee the semantic of primary key.";
             assertEquals(error, t.getCause().getMessage());
@@ -896,34 +897,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 semantic,
                 false,
                 parallelism);
-    }
-
-    private static DynamicTableSource createTableSource(
-            TableSchema schema, Map<String, String> options) {
-        final ObjectIdentifier objectIdentifier =
-                ObjectIdentifier.of("default", "default", "scanTable");
-        final CatalogTable catalogTable = new CatalogTableImpl(schema, options, "scanTable");
-        return FactoryUtil.createTableSource(
-                null,
-                objectIdentifier,
-                catalogTable,
-                new Configuration(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(
-            TableSchema schema, Map<String, String> options) {
-        final ObjectIdentifier objectIdentifier =
-                ObjectIdentifier.of("default", "default", "sinkTable");
-        final CatalogTable catalogTable = new CatalogTableImpl(schema, options, "sinkTable");
-        return FactoryUtil.createTableSink(
-                null,
-                objectIdentifier,
-                catalogTable,
-                new Configuration(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
     }
 
     /**

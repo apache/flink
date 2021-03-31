@@ -42,7 +42,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecDataStreamScan",
                     "StreamExecLegacyTableSourceScan",
                     "StreamExecLegacySink",
-                    "StreamExecLookupJoin",
                     "StreamExecPythonGroupAggregate",
                     "StreamExecWindowTableFunction",
                     "StreamExecPythonGroupWindowAggregate",
@@ -51,7 +50,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecPythonOverAggregate",
                     "StreamExecPythonCorrelate",
                     "StreamExecPythonCalc",
-                    "StreamExecTemporalSort",
                     "StreamExecSort",
                     "StreamExecMultipleInput",
                     "StreamExecValues");

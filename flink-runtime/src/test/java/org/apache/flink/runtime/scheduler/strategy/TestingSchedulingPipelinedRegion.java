@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,15 +32,26 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices =
             new HashMap<>();
 
-    private final Set<TestingSchedulingResultPartition> consumedPartitions = new HashSet<>();
+    private final Set<ConsumedPartitionGroup> consumedPartitionGroups =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
+        final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                resultPartitionsById = new HashMap<>();
+
         for (TestingSchedulingExecutionVertex vertex : vertices) {
             regionVertices.put(vertex.getId(), vertex);
 
             for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
-                if (!vertices.contains(consumedPartition.getProducer())) {
-                    consumedPartitions.add(consumedPartition);
+                resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
+            }
+
+            for (ConsumedPartitionGroup consumedGroup : vertex.getConsumedPartitionGroups()) {
+                for (IntermediateResultPartitionID consumerId : consumedGroup) {
+                    if (!vertices.contains(resultPartitionsById.get(consumerId).getProducer())) {
+                        consumedPartitionGroups.add(consumedGroup);
+                    }
+                    break;
                 }
             }
         }
@@ -60,7 +73,12 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     }
 
     @Override
-    public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-        return Collections.unmodifiableSet(consumedPartitions);
+    public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(consumedPartitionGroups);
+    }
+
+    @Override
+    public boolean contains(ExecutionVertexID vertexId) {
+        return regionVertices.containsKey(vertexId);
     }
 }

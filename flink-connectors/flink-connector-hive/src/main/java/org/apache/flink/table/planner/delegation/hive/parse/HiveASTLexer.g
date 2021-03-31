@@ -22,7 +22,8 @@ package org.apache.flink.table.planner.delegation.hive.parse;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseError;
 }
 
 @lexer::members {

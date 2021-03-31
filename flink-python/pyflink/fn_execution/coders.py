@@ -47,7 +47,6 @@ FLINK_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:
 # datastream coders
 FLINK_MAP_CODER_URN = "flink:coder:map:v1"
 FLINK_FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1"
-FLINK_CO_FLAT_MAP_CODER_URN = "flink:coder:co_flat_map:v1"
 
 
 class BaseCoder(ABC):
@@ -71,8 +70,8 @@ class TableFunctionRowCoder(BaseCoder):
         return coder_impl.TableFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+    def from_schema_proto(coder_param_proto):
+        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
@@ -100,8 +99,8 @@ class AggregateFunctionRowCoder(BaseCoder):
         return coder_impl.AggregateFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+    def from_schema_proto(coder_param_proto):
+        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
 
     def __repr__(self):
         return 'AggregateFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
@@ -123,15 +122,19 @@ class FlattenRowCoder(BaseCoder):
     of a row object.
     """
 
-    def __init__(self, field_coders):
+    def __init__(self, field_coders, output_mode=flink_fn_execution_pb2.CoderParam.SINGLE):
         self._field_coders = field_coders
+        self._output_mode = output_mode
 
     def get_impl(self):
-        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
+        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders],
+                                              self._output_mode)
 
     @staticmethod
-    def from_schema_proto(schema_proto):
-        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields])
+    def from_schema_proto(coder_param_proto):
+        schema_proto = coder_param_proto.schema
+        output_mode = coder_param_proto.output_mode
+        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields], output_mode)
 
     def __repr__(self):
         return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -621,6 +624,8 @@ def from_type_info_proto(type_info):
                 [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
                 [f.field_name for f in type_info.row_type_info.fields])
         elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
+            if type_info.collection_element_type.type_name == type_info_name.BYTE:
+                return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.BASIC_ARRAY:
             return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))

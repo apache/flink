@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
@@ -39,83 +39,87 @@ public final class CliStrings {
     public static final AttributedString MESSAGE_HELP =
             new AttributedStringBuilder()
                     .append("The following commands are available:\n\n")
-                    .append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
+                    .append(formatCommand("CLEAR", "Clears the current terminal."))
                     .append(
                             formatCommand(
-                                    SqlCommand.CREATE_TABLE,
+                                    "CREATE TABLE",
                                     "Create table under current catalog and database."))
                     .append(
                             formatCommand(
-                                    SqlCommand.DROP_TABLE,
+                                    "DROP TABLE",
                                     "Drop table with optional catalog and database. Syntax: 'DROP TABLE [IF EXISTS] <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.CREATE_VIEW,
+                                    "CREATE VIEW",
                                     "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.DESCRIBE,
+                                    "DESCRIBE",
                                     "Describes the schema of a table with the given name."))
                     .append(
                             formatCommand(
-                                    SqlCommand.DROP_VIEW,
+                                    "DROP VIEW",
                                     "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.EXPLAIN,
+                                    "EXPLAIN",
                                     "Describes the execution plan of a query or table with the given name."))
-                    .append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
+                    .append(formatCommand("HELP", "Prints the available commands."))
                     .append(
                             formatCommand(
-                                    SqlCommand.INSERT_INTO,
+                                    "INSERT INTO",
                                     "Inserts the results of a SQL SELECT query into a declared table sink."))
                     .append(
                             formatCommand(
-                                    SqlCommand.INSERT_OVERWRITE,
+                                    "INSERT OVERWRITE",
                                     "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
-                    .append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
+                    .append(formatCommand("QUIT", "Quits the SQL CLI client."))
                     .append(
                             formatCommand(
-                                    SqlCommand.RESET,
-                                    "Resets all session configuration properties."))
+                                    "RESET",
+                                    "Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SELECT,
-                                    "Executes a SQL SELECT query on the Flink cluster."))
+                                    "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SET,
+                                    "SET",
                                     "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SHOW_FUNCTIONS,
+                                    "SHOW FUNCTIONS",
                                     "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
-                    .append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
+                    .append(formatCommand("SHOW TABLES", "Shows all registered tables."))
                     .append(
                             formatCommand(
-                                    SqlCommand.SOURCE,
+                                    "SOURCE",
                                     "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE_CATALOG,
+                                    "USE CATALOG",
                                     "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE,
+                                    "USE",
                                     "Sets the current default database. Experimental! Syntax: 'USE <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.LOAD_MODULE,
+                                    "LOAD MODULE",
                                     "Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = "
                                             + "'<value1>' [, '<key2>' = '<value2>', ...])];'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.UNLOAD_MODULE,
+                                    "UNLOAD MODULE",
                                     "Unload a module. Syntax: 'UNLOAD MODULE <name>;'"))
                     .append(
                             formatCommand(
-                                    SqlCommand.USE_MODULES,
+                                    "USE MODULES",
                                     "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
+                    .append(
+                            formatCommand(
+                                    "BEGIN STATEMENT SET",
+                                    "Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'"))
+                    .append(formatCommand("END", "Ends a statement set. Syntax: 'END;'"))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
@@ -175,15 +179,22 @@ public final class CliStrings {
 
     public static final String MESSAGE_SQL_EXECUTION_ERROR = "Could not execute SQL statement.";
 
+    public static final String MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR =
+            "Only INSERT statement is allowed in Statement Set.";
+
+    public static final String MESSAGE_STATEMENT_SET_END_CALL_ERROR =
+            "No Statement Set to submit, \"END;\" command should be used after \"BEGIN STATEMENT SET;\".";
+
     public static final String MESSAGE_RESET =
             "All session properties have been set to their default values.";
 
-    public static final String MESSAGE_SET = "Session property has been set.";
+    public static final String MESSAGE_RESET_KEY = "Session property has been reset.";
 
-    public static final String MESSAGE_SET_REMOVED_KEY =
-            "The specified key is not supported anymore.";
+    public static final String MESSAGE_SET_KEY = "Session property has been set.";
 
-    public static final String MESSAGE_SET_DEPRECATED_KEY =
+    public static final String MESSAGE_REMOVED_KEY = "The specified key is not supported anymore.";
+
+    public static final String MESSAGE_DEPRECATED_KEY =
             "The specified key '%s' is deprecated. Please use '%s' instead.";
 
     public static final String MESSAGE_EMPTY = "Result was empty.";
@@ -193,67 +204,23 @@ public final class CliStrings {
     public static final String MESSAGE_SUBMITTING_STATEMENT =
             "Submitting SQL update statement to the cluster...";
 
+    public static final String MESSAGE_FINISH_STATEMENT =
+            "Complete execution of the SQL update statement.";
+
     public static final String MESSAGE_STATEMENT_SUBMITTED =
-            "Table update statement has been successfully submitted to the cluster:";
+            "SQL update statement has been successfully submitted to the cluster:";
 
-    public static final String MESSAGE_MAX_SIZE_EXCEEDED =
-            "The given file exceeds the maximum number of characters.";
+    public static final String MESSAGE_BEGIN_STATEMENT_SET = "Begin a statement set.";
 
-    public static final String MESSAGE_WILL_EXECUTE = "Executing the following statement:";
+    public static final String MESSAGE_ADD_STATEMENT_TO_STATEMENT_SET =
+            "Add SQL update statement to the statement set.";
 
-    public static final String MESSAGE_UNSUPPORTED_SQL = "Unsupported SQL statement.";
+    public static final String MESSAGE_WILL_EXECUTE = "Executing the SQL from the file:";
 
-    public static final String MESSAGE_TABLE_CREATED = "Table has been created.";
+    public static final String MESSAGE_WAIT_EXECUTE =
+            "Execute statement in sync mode. Please wait for the execution finish...";
 
-    public static final String MESSAGE_TABLE_REMOVED = "Table has been removed.";
-
-    public static final String MESSAGE_ALTER_TABLE_SUCCEEDED = "Alter table succeeded!";
-
-    public static final String MESSAGE_ALTER_TABLE_FAILED = "Alter table failed!";
-
-    public static final String MESSAGE_VIEW_CREATED = "View has been created.";
-
-    public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
-
-    public static final String MESSAGE_ALTER_VIEW_SUCCEEDED = "Alter view succeeded!";
-
-    public static final String MESSAGE_ALTER_VIEW_FAILED = "Alter view failed!";
-
-    public static final String MESSAGE_FUNCTION_CREATED = "Function has been created.";
-
-    public static final String MESSAGE_FUNCTION_REMOVED = "Function has been removed.";
-
-    public static final String MESSAGE_ALTER_FUNCTION_SUCCEEDED = "Alter function succeeded!";
-
-    public static final String MESSAGE_ALTER_FUNCTION_FAILED = "Alter function failed!";
-
-    public static final String MESSAGE_DATABASE_CREATED = "Database has been created.";
-
-    public static final String MESSAGE_DATABASE_REMOVED = "Database has been removed.";
-
-    public static final String MESSAGE_DATABASE_CHANGED = "Database changed.";
-
-    public static final String MESSAGE_ALTER_DATABASE_SUCCEEDED = "Alter database succeeded!";
-
-    public static final String MESSAGE_ALTER_DATABASE_FAILED = "Alter database failed!";
-
-    public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
-
-    public static final String MESSAGE_CATALOG_REMOVED = "Catalog has been removed.";
-
-    public static final String MESSAGE_CATALOG_CHANGED = "Catalog changed.";
-
-    public static final String MESSAGE_LOAD_MODULE_SUCCEEDED = "Load module succeeded!";
-
-    public static final String MESSAGE_UNLOAD_MODULE_SUCCEEDED = "Unload module succeeded!";
-
-    public static final String MESSAGE_USE_MODULES_SUCCEEDED = "Use modules succeeded!";
-
-    public static final String MESSAGE_LOAD_MODULE_FAILED = "Load module failed!";
-
-    public static final String MESSAGE_UNLOAD_MODULE_FAILED = "Unload module failed!";
-
-    public static final String MESSAGE_USE_MODULES_FAILED = "Use modules failed!";
+    public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
 
     // --------------------------------------------------------------------------------------------
 
@@ -352,14 +319,17 @@ public final class CliStrings {
                 .toAttributedString();
     }
 
-    public static AttributedString messageError(String message, Throwable t) {
+    public static AttributedString messageError(String message, Throwable t, boolean isVerbose) {
         while (t.getCause() != null
                 && t.getCause().getMessage() != null
                 && !t.getCause().getMessage().isEmpty()) {
             t = t.getCause();
         }
-        return messageError(message, t.getClass().getName() + ": " + t.getMessage());
-        // return messageError(message, ExceptionUtils.stringifyException(t));
+        if (isVerbose) {
+            return messageError(message, ExceptionUtils.stringifyException(t));
+        } else {
+            return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+        }
     }
 
     public static AttributedString messageError(String message) {
@@ -380,10 +350,10 @@ public final class CliStrings {
         return builder.toAttributedString();
     }
 
-    private static AttributedString formatCommand(SqlCommand cmd, String description) {
+    private static AttributedString formatCommand(String cmd, String description) {
         return new AttributedStringBuilder()
                 .style(AttributedStyle.DEFAULT.bold())
-                .append(cmd.toString())
+                .append(cmd)
                 .append("\t\t")
                 .style(AttributedStyle.DEFAULT)
                 .append(description)

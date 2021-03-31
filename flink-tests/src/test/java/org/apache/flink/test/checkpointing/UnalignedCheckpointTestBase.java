@@ -18,6 +18,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -41,7 +42,6 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -49,28 +49,34 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import javax.annotation.Nullable;
 
@@ -87,6 +93,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -115,21 +122,44 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
     @Rule public ErrorCollector collector = new ErrorCollector();
 
+    @ClassRule
+    public static final LogLevelRule NETWORK_LOGGER =
+            new LogLevelRule().set(NetworkActionsLogger.class, Level.TRACE);
+
     @Nullable
     protected File execute(UnalignedSettings settings) throws Exception {
         final File checkpointDir = temp.newFolder();
-        StreamExecutionEnvironment env = settings.createEnvironment(checkpointDir);
+        Configuration conf = settings.getConfiguration(checkpointDir);
 
-        settings.dagCreator.create(
-                env,
-                settings.minCheckpoints,
-                settings.slotSharing,
-                settings.expectedFailures - settings.failuresAfterSourceFinishes);
+        final StreamGraph streamGraph = getStreamGraph(settings, conf);
+        final int requiredSlots =
+                streamGraph.getStreamNodes().stream()
+                        .mapToInt(node -> node.getParallelism())
+                        .reduce(0, settings.channelType.slotSharing ? Integer::max : Integer::sum);
+        int numberTaskmanagers = settings.channelType.slotsToTaskManagers.apply(requiredSlots);
+        final int slotsPerTM = (requiredSlots + numberTaskmanagers - 1) / numberTaskmanagers;
+        final MiniClusterWithClientResource miniCluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(conf)
+                                .setNumberTaskManagers(numberTaskmanagers)
+                                .setNumberSlotsPerTaskManager(slotsPerTM)
+                                .build());
+        miniCluster.before();
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(conf);
+        settings.configure(env);
         try {
             waitForCleanShutdown();
-            final JobExecutionResult result = env.execute();
+            final CompletableFuture<JobSubmissionResult> result =
+                    miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
 
-            checkCounters(result);
+            checkCounters(
+                    miniCluster
+                            .getMiniCluster()
+                            .requestJobResult(result.get().getJobID())
+                            .get()
+                            .toJobExecutionResult(getClass().getClassLoader()));
         } catch (Exception e) {
             if (settings.generateCheckpoint) {
                 return Files.find(
@@ -144,11 +174,28 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                 () -> new IllegalStateException("Cannot generate checkpoint", e));
             }
             throw e;
+        } finally {
+            miniCluster.after();
         }
         if (settings.generateCheckpoint) {
             fail("Could not generate checkpoint");
         }
         return null;
+    }
+
+    private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
+        // a dummy environment used to retrieve the DAG, mini cluster will be used later
+        final StreamExecutionEnvironment setupEnv =
+                StreamExecutionEnvironment.createLocalEnvironment(conf);
+        settings.configure(setupEnv);
+
+        settings.dagCreator.create(
+                setupEnv,
+                settings.minCheckpoints,
+                settings.channelType.slotSharing,
+                settings.expectedFailures - settings.failuresAfterSourceFinishes);
+
+        return setupEnv.getStreamGraph();
     }
 
     private void waitForCleanShutdown() throws InterruptedException {
@@ -183,11 +230,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private final int minCheckpoints;
         private final int numSplits;
         private final int expectedRestarts;
+        private final long checkpointingInterval;
 
-        protected LongSource(int minCheckpoints, int numSplits, int expectedRestarts) {
+        protected LongSource(
+                int minCheckpoints,
+                int numSplits,
+                int expectedRestarts,
+                long checkpointingInterval) {
             this.minCheckpoints = minCheckpoints;
             this.numSplits = numSplits;
             this.expectedRestarts = expectedRestarts;
+            this.checkpointingInterval = checkpointingInterval;
         }
 
         @Override
@@ -198,7 +251,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Override
         public SourceReader<Long, LongSplit> createReader(SourceReaderContext readerContext) {
             return new LongSourceReader(
-                    readerContext.getIndexOfSubtask(), minCheckpoints, expectedRestarts);
+                    readerContext.getIndexOfSubtask(),
+                    minCheckpoints,
+                    expectedRestarts,
+                    checkpointingInterval);
         }
 
         @Override
@@ -233,22 +289,23 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             private final int expectedRestarts;
             private final LongCounter numInputsCounter = new LongCounter();
             private final List<LongSplit> splits = new ArrayList<>();
+            private final Duration pumpInterval;
             private int numAbortedCheckpoints;
             private int numRestarts;
             private int numCompletedCheckpoints;
-            private int numCheckpointsInThisAttempt;
-            private PollingState pollingState = PollingState.THROTTLING;
+            private boolean finishing;
+            private boolean recovered;
+            @Nullable private Deadline pumpingUntil = null;
 
-            enum PollingState {
-                THROTTLING,
-                PUMPING,
-                FINISHING
-            }
-
-            public LongSourceReader(int subtaskIndex, int minCheckpoints, int expectedRestarts) {
+            public LongSourceReader(
+                    int subtaskIndex,
+                    int minCheckpoints,
+                    int expectedRestarts,
+                    long checkpointingInterval) {
                 this.subtaskIndex = subtaskIndex;
                 this.minCheckpoints = minCheckpoints;
                 this.expectedRestarts = expectedRestarts;
+                pumpInterval = Duration.ofMillis(checkpointingInterval);
             }
 
             @Override
@@ -261,19 +318,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     split.nextNumber += split.increment;
                 }
 
-                switch (pollingState) {
-                    case FINISHING:
-                        return InputStatus.END_OF_INPUT;
-                    case THROTTLING:
-                        // throttle source as long as sink is not backpressuring (which it does only
-                        // after full recovery)
-                        Thread.sleep(1);
-                        return InputStatus.MORE_AVAILABLE;
-                    case PUMPING:
-                        return InputStatus.MORE_AVAILABLE;
-                    default:
-                        throw new IllegalStateException("Unexpected state: " + pollingState);
+                if (finishing) {
+                    return InputStatus.END_OF_INPUT;
                 }
+
+                if (pumpingUntil != null && pumpingUntil.isOverdue()) {
+                    pumpingUntil = null;
+                }
+                if (pumpingUntil == null) {
+                    Thread.sleep(1);
+                }
+                return InputStatus.MORE_AVAILABLE;
             }
 
             @Override
@@ -283,6 +338,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         splits,
                         subtaskIndex,
                         numRestarts);
+                // barrier passed, so no need to add more data for this test
+                pumpingUntil = null;
                 return splits;
             }
 
@@ -300,7 +357,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 // new checkpoint).
                 updatePollingState();
                 numCompletedCheckpoints++;
-                numCheckpointsInThisAttempt++;
+                recovered = true;
                 numAbortedCheckpoints = 0;
             }
 
@@ -312,8 +369,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     // here simply also advance completed checkpoints to avoid running into a live
                     // lock
                     numCompletedCheckpoints = minCheckpoints + 1;
-                    updatePollingState();
                 }
+                updatePollingState();
             }
 
             @Override
@@ -326,9 +383,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 this.splits.addAll(splits);
                 updatePollingState();
                 LOG.info(
-                        "Added splits {}, pollingState={} @ {} subtask ({} attempt)",
+                        "Added splits {}, finishing={}, pumping until {} @ {} subtask ({} attempt)",
                         splits,
-                        pollingState,
+                        finishing,
+                        pumpingUntil,
                         subtaskIndex,
                         numRestarts);
             }
@@ -339,22 +397,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
 
             private void updatePollingState() {
-                PollingState oldState = pollingState;
                 if (numCompletedCheckpoints >= minCheckpoints && numRestarts >= expectedRestarts) {
-                    pollingState = PollingState.FINISHING;
-                } else if (numCheckpointsInThisAttempt == 0) {
-                    // speed up recovery by throttling - use a successful checkpoint as a proxy
-                    // for a finished recovery
-                    pollingState = PollingState.THROTTLING;
-                } else {
-                    // cause backpressure
-                    pollingState = PollingState.PUMPING;
-                }
-                if (oldState != pollingState) {
+                    finishing = true;
+                    LOG.info("Finishing @ {} subtask ({} attempt)", subtaskIndex, numRestarts);
+                } else if (recovered) {
+                    // a successful checkpoint as a proxy for a finished recovery
+                    // cause backpressure until next checkpoint is added
+                    pumpingUntil = Deadline.fromNow(pumpInterval);
                     LOG.info(
-                            "Switched from {} to {} @ {} subtask ({} attempt)",
-                            oldState,
-                            pollingState,
+                            "Pumping until {} @ {} subtask ({} attempt)",
+                            pumpingUntil,
                             subtaskIndex,
                             numRestarts);
                 }
@@ -365,14 +417,13 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 if (sourceEvent instanceof SyncEvent) {
                     numRestarts = ((SyncEvent) sourceEvent).numRestarts;
                     numCompletedCheckpoints = ((SyncEvent) sourceEvent).numCheckpoints;
-                    updatePollingState();
                     LOG.info(
-                            "Set restarts={}, numCompletedCheckpoints={}, pollingState={} @ {} subtask ({} attempt)",
+                            "Set restarts={}, numCompletedCheckpoints={} @ {} subtask ({} attempt)",
                             numRestarts,
                             numCompletedCheckpoints,
-                            pollingState,
                             subtaskIndex,
                             numRestarts);
+                    updatePollingState();
                 }
             }
 
@@ -589,19 +640,37 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 int expectedFailuresUntilSourceFinishes);
     }
 
+    /** Which channels are used to connect the tasks. */
+    protected enum ChannelType {
+        LOCAL(true, n -> 1),
+        REMOTE(false, n -> n),
+        MIXED(true, n -> Math.min(n, 3));
+
+        final boolean slotSharing;
+        final Function<Integer, Integer> slotsToTaskManagers;
+
+        ChannelType(boolean slotSharing, Function<Integer, Integer> slotsToTaskManagers) {
+            this.slotSharing = slotSharing;
+            this.slotsToTaskManagers = slotsToTaskManagers;
+        }
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
+    }
+
     /** Builder-like interface for all relevant unaligned settings. */
     protected static class UnalignedSettings {
         private int parallelism;
-        private int slotsPerTaskManager = 1;
         private final int minCheckpoints = 10;
-        private boolean slotSharing = true;
         @Nullable private File restoreCheckpoint;
         private boolean generateCheckpoint = false;
-        private int numSlots;
         int expectedFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
         private int failuresAfterSourceFinishes = 0;
+        private ChannelType channelType = ChannelType.MIXED;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -612,16 +681,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
-        public UnalignedSettings setSlotsPerTaskManager(int slotsPerTaskManager) {
-            this.slotsPerTaskManager = slotsPerTaskManager;
-            return this;
-        }
-
-        public UnalignedSettings setSlotSharing(boolean slotSharing) {
-            this.slotSharing = slotSharing;
-            return this;
-        }
-
         public UnalignedSettings setRestoreCheckpoint(File restoreCheckpoint) {
             this.restoreCheckpoint = restoreCheckpoint;
             return this;
@@ -629,11 +688,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         public UnalignedSettings setGenerateCheckpoint(boolean generateCheckpoint) {
             this.generateCheckpoint = generateCheckpoint;
-            return this;
-        }
-
-        public UnalignedSettings setNumSlots(int numSlots) {
-            this.numSlots = numSlots;
             return this;
         }
 
@@ -652,34 +706,13 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
-        public StreamExecutionEnvironment createEnvironment(File checkpointDir) {
-            Configuration conf = new Configuration();
+        public UnalignedSettings setChannelTypes(ChannelType channelType) {
+            this.channelType = channelType;
+            return this;
+        }
 
-            conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
-            conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, .9f);
-            final int taskManagers = (numSlots + slotsPerTaskManager - 1) / slotsPerTaskManager;
-            conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, taskManagers);
-            conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
-            conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-            conf.setString(
-                    CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            if (restoreCheckpoint != null) {
-                conf.set(
-                        SavepointConfigOptions.SAVEPOINT_PATH,
-                        restoreCheckpoint.toURI().toString());
-            }
-
-            conf.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
-            conf.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE,
-                    slotsPerTaskManager);
-            conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
-            conf.setString(AkkaOptions.ASK_TIMEOUT, "1 min");
-
-            final LocalStreamEnvironment env =
-                    StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
-            env.enableCheckpointing(100);
+        public void configure(StreamExecutionEnvironment env) {
+            env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
             env.setParallelism(parallelism);
             env.setRestartStrategy(
@@ -695,7 +728,27 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                 CheckpointConfig.ExternalizedCheckpointCleanup
                                         .RETAIN_ON_CANCELLATION);
             }
-            return env;
+        }
+
+        public Configuration getConfiguration(File checkpointDir) {
+            Configuration conf = new Configuration();
+
+            conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.9f);
+            conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
+            conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+            conf.setString(
+                    CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+            if (restoreCheckpoint != null) {
+                conf.set(
+                        SavepointConfigOptions.SAVEPOINT_PATH,
+                        restoreCheckpoint.toURI().toString());
+            }
+
+            conf.set(
+                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
+            conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
+            conf.setString(AkkaOptions.ASK_TIMEOUT, "1 min");
+            return conf;
         }
 
         @Override
@@ -703,20 +756,22 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return "UnalignedSettings{"
                     + "parallelism="
                     + parallelism
-                    + ", slotsPerTaskManager="
-                    + slotsPerTaskManager
-                    + ", slotSharing="
-                    + slotSharing
+                    + ", minCheckpoints="
+                    + minCheckpoints
                     + ", restoreCheckpoint="
                     + restoreCheckpoint
                     + ", generateCheckpoint="
                     + generateCheckpoint
-                    + ", numSlots="
-                    + numSlots
                     + ", expectedFailures="
                     + expectedFailures
                     + ", dagCreator="
                     + dagCreator
+                    + ", alignmentTimeout="
+                    + alignmentTimeout
+                    + ", failuresAfterSourceFinishes="
+                    + failuresAfterSourceFinishes
+                    + ", channelType="
+                    + channelType
                     + '}';
         }
     }
@@ -871,13 +926,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private final LongCounter lostCounter = new LongCounter();
         private final LongCounter duplicatesCounter = new LongCounter();
         private final IntCounter numFailures = new IntCounter();
+        private final Duration backpressureInterval;
         private ListState<State> stateList;
         protected transient State state;
         protected final long minCheckpoints;
-        protected boolean backpressure;
+        private boolean recovered;
+        @Nullable private Deadline backpressureUntil;
 
-        protected VerifyingSinkBase(long minCheckpoints) {
+        protected VerifyingSinkBase(long minCheckpoints, long checkpointingInterval) {
             this.minCheckpoints = minCheckpoints;
+            this.backpressureInterval = Duration.ofMillis(checkpointingInterval);
         }
 
         @Override
@@ -899,30 +957,50 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                     new ListStateDescriptor<>(
                                             "state", (Class<State>) state.getClass()));
             this.state = getOnlyElement(stateList.get(), state);
-            backpressure = false;
             LOG.info(
-                    "Inducing backpressure=false @ {} subtask ({} attempt)",
+                    "Inducing no backpressure @ {} subtask ({} attempt)",
                     getRuntimeContext().getIndexOfThisSubtask(),
                     getRuntimeContext().getAttemptNumber());
         }
 
         protected abstract State createState();
 
+        protected void induceBackpressure() throws InterruptedException {
+            if (backpressureUntil != null) {
+                // induce heavy backpressure until enough checkpoints have been written
+                Thread.sleep(1);
+                if (backpressureUntil.isOverdue()) {
+                    backpressureUntil = null;
+                }
+            }
+            // after all checkpoints have been completed, the remaining data should be flushed out
+            // fairly quickly
+        }
+
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             stateList.clear();
             stateList.add(state);
+            if (recovered) {
+                backpressureUntil = Deadline.fromNow(backpressureInterval);
+            }
         }
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
+            recovered = true;
             state.completedCheckpoints++;
-            boolean backpressure = this.backpressure;
-            this.backpressure = state.completedCheckpoints < minCheckpoints;
-            if (backpressure != this.backpressure) {
+            if (state.completedCheckpoints < minCheckpoints) {
+                this.backpressureUntil = Deadline.fromNow(backpressureInterval);
                 LOG.info(
-                        "Inducing backpressure={} @ {} subtask ({} attempt)",
-                        this.backpressure,
+                        "Inducing backpressure until {} @ {} subtask ({} attempt)",
+                        backpressureUntil,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber());
+            } else {
+                this.backpressureUntil = null;
+                LOG.info(
+                        "Inducing no backpressure @ {} subtask ({} attempt)",
                         getRuntimeContext().getIndexOfThisSubtask(),
                         getRuntimeContext().getAttemptNumber());
             }

@@ -38,6 +38,7 @@ import java.util.Objects;
  */
 @PublicEvolving
 public final class BinaryType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int EMPTY_LITERAL_LENGTH = 0;
 

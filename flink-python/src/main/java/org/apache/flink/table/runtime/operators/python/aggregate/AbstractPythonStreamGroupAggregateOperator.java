@@ -31,7 +31,9 @@ import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.functions.CleanupState;
@@ -69,6 +71,10 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     // holds the latest registered cleanup timer
     private transient ValueState<Long> cleanupTimeState;
 
+    private transient UpdatableRowData reuseRowData;
+
+    private transient UpdatableRowData reuseTimerRowData;
+
     public AbstractPythonStreamGroupAggregateOperator(
             Configuration config,
             RowType inputType,
@@ -79,7 +85,8 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long minRetentionTime,
-            long maxRetentionTime) {
+            long maxRetentionTime,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(
                 config,
                 inputType,
@@ -88,7 +95,9 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore);
+                generateUpdateBefore,
+                "flink:coder:schema:aggregate_function:v1",
+                outputMode);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;
@@ -96,6 +105,12 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
 
     @Override
     public void open() throws Exception {
+        // The structure is:  [type]|[normal record]|[timestamp of timer]|[row key]
+        // If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
+        // If the type is 'TRIGGER_TIMER', store the timestamp in 3rd column and the row key
+        reuseRowData = new UpdatableRowData(GenericRowData.of(NORMAL_RECORD, null, null, null), 4);
+        reuseTimerRowData =
+                new UpdatableRowData(GenericRowData.of(TRIGGER_TIMER, null, null, null), 4);
         timerService =
                 new SimpleTimerService(
                         getInternalTimerService(

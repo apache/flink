@@ -149,7 +149,15 @@ public class KafkaSourceEnumerator
                             + "without periodic partition discovery.",
                     consumerGroupId);
             context.callAsync(
-                    this::discoverAndInitializePartitionSplit, this::handlePartitionSplitChanges);
+                    () -> {
+                        try {
+                            return discoverAndInitializePartitionSplit();
+                        } finally {
+                            // Close the admin client early because we won't use it anymore.
+                            adminClient.close();
+                        }
+                    },
+                    this::handlePartitionSplitChanges);
         }
     }
 
@@ -399,7 +407,12 @@ public class KafkaSourceEnumerator
                         .thenApply(
                                 result -> {
                                     Map<TopicPartition, Long> offsets = new HashMap<>();
-                                    result.forEach((tp, oam) -> offsets.put(tp, oam.offset()));
+                                    result.forEach(
+                                            (tp, oam) -> {
+                                                if (oam != null) {
+                                                    offsets.put(tp, oam.offset());
+                                                }
+                                            });
                                     return offsets;
                                 })
                         .get();

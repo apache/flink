@@ -50,7 +50,7 @@ CREATE TABLE hive_table (
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # list the configured configuration
@@ -104,3 +104,69 @@ Was expecting one of:
     "," ...
 
 !error
+
+# test reset remove key
+reset execution.max-idle-state-retention;
+[WARNING] The specified key is not supported anymore.
+!warning
+
+# test reset the deprecated key
+set execution.max-table-result-rows=200;
+[WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
+[INFO] Session property has been set.
+!warning
+
+reset sql-client.execution.max-table-result.rows;
+[INFO] Session property has been reset.
+!info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok
+
+set parallelism.default=3;
+[INFO] Session property has been set.
+!info
+
+# test reset deprecated key
+reset execution.parallelism;
+[WARNING] The specified key 'execution.parallelism' is deprecated. Please use 'parallelism.default' instead.
+[INFO] Session property has been reset.
+!warning
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok
+
+set execution.attached=false;
+[INFO] Session property has been set.
+!info
+
+reset execution.attached;
+[INFO] Session property has been reset.
+!info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS
+rest.port=$VAR_REST_PORT
+!ok

@@ -227,6 +227,16 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public Iterable<ExecutionVertex> getAllExecutionVertices() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
+        return Collections.emptyMap();
+    }
+
+    @Override
     public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {}
 
     @Override
@@ -280,11 +290,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public Iterable<ExecutionVertex> getAllExecutionVertices() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public ExecutionJobVertex getJobVertex(JobVertexID id) {
         throw new UnsupportedOperationException();
     }
@@ -331,11 +336,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
         throw new UnsupportedOperationException();
     }
 

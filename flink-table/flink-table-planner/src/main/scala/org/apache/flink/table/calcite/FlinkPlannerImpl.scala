@@ -19,9 +19,12 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews}
+import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlRichExplain, SqlShowCatalogs,
+  SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases,
+  SqlShowFunctions, SqlShowTables, SqlShowViews}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogReader
+import org.apache.flink.table.parse.CalciteParser
 
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -42,11 +45,11 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
-  * NOTE: this is heavily inspired by Calcite's PlannerImpl.
-  * We need it in order to share the planner between the Table API relational plans
-  * and the SQL relation plans that are created by the Calcite parser.
-  * The main difference is that we do not create a new RelOptPlanner in the ready() method.
-  */
+ * NOTE: this is heavily inspired by Calcite's PlannerImpl.
+ * We need it in order to share the planner between the Table API relational plans
+ * and the SQL relation plans that are created by the Calcite parser.
+ * The main difference is that we do not create a new RelOptPlanner in the ready() method.
+ */
 class FlinkPlannerImpl(
     val config: FrameworkConfig,
     val catalogReaderSupplier: JFunction[JBoolean, CatalogReader],
@@ -61,29 +64,24 @@ class FlinkPlannerImpl(
 
   var validator: FlinkCalciteSqlValidator = _
 
-  def getCompletionHints(sql: String, cursor: Int): Array[String] = {
-    val advisorValidator = new SqlAdvisorValidator(
+  def getSqlAdvisorValidator(): SqlAdvisorValidator = {
+    new SqlAdvisorValidator(
       operatorTable,
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       SqlValidator.Config.DEFAULT
-          .withSqlConformance(config.getParserConfig.conformance()))
-    val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
-    val replaced = Array[String](null)
-    val hints = advisor.getCompletionHints(sql, cursor, replaced)
-      .map(item => item.toIdentifier.toString)
-    hints.toArray
+        .withSqlConformance(config.getParserConfig.conformance()))
   }
 
   /**
-    * Get the [[FlinkCalciteSqlValidator]] instance from this planner, create a new instance
-    * if current validator has not been initialized, or returns the validator
-    * instance directly.
-    *
-    * <p>The validator instance creation is not thread safe.
-    *
-    * @return a new validator instance or current existed one
-    */
+   * Get the [[FlinkCalciteSqlValidator]] instance from this planner, create a new instance
+   * if current validator has not been initialized, or returns the validator
+   * instance directly.
+   *
+   * <p>The validator instance creation is not thread safe.
+   *
+   * @return a new validator instance or current existed one
+   */
   def getOrCreateSqlValidator(): FlinkCalciteSqlValidator = {
     if (validator == null) {
       val catalogReader = catalogReaderSupplier.apply(false)
@@ -136,10 +134,10 @@ class FlinkPlannerImpl(
         return sqlNode
       }
       sqlNode match {
-        case explain: SqlExplain =>
-          val validated = validator.validate(explain.getExplicandum)
-          explain.setOperand(0, validated)
-          explain
+        case richExplain: SqlRichExplain =>
+          val validated = validator.validate(richExplain.getStatement)
+          richExplain.setOperand(0, validated)
+          richExplain
         case _ =>
           validator.validate(sqlNode)
       }

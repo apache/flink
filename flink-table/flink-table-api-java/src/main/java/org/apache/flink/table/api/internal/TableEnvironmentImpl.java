@@ -75,8 +75,8 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -153,9 +153,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
@@ -677,7 +679,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String[] getCompletionHints(String statement, int position) {
-        return planner.getCompletionHints(statement, position);
+        return planner.getParser().getCompletionHints(statement, position);
     }
 
     @Override
@@ -708,7 +710,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
 
-        return executeOperation(operations.get(0));
+        return executeInternal(operations.get(0));
     }
 
     @Override
@@ -720,7 +722,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public TableResult executeInternal(List<ModifyOperation> operations) {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
-        return executeInternal(transformations, sinkIdentifierNames);
+        TableResult result = executeInternal(transformations, sinkIdentifierNames);
+        if (tableConfig.getConfiguration().get(TABLE_DML_SYNC)) {
+            try {
+                result.await();
+            } catch (InterruptedException | ExecutionException e) {
+                result.getJobClient().ifPresent(JobClient::cancel);
+                throw new TableException("Fail to wait execution finish.", e);
+            }
+        }
+        return result;
     }
 
     private TableResult executeInternal(
@@ -750,8 +761,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    @Override
-    public TableResult executeInternal(QueryOperation operation) {
+    private TableResult executeQueryOperation(QueryOperation operation) {
         SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
@@ -808,13 +818,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 || operation instanceof UseDatabaseOperation
                 || operation instanceof LoadModuleOperation
                 || operation instanceof UnloadModuleOperation) {
-            executeOperation(operation);
+            executeInternal(operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);
         }
     }
 
-    private TableResult executeOperation(Operation operation) {
+    @Override
+    public TableResult executeInternal(Operation operation) {
         if (operation instanceof ModifyOperation) {
             return executeInternal(Collections.singletonList((ModifyOperation) operation));
         } else if (operation instanceof CreateTableOperation) {
@@ -1184,7 +1195,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 describeTableOperation.getSqlIdentifier().asSummaryString()));
             }
         } else if (operation instanceof QueryOperation) {
-            return executeInternal((QueryOperation) operation);
+            return executeQueryOperation((QueryOperation) operation);
         } else {
             throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
         }
@@ -1195,11 +1206,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             String catalogName = operation.getCatalogName();
             Map<String, String> properties = operation.getProperties();
-            final CatalogFactory factory =
-                    TableFactoryService.find(CatalogFactory.class, properties, userClassLoader);
 
-            Catalog catalog = factory.createCatalog(catalogName, properties);
+            Catalog catalog =
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            properties,
+                            tableConfig.getConfiguration(),
+                            userClassLoader);
             catalogManager.registerCatalog(catalogName, catalog);
+
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {
             throw new ValidationException(exMsg, e);

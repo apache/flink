@@ -32,6 +32,11 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -66,11 +71,13 @@ import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Test Hive syntax when Hive dialect is used. */
@@ -118,6 +125,20 @@ public class HiveDialectITCase {
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         assertNotEquals(
                 parser.getClass().getName(), tableEnvInternal.getParser().getClass().getName());
+    }
+
+    @Test
+    public void testParseCommand() {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+
+        // hive dialect should use HiveParser
+        assertTrue(parser instanceof HiveParser);
+        assertThat(parser.parse("HELP").get(0), instanceOf(HelpOperation.class));
+        assertThat(parser.parse("clear").get(0), instanceOf(ClearOperation.class));
+        assertThat(parser.parse("SET").get(0), instanceOf(SetOperation.class));
+        assertThat(parser.parse("ResET").get(0), instanceOf(ResetOperation.class));
+        assertThat(parser.parse("Exit").get(0), instanceOf(QuitOperation.class));
     }
 
     @Test

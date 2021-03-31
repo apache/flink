@@ -37,7 +37,6 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -115,8 +114,8 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
     }
 
     @Override
-    public Optional<JobID> getJobId() {
-        return Optional.of(jobID);
+    public JobID getJobId() {
+        return jobID;
     }
 
     @Override

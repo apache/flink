@@ -27,7 +27,7 @@ cdef class FunctionOperation(Operation):
     cdef bint _is_python_coder
     cdef StreamCoderImpl _value_coder_impl
     cdef BaseCoderImpl _output_coder
-    cdef object func
+    cdef object process_element
     cdef object operation
     cdef object operation_cls
     cdef object generate_operation(self)

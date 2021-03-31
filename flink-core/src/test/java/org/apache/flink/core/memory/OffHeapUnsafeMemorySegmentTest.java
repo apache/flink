@@ -23,7 +23,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
@@ -57,5 +60,32 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
                         10, null, () -> cleanerFuture.complete(null))
                 .free();
         assertTrue(cleanerFuture.isDone());
+    }
+
+    @Test
+    public void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
+        final AtomicInteger counter = new AtomicInteger(0);
+        final Runnable cleaner =
+                () -> {
+                    try {
+                        counter.incrementAndGet();
+                        // make the cleaner unlikely to finish before another invocation (if any)
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                };
+
+        final MemorySegment segment =
+                MemorySegmentFactory.allocateOffHeapUnsafeMemory(10, null, cleaner);
+
+        final Thread t1 = new Thread(segment::free);
+        final Thread t2 = new Thread(segment::free);
+        t1.start();
+        t2.start();
+        t1.join();
+        t2.join();
+
+        assertThat(counter.get(), is(1));
     }
 }

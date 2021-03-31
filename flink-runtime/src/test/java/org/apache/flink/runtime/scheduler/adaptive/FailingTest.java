@@ -145,11 +145,7 @@ public class FailingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        executionGraph,
-                        (throwable) -> {
-                            throw new RuntimeException("Error in test", throwable);
-                        });
+                new TestingOperatorCoordinatorHandler();
         executionGraph.transitionToRunning();
         return new Failing(
                 ctx,
@@ -163,10 +159,11 @@ public class FailingTest extends TestLogger {
     private static class MockFailingContext extends MockStateWithExecutionGraphContext
             implements Failing.Context {
 
-        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
-                new StateValidator<>("cancelling");
+        private final StateValidator<ExecutingTest.ExecutingAndCancellingArguments>
+                cancellingStateValidator = new StateValidator<>("cancelling");
 
-        public void setExpectCanceling(Consumer<ExecutingTest.CancellingArguments> asserter) {
+        public void setExpectCanceling(
+                Consumer<ExecutingTest.ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
 
@@ -176,7 +173,7 @@ public class FailingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new ExecutingTest.CancellingArguments(
+                    new ExecutingTest.ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }

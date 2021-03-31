@@ -48,7 +48,7 @@ org.apache.flink.table.api.ValidationException: Catalog my does not exist
 # ==========================================================================
 
 create catalog c1 with ('type'='generic_in_memory');
-[INFO] Catalog has been created.
+[INFO] Execute statement succeed.
 !info
 
 show catalogs;
@@ -71,7 +71,7 @@ show current catalog;
 !ok
 
 use catalog c1;
-[INFO] Catalog changed.
+[INFO] Execute statement succeed.
 !info
 
 show current catalog;
@@ -84,7 +84,7 @@ show current catalog;
 !ok
 
 drop catalog default_catalog;
-[INFO] Catalog has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -92,7 +92,7 @@ drop catalog default_catalog;
 # ==========================================================================
 
 create database db1;
-[INFO] Database has been created.
+[INFO] Execute statement succeed.
 !info
 
 show databases;
@@ -115,7 +115,7 @@ show current database;
 !ok
 
 use db1;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show current database;
@@ -128,11 +128,11 @@ show current database;
 !ok
 
 create database db2 comment 'db2_comment' with ('k1' = 'v1');
-[INFO] Database has been created.
+[INFO] Execute statement succeed.
 !info
 
 alter database db2 set ('k1' = 'a', 'k2' = 'b');
-[INFO] Alter database succeeded!
+[INFO] Execute statement succeed.
 !info
 
 # TODO: show database properties when we support DESCRIBE DATABSE
@@ -149,7 +149,7 @@ show databases;
 !ok
 
 drop database if exists db2;
-[INFO] Database has been removed.
+[INFO] Execute statement succeed.
 !info
 
 show databases;
@@ -167,23 +167,23 @@ show databases;
 # ==========================================================================
 
 create catalog `mod` with ('type'='generic_in_memory');
-[INFO] Catalog has been created.
+[INFO] Execute statement succeed.
 !info
 
 use catalog `mod`;
-[INFO] Catalog changed.
+[INFO] Execute statement succeed.
 !info
 
 use `default`;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 drop database `default`;
-[INFO] Database has been removed.
+[INFO] Execute statement succeed.
 !info
 
 drop catalog `mod`;
-[INFO] Catalog has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # ==========================================================================
@@ -191,15 +191,14 @@ drop catalog `mod`;
 # ==========================================================================
 
 create catalog hivecatalog with (
- 'type' = 'hive',
- 'test' = 'test',  -- this makes sure we use TestHiveCatalogFactory
+ 'type' = 'hive-test',
  'hive-version' = '2.3.4'
 );
-[INFO] Catalog has been created.
+[INFO] Execute statement succeed.
 !info
 
 use catalog hivecatalog;
-[INFO] Catalog changed.
+[INFO] Execute statement succeed.
 !info
 
 show current catalog;
@@ -231,7 +230,7 @@ show tables;
 !ok
 
 use additional_test_database;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -288,15 +287,15 @@ Received a total of 0 row
 # ==========================================================================
 
 use catalog hivecatalog;
-[INFO] Catalog changed.
+[INFO] Execute statement succeed.
 !info
 
 create table MyTable1 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 create table MyTable2 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # hive catalog is case-insensitive
@@ -311,21 +310,51 @@ show tables;
 3 rows in set
 !ok
 
+show views;
+Empty set
+!ok
+
+create view MyView1 as select 1 + 1;
+[INFO] Execute statement succeed.
+!info
+
+create view MyView2 as select 1 + 1;
+[INFO] Execute statement succeed.
+!info
+
+show views;
++-----------+
+| view name |
++-----------+
+|   myview1 |
+|   myview2 |
++-----------+
+2 rows in set
+!ok
+
 # test create with full qualified name
 create table c1.db1.MyTable3 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 create table c1.db1.MyTable4 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
+!info
+
+create view c1.db1.MyView3 as select 1 + 1;
+[INFO] Execute statement succeed.
+!info
+
+create view c1.db1.MyView4 as select 1 + 1;
+[INFO] Execute statement succeed.
 !info
 
 use catalog c1;
-[INFO] Catalog changed.
+[INFO] Execute statement succeed.
 !info
 
 use db1;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -334,21 +363,41 @@ show tables;
 +------------+
 |   MyTable3 |
 |   MyTable4 |
+|    MyView3 |
+|    MyView4 |
 +------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView3 |
+|   MyView4 |
++-----------+
 2 rows in set
 !ok
 
 # test create with database name
 create table `default`.MyTable5 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 create table `default`.MyTable6 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
+!info
+
+create view `default`.MyView5 as select 1 + 1;
+[INFO] Execute statement succeed.
+!info
+
+create view `default`.MyView6 as select 1 + 1;
+[INFO] Execute statement succeed.
 !info
 
 use `default`;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -357,16 +406,32 @@ show tables;
 +------------+
 |   MyTable5 |
 |   MyTable6 |
+|    MyView5 |
+|    MyView6 |
 +------------+
+4 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
+|   MyView6 |
++-----------+
 2 rows in set
 !ok
 
 drop table db1.MyTable3;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
+!info
+
+drop view db1.MyView3;
+[INFO] Execute statement succeed.
 !info
 
 use db1;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -374,16 +439,30 @@ show tables;
 | table name |
 +------------+
 |   MyTable4 |
+|    MyView4 |
 +------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView4 |
++-----------+
 1 row in set
 !ok
 
 drop table c1.`default`.MyTable6;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
+!info
+
+drop view c1.`default`.MyView6;
+[INFO] Execute statement succeed.
 !info
 
 use `default`;
-[INFO] Database changed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -391,7 +470,17 @@ show tables;
 | table name |
 +------------+
 |   MyTable5 |
+|    MyView5 |
 +------------+
+2 rows in set
+!ok
+
+show views;
++-----------+
+| view name |
++-----------+
+|   MyView5 |
++-----------+
 1 row in set
 !ok
 
@@ -404,7 +493,7 @@ SET sql-client.execution.result-mode = changelog;
 !info
 
 create table MyTable7 (a int, b string);
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -413,8 +502,9 @@ show tables;
 +------------+
 |   MyTable5 |
 |   MyTable7 |
+|    MyView5 |
 +------------+
-2 rows in set
+3 rows in set
 !ok
 
 reset;
@@ -422,7 +512,7 @@ reset;
 !info
 
 drop table MyTable5;
-[INFO] Table has been removed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -430,6 +520,7 @@ show tables;
 | table name |
 +------------+
 |   MyTable7 |
+|    MyView5 |
 +------------+
-1 row in set
+2 rows in set
 !ok

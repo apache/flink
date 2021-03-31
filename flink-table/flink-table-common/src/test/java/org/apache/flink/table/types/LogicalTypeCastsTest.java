@@ -25,11 +25,13 @@ import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -155,7 +157,32 @@ public class LogicalTypeCastsTest {
                         new VarCharType(Integer.MAX_VALUE),
                         false,
                         false
-                    }
+                    },
+                    // test implicit cast between timestamp type and timestamp_ltz type
+                    {new TimestampType(9), new TimestampType(9), true, true},
+                    {new LocalZonedTimestampType(9), new LocalZonedTimestampType(9), true, true},
+                    {new TimestampType(3), new LocalZonedTimestampType(3), true, true},
+                    {new LocalZonedTimestampType(3), new TimestampType(3), true, true},
+                    {new TimestampType(3), new LocalZonedTimestampType(6), true, true},
+                    {new LocalZonedTimestampType(3), new TimestampType(6), true, true},
+                    {new TimestampType(false, 3), new LocalZonedTimestampType(6), true, true},
+                    {new LocalZonedTimestampType(false, 3), new TimestampType(6), true, true},
+                    {new TimestampType(6), new LocalZonedTimestampType(3), true, true},
+                    {new LocalZonedTimestampType(6), new TimestampType(3), true, true},
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new TimestampType()),
+                                        new RowField("f2", new LocalZonedTimestampType()),
+                                        new RowField("f3", new IntType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new LocalZonedTimestampType()),
+                                        new RowField("f2", new TimestampType()),
+                                        new RowField("f3", new IntType()))),
+                        true,
+                        true
+                    },
                 });
     }
 

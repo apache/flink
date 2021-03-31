@@ -36,8 +36,9 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
 import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
@@ -56,7 +57,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
 
+import java.lang.{Long => JLong}
 import java.util
+import java.util.TimeZone
+
+import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -152,7 +157,7 @@ abstract class PlannerBase(
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration
+    validateAndOverrideConfiguration()
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
@@ -160,21 +165,9 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    translateToPlan(execGraph)
-  }
-
-  protected def overrideEnvParallelism(): Unit = {
-    // Use config parallelism to override env parallelism.
-    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
-    if (defaultParallelism > 0) {
-      getExecEnv.getConfig.setParallelism(defaultParallelism)
-    }
-  }
-
-  override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = createFlinkPlanner
-    planner.getCompletionHints(statement, position)
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
   }
 
   /**
@@ -293,9 +286,9 @@ abstract class PlannerBase(
   }
 
   /**
-    * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
-   * and tries to reuse duplicate sub-plans.
-    */
+   * Converts [[FlinkPhysicalRel]] DAG to [[ExecNodeGraph]],
+   * tries to reuse duplicate sub-plans and transforms the graph based on the given processors.
+   */
   @VisibleForTesting
   private[flink] def translateToExecNodeGraph(optimizedRelNodes: Seq[RelNode]): ExecNodeGraph = {
     val nonPhysicalRel = optimizedRelNodes.filterNot(_.isInstanceOf[FlinkPhysicalRel])
@@ -313,8 +306,15 @@ abstract class PlannerBase(
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
-    generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+    val execGraph = generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
+
+    // process the graph
+    val context = new ProcessorContext(this)
+    val processors = getExecNodeGraphProcessors
+    processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
+
+  protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor]
 
   /**
     * Translates an [[ExecNodeGraph]] into a [[Transformation]] DAG.
@@ -424,7 +424,9 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+    val jsonPlan = ExecNodeGraph.createJsonPlan(execGraph, createSerdeContext)
+    cleanupInternalConfigurations
+    jsonPlan
   }
 
   override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
@@ -433,7 +435,9 @@ abstract class PlannerBase(
     }
     validateAndOverrideConfiguration()
     val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
-    translateToPlan(execGraph)
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
   }
 
   protected def createSerdeContext: SerdeContext = {
@@ -455,7 +459,8 @@ abstract class PlannerBase(
    * the configuration before planner do optimization with [[ModifyOperation]] or other works.
    */
   protected def validateAndOverrideConfiguration(): Unit = {
-    if (!config.getConfiguration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
+    val configuration = config.getConfiguration
+    if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
       throw new IllegalArgumentException(
         "Mismatch between configured planner and actual planner. " +
           "Currently, the 'table.planner' can only be set when instantiating the " +
@@ -463,9 +468,32 @@ abstract class PlannerBase(
           "Please instantiate a new TableEnvironment if necessary.");
     }
 
+    // Add query start time to TableConfig, these config are used internally,
+    // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
+    val epochTime :JLong = System.currentTimeMillis()
+    configuration.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    val localTime :JLong =  epochTime +
+      TimeZone.getTimeZone(config.getLocalTimeZone).getOffset(epochTime)
+    configuration.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+
     getExecEnv.configure(
-      getTableConfig.getConfiguration,
+      configuration,
       Thread.currentThread().getContextClassLoader)
-    overrideEnvParallelism()
+
+    // Use config parallelism to override env parallelism.
+    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
+    if (defaultParallelism > 0) {
+      getExecEnv.getConfig.setParallelism(defaultParallelism)
+    }
+  }
+
+  /**
+   * Cleanup all internal configuration after plan translation finished.
+   */
+  protected def cleanupInternalConfigurations(): Unit = {
+    val configuration = config.getConfiguration
+    configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
+    configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
   }
 }

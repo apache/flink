@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -506,8 +507,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public void disconnectJobManager(final JobID jobId, final Exception cause) {
-        closeJobManagerConnection(jobId, cause);
+    public void disconnectJobManager(
+            final JobID jobId, JobStatus jobStatus, final Exception cause) {
+        closeJobManagerConnection(
+                jobId,
+                jobStatus.isGloballyTerminalState()
+                        ? ResourceRequirementHandling.CLEAR
+                        : ResourceRequirementHandling.RETAIN,
+                cause);
     }
 
     @Override
@@ -671,7 +678,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID resourceId, Time timeout) {
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
@@ -680,21 +687,23 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(resourceId));
         } else {
             final InstanceID instanceId = taskExecutor.getInstanceID();
-            final TaskManagerInfo taskManagerInfo =
-                    new TaskManagerInfo(
-                            resourceId,
-                            taskExecutor.getTaskExecutorGateway().getAddress(),
-                            taskExecutor.getDataPort(),
-                            taskExecutor.getJmxPort(),
-                            taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
-                            slotManager.getNumberRegisteredSlotsOf(instanceId),
-                            slotManager.getNumberFreeSlotsOf(instanceId),
-                            slotManager.getRegisteredResourceOf(instanceId),
-                            slotManager.getFreeResourceOf(instanceId),
-                            taskExecutor.getHardwareDescription(),
-                            taskExecutor.getMemoryConfiguration());
+            final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                    new TaskManagerInfoWithSlots(
+                            new TaskManagerInfo(
+                                    resourceId,
+                                    taskExecutor.getTaskExecutorGateway().getAddress(),
+                                    taskExecutor.getDataPort(),
+                                    taskExecutor.getJmxPort(),
+                                    taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
+                                    slotManager.getNumberRegisteredSlotsOf(instanceId),
+                                    slotManager.getNumberFreeSlotsOf(instanceId),
+                                    slotManager.getRegisteredResourceOf(instanceId),
+                                    slotManager.getFreeResourceOf(instanceId),
+                                    taskExecutor.getHardwareDescription(),
+                                    taskExecutor.getMemoryConfiguration()),
+                            slotManager.getAllocatedSlotsOf(instanceId));
 
-            return CompletableFuture.completedFuture(taskManagerInfo);
+            return CompletableFuture.completedFuture(taskManagerInfoWithSlots);
         }
     }
 
@@ -869,8 +878,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         jobManagerAddress);
             } else {
                 // tell old job manager that he is no longer the job leader
-                disconnectJobManager(
+                closeJobManagerConnection(
                         oldJobManagerRegistration.getJobID(),
+                        ResourceRequirementHandling.RETAIN,
                         new Exception("New job leader for job " + jobId + " found."));
 
                 JobManagerRegistration jobManagerRegistration =
@@ -1010,9 +1020,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      * manager has failed.
      *
      * @param jobId identifying the job whose leader shall be disconnected.
+     * @param resourceRequirementHandling indicating how existing resource requirements for the
+     *     corresponding job should be handled
      * @param cause The exception which cause the JobManager failed.
      */
-    protected void closeJobManagerConnection(JobID jobId, Exception cause) {
+    protected void closeJobManagerConnection(
+            JobID jobId, ResourceRequirementHandling resourceRequirementHandling, Exception cause) {
         JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.remove(jobId);
 
         if (jobManagerRegistration != null) {
@@ -1031,8 +1044,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             jmResourceIdRegistrations.remove(jobManagerResourceId);
 
-            slotManager.processResourceRequirements(
-                    ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+            if (resourceRequirementHandling == ResourceRequirementHandling.CLEAR) {
+                slotManager.processResourceRequirements(
+                        ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+            }
 
             // tell the job manager about the disconnect
             jobMasterGateway.disconnectResourceManager(getFencingToken(), cause);
@@ -1083,7 +1098,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         if (jobManagerRegistrations.containsKey(jobId)) {
-            disconnectJobManager(jobId, new Exception("Job " + jobId + "was removed"));
+            closeJobManagerConnection(
+                    jobId,
+                    ResourceRequirementHandling.CLEAR,
+                    new Exception("Job " + jobId + "was removed"));
         }
     }
 
@@ -1092,7 +1110,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
             if (Objects.equals(jobManagerRegistration.getJobMasterId(), oldJobMasterId)) {
-                disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
+                closeJobManagerConnection(
+                        jobId,
+                        ResourceRequirementHandling.RETAIN,
+                        new Exception("Job leader lost leadership."));
             } else {
                 log.debug(
                         "Discarding job leader lost leadership, because a new job leader was found for job {}. ",
@@ -1130,6 +1151,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             // unregister in order to clean up potential left over state
             slotManager.unregisterTaskManager(instanceId, cause);
         }
+    }
+
+    private enum ResourceRequirementHandling {
+        RETAIN,
+        CLEAR
     }
 
     // ------------------------------------------------------------------------
@@ -1506,6 +1532,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 if (jobManagerRegistration != null) {
                     closeJobManagerConnection(
                             jobManagerRegistration.getJobID(),
+                            ResourceRequirementHandling.RETAIN,
                             new TimeoutException(
                                     "The heartbeat of JobManager with id "
                                             + resourceID.getStringWithMetadata()

@@ -60,7 +60,9 @@ public class PollingRecordPublisher implements RecordPublisher {
 
     private final int maxNumberOfRecordsPerFetch;
 
-    private final long expiredIteratorBackoffMillis;
+    private final long fetchIntervalMillis;
+
+    private long processingStartTimeNanos = System.nanoTime();
 
     /**
      * A Polling implementation of {@link RecordPublisher} that polls kinesis for records. The
@@ -71,8 +73,7 @@ public class PollingRecordPublisher implements RecordPublisher {
      * @param metricsReporter a metric reporter used to output metrics
      * @param kinesisProxy the proxy used to communicate with kinesis
      * @param maxNumberOfRecordsPerFetch the maximum number of records to retrieve per batch
-     * @param expiredIteratorBackoffMillis the duration to sleep in the event of an {@link
-     *     ExpiredIteratorException}
+     * @param fetchIntervalMillis the target interval between each GetRecords invocation
      */
     PollingRecordPublisher(
             final StartingPosition startingPosition,
@@ -80,16 +81,16 @@ public class PollingRecordPublisher implements RecordPublisher {
             final PollingRecordPublisherMetricsReporter metricsReporter,
             final KinesisProxyInterface kinesisProxy,
             final int maxNumberOfRecordsPerFetch,
-            final long expiredIteratorBackoffMillis)
+            final long fetchIntervalMillis)
             throws InterruptedException {
         this.nextStartingPosition = Preconditions.checkNotNull(startingPosition);
         this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
         this.metricsReporter = Preconditions.checkNotNull(metricsReporter);
         this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
         this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
-        this.expiredIteratorBackoffMillis = expiredIteratorBackoffMillis;
+        this.fetchIntervalMillis = fetchIntervalMillis;
 
-        Preconditions.checkArgument(expiredIteratorBackoffMillis >= 0);
+        Preconditions.checkArgument(fetchIntervalMillis >= 0);
         Preconditions.checkArgument(maxNumberOfRecordsPerFetch > 0);
 
         this.nextShardItr = getShardIterator();
@@ -118,6 +119,14 @@ public class PollingRecordPublisher implements RecordPublisher {
 
         nextStartingPosition = getNextStartingPosition(latestSequenceNumber);
         nextShardItr = result.getNextShardIterator();
+
+        long adjustmentEndTimeNanos =
+                adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());
+        long runLoopTimeNanos = adjustmentEndTimeNanos - processingStartTimeNanos;
+
+        processingStartTimeNanos = adjustmentEndTimeNanos;
+        metricsReporter.setRunLoopTimeNanos(runLoopTimeNanos);
+
         return nextShardItr == null ? COMPLETE : INCOMPLETE;
     }
 
@@ -168,8 +177,8 @@ public class PollingRecordPublisher implements RecordPublisher {
 
                 // sleep for the fetch interval before the next getRecords attempt with the
                 // refreshed iterator
-                if (expiredIteratorBackoffMillis != 0) {
-                    Thread.sleep(expiredIteratorBackoffMillis);
+                if (fetchIntervalMillis != 0) {
+                    Thread.sleep(fetchIntervalMillis);
                 }
             }
         }
@@ -187,5 +196,28 @@ public class PollingRecordPublisher implements RecordPublisher {
                 subscribedShard,
                 nextStartingPosition.getShardIteratorType().toString(),
                 nextStartingPosition.getStartingMarker());
+    }
+
+    /**
+     * Adjusts loop timing to match target frequency if specified.
+     *
+     * @param processingStartTimeNanos The start time of the run loop "work"
+     * @param processingEndTimeNanos The end time of the run loop "work"
+     * @return The System.nanoTime() after the sleep (if any)
+     * @throws InterruptedException
+     */
+    private long adjustRunLoopFrequency(long processingStartTimeNanos, long processingEndTimeNanos)
+            throws InterruptedException {
+        long endTimeNanos = processingEndTimeNanos;
+        if (fetchIntervalMillis != 0) {
+            long processingTimeNanos = processingEndTimeNanos - processingStartTimeNanos;
+            long sleepTimeMillis = fetchIntervalMillis - (processingTimeNanos / 1_000_000);
+            if (sleepTimeMillis > 0) {
+                Thread.sleep(sleepTimeMillis);
+                endTimeNanos = System.nanoTime();
+                metricsReporter.setSleepTimeMillis(sleepTimeMillis);
+            }
+        }
+        return endTimeNanos;
     }
 }

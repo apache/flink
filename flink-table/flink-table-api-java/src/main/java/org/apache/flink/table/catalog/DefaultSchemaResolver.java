@@ -221,7 +221,7 @@ class DefaultSchemaResolver implements SchemaResolver {
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
         return Collections.singletonList(
-                new WatermarkSpec(watermarkSpec.getColumnName(), watermarkExpression));
+                WatermarkSpec.of(watermarkSpec.getColumnName(), watermarkExpression));
     }
 
     private void validateTimeColumn(String columnName, List<Column> columns) {

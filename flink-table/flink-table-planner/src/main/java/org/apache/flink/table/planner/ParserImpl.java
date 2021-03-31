@@ -20,21 +20,28 @@ package org.apache.flink.table.planner;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.parse.CalciteParser;
+import org.apache.flink.table.parse.ExtendedParser;
 import org.apache.flink.table.sqlexec.SqlToOperationConverter;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.advise.SqlAdvisor;
+import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** Implementation of {@link Parser} that uses Calcite. */
 public class ParserImpl implements Parser {
@@ -46,6 +53,7 @@ public class ParserImpl implements Parser {
     // multiple statements parsing
     private final Supplier<FlinkPlannerImpl> validatorSupplier;
     private final Supplier<CalciteParser> calciteParserSupplier;
+    private static final ExtendedParser EXTENDED_PARSER = ExtendedParser.INSTANCE;
 
     public ParserImpl(
             CatalogManager catalogManager,
@@ -56,11 +64,25 @@ public class ParserImpl implements Parser {
         this.calciteParserSupplier = calciteParserSupplier;
     }
 
+    /**
+     * When parsing statement, it first uses {@link ExtendedParser} to parse statements. If {@link
+     * ExtendedParser} fails to parse statement, it uses the {@link CalciteParser} to parse
+     * statements.
+     *
+     * @param statement input statement.
+     * @return parsed operations.
+     */
     @Override
     public List<Operation> parse(String statement) {
         CalciteParser parser = calciteParserSupplier.get();
         FlinkPlannerImpl planner = validatorSupplier.get();
         // parse the sql query
+
+        Optional<Operation> command = EXTENDED_PARSER.parse(statement);
+        if (command.isPresent()) {
+            return Collections.singletonList(command.get());
+        }
+
         SqlNode parsed = parser.parse(statement);
 
         Operation operation =
@@ -86,5 +108,26 @@ public class ParserImpl implements Parser {
     public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
         throw new UnsupportedOperationException(
                 "Computed columns is only supported by the Blink planner.");
+    }
+
+    @Override
+    public String[] getCompletionHints(String statement, int position) {
+        List<String> candidates =
+                new ArrayList<>(
+                        Arrays.asList(EXTENDED_PARSER.getCompletionHints(statement, position)));
+
+        SqlAdvisorValidator validator = validatorSupplier.get().getSqlAdvisorValidator();
+        SqlAdvisor advisor =
+                new SqlAdvisor(validator, validatorSupplier.get().config().getParserConfig());
+        String[] replaced = new String[1];
+
+        List<String> sqlHints =
+                advisor.getCompletionHints(statement, position, replaced).stream()
+                        .map(item -> item.toIdentifier().toString())
+                        .collect(Collectors.toList());
+
+        candidates.addAll(sqlHints);
+
+        return candidates.toArray(new String[0]);
     }
 }

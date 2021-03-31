@@ -30,7 +30,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
     @JsonSubTypes.Type(value = PlannerProctimeAttribute.class),
     @JsonSubTypes.Type(value = PlannerRowtimeAttribute.class),
     @JsonSubTypes.Type(value = PlannerWindowStart.class),
-    @JsonSubTypes.Type(value = PlannerWindowEnd.class)
+    @JsonSubTypes.Type(value = PlannerWindowEnd.class),
+    @JsonSubTypes.Type(value = PlannerSliceEnd.class)
 })
 public interface PlannerWindowProperty {
 

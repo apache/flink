@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
@@ -27,7 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /** Message headers for the {@link JobExceptionsHandler}. */
 public class JobExceptionsHeaders
         implements MessageHeaders<
-                EmptyRequestBody, JobExceptionsInfo, JobExceptionsMessageParameters> {
+                EmptyRequestBody, JobExceptionsInfoWithHistory, JobExceptionsMessageParameters> {
 
     private static final JobExceptionsHeaders INSTANCE = new JobExceptionsHeaders();
 
@@ -41,8 +42,8 @@ public class JobExceptionsHeaders
     }
 
     @Override
-    public Class<JobExceptionsInfo> getResponseClass() {
-        return JobExceptionsInfo.class;
+    public Class<JobExceptionsInfoWithHistory> getResponseClass() {
+        return JobExceptionsInfoWithHistory.class;
     }
 
     @Override
@@ -71,7 +72,14 @@ public class JobExceptionsHeaders
 
     @Override
     public String getDescription() {
-        return "Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines "
-                + "whether more exceptions occurred, but are not listed, because the response would otherwise get too big.";
+        return String.format(
+                "Returns the most recent exceptions that have been handled by Flink for this job. The "
+                        + "'exceptionHistory.truncated' flag defines whether exceptions were filtered "
+                        + "out through the GET parameter. The backend collects only a specific amount "
+                        + "of most recent exceptions per job. This can be configured through %s in the "
+                        + "Flink configuration. The following first-level members are deprecated: "
+                        + "'root-exception', 'timestamp', 'timestamp', 'truncated'. Use the data provided "
+                        + "through 'exceptionHistory', instead.",
+                JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE.key());
     }
 }

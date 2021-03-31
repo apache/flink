@@ -45,8 +45,11 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.exec.FunctionUtils;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
@@ -85,6 +88,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Shim for Hive version 1.0.0. */
 public class HiveShimV100 implements HiveShim {
@@ -282,18 +286,42 @@ public class HiveShimV100 implements HiveShim {
 
     @Override
     public Set<String> listBuiltInFunctions() {
-        // FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
-        // prior to Hive 1.2.0
-        throw new UnsupportedOperationException(
-                "Listing built in functions are not supported until Hive 1.2.0");
+        try {
+            Method method =
+                    FunctionRegistry.class.getDeclaredMethod("getFunctionNames", boolean.class);
+            method.setAccessible(true);
+            // don't search HMS cause we're only interested in built-in functions
+            Set<String> names = (Set<String>) method.invoke(null, false);
+
+            return names.stream()
+                    .filter(n -> getBuiltInFunctionInfo(n).isPresent())
+                    .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
+        }
     }
 
     @Override
     public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
-        // FunctionInfo doesn't have isBuiltIn() API to tell whether it's a builtin function or not
-        // prior to Hive 1.2.0
-        throw new UnsupportedOperationException(
-                "Getting built in functions are not supported until Hive 1.2.0");
+        // filter out catalog functions since they're not built-in functions and can cause problems
+        // for tests
+        if (isCatalogFunctionName(name)) {
+            return Optional.empty();
+        }
+        try {
+            Optional<FunctionInfo> functionInfo =
+                    Optional.ofNullable(FunctionRegistry.getFunctionInfo(name));
+            if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
+                return functionInfo;
+            } else {
+                return Optional.empty();
+            }
+        } catch (SemanticException e) {
+            throw new FlinkHiveException(
+                    String.format("Failed getting function info for %s", name), e);
+        } catch (NullPointerException e) {
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -379,6 +407,14 @@ public class HiveShimV100 implements HiveShim {
     public BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
             Configuration conf, String schema, LogicalType[] fieldTypes) {
         return new OrcNoHiveBulkWriterFactory(conf, schema, fieldTypes);
+    }
+
+    boolean isBuiltInFunctionInfo(FunctionInfo info) {
+        return info.isNative();
+    }
+
+    private static boolean isCatalogFunctionName(String funcName) {
+        return FunctionUtils.isQualifiedFunctionName(funcName);
     }
 
     Optional<Writable> javaToWritable(@Nonnull Object value) {

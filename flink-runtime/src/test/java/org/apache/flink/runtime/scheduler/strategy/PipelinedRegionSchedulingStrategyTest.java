@@ -19,7 +19,15 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
 
@@ -29,6 +37,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,6 +47,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link PipelinedRegionSchedulingStrategy}. */
 public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
@@ -200,11 +210,75 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
     }
 
+    @Test
+    public void testSchedulingTopologyWithCrossRegionConsumedPartitionGroups() throws Exception {
+        final JobVertex v1 = createJobVertex("v1", 4);
+        final JobVertex v2 = createJobVertex("v2", 3);
+        final JobVertex v3 = createJobVertex("v3", 2);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        v3.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
+        final ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+
+        final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
+
+        // Test whether the topology is built correctly
+        final List<SchedulingPipelinedRegion> regions = new ArrayList<>();
+        schedulingTopology.getAllPipelinedRegions().forEach(regions::add);
+        assertEquals(2, regions.size());
+
+        final ExecutionVertex v31 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[0];
+
+        final Set<ExecutionVertexID> region1 = new HashSet<>();
+        schedulingTopology
+                .getPipelinedRegionOfVertex(v31.getID())
+                .getVertices()
+                .forEach(vertex -> region1.add(vertex.getId()));
+        assertEquals(5, region1.size());
+
+        final ExecutionVertex v32 = executionGraph.getJobVertex(v3.getID()).getTaskVertices()[1];
+
+        final Set<ExecutionVertexID> region2 = new HashSet<>();
+        schedulingTopology
+                .getPipelinedRegionOfVertex(v32.getID())
+                .getVertices()
+                .forEach(vertex -> region2.add(vertex.getId()));
+        assertEquals(4, region2.size());
+
+        // Test whether the correct region is scheduled correctly
+        startScheduling(schedulingTopology);
+
+        assertEquals(1, testingSchedulerOperation.getScheduledVertices().size());
+        final List<ExecutionVertexDeploymentOption> deploymentOptions =
+                testingSchedulerOperation.getScheduledVertices().get(0);
+        assertEquals(5, deploymentOptions.size());
+
+        for (ExecutionVertexDeploymentOption deploymentOption : deploymentOptions) {
+            assertTrue(region1.contains(deploymentOption.getExecutionVertexId()));
+        }
+    }
+
+    private static JobVertex createJobVertex(String vertexName, int parallelism) {
+        JobVertex jobVertex = new JobVertex(vertexName);
+        jobVertex.setParallelism(parallelism);
+        jobVertex.setInvokableClass(AbstractInvokable.class);
+        return jobVertex;
+    }
+
     private PipelinedRegionSchedulingStrategy startScheduling(
-            TestingSchedulingTopology testingSchedulingTopology) {
+            SchedulingTopology schedulingTopology) {
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
                 new PipelinedRegionSchedulingStrategy(
-                        testingSchedulerOperation, testingSchedulingTopology);
+                        testingSchedulerOperation, schedulingTopology);
         schedulingStrategy.startScheduling();
         return schedulingStrategy;
     }

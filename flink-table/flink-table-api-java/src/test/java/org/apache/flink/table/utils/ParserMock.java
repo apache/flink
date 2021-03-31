@@ -42,4 +42,9 @@ public class ParserMock implements Parser {
     public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
         return null;
     }
+
+    @Override
+    public String[] getCompletionHints(String statement, int position) {
+        throw new UnsupportedOperationException("Unsupported operation.");
+    }
 }

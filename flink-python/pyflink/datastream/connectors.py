@@ -19,17 +19,20 @@ import abc
 from enum import Enum
 from typing import Dict, List, Union
 
-from pyflink.common import typeinfo
+from pyflink.common import typeinfo, Duration
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
 from pyflink.common.typeinfo import RowTypeInfo, TypeInformation
-from pyflink.datastream.functions import SourceFunction, SinkFunction
+from pyflink.datastream.functions import SourceFunction, SinkFunction, JavaFunctionWrapper
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class, to_jarray
+from pyflink.util.java_utils import load_java_class, to_jarray
 
-from py4j.java_gateway import java_import
-
+from py4j.java_gateway import java_import, JavaObject
 
 __all__ = [
+    'FileEnumeratorProvider',
+    'FileSource',
+    'FileSourceBuilder',
+    'FileSplitAssignerProvider',
     'FlinkKafkaConsumer',
     'FlinkKafkaProducer',
     'JdbcSink',
@@ -37,6 +40,8 @@ __all__ = [
     'JdbcExecutionOptions',
     'RollingPolicy',
     'DefaultRollingPolicy',
+    'Source',
+    'StreamFormat',
     'StreamingFileSink',
     'OutputFileConfig']
 
@@ -661,3 +666,259 @@ class OutputFileConfig(object):
 
         def build(self) -> 'OutputFileConfig':
             return OutputFileConfig(self.part_prefix, self.part_suffix)
+
+
+class Source(JavaFunctionWrapper):
+    """
+    Base class for all unified data source in Flink.
+    """
+
+    def __init__(self, source: Union[str, JavaObject]):
+        """
+        Constructor of Source.
+
+        :param source: The java Source object.
+        """
+        super(Source, self).__init__(source)
+
+
+class StreamFormat(object):
+    """
+    A reader format that reads individual records from a stream.
+
+    Compared to the :class:`~pyflink.datastream.connectors.FileSource.BulkFormat`, the stream
+    format handles a few things out-of-the-box, like deciding how to batch records or dealing
+    with compression.
+
+    Internally in the file source, the readers pass batches of records from the reading threads
+    (that perform the typically blocking I/O operations) to the async mailbox threads that do
+    the streaming and batch data processing. Passing records in batches
+    (rather than one-at-a-time) much reduces the thread-to-thread handover overhead.
+
+    This batching is by default based on I/O fetch size for the StreamFormat, meaning the
+    set of records derived from one I/O buffer will be handed over as one. See config option
+    `source.file.stream.io-fetch-size` to configure that fetch size.
+    """
+
+    def __init__(self, j_stream_format):
+        self._j_stream_format = j_stream_format
+
+    @staticmethod
+    def text_line_format(charset_name: str = "UTF-8") -> 'StreamFormat':
+        """
+        Creates a reader format that text lines from a file.
+
+        The reader uses Java's built-in java.io.InputStreamReader to decode the byte stream
+        using various supported charset encodings.
+
+        This format does not support optimized recovery from checkpoints. On recovery, it will
+        re-read and discard the number of lined that were processed before the last checkpoint.
+        That is due to the fact that the offsets of lines in the file cannot be tracked through
+        the charset decoders with their internal buffering of stream input and charset decoder
+        state.
+
+        :param charset_name: The charset to decode the byte stream.
+        """
+        j_stream_format = get_gateway().jvm.org.apache.flink.connector.file.src.reader. \
+            TextLineFormat(charset_name)
+        return StreamFormat(j_stream_format)
+
+
+class FileEnumeratorProvider(object):
+    """
+    Factory for FileEnumerator which task is to discover all files to be read and to split them
+    into a set of file source splits. This includes possibly, path traversals, file filtering
+    (by name or other patterns) and deciding whether to split files into multiple splits, and
+    how to split them.
+    """
+
+    def __init__(self, j_file_enumerator_provider):
+        self._j_file_enumerator_provider = j_file_enumerator_provider
+
+    @staticmethod
+    def default_splittable_file_enumerator() -> 'FileEnumeratorProvider':
+        """
+        The default file enumerator used for splittable formats. The enumerator recursively
+        enumerates files, split files that consist of multiple distributed storage blocks into
+        multiple splits, and filters hidden files (files starting with '.' or '_'). Files with
+        suffixes of common compression formats (for example '.gzip', '.bz2', '.xy', '.zip', ...)
+        will not be split.
+        """
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        return FileEnumeratorProvider(JFileSource.DEFAULT_SPLITTABLE_FILE_ENUMERATOR)
+
+    @staticmethod
+    def default_non_splittable_file_enumerator() -> 'FileEnumeratorProvider':
+        """
+        The default file enumerator used for non-splittable formats. The enumerator recursively
+        enumerates files, creates one split for the file, and filters hidden files
+        (files starting with '.' or '_').
+        """
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        return FileEnumeratorProvider(JFileSource.DEFAULT_NON_SPLITTABLE_FILE_ENUMERATOR)
+
+
+class FileSplitAssignerProvider(object):
+    """
+    Factory for FileSplitAssigner which is responsible for deciding what split should be
+    processed next by which node. It determines split processing order and locality.
+    """
+
+    def __init__(self, j_file_split_assigner):
+        self._j_file_split_assigner = j_file_split_assigner
+
+    @staticmethod
+    def locality_aware_split_assigner() -> 'FileSplitAssignerProvider':
+        """
+        A FileSplitAssigner that assigns to each host preferably splits that are local, before
+        assigning splits that are not local.
+        """
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        return FileSplitAssignerProvider(JFileSource.DEFAULT_SPLIT_ASSIGNER)
+
+
+class FileSourceBuilder(object):
+    """
+    The builder for the :class:`~pyflink.datastream.connectors.FileSource`, to configure the
+    various behaviors.
+
+    Start building the source via one of the following methods:
+
+        - :func:`~pyflink.datastream.connectors.FileSource.for_record_stream_format`
+    """
+
+    def __init__(self, j_file_source_builder):
+        self._j_file_source_builder = j_file_source_builder
+
+    def monitor_continuously(
+            self,
+            discovery_interval: Duration) -> 'FileSourceBuilder':
+        """
+        Sets this source to streaming ("continuous monitoring") mode.
+
+        This makes the source a "continuous streaming" source that keeps running, monitoring
+        for new files, and reads these files when they appear and are discovered by the
+        monitoring.
+
+        The interval in which the source checks for new files is the discovery_interval. Shorter
+        intervals mean that files are discovered more quickly, but also imply more frequent
+        listing or directory traversal of the file system / object store.
+        """
+        self._j_file_source_builder.monitorContinuously(discovery_interval._j_duration)
+        return self
+
+    def process_static_file_set(self) -> 'FileSourceBuilder':
+        """
+        Sets this source to bounded (batch) mode.
+
+        In this mode, the source processes the files that are under the given paths when the
+        application is started. Once all files are processed, the source will finish.
+
+        This setting is also the default behavior. This method is mainly here to "switch back"
+        to bounded (batch) mode, or to make it explicit in the source construction.
+        """
+        self._j_file_source_builder.processStaticFileSet()
+        return self
+
+    def set_file_enumerator(
+            self,
+            file_enumerator: 'FileEnumeratorProvider') -> 'FileSourceBuilder':
+        """
+        Configures the FileEnumerator for the source. The File Enumerator is responsible
+        for selecting from the input path the set of files that should be processed (and which
+        to filter out). Furthermore, the File Enumerator may split the files further into
+        sub-regions, to enable parallelization beyond the number of files.
+        """
+        self._j_file_source_builder.setFileEnumerator(
+            file_enumerator._j_file_enumerator_provider)
+        return self
+
+    def set_split_assigner(
+            self,
+            split_assigner: 'FileSplitAssignerProvider') -> 'FileSourceBuilder':
+        """
+        Configures the FileSplitAssigner for the source. The File Split Assigner
+        determines which parallel reader instance gets which {@link FileSourceSplit}, and in
+        which order these splits are assigned.
+        """
+        self._j_file_source_builder.setSplitAssigner(split_assigner._j_file_split_assigner)
+        return self
+
+    def build(self) -> 'FileSource':
+        """
+        Creates the file source with the settings applied to this builder.
+        """
+        return FileSource(self._j_file_source_builder.build())
+
+
+class FileSource(Source):
+    """
+    A unified data source that reads files - both in batch and in streaming mode.
+
+    This source supports all (distributed) file systems and object stores that can be accessed via
+    the Flink's FileSystem class.
+
+    Start building a file source via one of the following calls:
+
+        - :func:`~pyflink.datastream.connectors.FileSource.for_record_stream_format`
+
+    This creates a :class:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder` on which
+    you can configure all the properties of the file source.
+
+    <h2>Batch and Streaming</h2>
+
+    This source supports both bounded/batch and continuous/streaming data inputs. For the
+    bounded/batch case, the file source processes all files under the given path(s). In the
+    continuous/streaming case, the source periodically checks the paths for new files and will start
+    reading those.
+
+    When you start creating a file source (via the
+    :class:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder` created
+    through one of the above-mentioned methods) the source is by default in bounded/batch mode. Call
+    :func:`~pyflink.datastream.connectors.FileSource.FileSourceBuilder.monitor_continuously` to put
+    the source into continuous streaming mode.
+
+    <h2>Format Types</h2>
+
+    The reading of each file happens through file readers defined by <i>file formats</i>. These
+    define the parsing logic for the contents of the file. There are multiple classes that the
+    source supports. Their interfaces trade of simplicity of implementation and
+    flexibility/efficiency.
+
+        - A :class:`~pyflink.datastream.connectors.FileSource.StreamFormat` reads the contents of
+          a file from a file stream. It is the simplest format to implement, and provides many
+          features out-of-the-box (like checkpointing logic) but is limited in the optimizations it
+          can apply (such as object reuse, batching, etc.).
+
+    <h2>Discovering / Enumerating Files</h2>
+
+    The way that the source lists the files to be processes is defined by the
+    :class:`~pyflink.datastream.connectors.FileSource.FileEnumeratorProvider`. The
+    FileEnumeratorProvider is responsible to select the relevant files (for example filter out
+    hidden files) and to optionally splits files into multiple regions (= file source splits) that
+    can be read in parallel).
+    """
+
+    def __init__(self, j_file_source):
+        super(FileSource, self).__init__(source=j_file_source)
+
+    @staticmethod
+    def for_record_stream_format(stream_format: StreamFormat, *paths: str) -> FileSourceBuilder:
+        """
+        Builds a new FileSource using a
+        :class:`~pyflink.datastream.connectors.FileSource.StreamFormat` to read record-by-record
+        from a file stream.
+
+        When possible, stream-based formats are generally easier (preferable) to file-based
+        formats, because they support better default behavior around I/O batching or progress
+        tracking (checkpoints).
+
+        Stream formats also automatically de-compress files based on the file extension. This
+        supports files ending in ".deflate" (Deflate), ".xz" (XZ), ".bz2" (BZip2), ".gz", ".gzip"
+        (GZip).
+        """
+        JPath = get_gateway().jvm.org.apache.flink.core.fs.Path
+        JFileSource = get_gateway().jvm.org.apache.flink.connector.file.src.FileSource
+        j_paths = to_jarray(JPath, [JPath(p) for p in paths])
+        return FileSourceBuilder(
+            JFileSource.forRecordStreamFormat(stream_format._j_stream_format, j_paths))

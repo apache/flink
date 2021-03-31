@@ -43,7 +43,6 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -59,12 +58,10 @@ import java.util.Set;
 public interface RuntimeContext {
 
     /**
-     * The ID of the current job. Empty if the execution happens outside of any job context (e.g.
-     * standalone collection executor). Note that Job ID can change in particular upon manual
-     * restart. The returned ID should NOT be used for any job management tasks.
+     * The ID of the current job. Note that Job ID can change in particular upon manual restart. The
+     * returned ID should NOT be used for any job management tasks.
      */
-    @PublicEvolving
-    Optional<JobID> getJobId();
+    JobID getJobId();
 
     /**
      * Returns the name of the task in which the UDF runs, as assigned during plan construction.

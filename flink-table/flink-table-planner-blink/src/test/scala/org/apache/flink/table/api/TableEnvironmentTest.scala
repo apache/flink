@@ -1271,6 +1271,9 @@ class TableEnvironmentTest {
     } catch {
       case e: TableException =>
         assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+            .contains("Was expecting:\n    \"FOR\" ..."))
       case e =>
         fail("This should not happen, " + e.getMessage)
     }
@@ -1323,10 +1326,7 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(viewDDL)
 
-    val tableResult1 = tableEnv.executeSql("describe T1")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
-    checkData(
-      util.Arrays.asList(
+    val expectedResult1 = util.Arrays.asList(
         Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f2", "STRING", Boolean.box(true), null, null, null),
@@ -1356,19 +1356,24 @@ class TableEnvironmentTest {
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
         Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
-          "`ts` - INTERVAL '1' SECOND")
-      ).iterator(),
-      tableResult1.collect())
-
-    val tableResult2 = tableEnv.executeSql("describe T2")
+          "`ts` - INTERVAL '1' SECOND"))
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+    val tableResult2 = tableEnv.executeSql("desc T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    checkData(
-      util.Arrays.asList(
-        Row.of("d", "INT", Boolean.box(false), null, null, null),
-        Row.of("e", "STRING", Boolean.box(false), null, null, null),
-        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
-      ).iterator(),
-      tableResult2.collect())
+    checkData(expectedResult1.iterator(), tableResult2.collect())
+
+    val expectedResult2 = util.Arrays.asList(
+      Row.of("d", "INT", Boolean.box(false), null, null, null),
+      Row.of("e", "STRING", Boolean.box(false), null, null, null),
+      Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null))
+    val tableResult3 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult3.collect())
+    val tableResult4 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult4.collect())
 
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
     val temporaryViewDDL =
@@ -1377,13 +1382,17 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(temporaryViewDDL)
 
-    val tableResult3 = tableEnv.executeSql("describe T2")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val expectedResult3 = util.Arrays.asList(
+      Row.of("x", "INT", Boolean.box(false), null, null, null),
+      Row.of("y", "STRING", Boolean.box(false), null, null, null));
+    val tableResult5 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult5.getResultKind)
+    checkData(expectedResult3.iterator(), tableResult5.collect())
+    val tableResult6 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult6.getResultKind)
     checkData(
-      util.Arrays.asList(
-        Row.of("x", "INT", Boolean.box(false), null, null, null),
-        Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
-      tableResult3.collect())
+      expectedResult3.iterator(),
+      tableResult6.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -79,6 +79,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -141,7 +142,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private final List<ErrorInfo> taskFailureHistory = new ArrayList<>();
+    private final BoundedFIFOQueue<ExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -204,8 +205,12 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 new ExecutionGraphHandler(executionGraph, log, ioExecutor, this.mainThreadExecutor);
 
         this.operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
+                new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
+        exceptionHistory =
+                new BoundedFIFOQueue<>(
+                        jobMasterConfiguration.getInteger(
+                                JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE));
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -535,7 +540,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     protected final void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
-        taskFailureHistory.add(ErrorInfo.createErrorInfoWithNullableCause(failure, timestamp));
+        exceptionHistory.add(ExceptionHistoryEntry.fromGlobalFailure(failure, timestamp));
         log.debug("Archive global failure.", failure);
     }
 
@@ -549,16 +554,15 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         if (executionOptional.isPresent()) {
             final Execution failedExecution = executionOptional.get();
-            failedExecution
-                    .getFailureInfo()
-                    .ifPresent(
-                            failureInfo -> {
-                                taskFailureHistory.add(failureInfo);
-                                log.debug(
-                                        "Archive local failure causing attempt {} to fail: {}",
-                                        failedExecution.getAttemptId(),
-                                        failureInfo.getExceptionAsString());
-                            });
+            final ExceptionHistoryEntry exceptionHistoryEntry =
+                    ExceptionHistoryEntry.fromFailedExecution(
+                            failedExecution,
+                            failedExecution.getVertex().getTaskNameWithSubtaskIndex());
+            exceptionHistory.add(exceptionHistoryEntry);
+            log.debug(
+                    "Archive local failure causing attempt {} to fail: {}",
+                    failedExecution.getAttemptId(),
+                    exceptionHistoryEntry.getExceptionAsString());
         } else {
             // fallback in case of a global fail over - no failed state is set and, therefore, no
             // timestamp was taken
@@ -646,9 +650,17 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected void notifyPartitionDataAvailableInternal(
             IntermediateResultPartitionID resultPartitionId) {}
 
+    /**
+     * Returns a copy of the current history of task failures.
+     *
+     * @return a copy of the current history of task failures.
+     */
     @VisibleForTesting
-    protected List<ErrorInfo> getExceptionHistory() {
-        return taskFailureHistory;
+    protected Iterable<ExceptionHistoryEntry> getExceptionHistory() {
+        final Collection<ExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
+        exceptionHistory.forEach(copy::add);
+
+        return copy;
     }
 
     @Override
@@ -826,32 +838,14 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            final String targetDirectory, final boolean terminate) {
+            @Nullable final String targetDirectory, final boolean terminate) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
-        if (checkpointCoordinator == null) {
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
-        }
-
-        if (targetDirectory == null
-                && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-            log.info(
-                    "Trying to cancel job {} with savepoint, but no savepoint directory configured.",
-                    jobGraph.getJobID());
-
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            "No savepoint directory configured. You can either specify a directory "
-                                    + "while cancelling via -s :targetDirectory or configure a cluster-wide "
-                                    + "default via key '"
-                                    + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                                    + "'."));
-        }
+        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+                checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
 
         log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());
 

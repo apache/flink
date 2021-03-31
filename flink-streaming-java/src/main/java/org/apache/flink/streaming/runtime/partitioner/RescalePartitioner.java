@@ -59,7 +59,12 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 
     @Override
     public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-        return SubtaskStateMapper.ROUND_ROBIN;
+        return SubtaskStateMapper.UNSUPPORTED;
+    }
+
+    @Override
+    public SubtaskStateMapper getUpstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.UNSUPPORTED;
     }
 
     public StreamPartitioner<T> copy() {
@@ -69,5 +74,10 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
     @Override
     public String toString() {
         return "RESCALE";
+    }
+
+    @Override
+    public boolean isPointwise() {
+        return true;
     }
 }

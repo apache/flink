@@ -82,6 +82,7 @@ public class JobRetrievalITCase extends TestLogger {
     public void testJobRetrieval() throws Exception {
         final JobVertex imalock = new JobVertex("imalock");
         imalock.setInvokableClass(SemaphoreInvokable.class);
+        imalock.setParallelism(1);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(imalock);
         final JobID jobId = jobGraph.getJobID();

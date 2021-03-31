@@ -36,8 +36,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -79,6 +81,8 @@ public class CliClientITCase extends AbstractTestBase {
 
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
+    @Rule public TerminalStreamsResource useSystemStream = TerminalStreamsResource.INSTANCE;
+
     @Parameterized.Parameter public String sqlPath;
 
     @Parameterized.Parameters(name = "{0}")
@@ -112,6 +116,13 @@ public class CliClientITCase extends AbstractTestBase {
         replaceVars.put(
                 "$VAR_JOBMANAGER_RPC_ADDRESS",
                 miniClusterResource.getClientConfiguration().get(ADDRESS));
+    }
+
+    @Before
+    public void before() throws IOException {
+        // initialize new folders for every tests, so the vars can be reused by every SQL scripts
+        replaceVars.put("$VAR_STREAMING_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_BATCH_PATH", tempFolder.newFolder().toPath().toString());
     }
 
     @Test
@@ -164,6 +175,7 @@ public class CliClientITCase extends AbstractTestBase {
     // -------------------------------------------------------------------------------------------
 
     private static final String PROMOTE = "Flink SQL> ";
+    private static final String JOB_ID = "Job ID:";
 
     enum Tag {
         ERROR("\u001B[31;1m", "\u001B[0m", "!error"),
@@ -245,7 +257,12 @@ public class CliClientITCase extends AbstractTestBase {
                     // remove the promote prefix
                     line = line.substring(PROMOTE.length());
                 }
-                contentLines.add(line);
+                // ignore the line begin with Job ID:
+                if (!line.startsWith(JOB_ID)) {
+                    contentLines.add(line);
+                } else {
+                    contentLines.add(JOB_ID);
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

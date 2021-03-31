@@ -218,11 +218,20 @@ data:
 Moreover, you have to start the JobManager and TaskManager pods with a service account which has the permissions to create, edit, delete ConfigMaps.
 See [how to configure service accounts for pods](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) for more information.
 
+When High-Availability is enabled, Flink will use its own HA-services for service discovery.
+Therefore, JobManager pods should be started with their IP address instead of a Kubernetes service as its `jobmanager.rpc.address`.
+Refer to the [appendix](#appendix) for full configuration.
+
+#### Standby JobManagers
+
+Usually, it is enough to only start a single JobManager pod, because Kubernetes will restart it once the pod crashes.
+If you want to achieve faster recovery, configure the `replicas` in `jobmanager-session-deployment-ha.yaml` or `parallelism` in `jobmanager-application-ha.yaml` to a value greater than `1` to start standby JobManagers.
+
 ### Enabling Queryable State
 
 You can access the queryable state of TaskManager if you create a `NodePort` service for it:
   1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `&lt;node-port&gt;` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit the state queries.
+  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `<node-port>` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit state queries.
 
 {{< top >}}
 
@@ -296,7 +305,7 @@ data:
     logger.netty.level = OFF
 ```
 
-`jobmanager-service.yaml`
+`jobmanager-service.yaml` Optional service, which is only necessary for non-HA mode.
 ```yaml
 apiVersion: v1
 kind: Service
@@ -354,7 +363,7 @@ spec:
 
 ### Session cluster resource definitions
 
-`jobmanager-session-deployment.yaml`
+`jobmanager-session-deployment-non-ha.yaml`
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -393,6 +402,64 @@ spec:
           mountPath: /opt/flink/conf
         securityContext:
           runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+```
+
+`jobmanager-session-deployment-ha.yaml`
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+spec:
+  replicas: 1 # Set the value to greater than 1 to start standby JobManagers
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      containers:
+      - name: jobmanager
+        image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
+        args: ["jobmanager", "$(POD_IP)"]
+        ports:
+        - containerPort: 6123
+          name: rpc
+        - containerPort: 6124
+          name: blob-server
+        - containerPort: 8081
+          name: webui
+        livenessProbe:
+          tcpSocket:
+            port: 6123
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf
+        securityContext:
+          runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
       volumes:
       - name: flink-config-volume
         configMap:
@@ -454,7 +521,7 @@ spec:
 
 ### Application cluster resource definitions
 
-`jobmanager-application.yaml`
+`jobmanager-application-non-ha.yaml`
 ```yaml
 apiVersion: batch/v1
 kind: Job
@@ -492,6 +559,66 @@ spec:
               mountPath: /opt/flink/usrlib
           securityContext:
             runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      volumes:
+        - name: flink-config-volume
+          configMap:
+            name: flink-config
+            items:
+              - key: flink-conf.yaml
+                path: flink-conf.yaml
+              - key: log4j-console.properties
+                path: log4j-console.properties
+        - name: job-artifacts-volume
+          hostPath:
+            path: /host/path/to/job/artifacts
+```
+
+`jobmanager-application-ha.yaml`
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-jobmanager
+spec:
+  parallelism: 1 # Set the value to greater than 1 to start standby JobManagers
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: jobmanager
+          image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+          env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.podIP
+          # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
+          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          ports:
+            - containerPort: 6123
+              name: rpc
+            - containerPort: 6124
+              name: blob-server
+            - containerPort: 8081
+              name: webui
+          livenessProbe:
+            tcpSocket:
+              port: 6123
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          volumeMounts:
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf
+            - name: job-artifacts-volume
+              mountPath: /opt/flink/usrlib
+          securityContext:
+            runAsUser: 9999  # refers to user _flink_ from official flink image, change if necessary
+      serviceAccountName: flink-service-account # Service account which has the permissions to create, edit, delete ConfigMaps
       volumes:
         - name: flink-config-volume
           configMap:

@@ -1572,7 +1572,7 @@
     },
     "response" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory",
       "properties" : {
         "root-exception" : {
           "type" : "string"
@@ -1603,6 +1603,39 @@
         },
         "truncated" : {
           "type" : "boolean"
+        },
+        "exceptionHistory" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:JobExceptionHistory",
+          "properties" : {
+            "entries" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                "properties" : {
+                  "exceptionName" : {
+                    "type" : "string"
+                  },
+                  "stacktrace" : {
+                    "type" : "string"
+                  },
+                  "timestamp" : {
+                    "type" : "integer"
+                  },
+                  "taskName" : {
+                    "type" : "string"
+                  },
+                  "location" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "truncated" : {
+              "type" : "boolean"
+            }
+          }
         }
       }
     }
@@ -3015,6 +3048,22 @@
             },
             "totalProcessMemory" : {
               "type" : "integer"
+            }
+          }
+        },
+        "allocatedSlots" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:SlotInfo",
+            "properties" : {
+              "jobId" : {
+                "type" : "any"
+              },
+              "resource" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+              }
             }
           }
         },

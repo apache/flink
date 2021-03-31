@@ -375,6 +375,11 @@ public class HiveInspectors {
 
     /** Get Hive {@link ObjectInspector} for a Flink {@link DataType}. */
     public static ObjectInspector getObjectInspector(DataType flinkType) {
+        return getObjectInspector(flinkType.getLogicalType());
+    }
+
+    /** Get Hive {@link ObjectInspector} for a Flink {@link LogicalType}. */
+    public static ObjectInspector getObjectInspector(LogicalType flinkType) {
         return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType, true));
     }
 

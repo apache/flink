@@ -246,7 +246,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
     }
 
     private DynamicTableSource createDynamicTableSource(
-            FlinkContext context, CatalogTable catalogTable) {
+            FlinkContext context, ResolvedCatalogTable catalogTable) {
         final ReadableConfig config = context.getTableConfig().getConfiguration();
         return FactoryUtil.createTableSource(
                 schemaTable.getCatalog(),

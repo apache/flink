@@ -48,7 +48,7 @@ public final class SnapshotUtils {
             throws Exception {
 
         CheckpointOptions options =
-                new CheckpointOptions(
+                CheckpointOptions.forConfig(
                         CheckpointType.SAVEPOINT,
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,

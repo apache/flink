@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.After;
 import org.junit.Test;
@@ -52,7 +53,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedControllerTest.addSequence;
+import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedCheckpointsTest.addSequence;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -600,7 +601,9 @@ public class CheckpointBarrierTrackerTest {
         return new CheckpointedInputGate(
                 inputGate,
                 new CheckpointBarrierTracker(
-                        inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint),
+                        inputGate.getNumberOfInputChannels(),
+                        toNotifyOnCheckpoint,
+                        SystemClock.getInstance()),
                 new SyncMailboxExecutor());
     }
 

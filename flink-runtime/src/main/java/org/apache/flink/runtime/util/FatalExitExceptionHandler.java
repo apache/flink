@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.runtime.security.FlinkSecurityManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +45,7 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
                     t.getName(),
                     e);
         } finally {
-            System.exit(EXIT_CODE);
+            FlinkSecurityManager.forceProcessExit(EXIT_CODE);
         }
     }
 }

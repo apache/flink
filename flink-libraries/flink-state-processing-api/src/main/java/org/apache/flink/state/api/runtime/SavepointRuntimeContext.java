@@ -49,7 +49,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -81,7 +80,7 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public Optional<JobID> getJobId() {
+    public JobID getJobId() {
         return ctx.getJobId();
     }
 

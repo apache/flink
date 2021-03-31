@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.clock.Clock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +73,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     private long latestPendingCheckpointID = -1;
 
     public CheckpointBarrierTracker(
-            int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint) {
-        super(toNotifyOnCheckpoint);
+            int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint, Clock clock) {
+        super(toNotifyOnCheckpoint, clock);
         this.totalNumberOfInputChannels = totalNumberOfInputChannels;
         this.pendingCheckpoints = new ArrayDeque<>();
     }

@@ -31,6 +31,8 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.function.Consumer;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -77,7 +79,12 @@ public class CsvRowDeSerializationSchemaTest {
         testNullableField(
                 Types.LOCAL_DATE_TIME,
                 "\"2018-10-12 12:12:12\"",
-                Timestamp.valueOf("2018-10-12 12:12:12").toLocalDateTime());
+                LocalDateTime.parse("2018-10-12T12:12:12"));
+        testNullableField(
+                Types.INSTANT,
+                "\"1970-01-01 00:00:01.123456789Z\"",
+                Instant.ofEpochMilli(1123).plusNanos(456789));
+        testNullableField(Types.INSTANT, "\"1970-01-01 00:00:12Z\"", Instant.ofEpochSecond(12));
         testNullableField(
                 Types.ROW(Types.STRING, Types.INT, Types.BOOLEAN),
                 "Hello;42;false",
@@ -232,8 +239,20 @@ public class CsvRowDeSerializationSchemaTest {
 
     @Test
     public void testSerializeDeserializeNestedTypes() throws Exception {
-        final TypeInformation<Row> subDataType0 = Types.ROW(Types.STRING, Types.INT, Types.STRING);
-        final TypeInformation<Row> subDataType1 = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+        final TypeInformation<Row> subDataType0 =
+                Types.ROW(
+                        Types.STRING,
+                        Types.INT,
+                        Types.STRING,
+                        Types.LOCAL_DATE_TIME,
+                        Types.INSTANT);
+        final TypeInformation<Row> subDataType1 =
+                Types.ROW(
+                        Types.STRING,
+                        Types.INT,
+                        Types.STRING,
+                        Types.LOCAL_DATE_TIME,
+                        Types.INSTANT);
         final TypeInformation<Row> rowInfo = Types.ROW(subDataType0, subDataType1);
 
         // serialization
@@ -245,11 +264,29 @@ public class CsvRowDeSerializationSchemaTest {
 
         Row normalRow =
                 Row.of(
-                        Row.of("hello", 1, "This is 1st top column"),
-                        Row.of("world", 2, "This is 2nd top column"));
+                        Row.of(
+                                "hello",
+                                1,
+                                "This is 1st top column",
+                                LocalDateTime.parse("1970-01-01T01:02:03"),
+                                Instant.ofEpochMilli(1000)),
+                        Row.of(
+                                "world",
+                                2,
+                                "This is 2nd top column",
+                                LocalDateTime.parse("1970-01-01T01:02:04"),
+                                Instant.ofEpochMilli(2000)));
         testSerDeConsistency(normalRow, serSchemaBuilder, deserSchemaBuilder);
 
-        Row nullRow = Row.of(null, Row.of("world", 2, "This is 2nd top column after null"));
+        Row nullRow =
+                Row.of(
+                        null,
+                        Row.of(
+                                "world",
+                                2,
+                                "This is 2nd top column after null",
+                                LocalDateTime.parse("1970-01-01T01:02:05"),
+                                Instant.ofEpochMilli(3000)));
         testSerDeConsistency(nullRow, serSchemaBuilder, deserSchemaBuilder);
     }
 

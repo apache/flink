@@ -30,7 +30,7 @@ HELP		Prints the available commands.
 INSERT INTO		Inserts the results of a SQL SELECT query into a declared table sink.
 INSERT OVERWRITE		Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.
 QUIT		Quits the SQL CLI client.
-RESET		Resets all session configuration properties.
+RESET		Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties.
 SELECT		Executes a SQL SELECT query on the Flink cluster.
 SET		Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties.
 SHOW FUNCTIONS		Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'
@@ -41,6 +41,8 @@ USE		Sets the current default database. Experimental! Syntax: 'USE <name>;'
 LOAD MODULE		Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = '<value1>' [, '<key2>' = '<value2>', ...])];'
 UNLOAD MODULE		Unload a module. Syntax: 'UNLOAD MODULE <name>;'
 USE MODULES		Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'
+BEGIN STATEMENT SET		Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'
+END		Ends a statement set. Syntax: 'END;'
 
 Hint: Make sure that a statement ends with ';' for finalizing (multi-line) statements.
 !ok

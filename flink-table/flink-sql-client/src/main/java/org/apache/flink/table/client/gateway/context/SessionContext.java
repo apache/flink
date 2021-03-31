@@ -114,6 +114,36 @@ public class SessionContext {
         this.executionContext = new ExecutionContext(executionContext);
     }
 
+    /**
+     * Reset key's property to default. It will rebuild a new {@link ExecutionContext}.
+     *
+     * <p>If key is not defined in default config file, remove it from session configuration.
+     */
+    public void reset(String key) {
+        Configuration configuration = defaultContext.getFlinkConfig();
+        // If the key exist in default yaml , reset to default
+        if (configuration.containsKey(key)) {
+            String defaultValue =
+                    configuration.get(ConfigOptions.key(key).stringType().noDefaultValue());
+            this.set(key, defaultValue);
+        } else {
+            ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
+            sessionConfiguration.removeConfig(keyToDelete);
+            // need to remove compatible key
+            if (YamlConfigUtils.isDeprecatedKey(key)) {
+                String optionKey = YamlConfigUtils.getOptionNameWithDeprecatedKey(key);
+                sessionConfiguration.removeConfig(
+                        ConfigOptions.key(optionKey).stringType().noDefaultValue());
+            } else if (YamlConfigUtils.isOptionHasDeprecatedKey(key)) {
+                String deprecatedKey = YamlConfigUtils.getDeprecatedNameWithOptionKey(key);
+                sessionConfiguration.removeConfig(
+                        ConfigOptions.key(deprecatedKey).stringType().noDefaultValue());
+            }
+            // It's safe to build ExecutionContext directly because origin configuration is legal.
+            this.executionContext = new ExecutionContext(executionContext);
+        }
+    }
+
     /** Set properties. It will rebuild a new {@link ExecutionContext} */
     public void set(String key, String value) {
         Configuration originConfiguration = sessionConfiguration.clone();

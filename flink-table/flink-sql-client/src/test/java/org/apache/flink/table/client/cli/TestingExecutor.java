@@ -17,18 +17,18 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.function.BiFunctionWithException;
-import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
-import org.apache.flink.util.function.TriFunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -44,45 +44,17 @@ class TestingExecutor implements Executor {
     private final List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
             resultChanges;
 
-    private int numSnapshotResultCalls = 0;
-    private final List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>>
-            snapshotResults;
-
     private int numRetrieveResultPageCalls = 0;
     private final List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages;
-
-    private int numExecuteSqlCalls = 0;
-    private final BiFunctionWithException<String, String, TableResult, SqlExecutionException>
-            executeSqlConsumer;
-
-    private int numSetSessionPropertyCalls = 0;
-    private final TriFunctionWithException<String, String, String, Void, SqlExecutionException>
-            setSessionPropertyFunction;
-
-    private int numResetSessionPropertiesCalls = 0;
-    private final FunctionWithException<String, Void, SqlExecutionException>
-            resetSessionPropertiesFunction;
 
     private final SqlParserHelper helper;
 
     TestingExecutor(
             List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
                     resultChanges,
-            List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>>
-                    snapshotResults,
-            List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
-            BiFunctionWithException<String, String, TableResult, SqlExecutionException>
-                    executeSqlConsumer,
-            TriFunctionWithException<String, String, String, Void, SqlExecutionException>
-                    setSessionPropertyFunction,
-            FunctionWithException<String, Void, SqlExecutionException>
-                    resetSessionPropertiesFunction) {
+            List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages) {
         this.resultChanges = resultChanges;
-        this.snapshotResults = snapshotResults;
         this.resultPages = resultPages;
-        this.executeSqlConsumer = executeSqlConsumer;
-        this.setSessionPropertyFunction = setSessionPropertyFunction;
-        this.resetSessionPropertiesFunction = resetSessionPropertiesFunction;
         helper = new SqlParserHelper();
         helper.registerTables();
     }
@@ -110,9 +82,7 @@ class TestingExecutor implements Executor {
     @Override
     public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
             throws SqlExecutionException {
-        return snapshotResults
-                .get(Math.min(numSnapshotResultCalls++, snapshotResults.size() - 1))
-                .get();
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
@@ -127,32 +97,29 @@ class TestingExecutor implements Executor {
     public void closeSession(String sessionId) throws SqlExecutionException {}
 
     @Override
-    public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public void resetSessionProperties(String sessionId) throws SqlExecutionException {
-        numResetSessionPropertiesCalls++;
-        resetSessionPropertiesFunction.apply(sessionId);
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public void setSessionProperty(String sessionId, String key, String value)
             throws SqlExecutionException {
-        numSetSessionPropertyCalls++;
-        setSessionPropertyFunction.apply(sessionId, key, value);
-    }
-
-    @Override
-    public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-        numExecuteSqlCalls++;
-        return executeSqlConsumer.apply(sessionId, statement);
-    }
-
-    @Override
-    public Parser getSqlParser(String sessionId) {
-        return helper.getSqlParser();
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
@@ -161,7 +128,25 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public ResultDescriptor executeQuery(String sessionId, String query)
+    public TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public Operation parseStatement(String sessionId, String statement)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
             throws SqlExecutionException {
         throw new UnsupportedOperationException("Not implemented.");
     }
@@ -174,23 +159,7 @@ class TestingExecutor implements Executor {
         return numRetrieveResultChancesCalls;
     }
 
-    public int getNumSnapshotResultCalls() {
-        return numSnapshotResultCalls;
-    }
-
     public int getNumRetrieveResultPageCalls() {
         return numRetrieveResultPageCalls;
-    }
-
-    public int getNumExecuteSqlCalls() {
-        return numExecuteSqlCalls;
-    }
-
-    public int getNumSetSessionPropertyCalls() {
-        return numSetSessionPropertyCalls;
-    }
-
-    public int getNumResetSessionPropertiesCalls() {
-        return numResetSessionPropertiesCalls;
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
@@ -86,7 +88,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>>
             registerJobManagerFunction;
 
-    private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
+    private volatile Consumer<Tuple3<JobID, JobStatus, Throwable>> disconnectJobManagerConsumer;
 
     private volatile Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>>
             registerTaskExecutorFunction;
@@ -111,8 +113,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>>
             requestTaskManagerLogListFunction;
 
-    private volatile Function<ResourceID, CompletableFuture<TaskManagerInfo>>
-            requestTaskManagerInfoFunction;
+    private volatile Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
+            requestTaskManagerDetailsInfoFunction;
 
     private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>>
             requestThreadDumpFunction;
@@ -172,7 +174,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     public void setDisconnectJobManagerConsumer(
-            Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer) {
+            Consumer<Tuple3<JobID, JobStatus, Throwable>> disconnectJobManagerConsumer) {
         this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
     }
 
@@ -202,10 +204,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
     }
 
-    public void setRequestTaskManagerInfoFunction(
-            Function<ResourceID, CompletableFuture<TaskManagerInfo>>
-                    requestTaskManagerInfoFunction) {
-        this.requestTaskManagerInfoFunction = requestTaskManagerInfoFunction;
+    public void setRequestTaskManagerDetailsInfoFunction(
+            Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
+                    requestTaskManagerDetailsInfoFunction) {
+        this.requestTaskManagerDetailsInfoFunction = requestTaskManagerDetailsInfoFunction;
     }
 
     public void setDisconnectTaskExecutorConsumer(
@@ -381,11 +383,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public void disconnectJobManager(JobID jobId, Exception cause) {
-        final Consumer<Tuple2<JobID, Throwable>> currentConsumer = disconnectJobManagerConsumer;
+    public void disconnectJobManager(JobID jobId, JobStatus jobStatus, Exception cause) {
+        final Consumer<Tuple3<JobID, JobStatus, Throwable>> currentConsumer =
+                disconnectJobManagerConsumer;
 
         if (currentConsumer != null) {
-            currentConsumer.accept(Tuple2.of(jobId, cause));
+            currentConsumer.accept(Tuple3.of(jobId, jobStatus, cause));
         }
     }
 
@@ -395,10 +398,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID resourceId, Time timeout) {
-        final Function<ResourceID, CompletableFuture<TaskManagerInfo>> function =
-                requestTaskManagerInfoFunction;
+        final Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>> function =
+                requestTaskManagerDetailsInfoFunction;
 
         if (function != null) {
             return function.apply(resourceId);

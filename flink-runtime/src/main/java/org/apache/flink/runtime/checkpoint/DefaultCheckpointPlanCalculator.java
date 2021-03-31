@@ -297,7 +297,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
         for (int i = 0; i < prevJobEdges.size(); ++i) {
             if (prevJobEdges.get(i).getDistributionPattern() == DistributionPattern.POINTWISE) {
                 for (IntermediateResultPartitionID consumedPartitionId :
-                        vertex.getConsumedPartitions(i)) {
+                        vertex.getConsumedPartitionGroup(i)) {
                     ExecutionVertex precedentTask =
                             executionGraphAccessor
                                     .getResultPartitionOrThrow(consumedPartitionId)

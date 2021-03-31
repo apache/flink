@@ -79,7 +79,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -254,7 +254,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> <DATABASE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <DATABASE> { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -416,7 +416,7 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
- * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :
@@ -426,7 +426,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     tableName = CompoundIdentifier()
     {
@@ -1539,5 +1539,47 @@ SqlShowModules SqlShowModules() :
     <MODULES>
     {
         return new SqlShowModules(startPos.plus(getPos()), requireFull);
+    }
+}
+
+/**
+* Parse a start statement set statement.
+* BEGIN STATEMENT SET;
+*/
+SqlBeginStatementSet SqlBeginStatementSet() :
+{
+}
+{
+    <BEGIN> <STATEMENT> <SET>
+    {
+        return new SqlBeginStatementSet(getPos());
+    }
+}
+
+/**
+* Parse a end statement set statement.
+* END;
+*/
+SqlEndStatementSet SqlEndStatementSet() :
+{
+}
+{
+    <END>
+    {
+        return new SqlEndStatementSet(getPos());
+    }
+}
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    stmt = SqlQueryOrDml() {
+        return new SqlRichExplain(getPos(),stmt);
     }
 }

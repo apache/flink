@@ -23,9 +23,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
@@ -38,8 +36,9 @@ import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -54,6 +53,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -136,14 +136,25 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
         return getSessionContext(sessionId).getConfigMap();
+    }
+
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        return getSessionContext(sessionId).getReadableConfig();
     }
 
     @Override
     public void resetSessionProperties(String sessionId) throws SqlExecutionException {
         SessionContext context = getSessionContext(sessionId);
         context.reset();
+    }
+
+    @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        SessionContext context = getSessionContext(sessionId);
+        context.reset(key);
     }
 
     @Override
@@ -154,49 +165,35 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-        final ExecutionContext context = getExecutionContext(sessionId);
-        final TableEnvironment tEnv = context.getTableEnvironment();
-        try {
-            return context.wrapClassLoader(() -> tEnv.executeSql(statement));
-        } catch (Exception e) {
-            throw new SqlExecutionException("Could not execute statement: " + statement, e);
-        }
-    }
-
-    @Override
-    public Parser getSqlParser(String sessionId) {
+    public Operation parseStatement(String sessionId, String statement)
+            throws SqlExecutionException {
         final ExecutionContext context = getExecutionContext(sessionId);
         final TableEnvironment tableEnv = context.getTableEnvironment();
-        final Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
-        return new Parser() {
-            @Override
-            public List<Operation> parse(String statement) {
-                return context.wrapClassLoader(() -> parser.parse(statement));
-            }
+        Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
 
-            @Override
-            public UnresolvedIdentifier parseIdentifier(String identifier) {
-                return context.wrapClassLoader(() -> parser.parseIdentifier(identifier));
-            }
-
-            @Override
-            public ResolvedExpression parseSqlExpression(
-                    String sqlExpression, TableSchema inputSchema) {
-                return context.wrapClassLoader(
-                        () -> parser.parseSqlExpression(sqlExpression, inputSchema));
-            }
-        };
+        List<Operation> operations;
+        try {
+            operations = context.wrapClassLoader(() -> parser.parse(statement));
+        } catch (Exception e) {
+            throw new SqlExecutionException("Failed to parse statement: " + statement, e);
+        }
+        if (operations.isEmpty()) {
+            throw new SqlExecutionException("Failed to parse statement: " + statement);
+        }
+        return operations.get(0);
     }
 
     @Override
     public List<String> completeStatement(String sessionId, String statement, int position) {
         final ExecutionContext context = getExecutionContext(sessionId);
-        final TableEnvironment tableEnv = context.getTableEnvironment();
+        final TableEnvironmentInternal tableEnv =
+                (TableEnvironmentInternal) context.getTableEnvironment();
 
         try {
             return context.wrapClassLoader(
-                    () -> Arrays.asList(tableEnv.getCompletionHints(statement, position)));
+                    () ->
+                            Arrays.asList(
+                                    tableEnv.getParser().getCompletionHints(statement, position)));
         } catch (Throwable t) {
             // catch everything such that the query does not crash the executor
             if (LOG.isDebugEnabled()) {
@@ -207,11 +204,48 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public ResultDescriptor executeQuery(String sessionId, String query)
+    public TableResult executeOperation(String sessionId, Operation operation)
             throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext(sessionId);
+        final TableEnvironmentInternal tEnv =
+                (TableEnvironmentInternal) context.getTableEnvironment();
+        try {
+            return context.wrapClassLoader(() -> tEnv.executeInternal(operation));
+        } catch (Exception e) {
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
+        }
+    }
+
+    @Override
+    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+            throws SqlExecutionException {
+        final ExecutionContext context = getExecutionContext(sessionId);
+        final TableEnvironmentInternal tEnv =
+                (TableEnvironmentInternal) context.getTableEnvironment();
+        try {
+            return context.wrapClassLoader(() -> tEnv.executeInternal(operations));
+        } catch (Exception e) {
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
+        }
+    }
+
+    @Override
+    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+            throws SqlExecutionException {
+        final TableResult tableResult = executeOperation(sessionId, query);
         final SessionContext context = getSessionContext(sessionId);
-        return executeQueryInternal(
-                context.getExecutionContext(), query, context.getReadableConfig());
+        final ReadableConfig config = context.getReadableConfig();
+        final DynamicResult result = resultStore.createResult(config, tableResult);
+        checkArgument(tableResult.getJobClient().isPresent());
+        String jobId = tableResult.getJobClient().get().getJobID().toString();
+        // store the result under the JobID
+        resultStore.storeResult(jobId, result);
+        return new ResultDescriptor(
+                jobId,
+                tableResult.getResolvedSchema(),
+                result.isMaterialized(),
+                config.get(EXECUTION_RESULT_MODE).equals(ResultMode.TABLEAU),
+                config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING));
     }
 
     @Override
@@ -257,12 +291,6 @@ public class LocalExecutor implements Executor {
 
     @Override
     public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-        cancelQueryInternal(resultId);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private void cancelQueryInternal(String resultId) {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(
@@ -278,28 +306,5 @@ public class LocalExecutor implements Executor {
             throw new SqlExecutionException("Could not cancel the query execution", e);
         }
         resultStore.removeResult(resultId);
-    }
-
-    private ResultDescriptor executeQueryInternal(
-            ExecutionContext context, String query, ReadableConfig config) {
-        final TableResult tableResult;
-        try {
-            tableResult =
-                    context.wrapClassLoader(() -> context.getTableEnvironment().executeSql(query));
-        } catch (Throwable t) {
-            // catch everything such that the query does not crash the executor
-            throw new SqlExecutionException("Invalid SQL statement.", t);
-        }
-        final DynamicResult result = resultStore.createResult(config, tableResult);
-        checkArgument(tableResult.getJobClient().isPresent());
-        String jobId = tableResult.getJobClient().get().getJobID().toString();
-        // store the result under the JobID
-        resultStore.storeResult(jobId, result);
-        return new ResultDescriptor(
-                jobId,
-                tableResult.getResolvedSchema(),
-                result.isMaterialized(),
-                config.get(EXECUTION_RESULT_MODE).equals(ResultMode.TABLEAU),
-                config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING));
     }
 }

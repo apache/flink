@@ -1783,6 +1783,7 @@ public class JobMasterTest extends TestLogger {
             SavepointRestoreSettings savepointRestoreSettings) {
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
+        source.setParallelism(1);
 
         return TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                 savepointRestoreSettings, source);

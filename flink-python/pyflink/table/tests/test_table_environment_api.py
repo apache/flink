@@ -44,7 +44,7 @@ from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
     PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
     PyFlinkLegacyBlinkBatchTableTestCase, PyFlinkLegacyFlinkStreamTableTestCase, \
     PyFlinkLegacyBlinkStreamTableTestCase, _load_specific_flink_module_jars
-from pyflink.util.utils import get_j_env_configuration
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class TableEnvironmentTest(object):

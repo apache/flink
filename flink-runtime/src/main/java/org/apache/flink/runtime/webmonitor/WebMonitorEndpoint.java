@@ -24,7 +24,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -129,6 +128,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileH
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -952,11 +952,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     @Override
-    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+    public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
         Collection<ArchivedJson> archivedJson = new ArrayList<>(archivingHandlers.size());
         for (JsonArchivist archivist : archivingHandlers) {
-            Collection<ArchivedJson> subArchive = archivist.archiveJsonWithPath(graph);
+            Collection<ArchivedJson> subArchive = archivist.archiveJsonWithPath(executionGraphInfo);
             archivedJson.addAll(subArchive);
         }
         return archivedJson;

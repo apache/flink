@@ -26,12 +26,12 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.apache.flink.util.IterableUtils.flatMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of {@link SchedulingResultPartition}. */
@@ -108,7 +108,7 @@ class DefaultResultPartition implements SchedulingResultPartition {
 
     @Override
     public Iterable<DefaultExecutionVertex> getConsumers() {
-        return () -> flatMap(consumerVertexGroups, executionVertexRetriever);
+        return IterableUtils.flatMap(consumerVertexGroups, executionVertexRetriever);
     }
 
     @Override

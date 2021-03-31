@@ -56,6 +56,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+
+        sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
     /**
@@ -151,6 +153,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -190,6 +196,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
     }
 
     /**
@@ -1193,6 +1203,66 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show modules").ok("SHOW MODULES");
 
         sql("show full modules").ok("SHOW FULL MODULES");
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        sql("begin statement set").ok("BEGIN STATEMENT SET");
+    }
+
+    @Test
+    public void testEnd() {
+        sql("end").ok("END");
+    }
+
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // TODO: FLINK-20562
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
