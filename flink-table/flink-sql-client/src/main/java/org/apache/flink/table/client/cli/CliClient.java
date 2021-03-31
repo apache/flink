@@ -31,9 +31,11 @@ import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
+import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
@@ -102,13 +104,13 @@ public class CliClient implements AutoCloseable {
 
     private final String sessionId;
 
-    private @Nullable Terminal terminal;
-
-    private Path historyFilePath;
+    private final Path historyFilePath;
 
     private final String prompt;
 
     private final @Nullable MaskingCallback inputTransformer;
+
+    private Terminal terminal;
 
     private boolean isRunning;
 
@@ -126,7 +128,7 @@ public class CliClient implements AutoCloseable {
      */
     @VisibleForTesting
     CliClient(
-            @Nullable Terminal terminal,
+            Terminal terminal,
             String sessionId,
             Executor executor,
             Path historyFilePath,
@@ -207,12 +209,6 @@ public class CliClient implements AutoCloseable {
     /** Opens the interactive CLI shell. */
     public void executeInInteractiveMode() {
         terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
-        // make space from previous output and test the writer
-        terminal.writer().println();
-        terminal.writer().flush();
-
-        // print welcome
-        terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
         try {
             executeInteractive();
@@ -258,6 +254,14 @@ public class CliClient implements AutoCloseable {
         isRunning = true;
         LineReader lineReader = createLineReader(terminal);
         // begin reading loop
+
+        // make space from previous output and test the writer
+        terminal.writer().println();
+        terminal.writer().flush();
+
+        // print welcome
+        terminal.writer().append(CliStrings.MESSAGE_WELCOME);
+
         while (isRunning) {
             // make some space to previous command
             terminal.writer().append("\n");
@@ -289,7 +293,7 @@ public class CliClient implements AutoCloseable {
      * @param content SQL file content
      */
     private boolean executeFile(String content, ExecutionMode mode) {
-        terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
+        terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EXECUTE_FILE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
             terminal.writer().println(new AttributedString(statement).toString());
@@ -321,10 +325,11 @@ public class CliClient implements AutoCloseable {
                     && !(operation instanceof CreateOperation)
                     && !(operation instanceof DropOperation)
                     && !(operation instanceof UseOperation)
-                    && !(operation instanceof AlterOperation)) {
+                    && !(operation instanceof AlterOperation)
+                    && !(operation instanceof LoadModuleOperation)
+                    && !(operation instanceof UnloadModuleOperation)) {
                 throw new SqlExecutionException(
-                        "In init sql file, it only supports to use DDL operation and SET/RESET operation. "
-                                + "Please use -f option to execute other types of SQL.");
+                        "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
         } else if (executionMode.equals(ExecutionMode.NON_INTERACTIVE_EXECUTION)) {
             ResultMode mode = executor.getSessionConfig(sessionId).get(EXECUTION_RESULT_MODE);

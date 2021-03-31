@@ -220,7 +220,7 @@ public class SqlClientTest {
         String[] args = new String[] {"-i", initFile};
         SqlClient.main(args);
 
-        assertThat(getStdoutString(), containsString("Succeed to execute init file."));
+        assertThat(getStdoutString(), containsString("Successfully initialized from sql script: "));
     }
 
     @Test

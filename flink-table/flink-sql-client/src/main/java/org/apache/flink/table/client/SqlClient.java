@@ -128,10 +128,15 @@ public class SqlClient {
                 boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
                 if (!success) {
                     System.out.println(
-                            "Fail to execute init file... Please refer to the LOG for detailed error messages.");
+                            String.format(
+                                    "Failed to initialize from sql script: %s. Please refer to the LOG for detailed error messages.",
+                                    options.getInitFile()));
                     return;
                 } else {
-                    System.out.println("Succeed to execute init file. Enter execution phase...");
+                    System.out.println(
+                            String.format(
+                                    "Successfully initialized from sql script: %s.",
+                                    options.getInitFile()));
                 }
             }
 
