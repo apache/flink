@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
-import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
@@ -104,14 +103,6 @@ public class StreamingExamplesITCase extends AbstractTestBase {
             } catch (Throwable ignored) {
             }
         }
-    }
-
-    @Test
-    public void testIncrementalLearningSkeleton() throws Exception {
-        final String resultPath = getTempDirPath("result");
-        org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton.main(
-                new String[] {"--output", resultPath});
-        compareResultsByLinesInMemory(IncrementalLearningSkeletonData.RESULTS, resultPath);
     }
 
     @Test
