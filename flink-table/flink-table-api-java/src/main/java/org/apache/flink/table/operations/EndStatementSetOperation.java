@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 /** Operation to describe a End statement. */
-public class EndStatementSetOperation implements Operation {
+public class EndStatementSetOperation implements StatementSetOperation {
 
     @Override
     public String asSummaryString() {
