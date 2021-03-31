@@ -102,9 +102,9 @@ public class CliClient implements AutoCloseable {
 
     private final String sessionId;
 
-    private final Terminal terminal;
+    private @Nullable Terminal terminal;
 
-    private final LineReader lineReader;
+    private Path historyFilePath;
 
     private final String prompt;
 
@@ -125,8 +125,8 @@ public class CliClient implements AutoCloseable {
      * using {@link #close()}.
      */
     @VisibleForTesting
-    public CliClient(
-            Terminal terminal,
+    CliClient(
+            @Nullable Terminal terminal,
             String sessionId,
             Executor executor,
             Path historyFilePath,
@@ -135,38 +135,7 @@ public class CliClient implements AutoCloseable {
         this.sessionId = sessionId;
         this.executor = executor;
         this.inputTransformer = inputTransformer;
-
-        // make space from previous output and test the writer
-        terminal.writer().println();
-        terminal.writer().flush();
-
-        // initialize line lineReader
-        lineReader =
-                LineReaderBuilder.builder()
-                        .terminal(terminal)
-                        .appName(CliStrings.CLI_NAME)
-                        .parser(new SqlMultiLineParser())
-                        .completer(new SqlCompleter(sessionId, executor))
-                        .build();
-        // this option is disabled for now for correct backslash escaping
-        // a "SELECT '\'" query should return a string with a backslash
-        lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
-        // set strict "typo" distance between words when doing code completion
-        lineReader.setVariable(LineReader.ERRORS, 1);
-        // perform code completion case insensitive
-        lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
-        // set history file path
-        if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
-            String msg = "Command history file path: " + historyFilePath;
-            // print it in the command line as well as log file
-            System.out.println(msg);
-            LOG.info(msg);
-            lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
-        } else {
-            String msg = "Unable to create history file: " + historyFilePath;
-            System.out.println(msg);
-            LOG.warn(msg);
-        }
+        this.historyFilePath = historyFilePath;
 
         // create prompt
         prompt =
@@ -183,12 +152,7 @@ public class CliClient implements AutoCloseable {
      * afterwards using {@link #close()}.
      */
     public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(
-                TerminalUtils.createInteractiveTerminal(useSystemInOutStream),
-                sessionId,
-                executor,
-                historyFilePath,
-                null);
+        this(null, sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -233,13 +197,66 @@ public class CliClient implements AutoCloseable {
         return executor;
     }
 
+    /** Closes the CLI instance. */
+    public void close() {
+        if (terminal != null) {
+            closeTerminal();
+        }
+    }
+
     /** Opens the interactive CLI shell. */
-    public void open() {
-        isRunning = true;
+    public void executeInInteractiveMode() {
+        terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
+        // make space from previous output and test the writer
+        terminal.writer().println();
+        terminal.writer().flush();
 
         // print welcome
         terminal.writer().append(CliStrings.MESSAGE_WELCOME);
 
+        try {
+            executeInteractive();
+        } catch (Exception e) {
+            closeTerminal();
+            throw e;
+        }
+    }
+
+    public void executeInNonInteractiveMode(String content) {
+        terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
+        executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
+        closeTerminal();
+    }
+
+    public boolean executeInitialization(String content) {
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        terminal = TerminalUtils.createDummyTerminal(outputStream);
+        boolean success = executeFile(content, ExecutionMode.INITIALIZATION);
+        LOG.info(outputStream.toString());
+        closeTerminal();
+        return success;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    enum ExecutionMode {
+        INTERACTIVE_EXECUTION,
+
+        NON_INTERACTIVE_EXECUTION,
+
+        INITIALIZATION
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Execute statement from the user input and prints status information and/or errors on the
+     * terminal.
+     */
+    @VisibleForTesting
+    void executeInteractive() {
+        isRunning = true;
+        LineReader lineReader = createLineReader(terminal);
         // begin reading loop
         while (isRunning) {
             // make some space to previous command
@@ -265,31 +282,6 @@ public class CliClient implements AutoCloseable {
             executeStatement(line, ExecutionMode.INTERACTIVE_EXECUTION);
         }
     }
-
-    /** Closes the CLI instance. */
-    public void close() {
-        try {
-            terminal.close();
-        } catch (IOException e) {
-            throw new SqlClientException("Unable to close terminal.", e);
-        }
-    }
-
-    public void executeSqlFile(String content) {
-        executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    enum ExecutionMode {
-        INTERACTIVE_EXECUTION,
-
-        NON_INTERACTIVE_EXECUTION,
-
-        INITIALIZATION
-    }
-
-    // --------------------------------------------------------------------------------------------
 
     /**
      * Execute content from Sql file and prints status information and/or errors on the terminal.
@@ -325,12 +317,13 @@ public class CliClient implements AutoCloseable {
     private void validate(Operation operation, ExecutionMode executionMode) {
         if (executionMode.equals(ExecutionMode.INITIALIZATION)) {
             if (!(operation instanceof SetOperation)
+                    && !(operation instanceof ResetOperation)
                     && !(operation instanceof CreateOperation)
                     && !(operation instanceof DropOperation)
                     && !(operation instanceof UseOperation)
                     && !(operation instanceof AlterOperation)) {
                 throw new SqlExecutionException(
-                        "In init sql file, it only supports to use DDL operation and SET operation. "
+                        "In init sql file, it only supports to use DDL operation and SET/RESET operation. "
                                 + "Please use -f option to execute other types of SQL.");
             }
         } else if (executionMode.equals(ExecutionMode.NON_INTERACTIVE_EXECUTION)) {
@@ -608,21 +601,44 @@ public class CliClient implements AutoCloseable {
 
     // --------------------------------------------------------------------------------------------
 
-    /** Use the {@link CliClient} to initialize the Session. */
-    public static boolean initializeSession(
-            String sessionId, Executor executor, Path historyPath, String content) {
-        try (OutputStream outputStream = new ByteArrayOutputStream(256);
-                Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient dummyClient =
-                        new CliClient(terminal, sessionId, executor, historyPath, null)) {
-            if (!dummyClient.executeFile(content, ExecutionMode.INITIALIZATION)) {
-                LOG.error(outputStream.toString());
-                return false;
-            }
-            return true;
-        } catch (IOException ex) {
-            throw new SqlExecutionException("Fail to close the stream.", ex);
+    private void closeTerminal() {
+        try {
+            terminal.close();
+            terminal = null;
+        } catch (IOException e) {
+            throw new SqlClientException("Unable to close terminal.", e);
         }
+    }
+
+    private LineReader createLineReader(Terminal terminal) {
+        // initialize line lineReader
+        LineReader lineReader =
+                LineReaderBuilder.builder()
+                        .terminal(terminal)
+                        .appName(CliStrings.CLI_NAME)
+                        .parser(new SqlMultiLineParser())
+                        .completer(new SqlCompleter(sessionId, executor))
+                        .build();
+        // this option is disabled for now for correct backslash escaping
+        // a "SELECT '\'" query should return a string with a backslash
+        lineReader.option(LineReader.Option.DISABLE_EVENT_EXPANSION, true);
+        // set strict "typo" distance between words when doing code completion
+        lineReader.setVariable(LineReader.ERRORS, 1);
+        // perform code completion case insensitive
+        lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
+        // set history file path
+        if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
+            String msg = "Command history file path: " + historyFilePath;
+            // print it in the command line as well as log file
+            System.out.println(msg);
+            LOG.info(msg);
+            lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
+        } else {
+            String msg = "Unable to create history file: " + historyFilePath;
+            System.out.println(msg);
+            LOG.warn(msg);
+        }
+        return lineReader;
     }
 
     /**

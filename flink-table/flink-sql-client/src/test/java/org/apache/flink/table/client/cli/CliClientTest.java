@@ -141,7 +141,7 @@ public class CliClientTest extends TestLogger {
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
                         new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            client.open();
+            client.executeInteractive();
             List<String> content = Files.readAllLines(historyFilePath);
             assertEquals(2, content.size());
             assertTrue(content.get(0).contains("help"));
@@ -234,10 +234,9 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
+        CliClient cliClient = new CliClient(sessionId, mockExecutor, historyTempFile());
 
-        assertFalse(
-                "Should fail",
-                CliClient.initializeSession(sessionId, mockExecutor, historyTempFile(), content));
+        assertFalse("Should fail", cliClient.executeInitialization(content));
     }
 
     @Test(timeout = 10000)
@@ -276,10 +275,8 @@ public class CliClientTest extends TestLogger {
         OutputStream outputStream = new ByteArrayOutputStream(256);
         System.setOut(new PrintStream(outputStream));
 
-        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            Thread thread = new Thread(() -> client.executeSqlFile(content));
+        try (CliClient client = new CliClient(sessionId, mockExecutor, historyFilePath)) {
+            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(content));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -351,10 +348,8 @@ public class CliClientTest extends TestLogger {
         String sessionId = executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
         System.setOut(new PrintStream(outputStream));
-        try (Terminal terminal = TerminalUtils.createDummyTerminal(outputStream);
-                CliClient client =
-                        new CliClient(terminal, sessionId, executor, historyTempFile(), null)) {
-            client.executeSqlFile(content);
+        try (CliClient client = new CliClient(sessionId, executor, historyTempFile())) {
+            client.executeInNonInteractiveMode(content);
         }
         return outputStream.toString();
     }

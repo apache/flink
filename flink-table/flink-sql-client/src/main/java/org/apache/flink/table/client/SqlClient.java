@@ -123,27 +123,22 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        if (options.getInitFile() != null) {
-            boolean success =
-                    CliClient.initializeSession(
-                            sessionId,
-                            executor,
-                            historyFilePath,
-                            readFromURL(options.getInitFile()));
-            if (!success) {
-                System.out.println(
-                        "Fail to execute init file... Please refer to the LOG for detailed error messages.");
-                return;
-            } else {
-                System.out.println("Succeed to execute init file. Enter execution phase...");
-            }
-        }
-
         try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
+            if (options.getInitFile() != null) {
+                boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
+                if (!success) {
+                    System.out.println(
+                            "Fail to execute init file... Please refer to the LOG for detailed error messages.");
+                    return;
+                } else {
+                    System.out.println("Succeed to execute init file. Enter execution phase...");
+                }
+            }
+
             if (!hasSqlFile && !hasUpdateStatement) {
-                cli.open();
+                cli.executeInInteractiveMode();
             } else {
-                cli.executeSqlFile(readExecutionContent());
+                cli.executeInNonInteractiveMode(readExecutionContent());
             }
         }
     }

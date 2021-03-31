@@ -56,7 +56,8 @@ BEGIN STATEMENT SET;
 !info
 
 BEGIN STATEMENT SET;
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 create table src (
@@ -65,11 +66,13 @@ create table src (
 ) with (
   'connector' = 'values'
 );
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 SELECT id, str FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
@@ -128,9 +131,10 @@ BEGIN STATEMENT SET;
 [ERROR] Only INSERT statement is allowed in Statement Set.
 !error
 
-INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Add SQL update statement to the statement set.
-!info
+BEGIN STATEMENT SET;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
+!error
 
 END;
 [INFO] Submitting SQL update statement to the cluster...

@@ -164,7 +164,7 @@ public class CliClientITCase extends AbstractTestBase {
                                 executor,
                                 historyPath,
                                 HideSqlStatement.INSTANCE)) {
-            client.open();
+            client.executeInteractive();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);
         }

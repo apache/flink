@@ -104,9 +104,13 @@ public class CliResultViewTest {
                         null)) {
             resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
-        } finally {
+
             if (resultViewRunner != null && !resultViewRunner.isInterrupted()) {
                 resultViewRunner.interrupt();
+            }
+            // close the client until view exit
+            while (resultViewRunner.isAlive()) {
+                Thread.sleep(100);
             }
         }
 

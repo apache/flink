@@ -43,11 +43,11 @@ public class TerminalUtils {
         try {
             return new DumbTerminal(new MockInputStream(), out);
         } catch (IOException e) {
-            throw new RuntimeException("Unable to create dummy terminal.");
+            throw new SqlClientException("Unable to create dummy terminal.", e);
         }
     }
 
-    public static Terminal createInteractiveTerminal(boolean useSystemInOutStream) {
+    public static Terminal createDefaultTerminal(boolean useSystemInOutStream) {
         try {
             if (useSystemInOutStream) {
                 return TerminalBuilder.builder()
