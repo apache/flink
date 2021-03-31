@@ -18,21 +18,23 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertexTest;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.JvmUtils;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,8 +49,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -65,6 +67,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static final int REQUEST_ID = 0;
     private static final ExecutionJobVertex EXECUTION_JOB_VERTEX = createExecutionJobVertex();
     private static final ExecutionVertex[] TASK_VERTICES = EXECUTION_JOB_VERTEX.getTaskVertices();
+    private static final JobID JOB_ID = new JobID();
 
     private static ThreadInfoSample threadInfoSample;
     private static JobVertexThreadInfoStats threadInfoStatsDefaultSample;
@@ -75,12 +78,13 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     private static final Duration SMALL_TIME_GAP = Duration.ofMillis(1);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
-    private static final int PARALLELISM = 4;
     private static final int NUMBER_OF_SAMPLES = 1;
     private static final int MAX_STACK_TRACE_DEPTH = 100;
     private static final Duration DELAY_BETWEEN_SAMPLES = Duration.ofMillis(50);
 
     @Rule public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
+
+    private static ScheduledExecutorService executor;
 
     @BeforeClass
     public static void setUp() {
@@ -94,6 +98,14 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         threadInfoStatsDefaultSample =
                 createThreadInfoStats(
                         REQUEST_ID, SMALL_TIME_GAP, Collections.singletonList(threadInfoSample));
+        executor = Executors.newScheduledThreadPool(1);
+    }
+
+    @AfterClass
+    public static void tearDown() {
+        if (executor != null) {
+            executor.shutdownNow();
+        }
     }
 
     /** Tests successful thread info stats request. */
@@ -118,7 +130,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                         threadInfoStats2);
         // stores threadInfoStatsDefaultSample in cache
         doInitialRequestAndVerifyResult(tracker);
-        Optional<JobVertexThreadInfoStats> result = tracker.getVertexStats(EXECUTION_JOB_VERTEX);
+        Optional<JobVertexThreadInfoStats> result =
+                tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
         // cached result is returned instead of threadInfoStats2
         assertEquals(threadInfoStatsDefaultSample, result.get());
     }
@@ -145,7 +158,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         // ensure that the previous request "expires"
         Thread.sleep(waitingTime);
 
-        Optional<JobVertexThreadInfoStats> result = tracker.getVertexStats(EXECUTION_JOB_VERTEX);
+        Optional<JobVertexThreadInfoStats> result =
+                tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
 
         assertExpectedEqualsReceived(threadInfoStats2, result);
 
@@ -168,7 +182,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         // cleanup the cached thread info stats
         tracker.cleanUpVertexStatsCache();
-        assertFalse(tracker.getVertexStats(EXECUTION_JOB_VERTEX).isPresent());
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
 
     /** Tests that cached results are NOT removed within the cleanup interval. */
@@ -182,7 +196,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         tracker.cleanUpVertexStatsCache();
         // the thread info stats with the same requestId should still be there
         assertExpectedEqualsReceived(
-                threadInfoStatsDefaultSample, tracker.getVertexStats(EXECUTION_JOB_VERTEX));
+                threadInfoStatsDefaultSample, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
     }
 
     /** Tests that cached results are not served after the shutdown. */
@@ -196,22 +210,22 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         tracker.shutDown();
 
         // verify that the previous cached result is invalid and trigger another request
-        assertFalse(tracker.getVertexStats(EXECUTION_JOB_VERTEX).isPresent());
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
         // verify no response after shutdown
-        assertFalse(tracker.getVertexStats(EXECUTION_JOB_VERTEX).isPresent());
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
 
     private void doInitialRequestAndVerifyResult(
             JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker)
             throws InterruptedException, ExecutionException {
-        assertFalse(tracker.getVertexStats(EXECUTION_JOB_VERTEX).isPresent());
+        assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
         // block until the async call completes and the first result is available
         tracker.getResultAvailableFuture().get();
         assertExpectedEqualsReceived(
-                threadInfoStatsDefaultSample, tracker.getVertexStats(EXECUTION_JOB_VERTEX));
+                threadInfoStatsDefaultSample, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
     }
 
-    private void assertExpectedEqualsReceived(
+    private static void assertExpectedEqualsReceived(
             JobVertexThreadInfoStats expected,
             Optional<JobVertexThreadInfoStats> receivedOptional) {
         assertTrue(receivedOptional.isPresent());
@@ -240,12 +254,11 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         final ThreadInfoRequestCoordinator coordinator =
                 new TestingThreadInfoRequestCoordinator(Runnable::run, REQUEST_TIMEOUT, stats);
 
-        final TestingGatewayRetriever resourceManagerRetriever = new TestingGatewayRetriever();
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-
-        return JobVertexThreadInfoTracker.newBuilder(
-                        resourceManagerRetriever, Function.identity(), executor)
+        return JobVertexThreadInfoTrackerBuilder.newBuilder(
+                        JobVertexThreadInfoTrackerTest::createMockResourceManagerGateway,
+                        Function.identity(),
+                        executor,
+                        TestingUtils.TIMEOUT())
                 .setCoordinator(coordinator)
                 .setCleanUpInterval(cleanUpInterval)
                 .setNumSamples(NUMBER_OF_SAMPLES)
@@ -273,31 +286,23 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
     private static ExecutionJobVertex createExecutionJobVertex() {
         try {
-            return ExecutionJobVertexTest.createExecutionJobVertex(PARALLELISM, PARALLELISM);
+            JobVertex jobVertex = new JobVertex("testVertex");
+            jobVertex.setInvokableClass(AbstractInvokable.class);
+            return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create ExecutionJobVertex.");
         }
     }
 
-    private static class TestingGatewayRetriever
-            implements GatewayRetriever<ResourceManagerGateway> {
-
-        @Override
-        public CompletableFuture<ResourceManagerGateway> getFuture() {
-            return CompletableFuture.completedFuture(createMockResourceManagerGateway());
-        }
-    }
-
-    private static TestingResourceManagerGateway createMockResourceManagerGateway() {
-
+    private static CompletableFuture<ResourceManagerGateway> createMockResourceManagerGateway() {
         // ignored in TestingThreadInfoRequestCoordinator
-        Function<ResourceID, CompletableFuture<TaskExecutorGateway>> function =
+        Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
                 (resourceID) -> CompletableFuture.completedFuture(null);
 
         TestingResourceManagerGateway testingResourceManagerGateway =
                 new TestingResourceManagerGateway();
         testingResourceManagerGateway.setRequestTaskExecutorGatewayFunction(function);
-        return testingResourceManagerGateway;
+        return CompletableFuture.completedFuture(testingResourceManagerGateway);
     }
 
     /**
@@ -319,8 +324,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         @Override
         public CompletableFuture<JobVertexThreadInfoStats> triggerThreadInfoRequest(
-                List<Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>>
-                        ignored1,
+                Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>> ignored1,
                 int ignored2,
                 Duration ignored3,
                 int ignored4) {

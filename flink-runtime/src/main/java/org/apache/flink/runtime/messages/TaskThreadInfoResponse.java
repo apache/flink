@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.messages;
 
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -29,49 +28,21 @@ public class TaskThreadInfoResponse implements Serializable {
 
     private static final long serialVersionUID = -4786454630050578031L;
 
-    private final int requestId;
-
-    private final ExecutionAttemptID executionAttemptID;
-
     private final List<ThreadInfoSample> samples;
 
     /**
      * Creates a response to the request to collect thread details samples.
      *
-     * @param requestId ID of the request that triggered this response.
-     * @param executionAttemptID ID of the execution attempt (Task) being sampled.
      * @param samples Thread info samples.
      */
-    public TaskThreadInfoResponse(
-            int requestId, ExecutionAttemptID executionAttemptID, List<ThreadInfoSample> samples) {
-        this.requestId = requestId;
-        this.executionAttemptID = Preconditions.checkNotNull(executionAttemptID);
+    public TaskThreadInfoResponse(List<ThreadInfoSample> samples) {
         this.samples = Preconditions.checkNotNull(samples);
-    }
-
-    /**
-     * Returns the ID of the request that triggered this response.
-     *
-     * @return ID of the request
-     */
-    public int getRequestId() {
-        return requestId;
-    }
-
-    /**
-     * Returns the ID of the execution attempt (Task) being sampled.
-     *
-     * @return ID of the execution attempt (Task) being sampled
-     */
-    public ExecutionAttemptID getExecutionAttemptID() {
-        return executionAttemptID;
     }
 
     /**
      * Returns a list of ThreadInfoSample.
      *
      * @return List of thread info samples for a particular execution attempt (Task)
-     * @see #getExecutionAttemptID
      */
     public List<ThreadInfoSample> getSamples() {
         return samples;

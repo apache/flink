@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -166,4 +168,66 @@ public class RestOptions {
                             "Thread priority of the REST server's executor for processing asynchronous requests. "
                                     + "Lowering the thread priority will give Flink's main components more CPU time whereas "
                                     + "increasing will allocate more time for the REST server's processing.");
+
+    /** Enables the experimental flame graph feature. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> ENABLE_FLAMEGRAPH =
+            key("rest.flamegraph.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enables the experimental flame graph feature.");
+
+    /**
+     * "Time after which cached stats are cleaned up if not accessed. It can be specified using
+     * notation: "100 s", "10 m".
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> FLAMEGRAPH_CLEANUP_INTERVAL =
+            key("rest.flamegraph.cleanup-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(10))
+                    .withDescription(
+                            "Time after which cached stats are cleaned up if not accessed. It can"
+                                    + " be specified using notation: \"100 s\", \"10 m\".");
+
+    /**
+     * Time after which available stats are deprecated and need to be refreshed (by resampling). It
+     * can be specified using notation: "30 s", "1 m".
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> FLAMEGRAPH_REFRESH_INTERVAL =
+            key("rest.flamegraph.refresh-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            "Time after which available stats are deprecated and need to be refreshed"
+                                    + " (by resampling).  It can be specified using notation: \"30 s\", \"1 m\".");
+
+    /** Number of samples to take to build a FlameGraph. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> FLAMEGRAPH_NUM_SAMPLES =
+            key("rest.flamegraph.num-samples")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Number of samples to take to build a FlameGraph.");
+
+    /**
+     * Delay between individual stack trace samples taken for building a FlameGraph. It can be
+     * specified using notation: "100 ms", "1 s".
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> FLAMEGRAPH_DELAY =
+            key("rest.flamegraph.delay-between-samples")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription(
+                            "Delay between individual stack trace samples taken for building a FlameGraph. It can be specified using notation: \"100 ms\", \"1 s\".");
+
+    /** Maximum depth of stack traces used to create FlameGraphs. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> FLAMEGRAPH_STACK_TRACE_DEPTH =
+            key("rest.flamegraph.stack-depth")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Maximum depth of stack traces used to create FlameGraphs.");
 }

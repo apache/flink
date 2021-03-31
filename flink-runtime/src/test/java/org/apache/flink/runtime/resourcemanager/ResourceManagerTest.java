@@ -40,6 +40,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -189,12 +190,13 @@ public class ResourceManagerTest extends TestLogger {
         registerTaskExecutor(
                 resourceManagerGateway, taskManagerId, taskExecutorGateway.getAddress());
 
-        CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture =
-                resourceManagerGateway.requestTaskExecutorGateway(taskManagerId);
+        CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
+                resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
+                        taskManagerId, TestingUtils.TIMEOUT());
 
-        TaskExecutorGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
+        TaskExecutorThreadInfoGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
 
-        assertEquals(taskExecutorGateway.getAddress(), taskExecutorGatewayResult.getAddress());
+        assertEquals(taskExecutorGateway, taskExecutorGatewayResult);
     }
 
     private void registerTaskExecutor(
