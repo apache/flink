@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
 
@@ -407,6 +409,16 @@ class RexNodeToExpressionConverter(
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
         toLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
+
+      case INTERVAL_DAY_TIME =>
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        DayTimeIntervalDurationConverter.INSTANCE.toExternal(v)
+
+      case INTERVAL_YEAR_MONTH =>
+        val v = literal.getValueAs(classOf[java.lang.Integer])
+        YearMonthIntervalPeriodConverter
+          .create(literalType.asInstanceOf[YearMonthIntervalType])
+          .toExternal(v)
 
       case TINYINT =>
         // convert from BigDecimal to Byte

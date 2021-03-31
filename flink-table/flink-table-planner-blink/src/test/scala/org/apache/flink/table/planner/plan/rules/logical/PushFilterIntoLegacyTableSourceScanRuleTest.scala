@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestLegacyFilterableTableSource}
 import org.apache.flink.types.Row
 
@@ -166,5 +167,33 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       List("a", "b"))
 
     util.verifyRelPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'")
+  }
+
+  @Test
+  def testWithInterval(): Unit = {
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.TIMESTAMP)
+      .field("b", DataTypes.TIMESTAMP)
+      .build()
+
+    val data = List(Row.of(
+      localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")))
+    TestLegacyFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      schema,
+      "MTable",
+      isBounded = true,
+      data,
+      List("a", "b"))
+
+    util.verifyRelPlan(
+      """
+        |SELECT * FROM MTable
+        |WHERE
+        |  TIMESTAMPADD(HOUR, 5, a) >= b
+        |  OR
+        |  TIMESTAMPADD(YEAR, 2, b) >= a
+        |""".stripMargin)
   }
 }
