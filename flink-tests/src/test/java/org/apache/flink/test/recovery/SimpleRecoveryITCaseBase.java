@@ -25,6 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -39,7 +40,7 @@ import static org.junit.Assert.fail;
  * should restart them to verify job completion.
  */
 @SuppressWarnings("serial")
-public abstract class SimpleRecoveryITCaseBase {
+public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
     @ClassRule
     public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
