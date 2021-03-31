@@ -118,26 +118,13 @@ object CodeGenUtils {
 
   private val nameCounter = new AtomicLong
 
-  private def newNameSuffixNumber(): Long = {
-    val newNameCounter = nameCounter.getAndIncrement
-    if (newNameCounter < 0) {
-      // should we throw a Exception here in case duplicate suffix number ?
-      synchronized {
-        nameCounter.set(0)
-      }
-      nameCounter.getAndIncrement
-    } else {
-      newNameCounter
-    }
-  }
-
   def newName(name: String): String = {
-    s"$name$$${newNameSuffixNumber()}"
+    s"$name$$${nameCounter.getAndIncrement}"
   }
 
   def newNames(names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = newNameSuffixNumber()
+    val newId = nameCounter.getAndIncrement
     names.map(name => s"$name$$$newId")
   }
 
