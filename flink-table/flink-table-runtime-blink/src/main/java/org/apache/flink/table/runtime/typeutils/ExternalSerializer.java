@@ -69,8 +69,7 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
         this.dataType = dataType;
         this.internalSerializer = internalSerializer;
         // if no data structures that use memory segments are exposed in the external data
-        // structure,
-        // we can reuse intermediate internal data structures
+        // structure, we can reuse intermediate internal data structures
         this.isReuseEnabled = !hasBinaryData(dataType);
         initializeConverter();
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableException;
@@ -27,11 +28,13 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
@@ -73,13 +76,56 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 public final class DynamicSinkUtils {
 
     /**
+     * Converts an external sink (i.e. further {@link DataStream} transformations) to a {@link
+     * RelNode}.
+     */
+    public static RelNode convertExternalToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            ExternalModifyOperation externalModifyOperation) {
+        final ResolvedSchema schema = externalModifyOperation.getResolvedSchema();
+        final CatalogTable unresolvedTable = new ExternalCatalogTable(schema);
+        final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
+        final DynamicTableSink tableSink =
+                new ExternalDynamicSink(
+                        externalModifyOperation.getChangelogMode(),
+                        externalModifyOperation.getPhysicalDataType());
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                externalModifyOperation.getTableIdentifier(),
+                Collections.emptyMap(),
+                false,
+                tableSink,
+                catalogTable);
+    }
+
+    /**
      * Converts a given {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if
      * necessary.
      */
-    public static RelNode toRel(
+    public static RelNode convertSinkToRel(
             FlinkRelBuilder relBuilder,
             RelNode input,
-            CatalogSinkModifyOperation sinkOperation,
+            CatalogSinkModifyOperation sinkModifyOperation,
+            DynamicTableSink sink,
+            ResolvedCatalogTable table) {
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                sinkModifyOperation.getTableIdentifier(),
+                sinkModifyOperation.getStaticPartitions(),
+                sinkModifyOperation.isOverwrite(),
+                sink,
+                table);
+    }
+
+    private static RelNode convertSinkToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            ObjectIdentifier sinkIdentifier,
+            Map<String, String> staticPartitions,
+            boolean isOverwrite,
             DynamicTableSink sink,
             ResolvedCatalogTable table) {
         final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
@@ -88,13 +134,13 @@ public final class DynamicSinkUtils {
         List<SinkAbilitySpec> sinkAbilitySpecs = new ArrayList<>();
 
         // 1. prepare table sink
-        prepareDynamicSink(sinkOperation, sink, table, sinkAbilitySpecs);
+        prepareDynamicSink(
+                sinkIdentifier, staticPartitions, isOverwrite, sink, table, sinkAbilitySpecs);
         sinkAbilitySpecs.forEach(spec -> spec.apply(sink));
 
         // 2. validate the query schema to the sink's table schema and apply cast if possible
         final RelNode query =
-                validateSchemaAndApplyImplicitCast(
-                        input, schema, sinkOperation.getTableIdentifier(), typeFactory);
+                validateSchemaAndApplyImplicitCast(input, schema, sinkIdentifier, typeFactory);
         relBuilder.push(query);
 
         // 3. convert the sink's table schema to the consumed data type of the sink
@@ -107,10 +153,10 @@ public final class DynamicSinkUtils {
 
         return LogicalSink.create(
                 finalQuery,
-                sinkOperation.getTableIdentifier(),
+                sinkIdentifier,
                 table,
                 sink,
-                sinkOperation.getStaticPartitions(),
+                staticPartitions,
                 sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]));
     }
 
@@ -260,15 +306,15 @@ public final class DynamicSinkUtils {
      * INSERT INTO clause and applies initial parameters.
      */
     private static void prepareDynamicSink(
-            CatalogSinkModifyOperation sinkOperation,
+            ObjectIdentifier sinkIdentifier,
+            Map<String, String> staticPartitions,
+            boolean isOverwrite,
             DynamicTableSink sink,
             CatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
-        final ObjectIdentifier sinkIdentifier = sinkOperation.getTableIdentifier();
+        validatePartitioning(sinkIdentifier, staticPartitions, sink, table.getPartitionKeys());
 
-        validatePartitioning(sinkOperation, sinkIdentifier, sink, table.getPartitionKeys());
-
-        validateAndApplyOverwrite(sinkOperation, sinkIdentifier, sink, sinkAbilitySpecs);
+        validateAndApplyOverwrite(sinkIdentifier, isOverwrite, sink, sinkAbilitySpecs);
 
         validateAndApplyMetadata(sinkIdentifier, sink, table.getSchema(), sinkAbilitySpecs);
     }
@@ -278,7 +324,7 @@ public final class DynamicSinkUtils {
      * SupportsWritingMetadata#listWritableMetadata()}.
      *
      * <p>This method assumes that sink and schema have been validated via {@link
-     * #prepareDynamicSink(CatalogSinkModifyOperation, DynamicTableSink, CatalogTable, List)}.
+     * #prepareDynamicSink}.
      */
     private static List<String> createRequiredMetadataKeys(
             TableSchema schema, DynamicTableSink sink) {
@@ -344,8 +390,8 @@ public final class DynamicSinkUtils {
     }
 
     private static void validatePartitioning(
-            CatalogSinkModifyOperation sinkOperation,
             ObjectIdentifier sinkIdentifier,
+            Map<String, String> staticPartitions,
             DynamicTableSink sink,
             List<String> partitionKeys) {
         if (!partitionKeys.isEmpty()) {
@@ -360,7 +406,6 @@ public final class DynamicSinkUtils {
             }
         }
 
-        final Map<String, String> staticPartitions = sinkOperation.getStaticPartitions();
         staticPartitions
                 .keySet()
                 .forEach(
@@ -377,11 +422,11 @@ public final class DynamicSinkUtils {
     }
 
     private static void validateAndApplyOverwrite(
-            CatalogSinkModifyOperation sinkOperation,
             ObjectIdentifier sinkIdentifier,
+            boolean isOverwrite,
             DynamicTableSink sink,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
-        if (!sinkOperation.isOverwrite()) {
+        if (!isOverwrite) {
             return;
         }
         if (!(sink instanceof SupportsOverwrite)) {
@@ -393,7 +438,7 @@ public final class DynamicSinkUtils {
                             sinkIdentifier.asSummaryString(),
                             SupportsOverwrite.class.getSimpleName()));
         }
-        sinkAbilitySpecs.add(new OverwriteSpec(sinkOperation.isOverwrite()));
+        sinkAbilitySpecs.add(new OverwriteSpec(true));
     }
 
     private static List<Integer> extractPhysicalColumns(TableSchema schema) {

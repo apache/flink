@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.catalog.{CatalogManager, ExternalSchemaTranslator, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier, UnresolvedIdentifier}
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
@@ -35,10 +35,12 @@ import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{OutputConversionModifyOperation, QueryOperation, ScalaDataStreamQueryOperation, ScalaExternalQueryOperation}
+import org.apache.flink.table.operations._
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
+import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
 import javax.annotation.Nullable
@@ -95,54 +97,126 @@ class StreamTableEnvironmentImpl (
     createTemporaryView(path, fromDataStreamInternal(dataStream.javaStream, schema, path))
   }
 
-  def fromDataStreamInternal[T](
-            dataStream: JDataStream[T],
-            @Nullable schema: Schema,
-            @Nullable viewPath: String): Table = {
-        Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
-        val catalogManager = getCatalogManager
-        val schemaResolver = catalogManager.getSchemaResolver
-        val operationTreeBuilder = getOperationTreeBuilder
+  private def fromDataStreamInternal[T](
+      dataStream: JDataStream[T],
+      @Nullable schema: Schema,
+      @Nullable viewPath: String): Table = {
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    val catalogManager = getCatalogManager
+    val schemaResolver = catalogManager.getSchemaResolver
+    val operationTreeBuilder = getOperationTreeBuilder
 
-        val unresolvedIdentifier = if (viewPath != null) {
-            getParser.parseIdentifier(viewPath)
-        } else {
-            UnresolvedIdentifier.of("Unregistered_DataStream_" + dataStream.getId)
-        }
-        val objectIdentifier =
-                catalogManager.qualifyIdentifier(unresolvedIdentifier)
-
-        val schemaTranslationResult =
-                ExternalSchemaTranslator.fromExternal(
-                        catalogManager.getDataTypeFactory, dataStream.getType, schema)
-
-        val resolvedSchema =
-                schemaTranslationResult.getSchema.resolve(schemaResolver)
-
-        val scanOperation =
-                new ScalaExternalQueryOperation(
-                        objectIdentifier,
-                        dataStream,
-                        schemaTranslationResult.getPhysicalDataType,
-                        schemaTranslationResult.isTopLevelRecord,
-                        ChangelogMode.insertOnly(),
-                        resolvedSchema)
-
-        val projections = schemaTranslationResult.getProjections
-        if (projections == null) {
-            return createTable(scanOperation)
-        }
-
-        val projectOperation =
-                operationTreeBuilder.project(
-                        util.Arrays.asList(
-                          projections
-                            .asScala
-                            .map(ApiExpressionUtils.unresolvedRef).toArray),
-                        scanOperation)
-
-        createTable(projectOperation)
+    val unresolvedIdentifier = if (viewPath != null) {
+      getParser.parseIdentifier(viewPath)
+    } else {
+      UnresolvedIdentifier.of("Unregistered_DataStream_" + dataStream.getId)
     }
+    val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
+
+    val schemaTranslationResult =
+      ExternalSchemaTranslator.fromExternal(
+        catalogManager.getDataTypeFactory, dataStream.getType, schema)
+
+    val resolvedSchema = schemaTranslationResult.getSchema.resolve(schemaResolver)
+
+    val scanOperation =
+      new ScalaExternalQueryOperation(
+        objectIdentifier,
+        dataStream,
+        schemaTranslationResult.getPhysicalDataType,
+        schemaTranslationResult.isTopLevelRecord,
+        ChangelogMode.insertOnly(),
+        resolvedSchema)
+
+    val projections = schemaTranslationResult.getProjections
+    if (projections == null) {
+      return createTable(scanOperation)
+    }
+
+    val projectOperation =
+      operationTreeBuilder.project(
+        util.Arrays.asList(
+          projections
+            .asScala
+            .map(ApiExpressionUtils.unresolvedRef)
+            .toArray),
+        scanOperation)
+
+    createTable(projectOperation)
+  }
+
+  override def toDataStream(table: Table): DataStream[Row] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+    val sourceType = table.getResolvedSchema.toSinkRowDataType
+    toDataStream(table, sourceType)
+  }
+
+  override def toDataStream[T](table: Table, targetClass: Class[T]): DataStream[T] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+    Preconditions.checkNotNull(targetClass, "Target class must not be null.")
+    if (targetClass == classOf[Row]) {
+      // for convenience, we allow the Row class here as well
+      return toDataStream(table).asInstanceOf[DataStream[T]]
+    }
+
+    toDataStream(table, DataTypes.of(targetClass))
+  }
+
+  override def toDataStream[T](table: Table, targetDataType: AbstractDataType[_]): DataStream[T] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+    Preconditions.checkNotNull(targetDataType, "Target data type must not be null.")
+    val catalogManager = getCatalogManager
+    val schemaResolver = catalogManager.getSchemaResolver
+    val operationTreeBuilder = getOperationTreeBuilder
+
+    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+      catalogManager.getDataTypeFactory,
+      table.getResolvedSchema,
+      targetDataType)
+
+    val projections = schemaTranslationResult.getProjections
+    val projectOperation = if (projections == null) {
+      table.getQueryOperation
+    } else {
+      operationTreeBuilder.project(
+        util.Arrays.asList(
+          projections
+            .asScala
+            .map(ApiExpressionUtils.unresolvedRef)
+            .toArray),
+        table.getQueryOperation)
+    }
+
+    val resolvedSchema = schemaResolver.resolve(schemaTranslationResult.getSchema)
+
+    val unresolvedIdentifier =
+      UnresolvedIdentifier.of("Unregistered_DataStream_Sink_" + ExternalModifyOperation.getUniqueId)
+    val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
+
+    val modifyOperation = new ExternalModifyOperation(
+      objectIdentifier,
+      table.getQueryOperation,
+      resolvedSchema,
+      ChangelogMode.insertOnly(),
+      schemaTranslationResult.getPhysicalDataType)
+
+    toDataStreamInternal(table, modifyOperation)
+  }
+
+  private def toDataStreamInternal[T](
+      table: Table,
+      modifyOperation: ModifyOperation)
+    : DataStream[T] = {
+    val transformations = planner
+      .translate(Collections.singletonList(modifyOperation))
+    val streamTransformation: Transformation[T] = getTransformation(
+      table,
+      transformations)
+    scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
+    new DataStream[T](new JDataStream[T](
+      scalaExecutionEnvironment
+        .getWrappedStreamExecutionEnvironment, streamTransformation))
+  }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
     val queryOperation = asQueryOperation(dataStream, Some(fields.toList.asJava))
@@ -168,7 +242,7 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.APPEND)
-    toDataStream[T](table, modifyOperation)
+    toDataStreamInternal[T](table, modifyOperation)
   }
 
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
@@ -178,7 +252,7 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
-    toDataStream(table, modifyOperation)
+    toDataStreamInternal(table, modifyOperation)
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
@@ -236,21 +310,6 @@ class StreamTableEnvironmentImpl (
         "A rowtime attribute requires an EventTime time characteristic in stream " +
           "environment. But is: %s}", scalaExecutionEnvironment.getStreamTimeCharacteristic))
     }
-  }
-
-  private def toDataStream[T](
-      table: Table,
-      modifyOperation: OutputConversionModifyOperation)
-    : DataStream[T] = {
-    val transformations = planner
-      .translate(Collections.singletonList(modifyOperation))
-    val streamTransformation: Transformation[T] = getTransformation(
-      table,
-      transformations)
-    scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
-    new DataStream[T](new JDataStream[T](
-      scalaExecutionEnvironment
-        .getWrappedStreamExecutionEnvironment, streamTransformation))
   }
 
   private def getTransformation[T](
