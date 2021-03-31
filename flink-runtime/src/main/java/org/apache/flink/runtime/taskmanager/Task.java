@@ -990,12 +990,20 @@ public class Task
             }
         }
 
-        for (InputGate inputGate : inputGates) {
-            try {
-                inputGate.close();
-            } catch (Throwable t) {
-                ExceptionUtils.rethrowIfFatalError(t);
-                LOG.error("Failed to release input gate for task {}.", taskNameWithSubtask, t);
+        AbstractInvokable invokable = this.invokable;
+        if (invokable == null || !invokable.isUsingNonBlockingInput()) {
+            // Cleanup resources instead of invokable if it is null,
+            // or prevent it from being blocked on input,
+            // or interrupt if it is already blocked.
+            // Not needed for StreamTask (which does NOT use blocking input); for which this could
+            // cause race conditions
+            for (InputGate inputGate : inputGates) {
+                try {
+                    inputGate.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.rethrowIfFatalError(t);
+                    LOG.error("Failed to release input gate for task {}.", taskNameWithSubtask, t);
+                }
             }
         }
     }

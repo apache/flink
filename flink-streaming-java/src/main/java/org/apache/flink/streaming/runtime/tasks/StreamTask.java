@@ -1414,4 +1414,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             suspendedDefaultAction.resume();
         }
     }
+
+    @Override
+    public boolean isUsingNonBlockingInput() {
+        return true;
+    }
 }
