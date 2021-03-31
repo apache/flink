@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
@@ -35,10 +37,15 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,16 +57,34 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
+@RunWith(Parameterized.class)
 public class DataStreamJavaITCase extends AbstractTestBase {
 
     private StreamExecutionEnvironment env;
 
     private StreamTableEnvironment tableEnv;
 
+    enum ObjectReuse {
+        ENABLED,
+        DISABLED
+    }
+
+    @Parameters(name = "objectReuse = {0}")
+    public static ObjectReuse[] objectReuse() {
+        return ObjectReuse.values();
+    }
+
+    @Parameter public ObjectReuse objectReuse;
+
     @Before
     public void before() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
+        if (objectReuse == ObjectReuse.ENABLED) {
+            env.getConfig().enableObjectReuse();
+        } else if (objectReuse == ObjectReuse.DISABLED) {
+            env.getConfig().disableObjectReuse();
+        }
         tableEnv = StreamTableEnvironment.create(env);
     }
 
@@ -73,6 +98,13 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testSchema(result, Column.physical("f0", DataTypes.INT().notNull()));
 
         testResult(result, Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
+    }
+
+    @Test
+    public void testToDataStreamAtomic() throws Exception {
+        final Table table = tableEnv.fromValues(1, 2, 3, 4, 5);
+
+        testResult(tableEnv.toDataStream(table, Integer.class), 1, 2, 3, 4, 5);
     }
 
     @Test
@@ -108,11 +140,26 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromDataStreamWithPojo() {
-        final DataStream<ComplexPojo> dataStream =
-                env.fromElements(
-                        ComplexPojo.of(42, "hello", new ImmutablePojo(42.0, null)),
-                        ComplexPojo.of(42, null, null));
+    public void testToDataStreamWithRow() throws Exception {
+        final Row[] rows =
+                new Row[] {
+                    Row.of(12, Row.of(false, "hello"), Collections.singletonMap("world", 2.0)),
+                    Row.of(null, Row.of(false, null), Collections.singletonMap("world", 1.0))
+                };
+
+        final Table table = tableEnv.fromValues((Object[]) rows);
+
+        testResult(tableEnv.toDataStream(table), rows);
+    }
+
+    @Test
+    public void testFromAndToDataStreamWithPojo() throws Exception {
+        final ComplexPojo[] pojos = {
+            ComplexPojo.of(42, "hello", new ImmutablePojo(42.0, null)),
+            ComplexPojo.of(42, null, null)
+        };
+
+        final DataStream<ComplexPojo> dataStream = env.fromElements(pojos);
 
         // reorders columns and enriches the immutable type
         final Table table =
@@ -140,10 +187,12 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final TableResult result = tableEnv.executeSql("SELECT p.d, p.b FROM t");
 
         testResult(result, Row.of(42.0, null), Row.of(null, null));
+
+        testResult(tableEnv.toDataStream(table, ComplexPojo.class), pojos);
     }
 
     @Test
-    public void testFromDataStreamEventTime() {
+    public void testFromAndToDataStreamEventTime() throws Exception {
         final DataStream<Tuple3<Long, Integer, String>> dataStream = getWatermarkedDataStream();
 
         final Table table =
@@ -176,6 +225,23 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         "SELECT f2, SUM(f1) FROM t GROUP BY f2, TUMBLE(rowtime, INTERVAL '0.005' SECOND)");
 
         testResult(result, Row.of("a", 47), Row.of("c", 1000), Row.of("c", 1000));
+
+        testResult(
+                tableEnv.toDataStream(table)
+                        .keyBy(k -> k.getField("f2"))
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .<Row>apply(
+                                (key, window, input, out) -> {
+                                    int sum = 0;
+                                    for (Row row : input) {
+                                        sum += row.<Integer>getFieldAs("f1");
+                                    }
+                                    out.collect(Row.of(key, sum));
+                                })
+                        .returns(Types.ROW(Types.STRING, Types.INT)),
+                Row.of("a", 47),
+                Row.of("c", 1000),
+                Row.of("c", 1000));
     }
 
     private DataStream<Tuple3<Long, Integer, String>> getWatermarkedDataStream() {
@@ -208,6 +274,15 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     private static void testResult(TableResult result, Row... expectedRows) {
         final List<Row> actualRows = CollectionUtil.iteratorToList(result.collect());
         assertThat(actualRows, containsInAnyOrder(expectedRows));
+    }
+
+    @SafeVarargs
+    private static <T> void testResult(DataStream<T> dataStream, T... expectedResult)
+            throws Exception {
+        try (CloseableIterator<T> iterator = dataStream.executeAndCollect()) {
+            final List<T> list = CollectionUtil.iteratorToList(iterator);
+            assertThat(list, containsInAnyOrder(expectedResult));
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -265,6 +340,23 @@ public class DataStreamJavaITCase extends AbstractTestBase {
             complexPojo.a = a;
             complexPojo.p = p;
             return complexPojo;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ComplexPojo that = (ComplexPojo) o;
+            return c == that.c && Objects.equals(a, that.a) && Objects.equals(p, that.p);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(c, a, p);
         }
     }
 }

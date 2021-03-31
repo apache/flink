@@ -92,7 +92,7 @@ public final class JavaExternalQueryOperation<E> implements QueryOperation {
 
     @Override
     public String asSummaryString() {
-        Map<String, Object> args = new LinkedHashMap<>();
+        final Map<String, Object> args = new LinkedHashMap<>();
         args.put("identifier", identifier);
         args.put("stream", dataStream.getId());
         args.put("type", physicalDataType);
@@ -101,7 +101,7 @@ public final class JavaExternalQueryOperation<E> implements QueryOperation {
         args.put("fields", resolvedSchema.getColumnNames());
 
         return OperationUtils.formatWithChildren(
-                "DataStream", args, getChildren(), Operation::asSummaryString);
+                "DataStreamInput", args, getChildren(), Operation::asSummaryString);
     }
 
     @Override

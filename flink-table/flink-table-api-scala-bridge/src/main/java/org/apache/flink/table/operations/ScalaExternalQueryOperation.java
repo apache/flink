@@ -101,7 +101,7 @@ public final class ScalaExternalQueryOperation<E> implements QueryOperation {
         args.put("fields", resolvedSchema.getColumnNames());
 
         return OperationUtils.formatWithChildren(
-                "DataStream", args, getChildren(), Operation::asSummaryString);
+                "DataStreamInput", args, getChildren(), Operation::asSummaryString);
     }
 
     @Override

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
@@ -61,16 +62,20 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.JavaExternalQueryOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -258,7 +263,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             unresolvedIdentifier = getParser().parseIdentifier(viewPath);
         } else {
             unresolvedIdentifier =
-                    UnresolvedIdentifier.of("Unregistered_DataStream_" + dataStream.getId());
+                    UnresolvedIdentifier.of("Unregistered_DataStream_Source_" + dataStream.getId());
         }
         final ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -292,6 +297,84 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         scanOperation);
 
         return createTable(projectOperation);
+    }
+
+    @Override
+    public DataStream<Row> toDataStream(Table table) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        // include all columns of the query (incl. metadata and computed columns)
+        final DataType sourceType = table.getResolvedSchema().toSourceRowDataType();
+        return toDataStream(table, sourceType);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> DataStream<T> toDataStream(Table table, Class<T> targetClass) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetClass, "Target class must not be null.");
+        if (targetClass == Row.class) {
+            // for convenience, we allow the Row class here as well
+            return (DataStream<T>) toDataStream(table);
+        }
+
+        return toDataStream(table, DataTypes.of(targetClass));
+    }
+
+    @Override
+    public <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> targetDataType) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
+        final CatalogManager catalogManager = getCatalogManager();
+        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
+        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+
+        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromInternal(
+                        catalogManager.getDataTypeFactory(),
+                        table.getResolvedSchema(),
+                        targetDataType);
+
+        final List<String> projections = schemaTranslationResult.getProjections();
+        final QueryOperation projectOperation;
+        if (projections == null) {
+            projectOperation = table.getQueryOperation();
+        } else {
+            projectOperation =
+                    operationTreeBuilder.project(
+                            projections.stream()
+                                    .map(ApiExpressionUtils::unresolvedRef)
+                                    .collect(Collectors.toList()),
+                            table.getQueryOperation());
+        }
+
+        final ResolvedSchema resolvedSchema =
+                schemaResolver.resolve(schemaTranslationResult.getSchema());
+
+        final UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        "Unregistered_DataStream_Sink_" + ExternalModifyOperation.getUniqueId());
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        final ExternalModifyOperation modifyOperation =
+                new ExternalModifyOperation(
+                        objectIdentifier,
+                        projectOperation,
+                        resolvedSchema,
+                        ChangelogMode.insertOnly(),
+                        schemaTranslationResult.getPhysicalDataType());
+
+        return toDataStreamInternal(table, modifyOperation);
+    }
+
+    private <T> DataStream<T> toDataStreamInternal(Table table, ModifyOperation modifyOperation) {
+        final List<Transformation<?>> transformations =
+                planner.translate(Collections.singletonList(modifyOperation));
+
+        final Transformation<T> transformation = getTransformation(table, transformations);
+
+        executionEnvironment.addOperator(transformation);
+        return new DataStream<>(executionEnvironment, transformation);
     }
 
     @Override
@@ -358,7 +441,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         table.getQueryOperation(),
                         TypeConversions.fromLegacyInfoToDataType(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.APPEND);
-        return toDataStream(table, modifyOperation);
+        return toDataStreamInternal(table, modifyOperation);
     }
 
     @Override
@@ -375,7 +458,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         table.getQueryOperation(),
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
-        return toDataStream(table, modifyOperation);
+        return toDataStreamInternal(table, modifyOperation);
     }
 
     @Override
@@ -395,17 +478,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     /** This method is used for sql client to submit job. */
     public Pipeline getPipeline(String jobName) {
         return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
-    }
-
-    private <T> DataStream<T> toDataStream(
-            Table table, OutputConversionModifyOperation modifyOperation) {
-        List<Transformation<?>> transformations =
-                planner.translate(Collections.singletonList(modifyOperation));
-
-        Transformation<T> transformation = getTransformation(table, transformations);
-
-        executionEnvironment.addOperator(transformation);
-        return new DataStream<>(executionEnvironment, transformation);
     }
 
     @Override
