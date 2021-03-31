@@ -680,6 +680,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 operations.stream()
                         .filter(o -> !(o instanceof NopOperation))
                         .collect(Collectors.toList());
+        // hive parser may generate an NopOperation, in which case we just return an
+        // empty string as the plan
         if (operations.isEmpty()) {
             return "";
         } else {
