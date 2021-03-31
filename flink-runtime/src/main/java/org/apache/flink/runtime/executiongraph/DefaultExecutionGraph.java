@@ -64,6 +64,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -226,6 +228,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final VertexAttemptNumberStore initialAttemptCounts;
 
+    private final VertexParallelismStore parallelismStore;
+
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
@@ -279,7 +283,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp,
-            VertexAttemptNumberStore initialAttemptCounts)
+            VertexAttemptNumberStore initialAttemptCounts,
+            VertexParallelismStore vertexParallelismStore)
             throws IOException {
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -335,6 +340,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.executionStateUpdateListener = executionStateUpdateListener;
 
         this.initialAttemptCounts = initialAttemptCounts;
+
+        this.parallelismStore = vertexParallelismStore;
 
         this.edgeManager = new EdgeManager();
         this.executionVerticesById = new HashMap<>();
@@ -770,6 +777,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 this.isStoppable = false;
             }
 
+            VertexParallelismInformation parallelismInfo =
+                    parallelismStore.getParallelismInfo(jobVertex.getID());
+
             // create the execution job vertex and attach it to the graph
             ExecutionJobVertex ejv =
                     new ExecutionJobVertex(
@@ -778,7 +788,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                             maxPriorAttemptsHistoryLength,
                             rpcTimeout,
                             createTimestamp,
-                            this.initialAttemptCounts.getAttemptCounts(jobVertex.getID()));
+                            parallelismInfo,
+                            initialAttemptCounts.getAttemptCounts(jobVertex.getID()));
 
             ejv.connectToPredecessors(this.intermediateResults);
 

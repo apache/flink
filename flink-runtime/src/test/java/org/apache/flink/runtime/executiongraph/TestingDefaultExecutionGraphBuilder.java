@@ -37,6 +37,8 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -74,6 +77,7 @@ public class TestingDefaultExecutionGraphBuilder {
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
     private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private VertexParallelismStore vertexParallelismStore;
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -158,6 +162,12 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
+    public TestingDefaultExecutionGraphBuilder setVertexParallelismStore(
+            VertexParallelismStore store) {
+        this.vertexParallelismStore = store;
+        return this;
+    }
+
     public DefaultExecutionGraph build() throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
@@ -179,6 +189,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 executionDeploymentListener,
                 executionStateUpdateListener,
                 System.currentTimeMillis(),
-                new DefaultVertexAttemptNumberStore());
+                new DefaultVertexAttemptNumberStore(),
+                Optional.ofNullable(vertexParallelismStore)
+                        .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)));
     }
 }

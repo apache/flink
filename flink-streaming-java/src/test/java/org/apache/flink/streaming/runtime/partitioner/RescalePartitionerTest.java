@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuild
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -116,7 +117,11 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
         assertEquals(4, mapVertex.getParallelism());
         assertEquals(2, sinkVertex.getParallelism());
 
-        ExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
+        ExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setVertexParallelismStore(
+                                SchedulerBase.computeVertexParallelismStore(jobGraph))
+                        .build();
 
         try {
             eg.attachJobGraph(jobVertices);

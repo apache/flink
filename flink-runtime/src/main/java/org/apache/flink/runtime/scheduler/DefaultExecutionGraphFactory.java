@@ -91,6 +91,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
+            VertexParallelismStore vertexParallelismStore,
             Logger log)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
@@ -122,7 +123,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         executionDeploymentListener,
                         executionStateUpdateListener,
                         initializationTimestamp,
-                        vertexAttemptNumberStore);
+                        vertexAttemptNumberStore,
+                        vertexParallelismStore);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

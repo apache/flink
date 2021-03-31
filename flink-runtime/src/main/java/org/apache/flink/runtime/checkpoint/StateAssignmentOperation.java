@@ -650,19 +650,16 @@ public class StateAssignmentOperation {
         // satisfy the restored state
         if (operatorState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
 
-            if (!executionJobVertex.isMaxParallelismConfigured()) {
-                // if the max parallelism was not explicitly specified by the user, we derive it
-                // from the state
-
+            if (executionJobVertex.canRescaleMaxParallelism(operatorState.getMaxParallelism())) {
                 LOG.debug(
-                        "Overriding maximum parallelism for JobVertex {} from {} to {}",
+                        "Rescaling maximum parallelism for JobVertex {} from {} to {}",
                         executionJobVertex.getJobVertexId(),
                         executionJobVertex.getMaxParallelism(),
                         operatorState.getMaxParallelism());
 
                 executionJobVertex.setMaxParallelism(operatorState.getMaxParallelism());
             } else {
-                // if the max parallelism was explicitly specified, we complain on mismatch
+                // if the max parallelism cannot be rescaled, we complain on mismatch
                 throw new IllegalStateException(
                         "The maximum parallelism ("
                                 + operatorState.getMaxParallelism()

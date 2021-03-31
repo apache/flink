@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -79,19 +81,25 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
+import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerUtils;
 import org.apache.flink.runtime.scheduler.UpdateSchedulerNgOnInternalFailuresListener;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -148,6 +156,7 @@ public class AdaptiveScheduler
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
     private final JobGraphJobInformation jobInformation;
+    private final VertexParallelismStore initialParallelismStore;
 
     private final DeclarativeSlotPool declarativeSlotPool;
 
@@ -191,6 +200,8 @@ public class AdaptiveScheduler
 
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
+    private final SchedulerExecutionMode executionMode;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -212,7 +223,13 @@ public class AdaptiveScheduler
 
         assertPreconditions(jobGraph);
 
-        this.jobInformation = new JobGraphJobInformation(jobGraph);
+        this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
+
+        VertexParallelismStore vertexParallelismStore =
+                computeVertexParallelismStore(jobGraph, executionMode);
+        this.initialParallelismStore = vertexParallelismStore;
+        this.jobInformation = new JobGraphJobInformation(jobGraph, vertexParallelismStore);
+
         this.declarativeSlotPool = declarativeSlotPool;
         this.initializationTimestamp = initializationTimestamp;
         this.ioExecutor = ioExecutor;
@@ -268,6 +285,92 @@ public class AdaptiveScheduler
                         jobEdge.getTarget().getID());
             }
         }
+    }
+
+    /**
+     * Creates the parallelism store for a set of vertices, optionally with a flag to leave the
+     * vertex parallelism unchanged. If the flag is set, the parallelisms must be valid for
+     * execution.
+     *
+     * <p>We need to set parallelism to the max possible value when requesting resources, but when
+     * executing the graph we should respect what we are actually given.
+     *
+     * @param vertices The vertices to store parallelism information for
+     * @param adjustParallelisms Whether to adjust the parallelisms
+     * @return The parallelism store.
+     */
+    @VisibleForTesting
+    static VertexParallelismStore computeReactiveModeVertexParallelismStore(
+            Iterable<JobVertex> vertices, boolean adjustParallelisms) {
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        for (JobVertex vertex : vertices) {
+            // if no max parallelism was configured by the user, we calculate and set a default
+            final int parallelism;
+            final int maxParallelism;
+            if (adjustParallelisms) {
+                maxParallelism =
+                        vertex.getMaxParallelism() == JobVertex.MAX_PARALLELISM_DEFAULT
+                                ? KeyGroupRangeAssignment.computeDefaultMaxParallelism(
+                                        vertex.getParallelism())
+                                : vertex.getMaxParallelism();
+                parallelism = maxParallelism;
+            } else {
+                parallelism = vertex.getParallelism();
+                maxParallelism = vertex.getMaxParallelism();
+            }
+
+            VertexParallelismInformation parallelismInfo =
+                    new DefaultVertexParallelismInfo(
+                            parallelism,
+                            maxParallelism,
+                            // Allow rescaling if the new desired max parallelism
+                            // is not less than what was declared here during scheduling.
+                            // This prevents the situation where more resources are requested
+                            // based on the computed default, when actually fewer are necessary.
+                            (newMax) ->
+                                    newMax >= maxParallelism
+                                            ? Optional.empty()
+                                            : Optional.of(
+                                                    "Cannot lower max parallelism in Reactive mode."));
+            store.setParallelismInfo(vertex.getID(), parallelismInfo);
+        }
+
+        return store;
+    }
+
+    /**
+     * Creates the parallelism store that should be used for determining scheduling requirements,
+     * which may choose different parallelisms than set in the {@link JobGraph} depending on the
+     * execution mode.
+     *
+     * @param jobGraph The job graph for execution.
+     * @param executionMode The mode of scheduler execution.
+     * @return The parallelism store.
+     */
+    private static VertexParallelismStore computeVertexParallelismStore(
+            JobGraph jobGraph, SchedulerExecutionMode executionMode) {
+        if (executionMode == SchedulerExecutionMode.REACTIVE) {
+            return computeReactiveModeVertexParallelismStore(jobGraph.getVertices(), true);
+        }
+        return SchedulerBase.computeVertexParallelismStore(jobGraph);
+    }
+
+    /**
+     * Creates the parallelism store that should be used to build the {@link ExecutionGraph}, which
+     * will respect the vertex parallelism of the passed {@link JobGraph} in all execution modes.
+     *
+     * @param jobGraph The job graph for execution.
+     * @param executionMode The mode of scheduler execution.
+     * @return The parallelism store.
+     */
+    @VisibleForTesting
+    static VertexParallelismStore computeVertexParallelismStoreForExecution(
+            JobGraph jobGraph, SchedulerExecutionMode executionMode) {
+        if (executionMode == SchedulerExecutionMode.REACTIVE) {
+            return computeReactiveModeVertexParallelismStore(jobGraph.getVertices(), false);
+        }
+        return SchedulerBase.computeVertexParallelismStore(jobGraph);
     }
 
     private void newResourcesAvailable(Collection<? extends PhysicalSlot> physicalSlots) {
@@ -778,21 +881,33 @@ public class AdaptiveScheduler
 
     private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
             createExecutionGraphWithAvailableResourcesAsync() {
-        final JobGraph adjustedJobGraph;
         final VertexParallelism vertexParallelism;
+        final VertexParallelismStore adjustedParallelismStore;
 
         try {
             vertexParallelism = determineParallelism(slotAllocator);
+            JobGraph adjustedJobGraph = jobInformation.copyJobGraph();
 
-            adjustedJobGraph = jobInformation.copyJobGraph();
             for (JobVertex vertex : adjustedJobGraph.getVertices()) {
-                vertex.setParallelism(vertexParallelism.getParallelism(vertex.getID()));
+                JobVertexID id = vertex.getID();
+
+                // use the originally computed max parallelism for constant runs,
+                // and the determined "available parallelism" to use
+                // the resources we have access to
+                vertex.setParallelism(vertexParallelism.getParallelism(id));
+
+                VertexParallelismInformation vertexParallelismInfo =
+                        initialParallelismStore.getParallelismInfo(id);
+                vertex.setMaxParallelism(vertexParallelismInfo.getMaxParallelism());
             }
+
+            adjustedParallelismStore =
+                    computeVertexParallelismStoreForExecution(adjustedJobGraph, executionMode);
         } catch (Exception exception) {
             return FutureUtils.completedExceptionally(exception);
         }
 
-        return createExecutionGraphAndRestoreStateAsync(adjustedJobGraph)
+        return createExecutionGraphAndRestoreStateAsync(adjustedParallelismStore)
                 .thenApply(
                         executionGraph ->
                                 CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
@@ -838,28 +953,30 @@ public class AdaptiveScheduler
     }
 
     private CompletableFuture<ExecutionGraph> createExecutionGraphAndRestoreStateAsync(
-            JobGraph adjustedJobGraph) {
+            VertexParallelismStore adjustedParallelismStore) {
         backgroundTask.abort();
 
         backgroundTask =
                 backgroundTask.runAfter(
-                        () -> createExecutionGraphAndRestoreState(adjustedJobGraph), ioExecutor);
+                        () -> createExecutionGraphAndRestoreState(adjustedParallelismStore),
+                        ioExecutor);
 
         return FutureUtils.switchExecutor(
                 backgroundTask.getResultFuture(), getMainThreadExecutor());
     }
 
     @Nonnull
-    private ExecutionGraph createExecutionGraphAndRestoreState(JobGraph adjustedJobGraph)
-            throws Exception {
+    private ExecutionGraph createExecutionGraphAndRestoreState(
+            VertexParallelismStore adjustedParallelismStore) throws Exception {
         return executionGraphFactory.createAndRestoreExecutionGraph(
-                adjustedJobGraph,
+                jobInformation.copyJobGraph(),
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN,
                 initializationTimestamp,
                 vertexAttemptNumberStore,
+                adjustedParallelismStore,
                 LOG);
     }
 

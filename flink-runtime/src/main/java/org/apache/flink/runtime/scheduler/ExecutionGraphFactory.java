@@ -42,6 +42,8 @@ public interface ExecutionGraphFactory {
      * @param initializationTimestamp initializationTimestamp when the ExecutionGraph was created
      * @param vertexAttemptNumberStore vertexAttemptNumberStore keeping information about the vertex
      *     attempts of previous runs
+     * @param vertexParallelismStore vertexMaxParallelismStore keeping information about the vertex
+     *     max parallelism settings
      * @param log log to use for logging
      * @return restored {@link ExecutionGraph}
      * @throws Exception if the {@link ExecutionGraph} could not be created and restored
@@ -54,6 +56,7 @@ public interface ExecutionGraphFactory {
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
+            VertexParallelismStore vertexParallelismStore,
             Logger log)
             throws Exception;
 }

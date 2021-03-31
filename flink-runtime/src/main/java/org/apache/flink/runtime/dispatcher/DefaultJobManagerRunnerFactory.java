@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.adaptive.ReactiveModeUtils;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.util.Preconditions;
@@ -70,7 +69,6 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
                     slotPoolServiceSchedulerFactory.getSchedulerType()
                             == JobManagerOptions.SchedulerType.Adaptive,
                     "Adaptive Scheduler is required for reactive mode");
-            ReactiveModeUtils.configureJobGraphForReactiveMode(jobGraph);
         }
 
         final ShuffleMaster<?> shuffleMaster =

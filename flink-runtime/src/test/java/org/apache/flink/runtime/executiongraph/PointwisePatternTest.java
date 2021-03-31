@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 
 import org.junit.Test;
@@ -173,10 +174,6 @@ public class PointwisePatternTest {
         testConnections(10, 6, new int[][] {{0}, {1, 2}, {3, 4}, {5}, {6, 7}, {8, 9}});
     }
 
-    private ExecutionGraph getDummyExecutionGraph() throws Exception {
-        return TestingDefaultExecutionGraphBuilder.newBuilder().build();
-    }
-
     private void testLowToHigh(int lowDop, int highDop) throws Exception {
         if (highDop < lowDop) {
             throw new IllegalArgumentException();
@@ -254,7 +251,11 @@ public class PointwisePatternTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
-        ExecutionGraph eg = getDummyExecutionGraph();
+        ExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setVertexParallelismStore(
+                                SchedulerBase.computeVertexParallelismStore(ordered))
+                        .build();
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {

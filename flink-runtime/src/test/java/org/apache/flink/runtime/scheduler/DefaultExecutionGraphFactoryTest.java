@@ -76,6 +76,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                     TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                     0L,
                     new DefaultVertexAttemptNumberStore(),
+                    SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
                     log);
             fail("Expected ExecutionGraph creation to fail because of non restored state.");
         } catch (Exception e) {
@@ -103,6 +104,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                 0L,
                 new DefaultVertexAttemptNumberStore(),
+                SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint(false);
