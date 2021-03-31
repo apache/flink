@@ -35,7 +35,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -66,7 +65,6 @@ import static org.junit.Assert.assertThat;
 /** End-to-end test for the kafka SQL connectors. */
 @RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, FailsOnJava11.class})
-@Ignore // temporarily disabled due to frequent failures
 public class SQLClientKafkaITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);
