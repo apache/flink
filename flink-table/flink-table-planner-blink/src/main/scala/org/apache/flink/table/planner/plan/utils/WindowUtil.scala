@@ -185,8 +185,7 @@ object WindowUtil {
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!supportedTimeAttributeType(timeAttributeType)) {
       throw new ValidationException("The supported time indicator type are" +
-        " timestamp and timestampLtz, but is " + FlinkTypeFactory.toLogicalType(fieldType)
-        + ", please file an issue.")
+        " timestamp and timestampLtz, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
     }
 
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]

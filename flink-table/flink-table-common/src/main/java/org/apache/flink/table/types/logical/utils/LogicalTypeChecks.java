@@ -125,7 +125,10 @@ public final class LogicalTypeChecks {
                 && logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             return true;
         }
-        if (isTimeAttribute(logicalType) && hasFamily(logicalType, LogicalTypeFamily.TIMESTAMP)) {
+        if (isRowtimeAttribute(logicalType)
+                && (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+                        || logicalType.getTypeRoot()
+                                == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
             return true;
         }
         return false;

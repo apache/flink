@@ -111,7 +111,7 @@ public class TimeWindowUtil {
      * Convert a timestamp mills with given timezone to epoch mills.
      *
      * @param utcTimestampMills the timezone that the given timestamp mills has been shifted.
-     * @param shiftTimeZone the timezone
+     * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.
      * @return the epoch mills.
      */
     public static long toEpochMills(long utcTimestampMills, TimeZone shiftTimeZone) {

@@ -271,34 +271,6 @@ public final class LegacyTypeInfoDataTypeConverter {
                 .bridgedTo(typeInfo.getTypeClass());
     }
 
-    // private static DataType convertToTimeAttributeType(
-    //            TimeIndicatorTypeInfo timeIndicatorTypeInfo) {
-    //        final TimestampKind kind;
-    //        if (timeIndicatorTypeInfo.isEventTime()) {
-    //            kind = TimestampKind.ROWTIME;
-    //        } else {
-    //            kind = TimestampKind.PROCTIME;
-    //        }
-    //        return new AtomicDataType(new TimestampType(true, kind, 3))
-    //                .bridgedTo(java.sql.Timestamp.class);
-    //    }
-    //
-    //    private static boolean canConvertToTimeAttributeTypeInfo(DataType dataType) {
-    //        return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-    //                && dataTypeTypeInfoMap.containsKey(dataType.nullable())
-    //                && // checks precision and conversion and ignore nullable
-    //                ((TimestampType) dataType.getLogicalType()).getKind() !=
-    // TimestampKind.REGULAR;
-    //    }
-    //
-    //    private static TypeInformation<?> convertToTimeAttributeTypeInfo(TimestampType
-    // timestampType) {
-    //        if (isRowtimeAttribute(timestampType)) {
-    //            return TimeIndicatorTypeInfo.ROWTIME_INDICATOR;
-    //        } else {
-    //            return TimeIndicatorTypeInfo.PROCTIME_INDICATOR;
-    //        }
-    //    }
     private static DataType convertToTimeAttributeType(
             TimeIndicatorTypeInfo timeIndicatorTypeInfo) {
         if (timeIndicatorTypeInfo.isEventTime()) {
