@@ -42,8 +42,6 @@ import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -58,8 +56,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-
-import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
 
 /**
  * A context class for the {@link OperatorCoordinator}. Compared with {@link SplitEnumeratorContext}
@@ -283,34 +279,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     /**
-     * Take a snapshot of this SourceCoordinatorContext.
+     * Behavior of SourceCoordinatorContext on checkpoint.
      *
      * @param checkpointId The id of the ongoing checkpoint.
-     * @param splitSerializer The serializer of the splits.
-     * @param out An ObjectOutput that can be used to
      */
-    void snapshotState(
-            long checkpointId,
-            SimpleVersionedSerializer<SplitT> splitSerializer,
-            DataOutputStream out)
-            throws Exception {
-        // FLINK-21452: backwards compatible change to drop writing registered readers (empty list)
-        out.writeInt(0);
-        assignmentTracker.snapshotState(checkpointId, splitSerializer, out);
-    }
-
-    /**
-     * Restore the state of the context.
-     *
-     * @param splitSerializer the serializer for the SourceSplits.
-     * @param in the input from which the states are read.
-     * @throws Exception when the restoration failed.
-     */
-    void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, DataInputStream in)
-            throws Exception {
-        // FLINK-21452: discard readers as they will be re-registering themselves
-        readRegisteredReaders(in);
-        assignmentTracker.restoreState(splitSerializer, in);
+    void onCheckpoint(long checkpointId) throws Exception {
+        assignmentTracker.onCheckpoint(checkpointId);
     }
 
     /**
