@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.stats;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.util.FlinkException;
 
@@ -34,15 +35,13 @@ public interface JobVertexStatsTracker<T extends Statistics> {
      * Returns statistics for a job vertex. Automatically triggers sampling request if statistics
      * are not available or outdated.
      *
+     * @param jobId job the vertex belongs to
      * @param vertex Vertex to get the stats for.
      * @return Statistics for a vertex. This interface is intended to be used for polling request
      *     and for the duration while the statistics are being gathered, the returned Optional can
      *     be empty.
      */
-    Optional<T> getVertexStats(AccessExecutionJobVertex vertex);
-
-    /** Cleans up the vertex stats cache if it contains timed out entries. */
-    void cleanUpVertexStatsCache();
+    Optional<T> getVertexStats(JobID jobId, AccessExecutionJobVertex vertex);
 
     /**
      * Shuts the {@link JobVertexStatsTracker} down.

@@ -51,9 +51,9 @@ import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.QuadFunction;
 
@@ -117,8 +117,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private volatile Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>>
             requestTaskManagerDetailsInfoFunction;
 
-    private volatile Function<ResourceID, CompletableFuture<TaskExecutorGateway>>
-            requestTaskExecutorGateway;
+    private volatile Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+            requestTaskExecutorThreadInfoGateway;
 
     private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>>
             requestThreadDumpFunction;
@@ -215,9 +215,9 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     public void setRequestTaskExecutorGatewayFunction(
-            Function<ResourceID, CompletableFuture<TaskExecutorGateway>>
-                    requestTaskExecutorGateway) {
-        this.requestTaskExecutorGateway = requestTaskExecutorGateway;
+            Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+                    requestTaskExecutorThreadInfoGateway) {
+        this.requestTaskExecutorThreadInfoGateway = requestTaskExecutorThreadInfoGateway;
     }
 
     public void setDisconnectTaskExecutorConsumer(
@@ -487,11 +487,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<TaskExecutorGateway> requestTaskExecutorGateway(
-            ResourceID taskManagerId) {
-
-        final Function<ResourceID, CompletableFuture<TaskExecutorGateway>> function =
-                this.requestTaskExecutorGateway;
+    public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
+            ResourceID taskManagerId, Time timeout) {
+        final Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
+                this.requestTaskExecutorThreadInfoGateway;
 
         if (function != null) {
             return function.apply(taskManagerId);

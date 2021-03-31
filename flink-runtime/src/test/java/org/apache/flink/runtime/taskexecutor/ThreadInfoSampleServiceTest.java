@@ -19,12 +19,10 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
-import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -35,9 +33,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
@@ -51,9 +48,6 @@ import static org.junit.Assert.fail;
 /** Tests for {@link ThreadInfoSampleService}. */
 public class ThreadInfoSampleServiceTest extends TestLogger {
 
-    private ScheduledExecutorService scheduledExecutorService;
-    private ThreadInfoSampleService threadInfoSampleService;
-
     private static final int NUMBER_OF_SAMPLES = 10;
     private static final Duration DELAY_BETWEEN_SAMPLES = Duration.ofMillis(10);
     private static final int MAX_STACK_TRACK_DEPTH = 10;
@@ -64,19 +58,18 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+    private ThreadInfoSampleService threadInfoSampleService;
+
     @Before
     public void setUp() throws Exception {
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        final ScheduledExecutor scheduledExecutor =
-                new ScheduledExecutorServiceAdapter(scheduledExecutorService);
-
-        threadInfoSampleService = new ThreadInfoSampleService(scheduledExecutor);
+        threadInfoSampleService =
+                new ThreadInfoSampleService(Executors.newSingleThreadScheduledExecutor());
     }
 
     @After
     public void tearDown() throws Exception {
-        if (scheduledExecutorService != null) {
-            ExecutorUtils.gracefulShutdown(10, TimeUnit.SECONDS, scheduledExecutorService);
+        if (threadInfoSampleService != null) {
+            threadInfoSampleService.close();
         }
     }
 
@@ -143,11 +136,12 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
     }
 
     /** Test that sampling a non-running task throws an exception. */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-        threadInfoSampleService.requestThreadInfoSamples(new NotRunningTask(), requestParams);
-
-        fail("Exception expected.");
+        final CompletableFuture<List<ThreadInfoSample>> sampleFuture =
+                threadInfoSampleService.requestThreadInfoSamples(
+                        new NotRunningTask(), requestParams);
+        assertThat(sampleFuture, FlinkMatchers.futureFailedWith(IllegalStateException.class));
     }
 
     private static class TestTask implements SampleableTask {

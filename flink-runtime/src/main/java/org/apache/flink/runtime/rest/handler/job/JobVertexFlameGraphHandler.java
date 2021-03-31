@@ -25,8 +25,8 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.FlameGraphTypeQueryParameter;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphHeaders;
-import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphInfo;
 import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -44,14 +44,9 @@ import java.util.concurrent.Executor;
 
 /** Request handler for the job vertex Flame Graph. */
 public class JobVertexFlameGraphHandler
-        extends AbstractJobVertexHandler<JobVertexFlameGraphInfo, JobVertexFlameGraphParameters> {
+        extends AbstractJobVertexHandler<JobVertexFlameGraph, JobVertexFlameGraphParameters> {
 
     private final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> threadInfoOperatorTracker;
-
-    private static JobVertexFlameGraphInfo createJobVertexFlameGraphInfo(
-            JobVertexFlameGraph flameGraph) {
-        return new JobVertexFlameGraphInfo(flameGraph.getEndTime(), flameGraph.getRoot());
-    }
 
     public JobVertexFlameGraphHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -71,23 +66,20 @@ public class JobVertexFlameGraphHandler
     }
 
     @Override
-    protected JobVertexFlameGraphInfo handleRequest(
+    protected JobVertexFlameGraph handleRequest(
             HandlerRequest<EmptyRequestBody, JobVertexFlameGraphParameters> request,
             AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
-        final Optional<JobVertexThreadInfoStats> threadInfoSample =
-                threadInfoOperatorTracker.getVertexStats(jobVertex);
-
-        final List<FlameGraphTypeQueryParameter.Type> flameGraphTypeParameter =
-                request.getQueryParameter(FlameGraphTypeQueryParameter.class);
-        final FlameGraphTypeQueryParameter.Type flameGraphType;
-
-        if (flameGraphTypeParameter.isEmpty()) {
-            flameGraphType = FlameGraphTypeQueryParameter.Type.FULL;
-        } else {
-            flameGraphType = flameGraphTypeParameter.get(0);
+        if (jobVertex.getAggregateState().isTerminal()) {
+            return JobVertexFlameGraph.empty();
         }
+
+        final Optional<JobVertexThreadInfoStats> threadInfoSample =
+                threadInfoOperatorTracker.getVertexStats(
+                        request.getPathParameter(JobIDPathParameter.class), jobVertex);
+
+        final FlameGraphTypeQueryParameter.Type flameGraphType = getFlameGraphType(request);
 
         final Optional<JobVertexFlameGraph> operatorFlameGraph;
 
@@ -110,8 +102,23 @@ public class JobVertexFlameGraphHandler
                         HttpResponseStatus.BAD_REQUEST);
         }
 
-        return operatorFlameGraph
-                .map(JobVertexFlameGraphHandler::createJobVertexFlameGraphInfo)
-                .orElse(JobVertexFlameGraphInfo.empty());
+        return operatorFlameGraph.orElse(JobVertexFlameGraph.empty());
+    }
+
+    private static FlameGraphTypeQueryParameter.Type getFlameGraphType(
+            HandlerRequest<?, JobVertexFlameGraphParameters> request) {
+        final List<FlameGraphTypeQueryParameter.Type> flameGraphTypeParameter =
+                request.getQueryParameter(FlameGraphTypeQueryParameter.class);
+
+        if (flameGraphTypeParameter.isEmpty()) {
+            return FlameGraphTypeQueryParameter.Type.FULL;
+        } else {
+            return flameGraphTypeParameter.get(0);
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        threadInfoOperatorTracker.shutDown();
     }
 }

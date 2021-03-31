@@ -21,13 +21,16 @@ package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import javax.annotation.Nonnegative;
 
+import java.io.Serializable;
 import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A wrapper for parameters of a thread info sampling request. */
-public class ThreadInfoSamplesRequest {
+public class ThreadInfoSamplesRequest implements Serializable {
+    private static final long serialVersionUID = -4360206136386773663L;
+
     private final int requestId;
     private final int numSubSamples;
     private final Duration delayBetweenSamples;

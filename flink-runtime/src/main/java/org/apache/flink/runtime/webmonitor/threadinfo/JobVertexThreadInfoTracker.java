@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
@@ -39,14 +43,16 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -60,135 +66,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> Type of the derived statistics to return.
  */
 public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVertexStatsTracker<T> {
-
-    /**
-     * Create a new {@link Builder}.
-     *
-     * @param createStatsFn Function that converts a thread info sample into a derived statistic.
-     *     Could be an identity function.
-     * @param <T> Type of the derived statistics to return.
-     * @return Builder.
-     */
-    public static <T extends Statistics> Builder<T> newBuilder(
-            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            Function<JobVertexThreadInfoStats, T> createStatsFn,
-            ExecutorService executor) {
-        return new Builder<>(resourceManagerGatewayRetriever, createStatsFn, executor);
-    }
-
-    /**
-     * Builder for {@link JobVertexThreadInfoTracker}.
-     *
-     * @param <T> Type of the derived statistics to return.
-     */
-    public static class Builder<T extends Statistics> {
-
-        private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-        private final Function<JobVertexThreadInfoStats, T> createStatsFn;
-        private final ExecutorService executor;
-
-        private ThreadInfoRequestCoordinator coordinator;
-        private Duration cleanUpInterval;
-        private int numSamples;
-        private Duration statsRefreshInterval;
-        private Duration delayBetweenSamples;
-        private int maxThreadInfoDepth;
-
-        private Builder(
-                GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-                Function<JobVertexThreadInfoStats, T> createStatsFn,
-                ExecutorService executor) {
-            this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
-            this.createStatsFn = createStatsFn;
-            this.executor = executor;
-        }
-
-        /**
-         * Sets {@code cleanUpInterval}.
-         *
-         * @param coordinator Coordinator for thread info stats request.
-         * @return Builder.
-         */
-        public Builder<T> setCoordinator(ThreadInfoRequestCoordinator coordinator) {
-            this.coordinator = coordinator;
-            return this;
-        }
-
-        /**
-         * Sets {@code cleanUpInterval}.
-         *
-         * @param cleanUpInterval Clean up interval for completed stats.
-         * @return Builder.
-         */
-        public Builder<T> setCleanUpInterval(Duration cleanUpInterval) {
-            this.cleanUpInterval = cleanUpInterval;
-            return this;
-        }
-
-        /**
-         * Sets {@code numSamples}.
-         *
-         * @param numSamples Number of thread info samples to collect for each subtask.
-         * @return Builder.
-         */
-        public Builder<T> setNumSamples(int numSamples) {
-            this.numSamples = numSamples;
-            return this;
-        }
-
-        /**
-         * Sets {@code statsRefreshInterval}.
-         *
-         * @param statsRefreshInterval Time interval after which the available thread info stats are
-         *     deprecated and need to be refreshed.
-         * @return Builder.
-         */
-        public Builder<T> setStatsRefreshInterval(Duration statsRefreshInterval) {
-            this.statsRefreshInterval = statsRefreshInterval;
-            return this;
-        }
-
-        /**
-         * Sets {@code delayBetweenSamples}.
-         *
-         * @param delayBetweenSamples Delay between individual samples per task.
-         * @return Builder.
-         */
-        public Builder<T> setDelayBetweenSamples(Duration delayBetweenSamples) {
-            this.delayBetweenSamples = delayBetweenSamples;
-            return this;
-        }
-
-        /**
-         * Sets {@code delayBetweenSamples}.
-         *
-         * @param maxThreadInfoDepth Limit for the depth of the stack traces included when sampling
-         *     threads.
-         * @return Builder.
-         */
-        public Builder<T> setMaxThreadInfoDepth(int maxThreadInfoDepth) {
-            this.maxThreadInfoDepth = maxThreadInfoDepth;
-            return this;
-        }
-
-        /**
-         * Constructs a new {@link JobVertexThreadInfoTracker}.
-         *
-         * @return a new {@link JobVertexThreadInfoTracker} instance.
-         */
-        public JobVertexThreadInfoTracker<T> build() {
-            return new JobVertexThreadInfoTracker<>(
-                    coordinator,
-                    resourceManagerGatewayRetriever,
-                    createStatsFn,
-                    executor,
-                    cleanUpInterval,
-                    numSamples,
-                    statsRefreshInterval,
-                    delayBetweenSamples,
-                    maxThreadInfoDepth);
-        }
-    }
 
     private static final Logger LOG = LoggerFactory.getLogger(JobVertexThreadInfoTracker.class);
 
@@ -204,19 +81,11 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-    /**
-     * Completed stats. Important: Job vertex IDs need to be scoped by job ID, because they are
-     * potentially constant across runs messing up the cached data.
-     */
     @GuardedBy("lock")
-    private final Cache<AccessExecutionJobVertex, T> vertexStatsCache;
+    private final Cache<Key, T> vertexStatsCache;
 
-    /**
-     * Pending in progress stats. Important: Job vertex IDs need to be scoped by job ID, because
-     * they are potentially constant across runs messing up the cached data.
-     */
     @GuardedBy("lock")
-    private final Set<AccessExecutionJobVertex> pendingStats = new HashSet<>();
+    private final Set<Key> pendingStats = new HashSet<>();
 
     private final int numSamples;
 
@@ -232,16 +101,19 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
     /** Flag indicating whether the stats tracker has been shut down. */
     private boolean shutDown;
 
-    private JobVertexThreadInfoTracker(
+    private final Time rpcTimeout;
+
+    JobVertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             Function<JobVertexThreadInfoStats, T> createStatsFn,
-            ExecutorService executor,
+            ScheduledExecutorService executor,
             Duration cleanUpInterval,
             int numSamples,
             Duration statsRefreshInterval,
             Duration delayBetweenSamples,
-            int maxStackTraceDepth) {
+            int maxStackTraceDepth,
+            Time rpcTimeout) {
 
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
@@ -250,21 +122,20 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         this.executor = checkNotNull(executor, "Scheduled executor");
         this.statsRefreshInterval =
                 checkNotNull(statsRefreshInterval, "Statistics refresh interval");
+        this.rpcTimeout = rpcTimeout;
 
-        checkArgument(cleanUpInterval.toMillis() >= 0, "Clean up interval");
+        checkArgument(cleanUpInterval.toMillis() > 0, "Clean up interval must be greater than 0");
 
         checkArgument(numSamples >= 1, "Number of samples");
         this.numSamples = numSamples;
 
         checkArgument(
-                statsRefreshInterval.toMillis() >= 0,
-                "Stats refresh interval must be greater than or equal to 0");
+                statsRefreshInterval.toMillis() > 0,
+                "Stats refresh interval must be greater than 0");
 
         this.delayBetweenSamples = checkNotNull(delayBetweenSamples, "Delay between samples");
 
-        checkArgument(
-                maxStackTraceDepth >= 0,
-                "Max stack trace depth must be greater than or equal to 0");
+        checkArgument(maxStackTraceDepth > 0, "Max stack trace depth must be greater than 0");
         this.maxThreadInfoDepth = maxStackTraceDepth;
 
         this.vertexStatsCache =
@@ -272,16 +143,24 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         .concurrencyLevel(1)
                         .expireAfterAccess(cleanUpInterval.toMillis(), TimeUnit.MILLISECONDS)
                         .build();
+
+        executor.scheduleWithFixedDelay(
+                this::cleanUpVertexStatsCache,
+                cleanUpInterval.toMillis(),
+                cleanUpInterval.toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Optional<T> getVertexStats(AccessExecutionJobVertex vertex) {
+    public Optional<T> getVertexStats(JobID jobId, AccessExecutionJobVertex vertex) {
         synchronized (lock) {
-            final T stats = vertexStatsCache.getIfPresent(vertex);
+            final Key key = getKey(jobId, vertex);
+
+            final T stats = vertexStatsCache.getIfPresent(key);
             if (stats == null
                     || System.currentTimeMillis()
                             >= stats.getEndTime() + statsRefreshInterval.toMillis()) {
-                triggerThreadInfoSampleInternal(vertex);
+                triggerThreadInfoSampleInternal(key, vertex);
             }
             return Optional.ofNullable(stats);
         }
@@ -291,22 +170,24 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
      * Triggers a request for a vertex to gather the thread info statistics. If there is a sample in
      * progress for the vertex, the call is ignored.
      *
+     * @param key cache key
      * @param vertex Vertex to get the stats for.
      */
-    private void triggerThreadInfoSampleInternal(final AccessExecutionJobVertex vertex) {
+    private void triggerThreadInfoSampleInternal(
+            final Key key, final AccessExecutionJobVertex vertex) {
         assert (Thread.holdsLock(lock));
 
         if (shutDown) {
             return;
         }
 
-        if (!pendingStats.contains(vertex)) {
-            pendingStats.add(vertex);
+        if (!pendingStats.contains(key)) {
+            pendingStats.add(key);
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
-                        "Triggering thread info sample for tasks: "
-                                + Arrays.toString(vertex.getTaskVertices()));
+                        "Triggering thread info sample for tasks: {}",
+                        Arrays.toString(vertex.getTaskVertices()));
             }
 
             final AccessExecutionVertex[] executionVertices = vertex.getTaskVertices();
@@ -323,38 +204,46 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                                             delayBetweenSamples,
                                             maxThreadInfoDepth));
 
-            sample.whenCompleteAsync(new ThreadInfoSampleCompletionCallback(vertex), executor);
+            sample.whenCompleteAsync(new ThreadInfoSampleCompletionCallback(key, vertex), executor);
         }
     }
 
-    private List<Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>>
+    private Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
             matchExecutionsWithGateways(
                     AccessExecutionVertex[] executionVertices,
                     ResourceManagerGateway resourceManagerGateway) {
 
-        List<Tuple2<AccessExecutionVertex, CompletableFuture<TaskExecutorGateway>>>
-                executionsWithGateways = new ArrayList<>();
+        Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>>
+                executionsWithGateways = new HashMap<>();
 
         for (AccessExecutionVertex executionVertex : executionVertices) {
             TaskManagerLocation tmLocation = executionVertex.getCurrentAssignedResourceLocation();
 
             if (tmLocation != null) {
-                CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture =
-                        resourceManagerGateway.requestTaskExecutorGateway(
-                                tmLocation.getResourceID());
+                CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
+                        resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
+                                tmLocation.getResourceID(), rpcTimeout);
 
-                executionsWithGateways.add(
-                        new Tuple2<>(executionVertex, taskExecutorGatewayFuture));
+                if (executionVertex.getExecutionState() == ExecutionState.RUNNING) {
+                    executionsWithGateways.put(
+                            executionVertex.getCurrentExecutionAttempt().getAttemptId(),
+                            taskExecutorGatewayFuture);
+                } else {
+                    LOG.trace(
+                            "{} not running, but {}; not sampling",
+                            executionVertex.getTaskNameWithSubtaskIndex(),
+                            executionVertex.getExecutionState());
+                }
             } else {
-                LOG.warn("ExecutionVertex " + executionVertex + "is currently not assigned");
+                LOG.trace("ExecutionVertex {} is currently not assigned", executionVertex);
             }
         }
 
         return executionsWithGateways;
     }
 
-    @Override
-    public void cleanUpVertexStatsCache() {
+    @VisibleForTesting
+    void cleanUpVertexStatsCache() {
         vertexStatsCache.cleanUp();
     }
 
@@ -375,13 +264,46 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         return resultAvailableFuture;
     }
 
+    private static Key getKey(JobID jobId, AccessExecutionJobVertex vertex) {
+        return new Key(jobId, vertex.getJobVertexId());
+    }
+
+    private static class Key {
+        private final JobID jobId;
+        private final JobVertexID jobVertexId;
+
+        private Key(JobID jobId, JobVertexID jobVertexId) {
+            this.jobId = jobId;
+            this.jobVertexId = jobVertexId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Key key = (Key) o;
+            return Objects.equals(jobId, key.jobId) && Objects.equals(jobVertexId, key.jobVertexId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(jobId, jobVertexId);
+        }
+    }
+
     /** Callback on completed thread info sample. */
     private class ThreadInfoSampleCompletionCallback
             implements BiConsumer<JobVertexThreadInfoStats, Throwable> {
 
+        private final Key key;
         private final AccessExecutionJobVertex vertex;
 
-        ThreadInfoSampleCompletionCallback(AccessExecutionJobVertex vertex) {
+        ThreadInfoSampleCompletionCallback(Key key, AccessExecutionJobVertex vertex) {
+            this.key = key;
             this.vertex = vertex;
         }
 
@@ -394,14 +316,17 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                     }
                     if (threadInfoStats != null) {
                         resultAvailableFuture.complete(null);
-                        vertexStatsCache.put(vertex, createStatsFn.apply(threadInfoStats));
+                        vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
                     } else {
-                        LOG.debug("Failed to gather a thread info sample.", throwable);
+                        LOG.debug(
+                                "Failed to gather a thread info sample for {}",
+                                vertex.getName(),
+                                throwable);
                     }
                 } catch (Throwable t) {
                     LOG.error("Error during stats completion.", t);
                 } finally {
-                    pendingStats.remove(vertex);
+                    pendingStats.remove(key);
                 }
             }
         }
