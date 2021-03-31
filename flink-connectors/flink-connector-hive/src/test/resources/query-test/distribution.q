@@ -1,4 +1,4 @@
-explain select x from foo sort by x
+explain select x from foo sort by x;
 
 [+I[== Abstract Syntax Tree ==
 LogicalDistribution(collation=[[0 ASC-nulls-first]], dist=[[]])
@@ -14,7 +14,7 @@ Sort(orderBy=[x ASC])
 +- TableSourceScan(table=[[test-catalog, default, foo, project=[x]]], fields=[x])
 ]]
 
-explain select x from foo cluster by x
+explain select x from foo cluster by x;
 
 [+I[== Abstract Syntax Tree ==
 LogicalDistribution(collation=[[0 ASC-nulls-first]], dist=[[0]])
@@ -32,7 +32,7 @@ Sort(orderBy=[x ASC])
    +- TableSourceScan(table=[[test-catalog, default, foo, project=[x]]], fields=[x])
 ]]
 
-explain select x,y from foo distribute by y sort by x desc
+explain select x,y from foo distribute by y sort by x desc;
 
 [+I[== Abstract Syntax Tree ==
 LogicalDistribution(collation=[[0 DESC-nulls-last]], dist=[[1]])
@@ -50,7 +50,7 @@ Sort(orderBy=[x DESC])
    +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])
 ]]
 
-explain select x,y from foo distribute by abs(y)
+explain select x,y from foo distribute by abs(y);
 
 [+I[== Abstract Syntax Tree ==
 LogicalProject(x=[$0], y=[$1])

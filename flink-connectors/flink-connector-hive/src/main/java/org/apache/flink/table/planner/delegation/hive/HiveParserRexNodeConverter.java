@@ -602,7 +602,7 @@ public class HiveParserRexNodeConverter {
             }
             // type conversion for RHS
             RelNode rhsRel =
-                    HiveParser.addTypeConversions(
+                    HiveParserDMLHelper.addTypeConversions(
                             cluster.getRexBuilder(),
                             subQueryDesc.getRexSubQuery(),
                             Collections.singletonList(

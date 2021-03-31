@@ -1,8 +1,8 @@
-insert into dest select 0,y from foo sort by y
+insert into dest select 0,y from foo sort by y;
 
 [+I[-1]]
 
-explain insert into dest(y,x) select x,y from foo cluster by x
+explain insert into dest(y,x) select x,y from foo cluster by x;
 
 [+I[== Abstract Syntax Tree ==
 LogicalSink(table=[test-catalog.default.dest], fields=[$f0, $f1])
@@ -26,11 +26,11 @@ Sink(table=[test-catalog.default.dest], fields=[$f0, $f1])
          +- TableSourceScan(table=[[test-catalog, default, foo]], fields=[x, y])
 ]]
 
-insert into dest(y,x) select x,y from foo cluster by x
+insert into dest(y,x) select x,y from foo cluster by x;
 
 [+I[-1]]
 
-explain insert into dest(y) select y from foo sort by y limit 1
+explain insert into dest(y) select y from foo sort by y limit 1;
 
 [+I[== Abstract Syntax Tree ==
 LogicalSink(table=[test-catalog.default.dest], fields=[$f0, $f1])
@@ -61,38 +61,38 @@ Sink(table=[test-catalog.default.dest], fields=[$f0, $f1])
                   +- TableSourceScan(table=[[test-catalog, default, foo, project=[y]]], fields=[y])
 ]]
 
-insert into dest(y) select y from foo sort by y limit 1
+insert into dest(y) select y from foo sort by y limit 1;
 
 [+I[-1]]
 
-insert into destp select x,'0','00' from foo order by x limit 1
+insert into destp select x,'0','00' from foo order by x limit 1;
 
 [+I[-1]]
 
-insert overwrite table destp partition(p='0',q) select 1,`value` from src sort by value
+insert overwrite table destp partition(p='0',q) select 1,`value` from src sort by value;
 
 [+I[-1]]
 
-insert into dest select * from src
+insert into dest select * from src;
 
 [+I[-1]]
 
-insert overwrite table destp partition (p='-1',q='-1') if not exists select x from foo
+insert overwrite table destp partition (p='-1',q='-1') if not exists select x from foo;
 
 [+I[OK]]
 
-insert into destp partition(p='1',q) (x,q) select * from bar
+insert into destp partition(p='1',q) (x,q) select * from bar;
 
 [+I[-1]]
 
-insert into destp partition(p='1',q) (q) select s from bar
+insert into destp partition(p='1',q) (q) select s from bar;
 
 [+I[-1]]
 
-insert into destp partition(p,q) (p,x) select s,i from bar
+insert into destp partition(p,q) (p,x) select s,i from bar;
 
 [+I[-1]]
 
-insert into destp partition (p,q) (q,x) values ('a',2)
+insert into destp partition (p,q) (q,x) values ('a',2);
 
 [+I[-1]]

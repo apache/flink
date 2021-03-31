@@ -394,7 +394,7 @@ public class DDLOperationConverter {
                             .collect(Collectors.toList());
             String constraintName = primaryKey.getConstraintName();
             if (constraintName == null) {
-                constraintName = "PK_" + pkCols.hashCode();
+                constraintName = pkCols.stream().collect(Collectors.joining("_", "PK_", ""));
             }
             uniqueConstraint = UniqueConstraint.primaryKey(constraintName, pkCols);
         }

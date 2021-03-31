@@ -28,7 +28,6 @@ import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -44,21 +43,19 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.assertEquals;
+
 /** Test hive query compatibility. */
 public class HiveDialectQueryITCase {
 
     private static final String QTEST_DIR =
             Thread.currentThread().getContextClassLoader().getResource("query-test").getPath();
-    private static final String QUERYS_DIR = QTEST_DIR + "/queries";
-    private static final String RESULTS_DIR = QTEST_DIR + "/results";
-    private static final String RESULT_SUFFIX = ".out";
     private static final String SORT_QUERY_RESULTS = "SORT_QUERY_RESULTS";
 
     private static HiveCatalog hiveCatalog;
@@ -142,7 +139,7 @@ public class HiveDialectQueryITCase {
 
     @Test
     public void testQueries() throws Exception {
-        File[] qfiles = new File(QUERYS_DIR).listFiles();
+        File[] qfiles = new File(QTEST_DIR).listFiles();
         for (File qfile : qfiles) {
             runQFile(qfile);
         }
@@ -169,17 +166,13 @@ public class HiveDialectQueryITCase {
     }
 
     private void runQFile(File qfile) throws Exception {
-        File goldenFile = new File(RESULTS_DIR, qfile.getName() + RESULT_SUFFIX);
-        final String expectedResults = IOUtils.toString(goldenFile.toURI(), StandardCharsets.UTF_8);
-        StringBuilder builder = new StringBuilder();
         QTest qTest = extractQTest(qfile);
-        for (String statement : qTest.statements) {
-            if (builder.length() > 0) {
-                builder.append("\n\n");
-            }
-            builder.append(statement);
-            builder.append("\n\n");
+        for (int i = 0; i < qTest.statements.size(); i++) {
+            String statement = qTest.statements.get(i);
+            final String expectedResult = qTest.results.get(i);
             boolean isQuery = statement.toLowerCase().startsWith("select");
+            // get rid of the trailing ;
+            statement = statement.substring(0, statement.length() - 1);
             try {
                 List<String> result =
                         CollectionUtil.iteratorToList(tableEnv.executeSql(statement).collect())
@@ -189,48 +182,76 @@ public class HiveDialectQueryITCase {
                 if (isQuery && qTest.sortResults) {
                     Collections.sort(result);
                 }
-                builder.append(result.toString());
+                String actualResult = result.toString();
+                if (!actualResult.equals(expectedResult)) {
+                    System.out.println();
+                    throw new ComparisonFailure(
+                            "Query output diff for qtest " + qfile.getName(),
+                            expectedResult,
+                            actualResult);
+                }
             } catch (Exception e) {
                 System.out.printf(
                         "Failed to run statement %s in qfile %s%n", statement, qfile.getName());
                 throw e;
             }
         }
-        String actualResults = builder.toString();
-        if (!actualResults.equals(expectedResults)) {
-            System.out.println();
-            throw new ComparisonFailure(
-                    "Query output diff for qtest " + qfile.getName(),
-                    expectedResults,
-                    actualResults);
-        }
     }
 
     private static QTest extractQTest(File qfile) throws Exception {
         boolean sortResults = false;
         StringBuilder builder = new StringBuilder();
+        int openBrackets = 0;
+        boolean expectSqlStatement = true;
+        List<String> sqlStatements = new ArrayList<>();
+        List<String> results = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(qfile))) {
             String line = reader.readLine();
             while (line != null) {
-                line = line.trim();
-                if (!line.isEmpty()) {
-                    if (line.startsWith("--")) {
-                        String comment = line.substring("--".length());
-                        sortResults = comment.trim().equalsIgnoreCase(SORT_QUERY_RESULTS);
-                    } else {
-                        if (builder.length() > 0) {
-                            builder.append(" ");
+                if (expectSqlStatement) {
+                    line = line.trim();
+                    if (!line.isEmpty()) {
+                        if (line.startsWith("--")) {
+                            String comment = line.substring("--".length());
+                            sortResults = comment.trim().equalsIgnoreCase(SORT_QUERY_RESULTS);
+                        } else {
+                            if (builder.length() > 0) {
+                                builder.append(" ");
+                            }
+                            builder.append(line);
+                            if (line.endsWith(";")) {
+                                // end of statement
+                                sqlStatements.add(builder.toString());
+                                builder = new StringBuilder();
+                                expectSqlStatement = false;
+                            }
                         }
-                        builder.append(line);
+                    }
+                } else if (openBrackets > 0 || line.startsWith("[")) {
+                    // we're in the results
+                    if (builder.length() > 0) {
+                        builder.append("\n");
+                    }
+                    builder.append(line);
+                    for (int i = 0; i < line.length(); i++) {
+                        if (line.charAt(i) == '[') {
+                            openBrackets++;
+                        }
+                        if (line.charAt(i) == ']') {
+                            openBrackets--;
+                        }
+                    }
+                    if (openBrackets == 0) {
+                        results.add(builder.toString());
+                        builder = new StringBuilder();
+                        expectSqlStatement = true;
                     }
                 }
+
                 line = reader.readLine();
             }
         }
-        if (builder.length() > 0 && builder.charAt(builder.length() - 1) == ';') {
-            builder.deleteCharAt(builder.length() - 1);
-        }
-        return new QTest(builder.toString().split(";\\s+"), sortResults);
+        return new QTest(sqlStatements, results, sortResults);
     }
 
     private void runQuery(String query) throws Exception {
@@ -283,12 +304,15 @@ public class HiveDialectQueryITCase {
     }
 
     private static class QTest {
-        final String[] statements;
+        final List<String> statements;
+        final List<String> results;
         final boolean sortResults;
 
-        private QTest(String[] statements, boolean sortResults) {
+        private QTest(List<String> statements, List<String> results, boolean sortResults) {
             this.statements = statements;
+            this.results = results;
             this.sortResults = sortResults;
+            assertEquals(statements.size(), results.size());
         }
     }
 }
