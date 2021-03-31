@@ -20,10 +20,12 @@ package org.apache.flink.table.operations;
 
 /**
  * A {@link Operation} that describes the statement set, e.g.
- *   BEGIN STATEMENT SET;
+ *
+ * <pre>
+ * BEGIN STATEMENT SET;
  *   INSERT INTO xxxx;
  *   INSERT INTO xxxx;
- *   END;
+ * END;
+ * </pre>
  */
-public interface StatementSetOperation extends Operation {
-}
+public interface StatementSetOperation extends Operation {}
