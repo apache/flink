@@ -47,9 +47,9 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -166,7 +166,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         true,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.getRelBuilder(),
+                        shiftTimeZone);
 
         final GeneratedNamespaceAggsHandleFunction<Long> globalAggsHandler =
                 createAggsHandler(
@@ -177,7 +178,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         true,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.getRelBuilder(),
+                        shiftTimeZone);
 
         final GeneratedNamespaceAggsHandleFunction<Long> stateAggsHandler =
                 createAggsHandler(
@@ -188,7 +190,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         false,
                         globalAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.getRelBuilder(),
+                        shiftTimeZone);
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
@@ -197,6 +200,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final OneInputStreamOperator<RowData, RowData> windowOperator =
                 SlicingWindowAggOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputRowType))
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(
                                 (PagedTypeSerializer<RowData>)
                                         selector.getProducedType().toSerializer())
@@ -232,7 +236,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             boolean mergedAccIsOnHeap,
             DataType[] mergedAccExternalTypes,
             TableConfig config,
-            RelBuilder relBuilder) {
+            RelBuilder relBuilder,
+            String shifTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
@@ -252,6 +257,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                 name,
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
-                sliceAssigner);
+                sliceAssigner,
+                shifTimeZone);
     }
 }

@@ -42,8 +42,8 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -133,7 +133,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         aggInfoList,
                         config,
                         planner.getRelBuilder(),
-                        inputRowType.getChildren());
+                        inputRowType.getChildren(),
+                        shiftTimeZone);
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
 
@@ -143,8 +144,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         sliceAssigner,
                         (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer(),
                         new RowDataSerializer(inputRowType),
-                        generatedAggsHandler,
-                        shiftTimeZone);
+                        generatedAggsHandler);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
@@ -161,7 +161,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             AggregateInfoList aggInfoList,
             TableConfig config,
             RelBuilder relBuilder,
-            List<LogicalType> fieldTypes) {
+            List<LogicalType> fieldTypes,
+            String shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
@@ -175,6 +176,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 "LocalWindowAggsHandler",
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(Collections.emptyList()),
-                sliceAssigner);
+                sliceAssigner,
+                shiftTimeZone);
     }
 }

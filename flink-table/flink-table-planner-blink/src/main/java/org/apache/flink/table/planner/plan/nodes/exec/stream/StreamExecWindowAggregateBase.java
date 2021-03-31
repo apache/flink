@@ -75,7 +75,8 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
         } else if (windowingStrategy instanceof SliceAttachedWindowingStrategy) {
             int sliceEndIndex = ((SliceAttachedWindowingStrategy) windowingStrategy).getSliceEnd();
             // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
+            SliceAssigner innerAssigner =
+                    createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
             return SliceAssigners.sliced(sliceEndIndex, innerAssigner);
 
         } else if (windowingStrategy instanceof TimeAttributeWindowingStrategy) {
