@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
+    image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -135,7 +135,7 @@ stages:
           container: flink-build-container
           jdk: jdk11
       - job: docs_404_check # run on a MSFT provided machine
-        pool: 
+        pool:
           vmImage: 'ubuntu-16.04'
         steps:
         - task: UseRubyVersion@0
