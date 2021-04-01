@@ -71,13 +71,16 @@ public class KafkaSourceEnumerator
      * worker thread.
      */
     private final Set<TopicPartition> discoveredPartitions;
-    /** The current assignment by reader id. Only accessed by the coordinator thread. */
-    private final Map<Integer, Set<KafkaPartitionSplit>> readerIdToSplitAssignments;
+
+    /** Partitions that have been assigned to readers. */
+    private final Set<TopicPartition> assignedPartitions;
+
     /**
      * The discovered and initialized partition splits that are waiting for owner reader to be
      * ready.
      */
     private final Map<Integer, Set<KafkaPartitionSplit>> pendingPartitionSplitAssignment;
+
     /** The consumer group id used for this KafkaSource. */
     private final String consumerGroupId;
 
@@ -98,7 +101,7 @@ public class KafkaSourceEnumerator
                 stoppingOffsetInitializer,
                 properties,
                 context,
-                new HashMap<>());
+                Collections.emptySet());
     }
 
     public KafkaSourceEnumerator(
@@ -107,7 +110,7 @@ public class KafkaSourceEnumerator
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
             SplitEnumeratorContext<KafkaPartitionSplit> context,
-            Map<Integer, Set<KafkaPartitionSplit>> currentSplitsAssignments) {
+            Set<TopicPartition> assignedPartitions) {
         this.subscriber = subscriber;
         this.startingOffsetInitializer = startingOffsetInitializer;
         this.stoppingOffsetInitializer = stoppingOffsetInitializer;
@@ -115,10 +118,8 @@ public class KafkaSourceEnumerator
         this.context = context;
 
         this.discoveredPartitions = new HashSet<>();
-        this.readerIdToSplitAssignments = new HashMap<>(currentSplitsAssignments);
-        this.readerIdToSplitAssignments.forEach(
-                (reader, splits) ->
-                        splits.forEach(s -> discoveredPartitions.add(s.getTopicPartition())));
+        this.assignedPartitions = new HashSet<>(assignedPartitions);
+        discoveredPartitions.addAll(this.assignedPartitions);
         this.pendingPartitionSplitAssignment = new HashMap<>();
         this.partitionDiscoveryIntervalMs =
                 KafkaSourceOptions.getOption(
@@ -183,7 +184,7 @@ public class KafkaSourceEnumerator
 
     @Override
     public KafkaSourceEnumState snapshotState() throws Exception {
-        return new KafkaSourceEnumState(readerIdToSplitAssignments);
+        return new KafkaSourceEnumState(assignedPartitions);
     }
 
     @Override
@@ -279,9 +280,8 @@ public class KafkaSourceEnumerator
         incrementalAssignment.forEach(
                 (readerOwner, newPartitionSplits) -> {
                     // Update the split assignment.
-                    readerIdToSplitAssignments
-                            .computeIfAbsent(readerOwner, r -> new HashSet<>())
-                            .addAll(newPartitionSplits);
+                    newPartitionSplits.forEach(
+                            split -> assignedPartitions.add(split.getTopicPartition()));
                     // Clear the pending splits for the reader owner.
                     pendingPartitionSplitAssignment.remove(readerOwner);
                     // Sends NoMoreSplitsEvent to the readers if there is no more partition splits
