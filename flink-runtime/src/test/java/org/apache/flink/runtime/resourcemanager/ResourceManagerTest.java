@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -55,7 +57,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -68,6 +69,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Tests for the {@link ResourceManager}. */
 public class ResourceManagerTest extends TestLogger {
@@ -321,11 +323,14 @@ public class ResourceManagerTest extends TestLogger {
                         .build();
         rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
+        final OneShotLatch jobAdded = new OneShotLatch();
+        final OneShotLatch jobRemoved = new OneShotLatch();
+
         final JobLeaderIdService jobLeaderIdService =
-                new DefaultJobLeaderIdService(
-                        highAvailabilityServices,
-                        rpcService.getScheduledExecutor(),
-                        TestingUtils.infiniteTime());
+                TestingJobLeaderIdService.newBuilder()
+                        .setAddJobConsumer(ignored -> jobAdded.trigger())
+                        .setRemoveJobConsumer(ignored -> jobRemoved.trigger())
+                        .build();
         resourceManager = createAndStartResourceManager(heartbeatServices, jobLeaderIdService);
 
         highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
@@ -343,18 +348,22 @@ public class ResourceManagerTest extends TestLogger {
                 jobMasterGateway.getAddress(),
                 jobId,
                 TIMEOUT);
-        final boolean isAdded = runInMainThread(() -> jobLeaderIdService.containsJob(jobId));
-        assertThat(isAdded, is(true));
 
-        resourceManagerGateway.disconnectJobManager(jobId, jobStatus, null);
-        final boolean isRemoved = runInMainThread(() -> !jobLeaderIdService.containsJob(jobId));
-        assertThat(isRemoved, is(jobStatus.isGloballyTerminalState()));
-    }
+        jobAdded.await();
 
-    private <T> T runInMainThread(Callable<T> callable) throws Exception {
-        return resourceManager
-                .runInMainThread(callable, TIMEOUT)
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        resourceManagerGateway.disconnectJobManager(
+                jobId, jobStatus, new FlinkException("Test exception"));
+
+        if (jobStatus.isGloballyTerminalState()) {
+            jobRemoved.await();
+        } else {
+            // job should not get removed
+            try {
+                jobRemoved.await(10L, TimeUnit.MILLISECONDS);
+                fail("We should not have removed the job.");
+            } catch (TimeoutException expected) {
+            }
+        }
     }
 
     private void runHeartbeatTimeoutTest(
