@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -34,8 +33,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 
 import javax.annotation.Nullable;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 
 /** Simple {@link ResourceManager} implementation for testing purposes. */
@@ -97,9 +94,5 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
     public boolean stopWorker(ResourceID worker) {
         // cannot stop workers
         return false;
-    }
-
-    <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Time timeout) {
-        return callAsync(callable, timeout);
     }
 }
