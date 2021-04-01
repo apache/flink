@@ -518,7 +518,7 @@ public class CliClient implements AutoCloseable {
             if (!statementSetOperations.isEmpty()) {
                 callInserts(statementSetOperations);
             } else {
-                printInfo(CliStrings.MESSAGE_NO_INSERT_STATEMENT_IN_STATEMENT_SET);
+                printInfo(CliStrings.MESSAGE_NO_STATEMENT_IN_STATEMENT_SET);
             }
             statementSetOperations = null;
         } else {
