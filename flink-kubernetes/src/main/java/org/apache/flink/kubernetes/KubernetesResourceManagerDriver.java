@@ -114,9 +114,9 @@ public class KubernetesResourceManagerDriver
     }
 
     @Override
-    public CompletableFuture<Void> terminate() {
+    public void terminate() throws Exception {
         if (!running) {
-            return FutureUtils.completedVoidFuture();
+            return;
         }
         running = false;
 
@@ -135,9 +135,9 @@ public class KubernetesResourceManagerDriver
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
 
-        return exception == null
-                ? FutureUtils.completedVoidFuture()
-                : FutureUtils.completedExceptionally(exception);
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     @Override

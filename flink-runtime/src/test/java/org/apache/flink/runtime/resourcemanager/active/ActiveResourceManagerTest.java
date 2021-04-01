@@ -53,6 +53,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -890,8 +891,8 @@ public class ActiveResourceManagerTest extends TestLogger {
                             driver,
                             configuration,
                             rpcService,
+                            UUID.randomUUID(),
                             ResourceID.generate(),
-                            rmServices.highAvailabilityServices,
                             rmServices.heartbeatServices,
                             rmServices.slotManager,
                             NoOpResourceManagerPartitionTracker::get,
@@ -906,7 +907,9 @@ public class ActiveResourceManagerTest extends TestLogger {
                             ForkJoinPool.commonPool());
 
             activeResourceManager.start();
-            rmServices.grantLeadership();
+            activeResourceManager
+                    .getStartedFuture()
+                    .get(TIMEOUT_TIME.getSize(), TIMEOUT_TIME.getUnit());
 
             return activeResourceManager;
         }
