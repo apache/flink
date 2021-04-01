@@ -147,9 +147,8 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
      */
     private void checkTasksStarted(List<Execution> toTrigger) throws CheckpointException {
         for (Execution execution : toTrigger) {
-            if (execution.getState() == ExecutionState.CREATED
-                    || execution.getState() == ExecutionState.SCHEDULED
-                    || execution.getState() == ExecutionState.DEPLOYING) {
+            if (!(execution.getState() == ExecutionState.RUNNING
+                    || execution.getState() == ExecutionState.FINISHED)) {
 
                 throw new CheckpointException(
                         String.format(
