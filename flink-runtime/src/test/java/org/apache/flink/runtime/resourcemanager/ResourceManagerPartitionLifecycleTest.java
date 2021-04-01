@@ -232,7 +232,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                         .setScheduledExecutor(rpcService.getScheduledExecutor())
                         .build();
         final JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
                         TestingUtils.infiniteTime());

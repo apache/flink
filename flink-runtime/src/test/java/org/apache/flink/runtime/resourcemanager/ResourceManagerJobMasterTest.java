@@ -135,7 +135,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         haServices, rpcService.getScheduledExecutor(), Time.minutes(5L));
 
         final SlotManager slotManager =
