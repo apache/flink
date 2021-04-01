@@ -162,7 +162,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         .build();
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
                         Time.minutes(5L));

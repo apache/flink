@@ -289,7 +289,7 @@ public class ResourceManagerTest extends TestLogger {
         rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
         final JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
                         TestingUtils.infiniteTime());
@@ -339,7 +339,7 @@ public class ResourceManagerTest extends TestLogger {
     private TestingResourceManager createAndStartResourceManager(
             HeartbeatServices heartbeatServices) throws Exception {
         final JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
                         TestingUtils.infiniteTime());
