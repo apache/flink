@@ -270,11 +270,11 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
-    /** test run the runnable in the main thread of the underlying RPC endpoint. */
+    /** Tests running the runnable in the main thread of the underlying RPC endpoint. */
     @Test
     public void testRunAsync() throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        CompletableFuture<Boolean> finishedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> asyncExecutionFuture = new CompletableFuture<>();
         try {
             endpoint.start();
             endpoint.getMainThreadExecutor()
@@ -283,24 +283,23 @@ public class RpcEndpointTest extends TestLogger {
                                 // no need to catch the validation failure
                                 // if the validation fail, the future will never complete
                                 endpoint.validateRunsInMainThread();
-                                finishedFuture.complete(true);
+                                asyncExecutionFuture.complete(null);
                             });
-            Boolean actualFinished = finishedFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
-            assertTrue(actualFinished);
+            asyncExecutionFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
 
     /**
-     * test scheduling the runnable in the main thread of the underlying RPC endpoint, with a delay
+     * Tests scheduling the runnable in the main thread of the underlying RPC endpoint, with a delay
      * of the given number of milliseconds.
      */
     @Test
-    public void testScheduleRunAsyncTime()
+    public void testScheduleRunAsync()
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final long expectedDelayMs = 500L;
+        final long expectedDelayMs = 100L;
         final CompletableFuture<Long> actualDelayMsFuture = new CompletableFuture<>();
         try {
             endpoint.start();
@@ -313,38 +312,37 @@ public class RpcEndpointTest extends TestLogger {
                                         System.currentTimeMillis() - startTime);
                             },
                             expectedDelayMs);
-            Long actualDelayMs =
+            final long actualDelayMs =
                     actualDelayMsFuture.get(expectedDelayMs * 2, TimeUnit.MILLISECONDS);
-            assertTrue(actualDelayMs > expectedDelayMs * 0.8);
-            assertTrue(actualDelayMs < expectedDelayMs * 1.2);
+            assertTrue(actualDelayMs > expectedDelayMs * 0.5);
+            assertTrue(actualDelayMs < expectedDelayMs * 1.5);
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
 
-    /** test executing the runnable in the main thread of the underlying RPC endpoint. */
+    /** Tests executing the runnable in the main thread of the underlying RPC endpoint. */
     @Test
     public void testExecute() throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        CompletableFuture<Boolean> finishedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> asyncExecutionFuture = new CompletableFuture<>();
         try {
             endpoint.start();
             endpoint.getMainThreadExecutor()
                     .execute(
                             () -> {
                                 endpoint.validateRunsInMainThread();
-                                finishedFuture.complete(true);
+                                asyncExecutionFuture.complete(null);
                             });
-            Boolean actualCondition = finishedFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
-            assertTrue(actualCondition);
+            asyncExecutionFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
 
-    /** test scheduling runnable with delay specified in number and TimeUnit. */
+    /** Tests scheduling runnable with delay specified in number and TimeUnit. */
     @Test
-    public void testScheduleRunnableTimeUnit()
+    public void testScheduleRunnable()
             throws InterruptedException, ExecutionException, TimeoutException {
         final Time expectedDelay1 = Time.seconds(1);
         final Time expectedDelay2 = Time.milliseconds(500);
@@ -387,9 +385,9 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
-    /** test scheduling callable with delay specified in number and TimeUnit. */
+    /** Tests scheduling callable with delay specified in number and TimeUnit. */
     @Test
-    public void testScheduleCallableTimeUnit()
+    public void testScheduleCallable()
             throws InterruptedException, ExecutionException, TimeoutException {
         final Time expectedDelay1 = Time.seconds(1);
         final Time expectedDelay2 = Time.milliseconds(500);
@@ -401,7 +399,7 @@ public class RpcEndpointTest extends TestLogger {
         try {
             endpoint.start();
             final long startTime = System.currentTimeMillis();
-            ScheduledFuture<Integer> intScheduleFuture =
+            final ScheduledFuture<Integer> intScheduleFuture =
                     endpoint.getMainThreadExecutor()
                             .schedule(
                                     () -> {
@@ -412,7 +410,7 @@ public class RpcEndpointTest extends TestLogger {
                                     },
                                     expectedDelay1.getSize(),
                                     expectedDelay1.getUnit());
-            ScheduledFuture<String> stringScheduledFuture =
+            final ScheduledFuture<String> stringScheduledFuture =
                     endpoint.getMainThreadExecutor()
                             .schedule(
                                     () -> {
@@ -439,51 +437,15 @@ public class RpcEndpointTest extends TestLogger {
             assertTrue(actualDelayMs1 < expectedDelay1.toMilliseconds() * 1.2);
             assertTrue(actualDelayMs2 > expectedDelay2.toMilliseconds() * 0.8);
             assertTrue(actualDelayMs2 < expectedDelay2.toMilliseconds() * 1.2);
-            assertEquals(actualInteger, expectedInt);
-            assertEquals(actualString, expectedString);
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
-    }
-
-    /** not implemented currently, exception is expected. */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testScheduleAtFixedRate()
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        try {
-            endpoint.start();
-            endpoint.getMainThreadExecutor()
-                    .scheduleAtFixedRate(
-                            endpoint::validateRunsInMainThread, 100, 100, TimeUnit.MILLISECONDS);
-            fail(
-                    "Expected to fail with a UnsupportedOperationException"
-                            + " since we have not implemented this method currently.");
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
-    }
-
-    /** not implemented currently, exception is expected. */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testScheduleWithFixedDelay()
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        try {
-            endpoint.start();
-            endpoint.getMainThreadExecutor()
-                    .scheduleWithFixedDelay(
-                            endpoint::validateRunsInMainThread, 100, 100, TimeUnit.MILLISECONDS);
-            fail(
-                    "Expected to fail with a UnsupportedOperationException"
-                            + " since we have not implemented this method currently.");
+            assertEquals(expectedInt, actualInteger);
+            assertEquals(expectedString, actualString);
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
 
     /**
-     * test execute the callable in the main thread of the underlying RPC service, returning a
+     * Tests executing the callable in the main thread of the underlying RPC service, returning a
      * future for the result of the callable. If the callable is not completed within the given
      * timeout, then the future will be failed with a TimeoutException. This schedule method is
      * called directly from RpcEndpoint, MainThreadExecutor do not support this method.
@@ -491,44 +453,45 @@ public class RpcEndpointTest extends TestLogger {
     @Test
     public void testCallAsync() throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final Time timeout = Time.milliseconds(500);
         final Integer expectedInteger = 12345;
         try {
             endpoint.start();
-            CompletableFuture<Integer> integerFuture =
+            final CompletableFuture<Integer> integerFuture =
                     endpoint.callAsync(
                             () -> {
                                 endpoint.validateRunsInMainThread();
                                 return expectedInteger;
                             },
-                            timeout);
-            assertEquals(integerFuture.get(timeout.getSize(), timeout.getUnit()), expectedInteger);
+                            TIMEOUT);
+            assertEquals(expectedInteger, integerFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit()));
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }
 
     /**
-     * make the callable sleep some time more than specified timeout, so TimeoutException is
+     * Make the callable sleep some time more than specified timeout, so TimeoutException is
      * expected.
      */
-    @Test(expected = TimeoutException.class)
-    public void testCallAsyncTimeOut()
+    @Test
+    public void testCallAsyncTimeout()
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final Time timeout = Time.milliseconds(200);
-        final Integer expectedInteger = 12345;
+        final Time timeout = Time.milliseconds(100);
         try {
             endpoint.start();
-            CompletableFuture<Integer> integerFuture =
+            final CompletableFuture<Throwable> throwableFuture =
                     endpoint.callAsync(
-                            () -> {
-                                endpoint.validateRunsInMainThread();
-                                TimeUnit.MILLISECONDS.sleep(300);
-                                return expectedInteger;
-                            },
-                            timeout);
-            integerFuture.get(timeout.getSize(), timeout.getUnit());
+                                    () -> {
+                                        endpoint.validateRunsInMainThread();
+                                        TimeUnit.MILLISECONDS.sleep(timeout.toMilliseconds() * 2);
+                                        return 12345;
+                                    },
+                                    timeout)
+                            .handle((ignore, throwable) -> throwable);
+            final Throwable throwable =
+                    throwableFuture.get(timeout.getSize() * 2, timeout.getUnit());
+            assertTrue(throwable instanceof TimeoutException);
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
