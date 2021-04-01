@@ -64,6 +64,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.TestLogger;
 
@@ -86,6 +87,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -98,6 +100,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
@@ -162,13 +166,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             .get()
                             .toJobExecutionResult(getClass().getClassLoader()));
         } catch (Exception e) {
+            if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
+                throw e;
+            }
             if (settings.generateCheckpoint) {
-                return Files.find(
-                                checkpointDir.toPath(),
-                                2,
-                                (file, attr) ->
-                                        attr.isDirectory()
-                                                && file.getFileName().toString().startsWith("chk"))
+                return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
                         .min(Comparator.comparing(Path::toString))
                         .map(Path::toFile)
                         .orElseThrow(
@@ -182,6 +184,27 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             fail("Could not generate checkpoint");
         }
         return null;
+    }
+
+    private boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
+        return attr.isDirectory()
+                && path.getFileName().toString().startsWith(CHECKPOINT_DIR_PREFIX)
+                && hasMetadata(path);
+    }
+
+    private boolean hasMetadata(Path file) {
+        try {
+            return Files.find(
+                            file.toAbsolutePath(),
+                            1,
+                            (path, attrs) ->
+                                    path.getFileName().toString().equals(METADATA_FILE_NAME))
+                    .findAny()
+                    .isPresent();
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+            return false; // should never happen
+        }
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
@@ -833,7 +856,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
 
         private void failMapper(String description) throws Exception {
-            throw new Exception(
+            throw new TestException(
                     "Failing "
                             + description
                             + " @ "
@@ -1089,5 +1112,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             + Long.toHexString(value));
         }
         return value;
+    }
+
+    private static class TestException extends Exception {
+        public TestException(String s) {
+            super(s);
+        }
     }
 }
