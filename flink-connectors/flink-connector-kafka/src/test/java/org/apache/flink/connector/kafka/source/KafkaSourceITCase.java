@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +171,30 @@ public class KafkaSourceITCase {
         expectedSum *= 2;
 
         assertEquals(expectedSum, actualSum.get());
+    }
+
+    @Test(timeout = 30000L)
+    public void testRedundantParallelism() throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testRedundantParallelism")
+                        .setTopics(Collections.singletonList(TOPIC1))
+                        .setDeserializer(new TestingKafkaRecordDeserializationSchema())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // Here we use (NUM_PARTITION + 1) as the parallelism, so one SourceReader will not be
+        // assigned with any splits. The redundant SourceReader should also be signaled with a
+        // NoMoreSplitsEvent and eventually spins to FINISHED state.
+        env.setParallelism(KafkaSourceTestEnv.NUM_PARTITIONS + 1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "testRedundantParallelism");
+        executeAndVerify(env, stream);
     }
 
     // -----------------
