@@ -255,7 +255,7 @@ public class KafkaEnumeratorTest {
     public void testWorkWithPreexistingAssignments() throws Throwable {
         final MockSplitEnumeratorContext<KafkaPartitionSplit> context1 =
                 new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        Map<Integer, Set<KafkaPartitionSplit>> preexistingAssignments;
+        Set<TopicPartition> preexistingAssignments;
         try (KafkaSourceEnumerator enumerator =
                 createEnumerator(context1, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
             startEnumeratorAndRegisterReaders(context1, enumerator);
@@ -299,7 +299,7 @@ public class KafkaEnumeratorTest {
                         context,
                         ENABLE_PERIODIC_PARTITION_DISCOVERY,
                         PRE_EXISTING_TOPICS,
-                        Collections.emptyMap(),
+                        Collections.emptySet(),
                         properties)) {
             enumerator.start();
 
@@ -322,6 +322,30 @@ public class KafkaEnumeratorTest {
                     (long) defaultTimeoutMs,
                     Whitebox.getInternalState(consumer, "requestTimeoutMs"));
         }
+    }
+
+    @Test
+    public void testSnapshotState() throws Throwable {
+        final MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+
+        final KafkaSourceEnumerator enumerator = createEnumerator(context, false);
+        enumerator.start();
+
+        // No reader is registered, so the state should be empty
+        final KafkaSourceEnumState state1 = enumerator.snapshotState();
+        assertTrue(state1.assignedPartitions().isEmpty());
+
+        registerReader(context, enumerator, READER0);
+        registerReader(context, enumerator, READER1);
+        context.runNextOneTimeCallable();
+
+        // The state should contain splits assigned to READER0 and READER1
+        final KafkaSourceEnumState state2 = enumerator.snapshotState();
+        verifySplitAssignmentWithPartitions(
+                getExpectedAssignments(
+                        new HashSet<>(Arrays.asList(READER0, READER1)), PRE_EXISTING_TOPICS),
+                state2.assignedPartitions());
     }
 
     // -------------- some common startup sequence ---------------
@@ -370,7 +394,7 @@ public class KafkaEnumeratorTest {
                 enumContext,
                 enablePeriodicPartitionDiscovery,
                 topics,
-                Collections.emptyMap(),
+                Collections.emptySet(),
                 new Properties());
     }
 
@@ -382,7 +406,7 @@ public class KafkaEnumeratorTest {
             MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
             boolean enablePeriodicPartitionDiscovery,
             Collection<String> topicsToSubscribe,
-            Map<Integer, Set<KafkaPartitionSplit>> currentAssignments,
+            Set<TopicPartition> assignedPartitions,
             Properties overrideProperties) {
         // Use a TopicPatternSubscriber so that no exception if a subscribed topic hasn't been
         // created yet.
@@ -408,7 +432,7 @@ public class KafkaEnumeratorTest {
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
-                currentAssignments);
+                assignedPartitions);
     }
 
     // ---------------------
@@ -475,11 +499,21 @@ public class KafkaEnumeratorTest {
         return expectedAssignments;
     }
 
-    private Map<Integer, Set<KafkaPartitionSplit>> asEnumState(
-            Map<Integer, List<KafkaPartitionSplit>> assignments) {
-        Map<Integer, Set<KafkaPartitionSplit>> enumState = new HashMap<>();
+    private void verifySplitAssignmentWithPartitions(
+            Map<Integer, Set<TopicPartition>> expectedAssignment,
+            Set<TopicPartition> actualTopicPartitions) {
+        final Set<TopicPartition> allTopicPartitionsFromAssignment = new HashSet<>();
+        expectedAssignment.forEach(
+                (reader, topicPartitions) ->
+                        allTopicPartitionsFromAssignment.addAll(topicPartitions));
+        assertEquals(allTopicPartitionsFromAssignment, actualTopicPartitions);
+    }
+
+    private Set<TopicPartition> asEnumState(Map<Integer, List<KafkaPartitionSplit>> assignments) {
+        Set<TopicPartition> enumState = new HashSet<>();
         assignments.forEach(
-                (reader, assignment) -> enumState.put(reader, new HashSet<>(assignment)));
+                (reader, assignment) ->
+                        assignment.forEach(split -> enumState.add(split.getTopicPartition())));
         return enumState;
     }
 
