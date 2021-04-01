@@ -153,7 +153,7 @@ public class KafkaSource<OUT>
                 stoppingOffsetsInitializer,
                 props,
                 enumContext,
-                checkpoint.getCurrentAssignment());
+                checkpoint.assignedPartitions());
     }
 
     @Override
