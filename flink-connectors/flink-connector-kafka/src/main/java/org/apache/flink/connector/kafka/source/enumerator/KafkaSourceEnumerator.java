@@ -271,7 +271,7 @@ public class KafkaSourceEnumerator
             if (pendingAssignmentForReader != null && !pendingAssignmentForReader.isEmpty()) {
                 // Put pending assignment into incremental assignment
                 incrementalAssignment
-                        .computeIfAbsent(pendingReader, ArrayList::new)
+                        .computeIfAbsent(pendingReader, (ignored) -> new ArrayList<>())
                         .addAll(pendingAssignmentForReader);
 
                 // Make pending partitions as already assigned
