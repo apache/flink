@@ -233,19 +233,26 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
         Throwable exception = null;
 
-        try {
-            blobStoreService.closeAndCleanupAllData();
-        } catch (Throwable t) {
-            exception = t;
-        }
+        boolean deletedHAData = false;
 
         try {
             cleanupZooKeeperPaths();
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+            deletedHAData = true;
+        } catch (Exception e) {
+            exception = e;
         }
 
         internalClose();
+
+        try {
+            if (deletedHAData) {
+                blobStoreService.closeAndCleanupAllData();
+            } else {
+                blobStoreService.close();
+            }
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        }
 
         if (exception != null) {
             ExceptionUtils.rethrowException(
