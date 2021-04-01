@@ -62,7 +62,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -89,8 +88,6 @@ public class CliClientTest extends TestLogger {
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 
     @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Rule public TerminalStreamsResource useSystemStream = TerminalStreamsResource.INSTANCE;
 
     @Test
     public void testUpdateSubmission() throws Exception {
@@ -273,10 +270,20 @@ public class CliClientTest extends TestLogger {
         Path historyFilePath = historyTempFile();
 
         OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
 
-        try (CliClient client = new CliClient(sessionId, mockExecutor, historyFilePath)) {
-            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(content));
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyFilePath,
+                        null)) {
+            Thread thread =
+                    new Thread(
+                            () ->
+                                    client.executeFile(
+                                            content,
+                                            CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -347,9 +354,14 @@ public class CliClientTest extends TestLogger {
     private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
         String sessionId = executor.openSession("test-session");
         OutputStream outputStream = new ByteArrayOutputStream(256);
-        System.setOut(new PrintStream(outputStream));
-        try (CliClient client = new CliClient(sessionId, executor, historyTempFile())) {
-            client.executeInNonInteractiveMode(content);
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        executor,
+                        historyTempFile(),
+                        null)) {
+            client.executeFile(content, CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
         }
         return outputStream.toString();
     }

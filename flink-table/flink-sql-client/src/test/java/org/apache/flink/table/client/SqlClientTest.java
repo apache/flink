@@ -80,7 +80,7 @@ public class SqlClientTest {
         testOutputStream = new ByteArrayOutputStream();
         System.setOut(new PrintStream(testOutputStream, true));
         // send "QUIT;" command to gracefully shutdown the terminal
-        System.setIn(new ByteArrayInputStream("QUIT;".getBytes(StandardCharsets.UTF_8)));
+        System.setIn(new ByteArrayInputStream("QUIT;\n".getBytes(StandardCharsets.UTF_8)));
 
         // prepare conf dir
         File confFolder = tempFolder.newFolder("conf");

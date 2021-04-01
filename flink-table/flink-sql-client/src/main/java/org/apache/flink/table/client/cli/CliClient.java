@@ -297,7 +297,8 @@ public class CliClient implements AutoCloseable {
      *
      * @param content SQL file content
      */
-    private boolean executeFile(String content, ExecutionMode mode) {
+    @VisibleForTesting
+    boolean executeFile(String content, ExecutionMode mode) {
         terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EXECUTE_FILE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
