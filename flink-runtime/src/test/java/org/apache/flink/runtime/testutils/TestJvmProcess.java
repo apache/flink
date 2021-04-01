@@ -31,6 +31,7 @@ import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.createTemporaryLog4JProperties;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
@@ -288,6 +289,15 @@ public abstract class TestJvmProcess {
         }
     }
 
+    public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
+        final Process process = this.process;
+        if (process != null) {
+            return process.waitFor(timeout, unit);
+        } else {
+            throw new IllegalStateException("process not started");
+        }
+    }
+
     public int exitCode() {
         Process process = this.process;
         if (process != null) {
@@ -321,6 +331,15 @@ public abstract class TestJvmProcess {
 
         if (!exists) {
             fail("The marker file was not found within " + timeoutMillis + " msecs");
+        }
+    }
+
+    public static void killProcessWithSigTerm(long pid) throws Exception {
+        // send it a regular kill command (SIG_TERM)
+        final Process kill = Runtime.getRuntime().exec("kill " + pid);
+        kill.waitFor();
+        if (kill.exitValue() != 0) {
+            fail("failed to send SIG_TERM to process " + pid);
         }
     }
 
