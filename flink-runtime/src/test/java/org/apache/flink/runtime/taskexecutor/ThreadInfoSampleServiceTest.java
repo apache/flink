@@ -141,7 +141,10 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
         final CompletableFuture<List<ThreadInfoSample>> sampleFuture =
                 threadInfoSampleService.requestThreadInfoSamples(
                         new NotRunningTask(), requestParams);
-        assertThat(sampleFuture, FlinkMatchers.futureFailedWith(IllegalStateException.class));
+        assertThat(
+                sampleFuture,
+                FlinkMatchers.futureWillCompleteExceptionally(
+                        IllegalStateException.class, Duration.ofSeconds(10)));
     }
 
     private static class TestTask implements SampleableTask {
