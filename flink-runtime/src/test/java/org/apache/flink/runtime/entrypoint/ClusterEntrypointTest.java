@@ -50,6 +50,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesCo
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.TestingJobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.TestingResourceManager;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
@@ -192,7 +193,8 @@ public class ClusterEntrypointTest extends TestLogger {
         final CompletableFuture<ApplicationStatus> appStatusFuture =
                 startClusterEntrypoint(testingEntryPoint);
 
-        dispatcherShutDownFuture.complete(ApplicationStatus.SUCCEEDED);
+        testingResourceManagerFactory.startRmFuture.thenRun(
+                () -> dispatcherShutDownFuture.complete(ApplicationStatus.SUCCEEDED));
 
         assertThat(
                 appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
@@ -368,10 +370,12 @@ public class ClusterEntrypointTest extends TestLogger {
     private static class TestingResourceManagerFactory extends ResourceManagerFactory<ResourceID> {
 
         private final BiConsumer<ApplicationStatus, String> deregisterAppConsumer;
+        private final CompletableFuture<Void> startRmFuture;
 
         private TestingResourceManagerFactory(
                 BiConsumer<ApplicationStatus, String> deregisterAppConsumer) {
             this.deregisterAppConsumer = deregisterAppConsumer;
+            this.startRmFuture = new CompletableFuture<>();
         }
 
         @Override
@@ -379,15 +383,14 @@ public class ClusterEntrypointTest extends TestLogger {
                 Configuration configuration,
                 ResourceID resourceId,
                 RpcService rpcService,
-                HighAvailabilityServices highAvailabilityServices,
+                UUID leaderSessionId,
                 HeartbeatServices heartbeatServices,
                 FatalErrorHandler fatalErrorHandler,
                 ClusterInformation clusterInformation,
                 @Nullable String webInterfaceUrl,
                 ResourceManagerMetricGroup resourceManagerMetricGroup,
                 ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-                Executor ioExecutor)
-                throws Exception {
+                Executor ioExecutor) {
             final SlotManager slotManager =
                     SlotManagerBuilder.newBuilder()
                             .setScheduledExecutor(rpcService.getScheduledExecutor())
@@ -396,8 +399,8 @@ public class ClusterEntrypointTest extends TestLogger {
                     new TestingJobLeaderIdService.Builder().build();
             return new TestingResourceManager(
                     rpcService,
+                    leaderSessionId,
                     resourceId,
-                    highAvailabilityServices,
                     heartbeatServices,
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
@@ -408,6 +411,12 @@ public class ClusterEntrypointTest extends TestLogger {
                 protected void internalDeregisterApplication(
                         ApplicationStatus finalStatus, @Nullable String diagnostics) {
                     deregisterAppConsumer.accept(finalStatus, diagnostics);
+                }
+
+                @Override
+                protected void initialize() throws ResourceManagerException {
+                    super.initialize();
+                    startRmFuture.complete(null);
                 }
             };
         }

@@ -95,8 +95,6 @@ public class ResourceManagerTest extends TestLogger {
 
     private TestingHighAvailabilityServices highAvailabilityServices;
 
-    private TestingLeaderElectionService resourceManagerLeaderElectionService;
-
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
     private ResourceID resourceManagerResourceId;
@@ -113,9 +111,8 @@ public class ResourceManagerTest extends TestLogger {
     @Before
     public void setup() throws Exception {
         highAvailabilityServices = new TestingHighAvailabilityServices();
-        resourceManagerLeaderElectionService = new TestingLeaderElectionService();
         highAvailabilityServices.setResourceManagerLeaderElectionService(
-                resourceManagerLeaderElectionService);
+                new TestingLeaderElectionService());
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         resourceManagerResourceId = ResourceID.generate();
     }
@@ -463,11 +460,12 @@ public class ResourceManagerTest extends TestLogger {
             SlotManager slotManager)
             throws Exception {
 
+        resourceManagerId = ResourceManagerId.generate();
         final TestingResourceManager resourceManager =
                 new TestingResourceManager(
                         rpcService,
+                        resourceManagerId.toUUID(),
                         resourceManagerResourceId,
-                        highAvailabilityServices,
                         heartbeatServices,
                         slotManager,
                         NoOpResourceManagerPartitionTracker::get,
@@ -476,10 +474,7 @@ public class ResourceManagerTest extends TestLogger {
                         UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
         resourceManager.start();
-
-        // first make the ResourceManager the leader
-        resourceManagerId = ResourceManagerId.generate();
-        resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
+        resourceManager.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
 
         return resourceManager;
     }

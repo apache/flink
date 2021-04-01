@@ -31,7 +31,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.ThresholdMeter;
@@ -53,6 +52,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -104,8 +104,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
             Configuration flinkConfig,
             RpcService rpcService,
+            UUID leaderSessionId,
             ResourceID resourceId,
-            HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
@@ -119,8 +119,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             Executor ioExecutor) {
         super(
                 rpcService,
+                leaderSessionId,
                 resourceId,
-                highAvailabilityServices,
                 heartbeatServices,
                 slotManager,
                 clusterPartitionTrackerFactory,
