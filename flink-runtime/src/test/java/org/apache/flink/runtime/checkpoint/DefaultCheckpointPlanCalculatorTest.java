@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -149,23 +150,33 @@ public class DefaultCheckpointPlanCalculatorTest {
 
     @Test
     public void testWithTriggeredTasksNotRunning() throws Exception {
-        ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(new JobVertexID())
-                        .setTransitToRunning(false)
-                        .build();
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
-                createCheckpointPlanCalculator(graph);
+        for (ExecutionState state : EnumSet.complementOf(EnumSet.of(ExecutionState.RUNNING))) {
+            JobVertexID jobVertexID = new JobVertexID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID)
+                            .setTransitToRunning(false)
+                            .build();
+            graph.getJobVertex(jobVertexID)
+                    .getTaskVertices()[0]
+                    .getCurrentExecutionAttempt()
+                    .transitionState(state);
+            DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+                    createCheckpointPlanCalculator(graph);
 
-        try {
-            checkpointPlanCalculator.calculateCheckpointPlan().get();
-            fail("The computation should fail since not all tasks to trigger have start running");
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause, instanceOf(CheckpointException.class));
-            assertEquals(
-                    CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
-                    ((CheckpointException) cause).getCheckpointFailureReason());
+            try {
+                checkpointPlanCalculator.calculateCheckpointPlan().get();
+                fail(
+                        "The computation should fail since some tasks to trigger are in "
+                                + state
+                                + " state");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                assertThat(cause, instanceOf(CheckpointException.class));
+                assertEquals(
+                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
+                        ((CheckpointException) cause).getCheckpointFailureReason());
+            }
         }
     }
 
