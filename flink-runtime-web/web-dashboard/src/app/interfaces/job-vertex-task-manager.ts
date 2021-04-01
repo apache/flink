@@ -49,6 +49,7 @@ export interface VertexTaskManagerDetailInterface {
     RECONCILING: number;
     RUNNING: number;
     SCHEDULED: number;
+    RECOVERING: number;
   };
   'taskmanager-id': string;
 }
