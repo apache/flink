@@ -99,6 +99,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 
@@ -670,6 +671,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         int expectedFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
+        private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
 
@@ -697,6 +699,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setCheckpointTimeout(Duration checkpointTimeout) {
+            this.checkpointTimeout = checkpointTimeout;
+            return this;
+        }
+
         public UnalignedSettings setAlignmentTimeout(int alignmentTimeout) {
             this.alignmentTimeout = alignmentTimeout;
             return this;
@@ -715,6 +722,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
+            env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout.toMillis());
             env.setParallelism(parallelism);
             env.setRestartStrategy(
                     RestartStrategies.fixedDelayRestart(
