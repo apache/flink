@@ -1836,7 +1836,17 @@ public class JobMasterTest extends TestLogger {
     private static void registerSlotsRequiredForJobExecution(
             JobMasterGateway jobMasterGateway, JobID jobId, int numSlots)
             throws ExecutionException, InterruptedException {
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setCancelTaskFunction(
+                                executionAttemptId -> {
+                                    jobMasterGateway.updateTaskExecutionState(
+                                            new TaskExecutionState(
+                                                    executionAttemptId, ExecutionState.CANCELED));
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
         JobMasterTestUtils.registerTaskExecutorAndOfferSlots(
-                rpcService, jobMasterGateway, jobId, numSlots, testingTimeout);
+                rpcService, jobMasterGateway, jobId, numSlots, taskExecutorGateway, testingTimeout);
     }
 }
