@@ -70,7 +70,7 @@ public class ResourceManagerRuntimeServices {
                 createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
 
         final JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices, scheduledExecutor, configuration.getJobTimeout());
 
         return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);

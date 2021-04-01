@@ -58,8 +58,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/** Tests for the {@link JobLeaderIdService}. */
-public class JobLeaderIdServiceTest extends TestLogger {
+/** Tests for the {@link DefaultJobLeaderIdService}. */
+public class DefaultJobLeaderIdServiceTest extends TestLogger {
 
     /** Tests adding a job and finding out its leader id. */
     @Test(timeout = 10000)
@@ -79,7 +79,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
+                new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
         jobLeaderIdService.start(jobLeaderIdActions);
 
@@ -111,7 +111,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
+                new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
         jobLeaderIdService.start(jobLeaderIdActions);
 
@@ -152,7 +152,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
+                new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
         jobLeaderIdService.start(jobLeaderIdActions);
 
@@ -227,7 +227,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
                 .notifyJobTimeout(eq(jobId), any(UUID.class));
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
+                new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
         jobLeaderIdService.start(jobLeaderIdActions);
 
@@ -295,7 +295,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
         highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         new ManuallyTriggeredScheduledExecutor(),
                         Time.milliseconds(5000L));
@@ -332,8 +332,8 @@ public class JobLeaderIdServiceTest extends TestLogger {
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
         Time timeout = Time.milliseconds(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
-        JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
+        DefaultJobLeaderIdService jobLeaderIdService =
+                new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
         assertFalse(jobLeaderIdService.isStarted());
 
