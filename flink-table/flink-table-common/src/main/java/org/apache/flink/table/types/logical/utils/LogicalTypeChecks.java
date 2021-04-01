@@ -134,6 +134,11 @@ public final class LogicalTypeChecks {
         return false;
     }
 
+    public static boolean supportedWatermarkType(LogicalType logicalType) {
+        return logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                || logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+    }
+
     /**
      * Checks if the given type is a composite type.
      *
