@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
@@ -40,13 +39,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -63,17 +61,6 @@ import static org.junit.Assert.fail;
  * calculator behavior.
  */
 public class DefaultCheckpointPlanCalculatorTest {
-
-    @Test(expected = CheckpointException.class)
-    public void testCheckpointNotStartedIfSourceCancelled() throws Exception {
-        VertexDeclaration vertexDeclaration =
-                new VertexDeclaration(
-                        1,
-                        Collections.emptySet(),
-                        Collections.singletonMap(0, ExecutionState.CANCELED));
-        runSingleTest(
-                Arrays.asList(vertexDeclaration), Collections.emptyList(), Collections.emptyList());
-    }
 
     @Test
     public void testComputeAllRunningGraph() throws Exception {
@@ -163,23 +150,33 @@ public class DefaultCheckpointPlanCalculatorTest {
 
     @Test
     public void testWithTriggeredTasksNotRunning() throws Exception {
-        ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(new JobVertexID())
-                        .setTransitToRunning(false)
-                        .build();
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
-                createCheckpointPlanCalculator(graph);
+        for (ExecutionState state : EnumSet.complementOf(EnumSet.of(ExecutionState.RUNNING))) {
+            JobVertexID jobVertexID = new JobVertexID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID)
+                            .setTransitToRunning(false)
+                            .build();
+            graph.getJobVertex(jobVertexID)
+                    .getTaskVertices()[0]
+                    .getCurrentExecutionAttempt()
+                    .transitionState(state);
+            DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+                    createCheckpointPlanCalculator(graph);
 
-        try {
-            checkpointPlanCalculator.calculateCheckpointPlan().get();
-            fail("The computation should fail since not all tasks to trigger have start running");
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause, instanceOf(CheckpointException.class));
-            assertEquals(
-                    CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
-                    ((CheckpointException) cause).getCheckpointFailureReason());
+            try {
+                checkpointPlanCalculator.calculateCheckpointPlan().get();
+                fail(
+                        "The computation should fail since some tasks to trigger are in "
+                                + state
+                                + " state");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                assertThat(cause, instanceOf(CheckpointException.class));
+                assertEquals(
+                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
+                        ((CheckpointException) cause).getCheckpointFailureReason());
+            }
         }
     }
 
@@ -242,15 +239,8 @@ public class DefaultCheckpointPlanCalculatorTest {
                 chooseTasks(
                         graph, expectedToTriggerTaskDeclarations.toArray(new TaskDeclaration[0]));
 
-        CheckpointPlan checkpointPlan;
-        try {
-            checkpointPlan = planCalculator.calculateCheckpointPlan().get();
-        } catch (ExecutionException e) {
-            // meet any junit expectations for the nested exception
-            ExceptionUtils.rethrowException(e.getCause());
-            throw e;
-        }
         // Tests computing checkpoint plan
+        CheckpointPlan checkpointPlan = planCalculator.calculateCheckpointPlan().get();
         checkCheckpointPlan(
                 expectedToTriggerTasks,
                 expectedRunningTasks,
@@ -290,15 +280,6 @@ public class DefaultCheckpointPlanCalculatorTest {
 
         for (int i = 0; i < vertexDeclarations.size(); ++i) {
             JobVertexID jobVertexId = jobVertices[i].getID();
-            vertexDeclarations
-                    .get(i)
-                    .subtaskStates
-                    .forEach(
-                            (key, value) ->
-                                    graph.getJobVertex(jobVertexId)
-                                            .getTaskVertices()[key]
-                                            .getCurrentExecutionAttempt()
-                                            .transitionState(value));
             vertexDeclarations
                     .get(i)
                     .finishedSubtaskIndices
@@ -427,27 +408,10 @@ public class DefaultCheckpointPlanCalculatorTest {
     private static class VertexDeclaration {
         final int parallelism;
         final Set<Integer> finishedSubtaskIndices;
-        final Map<Integer, ExecutionState>
-                subtaskStates; // for those subtasks not marked as finished
-
-        public VertexDeclaration(
-                int parallelism,
-                Set<Integer> finishedSubtaskIndices,
-                Map<Integer, ExecutionState> subtaskStates) {
-            this.parallelism = parallelism;
-            this.finishedSubtaskIndices = finishedSubtaskIndices;
-            this.subtaskStates = subtaskStates;
-        }
 
         public VertexDeclaration(int parallelism, Set<Integer> finishedSubtaskIndices) {
-            this(
-                    parallelism,
-                    finishedSubtaskIndices,
-                    IntStream.range(0, parallelism)
-                            .boxed()
-                            .collect(
-                                    Collectors.toMap(
-                                            Function.identity(), u -> ExecutionState.RUNNING)));
+            this.parallelism = parallelism;
+            this.finishedSubtaskIndices = finishedSubtaskIndices;
         }
     }
 
