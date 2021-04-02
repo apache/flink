@@ -168,7 +168,7 @@ run sdist.
             # regenerate the licenses directory and NOTICE file as we only copy part of the
             # flink binary distribution.
             collect_licenses_file_sh = os.path.abspath(os.path.join(
-                this_directory, "..", "tools", "releasing", "collect_license_files.sh"))
+                this_directory, "..", "..", "tools", "releasing", "collect_license_files.sh"))
             subprocess.check_output([collect_licenses_file_sh, TEMP_PATH, TEMP_PATH])
             # move the NOTICE file to the root of the package
             GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")

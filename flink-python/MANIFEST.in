@@ -21,7 +21,6 @@ graft deps/bin
 graft deps/conf
 graft deps/log
 recursive-include deps/examples *.py
-graft deps/licenses
 include README.md
 include LICENSE
 include NOTICE
