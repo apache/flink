@@ -80,7 +80,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
     @Override
     protected void initialize() throws ResourceManagerException {
-        // nothing to initialize
+        startStartupPeriod();
     }
 
     @Override
@@ -106,11 +106,6 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
     @Override
     protected ResourceID workerStarted(ResourceID resourceID) {
         return resourceID;
-    }
-
-    @Override
-    protected void onLeadership() {
-        startStartupPeriod();
     }
 
     private void startStartupPeriod() {

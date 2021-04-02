@@ -160,20 +160,10 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void terminate() throws ResourceManagerException {
         try {
-            resourceManagerDriver.terminate().get();
+            resourceManagerDriver.terminate();
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot terminate resource provider.", e);
         }
-    }
-
-    @Override
-    protected CompletableFuture<Void> prepareLeadershipAsync() {
-        return resourceManagerDriver.onGrantLeadership();
-    }
-
-    @Override
-    protected CompletableFuture<Void> clearStateAsync() {
-        return resourceManagerDriver.onRevokeLeadership();
     }
 
     @Override
@@ -337,13 +327,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     private void internalStopWorker(final ResourceID resourceId) {
-        if (!hasLeadership()) {
-            log.warn(
-                    "Cannot stop worker {}. Does not have leadership.",
-                    resourceId.getStringWithMetadata());
-            return;
-        }
-
         log.info("Stopping worker {}.", resourceId.getStringWithMetadata());
 
         final WorkerType worker = workerNodeMap.get(resourceId);

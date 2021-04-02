@@ -71,6 +71,9 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
 
+    private static final ResourceProfile DEFAULT_SLOT_PROFILE =
+            ResourceProfile.fromResources(1.0, 1234);
+
     private static TestingRpcService rpcService;
 
     private TestingTaskExecutorGateway taskExecutorGateway;
@@ -227,8 +230,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                             hardwareDescription,
                             new TaskExecutorMemoryConfiguration(
                                     1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
-                            ResourceProfile.ZERO,
-                            ResourceProfile.ZERO);
+                            DEFAULT_SLOT_PROFILE,
+                            DEFAULT_SLOT_PROFILE);
 
             CompletableFuture<RegistrationResponse> firstFuture =
                     rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
@@ -286,13 +289,24 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     /** Tests that a TaskExecutor can disconnect from the {@link ResourceManager}. */
     @Test
     public void testDisconnectTaskExecutor() throws Exception {
+        final int numberSlots = 10;
+        final TaskExecutorRegistration taskExecutorRegistration =
+                new TaskExecutorRegistration(
+                        taskExecutorGateway.getAddress(),
+                        taskExecutorResourceID,
+                        dataPort,
+                        jmxPort,
+                        hardwareDescription,
+                        new TaskExecutorMemoryConfiguration(
+                                1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
+                        DEFAULT_SLOT_PROFILE,
+                        DEFAULT_SLOT_PROFILE.multiply(numberSlots));
         final RegistrationResponse registrationResponse =
-                registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress()).get();
+                rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT).get();
         assertThat(registrationResponse, instanceOf(TaskExecutorRegistrationSuccess.class));
 
         final InstanceID registrationId =
                 ((TaskExecutorRegistrationSuccess) registrationResponse).getRegistrationId();
-        final int numberSlots = 10;
         final Collection<SlotStatus> slots = createSlots(numberSlots);
         final SlotReport slotReport = new SlotReport(slots);
         rmGateway.sendSlotReport(taskExecutorResourceID, registrationId, slotReport, TIMEOUT).get();
@@ -362,8 +376,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                         hardwareDescription,
                         new TaskExecutorMemoryConfiguration(
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
-                        ResourceProfile.ZERO,
-                        ResourceProfile.ZERO),
+                        DEFAULT_SLOT_PROFILE,
+                        DEFAULT_SLOT_PROFILE),
                 TIMEOUT);
     }
 }

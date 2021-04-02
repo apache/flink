@@ -188,7 +188,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     }
 
     @Override
-    public CompletableFuture<Void> terminate() {
+    public void terminate() throws Exception {
         // shut down all components
         Exception exception = null;
 
@@ -208,9 +208,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             }
         }
 
-        return exception == null
-                ? FutureUtils.completedVoidFuture()
-                : FutureUtils.completedExceptionally(exception);
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     @Override

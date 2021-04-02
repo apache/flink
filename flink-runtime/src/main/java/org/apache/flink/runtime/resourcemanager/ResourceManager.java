@@ -110,8 +110,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
-    private final UUID leaderSessionId;
-
     /** Unique id of the resource manager. */
     private final ResourceID resourceId;
 
@@ -154,8 +152,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** The heartbeat manager with job managers. */
     private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
-    private boolean hasLeadership = false;
-
     public ResourceManager(
             RpcService rpcService,
             UUID leaderSessionId,
@@ -170,9 +166,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             Time rpcTimeout,
             Executor ioExecutor) {
 
-        super(rpcService, AkkaRpcServiceUtils.createRandomName(RESOURCE_MANAGER_NAME), null);
+        super(
+                rpcService,
+                AkkaRpcServiceUtils.createRandomName(RESOURCE_MANAGER_NAME),
+                ResourceManagerId.fromUuid(leaderSessionId));
 
-        this.leaderSessionId = checkNotNull(leaderSessionId);
         this.resourceId = checkNotNull(resourceId);
         this.heartbeatServices = checkNotNull(heartbeatServices);
         this.slotManager = checkNotNull(slotManager);
@@ -220,7 +218,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         try {
             log.info("Starting the resource manager.");
             startResourceManagerServices();
-            FutureUtils.forward(grantLeadership(leaderSessionId), startedFuture);
+            startedFuture.complete(null);
         } catch (Throwable t) {
             final ResourceManagerException exception =
                     new ResourceManagerException(
@@ -233,11 +231,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private void startResourceManagerServices() throws Exception {
         try {
-            initialize();
-
             jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
             registerMetrics();
+
+            startHeartbeatServices();
+
+            slotManager.start(
+                    getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+
+            initialize();
         } catch (Exception e) {
             handleStartResourceManagerServicesException(e);
         }
@@ -264,7 +267,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public final CompletableFuture<Void> onStop() {
         try {
-            revokeLeadership();
             stopResourceManagerServices();
         } catch (Exception exception) {
             return FutureUtils.completedExceptionally(
@@ -1009,7 +1011,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new ResourceManagerException(
                             "Could not properly clear the job leader id service.", e));
         }
-        clearStateAsync();
     }
 
     /**
@@ -1170,62 +1171,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         fatalErrorHandler.onFatalError(t);
     }
 
-    // ------------------------------------------------------------------------
-    //  Leader Contender
-    // ------------------------------------------------------------------------
-
-    private CompletableFuture<Void> grantLeadership(final UUID newLeaderSessionID) {
-        final ResourceManagerId newResourceManagerId =
-                ResourceManagerId.fromUuid(newLeaderSessionID);
-
-        log.info(
-                "ResourceManager {} was granted leadership with fencing token {}",
-                getAddress(),
-                newResourceManagerId);
-
-        // clear the state if we've been the leader before
-        if (getFencingToken() != null) {
-            clearStateInternal();
-        }
-
-        setFencingToken(newResourceManagerId);
-
-        startServicesOnLeadership();
-
-        return prepareLeadershipAsync().thenRun(() -> hasLeadership = true);
-    }
-
-    private void startServicesOnLeadership() {
-        startHeartbeatServices();
-
-        slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
-
-        onLeadership();
-    }
-
-    protected void onLeadership() {
-        // noop by default
-    }
-
-    private void revokeLeadership() {
-        runAsyncWithoutFencing(
-                () -> {
-                    hasLeadership = false;
-
-                    log.info(
-                            "ResourceManager {} was revoked leadership. Clearing fencing token.",
-                            getAddress());
-
-                    clearStateInternal();
-
-                    setFencingToken(null);
-
-                    slotManager.suspend();
-
-                    stopHeartbeatServices();
-                });
-    }
-
     private void startHeartbeatServices() {
         taskManagerHeartbeatManager =
                 heartbeatServices.createHeartbeatManagerSender(
@@ -1247,10 +1192,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         jobManagerHeartbeatManager.stop();
     }
 
-    protected boolean hasLeadership() {
-        return hasLeadership;
-    }
-
     // ------------------------------------------------------------------------
     //  Framework specific behavior
     // ------------------------------------------------------------------------
@@ -1269,28 +1210,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      * @throws Exception which occurs during termination.
      */
     protected abstract void terminate() throws Exception;
-
-    /**
-     * This method can be overridden to add a (non-blocking) initialization routine to the
-     * ResourceManager that will be called when leadership is granted but before leadership is
-     * confirmed.
-     *
-     * @return Returns a {@code CompletableFuture} that completes when the computation is finished.
-     */
-    protected CompletableFuture<Void> prepareLeadershipAsync() {
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * This method can be overridden to add a (non-blocking) state clearing routine to the
-     * ResourceManager that will be called when leadership is revoked.
-     *
-     * @return Returns a {@code CompletableFuture} that completes when the state clearing routine is
-     *     finished.
-     */
-    protected CompletableFuture<Void> clearStateAsync() {
-        return CompletableFuture.completedFuture(null);
-    }
 
     /**
      * The framework specific code to deregister the application. This should report the
