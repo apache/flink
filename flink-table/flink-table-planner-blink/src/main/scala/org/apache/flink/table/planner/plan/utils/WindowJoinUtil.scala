@@ -20,13 +20,12 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.util.ImmutableIntList
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -79,13 +78,7 @@ object WindowJoinUtil {
    */
   def excludeWindowStartEqualityAndEndEqualityFromJoinCondition(
       join: FlinkLogicalJoin): (
-    ImmutableIntList,
-    ImmutableIntList,
-    ImmutableIntList,
-    ImmutableIntList,
-    ImmutableIntList,
-    ImmutableIntList,
-    RexNode) = {
+    Array[Int], Array[Int], Array[Int], Array[Int], Array[Int], Array[Int], RexNode) = {
     val (
       windowStartEqualityLeftKeys,
       windowEndEqualityLeftKeys,
@@ -104,6 +97,7 @@ object WindowJoinUtil {
       val remainLeftKeysArray = mutable.ArrayBuffer[Int]()
       val remainRightKeysArray = mutable.ArrayBuffer[Int]()
       // convert remain pairs to RexInputRef tuple for building SqlStdOperatorTable.EQUALS calls
+      // or SqlStdOperatorTable.IS_NOT_DISTINCT_FROM
       joinInfo.pairs().foreach { p =>
         if (!windowStartEqualityLeftKeys.contains(p.source) &&
           !windowEndEqualityLeftKeys.contains(p.source)) {
@@ -123,12 +117,12 @@ object WindowJoinUtil {
       }
       val remainAnds = remainEquals ++ joinInfo.nonEquiConditions
       (
-        toImmutableIntList(remainLeftKeysArray),
-        toImmutableIntList(remainRightKeysArray),
+        remainLeftKeysArray.toArray,
+        remainRightKeysArray.toArray,
         // build a new condition
         RexUtil.composeConjunction(rexBuilder, remainAnds.toList))
     } else {
-      (joinInfo.leftKeys, joinInfo.rightKeys, join.getCondition)
+      (joinInfo.leftKeys.toIntArray, joinInfo.rightKeys.toIntArray, join.getCondition)
     }
 
     (
@@ -153,8 +147,7 @@ object WindowJoinUtil {
    *         the forth element is right join keys of window ends equality.
    */
   private def excludeWindowStartEqualityAndEndEqualityFromJoinInfoPairs(
-      join: FlinkLogicalJoin): (
-    ImmutableIntList, ImmutableIntList, ImmutableIntList, ImmutableIntList) = {
+      join: FlinkLogicalJoin): (Array[Int], Array[Int], Array[Int], Array[Int]) = {
     val joinInfo = join.analyzeCondition()
     val (leftWindowProperties, rightWindowProperties) = getChildWindowProperties(join)
 
@@ -216,13 +209,11 @@ object WindowJoinUtil {
     }
 
     (
-      toImmutableIntList(windowStartEqualityLeftKeys),
-      toImmutableIntList(windowEndEqualityLeftKeys),
-      toImmutableIntList(windowStartEqualityRightKeys),
-      toImmutableIntList(windowEndEqualityRightKeys)
+      windowStartEqualityLeftKeys.toArray,
+      windowEndEqualityLeftKeys.toArray,
+      windowStartEqualityRightKeys.toArray,
+      windowEndEqualityRightKeys.toArray
     )
   }
-
-  private def toImmutableIntList(seq: Seq[Int]): ImmutableIntList = ImmutableIntList.of(seq: _*)
 
 }
