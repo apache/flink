@@ -59,7 +59,6 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 
 /** Test utils for Hive connector. */
 public class HiveTestUtils {
-    private static final String HIVE_SITE_XML = "hive-site.xml";
     private static final String HIVE_WAREHOUSE_URI_FORMAT =
             "jdbc:derby:;databaseName=%s;create=true";
     private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -111,8 +110,7 @@ public class HiveTestUtils {
     }
 
     public static HiveConf createHiveConf() {
-        ClassLoader classLoader = new HiveTestUtils().getClass().getClassLoader();
-        HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
+        ClassLoader classLoader = HiveTestUtils.class.getClassLoader();
 
         try {
             TEMPORARY_FOLDER.create();
@@ -120,6 +118,7 @@ public class HiveTestUtils {
             String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
             HiveConf hiveConf = new HiveConf();
+            hiveConf.addResource(classLoader.getResource(HiveCatalog.HIVE_SITE_FILE));
             hiveConf.setVar(
                     HiveConf.ConfVars.METASTOREWAREHOUSE,
                     TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
