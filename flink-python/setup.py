@@ -20,7 +20,6 @@ from __future__ import print_function
 import io
 import os
 import platform
-import subprocess
 import sys
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
@@ -189,21 +188,15 @@ TEMP_PATH = "deps"
 CONF_TEMP_PATH = os.path.join(TEMP_PATH, "conf")
 LOG_TEMP_PATH = os.path.join(TEMP_PATH, "log")
 EXAMPLES_TEMP_PATH = os.path.join(TEMP_PATH, "examples")
-LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
 SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
 LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
-NOTICE_FILE_TEMP_PATH = os.path.join(this_directory, "NOTICE")
 README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh"
 PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat"
 
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
                                  "ExecutionEnvironment.java")
-
-# Due to changes in FLINK-14008, the licenses directory and NOTICE file may not exist in
-# build-target folder. Just ignore them in this case.
-exist_licenses = None
 try:
     if in_flink_source:
 
@@ -221,12 +214,9 @@ try:
         FLINK_BIN = os.path.join(FLINK_DIST, "src/main/flink-bin")
 
         EXAMPLES_PATH = os.path.join(this_directory, "pyflink/table/examples")
-        LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_ROOT, "LICENSE")
         README_FILE_PATH = os.path.join(FLINK_BIN, "README.txt")
-
-        exist_licenses = os.path.exists(LICENSES_PATH)
 
         FLINK_BIN_XML_FILE = os.path.join(FLINK_BIN, '../assemblies/bin.xml')
         # copy conf files
@@ -256,22 +246,12 @@ try:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
 
-        if exist_licenses and platform.system() != "Windows":
-            # regenerate the licenses directory and NOTICE file as we only copy part of the
-            # flink binary distribution.
-            collect_licenses_file_sh = os.path.abspath(os.path.join(
-                this_directory, "..", "tools", "releasing", "collect_license_files.sh"))
-            subprocess.check_output([collect_licenses_file_sh, TEMP_PATH, TEMP_PATH])
-            # move the NOTICE file to the root of the package
-            GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")
-            os.rename(GENERATED_NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
     else:
         if not os.path.isdir(SCRIPTS_TEMP_PATH):
             print("The flink core files are not found. Please make sure your installation package "
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-        exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
     if VERSION.find('dev0') != -1:
         apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
     else:
@@ -315,11 +295,6 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
-    if exist_licenses and platform.system() != "Windows":
-        PACKAGES.append('pyflink.licenses')
-        PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
-        PACKAGE_DATA['pyflink.licenses'] = ['*']
-
     setup(
         name='apache-flink',
         version=VERSION,
@@ -356,5 +331,4 @@ finally:
     if in_flink_source:
         remove_if_exists(TEMP_PATH)
         remove_if_exists(LICENSE_FILE_TEMP_PATH)
-        remove_if_exists(NOTICE_FILE_TEMP_PATH)
         remove_if_exists(README_FILE_TEMP_PATH)
