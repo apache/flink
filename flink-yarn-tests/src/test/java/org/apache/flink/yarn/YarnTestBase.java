@@ -94,6 +94,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
@@ -585,14 +586,14 @@ public abstract class YarnTestBase extends TestLogger {
     }
 
     public static boolean verifyStringsInNamedLogFiles(
-            final String[] mustHave, final String fileName) {
-        List<String> mustHaveList = Arrays.asList(mustHave);
-        File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+            final String[] mustHave, final ApplicationId applicationId, final String fileName) {
+        final List<String> mustHaveList = Arrays.asList(mustHave);
+        final File cwd = new File("target", YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         if (!cwd.exists() || !cwd.isDirectory()) {
             return false;
         }
 
-        File foundFile =
+        final File foundFile =
                 TestUtils.findFile(
                         cwd.getAbsolutePath(),
                         new FilenameFilter() {
@@ -601,10 +602,15 @@ public abstract class YarnTestBase extends TestLogger {
                                 if (fileName != null && !name.equals(fileName)) {
                                     return false;
                                 }
-                                File f = new File(dir.getAbsolutePath() + "/" + name);
+                                final File f = new File(dir.getAbsolutePath(), name);
+                                // Only check the specified application logs
+                                if (StreamSupport.stream(f.toPath().spliterator(), false)
+                                        .noneMatch(p -> p.endsWith(applicationId.toString()))) {
+                                    return false;
+                                }
                                 LOG.info("Searching in {}", f.getAbsolutePath());
                                 try (Scanner scanner = new Scanner(f)) {
-                                    Set<String> foundSet = new HashSet<>(mustHave.length);
+                                    final Set<String> foundSet = new HashSet<>(mustHave.length);
                                     while (scanner.hasNextLine()) {
                                         final String lineFromFile = scanner.nextLine();
                                         for (String str : mustHave) {
