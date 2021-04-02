@@ -744,8 +744,7 @@ public class DefaultSchedulerTest extends TestLogger {
                                 .getAllExecutionVertices());
         final ExecutionAttemptID attemptId =
                 onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+        transitionToRunning(scheduler, attemptId);
 
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
@@ -775,8 +774,7 @@ public class DefaultSchedulerTest extends TestLogger {
                                 .getAllExecutionVertices());
         final ExecutionAttemptID attemptId =
                 onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+        transitionToRunning(scheduler, attemptId);
 
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
@@ -814,8 +812,7 @@ public class DefaultSchedulerTest extends TestLogger {
                                 .getAllExecutionVertices());
         final ExecutionAttemptID attemptId =
                 onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+        transitionToRunning(scheduler, attemptId);
 
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
@@ -1325,5 +1322,14 @@ public class DefaultSchedulerTest extends TestLogger {
                     checkpointTriggeredLatch.countDown();
                 });
         return checkpointTriggeredLatch;
+    }
+
+    private void transitionToRunning(DefaultScheduler scheduler, ExecutionAttemptID attemptId) {
+        Preconditions.checkState(
+                scheduler.updateTaskExecutionState(
+                        new TaskExecutionState(attemptId, ExecutionState.RECOVERING)));
+        Preconditions.checkState(
+                scheduler.updateTaskExecutionState(
+                        new TaskExecutionState(attemptId, ExecutionState.RUNNING)));
     }
 }
